@@ -1,0 +1,11 @@
+/* WebApp/static/css/main.css */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+body { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+}
+
+/* Alpine.js cloak to prevent flash of unstyled content */
+[x-cloak] { 
+    display: none !important; 
+}

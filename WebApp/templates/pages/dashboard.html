@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-1 w-full max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Overview Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-1">Monitora i progressi e le tue attività di oggi.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm">
+                <i class="ph ph-download-simple mr-2"></i> Report
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Clienti Attivi</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1">114</h3>
+                </div>
+                <div class="p-2.5 bg-blue-50 text-accent rounded-xl">
+                    <i class="ph-fill ph-users text-xl"></i>
+                </div>
+            </div>
+            <div class="flex items-center text-sm">
+                <span class="text-brand font-medium flex items-center"><i class="ph ph-trend-up mr-1"></i> +12%</span>
+                <span class="text-slate-400 ml-2">vs mese scorso</span>
+            </div>
+        </div>
+        
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Check da Visionare</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1">8</h3>
+                </div>
+                <div class="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                    <i class="ph-fill ph-clipboard-text text-xl"></i>
+                </div>
+            </div>
+            <div class="flex items-center text-sm">
+                <span class="text-amber-600 font-medium">3 urgenti</span>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Schede in Scadenza</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1">12</h3>
+                </div>
+                <div class="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                    <i class="ph-fill ph-calendar-warning text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">MRR (Mock Pagamenti)</p>
+                    <h3 class="text-2xl font-bold text-slate-900 mt-1">€ 4.250</h3>
+                </div>
+                <div class="p-2.5 bg-emerald-50 text-brand rounded-xl">
+                    <i class="ph-fill ph-currency-eur text-xl"></i>
+                </div>
+            </div>
+            <div class="flex items-center text-sm">
+                <span class="text-brand font-medium flex items-center"><i class="ph ph-trend-up mr-1"></i> +8.2%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recenti Check e Agenda -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 flex flex-col gap-8">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                    <h2 class="text-base font-bold text-primary">Check e Modifiche Recenti</h2>
+                    <button class="text-sm font-medium text-accent hover:text-blue-700">Vedi tutti</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-white text-slate-400 font-medium border-b border-slate-100">
+                            <tr>
+                                <th class="px-5 py-3 font-medium">Cliente</th>
+                                <th class="px-5 py-3 font-medium">Attività</th>
+                                <th class="px-5 py-3 font-medium">Stato</th>
+                                <th class="px-5 py-3 font-medium text-right">Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50 group">
+                                <td class="px-5 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://i.pravatar.cc/150?img=11" class="w-8 h-8 rounded-full">
+                                        <div>
+                                            <p class="font-semibold text-slate-900">Marco Rossi</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-4 text-slate-600">Nuovo Check Inserito</td>
+                                <td class="px-5 py-4">
+                                    <span class="inline-flex px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">Da Valutare</span>
+                                </td>
+                                <td class="px-5 py-4 text-right">
+                                    <button class="text-accent font-medium text-sm">Revisiona &rarr;</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-8">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                    <h2 class="text-base font-bold text-primary">Agenda di Oggi</h2>
+                    <i class="ph ph-calendar-blank text-slate-400 text-lg"></i>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div class="flex gap-4">
+                        <div class="flex flex-col text-center w-12 pt-1.5">
+                            <span class="text-sm font-bold text-slate-800">14:00</span>
+                        </div>
+                        <div class="flex-1 bg-white border border-slate-100 rounded-xl p-3 shadow-sm relative overflow-hidden">
+                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-accent"></div>
+                            <h4 class="text-sm font-bold text-slate-900">Call Conoscitiva</h4>
+                            <p class="text-xs text-slate-500 mt-1">Andrea Verdi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

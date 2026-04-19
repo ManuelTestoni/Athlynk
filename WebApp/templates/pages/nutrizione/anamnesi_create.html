@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-1 w-full max-w-4xl mx-auto space-y-6" x-data="{ step: 1 }">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Nuova Visita Anamnestica</h1>
+            <p class="text-sm text-slate-500 mt-1">Acquisisci dati corporei, abitudini e stile di vita del cliente.</p>
+        </div>
+        <div class="flex gap-3">
+            <button class="px-5 py-2 border border-slate-200 bg-white text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Salva Bozza</button>
+            <button class="px-5 py-2 bg-brand hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors shadow-sm shadow-emerald-200">Completa Visita</button>
+        </div>
+    </div>
+
+    <!-- Stepper Progress Bar -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between relative mb-2">
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 rounded-full z-0"></div>
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-brand rounded-full z-0 transition-all duration-300" :style="'width: ' + ((step - 1) / 3 * 100) + '%'"></div>
+
+            <button @click="step = 1" class="relative z-10 flex flex-col items-center group">
+                <div :class="step >= 1 ? 'bg-brand text-white border-brand' : 'bg-white border-slate-300 text-slate-400'" class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-colors shadow-sm group-hover:border-brand mb-1 shadow-sm">1</div>
+                <span :class="step >= 1 ? 'text-slate-900 font-bold' : 'text-slate-500'" class="text-[10px] uppercase font-semibold">Anagrafica</span>
+            </button>
+            <button @click="step = 2" class="relative z-10 flex flex-col items-center group">
+                <div :class="step >= 2 ? 'bg-brand text-white border-brand' : 'bg-white border-slate-300 text-slate-400'" class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-colors shadow-sm group-hover:border-brand mb-1 shadow-sm">2</div>
+                <span :class="step >= 2 ? 'text-slate-900 font-bold' : 'text-slate-500'" class="text-[10px] uppercase font-semibold">Fisiologia</span>
+            </button>
+            <button @click="step = 3" class="relative z-10 flex flex-col items-center group">
+                <div :class="step >= 3 ? 'bg-brand text-white border-brand' : 'bg-white border-slate-300 text-slate-400'" class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-colors shadow-sm group-hover:border-brand mb-1 shadow-sm">3</div>
+                <span :class="step >= 3 ? 'text-slate-900 font-bold' : 'text-slate-500'" class="text-[10px] uppercase font-semibold">Abitudini</span>
+            </button>
+            <button @click="step = 4" class="relative z-10 flex flex-col items-center group">
+                <div :class="step >= 4 ? 'bg-brand text-white border-brand' : 'bg-white border-slate-300 text-slate-400'" class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-colors shadow-sm group-hover:border-brand mb-1 shadow-sm">4</div>
+                <span :class="step >= 4 ? 'text-slate-900 font-bold' : 'text-slate-500'" class="text-[10px] uppercase font-semibold">Privacy</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Module Container -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+        
+        <!-- Step 1: Dati Anagrafici e Obiettivi -->
+        <div x-show="step === 1" class="space-y-6">
+            <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3"><i class="ph ph-identification-badge text-accent mr-2 text-xl"></i>Dati Generali & Obiettivi</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Cliente (seleziona esistente)</label>
+                    <select class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent outline-none text-sm font-medium text-slate-800">
+                        <option>Nuovo Cliente (Anamnesi a secco)</option>
+                        <option>Marco Rossi</option>
+                        <option>Giulia Bianchi</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Data Visita</label>
+                    <input type="date" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent outline-none text-sm font-medium text-slate-800" value="2026-04-19">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div class="md:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Obiettivo Principale</label>
+                    <textarea rows="3" placeholder="Es. Dimagrimento con mantenimento massa muscolare in vista dell'estate..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent outline-none text-sm text-slate-800 resize-none"></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end pt-4">
+                <button @click="step = 2" class="bg-primary hover:bg-slate-800 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm flex items-center">Continua <i class="ph ph-arrow-right ml-2"></i></button>
+            </div>
+        </div>
+
+        <!-- Step 2: Misure e Fisiologia -->
+        <div x-show="step === 2" style="display: none;" class="space-y-6">
+            <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3"><i class="ph ph-scales text-accent mr-2 text-xl"></i>Composizione Corporea</h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Peso (kg)</label>
+                    <input type="number" step="0.1" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-sm font-bold text-slate-800">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Altezza (cm)</label>
+                    <input type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-sm font-bold text-slate-800">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Body Fat (%)</label>
+                    <input type="number" step="0.1" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-sm font-bold text-slate-800">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">BMI Calc.</label>
+                    <input type="text" disabled class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-400 cursor-not-allowed">
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100">
+                <h3 class="text-sm font-bold text-slate-800 mb-4">Circonferenze Principali (cm)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Spalle</label>
+                        <input type="number" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Petto</label>
+                        <input type="number" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Vita</label>
+                        <input type="number" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Fianchi</label>
+                        <input type="number" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Coscia</label>
+                        <input type="number" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between pt-6">
+                <button @click="step = 1" class="text-slate-500 hover:text-slate-800 font-bold py-2.5 px-4 text-sm transition-colors">Indietro</button>
+                <button @click="step = 3" class="bg-primary hover:bg-slate-800 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm flex items-center">Continua <i class="ph ph-arrow-right ml-2"></i></button>
+            </div>
+        </div>
+
+        <!-- Step 3: Abitudini & Lifestyle -->
+        <div x-show="step === 3" style="display: none;" class="space-y-6">
+            <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3"><i class="ph ph-coffee text-accent mr-2 text-xl"></i>Stile di Vita e Alimentazione</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Lavoro / Attività Quotidiana</label>
+                    <select class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent outline-none text-sm font-medium text-slate-800">
+                        <option>Sedentario (Ufficio)</option>
+                        <option>Leggermente Attivo (Commesse/Spostamenti)</option>
+                        <option>Attivo (Lavoro fisico)</option>
+                        <option>Molto Attivo (Edilizia/ecc)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Ore di Sonno Media</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" min="4" max="12" step="1" class="w-full accent-brand">
+                        <span class="text-sm font-bold text-slate-700 whitespace-nowrap">7 ore</span>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 text-red-500"><i class="ph ph-warning text-sm mr-1"></i>Allergie / Intolleranze / Patologie</label>
+                    <textarea rows="2" placeholder="Nessuna intolleranza nota..." class="w-full px-4 py-3 bg-red-50/30 border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none text-sm text-slate-800 resize-none font-medium"></textarea>
+                </div>
+
+                <div class="md:col-span-2 pt-4 border-t border-slate-100">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Giornata Alimentare Tipo (Richiamo 24h)</label>
+                    <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div class="flex items-start gap-3">
+                            <span class="w-20 text-xs font-bold text-slate-400 mt-2 uppercase text-right">Colazione</span>
+                            <textarea rows="1" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-1 focus:ring-accent outline-none"></textarea>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="w-20 text-xs font-bold text-slate-400 mt-2 uppercase text-right">Pranzo</span>
+                            <textarea rows="1" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-1 focus:ring-accent outline-none"></textarea>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="w-20 text-xs font-bold text-slate-400 mt-2 uppercase text-right">Spuntini</span>
+                            <textarea rows="1" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-1 focus:ring-accent outline-none"></textarea>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="w-20 text-xs font-bold text-slate-400 mt-2 uppercase text-right">Cena</span>
+                            <textarea rows="1" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded text-sm focus:ring-1 focus:ring-accent outline-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Note private del professionista</label>
+                    <textarea rows="2" placeholder="Appunti personali sulla motivazione del cliente, aderenza passata..." class="w-full px-4 py-3 bg-yellow-50/50 border border-yellow-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none text-sm text-slate-800 resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-between pt-6">
+                <button @click="step = 2" class="text-slate-500 hover:text-slate-800 font-bold py-2.5 px-4 text-sm transition-colors">Indietro</button>
+                <button @click="step = 4" class="bg-primary hover:bg-slate-800 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm flex items-center">Continua <i class="ph ph-arrow-right ml-2"></i></button>
+            </div>
+        </div>
+
+        <!-- Step 4: Recap & Consenso Privacy -->
+        <div x-show="step === 4" style="display: none;" class="space-y-6">
+            <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3"><i class="ph ph-shield-check text-accent mr-2 text-xl"></i>Consenso e Termini</h2>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6 text-sm text-slate-600 h-48 overflow-y-auto font-medium">
+                <p class="font-bold mb-2">Informativa sul Trattamento dei Dati Personali e Sensibili (GDPR)</p>
+                <p class="mb-4">Il cliente dichiara di aver fornito informazioni veritiere in merito al proprio stato di salute. Il presente piano è di natura consultiva per l'attività sportiva e non sostituisce in alcun modo il parere di un medico o di un dietologo clinico.</p>
+                <p>Acconsento al trattamento dei miei dati personali, ivi inclusi i dati relativi ad abitudini alimentari e misure antropometriche, per le finalità di consulenza fitness/nutrizionale...</p>
+                <!-- mock testo privacy -->
+            </div>
+
+            <div class="space-y-3">
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <div class="relative flex items-center justify-center mt-0.5">
+                        <input type="checkbox" class="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded focus:ring-2 focus:ring-accent focus:border-accent checked:bg-brand checked:border-brand cursor-pointer transition-all">
+                        <i class="ph ph-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
+                    </div>
+                    <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900">Dichiaro di aver letto e accetto l'informativa sulla privacy e i termini di servizio. (Obbligatorio)</span>
+                </label>
+                
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <div class="relative flex items-center justify-center mt-0.5">
+                        <input type="checkbox" class="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded focus:ring-2 focus:ring-accent focus:border-accent checked:bg-brand checked:border-brand cursor-pointer transition-all">
+                        <i class="ph ph-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
+                    </div>
+                    <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900">Acconsento all'uso di foto pre/post (con volto oscurato) per portfolio interno. (Opzionale)</span>
+                </label>
+            </div>
+
+            <div class="pt-6 border-t border-slate-100 bg-white p-5 rounded-xl border-dashed border-2 border-slate-300 flex flex-col items-center justify-center text-center">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Firma Cliente (Digitale - mock)</p>
+                <div class="h-16 w-full max-w-xs bg-slate-50 border-b border-slate-300 flex items-center justify-center text-slate-300 italic text-xl font-serif">
+                    Spazio firma...
+                </div>
+            </div>
+
+            <div class="flex justify-between pt-6">
+                <button @click="step = 3" class="text-slate-500 hover:text-slate-800 font-bold py-2.5 px-4 text-sm transition-colors">Indietro</button>
+                <a href="{% url 'dashboard' %}" class="bg-brand hover:bg-emerald-600 text-white font-bold py-2.5 px-8 rounded-lg transition-colors shadow-sm shadow-emerald-200 text-sm flex items-center">
+                    <i class="ph ph-check-circle text-lg mr-2"></i> Conferma e Genera PDF
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

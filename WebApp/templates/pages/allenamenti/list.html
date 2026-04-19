@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ tab: 'tutti' }">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Libreria Programmi</h1>
+            <p class="text-sm text-slate-500 mt-1">Gestisci i modelli di allenamento e le schede assegnate.</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'allenamenti_create' %}" class="bg-primary text-white border border-transparent px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center shadow-sm">
+                <i class="ph ph-plus-circle mr-2 text-lg"></i> Nuovo Programma
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters & Tabs -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div class="flex space-x-1 border border-slate-200 bg-white rounded-lg p-1 shadow-sm">
+            <button @click="tab = 'tutti'" :class="tab === 'tutti' ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="px-4 py-1.5 text-sm font-medium rounded-md transition-all">Tutti</button>
+            <button @click="tab = 'attivi'" :class="tab === 'attivi' ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="px-4 py-1.5 text-sm font-medium rounded-md transition-all">Attivi</button>
+            <button @click="tab = 'bozze'" :class="tab === 'bozze' ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="px-4 py-1.5 text-sm font-medium rounded-md transition-all">Bozze</button>
+        </div>
+        
+        <div class="flex gap-3 w-full md:w-auto">
+            <div class="relative w-full md:w-64">
+                <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+                <input type="text" placeholder="Cerca scheda..." class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-accent focus:border-transparent outline-none">
+            </div>
+            <button class="border border-slate-200 bg-white p-2 rounded-lg text-slate-600 hover:bg-slate-50 shadow-sm"><i class="ph ph-faders text-lg"></i></button>
+        </div>
+    </div>
+
+    <!-- Grid List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Card 1 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col group cursor-pointer" onclick="window.location.href='{% url 'allenamenti_detail' %}'">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-brand/10 text-brand px-2.5 py-1 rounded text-xs font-bold tracking-wide">Attivo</div>
+                <button class="text-slate-400 hover:text-slate-900"><i class="ph ph-dots-three-outline-vertical text-lg"></i></button>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 leading-tight">Ipertrofia Upper/Lower Base</h3>
+            <p class="text-sm text-slate-500 mt-1 mb-4 flex-1 line-clamp-2">Mesociclo 1 - Focus su progressione lineare e volume moderato. Ideale per intermedi.</p>
+            
+            <div class="grid grid-cols-3 gap-2 mb-5">
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Durata</span>
+                    <span class="text-sm font-semibold text-slate-800">4 Sett.</span>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Split</span>
+                    <span class="text-sm font-semibold text-slate-800">4 gg</span>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Livello</span>
+                    <span class="text-sm font-semibold text-slate-800">Medio</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                <div class="flex -space-x-2">
+                    <img class="w-7 h-7 rounded-full border-2 border-white" src="https://i.pravatar.cc/100?img=1" alt="Avatar">
+                    <img class="w-7 h-7 rounded-full border-2 border-white" src="https://i.pravatar.cc/100?img=2" alt="Avatar">
+                    <div class="w-7 h-7 rounded-full border-2 border-white bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center">+3</div>
+                </div>
+                <span class="text-xs font-medium text-slate-500">Assegnata a 5 clienti</span>
+            </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col group cursor-pointer" x-show="tab === 'tutti' || tab === 'bozze'">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded text-xs font-bold tracking-wide">Bozza</div>
+                <button class="text-slate-400 hover:text-slate-900"><i class="ph ph-dots-three-outline-vertical text-lg"></i></button>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 leading-tight">Dimagrimento Total Body</h3>
+            <p class="text-sm text-slate-500 mt-1 mb-4 flex-1 line-clamp-2">Circuito HIIT per clienti con poco tempo. Da finalizzare inserendo gli esercizi core.</p>
+            
+            <div class="grid grid-cols-3 gap-2 mb-5 opacity-70">
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Durata</span>
+                    <span class="text-sm font-semibold text-slate-800">--</span>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Split</span>
+                    <span class="text-sm font-semibold text-slate-800">3 gg</span>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 text-center">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Livello</span>
+                    <span class="text-sm font-semibold text-slate-800">Base</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                <span class="text-xs font-medium text-slate-400">Ultima modifica: 2 gg fa</span>
+                <span class="text-xs font-bold text-accent hover:underline">Continua &rarr;</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

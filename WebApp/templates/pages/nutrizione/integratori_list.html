@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Catalogo Integratori</h1>
+            <p class="text-sm text-slate-500 mt-1">Gestisci i protocolli di integrazione e le schede prodotti.</p>
+        </div>
+        <button class="bg-primary hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
+            <i class="ph ph-plus-circle mr-2 text-lg"></i> Nuovo Prodotto
+        </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        <div class="flex gap-2">
+            <button class="px-4 py-1.5 bg-slate-100 text-slate-900 text-sm font-bold rounded-lg shrink-0">Tutti</button>
+            <button class="px-4 py-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 text-sm font-medium rounded-lg shrink-0">Proteine</button>
+            <button class="px-4 py-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 text-sm font-medium rounded-lg shrink-0">Creatina</button>
+            <button class="px-4 py-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 text-sm font-medium rounded-lg shrink-0">Vitamine</button>
+            <button class="px-4 py-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 text-sm font-medium rounded-lg shrink-0">Pre-Workout</button>
+        </div>
+        <div class="relative w-full md:w-64">
+            <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+            <input type="text" placeholder="Cerca prodotto..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-accent focus:bg-white outline-none">
+        </div>
+    </div>
+
+    <!-- Grid List -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Item 1 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 overflow-hidden group hover:border-slate-300 hover:shadow-md transition-all">
+            <div class="w-full h-40 bg-slate-50 rounded-xl mb-4 flex items-center justify-center relative">
+                <div class="absolute top-2 right-2 bg-white p-1 rounded shadow-sm text-xs font-bold text-slate-600">Optimum Nutrition</div>
+                <i class="ph ph-jar text-4xl text-slate-300 group-hover:text-accent transition-colors"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 leading-tight">Gold Standard 100% Whey</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-3">Proteine / Post-Workout</p>
+            
+            <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                <span class="text-sm font-bold text-slate-700">Dose: 30g</span>
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold flex items-center">
+                    <i class="ph ph-users mr-1"></i> Assegnato a 8
+                </span>
+            </div>
+        </div>
+
+        <!-- Item 2 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 overflow-hidden group hover:border-slate-300 hover:shadow-md transition-all">
+            <div class="w-full h-40 bg-slate-50 rounded-xl mb-4 flex items-center justify-center relative">
+                <div class="absolute top-2 right-2 bg-white p-1 rounded shadow-sm text-xs font-bold text-slate-600">Creapure®</div>
+                <i class="ph ph-pill text-4xl text-slate-300 group-hover:text-accent transition-colors"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 leading-tight">Creatina Monoidrato Micronizzata</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-3">Creatina / Forza</p>
+            
+            <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                <span class="text-sm font-bold text-slate-700">Dose: 5g</span>
+                <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold flex items-center">
+                    <i class="ph ph-users mr-1"></i> Assegnato a 15
+                </span>
+            </div>
+        </div>
+
+        <!-- Add New Button Area in Grid -->
+        <button class="border-2 border-dashed border-slate-300 rounded-2xl p-5 hover:bg-slate-50 hover:border-accent hover:text-accent transition-all flex flex-col items-center justify-center h-full min-h-[280px]">
+            <i class="ph ph-plus-circle text-3xl mb-2 text-slate-400 group-hover:text-accent"></i>
+            <span class="font-bold text-slate-600">Aggiungi Integratore</span>
+        </button>
+    </div>
+</div>
+{% endblock %}

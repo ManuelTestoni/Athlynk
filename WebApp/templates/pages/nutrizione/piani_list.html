@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Piani Alimentari</h1>
+            <p class="text-sm text-slate-500 mt-1">Gestisci i modelli dietetici e i piani assegnati ai clienti.</p>
+        </div>
+        <button class="bg-primary hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
+            <i class="ph ph-plus-circle mr-2 text-lg"></i> Nuovo Piano
+        </button>
+    </div>
+
+    <!-- Filtri Mock -->
+    <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 mb-6">
+        <div class="relative w-64">
+            <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+            <input type="text" placeholder="Cerca piano..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-accent">
+        </div>
+        <div class="flex gap-2">
+            <select class="border border-slate-200 bg-slate-50 text-sm rounded-lg px-3 py-2 text-slate-600">
+                <option>Tutte le diete</option>
+                <option>Ipercalorica</option>
+                <option>Ipocalorica</option>
+                <option>Normocalorica</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Card 1 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow group cursor-pointer relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-1 h-full bg-brand"></div>
+            <div class="flex justify-between">
+                <div class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">Ipocalorica</div>
+                <div class="text-slate-400 hover:text-slate-900"><i class="ph ph-dots-three text-xl"></i></div>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mt-4">Definizione Base 1800kcal</h3>
+            <p class="text-sm text-slate-500 mt-1 line-clamp-2">Piano equilibrato 40-30-30, adatto per prime fasi di cut con buon mantenimento muscolare.</p>
+            
+            <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">PRO</div>
+                    <div class="text-sm font-bold text-slate-700">140g</div>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">CHO</div>
+                    <div class="text-sm font-bold text-slate-700">180g</div>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">FAT</div>
+                    <div class="text-sm font-bold text-slate-700">60g</div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                <div class="flex items-center"><i class="ph ph-users mr-1"></i> 12 Assegnati</div>
+                <div class="flex items-center"><i class="ph ph-clock mr-1"></i> Mod. ieri</div>
+            </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow group cursor-pointer relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+            <div class="flex justify-between">
+                <div class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">Ipercalorica</div>
+                <div class="text-slate-400 hover:text-slate-900"><i class="ph ph-dots-three text-xl"></i></div>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mt-4">Bulking Pulito 2800kcal</h3>
+            <p class="text-sm text-slate-500 mt-1 line-clamp-2">High carb, moderate protein. Surplus leggero del 10% per atleti intermedi maschili.</p>
+            
+            <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">PRO</div>
+                    <div class="text-sm font-bold text-slate-700">160g</div>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">CHO</div>
+                    <div class="text-sm font-bold text-slate-700">350g</div>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg text-center">
+                    <div class="text-xs text-slate-400 font-semibold">FAT</div>
+                    <div class="text-sm font-bold text-slate-700">85g</div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                <div class="flex items-center"><i class="ph ph-users mr-1"></i> 4 Assegnati</div>
+                <div class="flex items-center"><i class="ph ph-clock mr-1"></i> Mod. 5gg fa</div>
+            </div>
+        </div>
+
+        <!-- Add New Card -->
+        <button class="border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 p-6 text-center cursor-pointer hover:bg-slate-100 hover:border-accent hover:text-accent transition-all flex flex-col items-center justify-center min-h-[250px]">
+            <div class="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3">
+                <i class="ph ph-plus text-xl text-slate-400 group-hover:text-accent"></i>
+            </div>
+            <h3 class="font-bold text-slate-700">Nuovo Modello</h3>
+            <p class="text-xs text-slate-400 mt-1">Crea un piano da zero o duplicalo</p>
+        </button>
+    </div>
+</div>
+{% endblock %}
