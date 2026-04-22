@@ -42,4 +42,12 @@ urlpatterns = [
     path('abbonamenti/dettaglio/', TemplateView.as_view(template_name='pages/abbonamenti/detail.html'), name='abbonamenti_detail'),
     path('abbonamenti/checkout/', TemplateView.as_view(template_name='pages/abbonamenti/checkout.html'), name='abbonamenti_checkout'),
     path('abbonamenti/checkout/success/', TemplateView.as_view(template_name='pages/abbonamenti/checkout_success.html'), name='abbonamenti_checkout_success'),
+    
+    # Check Progressi
+    path('check/', TemplateView.as_view(template_name='pages/check/dashboard.html'), name='check_dashboard'),
+    path('check/dettaglio/', TemplateView.as_view(template_name='pages/check/detail.html'), name='check_detail'),
+    path('check/crea/', TemplateView.as_view(template_name='pages/check/create.html'), name='check_create'),
+    
+    # Impostazioni
+    path('impostazioni/', TemplateView.as_view(template_name='pages/impostazioni/dashboard.html'), name='impostazioni_dashboard'),
 ]
