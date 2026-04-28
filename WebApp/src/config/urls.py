@@ -19,6 +19,8 @@ from django.urls import path
 from django.views.generic import TemplateView
 from . import views
 from . import views_workouts
+from . import views_agenda
+from . import views_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -38,7 +40,8 @@ urlpatterns = [
     path('allenamenti/dettaglio/', TemplateView.as_view(template_name='pages/allenamenti/detail.html'), name='allenamenti_detail'),
     
     # Agenda
-    path('agenda/', TemplateView.as_view(template_name='pages/agenda/dashboard.html'), name='agenda_dashboard'),
+    path('agenda/', views_agenda.agenda_dashboard_view, name='agenda_dashboard'),
+    path('api/agenda/events/', views_agenda.api_agenda_events, name='api_agenda_events'),
     path('agenda/lista/', TemplateView.as_view(template_name='pages/agenda/list.html'), name='agenda_list'),
     path('agenda/dettaglio/', TemplateView.as_view(template_name='pages/agenda/detail.html'), name='agenda_detail'),
     
@@ -49,9 +52,9 @@ urlpatterns = [
     path('abbonamenti/checkout/success/', TemplateView.as_view(template_name='pages/abbonamenti/checkout_success.html'), name='abbonamenti_checkout_success'),
     
     # Check Progressi
-    path('check/', TemplateView.as_view(template_name='pages/check/dashboard.html'), name='check_dashboard'),
+    path('check/', views_check.check_dashboard_view, name='check_dashboard'),
     path('check/dettaglio/', TemplateView.as_view(template_name='pages/check/detail.html'), name='check_detail'),
-    path('check/crea/', TemplateView.as_view(template_name='pages/check/create.html'), name='check_create'),
+    path('check/crea/', views_check.check_create_view, name='check_create'),
     
     # Impostazioni
     path('impostazioni/', TemplateView.as_view(template_name='pages/impostazioni/dashboard.html'), name='impostazioni_dashboard'),
