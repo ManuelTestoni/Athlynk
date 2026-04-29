@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ currentTab: 'overview', showClientModal: false, showPlanModal: false }">
+<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ currentTab: 'overview', showPlanModal: false }">
     
     <!-- Header Page -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
@@ -13,50 +13,9 @@
             <button @click="showPlanModal = true" class="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm">
                 <i class="ph ph-plus text-lg mr-2"></i> Nuovo Piano
             </button>
-            <button @click="showClientModal = true" class="bg-primary border border-transparent text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center shadow-sm">
+            <a href="{% url 'clienti_registra' %}" class="bg-primary border border-transparent text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center shadow-sm">
                 <i class="ph ph-user-plus text-lg mr-2"></i> Aggiungi Cliente
-            </button>
-        </div>
-    </div>
-
-    <!-- Modals (Add Client & Add Plan) -->
-    <!-- Modal Aggiungi Cliente -->
-    <div x-show="showClientModal" class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="display: none;">
-        <div x-show="showClientModal" x-transition.opacity class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
-        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div x-show="showClientModal" x-transition @click.away="showClientModal = false" class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                    <form method="POST" action="" data-ajax-form="true">
-                        {% csrf_token %}
-                        <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                            <h3 class="text-lg font-semibold leading-6 text-slate-900" id="modal-title">Aggiungi nuovo Cliente</h3>
-                            <div class="mt-4 space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700">Nome Completo</label>
-                                    <input type="text" name="full_name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm" required>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700">Indirizzo Email</label>
-                                    <input type="email" name="email" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm" required>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700">Obiettivo Principale</label>
-                                    <select name="goal" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-                                        <option value="Ipertrofia">Ipertrofia</option>
-                                        <option value="Dimagrimento">Dimagrimento</option>
-                                        <option value="Ricomposizione">Ricomposizione</option>
-                                        <option value="Forza">Forza</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                            <button type="submit" class="inline-flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 sm:ml-3 sm:w-auto">Aggiungi</button>
-                            <button type="button" @click="showClientModal = false" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 sm:mt-0 sm:w-auto">Annulla</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -163,7 +122,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-slate-900">Clienti Recenti</h2>
-                    <a href="#" class="text-sm font-semibold text-accent hover:text-blue-700 transition-colors">Vedi tutti &rarr;</a>
+                    <a href="{% url 'clienti_list' %}" class="text-sm font-semibold text-accent hover:text-blue-700 transition-colors">Vedi tutti &rarr;</a>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
@@ -187,9 +146,9 @@
                                 </td>
                                 <td class="px-6 py-4 text-slate-600 hidden md:table-cell">{{ c.created_at|date:"d M Y" }}</td>
                                 <td class="px-6 py-4 text-right">
-                                    <button class="text-slate-400 hover:text-slate-900 transition-colors">
+                                    <a href="{% url 'clienti_detail' c.id %}" class="text-slate-400 hover:text-accent transition-colors">
                                         <i class="ph ph-arrow-right text-lg"></i>
-                                    </button>
+                                    </a>
                                 </td>
                             </tr>
                             {% empty %}

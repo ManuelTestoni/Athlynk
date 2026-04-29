@@ -1,531 +1,185 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ activeTab: 'profilo' }">
+<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ activeTab: '{{ active_tab|default:"profilo" }}' }">
+
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Impostazioni Piattaforma</h1>
-        <p class="text-sm text-slate-500 mt-1">Gestisci il tuo profilo trainer, preferenze dell'app, branding e integrazioni.</p>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Impostazioni</h1>
+        <p class="text-sm text-slate-500 mt-1">Gestisci il tuo profilo, le credenziali e le preferenze di piattaforma.</p>
     </div>
+
+    <!-- Toast success -->
+    {% if saved and not error %}
+    <div class="mb-6 flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-3 rounded-xl text-sm font-medium">
+        <i class="ph-fill ph-check-circle text-emerald-500 text-lg shrink-0"></i>
+        {% if saved == 'profilo' %}Profilo aggiornato con successo.
+        {% elif saved == 'sicurezza' %}Password aggiornata con successo.
+        {% else %}Impostazioni salvate.{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Toast error -->
+    {% if error %}
+    <div class="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-xl text-sm font-medium">
+        <i class="ph-fill ph-warning-circle text-red-500 text-lg shrink-0"></i>
+        {{ error }}
+    </div>
+    {% endif %}
 
     <!-- Layout Container -->
     <div class="flex flex-col md:flex-row gap-8">
-        
+
         <!-- Sidebar Navigation -->
-        <aside class="w-full md:w-64 flex-shrink-0">
-            <nav class="flex flex-col space-y-1" aria-label="Impostazioni">
-                <button @click="activeTab = 'profilo'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'profilo', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'profilo'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-user-circle text-lg mr-3" :class="{'text-indigo-700': activeTab === 'profilo', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'profilo'}"></i>
-                    Profilo Trainer
+        <aside class="w-full md:w-56 flex-shrink-0">
+            <nav class="flex flex-col space-y-1">
+                {% for tab, icon, label in tab_list|default:"" %}{% endfor %}
+                <button @click="activeTab = 'profilo'" :class="activeTab === 'profilo' ? 'bg-accent/10 text-accent font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'" class="flex items-center px-4 py-3 rounded-lg text-sm transition-colors text-left w-full group">
+                    <i class="ph ph-user-circle text-lg mr-3"></i>Profilo Trainer
                 </button>
-                <button @click="activeTab = 'branding'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'branding', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'branding'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-paint-brush text-lg mr-3" :class="{'text-indigo-700': activeTab === 'branding', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'branding'}"></i>
-                    Branding & Colori
+                <button @click="activeTab = 'sicurezza'" :class="activeTab === 'sicurezza' ? 'bg-accent/10 text-accent font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'" class="flex items-center px-4 py-3 rounded-lg text-sm transition-colors text-left w-full group">
+                    <i class="ph ph-shield-check text-lg mr-3"></i>Sicurezza
                 </button>
-                <button @click="activeTab = 'preferenze'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'preferenze', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'preferenze'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-sliders text-lg mr-3" :class="{'text-indigo-700': activeTab === 'preferenze', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'preferenze'}"></i>
-                    Preferenze Dashboard
-                </button>
-                <button @click="activeTab = 'notifiche'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'notifiche', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'notifiche'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-bell text-lg mr-3" :class="{'text-indigo-700': activeTab === 'notifiche', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'notifiche'}"></i>
-                    Notifiche
-                </button>
-                <button @click="activeTab = 'integrazioni'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'integrazioni', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'integrazioni'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-plugs text-lg mr-3" :class="{'text-indigo-700': activeTab === 'integrazioni', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'integrazioni'}"></i>
-                    Pagamenti & Integrazioni
-                </button>
-                <button @click="activeTab = 'sicurezza'" :class="{'bg-indigo-50 text-indigo-700': activeTab === 'sicurezza', 'text-slate-600 hover:bg-slate-50 hover:text-slate-900': activeTab !== 'sicurezza'}" class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left w-full group">
-                    <i class="ph ph-shield-check text-lg mr-3" :class="{'text-indigo-700': activeTab === 'sicurezza', 'text-slate-400 group-hover:text-slate-500': activeTab !== 'sicurezza'}"></i>
-                    Sicurezza
-                </button>
+                <div class="pt-2 mt-2 border-t border-slate-100">
+                    <p class="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">In arrivo</p>
+                    <button disabled class="flex items-center px-4 py-3 rounded-lg text-sm text-slate-400 cursor-not-allowed w-full text-left">
+                        <i class="ph ph-paint-brush text-lg mr-3"></i>Branding
+                    </button>
+                    <button disabled class="flex items-center px-4 py-3 rounded-lg text-sm text-slate-400 cursor-not-allowed w-full text-left">
+                        <i class="ph ph-bell text-lg mr-3"></i>Notifiche
+                    </button>
+                    <button disabled class="flex items-center px-4 py-3 rounded-lg text-sm text-slate-400 cursor-not-allowed w-full text-left">
+                        <i class="ph ph-plugs text-lg mr-3"></i>Integrazioni
+                    </button>
+                </div>
             </nav>
         </aside>
 
-        <!-- Main Content Area -->
-        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[600px]">
-            
+        <!-- Main Content -->
+        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[500px]">
+
             <!-- ====== PROFILO TRAINER ====== -->
             <div x-show="activeTab === 'profilo'" class="p-6 md:p-8" x-cloak>
                 <div class="mb-6">
                     <h2 class="text-lg font-semibold text-slate-900">Il tuo Profilo</h2>
-                    <p class="text-sm text-slate-500">Aggiorna la tua foto e le tue informazioni pubbliche per i clienti.</p>
+                    <p class="text-sm text-slate-500 mt-0.5">Queste informazioni sono visibili ai tuoi clienti nella directory e nella loro app.</p>
                 </div>
 
-                <div class="space-y-8">
-                    <!-- Foto Profilo -->
-                    <div class="flex items-center gap-6">
-                        <div class="relative">
-                            <img src="https://ui-avatars.com/api/?name=Marco+Rossi&background=EDF2F7&color=4A5568&size=100" alt="Marco Rossi" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-sm">
-                            <button class="absolute bottom-0 right-0 bg-white p-1.5 rounded-full border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-colors">
-                                <i class="ph ph-camera text-sm"></i>
+                <form method="POST" action="{% url 'impostazioni_dashboard' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="profilo">
+
+                    <div class="space-y-6">
+
+                        <!-- Dati anagrafici -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Nome <span class="text-red-500">*</span></label>
+                                <input type="text" name="first_name" value="{{ coach.first_name }}" required
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Cognome <span class="text-red-500">*</span></label>
+                                <input type="text" name="last_name" value="{{ coach.last_name }}" required
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Telefono</label>
+                                <input type="tel" name="phone" value="{{ coach.phone|default:'' }}"
+                                       placeholder="+39 333 000 0000"
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Città</label>
+                                <input type="text" name="city" value="{{ coach.city|default:'' }}"
+                                       placeholder="Es. Milano"
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <!-- Professionale -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Specializzazione</label>
+                                <input type="text" name="specialization" value="{{ coach.specialization|default:'' }}"
+                                       placeholder="Es. Strength & Conditioning"
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Anni di Esperienza</label>
+                                <input type="number" name="years_experience" value="{{ coach.years_experience|default:'' }}"
+                                       min="0" max="60" placeholder="Es. 8"
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Certificazioni</label>
+                                <input type="text" name="certifications" value="{{ coach.certifications|default:'' }}"
+                                       placeholder="Es. NASM-CPT, ISSA-CES"
+                                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                <p class="text-xs text-slate-400 mt-1">Separale con una virgola.</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Bio & Filosofia</label>
+                                <textarea name="bio" rows="4" placeholder="Racconta ai tuoi potenziali clienti chi sei e come lavori..."
+                                          class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ coach.bio|default:'' }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Email account (read-only) -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                            <i class="ph ph-envelope text-slate-400"></i>
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium">Email account (non modificabile qui)</p>
+                                <p class="text-sm text-slate-700 font-semibold">{{ auth_user.email }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-2 border-t border-slate-100">
+                            <button type="submit" class="px-5 py-2.5 bg-accent hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                                Salva modifiche
                             </button>
                         </div>
-                        <div>
-                            <div class="flex gap-3 mb-2">
-                                <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Carica nuova</button>
-                                <button class="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">Rimuovi</button>
-                            </div>
-                            <p class="text-xs text-slate-500">Consigliati 400x400px o superiore. Max 5MB (JPG, PNG, WebP).</p>
-                        </div>
                     </div>
-
-                    <hr class="border-slate-100">
-
-                    <!-- Form Informazioni Personali -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="col-span-1 md:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Nome Professionale</label>
-                            <input type="text" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none" value="Marco Rossi Elite Trainer" placeholder="Es. Mario Rossi Personal Training">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Nome</label>
-                            <input type="text" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none" value="Marco" placeholder="Il tuo nome">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Cognome</label>
-                            <input type="text" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none" value="Rossi" placeholder="Il tuo cognome">
-                        </div>
-                        <div class="col-span-1 md:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Email di Contatto Pubblica</label>
-                            <input type="email" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none" value="contatto@marcorossitrainer.it">
-                            <p class="text-xs text-slate-500 mt-1">Questa email sarà visibile dai tuoi clienti e generata nelle comunicazioni.</p>
-                        </div>
-                        <div class="col-span-1 md:col-span-2">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Bio & Filosofia di Allenamento</label>
-                            <textarea rows="4" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">Specializzato in ricomposizione corporea e allenamento della forza per atleti e persone comuni. Aiuto i miei clienti a superare i propri limiti con metodo scientifico e mindset vincente.</textarea>
-                        </div>
-                    </div>
-
-                    <!-- Setup Links/Social -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Social & Links</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 shrink-0">
-                                    <i class="ph ph-instagram-logo text-xl"></i>
-                                </div>
-                                <input type="text" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 bg-white border outline-none" value="instagram.com/marcorossi_elite">
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 shrink-0">
-                                    <i class="ph ph-globe text-xl"></i>
-                                </div>
-                                <input type="text" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 bg-white border outline-none" value="marcorossitrainer.it" placeholder="Imposta il tuo sito web (opzionale)">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Azioni Salvataggio -->
-                    <div class="flex justify-end pt-4 border-t border-slate-100">
-                        <button class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Salva modifiche</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- ====== BRANDING & COLORI ====== -->
-            <div x-show="activeTab === 'branding'" class="p-6 md:p-8" x-cloak style="display: none;">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-slate-900">Personalizzazione Visiva</h2>
-                    <p class="text-sm text-slate-500">Imposta i colori e il logo del tuo brand che vedranno i tuoi clienti quando accedono alla piattaforma.</p>
-                </div>
-
-                <div class="space-y-8">
-                    <!-- Setup Logo -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-3">Logo Piattaforma</h3>
-                        <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
-                            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-200 group-hover:border-indigo-300 group-hover:text-indigo-600 text-slate-400">
-                                <i class="ph ph-upload-simple text-2xl"></i>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600">Clicca per caricare o trascina il logo</span>
-                            <span class="text-xs text-slate-400 mt-1">SVG, PNG, JPG (consigliato trasparente)</span>
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-100">
-
-                    <!-- Colori e branding base -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Colore Principale</h3>
-                        <p class="text-xs text-slate-500 mb-4 -mt-2">Scegli la tonalità dominante per i bottoni, grafici e accenti dell'app lato cliente.</p>
-                        
-                        <div class="flex flex-wrap gap-4">
-                            <!-- Preset colors -->
-                            <button class="w-10 h-10 rounded-full bg-slate-900 ring-2 ring-offset-2 ring-slate-900 flex items-center justify-center text-white">
-                                <i class="ph ph-check"></i>
-                            </button>
-                            <button class="w-10 h-10 rounded-full bg-indigo-600 hover:scale-110 transition-transform"></button>
-                            <button class="w-10 h-10 rounded-full bg-blue-500 hover:scale-110 transition-transform"></button>
-                            <button class="w-10 h-10 rounded-full bg-emerald-500 hover:scale-110 transition-transform"></button>
-                            <button class="w-10 h-10 rounded-full bg-orange-500 hover:scale-110 transition-transform"></button>
-                            <button class="w-10 h-10 rounded-full bg-rose-500 hover:scale-110 transition-transform"></button>
-                            <div class="w-10 h-10 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-400 transition-colors cursor-pointer">
-                                <i class="ph ph-plus"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Toggle whitelabel -->
-                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex items-start gap-4">
-                        <div class="text-indigo-600 mt-0.5"><i class="ph ph-crown text-xl"></i></div>
-                        <div class="flex-1">
-                            <h4 class="text-sm font-semibold text-slate-900">Whitelabel Avanzato <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] ml-2 font-bold uppercase tracking-wider">PRO</span></h4>
-                            <p class="text-sm text-slate-600 mt-1">Rimuovi il branding "TrainElite" dall'app del tuo cliente e utilizza un tuo dominio personalizzato (es. <code>app.marcorossitrainer.it</code>).</p>
-                            <div class="mt-3">
-                                <button class="text-sm font-medium text-indigo-700 hover:text-indigo-800 underline decoration-indigo-300 underline-offset-4">Scopri il piano Pro</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end pt-4 border-t border-slate-100">
-                        <button class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Salva branding</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- ====== PREFERENZE DASHBOARD ====== -->
-            <div x-show="activeTab === 'preferenze'" class="p-6 md:p-8" x-cloak style="display: none;">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-slate-900">Preferenze Globali</h2>
-                    <p class="text-sm text-slate-500">Regola il funzionamento dell'area di lavoro per te e i default per i tuoi clienti.</p>
-                </div>
-
-                <div class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Lingua -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Lingua Principale</label>
-                            <select class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                                <option value="it" selected>Italiano</option>
-                                <option value="en">English (US)</option>
-                                <option value="es">Español</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Formato Data -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Formato Data</label>
-                            <select class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                                <option value="DD/MM/YYYY" selected>DD/MM/YYYY (es. 25/12/2026)</option>
-                                <option value="MM/DD/YYYY">MM/DD/YYYY (es. 12/25/2026)</option>
-                                <option value="YYYY-MM-DD">YYYY-MM-DD (es. 2026-12-25)</option>
-                            </select>
-                        </div>
-
-                        <!-- Sistema Metrico -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Unità di Misura</label>
-                            <select class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                                <option value="metric" selected>Sistema Metrico (kg, cm)</option>
-                                <option value="imperial">Sistema Imperiale (lbs, in)</option>
-                            </select>
-                        </div>
-
-                        <!-- Fuso Orario -->
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Fuso Orario</label>
-                            <select class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                                <option value="Europe/Rome" selected>(UTC+01:00) Europe/Rome</option>
-                                <option value="Europe/London">(UTC+00:00) Europe/London</option>
-                                <option value="America/New_York">(UTC-05:00) America/New_York</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-100">
-
-                    <!-- Theme Toggles -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Temi e Accessibilità</h3>
-                        
-                        <!-- Toggle Item -->
-                        <div class="flex items-center justify-between py-3 border-b border-slate-100">
-                            <div>
-                                <p class="text-sm font-medium text-slate-900">Tema Scuro Automatico</p>
-                                <p class="text-xs text-slate-500">Adatta l'interfaccia basandosi sulle impostazioni di sistema OS.</p>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
-                        </div>
-                        
-                        <!-- Toggle Item -->
-                        <div class="flex items-center justify-between py-3">
-                            <div>
-                                <p class="text-sm font-medium text-slate-900">Schermata ridotta per clienti</p>
-                                <p class="text-xs text-slate-500">Mostra layout semplificati (meno KPI avanzate) sulle app dei clienti.</p>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end pt-4 border-t border-slate-100">
-                        <button class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Salva preferenze</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- ====== NOTIFICHE ====== -->
-            <div x-show="activeTab === 'notifiche'" class="p-6 md:p-8" x-cloak style="display: none;">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-slate-900">Centro Notifiche</h2>
-                    <p class="text-sm text-slate-500">Scegli come e quando ricevere avvisi importanti riguardo ai tuoi clienti.</p>
-                </div>
-
-                <div class="space-y-6">
-                    
-                    <!-- Gruppo: Attività Cliente -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 bg-slate-50 py-2 px-3 rounded-lg mb-2">Attività dei Clienti</h3>
-                        <div class="divide-y divide-slate-100 px-2">
-                            <div class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm text-slate-800">Feedback Allenamento Compilato</p>
-                                    <p class="text-xs text-slate-500">Quando un cliente salva un log di allenamento</p>
-                                </div>
-                                <div class="flex gap-4">
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Push
-                                    </label>
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500"> Email
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm text-slate-800">Check-in periodico completato</p>
-                                </div>
-                                <div class="flex gap-4">
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Push
-                                    </label>
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Email
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm text-slate-800">Pagamento Abbonamento Ricevuto</p>
-                                </div>
-                                <div class="flex gap-4">
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Push
-                                    </label>
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Email
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Gruppo: Appuntamenti -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 bg-slate-50 py-2 px-3 rounded-lg mb-2">Agenda e Appuntamenti</h3>
-                        <div class="divide-y divide-slate-100 px-2">
-                            <div class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm text-slate-800">Promemoria Appuntamenti</p>
-                                    <p class="text-xs text-slate-500">2 ore prima della sessione programmata</p>
-                                </div>
-                                <div class="flex gap-4">
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Push
-                                    </label>
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> SMS
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between py-3">
-                                <div>
-                                    <p class="text-sm text-slate-800">Disdetta Cliente</p>
-                                </div>
-                                <div class="flex gap-4">
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Push
-                                    </label>
-                                    <label class="flex items-center text-xs text-slate-600 gap-1.5 cursor-pointer">
-                                        <input type="checkbox" class="rounded text-indigo-600 focus:ring-indigo-500" checked> Email
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end pt-4 border-t border-slate-100">
-                        <button class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Aggiorna Preferenze Notifiche</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- ====== INTEGRAZIONI & PAGAMENTI ====== -->
-            <div x-show="activeTab === 'integrazioni'" class="p-6 md:p-8" x-cloak style="display: none;">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-slate-900">Integrazioni & Pagamenti (Mock)</h2>
-                    <p class="text-sm text-slate-500">Collega altre app e piattaforme di pagamento al tuo account TrainElite.</p>
-                </div>
-
-                <div class="space-y-6">
-                    <!-- Provider di Pagamento -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Ricezione Pagamenti</h3>
-                        
-                        <!-- Integrazione Card -->
-                        <div class="border border-slate-200 rounded-xl p-5 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-[#635BFF]/10 text-[#635BFF] rounded-lg flex items-center justify-center text-2xl">
-                                    <i class="ph-fill ph-stripe-logo"></i>
-                                </div>
-                                <div>
-                                    <h4 class="text-sm font-bold text-slate-900">Stripe</h4>
-                                    <p class="text-xs text-slate-500">Il gateway integrato e connesso. Commissioni standard.</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                                <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-bold uppercase tracking-wider rounded-md border border-emerald-200">Connesso</span>
-                                <button class="text-sm text-slate-500 hover:text-red-600 font-medium">Scollega</button>
-                            </div>
-                        </div>
-
-                        <!-- Integrazione Card -->
-                        <div class="border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-[#00457C]/10 text-[#00457C] rounded-lg flex items-center justify-center text-2xl">
-                                    <i class="ph-fill ph-paypal-logo"></i>
-                                </div>
-                                <div>
-                                    <h4 class="text-sm font-bold text-slate-900">PayPal</h4>
-                                    <p class="text-xs text-slate-500">Ricevi pagamenti diretti su conto PayPal.</p>
-                                </div>
-                            </div>
-                            <div class="w-full sm:w-auto mt-2 sm:mt-0">
-                                <button class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">Connetti Account</button>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <hr class="border-slate-100">
-
-                    <!-- Produttività  -->
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Produttività & Comunicazione</h3>
-                        
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <!-- Card mini -->
-                            <div class="border border-slate-200 rounded-xl p-4 flex flex-col items-start gap-4 h-full relative group">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center"><i class="ph ph-calendar-plus text-xl"></i></div>
-                                    <div>
-                                        <h4 class="text-sm font-bold text-slate-900">Google Calendar</h4>
-                                        <p class="text-[11px] text-slate-500 line-clamp-1">Sincronizza appuntamenti</p>
-                                    </div>
-                                </div>
-                                <button class="mt-auto px-4 py-1.5 w-full bg-slate-900 text-white rounded-md text-xs font-semibold hover:bg-slate-800 transition-colors">Connetti</button>
-                            </div>
-
-                            <div class="border border-slate-200 rounded-xl p-4 flex flex-col items-start gap-4 h-full relative group">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-[#2D8CFF]/10 text-[#2D8CFF] rounded-lg flex items-center justify-center"><i class="ph-fill ph-video-camera text-xl"></i></div>
-                                    <div>
-                                        <h4 class="text-sm font-bold text-slate-900">Zoom</h4>
-                                        <p class="text-[11px] text-slate-500 line-clamp-1">Genera link automatizzati</p>
-                                    </div>
-                                </div>
-                                <div class="mt-auto w-full flex items-center justify-between">
-                                    <span class="text-xs font-medium text-emerald-600 flex items-center"><i class="ph-fill ph-check-circle mr-1"></i> Attivo</span>
-                                    <button class="text-xs text-slate-500 hover:text-red-600">Gestisci</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </form>
             </div>
 
 
             <!-- ====== SICUREZZA ====== -->
-            <div x-show="activeTab === 'sicurezza'" class="p-6 md:p-8" x-cloak style="display: none;">
+            <div x-show="activeTab === 'sicurezza'" class="p-6 md:p-8" x-cloak>
                 <div class="mb-6">
                     <h2 class="text-lg font-semibold text-slate-900">Sicurezza Account</h2>
-                    <p class="text-sm text-slate-500">Gestisci le credenziali, l'autenticazione a due fattori e i dispositivi attivi.</p>
+                    <p class="text-sm text-slate-500 mt-0.5">Aggiorna la tua password di accesso alla piattaforma.</p>
                 </div>
 
-                <div class="space-y-8">
-                    <!-- Password Update -->
+                <form method="POST" action="{% url 'impostazioni_dashboard' %}#sicurezza" class="max-w-md space-y-5">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="sicurezza">
+
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">Modifica Password</h3>
-                        <div class="max-w-md space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Password Attuale</label>
-                                <input type="password" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Nuova Password</label>
-                                <input type="password" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Conferma Nuova Password</label>
-                                <input type="password" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2.5 bg-white border outline-none">
-                            </div>
-                            <button class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">Aggiorna Password</button>
-                        </div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Password Attuale <span class="text-red-500">*</span></label>
+                        <input type="password" name="current_password" required autocomplete="current-password"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
                     </div>
-
-                    <hr class="border-slate-100">
-
-                    <!-- 2FA -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-orange-50/50 border border-orange-100 rounded-xl">
-                        <div>
-                            <h4 class="text-sm font-semibold text-slate-900 flex items-center gap-2"><i class="ph-fill ph-shield-warning text-orange-500 text-lg"></i> Autenticazione a Due Fattori (2FA)</h4>
-                            <p class="text-sm text-slate-600 mt-1 max-w-lg">Aggiungi un livello extra di sicurezza al tuo account. Attualmente disattivata, te ne raccomandiamo l'attivazione.</p>
-                        </div>
-                        <button class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shadow-sm">Configura 2FA</button>
-                    </div>
-
-                    <!-- Dispositivi e Sessioni -->
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm font-semibold text-slate-900">Sessioni Attive (Mock)</h3>
-                            <button class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Disconnetti tutti gli altri</button>
-                        </div>
-                        
-                        <div class="border border-slate-200 rounded-xl divide-y divide-slate-100">
-                            <!-- Device -->
-                            <div class="p-4 flex items-center justify-between">
-                                <div class="flex items-center gap-4">
-                                    <div class="text-slate-400 text-2xl"><i class="ph ph-laptop"></i></div>
-                                    <div>
-                                        <p class="text-sm font-semibold text-slate-900">MacBook Pro - Safari <span class="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase ml-1">Current</span></p>
-                                        <p class="text-xs text-slate-500">Roma, Italia • IP: 192.168.1.1</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Device -->
-                            <div class="p-4 flex items-center justify-between">
-                                <div class="flex items-center gap-4">
-                                    <div class="text-slate-400 text-2xl"><i class="ph ph-device-mobile"></i></div>
-                                    <div>
-                                        <p class="text-sm font-semibold text-slate-900">iPhone 14 Pro - App nativa</p>
-                                        <p class="text-xs text-slate-500">Milano, Italia • Ultimo accesso 2 ore fa</p>
-                                    </div>
-                                </div>
-                                <button class="text-slate-400 hover:text-red-500 transition-colors p-2" title="Revoca sessione"><i class="ph ph-trash"></i></button>
-                            </div>
-                        </div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Nuova Password <span class="text-red-500">*</span></label>
+                        <input type="password" name="new_password" required minlength="8" autocomplete="new-password"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        <p class="text-xs text-slate-400 mt-1">Minimo 8 caratteri.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Conferma Nuova Password <span class="text-red-500">*</span></label>
+                        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
                     </div>
 
-                </div>
+                    <div class="pt-2 border-t border-slate-100">
+                        <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                            Aggiorna Password
+                        </button>
+                    </div>
+                </form>
             </div>
 
         </div>

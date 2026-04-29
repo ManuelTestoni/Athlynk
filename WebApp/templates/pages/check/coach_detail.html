@@ -1,172 +1,194 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ activeTab: 'feed', openContact: false }">
-    <div class="mb-6 flex items-center justify-between gap-4">
-        <div>
-            <a href="{% url 'check_coach_directory' %}" class="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                <i class="ph ph-arrow-left mr-2"></i>
-                Torna alla directory
-            </a>
-        </div>
-        <button @click="openContact = true" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors">
-            Richiedi coach
-        </button>
-    </div>
+<div class="w-full max-w-5xl mx-auto" x-data="{ activeTab: 'piani' }">
 
-    <div class="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6 items-start">
-        <main class="space-y-6">
-            <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                <div class="relative h-72">
-                    <img src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=80" alt="Marco Rossi" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent"></div>
-                    <div class="absolute bottom-5 left-5 right-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                        <div class="flex items-end gap-4">
-                            <img src="https://i.pravatar.cc/180?u=marco.rossi" alt="Marco Rossi" class="w-20 h-20 rounded-3xl border-4 border-white object-cover shadow-xl">
-                            <div>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-slate-900 text-[10px] font-bold uppercase tracking-wider">Verified Coach</span>
-                                <h1 class="mt-2 text-3xl font-bold text-white tracking-tight">Marco Rossi</h1>
-                                <p class="text-sm text-slate-200">Personal Trainer & Coach di ricomposizione corporea</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button class="inline-flex items-center px-4 py-2 rounded-xl bg-white/90 text-slate-900 text-sm font-semibold hover:bg-white transition-colors">
-                                <i class="ph ph-instagram-logo mr-2"></i> Instagram
-                            </button>
-                            <button class="inline-flex items-center px-4 py-2 rounded-xl bg-white/90 text-slate-900 text-sm font-semibold hover:bg-white transition-colors">
-                                <i class="ph ph-chat-circle mr-2"></i> Messaggio
-                            </button>
-                        </div>
+    <!-- Back -->
+    <nav class="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <a href="{% url 'check_coach_directory' %}" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+            <i class="ph ph-arrow-left"></i> Tutti i coach
+        </a>
+    </nav>
+
+    <!-- Hero -->
+    <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+        <div class="h-48 bg-gradient-to-br from-slate-800 to-slate-600 relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent"></div>
+            <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div class="flex items-end gap-4">
+                    <div class="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-slate-200 flex items-center justify-center text-3xl font-bold text-slate-600 overflow-hidden shrink-0">
+                        {% if coach.profile_image_url %}
+                        <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                        {{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-slate-900 text-[10px] font-bold uppercase tracking-wider">Coach</span>
+                        <h1 class="mt-2 text-2xl font-bold text-white">{{ coach_name }}</h1>
+                        <p class="text-sm text-slate-300">{{ coach.specialization|default:"Personal Trainer" }}</p>
                     </div>
                 </div>
-
-                <div class="p-6 md:p-8">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-xs text-slate-500 uppercase tracking-wider">Clienti seguiti</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-2">86</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-xs text-slate-500 uppercase tracking-wider">Rating</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-2">4.9</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-xs text-slate-500 uppercase tracking-wider">Tempo risposta</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-2">32 min</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p class="text-xs text-slate-500 uppercase tracking-wider">Posti liberi</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-2">3</p>
-                        </div>
-                    </div>
-
-                    <p class="text-sm text-slate-600 leading-7 max-w-3xl">Aiuto persone impegnate a ritrovare forma e costanza con un metodo concreto, semplice e sostenibile. Il mio approccio è ideale per chi vuole risultati reali senza caos, con attenzione a check, abitudini e comunicazione costante.</p>
-
-                    <div class="mt-6 flex flex-wrap gap-2">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">Dimagrimento</span>
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">Forza</span>
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">Lifestyle</span>
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">Metodo sostenibile</span>
-                    </div>
-                </div>
-            </section>
-
-            <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                <div class="px-6 pt-6">
-                    <div class="flex bg-slate-100 p-1 rounded-2xl w-fit">
-                        <button @click="activeTab = 'feed'" :class="activeTab === 'feed' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600'" class="px-4 py-2 rounded-xl text-sm font-semibold transition-colors">Feed</button>
-                        <button @click="activeTab = 'servizi'" :class="activeTab === 'servizi' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600'" class="px-4 py-2 rounded-xl text-sm font-semibold transition-colors">Servizi</button>
-                        <button @click="activeTab = 'recensioni'" :class="activeTab === 'recensioni' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600'" class="px-4 py-2 rounded-xl text-sm font-semibold transition-colors">Recensioni</button>
-                    </div>
-                </div>
-
-                <div class="p-6 md:p-8">
-                    <div x-show="activeTab === 'feed'" class="grid grid-cols-1 sm:grid-cols-2 gap-4" x-cloak>
-                        <article class="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50">
-                            <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80" class="w-full h-52 object-cover" alt="Post coach">
-                            <div class="p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Allenamento</p>
-                                <p class="mt-2 text-sm text-slate-700">Focus sui fondamentali: squat, hinge e progressione settimanale.</p>
-                            </div>
-                        </article>
-                        <article class="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50">
-                            <img src="https://images.unsplash.com/photo-1518611012118-f0c5d9e7d6cf?auto=format&fit=crop&w=1200&q=80" class="w-full h-52 object-cover" alt="Post coach">
-                            <div class="p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Mindset</p>
-                                <p class="mt-2 text-sm text-slate-700">Una routine semplice batte un piano perfetto ma insostenibile.</p>
-                            </div>
-                        </article>
-                    </div>
-
-                    <div x-show="activeTab === 'servizi'" class="grid grid-cols-1 md:grid-cols-3 gap-4" x-cloak style="display:none;">
-                        <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                            <p class="font-semibold text-slate-900">Onboarding</p>
-                            <p class="text-sm text-slate-600 mt-1">Analisi iniziale e primo setup abitudini.</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                            <p class="font-semibold text-slate-900">Check settimanali</p>
-                            <p class="text-sm text-slate-600 mt-1">Peso, foto e feedback con revisione rapida.</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                            <p class="font-semibold text-slate-900">Supporto chat</p>
-                            <p class="text-sm text-slate-600 mt-1">Assistenza asincrona per dubbi e aggiustamenti.</p>
-                        </div>
-                    </div>
-
-                    <div x-show="activeTab === 'recensioni'" class="space-y-4" x-cloak style="display:none;">
-                        <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                            <p class="text-sm text-slate-700">“Metodo serio, feedback veloci e progressi finalmente chiari.”</p>
-                            <p class="text-xs text-slate-500 mt-2">Alessia, obiettivo dimagrimento</p>
-                        </div>
-                        <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50">
-                            <p class="text-sm text-slate-700">“Mi ha aiutato a restare costante senza sentirmi sotto pressione.”</p>
-                            <p class="text-xs text-slate-500 mt-2">Davide, ricomposizione</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <aside class="space-y-6 lg:sticky lg:top-6 h-fit">
-            <div class="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Info rapide</h2>
-                <div class="mt-4 space-y-3 text-sm">
-                    <div class="flex items-center justify-between"><span class="text-slate-500">Prezzo</span><span class="font-semibold text-slate-900">da 99€/mese</span></div>
-                    <div class="flex items-center justify-between"><span class="text-slate-500">Città</span><span class="font-semibold text-slate-900">Milano</span></div>
-                    <div class="flex items-center justify-between"><span class="text-slate-500">Disponibilità</span><span class="font-semibold text-emerald-700">3 posti liberi</span></div>
-                    <div class="flex items-center justify-between"><span class="text-slate-500">Stile</span><span class="font-semibold text-slate-900">Pratico e misurabile</span></div>
-                </div>
+                {% if coach.city %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 text-white text-xs font-medium backdrop-blur-sm">
+                    <i class="ph ph-map-pin"></i> {{ coach.city }}
+                </span>
+                {% endif %}
             </div>
+        </div>
 
-            <div class="bg-slate-900 text-white rounded-3xl shadow-lg p-6">
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Contatto rapido</p>
-                <h3 class="mt-3 text-lg font-bold">Richiedi il collegamento</h3>
-                <p class="mt-2 text-sm text-slate-300">Placeholder sicuro, senza pagamento o autenticazione reale.</p>
-                <button @click="openContact = true" class="mt-5 inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors">
-                    Apri modulo richiesta
+        <!-- Stats row -->
+        <div class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ coach.coaching_relationships_as_coach.count }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Clienti</p>
+            </div>
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ coach.years_experience|default:"—" }}{% if coach.years_experience %}<span class="text-base font-medium text-slate-500"> ann.</span>{% endif %}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Esperienza</p>
+            </div>
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ active_plans.count }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Piani attivi</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+
+        <!-- Left: Tabs content -->
+        <div class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            <!-- Tab nav -->
+            <div class="flex border-b border-slate-100 px-6 pt-5 gap-1">
+                <button @click="activeTab = 'piani'" :class="activeTab === 'piani' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'" class="px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+                    Piani &amp; Prezzi
+                </button>
+                <button @click="activeTab = 'bio'" :class="activeTab === 'bio' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'" class="px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+                    Profilo
                 </button>
             </div>
-        </aside>
-    </div>
 
-    <div x-show="openContact" x-transition.opacity class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm px-4 py-6 overflow-y-auto" x-cloak>
-        <div class="mx-auto max-w-lg min-h-full flex items-center">
-            <div class="w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900">Richiedi contatto</h3>
-                        <p class="text-sm text-slate-500 mt-1">Richiesta mock, nessun invio reale.</p>
+            <!-- Tab: Piani -->
+            <div x-show="activeTab === 'piani'" class="p-6" x-cloak>
+                {% if active_plans %}
+                <div class="space-y-4">
+                    {% for plan in active_plans %}
+                    <div class="border border-slate-200 rounded-2xl p-5 hover:border-accent/40 transition-colors">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-slate-900">{{ plan.name }}</h3>
+                                {% if plan.plan_type %}
+                                <p class="text-xs text-slate-500 mt-0.5">{{ plan.plan_type }}</p>
+                                {% endif %}
+                                {% if plan.description %}
+                                <p class="text-sm text-slate-600 mt-2 leading-relaxed">{{ plan.description }}</p>
+                                {% endif %}
+                                {% if plan.duration_days %}
+                                <p class="text-xs text-slate-400 mt-2"><i class="ph ph-clock"></i> Durata: {{ plan.duration_days }} giorni</p>
+                                {% endif %}
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-2xl font-bold text-slate-900">€{{ plan.price }}</p>
+                                {% if plan.billing_interval %}
+                                <p class="text-xs text-slate-400">/ {{ plan.billing_interval }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <button @click="openContact = false" class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors flex items-center justify-center"><i class="ph ph-x text-lg"></i></button>
+                    {% endfor %}
                 </div>
-                <div class="p-6 space-y-4">
-                    <input type="text" placeholder="Il tuo nome" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <input type="email" placeholder="La tua email" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <textarea rows="4" placeholder="Scrivi perché vuoi lavorare con questo coach" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-                    <button class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-3 transition-colors">Invia richiesta</button>
+                {% else %}
+                <div class="py-10 text-center text-slate-400">
+                    <i class="ph ph-package text-3xl"></i>
+                    <p class="mt-2 text-sm">Nessun piano pubblicato al momento.</p>
                 </div>
+                {% endif %}
+            </div>
+
+            <!-- Tab: Bio / Profilo -->
+            <div x-show="activeTab === 'bio'" class="p-6 space-y-6" x-cloak>
+                {% if coach.bio or coach.description %}
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Bio</h3>
+                    <p class="text-sm text-slate-700 leading-7">{{ coach.bio|default:coach.description }}</p>
+                </div>
+                {% endif %}
+
+                {% if coach.specialization %}
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Specializzazione</h3>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
+                        {{ coach.specialization }}
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if coach.certifications %}
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Certificazioni</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for cert in coach.certifications.split %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{{ cert }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not coach.bio and not coach.description and not coach.specialization and not coach.certifications %}
+                <div class="py-8 text-center text-slate-400">
+                    <i class="ph ph-user text-3xl"></i>
+                    <p class="mt-2 text-sm">Il coach non ha ancora compilato il profilo.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
+
+        <!-- Right: Sidebar con connect -->
+        <aside class="space-y-4 lg:sticky lg:top-6">
+
+            <!-- Quick info -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3 text-sm">
+                {% if active_plans %}
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Prezzo</span>
+                    <span class="font-semibold text-slate-900">da €{{ active_plans.0.price }}</span>
+                </div>
+                {% endif %}
+                {% if coach.city %}
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Città</span>
+                    <span class="font-semibold text-slate-900">{{ coach.city }}</span>
+                </div>
+                {% endif %}
+                {% if coach.years_experience %}
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Esperienza</span>
+                    <span class="font-semibold text-slate-900">{{ coach.years_experience }} anni</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Connect CTA -->
+            <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-base">Inizia con {{ coach.first_name }}</h3>
+                <p class="text-sm text-slate-300 mt-1.5 mb-4">Connettiti al coach per ricevere allenamenti, check e supporto diretto.</p>
+
+                {% if has_coach %}
+                <div class="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-3 text-sm font-medium">
+                    <i class="ph-fill ph-check-circle text-emerald-400"></i>
+                    Hai già un coach attivo
+                </div>
+                {% else %}
+                <form method="POST" action="{% url 'check_connect_coach' coach.id %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors">
+                        <i class="ph ph-user-plus"></i> Connettiti
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </aside>
     </div>
 </div>
 {% endblock %}

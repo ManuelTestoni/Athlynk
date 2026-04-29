@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.contrib.auth.hashers import make_password
 from django.db.models import Count, Max, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -5,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 import json
 
-from domain.accounts.models import CoachProfile, ClientProfile
+from domain.accounts.models import CoachProfile, ClientProfile, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship
@@ -134,6 +137,118 @@ def coach_client_detail_view(request, client_id):
         'subscriptions': subscriptions,
         'recent_checks': recent_checks,
     })
+
+
+def registra_client_view(request):
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    plans = SubscriptionPlan.objects.filter(coach=coach, is_active=True).order_by('name')
+
+    if request.method == 'GET':
+        return render(request, 'pages/clienti/registra.html', {
+            'coach': coach,
+            'is_coach': True,
+            'plans': plans,
+        })
+
+    # POST — registrazione cliente
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    email = request.POST.get('email', '').strip()
+    password = request.POST.get('password', '').strip()
+    phone = request.POST.get('phone', '').strip() or None
+    birth_date_str = request.POST.get('birth_date', '').strip()
+    gender = request.POST.get('gender', '').strip() or None
+    height_str = request.POST.get('height_cm', '').strip()
+    primary_goal = request.POST.get('primary_goal', '').strip() or None
+    activity_level = request.POST.get('activity_level', '').strip() or None
+    medical_notes = request.POST.get('medical_notes_summary', '').strip() or None
+    plan_id = request.POST.get('subscription_plan_id', '').strip()
+    payment_notes = request.POST.get('payment_notes', '').strip() or None
+
+    errors = {}
+    if not first_name:
+        errors['first_name'] = 'Il nome è obbligatorio.'
+    if not last_name:
+        errors['last_name'] = 'Il cognome è obbligatorio.'
+    if not email:
+        errors['email'] = "L'email è obbligatoria."
+    elif User.objects.filter(email=email).exists():
+        errors['email'] = 'Questa email è già registrata sulla piattaforma.'
+    if not password or len(password) < 6:
+        errors['password'] = 'La password temporanea deve essere di almeno 6 caratteri.'
+
+    if not plan_id:
+        errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
+
+    if errors:
+        return render(request, 'pages/clienti/registra.html', {
+            'coach': coach,
+            'is_coach': True,
+            'plans': plans,
+            'errors': errors,
+            'post_data': request.POST,
+        })
+
+    birth_date = None
+    if birth_date_str:
+        from datetime import date as date_type
+        try:
+            birth_date = date_type.fromisoformat(birth_date_str)
+        except ValueError:
+            pass
+
+    height_cm = int(height_str) if height_str.isdigit() else None
+
+    new_user = User.objects.create(
+        email=email,
+        password_hash=make_password(password),
+        role='CLIENT',
+        is_active=True,
+    )
+    client = ClientProfile.objects.create(
+        user=new_user,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
+        birth_date=birth_date,
+        gender=gender,
+        height_cm=height_cm,
+        primary_goal=primary_goal,
+        activity_level=activity_level,
+        medical_notes_summary=medical_notes,
+        client_status='ACTIVE',
+        onboarding_status='REGISTERED',
+    )
+    CoachingRelationship.objects.create(
+        coach=coach,
+        client=client,
+        status='ACTIVE',
+        start_date=timezone.now().date(),
+    )
+
+    try:
+        plan = SubscriptionPlan.objects.get(id=int(plan_id), coach=coach, is_active=True)
+        end_date = None
+        if plan.duration_days:
+            end_date = timezone.now().date() + timedelta(days=plan.duration_days)
+        ClientSubscription.objects.create(
+            client=client,
+            subscription_plan=plan,
+            status='ACTIVE',
+            payment_status='PAID',
+            start_date=timezone.now().date(),
+            end_date=end_date,
+            auto_renew=False,
+            external_payment_provider='manual',
+            external_reference=payment_notes or 'Pagamento diretto in studio',
+        )
+    except (SubscriptionPlan.DoesNotExist, ValueError):
+        pass
+
+    return redirect('clienti_detail', client_id=client.id)
 
 
 def _require_client(request):
@@ -297,6 +412,47 @@ def nutrizione_piani_view(request):
     })
 
 
+@require_http_methods(["POST"])
+def assign_plan_to_client_view(request, plan_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    plan = get_object_or_404(SubscriptionPlan, id=plan_id, coach=coach, is_active=True)
+    client_id = request.POST.get('client_id', '').strip()
+    payment_notes = request.POST.get('payment_notes', '').strip()
+
+    if not client_id:
+        return JsonResponse({'error': 'Seleziona un cliente.'}, status=400)
+
+    client = get_object_or_404(
+        ClientProfile,
+        id=client_id,
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    )
+
+    if ClientSubscription.objects.filter(client=client, subscription_plan=plan, status='ACTIVE').exists():
+        return JsonResponse({'error': 'Il cliente è già iscritto a questo piano.'}, status=400)
+
+    end_date = None
+    if plan.duration_days:
+        end_date = timezone.now().date() + timedelta(days=plan.duration_days)
+
+    ClientSubscription.objects.create(
+        client=client,
+        subscription_plan=plan,
+        status='ACTIVE',
+        payment_status='PAID',
+        start_date=timezone.now().date(),
+        end_date=end_date,
+        auto_renew=False,
+        external_payment_provider='manual',
+        external_reference=payment_notes or 'Assegnato manualmente',
+    )
+    return JsonResponse({'success': True})
+
+
 def abbonamenti_dashboard_view(request):
     user = get_session_user(request)
     if not user:
@@ -324,11 +480,17 @@ def abbonamenti_dashboard_view(request):
 
     plans = SubscriptionPlan.objects.filter(coach=coach).order_by('-created_at')
     subscriptions = ClientSubscription.objects.filter(subscription_plan__coach=coach).select_related('client', 'subscription_plan').order_by('-created_at')
-    
-    # Calculate KPIs
     active_subs = subscriptions.filter(status='ACTIVE').count()
-    total_revenue = sum([s.subscription_plan.price for s in subscriptions.filter(status='ACTIVE')])
-    
+    total_revenue = sum(s.subscription_plan.price for s in subscriptions.filter(status='ACTIVE'))
+
+    # Clients available for manual plan assignment
+    coach_clients = list(
+        ClientProfile.objects
+        .filter(coaching_relationships_as_client__coach=coach, coaching_relationships_as_client__status='ACTIVE')
+        .order_by('first_name', 'last_name')
+        .values('id', 'first_name', 'last_name')
+    )
+
     return render(request, 'pages/abbonamenti/dashboard.html', {
         'is_coach': True,
         'coach': coach,
@@ -336,6 +498,7 @@ def abbonamenti_dashboard_view(request):
         'subscriptions': subscriptions,
         'active_subs': active_subs,
         'total_revenue': total_revenue,
+        'coach_clients_json': json.dumps(coach_clients),
     })
 
 

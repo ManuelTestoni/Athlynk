@@ -23,6 +23,7 @@ from . import views_agenda
 from . import views_check
 from . import views_auth
 from . import views_client
+from . import views_settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -36,6 +37,7 @@ urlpatterns = [
 
     # Clienti (coach)
     path('clienti/', views_client.coach_clients_list_view, name='clienti_list'),
+    path('clienti/registra/', views_client.registra_client_view, name='clienti_registra'),
     path('clienti/<int:client_id>/', views_client.coach_client_detail_view, name='clienti_detail'),
 
     # Nutrizione
@@ -65,6 +67,7 @@ urlpatterns = [
     path('abbonamenti/piano/crea/', views_client.subscription_plan_create_view, name='subscription_plan_create'),
     path('abbonamenti/piano/<int:plan_id>/modifica/', views_client.subscription_plan_edit_view, name='subscription_plan_edit'),
     path('api/abbonamenti/piano/<int:plan_id>/elimina/', views_client.subscription_plan_delete_view, name='subscription_plan_delete'),
+    path('api/abbonamenti/piano/<int:plan_id>/assegna/', views_client.assign_plan_to_client_view, name='subscription_plan_assign'),
     path('abbonamenti/piano/<int:plan_id>/clienti/', views_client.subscription_plan_detail_view, name='subscription_plan_detail'),
     
     # Check Progressi
@@ -77,5 +80,5 @@ urlpatterns = [
     path('check/trova-coach/<int:coach_id>/connetti/', views_client.connect_coach_view, name='check_connect_coach'),
     
     # Impostazioni
-    path('impostazioni/', TemplateView.as_view(template_name='pages/impostazioni/dashboard.html'), name='impostazioni_dashboard'),
+    path('impostazioni/', views_settings.impostazioni_view, name='impostazioni_dashboard'),
 ]

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="w-full max-w-3xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-slate-500 mb-8">
+        <a href="{% url 'clienti_list' %}" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+            <i class="ph ph-users"></i> Clienti
+        </a>
+        <i class="ph ph-caret-right text-xs"></i>
+        <span class="text-slate-900 font-medium">Registra nuovo cliente</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Registra Cliente in Studio</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            Crea l'account del cliente che si è presentato fisicamente. La password inserita sarà quella con cui il cliente accederà alla piattaforma.
+        </p>
+    </div>
+
+    <form method="POST" action="{% url 'clienti_registra' %}">
+        {% csrf_token %}
+
+        <div class="space-y-6">
+
+            <!-- SEZIONE 1: Dati Personali -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
+                    <i class="ph ph-user text-accent"></i> Dati Personali
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Nome <span class="text-red-500">*</span></label>
+                        <input type="text" name="first_name" value="{{ post_data.first_name|default:'' }}" required
+                               placeholder="Es. Marco"
+                               class="w-full rounded-xl border {% if errors.first_name %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        {% if errors.first_name %}<p class="text-xs text-red-600 mt-1">{{ errors.first_name }}</p>{% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Cognome <span class="text-red-500">*</span></label>
+                        <input type="text" name="last_name" value="{{ post_data.last_name|default:'' }}" required
+                               placeholder="Es. Bianchi"
+                               class="w-full rounded-xl border {% if errors.last_name %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        {% if errors.last_name %}<p class="text-xs text-red-600 mt-1">{{ errors.last_name }}</p>{% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Email <span class="text-red-500">*</span></label>
+                        <input type="email" name="email" value="{{ post_data.email|default:'' }}" required
+                               placeholder="cliente@email.com"
+                               class="w-full rounded-xl border {% if errors.email %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        {% if errors.email %}<p class="text-xs text-red-600 mt-1">{{ errors.email }}</p>{% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Telefono</label>
+                        <input type="tel" name="phone" value="{{ post_data.phone|default:'' }}"
+                               placeholder="+39 333 000 0000"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Data di Nascita</label>
+                        <input type="date" name="birth_date" value="{{ post_data.birth_date|default:'' }}"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Sesso</label>
+                        <select name="gender"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            <option value="">Non specificato</option>
+                            <option value="M" {% if post_data.gender == 'M' %}selected{% endif %}>Uomo</option>
+                            <option value="F" {% if post_data.gender == 'F' %}selected{% endif %}>Donna</option>
+                            <option value="X" {% if post_data.gender == 'X' %}selected{% endif %}>Altro</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Altezza (cm)</label>
+                        <input type="number" name="height_cm" value="{{ post_data.height_cm|default:'' }}"
+                               min="100" max="250" placeholder="Es. 175"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Livello di Attività</label>
+                        <select name="activity_level"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            <option value="">Non specificato</option>
+                            <option value="Sedentario" {% if post_data.activity_level == 'Sedentario' %}selected{% endif %}>Sedentario</option>
+                            <option value="Leggermente attivo" {% if post_data.activity_level == 'Leggermente attivo' %}selected{% endif %}>Leggermente attivo</option>
+                            <option value="Moderatamente attivo" {% if post_data.activity_level == 'Moderatamente attivo' %}selected{% endif %}>Moderatamente attivo</option>
+                            <option value="Molto attivo" {% if post_data.activity_level == 'Molto attivo' %}selected{% endif %}>Molto attivo</option>
+                            <option value="Atleta" {% if post_data.activity_level == 'Atleta' %}selected{% endif %}>Atleta</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Obiettivo Principale</label>
+                        <select name="primary_goal"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            <option value="">Nessuno specificato</option>
+                            <option value="Dimagrimento" {% if post_data.primary_goal == 'Dimagrimento' %}selected{% endif %}>Dimagrimento</option>
+                            <option value="Ipertrofia" {% if post_data.primary_goal == 'Ipertrofia' %}selected{% endif %}>Ipertrofia / Massa muscolare</option>
+                            <option value="Ricomposizione" {% if post_data.primary_goal == 'Ricomposizione' %}selected{% endif %}>Ricomposizione corporea</option>
+                            <option value="Forza" {% if post_data.primary_goal == 'Forza' %}selected{% endif %}>Forza atletica</option>
+                            <option value="Tonificazione" {% if post_data.primary_goal == 'Tonificazione' %}selected{% endif %}>Tonificazione</option>
+                            <option value="Salute" {% if post_data.primary_goal == 'Salute' %}selected{% endif %}>Salute generale / Benessere</option>
+                            <option value="Performance" {% if post_data.primary_goal == 'Performance' %}selected{% endif %}>Performance sportiva</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Note Mediche / Controindicazioni</label>
+                        <textarea name="medical_notes_summary" rows="2"
+                                  placeholder="Eventuali patologie, infortuni, allergie o note rilevanti per l'allenamento..."
+                                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ post_data.medical_notes_summary|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE 2: Accesso Piattaforma -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="ph ph-lock-key text-accent"></i> Accesso alla Piattaforma
+                </h2>
+                <p class="text-sm text-slate-500 mb-5">Il cliente userà questa email e password per accedere a TrainElite.</p>
+
+                <div class="max-w-sm">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Password Temporanea <span class="text-red-500">*</span></label>
+                    <input type="text" name="password" value="{{ post_data.password|default:'' }}" required
+                           placeholder="Minimo 6 caratteri"
+                           autocomplete="off"
+                           class="w-full rounded-xl border {% if errors.password %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    {% if errors.password %}<p class="text-xs text-red-600 mt-1">{{ errors.password }}</p>{% endif %}
+                    <p class="text-xs text-slate-400 mt-1.5">Comunicala al cliente. Potrà cambiarla in autonomia dalle impostazioni.</p>
+                </div>
+            </div>
+
+            <!-- SEZIONE 3: Piano Abbonamento -->
+            <div class="bg-white border {% if errors.subscription_plan_id %}border-red-300{% else %}border-slate-200{% endif %} rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="ph ph-credit-card text-accent"></i> Piano Abbonamento <span class="text-red-500">*</span>
+                </h2>
+                <p class="text-sm text-slate-500 mb-5">Il pagamento è avvenuto direttamente in studio. Il piano è obbligatorio per completare la registrazione.</p>
+
+                {% if not plans %}
+                <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+                    <i class="ph-fill ph-warning-circle text-amber-500 text-lg shrink-0 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-800">Nessun piano disponibile</p>
+                        <p class="text-sm text-amber-700 mt-0.5">Devi creare almeno un piano di abbonamento prima di poter registrare un cliente.
+                            <a href="{% url 'subscription_plan_create' %}" class="underline font-semibold hover:text-amber-900">Crea un piano →</a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Piano selezionato <span class="text-red-500">*</span></label>
+                        <select name="subscription_plan_id" required {% if not plans %}disabled{% endif %}
+                                class="w-full rounded-xl border {% if errors.subscription_plan_id %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                            <option value="">— Seleziona un piano —</option>
+                            {% for plan in plans %}
+                            <option value="{{ plan.id }}" {% if post_data.subscription_plan_id == plan.id|stringformat:"s" %}selected{% endif %}>
+                                {{ plan.name }} — €{{ plan.price }}{% if plan.duration_days %} / {{ plan.duration_days }} giorni{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.subscription_plan_id %}
+                        <p class="text-xs text-red-600 mt-1">{{ errors.subscription_plan_id }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Note Pagamento</label>
+                        <input type="text" name="payment_notes" value="{{ post_data.payment_notes|default:'' }}"
+                               placeholder="Es. Pagato in contanti, bonifico del 28/04/2026..."
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        <p class="text-xs text-slate-400 mt-1">Nota interna non visibile al cliente.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'clienti_list' %}" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                    Annulla
+                </a>
+                <button type="submit" {% if not plans %}disabled title="Crea prima un piano di abbonamento"{% endif %}
+                        class="px-6 py-2.5 bg-accent hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="ph ph-user-plus"></i> Registra Cliente
+                </button>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% endblock %}
