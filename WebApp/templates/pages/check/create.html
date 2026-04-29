@@ -5,96 +5,44 @@
     hasCoach: {% if has_coach %}true{% else %}false{% endif %},
     showCoachModal: true,
     search: '',
-    selectedCoachSlug: 'marco-rossi',
-    coaches: [
-        {
-            slug: 'marco-rossi',
-            name: 'Marco Rossi',
-            title: 'Personal Trainer & Coach di ricomposizione corporea',
-            city: 'Milano',
-            rating: 4.9,
-            clients: 86,
-            focus: 'Dimagrimento',
-            price: '99€/mese',
-            response: 'Risposta media 32 min',
-            badge: 'Verified Coach',
-            avatar: 'https://i.pravatar.cc/160?u=marco.rossi',
-            cover: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80',
-            tags: ['Dimagrimento', 'Forza', 'Lifestyle'],
-            bio: 'Aiuto persone impegnate a ritrovare forma e costanza con un metodo concreto, semplice e sostenibile.',
-            availability: '3 posti liberi',
-            style: 'Metodo pragmatico, progressione misurabile, supporto costante',
-            colors: 'Indigo / Slate'
-        },
-        {
-            slug: 'chiara-bellini',
-            name: 'Chiara Bellini',
-            title: 'Coach performance e benessere per donne attive',
-            city: 'Roma',
-            rating: 4.8,
-            clients: 63,
-            focus: 'Benessere',
-            price: '89€/mese',
-            response: 'Risposta media 18 min',
-            badge: 'Top Rated',
-            avatar: 'https://i.pravatar.cc/160?u=chiara.bellini',
-            cover: 'https://images.unsplash.com/photo-1518611012118-f0c5d9e7d6cf?auto=format&fit=crop&w=1200&q=80',
-            tags: ['Benessere', 'Mobilità', 'Recupero'],
-            bio: 'Lavoro con donne che vogliono sentirsi forti, leggere e in equilibrio con il proprio corpo.',
-            availability: '1 posto libero',
-            style: 'Approccio empatico, micro-obiettivi, sostenibilità',
-            colors: 'Emerald / Sand'
-        },
-        {
-            slug: 'luca-marini',
-            name: 'Luca Marini',
-            title: 'Strength coach per massa, postura e atletica',
-            city: 'Torino',
-            rating: 5.0,
-            clients: 51,
-            focus: 'Massa',
-            price: '119€/mese',
-            response: 'Risposta media 41 min',
-            badge: 'Elite',
-            avatar: 'https://i.pravatar.cc/160?u=luca.marini',
-            cover: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80',
-            tags: ['Massa', 'Forza', 'Powerbuilding'],
-            bio: 'Programmazione precisa, progressioni seriamente costruite e attenzione ai dettagli tecnici.',
-            availability: 'Lista d’attesa',
-            style: 'Tabelle forti, feedback rapidi, focus sui fondamentali',
-            colors: 'Red / Graphite'
-        },
-        {
-            slug: 'giulia-sereni',
-            name: 'Giulia Sereni',
-            title: 'Coach online per ricomposizione e aderenza alimentare',
-            city: 'Bologna',
-            rating: 4.9,
-            clients: 74,
-            focus: 'Ricomposizione',
-            price: '109€/mese',
-            response: 'Risposta media 24 min',
-            badge: 'Growth',
-            avatar: 'https://i.pravatar.cc/160?u=giulia.sereni',
-            cover: 'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?auto=format&fit=crop&w=1200&q=80',
-            tags: ['Ricomposizione', 'Abitudini', 'Check'],
-            bio: 'Creo percorsi smart per migliorare composizione corporea senza stravolgere la vita quotidiana.',
-            availability: '2 posti liberi',
-            style: 'Psicologia pratica, feedback chiari, routine stabili',
-            colors: 'Blue / Stone'
+    selectedCoachId: null,
+    coaches: [],
+    async init() {
+        if (!this.hasCoach) {
+            try {
+                const response = await fetch('/api/check/trova-coach/');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.coaches = data.coaches.map(c => ({
+                        ...c,
+                        rating: '5.0',
+                        response: 'Risposta rapida',
+                        badge: c.clients > 10 ? 'Top Rated' : 'Verified Coach',
+                        cover: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80',
+                        tags: c.services || [],
+                        availability: 'Disponibile per nuovi clienti',
+                        style: 'Approccio personalizzato basato su misurazioni e sostenibilità'
+                    }));
+                    if (this.coaches.length > 0) {
+                        this.selectedCoachId = this.coaches[0].id;
+                    }
+                }
+            } catch(e) {
+                console.error('Error fetching coaches:', e);
+            }
         }
-    ],
+    },
     get filteredCoaches() {
         const query = this.search.toLowerCase().trim();
         return this.coaches.filter(coach => {
-            return [coach.name, coach.title, coach.city, coach.focus, coach.bio, coach.tags.join(' ')]
+            return [coach.name, coach.title, coach.city, coach.focus, coach.bio, (coach.tags || []).join(' ')]
                 .join(' ')
                 .toLowerCase()
                 .includes(query);
         });
     },
     get selectedCoach() {
-        return this.coaches.find(coach => coach.slug === this.selectedCoachSlug) || this.coaches[0];
+        return this.coaches.find(coach => coach.id === this.selectedCoachId) || this.coaches[0] || {};
     }
 }">
     <div class="mb-8">
@@ -210,9 +158,9 @@
                         </div>
 
                         <div class="space-y-4">
-                            <template x-for="coach in filteredCoaches" :key="coach.slug">
-                                <button @click="selectedCoachSlug = coach.slug" class="w-full text-left group">
-                                    <div class="flex flex-col sm:flex-row gap-4 p-4 rounded-2xl border transition-all" :class="selectedCoachSlug === coach.slug ? 'border-indigo-300 bg-indigo-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'">
+                            <template x-for="coach in filteredCoaches" :key="coach.id">
+                                <button @click="selectedCoachId = coach.id" class="w-full text-left group">
+                                    <div class="flex flex-col sm:flex-row gap-4 p-4 rounded-2xl border transition-all" :class="selectedCoachId === coach.id ? 'border-indigo-300 bg-indigo-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'">
                                         <img :src="coach.avatar" :alt="coach.name" class="w-20 h-20 rounded-2xl object-cover ring-1 ring-white shadow-sm shrink-0">
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-start justify-between gap-3">
@@ -288,12 +236,11 @@
                                 </div>
 
                                 <div class="flex flex-col sm:flex-row gap-3">
-                                    <a href="{% url 'check_coach_directory' %}" class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors">
-                                        Scopri coach disponibili
-                                    </a>
-                                    <button class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors">
-                                        Richiedi contatto
-                                    </button>
+                                    <template x-if="selectedCoach.id">
+                                        <a :href="'/check/trova-coach/' + selectedCoach.id + '/'" class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors w-full">
+                                            Visualizza profilo completo
+                                        </a>
+                                    </template>
                                 </div>
                             </div>
                         </div>
