@@ -349,6 +349,43 @@ def coach_detail_view(request, coach_id):
     return render(request, 'pages/check/coach_detail.html', context)
 
 
+def client_my_coach_view(request):
+    client, redirect_response = _require_client(request)
+    if redirect_response:
+        return redirect_response
+
+    relationship = get_active_relationship(client)
+    if not relationship:
+        return redirect('check_coach_directory')
+
+    coach = relationship.coach
+    active_plans = coach.subscription_plans.filter(is_active=True).order_by('price')
+
+    my_subscription = ClientSubscription.objects.filter(
+        client=client, status='ACTIVE'
+    ).select_related('subscription_plan').first()
+
+    total_checks = QuestionnaireResponse.objects.filter(
+        client=client, coach=coach
+    ).count()
+
+    from domain.workouts.models import WorkoutAssignment
+    active_workout = WorkoutAssignment.objects.filter(
+        client=client, status='ACTIVE'
+    ).select_related('workout_plan').first()
+
+    context = {
+        'coach': coach,
+        'coach_name': f'{coach.first_name} {coach.last_name}'.strip(),
+        'relationship': relationship,
+        'active_plans': active_plans,
+        'my_subscription': my_subscription,
+        'total_checks': total_checks,
+        'active_workout': active_workout,
+    }
+    return render(request, 'pages/clienti/il_mio_coach.html', context)
+
+
 def connect_coach_view(request, coach_id):
     client, redirect_response = _require_client(request)
     if redirect_response:

@@ -1,253 +1,238 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex-1 w-full max-w-6xl mx-auto" x-data="{
-    hasCoach: {% if has_coach %}true{% else %}false{% endif %},
-    showCoachModal: true,
-    search: '',
-    selectedCoachId: null,
-    coaches: [],
-    async init() {
-        if (!this.hasCoach) {
-            try {
-                const response = await fetch('/api/check/trova-coach/');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.coaches = data.coaches.map(c => ({
-                        ...c,
-                        rating: '5.0',
-                        response: 'Risposta rapida',
-                        badge: c.clients > 10 ? 'Top Rated' : 'Verified Coach',
-                        cover: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80',
-                        tags: c.services || [],
-                        availability: 'Disponibile per nuovi clienti',
-                        style: 'Approccio personalizzato basato su misurazioni e sostenibilità'
-                    }));
-                    if (this.coaches.length > 0) {
-                        this.selectedCoachId = this.coaches[0].id;
-                    }
-                }
-            } catch(e) {
-                console.error('Error fetching coaches:', e);
-            }
-        }
-    },
-    get filteredCoaches() {
-        const query = this.search.toLowerCase().trim();
-        return this.coaches.filter(coach => {
-            return [coach.name, coach.title, coach.city, coach.focus, coach.bio, (coach.tags || []).join(' ')]
-                .join(' ')
-                .toLowerCase()
-                .includes(query);
-        });
-    },
-    get selectedCoach() {
-        return this.coaches.find(coach => coach.id === this.selectedCoachId) || this.coaches[0] || {};
-    }
+<div class="w-full max-w-3xl mx-auto" x-data="{
+    mood: '{{ post_data.ans_mood|default:3 }}',
+    diet: '{{ post_data.ans_diet|default:3 }}',
+    workout: '{{ post_data.ans_workout|default:3 }}'
 }">
+
+    <!-- Back -->
+    <nav class="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <a href="{% url 'check_dashboard' %}" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+            <i class="ph ph-arrow-left"></i> Check & Progressi
+        </a>
+    </nav>
+
     <div class="mb-8">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100 text-xs font-semibold uppercase tracking-wider mb-4">
-            Nessun coach collegato
-        </div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Trova un primo coach!</h1>
-        <p class="text-sm text-slate-500 mt-1 max-w-2xl">Finché non hai un coach associato non vedrai dati, metriche o check. Puoi esplorare i profili disponibili e scegliere il coach più adatto al tuo obiettivo.</p>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Nuovo Check Progressi</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            I dati vengono inviati direttamente a <strong>{{ coach.first_name }} {{ coach.last_name }}</strong>.
+        </p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                    <div class="max-w-xl">
-                        <h2 class="text-xl font-bold text-slate-900">La tua area è in attesa di un coach</h2>
-                        <p class="text-sm text-slate-500 mt-2">Per motivi di privacy e chiarezza non mostriamo dati vuoti. La dashboard si sbloccherà quando un coach ti avrà preso in carico.</p>
-                    </div>
-                    <button @click="showCoachModal = true" class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors">
-                        <i class="ph ph-magnifying-glass mr-2 text-lg"></i>
-                        Trova un primo coach!
-                    </button>
-                </div>
+    {% if errors %}
+    <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-6 flex items-start gap-3">
+        <i class="ph-fill ph-warning-circle text-red-500 text-lg shrink-0 mt-0.5"></i>
+        <div class="text-sm text-red-700">Correggi gli errori evidenziati prima di procedere.</div>
+    </div>
+    {% endif %}
 
-                <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Dati visibili</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">0</p>
-                        <p class="text-sm text-slate-500 mt-1">Nessuna metrica è accessibile senza coach.</p>
+    <form method="POST" action="{% url 'check_create' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="space-y-6">
+
+            <!-- SEZIONE 1: Peso -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
+                    <i class="ph ph-scales text-accent"></i> Peso Corporeo
+                </h2>
+                <div class="max-w-xs">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Peso (kg)</label>
+                    <input type="number" name="weight_kg" step="0.1" min="0" max="500"
+                           value="{{ post_data.weight_kg|default:'' }}"
+                           placeholder="Es. 78.5"
+                           class="w-full rounded-xl border {% if errors.weight_kg %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    {% if errors.weight_kg %}<p class="text-xs text-red-600 mt-1">{{ errors.weight_kg }}</p>{% endif %}
+                </div>
+            </div>
+
+            <!-- SEZIONE 2: Circonferenze -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="ph ph-ruler text-accent"></i> Circonferenze <span class="text-slate-400 font-normal text-sm">(cm)</span>
+                </h2>
+                <p class="text-xs text-slate-500 mb-5">Lascia vuoto i campi che non hai misurato.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Spalle</label>
+                        <input type="number" name="circ_spalle" step="0.1" min="0" value="{{ post_data.circ_spalle|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Check attivi</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">0</p>
-                        <p class="text-sm text-slate-500 mt-1">Non hai un piano di check assegnato.</p>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Petto</label>
+                        <input type="number" name="circ_petto" step="0.1" min="0" value="{{ post_data.circ_petto|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Coach collegati</p>
-                        <p class="mt-2 text-2xl font-bold text-slate-900">0</p>
-                        <p class="text-sm text-slate-500 mt-1">Trova il professionista giusto e sblocca l'area cliente.</p>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Vita</label>
+                        <input type="number" name="circ_vita" step="0.1" min="0" value="{{ post_data.circ_vita|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Fianchi</label>
+                        <input type="number" name="circ_fianchi" step="0.1" min="0" value="{{ post_data.circ_fianchi|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Coscia DX</label>
+                        <input type="number" name="circ_coscia" step="0.1" min="0" value="{{ post_data.circ_coscia|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Braccio DX</label>
+                        <input type="number" name="circ_braccio" step="0.1" min="0" value="{{ post_data.circ_braccio|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
-                <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Cosa vedrai dopo il collegamento</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                        <div class="w-10 h-10 rounded-lg bg-white text-emerald-600 flex items-center justify-center shadow-sm"><i class="ph ph-scales text-lg"></i></div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-900">Check progressi</p>
-                            <p class="text-xs text-slate-600 mt-1">Peso, circonferenze, foto e note in un flusso guidato.</p>
+            <!-- SEZIONE 3: Pliche -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="ph ph-first-aid text-accent"></i> Pliche Cutanee <span class="text-slate-400 font-normal text-sm">(mm)</span>
+                </h2>
+                <p class="text-xs text-slate-500 mb-5">Inserisci solo se il tuo coach richiede la misurazione delle pliche.</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Petto</label>
+                        <input type="number" name="pl_petto" step="0.1" min="0" value="{{ post_data.pl_petto|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Addome</label>
+                        <input type="number" name="pl_addome" step="0.1" min="0" value="{{ post_data.pl_addome|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Coscia</label>
+                        <input type="number" name="pl_coscia" step="0.1" min="0" value="{{ post_data.pl_coscia|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Tricipite</label>
+                        <input type="number" name="pl_tricipite" step="0.1" min="0" value="{{ post_data.pl_tricipite|default:'' }}" placeholder="—"
+                               class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE 4: Benessere soggettivo -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
+                    <i class="ph ph-smiley text-accent"></i> Benessere Soggettivo
+                </h2>
+                <div class="space-y-6">
+                    <!-- Umore -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm font-medium text-slate-700">Umore generale</label>
+                            <span class="text-sm font-bold text-accent" x-text="mood + ' / 5'"></span>
+                        </div>
+                        <input type="range" name="ans_mood" min="1" max="5" step="1" x-model="mood"
+                               class="w-full accent-accent cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>Pessimo</span><span>Eccellente</span>
                         </div>
                     </div>
-                    <div class="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                        <div class="w-10 h-10 rounded-lg bg-white text-indigo-600 flex items-center justify-center shadow-sm"><i class="ph ph-calendar-check text-lg"></i></div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-900">Sessioni e feedback</p>
-                            <p class="text-xs text-slate-600 mt-1">Agenda, progressioni e revisioni direttamente dal coach.</p>
+                    <!-- Aderenza dieta -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm font-medium text-slate-700">Aderenza alla dieta</label>
+                            <span class="text-sm font-bold text-accent" x-text="diet + ' / 5'"></span>
+                        </div>
+                        <input type="range" name="ans_diet" min="1" max="5" step="1" x-model="diet"
+                               class="w-full accent-accent cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>Non seguita</span><span>Perfetta</span>
+                        </div>
+                    </div>
+                    <!-- Aderenza allenamento -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm font-medium text-slate-700">Aderenza all'allenamento</label>
+                            <span class="text-sm font-bold text-accent" x-text="workout + ' / 5'"></span>
+                        </div>
+                        <input type="range" name="ans_workout" min="1" max="5" step="1" x-model="workout"
+                               class="w-full accent-accent cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>Non seguito</span><span>Perfetto</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <aside class="space-y-6">
-            <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-lg overflow-hidden relative">
-                <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Privacy first</p>
-                <h3 class="mt-3 text-lg font-bold">Zero dati senza coach</h3>
-                <p class="mt-2 text-sm text-slate-300">Questo blocco evita di mostrare metriche fittizie quando il cliente è ancora in onboarding.</p>
-                <button @click="showCoachModal = true" class="mt-5 inline-flex items-center px-4 py-2 rounded-lg bg-white text-slate-900 text-sm font-semibold shadow-sm hover:bg-slate-100 transition-colors">
-                    Apri il catalogo coach
+            <!-- SEZIONE 5: Note -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
+                    <i class="ph ph-note-pencil text-accent"></i> Note e Segnalazioni
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Infortuni o dolori in corso</label>
+                        <textarea name="injuries" rows="2" placeholder="Descrivi eventuali dolori, tensioni o infortuni che stai riscontrando..."
+                                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ post_data.injuries|default:'' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Limitazioni o adattamenti eseguiti</label>
+                        <textarea name="limitations" rows="2" placeholder="Hai saltato sessioni? Modificato esercizi? Descrivilo..."
+                                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ post_data.limitations|default:'' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Messaggio al coach</label>
+                        <textarea name="notes" rows="3" placeholder="Tutto quello che vuoi condividere con il tuo coach..."
+                                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ post_data.notes|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE 6: Foto -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    <i class="ph ph-camera text-accent"></i> Foto Progressi
+                </h2>
+                <p class="text-xs text-slate-500 mb-5">Facoltative ma consigliate. Solo il tuo coach le potrà vedere.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Frontale</label>
+                        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+                            <i class="ph ph-camera text-2xl text-slate-400 mb-1"></i>
+                            <span class="text-xs text-slate-500">Carica foto</span>
+                            <input type="file" name="photo_front" accept="image/*" class="sr-only">
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Laterale</label>
+                        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+                            <i class="ph ph-camera text-2xl text-slate-400 mb-1"></i>
+                            <span class="text-xs text-slate-500">Carica foto</span>
+                            <input type="file" name="photo_side" accept="image/*" class="sr-only">
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-2">Posteriore</label>
+                        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+                            <i class="ph ph-camera text-2xl text-slate-400 mb-1"></i>
+                            <span class="text-xs text-slate-500">Carica foto</span>
+                            <input type="file" name="photo_back" accept="image/*" class="sr-only">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'check_dashboard' %}"
+                   class="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                    Annulla
+                </a>
+                <button type="submit"
+                        class="px-6 py-2.5 bg-accent hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm flex items-center gap-2">
+                    <i class="ph ph-paper-plane-tilt"></i> Invia Check
                 </button>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-semibold text-slate-900">Come funziona</h3>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step</span>
-                </div>
-                <ol class="space-y-3 text-sm">
-                    <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-semibold text-xs flex items-center justify-center shrink-0">1</span><span class="text-slate-600">Sfogli i coach disponibili e confronti stile, prezzo e specializzazione.</span></li>
-                    <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-semibold text-xs flex items-center justify-center shrink-0">2</span><span class="text-slate-600">Apri il profilo social-like del coach e valuti approccio, recensioni e contenuti.</span></li>
-                    <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 font-semibold text-xs flex items-center justify-center shrink-0">3</span><span class="text-slate-600">Richiedi il collegamento e sblocchi il check dei progressi.</span></li>
-                </ol>
-            </div>
-        </aside>
-    </div>
-
-    <div x-show="showCoachModal && !hasCoach" x-transition.opacity class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm px-4 py-6 sm:px-6 lg:px-8 overflow-y-auto" x-cloak>
-        <div class="mx-auto max-w-7xl min-h-full flex items-center">
-            <div class="w-full bg-white rounded-3xl shadow-2xl border border-white/10 overflow-hidden">
-                <div class="flex items-center justify-between px-6 md:px-8 py-5 border-b border-slate-200">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Trova un primo coach!</h2>
-                        <p class="text-sm text-slate-500 mt-1">Scorri i profili disponibili, apri i dettagli e scegli il coach più adatto.</p>
-                    </div>
-                    <button @click="showCoachModal = false" class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors flex items-center justify-center">
-                        <i class="ph ph-x text-lg"></i>
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] max-h-[calc(100vh-6rem)]">
-                    <div class="p-6 md:p-8 border-b lg:border-b-0 lg:border-r border-slate-200 overflow-y-auto">
-                        <div class="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between mb-6">
-                            <div class="relative w-full sm:max-w-md">
-                                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" x-model="search" placeholder="Cerca per nome, città, obiettivo..." class="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                            </div>
-                            <a href="{% url 'check_coach_directory' %}" class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors">
-                                Directory completa
-                            </a>
-                        </div>
-
-                        <div class="space-y-4">
-                            <template x-for="coach in filteredCoaches" :key="coach.id">
-                                <button @click="selectedCoachId = coach.id" class="w-full text-left group">
-                                    <div class="flex flex-col sm:flex-row gap-4 p-4 rounded-2xl border transition-all" :class="selectedCoachId === coach.id ? 'border-indigo-300 bg-indigo-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'">
-                                        <img :src="coach.avatar" :alt="coach.name" class="w-20 h-20 rounded-2xl object-cover ring-1 ring-white shadow-sm shrink-0">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <div class="flex flex-wrap items-center gap-2">
-                                                        <h3 class="text-base font-bold text-slate-900" x-text="coach.name"></h3>
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white" x-text="coach.badge"></span>
-                                                    </div>
-                                                    <p class="text-sm text-slate-500 mt-1" x-text="coach.title"></p>
-                                                </div>
-                                                <div class="text-right shrink-0">
-                                                    <div class="text-sm font-semibold text-slate-900" x-text="coach.price"></div>
-                                                    <div class="text-[11px] text-slate-500" x-text="coach.response"></div>
-                                                </div>
-                                            </div>
-                                            <div class="mt-3 flex flex-wrap gap-2">
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700" x-text="coach.focus"></span>
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600" x-text="coach.city"></span>
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                                    <i class="ph ph-star-fill mr-1 text-[10px]"></i><span x-text="coach.rating"></span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50 p-6 md:p-8 overflow-y-auto">
-                        <div class="sticky top-0 bg-slate-50/90 backdrop-blur border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-                            <div class="relative h-52">
-                                <img :src="selectedCoach.cover" :alt="selectedCoach.name" class="w-full h-full object-cover">
-                                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent"></div>
-                                <div class="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4">
-                                    <div>
-                                        <h3 class="text-xl font-bold text-white" x-text="selectedCoach.name"></h3>
-                                        <p class="text-sm text-slate-200 mt-1" x-text="selectedCoach.title"></p>
-                                    </div>
-                                    <img :src="selectedCoach.avatar" class="w-16 h-16 rounded-2xl border-2 border-white object-cover shadow-lg">
-                                </div>
-                            </div>
-                            <div class="p-5 space-y-5">
-                                <div class="grid grid-cols-3 gap-3 text-center">
-                                    <div class="rounded-2xl bg-white border border-slate-200 p-3">
-                                        <p class="text-xl font-bold text-slate-900" x-text="selectedCoach.clients"></p>
-                                        <p class="text-[11px] uppercase tracking-wider text-slate-500">Clienti</p>
-                                    </div>
-                                    <div class="rounded-2xl bg-white border border-slate-200 p-3">
-                                        <p class="text-xl font-bold text-slate-900" x-text="selectedCoach.rating"></p>
-                                        <p class="text-[11px] uppercase tracking-wider text-slate-500">Rating</p>
-                                    </div>
-                                    <div class="rounded-2xl bg-white border border-slate-200 p-3">
-                                        <p class="text-xl font-bold text-slate-900" x-text="selectedCoach.availability.split(' ')[0]"></p>
-                                        <p class="text-[11px] uppercase tracking-wider text-slate-500">Posti</p>
-                                    </div>
-                                </div>
-
-                                <p class="text-sm text-slate-600 leading-relaxed" x-text="selectedCoach.bio"></p>
-
-                                <div class="space-y-2">
-                                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Stile di Coaching</p>
-                                    <p class="text-sm text-slate-700" x-text="selectedCoach.style"></p>
-                                </div>
-
-                                <div>
-                                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Specializzazioni</p>
-                                    <div class="flex flex-wrap gap-2">
-                                        <template x-for="tag in selectedCoach.tags" :key="tag">
-                                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-slate-200 text-slate-700" x-text="tag"></span>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-col sm:flex-row gap-3">
-                                    <template x-if="selectedCoach.id">
-                                        <a :href="'/check/trova-coach/' + selectedCoach.id + '/'" class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors w-full">
-                                            Visualizza profilo completo
-                                        </a>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
-    </div>
+    </form>
 </div>
 {% endblock %}

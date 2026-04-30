@@ -35,9 +35,10 @@ def agenda_dashboard_view(request):
                 'status': evt.status,
                 'client_name': f"{evt.client.first_name} {evt.client.last_name}",
                 'description': evt.description or '',
-                'meeting_url': evt.meeting_url or ''
+                'meeting_url': evt.meeting_url or '',
+                'check_url': '/check/crea/' if evt.appointment_type.lower() == 'check' else '',
             })
-        
+
         context = {
             'coach': relationship.coach,
             'client': client,

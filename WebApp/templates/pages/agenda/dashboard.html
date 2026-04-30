@@ -139,6 +139,15 @@
                         <i class="ph ph-link mr-1"></i> <span x-text="selectedEvent?.extendedProps?.meeting_url"></span>
                     </a>
                 </div>
+                <div x-show="selectedEvent?.extendedProps?.check_url" class="bg-accent/5 border border-accent/20 rounded-xl p-4">
+                    <p class="text-sm font-semibold text-slate-800 mb-2">
+                        <i class="ph ph-clipboard-text mr-1 text-accent"></i> Questo appuntamento include un check progressi
+                    </p>
+                    <a :href="selectedEvent?.extendedProps?.check_url"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                        <i class="ph ph-paper-plane-tilt"></i> Compila il check ora
+                    </a>
+                </div>
             </div>
             <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                 <button @click="showDetailModal = false" class="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-100 text-sm font-medium">Chiudi</button>

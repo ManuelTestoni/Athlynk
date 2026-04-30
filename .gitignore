@@ -208,3 +208,4 @@ xcuserdata/
 .build/
 
 WebApp/src/CLAUDE.md
+/WebApp/src/progress_photos/*

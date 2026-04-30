@@ -1,11 +1,135 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import JsonResponse
+from django.core.paginator import Paginator
 from django.utils import timezone
-from django.core.files.storage import FileSystemStorage
-from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto
+from django.db.models import Q
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.utils.dateparse import parse_datetime
+import os
 import json
 
+from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto
+from domain.coaching.models import CoachingRelationship
+from domain.accounts.models import ClientProfile
+
+try:
+    from domain.calendar.models import Appointment
+except ImportError:
+    from domain.appointments.models import Appointment
+
 from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+
+CIRC_LABELS = [
+    ('shoulders', 'Spalle'),
+    ('chest', 'Petto'),
+    ('waist', 'Vita'),
+    ('hips', 'Fianchi'),
+    ('thigh_right', 'Coscia DX'),
+    ('arm_right', 'Braccio DX'),
+]
+
+SKINFOLD_LABELS = [
+    ('chest', 'Petto'),
+    ('abdomen', 'Addome'),
+    ('thigh', 'Coscia'),
+    ('tricep', 'Tricipite'),
+]
+
+
+def _compute_deltas(current_response, prev_response):
+    weight_delta = None
+    if prev_response and current_response.weight_kg and prev_response.weight_kg:
+        weight_delta = float(current_response.weight_kg) - float(prev_response.weight_kg)
+
+    circ_deltas = {}
+    curr_circ = current_response.body_circumferences or {}
+    prev_circ = (prev_response.body_circumferences or {}) if prev_response else {}
+    for key, _ in CIRC_LABELS:
+        try:
+            delta = float(curr_circ.get(key, '') or 0) - float(prev_circ.get(key, '') or 0)
+            circ_deltas[key] = round(delta, 1) if curr_circ.get(key) and prev_circ.get(key) else None
+        except (ValueError, TypeError):
+            circ_deltas[key] = None
+
+    skinfold_deltas = {}
+    curr_sf = current_response.skinfolds or {}
+    prev_sf = (prev_response.skinfolds or {}) if prev_response else {}
+    for key, _ in SKINFOLD_LABELS:
+        try:
+            delta = float(curr_sf.get(key, '') or 0) - float(prev_sf.get(key, '') or 0)
+            skinfold_deltas[key] = round(delta, 1) if curr_sf.get(key) and prev_sf.get(key) else None
+        except (ValueError, TypeError):
+            skinfold_deltas[key] = None
+
+    return weight_delta, circ_deltas, skinfold_deltas
+
+
+def check_dashboard_view(request):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    # ── CLIENT ─────────────────────────────────────────────────────
+    if user.role == 'CLIENT':
+        client = get_session_client(request)
+        relationship = get_active_relationship(client)
+        if not relationship:
+            return redirect('check_coach_directory')
+
+        page = max(1, int(request.GET.get('page', 1)))
+        per_page = int(request.GET.get('per_page', 10))
+        if per_page not in [10, 20]:
+            per_page = 10
+
+        responses_qs = QuestionnaireResponse.objects.filter(
+            client=client
+        ).order_by('-submitted_at')
+
+        paginator = Paginator(responses_qs, per_page)
+        page_obj = paginator.get_page(page)
+
+        upcoming_check = Appointment.objects.filter(
+            client=client,
+            appointment_type__iexact='check',
+            status='SCHEDULED',
+            start_datetime__gte=timezone.now()
+        ).order_by('start_datetime').first()
+
+        context = {
+            'page_obj': page_obj,
+            'per_page': per_page,
+            'upcoming_check': upcoming_check,
+        }
+        return render(request, 'pages/check/dashboard_client.html', context)
+
+    # ── COACH ──────────────────────────────────────────────────────
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    to_review_count = QuestionnaireResponse.objects.filter(coach=coach, status='COMPLETED').count()
+    reviewed_count = QuestionnaireResponse.objects.filter(coach=coach, status='REVIEWED').count()
+    upcoming_checks_count = Appointment.objects.filter(
+        coach=coach,
+        appointment_type__iexact='check',
+        status='SCHEDULED',
+        start_datetime__gte=timezone.now()
+    ).count()
+
+    coach_clients = list(
+        CoachingRelationship.objects.filter(coach=coach, status='ACTIVE')
+        .select_related('client')
+        .values('client__id', 'client__first_name', 'client__last_name')
+    )
+
+    context = {
+        'to_review_count': to_review_count,
+        'reviewed_count': reviewed_count,
+        'upcoming_checks_count': upcoming_checks_count,
+        'coach_clients_json': json.dumps(coach_clients),
+    }
+    return render(request, 'pages/check/dashboard.html', context)
 
 
 def check_create_view(request):
@@ -13,122 +137,374 @@ def check_create_view(request):
     if not user:
         return redirect('login')
 
-    if user.role == 'CLIENT':
-        client = get_session_client(request)
-        relationship = get_active_relationship(client)
-        context = {
-            'has_coach': relationship is not None,
-            'client': client,
-            'coach': relationship.coach if relationship else None,
-        }
-        if request.method == 'GET':
-            return render(request, 'pages/check/create.html', context)
-        if not relationship:
-            return redirect('check_coach_directory')
-    else:
-        context = {}
-        if request.method == 'GET':
-            return render(request, 'pages/check/create.html', context)
-        
-    if request.method == 'POST':
-        coach = get_session_coach(request)
-        client = get_session_client(request)
-        if not coach or not client:
-            return redirect('login')
-        
-        template, _ = QuestionnaireTemplate.objects.get_or_create(
-            coach=coach,
-            title="Check Settimanale Standard",
-            defaults={
-                'questionnaire_type': 'weekly_check',
-                'phase': 'Generica',
-                'is_active': True
-            }
-        )
-        
-        weight_kg = request.POST.get('weight_kg')
-        if not weight_kg:
-            weight_kg = None
-        if weight_kg:
-            try:
-                weight_kg = float(weight_kg)
-            except ValueError:
-                weight_kg = None
-            
-        body_circumferences = {
-            'shoulders': request.POST.get('circ_spalle', ''),
-            'chest': request.POST.get('circ_petto', ''),
-            'waist': request.POST.get('circ_vita', ''),
-            'hips': request.POST.get('circ_fianchi', ''),
-            'thigh_right': request.POST.get('circ_coscia', ''),
-            'arm_right': request.POST.get('circ_braccio', '')
-        }
-        
-        skinfolds = {
-            'chest': request.POST.get('pl_petto', ''),
-            'abdomen': request.POST.get('pl_addome', ''),
-            'thigh': request.POST.get('pl_coscia', ''),
-            'tricep': request.POST.get('pl_tricipite', '')
-        }
-        
-        answers_json = {
-            'mood': request.POST.get('ans_mood', ''),
-            'diet_adherence': request.POST.get('ans_diet', ''),
-            'workout_adherence': request.POST.get('ans_workout', '')
-        }
-        
-        injuries = request.POST.get('injuries', '')
-        limitations = request.POST.get('limitations', '')
-        notes = request.POST.get('notes', '')
-        
-        response = QuestionnaireResponse.objects.create(
-            questionnaire_template=template,
-            client=client,
-            coach=coach,
-            submitted_at=timezone.now(),
-            status='COMPLETED',
-            weight_kg=weight_kg,
-            body_circumferences=body_circumferences,
-            skinfolds=skinfolds,
-            answers_json=answers_json,
-            injuries=injuries,
-            limitations=limitations,
-            notes=notes
-        )
-        
-        fs = FileSystemStorage()
-        
-        for key, photo_type in [('photo_front', 'Front'), ('photo_side', 'Side'), ('photo_back', 'Back')]:
-            file = request.FILES.get(key)
-            if file:
-                filename = fs.save(f"progress_photos/{client.id}/{file.name}", file)
-                file_url = fs.url(filename)
-                
-                ProgressPhoto.objects.create(
-                    client=client,
-                    coach=coach,
-                    questionnaire_response=response,
-                    file_url=file_url,
-                    photo_type=photo_type,
-                    captured_at=timezone.now()
-                )
-                
+    if user.role != 'CLIENT':
         return redirect('check_dashboard')
 
+    client = get_session_client(request)
+    relationship = get_active_relationship(client)
+    if not relationship:
+        return redirect('check_coach_directory')
 
-def check_dashboard_view(request):
+    coach = relationship.coach
+
+    if request.method == 'GET':
+        return render(request, 'pages/check/create.html', {
+            'client': client,
+            'coach': coach,
+        })
+
+    # ── POST ───────────────────────────────────────────────────────
+    errors = {}
+
+    def parse_float_field(val, field_name, label):
+        val = (val or '').strip()
+        if not val:
+            return None, None
+        try:
+            v = float(val)
+            if v < 0:
+                return None, f'{label} non può essere negativo'
+            return v, None
+        except ValueError:
+            return None, f'{label} deve essere un numero valido'
+
+    weight_kg, err = parse_float_field(request.POST.get('weight_kg'), 'weight_kg', 'Peso')
+    if err:
+        errors['weight_kg'] = err
+
+    def parse_measurement(val):
+        val = (val or '').strip()
+        if not val:
+            return ''
+        try:
+            v = float(val)
+            return '' if v < 0 else str(round(v, 1))
+        except ValueError:
+            return ''
+
+    body_circumferences = {
+        'shoulders': parse_measurement(request.POST.get('circ_spalle')),
+        'chest': parse_measurement(request.POST.get('circ_petto')),
+        'waist': parse_measurement(request.POST.get('circ_vita')),
+        'hips': parse_measurement(request.POST.get('circ_fianchi')),
+        'thigh_right': parse_measurement(request.POST.get('circ_coscia')),
+        'arm_right': parse_measurement(request.POST.get('circ_braccio')),
+    }
+
+    skinfolds = {
+        'chest': parse_measurement(request.POST.get('pl_petto')),
+        'abdomen': parse_measurement(request.POST.get('pl_addome')),
+        'thigh': parse_measurement(request.POST.get('pl_coscia')),
+        'tricep': parse_measurement(request.POST.get('pl_tricipite')),
+    }
+
+    if errors:
+        return render(request, 'pages/check/create.html', {
+            'client': client,
+            'coach': coach,
+            'errors': errors,
+            'post_data': request.POST,
+        })
+
+    template, _ = QuestionnaireTemplate.objects.get_or_create(
+        coach=coach,
+        title='Check Settimanale Standard',
+        defaults={
+            'questionnaire_type': 'weekly_check',
+            'phase': 'Generica',
+            'is_active': True,
+        }
+    )
+
+    answers_json = {
+        'mood': request.POST.get('ans_mood', ''),
+        'diet_adherence': request.POST.get('ans_diet', ''),
+        'workout_adherence': request.POST.get('ans_workout', ''),
+    }
+
+    response = QuestionnaireResponse.objects.create(
+        questionnaire_template=template,
+        client=client,
+        coach=coach,
+        submitted_at=timezone.now(),
+        status='COMPLETED',
+        weight_kg=weight_kg,
+        body_circumferences=body_circumferences,
+        skinfolds=skinfolds,
+        answers_json=answers_json,
+        injuries=request.POST.get('injuries', ''),
+        limitations=request.POST.get('limitations', ''),
+        notes=request.POST.get('notes', ''),
+    )
+
+    for key, photo_type in [('photo_front', 'Front'), ('photo_side', 'Side'), ('photo_back', 'Back')]:
+        file = request.FILES.get(key)
+        if file:
+            ext = os.path.splitext(file.name)[1].lower() or '.jpg'
+            save_path = f'progress_photos/{client.id}/{photo_type.lower()}{ext}'
+            saved_path = default_storage.save(save_path, ContentFile(file.read()))
+            ProgressPhoto.objects.create(
+                client=client,
+                coach=coach,
+                questionnaire_response=response,
+                file_url=default_storage.url(saved_path),
+                photo_type=photo_type,
+                captured_at=timezone.now(),
+            )
+
+    return redirect('check_dashboard')
+
+
+def check_detail_view(request, response_id):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    if user.role == 'COACH':
+        coach = get_session_coach(request)
+        if not coach:
+            return redirect('login')
+        try:
+            response = QuestionnaireResponse.objects.select_related(
+                'client', 'coach'
+            ).get(id=response_id, coach=coach)
+        except QuestionnaireResponse.DoesNotExist:
+            return redirect('check_dashboard')
+
+    elif user.role == 'CLIENT':
+        client = get_session_client(request)
+        try:
+            response = QuestionnaireResponse.objects.select_related(
+                'client', 'coach'
+            ).get(id=response_id, client=client)
+        except QuestionnaireResponse.DoesNotExist:
+            return redirect('check_dashboard')
+    else:
+        return redirect('login')
+
+    prev_response = QuestionnaireResponse.objects.filter(
+        client=response.client,
+        submitted_at__lt=response.submitted_at
+    ).order_by('-submitted_at').first()
+
+    check_number = QuestionnaireResponse.objects.filter(
+        client=response.client,
+        submitted_at__lte=response.submitted_at
+    ).count()
+
+    weight_delta, circ_deltas, skinfold_deltas = _compute_deltas(response, prev_response)
+
+    circ_rows = []
+    curr_circ = response.body_circumferences or {}
+    prev_circ = (prev_response.body_circumferences or {}) if prev_response else {}
+    for key, label in CIRC_LABELS:
+        curr_val = curr_circ.get(key, '')
+        prev_val = prev_circ.get(key, '')
+        circ_rows.append({
+            'label': label,
+            'current': curr_val,
+            'previous': prev_val,
+            'delta': circ_deltas.get(key),
+        })
+
+    skinfold_rows = []
+    curr_sf = response.skinfolds or {}
+    prev_sf = (prev_response.skinfolds or {}) if prev_response else {}
+    for key, label in SKINFOLD_LABELS:
+        curr_val = curr_sf.get(key, '')
+        prev_val = prev_sf.get(key, '')
+        skinfold_rows.append({
+            'label': label,
+            'current': curr_val,
+            'previous': prev_val,
+            'delta': skinfold_deltas.get(key),
+        })
+
+    photos = list(response.photos.all())
+    answers = response.answers_json or {}
+
+    context = {
+        'response': response,
+        'prev_response': prev_response,
+        'check_number': check_number,
+        'weight_delta': weight_delta,
+        'circ_rows': circ_rows,
+        'skinfold_rows': skinfold_rows,
+        'photos': photos,
+        'answers': answers,
+    }
+    return render(request, 'pages/check/detail.html', context)
+
+
+def client_check_history_view(request, client_id):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
     coach = get_session_coach(request)
     if not coach:
         return redirect('login')
-    
-    responses = QuestionnaireResponse.objects.filter(coach=coach).order_by('-submitted_at')
-    
-    to_review = responses.filter(status='COMPLETED')
-    reviewed = responses.filter(status='REVIEWED')
-    
+
+    try:
+        relationship = CoachingRelationship.objects.select_related('client').get(
+            coach=coach, client__id=client_id
+        )
+        target_client = relationship.client
+    except CoachingRelationship.DoesNotExist:
+        return redirect('check_dashboard')
+
+    page = max(1, int(request.GET.get('page', 1)))
+    per_page = int(request.GET.get('per_page', 10))
+    if per_page not in [10, 20]:
+        per_page = 10
+
+    responses_qs = QuestionnaireResponse.objects.filter(
+        coach=coach, client=target_client
+    ).order_by('-submitted_at')
+
+    paginator = Paginator(responses_qs, per_page)
+    page_obj = paginator.get_page(page)
+
     context = {
-        'to_review_count': to_review.count(),
-        'reviewed_count': reviewed.count(),
-        'responses': responses,
+        'target_client': target_client,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'total_checks': paginator.count,
     }
-    return render(request, 'pages/check/dashboard.html', context)
+    return render(request, 'pages/check/client_history.html', context)
+
+
+# ── API endpoints ─────────────────────────────────────────────────
+
+
+def api_check_search(request):
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthenticated'}, status=401)
+
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    q = request.GET.get('q', '').strip()
+    tab = request.GET.get('tab', 'da_revisionare')
+    page = max(1, int(request.GET.get('page', 1)))
+    per_page = int(request.GET.get('per_page', 10))
+    if per_page not in [10, 20]:
+        per_page = 10
+
+    responses_qs = QuestionnaireResponse.objects.filter(coach=coach).select_related(
+        'client'
+    ).order_by('-submitted_at')
+
+    if q:
+        responses_qs = responses_qs.filter(
+            Q(client__first_name__icontains=q) | Q(client__last_name__icontains=q)
+        )
+
+    if tab == 'da_revisionare':
+        responses_qs = responses_qs.filter(status='COMPLETED')
+
+    paginator = Paginator(responses_qs, per_page)
+    page_obj = paginator.get_page(page)
+
+    results = []
+    for r in page_obj:
+        results.append({
+            'id': r.id,
+            'client_id': r.client.id,
+            'client_name': f"{r.client.first_name} {r.client.last_name}",
+            'client_initials': f"{r.client.first_name[:1]}{r.client.last_name[:1]}".upper(),
+            'primary_goal': r.client.primary_goal or '',
+            'submitted_at': r.submitted_at.strftime('%-d %b %Y, %H:%M') if r.submitted_at else '—',
+            'weight_kg': str(r.weight_kg) if r.weight_kg else None,
+            'status': r.status,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'page': page_obj.number,
+        'num_pages': paginator.num_pages,
+        'total': paginator.count,
+        'per_page': per_page,
+    })
+
+
+def api_check_schedule(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthenticated'}, status=401)
+
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        client_id = data.get('client_id')
+        start_str = data.get('start_datetime')
+        end_str = data.get('end_datetime')
+        notes = data.get('notes', '')
+
+        if not client_id or not start_str or not end_str:
+            return JsonResponse({'error': 'Campi obbligatori mancanti'}, status=400)
+
+        start_datetime = parse_datetime(start_str)
+        end_datetime = parse_datetime(end_str)
+
+        if not start_datetime or not end_datetime:
+            return JsonResponse({'error': 'Formato data non valido'}, status=400)
+        if end_datetime <= start_datetime:
+            return JsonResponse({'error': 'La data di fine deve essere successiva alla data di inizio'}, status=400)
+
+        client = ClientProfile.objects.get(
+            id=client_id,
+            coaching_relationships_as_client__coach=coach,
+            coaching_relationships_as_client__status='ACTIVE'
+        )
+
+        appointment = Appointment.objects.create(
+            coach=coach,
+            client=client,
+            title=f"Check Progressi – {client.first_name} {client.last_name}",
+            appointment_type='check',
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
+            description=notes,
+            status='SCHEDULED',
+        )
+        return JsonResponse({'success': True, 'appointment_id': appointment.id})
+
+    except ClientProfile.DoesNotExist:
+        return JsonResponse({'error': 'Cliente non trovato o non associato'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def api_check_review(request, response_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthenticated'}, status=401)
+
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        response = QuestionnaireResponse.objects.get(id=response_id, coach=coach)
+        response.status = 'REVIEWED'
+        response.coach_feedback = data.get('coach_feedback', '')
+        response.coach_private_notes = data.get('coach_private_notes', '')
+        response.save(update_fields=['status', 'coach_feedback', 'coach_private_notes', 'updated_at'])
+        return JsonResponse({'success': True})
+    except QuestionnaireResponse.DoesNotExist:
+        return JsonResponse({'error': 'Check non trovato'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

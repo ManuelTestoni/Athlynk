@@ -1,90 +1,172 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{ currentTab: 'da_revisionare' }">
+<script>
+    window._coachClients = {{ coach_clients_json|safe }};
+</script>
+<div class="flex-1 w-full max-w-7xl mx-auto" x-data="{
+    results: [],
+    query: '',
+    tab: 'da_revisionare',
+    page: 1,
+    perPage: 10,
+    numPages: 1,
+    total: 0,
+    loading: false,
+
+    showScheduleModal: false,
+    clients: window._coachClients || [],
+    clientFilter: '',
+    schedule: { client_id: null, client_name: '', date: '', start_time: '09:00', end_time: '10:00', notes: '' },
+    scheduleError: '',
+    scheduleSuccess: false,
+    scheduling: false,
+
+    get filteredClients() {
+        const q = this.clientFilter.toLowerCase();
+        return q ? this.clients.filter(c =>
+            (c.client__first_name + ' ' + c.client__last_name).toLowerCase().includes(q)
+        ) : this.clients;
+    },
+
+    selectClient(c) {
+        this.schedule.client_id = c.client__id;
+        this.schedule.client_name = c.client__first_name + ' ' + c.client__last_name;
+        this.clientFilter = '';
+    },
+
+    async fetchChecks() {
+        this.loading = true;
+        try {
+            const params = new URLSearchParams({ q: this.query, tab: this.tab, page: this.page, per_page: this.perPage });
+            const res = await fetch('/api/check/cerca-cliente/?' + params);
+            const data = await res.json();
+            this.results = data.results;
+            this.numPages = data.num_pages;
+            this.total = data.total;
+        } catch(e) { console.error(e); }
+        this.loading = false;
+    },
+
+    setTab(t) { this.tab = t; this.page = 1; this.fetchChecks(); },
+    setPage(p) { if (p >= 1 && p <= this.numPages) { this.page = p; this.fetchChecks(); } },
+    setPerPage(n) { this.perPage = parseInt(n); this.page = 1; this.fetchChecks(); },
+
+    get pageRange() {
+        const pages = [];
+        for(let i = 1; i <= Math.min(this.numPages, 7); i++) pages.push(i);
+        return pages;
+    },
+
+    async submitSchedule() {
+        this.scheduleError = '';
+        if (!this.schedule.client_id) { this.scheduleError = 'Seleziona un cliente.'; return; }
+        if (!this.schedule.date) { this.scheduleError = 'Inserisci una data.'; return; }
+        this.scheduling = true;
+        try {
+            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            const res = await fetch('/api/check/pianifica/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({
+                    client_id: this.schedule.client_id,
+                    start_datetime: this.schedule.date + 'T' + this.schedule.start_time + ':00',
+                    end_datetime: this.schedule.date + 'T' + this.schedule.end_time + ':00',
+                    notes: this.schedule.notes
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.scheduleSuccess = true;
+                setTimeout(() => {
+                    this.showScheduleModal = false;
+                    this.scheduleSuccess = false;
+                    this.schedule = { client_id: null, client_name: '', date: '', start_time: '09:00', end_time: '10:00', notes: '' };
+                }, 1800);
+            } else {
+                this.scheduleError = data.error || 'Errore nella creazione.';
+            }
+        } catch(e) { this.scheduleError = 'Errore di rete.'; }
+        this.scheduling = false;
+    },
+
+    async init() { await this.fetchChecks(); }
+}">
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Check e Progressi</h1>
-            <p class="text-sm text-slate-500 mt-1">Gestisci i check point dei tuoi clienti, monitora i progressi e fornisci feedback.</p>
+            <p class="text-sm text-slate-500 mt-1">Monitora i check dei tuoi clienti e pianifica le sessioni di verifica.</p>
         </div>
-        <div class="flex gap-3">
-            <button class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm">
-                <i class="ph ph-sliders mr-2"></i> Filtri
-            </button>
-            <a href="{% url 'check_create' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
-                <i class="ph ph-plus-circle mr-2 text-lg"></i>
-                Nuovo Check
-            </a>
-        </div>
+        <button @click="showScheduleModal = true"
+                class="bg-accent hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm flex items-center gap-2">
+            <i class="ph ph-calendar-plus text-lg"></i> Pianifica Check
+        </button>
     </div>
 
     <!-- KPI Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-xl">
-                    <i class="ph-fill ph-bell-ringing"></i>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Da Revisionare</p>
-                    <p class="text-2xl font-bold text-slate-900">{{ to_review_count }}</p>
-                </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center text-xl shrink-0">
+                <i class="ph-fill ph-bell-ringing"></i>
             </div>
-            <div class="mt-4 flex items-center text-sm text-slate-500">
-                <span class="text-orange-600 font-medium flex items-center"><i class="ph-fill ph-warning-circle mr-1"></i> Richiedono attenzione</span>
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Da Revisionare</p>
+                <p class="text-2xl font-bold text-slate-900">{{ to_review_count }}</p>
             </div>
         </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
-                    <i class="ph-fill ph-check-circle"></i>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Check Approvati</p>
-                    <p class="text-2xl font-bold text-slate-900">{{ reviewed_count }}</p>
-                </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                <i class="ph-fill ph-check-circle"></i>
             </div>
-            <div class="mt-4 flex items-center text-sm text-slate-500">
-                <span class="text-emerald-600 font-medium flex items-center"><i class="ph ph-trend-up mr-1"></i> +20%</span> <span class="ml-2">rispetto al mese scorso</span>
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Revisionati</p>
+                <p class="text-2xl font-bold text-slate-900">{{ reviewed_count }}</p>
             </div>
         </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
-                    <i class="ph-fill ph-calendar-check"></i>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Check in arrivo</p>
-                    <p class="text-2xl font-bold text-slate-900">7</p>
-                </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                <i class="ph-fill ph-calendar-check"></i>
             </div>
-            <div class="mt-4 flex items-center text-sm text-slate-500">
-                <span>Programmati entro i prossimi 7 giorni</span>
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Check pianificati</p>
+                <p class="text-2xl font-bold text-slate-900">{{ upcoming_checks_count }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Tabs & Search -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <!-- Toolbar -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div class="flex bg-slate-100 p-1 rounded-xl">
-            <button @click="currentTab = 'da_revisionare'" :class="currentTab === 'da_revisionare' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-5 py-2 rounded-lg text-sm font-medium transition-all relative">
+            <button @click="setTab('da_revisionare')"
+                    :class="tab === 'da_revisionare' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600 hover:text-slate-900'"
+                    class="px-5 py-2 rounded-lg text-sm font-medium transition-all relative">
                 Da Revisionare
-                <span class="absolute top-1.5 right-1 w-2 h-2 rounded-full bg-orange-500"></span>
+                <span x-show="tab !== 'da_revisionare' && {{ to_review_count }} > 0" class="absolute top-1.5 right-1 w-2 h-2 rounded-full bg-orange-500"></span>
             </button>
-            <button @click="currentTab = 'tutti'" :class="currentTab === 'tutti' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600 hover:text-slate-900'" class="px-5 py-2 rounded-lg text-sm font-medium transition-all">
+            <button @click="setTab('tutti')"
+                    :class="tab === 'tutti' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-600 hover:text-slate-900'"
+                    class="px-5 py-2 rounded-lg text-sm font-medium transition-all">
                 Tutti i Check
             </button>
         </div>
-        <div class="relative w-full sm:w-64">
-            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" placeholder="Cerca cliente..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" x-model="query" @input.debounce.350ms="page=1; fetchChecks()"
+                       placeholder="Cerca cliente..."
+                       class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+            </div>
+            <select @change="setPerPage($event.target.value)"
+                    class="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+                <option value="10" :selected="perPage === 10">10</option>
+                <option value="20" :selected="perPage === 20">20</option>
+            </select>
         </div>
     </div>
 
-    <!-- Table Section -->
+    <!-- Table -->
     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -93,184 +175,210 @@
                         <th class="px-6 py-4 font-semibold">Cliente</th>
                         <th class="px-6 py-4 font-semibold">Data Invio</th>
                         <th class="px-6 py-4 font-semibold">Obiettivo</th>
-                        <th class="px-6 py-4 font-semibold">Variazione Peso</th>
+                        <th class="px-6 py-4 font-semibold">Peso</th>
                         <th class="px-6 py-4 font-semibold">Stato</th>
                         <th class="px-6 py-4 font-semibold text-right">Azioni</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 text-sm" x-show="currentTab === 'da_revisionare'">
-                    
-                    <!-- Row 1 -->
-                    <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <img src="https://i.pravatar.cc/150?u=a042581f4e29026024d" alt="Cliente" class="w-10 h-10 rounded-full border-2 border-white shadow-sm">
-                                <div class="ml-3">
-                                    <p class="font-medium text-slate-900">Lorenzo Bianchi</p>
-                                    <p class="text-xs text-slate-500">12° Check</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-slate-900 font-medium">Oggi, 09:30</div>
-                            <div class="text-xs text-orange-600 font-medium flex items-center mt-0.5"><i class="ph-fill ph-clock mr-1"></i> In attesa</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Dimagrimento</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center text-emerald-600 font-semibold gap-1">
-                                <i class="ph-bold ph-arrow-down-right"></i> -1.2 kg
-                            </div>
-                            <div class="text-[11px] text-slate-500 mt-0.5">82.5kg → 81.3kg</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Da Revisionare
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <a href="{% url 'check_detail' %}" class="inline-flex items-center justify-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-sm font-medium transition-colors">
-                                Analizza
-                            </a>
-                        </td>
-                    </tr>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                    <!-- Loading -->
+                    <template x-if="loading">
+                        <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">
+                            <i class="ph ph-spinner-gap animate-spin text-2xl"></i>
+                        </td></tr>
+                    </template>
 
-                    <!-- Row 2 (Mancano dati) -->
-                    <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-lg shadow-sm border-2 border-white">SM</div>
-                                <div class="ml-3">
-                                    <p class="font-medium text-slate-900">Sofia Martini</p>
-                                    <p class="text-xs text-slate-500">4° Check</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-slate-900 font-medium">Ieri, 18:45</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">Ricomposizione</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center text-rose-600 font-semibold gap-1" title="Dato mancante">
-                                <i class="ph-bold ph-warning-circle"></i> Info mancanti
-                            </div>
-                            <div class="text-[11px] text-slate-500 mt-0.5">Nessuna foto caricata</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Incompleto
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <button class="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors" title="Invia sollecito">
-                                    <i class="ph ph-paper-plane-tilt text-lg"></i>
-                                </button>
-                                <a href="{% url 'check_detail' %}" class="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">
-                                    Vedi
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
+                    <!-- Results -->
+                    <template x-if="!loading && results.length > 0">
+                        <template x-for="r in results" :key="r.id">
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-full bg-accent/10 text-accent flex items-center justify-center font-bold text-sm shrink-0"
+                                             x-text="r.client_initials"></div>
+                                        <div>
+                                            <p class="font-medium text-slate-900" x-text="r.client_name"></p>
+                                            <a :href="'/check/cliente/' + r.client_id + '/'"
+                                               class="text-xs text-slate-400 hover:text-accent transition-colors">Storico →</a>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <p class="text-slate-900 font-medium" x-text="r.submitted_at"></p>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <template x-if="r.primary_goal">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700" x-text="r.primary_goal"></span>
+                                    </template>
+                                    <template x-if="!r.primary_goal">
+                                        <span class="text-slate-400 text-xs">—</span>
+                                    </template>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <template x-if="r.weight_kg">
+                                        <span class="font-semibold text-slate-900" x-text="r.weight_kg + ' kg'"></span>
+                                    </template>
+                                    <template x-if="!r.weight_kg">
+                                        <span class="text-slate-400">—</span>
+                                    </template>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <template x-if="r.status === 'REVIEWED'">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <i class="ph-bold ph-check"></i> Revisionato
+                                        </span>
+                                    </template>
+                                    <template x-if="r.status !== 'REVIEWED'">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Da Revisionare
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <a :href="'/check/' + r.id + '/'"
+                                       class="inline-flex items-center justify-center px-3 py-1.5 bg-accent/10 text-accent hover:bg-accent hover:text-white rounded-lg text-sm font-medium transition-colors">
+                                        Analizza
+                                    </a>
+                                </td>
+                            </tr>
+                        </template>
+                    </template>
 
-                     <!-- Row 3 -->
-                     <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <img src="https://i.pravatar.cc/150?u=a042581f4e29026707d" alt="Cliente" class="w-10 h-10 rounded-full border-2 border-white shadow-sm">
-                                <div class="ml-3">
-                                    <p class="font-medium text-slate-900">Giulia Romano</p>
-                                    <p class="text-xs text-slate-500">1° Check</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-slate-900 font-medium">Ieri, 14:20</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">Massa</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center text-emerald-600 font-semibold gap-1">
-                                <i class="ph-bold ph-arrow-up-right"></i> +0.5 kg
-                            </div>
-                            <div class="text-[11px] text-slate-500 mt-0.5">54.0kg → 54.5kg</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Da Revisionare
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <a href="{% url 'check_detail' %}" class="inline-flex items-center justify-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-sm font-medium transition-colors">
-                                Analizza
-                            </a>
-                        </td>
-                    </tr>
-                </tbody>
-
-                <!-- Tutti i Check Tab (Mock data) -->
-                <tbody class="divide-y divide-slate-100 text-sm" x-show="currentTab === 'tutti'" x-cloak>
-                    {% for check in responses %}
-                    <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                                    {{ check.client.user.first_name|first }}{{ check.client.user.last_name|first }}
-                                </div>
-                                <div class="ml-3">
-                                    <p class="font-medium text-slate-900">{{ check.client.user.get_full_name|default:"Cliente Sconosciuto" }}</p>
-                                    <p class="text-xs text-slate-500">Check</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-slate-900 font-medium">{{ check.submitted_at|date:"d M Y" }}</div>
-                            <div class="text-xs text-slate-500 mt-0.5">{% if check.status == 'REVIEWED' %}Revisionato{% else %}In Attesa{% endif %}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Generico</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-1">
-                                Peso: {{ check.weight_kg|default:"N/A" }}kg
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            {% if check.status == 'REVIEWED' %}
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <i class="ph-bold ph-check"></i> Approvato
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Da Revisionare
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            <a href="{% url 'check_detail' %}" class="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">
-                                Dettagli
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">Nessun check registrato.</td></tr>
-                    {% endfor %}
+                    <!-- Empty -->
+                    <template x-if="!loading && results.length === 0">
+                        <tr><td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                            <i class="ph ph-clipboard-text text-3xl mb-2 block"></i>
+                            <p class="text-sm" x-text="query ? 'Nessun risultato per la ricerca.' : 'Nessun check in questa sezione.'"></p>
+                        </td></tr>
+                    </template>
                 </tbody>
             </table>
         </div>
-        
+
         <!-- Pagination -->
-        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
-            <span class="text-sm text-slate-500">Mostrando <span class="font-medium text-slate-900">1-3</span> di <span class="font-medium text-slate-900">24</span> check</span>
-            <div class="flex gap-2">
-                <button class="p-2 border border-slate-200 rounded-lg text-slate-400 cursor-not-allowed bg-white"><i class="ph-bold ph-caret-left"></i></button>
-                <button class="p-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 bg-white transition-colors"><i class="ph-bold ph-caret-right"></i></button>
+        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50" x-show="!loading && total > 0">
+            <span class="text-sm text-slate-500">
+                Mostrando <span class="font-medium text-slate-900" x-text="results.length"></span>
+                di <span class="font-medium text-slate-900" x-text="total"></span> check
+            </span>
+            <div class="flex items-center gap-1">
+                <button @click="setPage(page - 1)" :disabled="page === 1"
+                        class="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="ph-bold ph-caret-left"></i>
+                </button>
+                <template x-for="p in pageRange" :key="p">
+                    <button @click="setPage(p)"
+                            :class="p === page ? 'bg-accent text-white border-accent' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'"
+                            class="px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors"
+                            x-text="p"></button>
+                </template>
+                <button @click="setPage(page + 1)" :disabled="page === numPages"
+                        class="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="ph-bold ph-caret-right"></i>
+                </button>
             </div>
         </div>
     </div>
+
+    <!-- ── Modal Pianifica Check ─────────────────────────────────── -->
+    <div x-show="showScheduleModal" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak>
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" @click.away="showScheduleModal = false">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800">Pianifica Check</h3>
+                    <p class="text-sm text-slate-500 mt-0.5">Crea un appuntamento di check sull'agenda</p>
+                </div>
+                <button @click="showScheduleModal = false" class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 flex items-center justify-center transition-colors">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+
+                <!-- Success -->
+                <div x-show="scheduleSuccess" class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-emerald-700 text-sm font-medium">
+                    <i class="ph-fill ph-check-circle text-lg"></i> Check pianificato e aggiunto all'agenda!
+                </div>
+
+                <!-- Error -->
+                <div x-show="scheduleError" class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm">
+                    <i class="ph-fill ph-warning-circle"></i> <span x-text="scheduleError"></span>
+                </div>
+
+                <!-- Cliente -->
+                <div class="relative">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Cliente <span class="text-red-500">*</span></label>
+                    <template x-if="!schedule.client_id">
+                        <div>
+                            <input type="text" x-model="clientFilter" placeholder="Cerca per nome..."
+                                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                            <div x-show="filteredClients.length > 0 && clientFilter.length > 0"
+                                 class="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto">
+                                <template x-for="c in filteredClients" :key="c.client__id">
+                                    <button @click="selectClient(c)"
+                                            class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                                        <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <template x-if="clients.length === 0">
+                                <p class="text-xs text-slate-400 mt-1">Nessun cliente attivo associato.</p>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="schedule.client_id">
+                        <div class="flex items-center gap-2 bg-accent/5 border border-accent/20 rounded-xl px-4 py-2.5">
+                            <i class="ph-fill ph-check-circle text-accent"></i>
+                            <span class="text-sm font-medium text-slate-900" x-text="schedule.client_name"></span>
+                            <button @click="schedule.client_id = null; schedule.client_name = ''"
+                                    class="ml-auto text-slate-400 hover:text-red-500 transition-colors text-xs">Cambia</button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Data -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Data <span class="text-red-500">*</span></label>
+                    <input type="date" x-model="schedule.date"
+                           class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                </div>
+
+                <!-- Orari -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Inizio</label>
+                        <input type="time" x-model="schedule.start_time"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Fine</label>
+                        <input type="time" x-model="schedule.end_time"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                    </div>
+                </div>
+
+                <!-- Note -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Note per il cliente</label>
+                    <textarea x-model="schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni, verrà controllato il peso..."
+                              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button @click="showScheduleModal = false"
+                        class="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 text-sm font-medium transition-colors">
+                    Annulla
+                </button>
+                <button @click="submitSchedule()" :disabled="scheduling || scheduleSuccess"
+                        class="px-5 py-2 bg-accent hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <i class="ph ph-calendar-check"></i>
+                    <span x-text="scheduling ? 'Creazione...' : 'Pianifica'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

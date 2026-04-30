@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script>
+window._mealsData = {{ meals_json|safe }};
+window._clients = {{ clients_json|safe }};
+</script>
+
+<div class="w-full max-w-5xl mx-auto"
+     x-data="planBuilder()"
+     x-init="init()">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <a href="{% url 'nutrizione_piani' %}"
+         class="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600">
+        <i class="ph ph-arrow-left text-lg"></i>
+      </a>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">
+          {% if plan %}Modifica Piano{% else %}Nuovo Piano Alimentare{% endif %}
+        </h1>
+        <p class="text-sm text-slate-500 mt-0.5">Aggiungi pasti e alimenti, i macro vengono calcolati in tempo reale.</p>
+      </div>
+    </div>
+    <button @click="savePlan()" :disabled="saving"
+            class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
+      <i class="ph ph-floppy-disk text-lg"></i>
+      <span x-show="!saving">Salva Piano</span>
+      <span x-show="saving">Salvataggio...</span>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+
+    <!-- Left: form + meals -->
+    <div class="space-y-5">
+
+      <!-- Info base -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Informazioni piano</h2>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Titolo *</label>
+          <input type="text" x-model="title" placeholder="es. Definizione 1800kcal"
+                 class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5">Tipologia</label>
+            <select x-model="plan_type"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+              <option value="">Seleziona...</option>
+              <option>Ipocalorica</option>
+              <option>Normocalorica</option>
+              <option>Ipercalorica</option>
+              <option>Chetogenica</option>
+              <option>Vegana</option>
+              <option>Vegetariana</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5">Obiettivo</label>
+            <input type="text" x-model="nutrition_goal" placeholder="es. Perdita di peso"
+                   class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Descrizione</label>
+          <textarea x-model="description" rows="2" placeholder="Note e descrizione del piano..."
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="is_template" x-model="is_template"
+                 class="w-4 h-4 rounded accent-accent cursor-pointer">
+          <label for="is_template" class="text-sm text-slate-700 cursor-pointer">Salva come modello riutilizzabile</label>
+        </div>
+      </div>
+
+      <!-- Meals -->
+      <div class="space-y-4">
+        <template x-for="(meal, mIndex) in meals" :key="mIndex">
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <!-- Meal header -->
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <div class="flex items-center gap-3 flex-1">
+                <div class="w-7 h-7 rounded-lg bg-accent/10 text-accent flex items-center justify-center text-xs font-bold"
+                     x-text="mIndex + 1"></div>
+                <input type="text" x-model="meal.name" placeholder="Nome pasto (es. Colazione)"
+                       class="flex-1 bg-transparent text-sm font-bold text-slate-900 focus:outline-none placeholder-slate-400">
+                <input type="time" x-model="meal.time_of_day"
+                       class="text-xs text-slate-500 bg-transparent border-none focus:outline-none w-20">
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400 font-medium"
+                      x-text="mealKcal(meal) + ' kcal'"></span>
+                <button @click="removeMeal(mIndex)"
+                        class="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-400 transition-colors">
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Items list -->
+            <div class="divide-y divide-slate-50">
+              <template x-for="(item, iIndex) in meal.items" :key="iIndex">
+                <div class="flex items-center gap-3 px-5 py-3">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-slate-800" x-text="item.food_name"></p>
+                    <p class="text-xs text-slate-400 mt-0.5"
+                       x-text="computedMacros(item)"></p>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <input type="number" x-model="item.quantity_g" min="1" max="9999"
+                           class="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-accent focus:outline-none bg-slate-50"
+                           placeholder="g">
+                    <span class="text-xs text-slate-400">g</span>
+                    <button @click="removeItem(mIndex, iIndex)"
+                            class="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors">
+                      <i class="ph ph-x text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Add food to meal -->
+            <div class="px-5 py-3 border-t border-slate-100" x-data="{
+              q: '', results: [], searching: false, show: false,
+              async search() {
+                if (this.q.length < 2) { this.results = []; return; }
+                this.searching = true;
+                const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(this.q));
+                const d = await r.json();
+                this.results = d.results; this.searching = false; this.show = true;
+              },
+              pick(food) {
+                $dispatch('add-food', {mealIndex: mIndex, food: food});
+                this.q = ''; this.results = []; this.show = false;
+              }
+            }">
+              <div class="relative">
+                <div class="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-xl hover:border-accent focus-within:border-accent transition-colors bg-slate-50">
+                  <i class="ph ph-magnifying-glass text-slate-400 text-sm"></i>
+                  <input type="text" x-model="q" @input.debounce.300ms="search()"
+                         placeholder="Cerca alimento da aggiungere..."
+                         class="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 focus:outline-none">
+                  <span x-show="searching" class="text-xs text-slate-400">...</span>
+                </div>
+                <div x-show="show && results.length > 0"
+                     @click.outside="show = false"
+                     class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-52 overflow-y-auto">
+                  <template x-for="food in results" :key="food.id">
+                    <button type="button" @click="pick(food)"
+                            class="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                      <div class="flex items-center justify-between gap-3">
+                        <div>
+                          <p class="text-sm font-medium text-slate-800" x-text="food.name"></p>
+                          <p class="text-xs text-slate-400" x-text="food.category"></p>
+                        </div>
+                        <div class="text-right shrink-0">
+                          <p class="text-xs font-bold text-slate-700" x-text="food.kcal + ' kcal'"></p>
+                          <p class="text-xs text-slate-400"
+                             x-text="'P:' + food.protein + ' C:' + food.carb + ' F:' + food.fat"></p>
+                        </div>
+                      </div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Meal macro bar -->
+            <div class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 text-center text-xs">
+              <div class="py-2 text-blue-600">
+                <span class="font-bold" x-text="mealMacro(meal, 'protein') + 'g'"></span>
+                <span class="text-blue-400 ml-1">prot</span>
+              </div>
+              <div class="py-2 text-amber-600">
+                <span class="font-bold" x-text="mealMacro(meal, 'carb') + 'g'"></span>
+                <span class="text-amber-400 ml-1">carb</span>
+              </div>
+              <div class="py-2 text-rose-600">
+                <span class="font-bold" x-text="mealMacro(meal, 'fat') + 'g'"></span>
+                <span class="text-rose-400 ml-1">fat</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <button @click="addMeal()"
+                class="w-full border-2 border-dashed border-slate-300 rounded-2xl py-5 flex items-center justify-center gap-2 text-slate-500 hover:border-accent hover:text-accent transition-colors text-sm font-semibold bg-white hover:bg-accent/5">
+          <i class="ph ph-plus text-lg"></i> Aggiungi pasto
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right: totali -->
+    <aside class="space-y-4 lg:sticky lg:top-6">
+
+      <!-- Totali macro calcolati -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Totali giornalieri (calcolati)</h3>
+        <div class="text-center mb-5">
+          <p class="text-4xl font-bold text-slate-900" x-text="totalKcal()"></p>
+          <p class="text-xs text-slate-500 uppercase tracking-wider mt-1">kcal / giorno</p>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span class="text-sm text-slate-600">Proteine</span>
+            </div>
+            <span class="text-sm font-bold text-slate-900" x-text="totalMacro('protein') + ' g'"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+              <span class="text-sm text-slate-600">Carboidrati</span>
+            </div>
+            <span class="text-sm font-bold text-slate-900" x-text="totalMacro('carb') + ' g'"></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-rose-400"></div>
+              <span class="text-sm text-slate-600">Grassi</span>
+            </div>
+            <span class="text-sm font-bold text-slate-900" x-text="totalMacro('fat') + ' g'"></span>
+          </div>
+        </div>
+
+        <!-- Macro bar -->
+        <div class="mt-4 h-2 rounded-full overflow-hidden flex" x-show="totalKcal() > 0">
+          <div class="bg-blue-500 h-full transition-all" :style="'width:' + macroPct('protein') + '%'"></div>
+          <div class="bg-amber-400 h-full transition-all" :style="'width:' + macroPct('carb') + '%'"></div>
+          <div class="bg-rose-400 h-full transition-all" :style="'width:' + macroPct('fat') + '%'"></div>
+        </div>
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1" x-show="totalKcal() > 0">
+          <span x-text="macroPct('protein') + '% P'"></span>
+          <span x-text="macroPct('carb') + '% C'"></span>
+          <span x-text="macroPct('fat') + '% F'"></span>
+        </div>
+      </div>
+
+      <!-- Target macro (opzionale) -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Target personalizzato (opz.)</h3>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-500 mb-1">Kcal target</label>
+          <input type="number" x-model="daily_kcal" placeholder="—"
+                 class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-blue-500 mb-1">Prot (g)</label>
+            <input type="number" x-model="protein_target_g" placeholder="—"
+                   class="w-full px-3 py-2 border border-blue-100 rounded-xl text-sm bg-blue-50 focus:ring-2 focus:ring-blue-200 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-amber-500 mb-1">Carb (g)</label>
+            <input type="number" x-model="carb_target_g" placeholder="—"
+                   class="w-full px-3 py-2 border border-amber-100 rounded-xl text-sm bg-amber-50 focus:ring-2 focus:ring-amber-200 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-rose-500 mb-1">Fat (g)</label>
+            <input type="number" x-model="fat_target_g" placeholder="—"
+                   class="w-full px-3 py-2 border border-rose-100 rounded-xl text-sm bg-rose-50 focus:ring-2 focus:ring-rose-200 focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Pasti count -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+        <p class="text-2xl font-bold text-slate-900" x-text="meals.length"></p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Pasti totali</p>
+      </div>
+
+      <!-- Error -->
+      <div x-show="errorMsg" class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600"
+           x-text="errorMsg"></div>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+function planBuilder() {
+  return {
+    title: '{{ plan.title|escapejs|default:"" }}',
+    description: '{{ plan.description|escapejs|default:"" }}',
+    plan_type: '{{ plan.plan_type|escapejs|default:"" }}',
+    nutrition_goal: '{{ plan.nutrition_goal|escapejs|default:"" }}',
+    is_template: {{ plan.is_template|yesno:"true,false"|default:"false" }},
+    daily_kcal: {{ plan.daily_kcal|default:"''" }},
+    protein_target_g: {{ plan.protein_target_g|default:"''" }},
+    carb_target_g: {{ plan.carb_target_g|default:"''" }},
+    fat_target_g: {{ plan.fat_target_g|default:"''" }},
+    meals: [],
+    saving: false,
+    errorMsg: '',
+
+    init() {
+      const raw = window._mealsData || [];
+      this.meals = raw.map(m => ({
+        name: m.name,
+        time_of_day: m.time_of_day || '',
+        notes: m.notes || '',
+        items: (m.items || []).map(i => ({
+          food_id: i.food_id,
+          food_name: i.food_name,
+          quantity_g: i.quantity_g,
+          kcal_per_100g: i.kcal_per_100g,
+          protein_per_100g: i.protein_per_100g,
+          carb_per_100g: i.carb_per_100g,
+          fat_per_100g: i.fat_per_100g,
+        }))
+      }));
+
+      this.$el.addEventListener('add-food', (e) => {
+        const { mealIndex, food } = e.detail;
+        this.meals[mealIndex].items.push({
+          food_id: food.id,
+          food_name: food.name,
+          quantity_g: 100,
+          kcal_per_100g: food.kcal,
+          protein_per_100g: food.protein,
+          carb_per_100g: food.carb,
+          fat_per_100g: food.fat,
+        });
+      });
+    },
+
+    addMeal() {
+      this.meals.push({ name: '', time_of_day: '', notes: '', items: [] });
+    },
+
+    removeMeal(i) { this.meals.splice(i, 1); },
+    removeItem(mi, ii) { this.meals[mi].items.splice(ii, 1); },
+
+    computedMacros(item) {
+      const q = parseFloat(item.quantity_g) || 0;
+      const k = Math.round(item.kcal_per_100g * q / 100);
+      const p = (item.protein_per_100g * q / 100).toFixed(1);
+      const c = (item.carb_per_100g * q / 100).toFixed(1);
+      const f = (item.fat_per_100g * q / 100).toFixed(1);
+      return k + ' kcal · P ' + p + 'g · C ' + c + 'g · F ' + f + 'g';
+    },
+
+    mealKcal(meal) {
+      return Math.round(meal.items.reduce((s, i) => s + (i.kcal_per_100g * (parseFloat(i.quantity_g) || 0) / 100), 0));
+    },
+
+    mealMacro(meal, key) {
+      const field = key + '_per_100g';
+      return Math.round(meal.items.reduce((s, i) => s + (i[field] * (parseFloat(i.quantity_g) || 0) / 100), 0));
+    },
+
+    totalKcal() {
+      return Math.round(this.meals.reduce((s, m) => s + this.mealKcal(m), 0));
+    },
+
+    totalMacro(key) {
+      return Math.round(this.meals.reduce((s, m) => s + this.mealMacro(m, key), 0));
+    },
+
+    macroPct(key) {
+      const total = this.totalKcal();
+      if (!total) return 0;
+      const kcalPerG = key === 'fat' ? 9 : 4;
+      return Math.round(this.totalMacro(key) * kcalPerG / total * 100);
+    },
+
+    async savePlan() {
+      if (!this.title.trim()) { this.errorMsg = 'Il titolo è obbligatorio.'; return; }
+      this.errorMsg = '';
+      this.saving = true;
+      const url = {% if plan %}'{% url "nutrizione_piano_edit" plan.id %}'{% else %}'{% url "nutrizione_piano_create" %}'{% endif %};
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({
+          title: this.title,
+          description: this.description,
+          plan_type: this.plan_type,
+          nutrition_goal: this.nutrition_goal,
+          is_template: this.is_template,
+          daily_kcal: this.daily_kcal || null,
+          protein_target_g: this.protein_target_g || null,
+          carb_target_g: this.carb_target_g || null,
+          fat_target_g: this.fat_target_g || null,
+          meals: this.meals,
+        })
+      });
+      this.saving = false;
+      if (res.ok) {
+        const d = await res.json();
+        window.location.href = '/nutrizione/piani/' + d.plan_id + '/';
+      } else {
+        const d = await res.json().catch(() => ({}));
+        this.errorMsg = d.error || 'Errore durante il salvataggio.';
+      }
+    }
+  };
+}
+</script>
+{% endblock %}

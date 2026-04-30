@@ -40,6 +40,12 @@
                     <p class="font-bold text-slate-900">{{ assignment.nutrition_plan.carb_target_g|default:"-" }}</p>
                 </div>
             </div>
+            <div class="mt-4 pt-4 border-t border-slate-100">
+                <a href="{% url 'nutrizione_client_detail' assignment.id %}"
+                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors">
+                  <i class="ph ph-eye"></i> Vedi dettaglio
+                </a>
+            </div>
         </article>
         {% endfor %}
     </div>

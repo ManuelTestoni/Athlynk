@@ -98,7 +98,7 @@
                     <i class="ph ph-calendar-blank text-xl mr-3 text-slate-400 group-hover:text-white"></i>
                     <span class="font-medium text-sm">Agenda</span>
                 </a>
-                <a href="{% url 'check_create' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
+                <a href="{% url 'check_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
                     <i class="ph ph-check-square-offset text-xl mr-3 text-slate-400 group-hover:text-white"></i>
                     <span class="font-medium text-sm">Check Progressi</span>
                 </a>
@@ -106,6 +106,10 @@
                 <a href="{% url 'abbonamenti_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
                     <i class="ph ph-credit-card text-xl mr-3 text-slate-400 group-hover:text-white"></i>
                     <span class="font-medium text-sm">Abbonamenti</span>
+                </a>
+                <a href="{% url 'client_my_coach' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
+                    <i class="ph ph-user-circle text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                    <span class="font-medium text-sm">Il Mio Specialista</span>
                 </a>
                 {% else %}
                 <a href="{% url 'check_coach_directory' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">

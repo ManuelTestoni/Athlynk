@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="w-full max-w-4xl mx-auto">
+
+    <!-- Hero coach card -->
+    <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+        <div class="h-40 bg-gradient-to-br from-slate-800 to-slate-600 relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent"></div>
+            <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div class="flex items-end gap-4">
+                    <div class="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-600 overflow-hidden shrink-0">
+                        {% if coach.profile_image_url %}
+                        <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                        {{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-slate-900 text-[10px] font-bold uppercase tracking-wider">Il tuo specialista</span>
+                        <h1 class="mt-1.5 text-2xl font-bold text-white">{{ coach_name }}</h1>
+                        <p class="text-sm text-slate-300">{{ coach.specialization|default:"Personal Trainer" }}</p>
+                    </div>
+                </div>
+                {% if coach.city %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 text-white text-xs font-medium backdrop-blur-sm">
+                    <i class="ph ph-map-pin"></i> {{ coach.city }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ total_checks }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">I tuoi check</p>
+            </div>
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">
+                    {{ coach.years_experience|default:"—" }}{% if coach.years_experience %}<span class="text-base font-medium text-slate-500"> ann.</span>{% endif %}
+                </p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Esperienza</p>
+            </div>
+            <div class="p-5 text-center">
+                <p class="text-2xl font-bold text-slate-900">{{ relationship.start_date|date:"M Y" }}</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Inizio percorso</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+
+        <!-- Left: profilo + piani -->
+        <div class="space-y-5">
+
+            <!-- Bio -->
+            {% if coach.bio %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Chi è {{ coach.first_name }}</h2>
+                <p class="text-sm text-slate-700 leading-7">{{ coach.bio }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Specializzazione & certificazioni -->
+            {% if coach.specialization or coach.certifications %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+                {% if coach.specialization %}
+                <div>
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Specializzazione</h2>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
+                        {{ coach.specialization }}
+                    </span>
+                </div>
+                {% endif %}
+                {% if coach.certifications %}
+                <div>
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Certificazioni</h2>
+                    <div class="flex flex-wrap gap-2">
+                        {% for cert in coach.certifications.split %}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{{ cert }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Piani disponibili -->
+            {% if active_plans %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Piani &amp; Prezzi</h2>
+                <div class="space-y-3">
+                    {% for plan in active_plans %}
+                    <div class="border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-4
+                        {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}ring-2 ring-accent/30 border-accent/30 bg-accent/5{% endif %}">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-semibold text-slate-900 text-sm">{{ plan.name }}</h3>
+                                {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent text-white uppercase tracking-wider">
+                                    <i class="ph-bold ph-check"></i> Attivo
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% if plan.description %}
+                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">{{ plan.description }}</p>
+                            {% endif %}
+                            {% if plan.duration_days %}
+                            <p class="text-xs text-slate-400 mt-1.5"><i class="ph ph-clock"></i> {{ plan.duration_days }} giorni</p>
+                            {% endif %}
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="text-xl font-bold text-slate-900">€{{ plan.price }}</p>
+                            {% if plan.billing_interval %}
+                            <p class="text-xs text-slate-400">/ {{ plan.billing_interval }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Right: sidebar -->
+        <aside class="space-y-4 lg:sticky lg:top-6">
+
+            <!-- Il tuo piano attivo -->
+            {% if my_subscription %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Il tuo abbonamento</h3>
+                <div class="space-y-2.5 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">Piano</span>
+                        <span class="font-semibold text-slate-900">{{ my_subscription.subscription_plan.name }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">Stato</span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Attivo
+                        </span>
+                    </div>
+                    {% if my_subscription.end_date %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">Scadenza</span>
+                        <span class="font-semibold text-slate-900">{{ my_subscription.end_date|date:"d M Y" }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500">Prezzo</span>
+                        <span class="font-semibold text-slate-900">€{{ my_subscription.subscription_plan.price }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Accesso rapido -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-2">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Accesso rapido</h3>
+                <a href="{% url 'check_dashboard' %}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
+                    <i class="ph ph-clipboard-text text-lg text-accent"></i> I miei check
+                </a>
+                <a href="{% url 'agenda_dashboard' %}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
+                    <i class="ph ph-calendar-blank text-lg text-accent"></i> Agenda
+                </a>
+                <a href="{% url 'allenamenti_list' %}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
+                    <i class="ph ph-barbell text-lg text-accent"></i> Le mie schede
+                </a>
+                {% if active_workout %}
+                <div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                    <i class="ph ph-lightning text-accent mr-1"></i>
+                    Scheda attiva: <strong class="text-slate-700">{{ active_workout.workout_plan.name }}</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- CTA nuovo check -->
+            <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-base">Invia un check</h3>
+                <p class="text-sm text-slate-300 mt-1.5 mb-4">Tieni aggiornato {{ coach.first_name }} con le tue misurazioni e le tue sensazioni.</p>
+                <a href="{% url 'check_create' %}"
+                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors">
+                    <i class="ph ph-paper-plane-tilt"></i> Compila check
+                </a>
+            </div>
+
+        </aside>
+    </div>
+</div>
+{% endblock %}

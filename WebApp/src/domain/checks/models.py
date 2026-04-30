@@ -28,6 +28,8 @@ class QuestionnaireResponse(models.Model):
     injuries = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     answers_json = models.JSONField(null=True, blank=True)
+    coach_feedback = models.TextField(null=True, blank=True)
+    coach_private_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

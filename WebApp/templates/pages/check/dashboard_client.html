@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="w-full max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">I Miei Check</h1>
+            <p class="text-sm text-slate-500 mt-1">Tieni traccia dei tuoi progressi e visualizza lo storico delle misurazioni.</p>
+        </div>
+        <a href="{% url 'check_create' %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            <i class="ph ph-plus-circle text-lg"></i> Nuovo Check
+        </a>
+    </div>
+
+    <!-- Banner appuntamento check in arrivo -->
+    {% if upcoming_check %}
+    <div class="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/30 rounded-2xl p-5 mb-6 flex items-start gap-4">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-xl shrink-0">
+            <i class="ph-fill ph-calendar-check"></i>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-bold text-slate-900">Check programmato</p>
+            <p class="text-sm text-slate-600 mt-0.5">
+                Il tuo coach ha fissato un check per
+                <strong>{{ upcoming_check.start_datetime|date:"d M Y" }}</strong>
+                alle <strong>{{ upcoming_check.start_datetime|date:"H:i" }}</strong>.
+                {% if upcoming_check.description %}<br><span class="text-xs text-slate-500">{{ upcoming_check.description }}</span>{% endif %}
+            </p>
+        </div>
+        <a href="{% url 'check_create' %}"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shrink-0">
+            <i class="ph ph-paper-plane-tilt"></i> Compila ora
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Lista check -->
+    {% if page_obj.object_list %}
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
+                        <th class="px-6 py-4 font-semibold">Data</th>
+                        <th class="px-6 py-4 font-semibold">Peso</th>
+                        <th class="px-6 py-4 font-semibold hidden sm:table-cell">Umore</th>
+                        <th class="px-6 py-4 font-semibold">Stato</th>
+                        <th class="px-6 py-4 font-semibold text-right">Dettagli</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                    {% for resp in page_obj %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <p class="font-medium text-slate-900">{{ resp.submitted_at|date:"d M Y" }}</p>
+                            <p class="text-xs text-slate-500">{{ resp.submitted_at|date:"H:i" }}</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if resp.weight_kg %}
+                            <span class="font-semibold text-slate-900">{{ resp.weight_kg }} kg</span>
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 hidden sm:table-cell">
+                            {% with mood=resp.answers_json.mood %}
+                            {% if mood %}
+                            <div class="flex items-center gap-1">
+                                {% for i in "12345" %}
+                                <span class="w-2 h-2 rounded-full {% if forloop.counter <= mood|add:0 %}bg-accent{% else %}bg-slate-200{% endif %}"></span>
+                                {% endfor %}
+                                <span class="text-xs text-slate-500 ml-1">{{ mood }}/5</span>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if resp.status == 'REVIEWED' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <i class="ph-bold ph-check"></i> Revisionato
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> In attesa
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="{% url 'check_detail' resp.id %}"
+                               class="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">
+                                Vedi
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginazione -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
+            <span class="text-sm text-slate-500">
+                Pagina {{ page_obj.number }} di {{ page_obj.paginator.num_pages }}
+                &mdash; {{ page_obj.paginator.count }} check totali
+            </span>
+            <div class="flex items-center gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}"
+                   class="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-white bg-white transition-colors">
+                    <i class="ph-bold ph-caret-left"></i>
+                </a>
+                {% else %}
+                <span class="p-2 border border-slate-200 rounded-lg text-slate-300 bg-white cursor-not-allowed"><i class="ph-bold ph-caret-left"></i></span>
+                {% endif %}
+
+                {% for p in page_obj.paginator.page_range %}
+                {% if p == page_obj.number %}
+                <span class="px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium">{{ p }}</span>
+                {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+                <a href="?page={{ p }}&per_page={{ per_page }}"
+                   class="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors">{{ p }}</a>
+                {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}"
+                   class="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-white bg-white transition-colors">
+                    <i class="ph-bold ph-caret-right"></i>
+                </a>
+                {% else %}
+                <span class="p-2 border border-slate-200 rounded-lg text-slate-300 bg-white cursor-not-allowed"><i class="ph-bold ph-caret-right"></i></span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-12 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center text-3xl mx-auto mb-4">
+            <i class="ph ph-clipboard-text"></i>
+        </div>
+        <h3 class="text-base font-semibold text-slate-900 mb-1">Nessun check ancora</h3>
+        <p class="text-sm text-slate-500 mb-6 max-w-xs mx-auto">Compila il tuo primo check per inviare le tue misurazioni al coach.</p>
+        <a href="{% url 'check_create' %}"
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
+            <i class="ph ph-plus-circle"></i> Compila il primo check
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
