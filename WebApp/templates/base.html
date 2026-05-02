@@ -172,10 +172,6 @@
                 </button>
                 <div class="w-px h-6 bg-slate-200 hidden sm:block"></div>
                 {% if is_coach %}
-                <button class="bg-primary hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
-                    <i class="ph ph-plus-circle mr-2 text-lg"></i>
-                    Nuovo Cliente
-                </button>
                 {% elif is_client and not has_coach %}
                 <a href="{% url 'check_coach_directory' %}" class="bg-primary hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center">
                     <i class="ph ph-magnifying-glass mr-2 text-lg"></i>
