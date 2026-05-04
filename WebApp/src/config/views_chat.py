@@ -2,7 +2,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.db.models import Q, Max, Count
 import json
 
@@ -122,7 +121,12 @@ def chat_detail_view(request, conversation_id):
     if not _user_has_access_to_conversation(user, conversation):
         return redirect('chat_list')
 
-    messages = conversation.messages.select_related('sender_user', 'appointment').order_by('sent_at')
+    PAGE_SIZE = 20
+    total_messages = conversation.messages.count()
+    messages = conversation.messages.select_related('sender_user', 'appointment').order_by('-sent_at')[:PAGE_SIZE]
+    messages = list(reversed(messages))
+    has_older = total_messages > PAGE_SIZE
+    oldest_id = messages[0].id if messages else 0
 
     # Mark unread messages as read
     now = timezone.now()
@@ -151,6 +155,8 @@ def chat_detail_view(request, conversation_id):
         'partner_avatar': partner_avatar,
         'partner_role': partner_role,
         'current_user_id': user.id,
+        'has_older': has_older,
+        'oldest_id': oldest_id,
     })
 
 
@@ -251,18 +257,31 @@ def api_appointment_request(request, conversation_id):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+    from datetime import date as date_type, time as time_type, datetime, timedelta
+    from django.utils.timezone import make_aware
+
     title = (data.get('title') or 'Appuntamento').strip()
-    start_str = data.get('start_datetime', '').strip()
-    end_str = data.get('end_datetime', '').strip()
-    location = (data.get('location') or '').strip()
+    preferred_date_str = data.get('preferred_date', '').strip()
+    time_from_str = data.get('time_from', '').strip()
+    time_to_str = data.get('time_to', '').strip()
     notes = (data.get('notes') or '').strip()
 
-    start_dt = parse_datetime(start_str)
-    end_dt = parse_datetime(end_str)
-    if not start_dt or not end_dt:
-        return JsonResponse({'error': 'Date non valide'}, status=400)
+    if not preferred_date_str or not time_from_str or not time_to_str:
+        return JsonResponse({'error': 'Giorno e fascia oraria sono obbligatori'}, status=400)
+
+    try:
+        preferred_date = date_type.fromisoformat(preferred_date_str)
+        h_from, m_from = map(int, time_from_str.split(':'))
+        h_to, m_to = map(int, time_to_str.split(':'))
+        start_dt = make_aware(datetime(preferred_date.year, preferred_date.month, preferred_date.day, h_from, m_from))
+        end_dt = make_aware(datetime(preferred_date.year, preferred_date.month, preferred_date.day, h_to, m_to))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Formato data/orario non valido'}, status=400)
+
     if end_dt <= start_dt:
-        return JsonResponse({'error': 'La data fine deve essere successiva alla data inizio'}, status=400)
+        return JsonResponse({'error': "L'orario di fine deve essere successivo all'inizio"}, status=400)
+    if (end_dt - start_dt) > timedelta(hours=10):
+        return JsonResponse({'error': 'La fascia oraria non può superare le 10 ore'}, status=400)
 
     appointment = Appointment.objects.create(
         coach=conversation.coach,
@@ -272,13 +291,10 @@ def api_appointment_request(request, conversation_id):
         description=notes or None,
         start_datetime=start_dt,
         end_datetime=end_dt,
-        location=location or None,
         status='PENDING',
     )
 
-    body_msg = f'Richiesta appuntamento: {title} il {start_dt.strftime("%d/%m/%Y %H:%M")}'
-    if location:
-        body_msg += f' presso {location}'
+    body_msg = f'Richiesta appuntamento: {title} il {preferred_date.strftime("%d/%m/%Y")} dalle {time_from_str} alle {time_to_str}'
 
     msg = Message.objects.create(
         conversation=conversation,
@@ -333,12 +349,28 @@ def api_appointment_respond(request, conversation_id, appointment_id):
     if action not in ('accept', 'reject'):
         return JsonResponse({'error': 'Azione non valida'}, status=400)
 
+    from datetime import date as date_type, datetime, timedelta
+    from django.utils.timezone import make_aware
+
     if action == 'accept':
+        confirmed_date_str = data.get('confirmed_date', '').strip()
+        confirmed_time_str = data.get('confirmed_time', '').strip()
+        if not confirmed_date_str or not confirmed_time_str:
+            return JsonResponse({'error': 'Data e orario confermati sono obbligatori'}, status=400)
+        try:
+            cd = date_type.fromisoformat(confirmed_date_str)
+            h, m = map(int, confirmed_time_str.split(':'))
+            start_dt = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
+            end_dt = start_dt + timedelta(hours=1)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Formato data/orario non valido'}, status=400)
+        appointment.start_datetime = start_dt
+        appointment.end_datetime = end_dt
         appointment.status = 'SCHEDULED'
-        appointment.save(update_fields=['status', 'updated_at'])
-        body_msg = f'Appuntamento confermato: {appointment.title} il {appointment.start_datetime.strftime("%d/%m/%Y %H:%M")}'
+        appointment.save(update_fields=['start_datetime', 'end_datetime', 'status', 'updated_at'])
+        body_msg = f'Appuntamento confermato: {appointment.title} il {start_dt.strftime("%d/%m/%Y")} alle {start_dt.strftime("%H:%M")}'
         notif_type = 'APPOINTMENT_ACCEPTED'
-        notif_title = 'Appuntamento accettato'
+        notif_title = 'Appuntamento confermato'
     else:
         appointment.status = 'CANCELLED'
         appointment.cancellation_reason = 'Richiesta rifiutata'
@@ -346,6 +378,36 @@ def api_appointment_respond(request, conversation_id, appointment_id):
         body_msg = f'Appuntamento rifiutato: {appointment.title}'
         notif_type = 'APPOINTMENT_REJECTED'
         notif_title = 'Appuntamento rifiutato'
+
+        # Optional counter-proposal: create a new pending appointment + message
+        counter_date_str = data.get('counter_date', '').strip()
+        counter_time_str = data.get('counter_time', '').strip()
+        if counter_date_str and counter_time_str:
+            try:
+                cd = date_type.fromisoformat(counter_date_str)
+                h, m = map(int, counter_time_str.split(':'))
+                counter_start = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
+                counter_end = counter_start + timedelta(hours=1)
+                counter_appt = Appointment.objects.create(
+                    coach=conversation.coach,
+                    client=conversation.client,
+                    appointment_type='consultation',
+                    title=appointment.title,
+                    start_datetime=counter_start,
+                    end_datetime=counter_end,
+                    status='PENDING',
+                )
+                counter_msg = Message.objects.create(
+                    conversation=conversation,
+                    sender_user=user,
+                    body=f'Controproposta: {appointment.title} il {cd.strftime("%d/%m/%Y")} alle {counter_time_str}',
+                    message_type='APPOINTMENT_REQUEST',
+                    appointment=counter_appt,
+                )
+                conversation.last_message_at = counter_msg.sent_at
+                conversation.save(update_fields=['last_message_at', 'updated_at'])
+            except (ValueError, TypeError):
+                pass
 
     msg = Message.objects.create(
         conversation=conversation,
@@ -374,6 +436,48 @@ def api_appointment_respond(request, conversation_id, appointment_id):
     })
 
 
+def api_messages_before(request, conversation_id):
+    """Pagination endpoint — returns up to 20 messages older than ?before=<message_id>."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    if not _user_has_access_to_conversation(user, conversation):
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    before_id = request.GET.get('before', '0')
+    try:
+        before_id = int(before_id)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid before'}, status=400)
+
+    PAGE_SIZE = 20
+    qs = conversation.messages.filter(id__lt=before_id).select_related('sender_user', 'appointment').order_by('-sent_at')[:PAGE_SIZE]
+    msgs = list(reversed(qs))
+    has_more = conversation.messages.filter(id__lt=before_id).count() > PAGE_SIZE
+
+    return JsonResponse({
+        'messages': [_serialize_message(m) for m in msgs],
+        'has_more': has_more,
+    })
+
+
+def _serialize_message(m):
+    return {
+        'id': m.id,
+        'body': m.body,
+        'message_type': m.message_type,
+        'attachment_url': m.attachment.url if m.attachment else None,
+        'sent_at': m.sent_at.isoformat(),
+        'sender_user_id': m.sender_user_id,
+        'appointment_id': m.appointment_id,
+        'appointment_status': m.appointment.status if m.appointment else None,
+        'appointment_title': m.appointment.title if m.appointment else None,
+        'read_at': m.read_at.isoformat() if m.read_at else None,
+    }
+
+
 def api_messages_since(request, conversation_id):
     """Polling endpoint — returns messages newer than ?after=<message_id>."""
     user = get_session_user(request)
@@ -392,22 +496,15 @@ def api_messages_since(request, conversation_id):
 
     qs = conversation.messages.filter(id__gt=after_id).select_related('sender_user', 'appointment').order_by('sent_at')
 
-    messages = []
-    for m in qs:
-        messages.append({
-            'id': m.id,
-            'body': m.body,
-            'message_type': m.message_type,
-            'attachment_url': m.attachment.url if m.attachment else None,
-            'sent_at': m.sent_at.isoformat(),
-            'sender_user_id': m.sender_user_id,
-            'appointment_id': m.appointment_id,
-            'appointment_status': m.appointment.status if m.appointment else None,
-            'appointment_title': m.appointment.title if m.appointment else None,
-        })
+    messages = [_serialize_message(m) for m in qs]
 
-    # Mark as read
+    # Mark as read and collect which sent messages just got read
     now = timezone.now()
-    conversation.messages.filter(read_at__isnull=True).exclude(sender_user=user).update(read_at=now)
+    just_read_qs = conversation.messages.filter(read_at__isnull=True).exclude(sender_user=user)
+    just_read_ids = list(just_read_qs.values_list('id', flat=True))
+    just_read_qs.update(read_at=now)
 
-    return JsonResponse({'messages': messages})
+    # Tell the sender which of their messages are now read
+    read_updates = [{'id': mid, 'read_at': now.isoformat()} for mid in just_read_ids]
+
+    return JsonResponse({'messages': messages, 'read_updates': read_updates})

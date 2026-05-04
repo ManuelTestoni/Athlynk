@@ -10,7 +10,9 @@
             <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div class="flex items-end gap-4">
                     <div class="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-600 overflow-hidden shrink-0">
-                        {% if coach.profile_image_url %}
+                        {% if coach.profile_image %}
+                        <img src="{{ coach.profile_image.url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
+                        {% elif coach.profile_image_url %}
                         <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
                         {% else %}
                         {{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}
@@ -19,7 +21,7 @@
                     <div>
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-slate-900 text-[10px] font-bold uppercase tracking-wider">Il tuo specialista</span>
                         <h1 class="mt-1.5 text-2xl font-bold text-white">{{ coach_name }}</h1>
-                        <p class="text-sm text-slate-300">{{ coach.specialization|default:"Personal Trainer" }}</p>
+                        <p class="text-sm text-slate-300">{{ coach.specialization|default:"Specialista del fitness" }}</p>
                     </div>
                 </div>
                 {% if coach.city %}
@@ -31,16 +33,10 @@
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+        <div class="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
             <div class="p-5 text-center">
                 <p class="text-2xl font-bold text-slate-900">{{ total_checks }}</p>
                 <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">I tuoi check</p>
-            </div>
-            <div class="p-5 text-center">
-                <p class="text-2xl font-bold text-slate-900">
-                    {{ coach.years_experience|default:"—" }}{% if coach.years_experience %}<span class="text-base font-medium text-slate-500"> ann.</span>{% endif %}
-                </p>
-                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Esperienza</p>
             </div>
             <div class="p-5 text-center">
                 <p class="text-2xl font-bold text-slate-900">{{ relationship.start_date|date:"M Y" }}</p>
@@ -51,7 +47,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
 
-        <!-- Left: profilo + piani -->
+        <!-- Left: profilo + piani + social + video -->
         <div class="space-y-5">
 
             <!-- Bio -->
@@ -83,6 +79,38 @@
                     </div>
                 </div>
                 {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Social links -->
+            {% if social_links %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Seguimi sui social</h2>
+                <div class="flex flex-wrap gap-3">
+                    {% for icon, color, url in social_links %}
+                    <a href="{{ url }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors">
+                        <i class="ph {{ icon }} text-lg {{ color }}"></i>
+                        <span>{{ url|cut:"https://"|cut:"http://"|truncatechars:20 }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Video professionali -->
+            {% if video_urls %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Video</h2>
+                <div class="space-y-3">
+                    {% for vurl in video_urls %}
+                    <div class="rounded-xl overflow-hidden bg-slate-900 aspect-video">
+                        <iframe src="{{ vurl }}" class="w-full h-full" frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen loading="lazy"></iframe>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
 
@@ -156,38 +184,15 @@
             </div>
             {% endif %}
 
-            <!-- Accesso rapido -->
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-2">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Accesso rapido</h3>
-                <a href="{% url 'check_dashboard' %}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
-                    <i class="ph ph-clipboard-text text-lg text-accent"></i> I miei check
-                </a>
-                <a href="{% url 'agenda_dashboard' %}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
-                    <i class="ph ph-calendar-blank text-lg text-accent"></i> Agenda
-                </a>
-                <a href="{% url 'allenamenti_list' %}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
-                    <i class="ph ph-barbell text-lg text-accent"></i> Le mie schede
-                </a>
-                {% if active_workout %}
-                <div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-                    <i class="ph ph-lightning text-accent mr-1"></i>
-                    Scheda attiva: <strong class="text-slate-700">{{ active_workout.workout_plan.name }}</strong>
+            <!-- Chat CTA -->
+            <a href="{% url 'chat_list' %}"
+               class="flex items-center gap-3 px-4 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-colors shadow-sm">
+                <i class="ph ph-chat-circle-dots text-xl shrink-0"></i>
+                <div>
+                    <p class="text-sm font-semibold">Scrivi a {{ coach.first_name }}</p>
+                    <p class="text-xs text-slate-400">Apri la chat</p>
                 </div>
-                {% endif %}
-            </div>
-
-            <!-- CTA nuovo check -->
-            <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-5">
-                <h3 class="font-bold text-base">Invia un check</h3>
-                <p class="text-sm text-slate-300 mt-1.5 mb-4">Tieni aggiornato {{ coach.first_name }} con le tue misurazioni e le tue sensazioni.</p>
-                <a href="{% url 'check_create' %}"
-                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors">
-                    <i class="ph ph-paper-plane-tilt"></i> Compila check
-                </a>
-            </div>
+            </a>
 
         </aside>
     </div>

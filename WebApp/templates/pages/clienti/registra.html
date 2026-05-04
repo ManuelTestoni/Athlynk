@@ -1,7 +1,37 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full max-w-3xl mx-auto">
+<div class="w-full max-w-3xl mx-auto" x-data="{ noPlansModal: {{ no_plans_modal|yesno:'true,false' }} }">
+
+    <!-- Modal: nessun piano attivo -->
+    <div x-show="noPlansModal" x-transition.opacity class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" x-cloak>
+        <div x-show="noPlansModal" x-transition class="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                        <i class="ph-fill ph-warning text-amber-600 text-lg"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-slate-900">Nessun piano attivo</h3>
+                </div>
+                <a href="{% url 'clienti_list' %}" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <i class="ph ph-x text-slate-600"></i>
+                </a>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Per registrare un cliente devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui per completare la registrazione.
+                </p>
+                <div class="flex items-center gap-3 mt-6">
+                    <a href="{% url 'clienti_list' %}" class="flex-1 text-center px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors">
+                        Torna ai clienti
+                    </a>
+                    <a href="{% url 'subscription_plan_create' %}" class="flex-1 text-center px-4 py-2.5 bg-accent hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2">
+                        <i class="ph ph-plus"></i> Crea un piano
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-sm text-slate-500 mb-8">
@@ -131,14 +161,27 @@
                 </h2>
                 <p class="text-sm text-slate-500 mb-5">Il cliente userà questa email e password per accedere a TrainElite.</p>
 
-                <div class="max-w-sm">
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Password Temporanea <span class="text-red-500">*</span></label>
-                    <input type="text" name="password" value="{{ post_data.password|default:'' }}" required
-                           placeholder="Minimo 6 caratteri"
-                           autocomplete="off"
-                           class="w-full rounded-xl border {% if errors.password %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
-                    {% if errors.password %}<p class="text-xs text-red-600 mt-1">{{ errors.password }}</p>{% endif %}
-                    <p class="text-xs text-slate-400 mt-1.5">Comunicala al cliente. Potrà cambiarla in autonomia dalle impostazioni.</p>
+                <div class="max-w-sm space-y-4" x-data="{ pw: '', cpw: '', get match() { return this.cpw === '' || this.pw === this.cpw; } }">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Password Temporanea <span class="text-red-500">*</span></label>
+                        <input type="text" name="password" x-model="pw" value="{{ post_data.password|default:'' }}" required
+                               placeholder="Minimo 8 caratteri"
+                               minlength="8"
+                               autocomplete="off"
+                               class="w-full rounded-xl border {% if errors.password %}border-red-400 bg-red-50{% else %}border-slate-200 bg-slate-50{% endif %} px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        {% if errors.password %}<p class="text-xs text-red-600 mt-1">{{ errors.password }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Conferma Password <span class="text-red-500">*</span></label>
+                        <input type="text" name="confirm_password" x-model="cpw" required
+                               placeholder="Ripeti la password"
+                               minlength="8"
+                               autocomplete="off"
+                               :class="!match ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-slate-50'"
+                               class="w-full rounded-xl border px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                        <p x-show="!match" class="text-xs text-red-600 mt-1">Le password non coincidono.</p>
+                    </div>
+                    <p class="text-xs text-slate-400">Comunicala al cliente. Potrà cambiarla in autonomia dalle impostazioni.</p>
                 </div>
             </div>
 
@@ -148,18 +191,6 @@
                     <i class="ph ph-credit-card text-accent"></i> Piano Abbonamento <span class="text-red-500">*</span>
                 </h2>
                 <p class="text-sm text-slate-500 mb-5">Il pagamento è avvenuto direttamente in studio. Il piano è obbligatorio per completare la registrazione.</p>
-
-                {% if not plans %}
-                <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
-                    <i class="ph-fill ph-warning-circle text-amber-500 text-lg shrink-0 mt-0.5"></i>
-                    <div>
-                        <p class="text-sm font-semibold text-amber-800">Nessun piano disponibile</p>
-                        <p class="text-sm text-amber-700 mt-0.5">Devi creare almeno un piano di abbonamento prima di poter registrare un cliente.
-                            <a href="{% url 'subscription_plan_create' %}" class="underline font-semibold hover:text-amber-900">Crea un piano →</a>
-                        </p>
-                    </div>
-                </div>
-                {% endif %}
 
                 <div class="space-y-4">
                     <div>

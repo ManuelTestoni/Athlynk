@@ -103,7 +103,8 @@
                 </div>
             </div>
 
-            <!-- SEZIONE 3: Pliche -->
+            <!-- SEZIONE 3: Pliche (solo coach/allenatore/nutrizionista) -->
+            {% if coach_filling_for_client %}
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
                 <h2 class="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
                     <i class="ph ph-first-aid text-accent"></i> Pliche Cutanee <span class="text-slate-400 font-normal text-sm">(mm)</span>
@@ -132,6 +133,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- SEZIONE 4: Benessere soggettivo -->
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">

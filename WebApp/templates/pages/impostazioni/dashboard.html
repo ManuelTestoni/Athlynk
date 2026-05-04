@@ -68,7 +68,7 @@
                     </p>
                 </div>
 
-                <form method="POST" action="{% url 'impostazioni_dashboard' %}">
+                <form method="POST" action="{% url 'impostazioni_dashboard' %}" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="profilo">
 
@@ -114,6 +114,31 @@
                         {% if is_coach %}
                         <hr class="border-slate-100">
 
+                        <!-- Foto profilo -->
+                        <div>
+                            <p class="text-sm font-medium text-slate-700 mb-3">Foto profilo</p>
+                            <div class="flex items-center gap-5">
+                                <div class="w-20 h-20 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                    {% if coach.profile_image %}
+                                    <img src="{{ coach.profile_image.url }}" alt="foto profilo" class="w-full h-full object-cover">
+                                    {% elif coach.profile_image_url %}
+                                    <img src="{{ coach.profile_image_url }}" alt="foto profilo" class="w-full h-full object-cover">
+                                    {% else %}
+                                    <i class="ph ph-user text-3xl text-slate-400"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1">
+                                    <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors" for="profile_image_input">
+                                        <i class="ph ph-upload-simple"></i> Carica foto
+                                    </label>
+                                    <input type="file" id="profile_image_input" name="profile_image" accept="image/*" class="hidden">
+                                    <p class="text-xs text-slate-400 mt-1.5">JPG, PNG o WebP. Max 5 MB.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
                         <!-- Professionale (coach only) -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
@@ -139,6 +164,56 @@
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Bio & Filosofia</label>
                                 <textarea name="bio" rows="4" placeholder="Racconta ai tuoi potenziali clienti chi sei e come lavori..."
                                           class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ coach.bio|default:'' }}</textarea>
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <!-- Video professionali -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Video professionali</label>
+                            <textarea name="professional_videos" rows="3"
+                                      placeholder="Inserisci un URL per riga (YouTube, Vimeo...)"
+                                      class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none">{{ coach.professional_videos|default:'' }}</textarea>
+                            <p class="text-xs text-slate-400 mt-1">Un URL per riga. Max 3 video.</p>
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <!-- Social links -->
+                        <div>
+                            <p class="text-sm font-medium text-slate-700 mb-3">Profili social</p>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-center text-pink-500"><i class="ph ph-instagram-logo text-xl"></i></span>
+                                    <input type="url" name="social_instagram" value="{{ coach.social_instagram|default:'' }}"
+                                           placeholder="https://instagram.com/..."
+                                           class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-center text-red-500"><i class="ph ph-youtube-logo text-xl"></i></span>
+                                    <input type="url" name="social_youtube" value="{{ coach.social_youtube|default:'' }}"
+                                           placeholder="https://youtube.com/@..."
+                                           class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-center text-slate-800"><i class="ph ph-tiktok-logo text-xl"></i></span>
+                                    <input type="url" name="social_tiktok" value="{{ coach.social_tiktok|default:'' }}"
+                                           placeholder="https://tiktok.com/@..."
+                                           class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-center text-blue-600"><i class="ph ph-facebook-logo text-xl"></i></span>
+                                    <input type="url" name="social_facebook" value="{{ coach.social_facebook|default:'' }}"
+                                           placeholder="https://facebook.com/..."
+                                           class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-center text-accent"><i class="ph ph-globe text-xl"></i></span>
+                                    <input type="url" name="social_website" value="{{ coach.social_website|default:'' }}"
+                                           placeholder="https://iltuosito.it"
+                                           class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all">
+                                </div>
                             </div>
                         </div>
                         {% else %}

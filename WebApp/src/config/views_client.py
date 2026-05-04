@@ -160,6 +160,7 @@ def registra_client_view(request):
             'coach': coach,
             'is_coach': True,
             'plans': plans,
+            'no_plans_modal': not plans.exists(),
         })
 
     # POST — registrazione cliente
@@ -167,6 +168,7 @@ def registra_client_view(request):
     last_name = request.POST.get('last_name', '').strip()
     email = request.POST.get('email', '').strip()
     password = request.POST.get('password', '').strip()
+    confirm_password = request.POST.get('confirm_password', '').strip()
     phone = request.POST.get('phone', '').strip() or None
     birth_date_str = request.POST.get('birth_date', '').strip()
     gender = request.POST.get('gender', '').strip() or None
@@ -186,8 +188,10 @@ def registra_client_view(request):
         errors['email'] = "L'email è obbligatoria."
     elif User.objects.filter(email=email).exists():
         errors['email'] = 'Questa email è già registrata sulla piattaforma.'
-    if not password or len(password) < 6:
-        errors['password'] = 'La password temporanea deve essere di almeno 6 caratteri.'
+    if not password or len(password) < 8:
+        errors['password'] = 'La password temporanea deve essere di almeno 8 caratteri.'
+    elif password != confirm_password:
+        errors['password'] = 'Le password non coincidono.'
 
     if not plan_id:
         errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
@@ -364,25 +368,52 @@ def client_my_coach_view(request):
     if redirect_response:
         return redirect_response
 
-    relationship = get_active_relationship(client)
-    if not relationship:
+    relationships = CoachingRelationship.objects.filter(
+        client=client, status='ACTIVE'
+    ).select_related('coach').order_by('created_at')
+
+    if not relationships.exists():
         return redirect('check_coach_directory')
 
+    if relationships.count() == 1:
+        return redirect('client_specialist_detail', rel_id=relationships.first().id)
+
+    # Multiple specialists → list page
+    specialists = []
+    for rel in relationships:
+        coach = rel.coach
+        rel_label = {'FULL': 'Coach', 'WORKOUT': 'Allenatore', 'NUTRITION': 'Nutrizionista'}.get(rel.relationship_type or 'FULL', 'Specialista')
+        specialists.append({'relationship': rel, 'coach': coach, 'rel_label': rel_label})
+
+    return render(request, 'pages/clienti/il_miei_specialisti.html', {'specialists': specialists})
+
+
+def client_specialist_detail_view(request, rel_id):
+    client, redirect_response = _require_client(request)
+    if redirect_response:
+        return redirect_response
+
+    relationship = get_object_or_404(CoachingRelationship, id=rel_id, client=client, status='ACTIVE')
     coach = relationship.coach
+
     active_plans = coach.subscription_plans.filter(is_active=True).order_by('price')
-
     my_subscription = ClientSubscription.objects.filter(
-        client=client, status='ACTIVE'
+        client=client, status='ACTIVE', subscription_plan__coach=coach
     ).select_related('subscription_plan').first()
+    total_checks = QuestionnaireResponse.objects.filter(client=client, coach=coach).count()
 
-    total_checks = QuestionnaireResponse.objects.filter(
-        client=client, coach=coach
-    ).count()
+    social_links = [
+        ('ph-instagram-logo', 'text-pink-500', coach.social_instagram),
+        ('ph-youtube-logo', 'text-red-500', coach.social_youtube),
+        ('ph-tiktok-logo', 'text-slate-800', coach.social_tiktok),
+        ('ph-facebook-logo', 'text-blue-600', coach.social_facebook),
+        ('ph-globe', 'text-accent', coach.social_website),
+    ]
+    social_links = [(icon, color, url) for icon, color, url in social_links if url]
 
-    from domain.workouts.models import WorkoutAssignment
-    active_workout = WorkoutAssignment.objects.filter(
-        client=client, status='ACTIVE'
-    ).select_related('workout_plan').first()
+    video_urls = []
+    if coach.professional_videos:
+        video_urls = [u.strip() for u in coach.professional_videos.splitlines() if u.strip()][:3]
 
     context = {
         'coach': coach,
@@ -391,7 +422,8 @@ def client_my_coach_view(request):
         'active_plans': active_plans,
         'my_subscription': my_subscription,
         'total_checks': total_checks,
-        'active_workout': active_workout,
+        'social_links': social_links,
+        'video_urls': video_urls,
     }
     return render(request, 'pages/clienti/il_mio_coach.html', context)
 

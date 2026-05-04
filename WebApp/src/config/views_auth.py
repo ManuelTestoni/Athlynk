@@ -29,8 +29,15 @@ def signup_view(request):
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
         password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
         role = request.POST.get('role')  # COACH o CLIENT
         professional_type = request.POST.get('professional_type', 'COACH')  # COACH, ALLENATORE, NUTRIZIONISTA
+
+        if password != confirm_password:
+            return render(request, 'pages/auth/signup.html', {'error': 'Le password non coincidono.'})
+
+        if len(password) < 8:
+            return render(request, 'pages/auth/signup.html', {'error': 'La password deve essere di almeno 8 caratteri.'})
 
         if User.objects.filter(email=email).exists():
             return render(request, 'pages/auth/signup.html', {'error': 'Email già in uso. Accedi.'})

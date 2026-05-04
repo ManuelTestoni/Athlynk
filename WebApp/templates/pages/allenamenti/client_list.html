@@ -2,14 +2,9 @@
 
 {% block content %}
 <div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">I Miei Allenamenti</h1>
-            <p class="text-sm text-slate-500 mt-1">Vedi solo le schede assegnate al tuo account da {{ coach.first_name }} {{ coach.last_name }}.</p>
-        </div>
-        <a href="{% url 'check_create' %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-black transition-colors shadow-sm">
-            <i class="ph ph-check-square-offset mr-2"></i> Nuovo Check
-        </a>
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">I Miei Allenamenti</h1>
+        <p class="text-sm text-slate-500 mt-1">Vedi solo le schede assegnate al tuo account da {{ coach.first_name }} {{ coach.last_name }}.</p>
     </div>
 
     {% if assignments %}

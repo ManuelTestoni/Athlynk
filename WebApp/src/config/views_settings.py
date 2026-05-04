@@ -81,6 +81,15 @@ def impostazioni_view(request):
             coach.certifications = request.POST.get('certifications', '').strip() or None
             years = request.POST.get('years_experience', '').strip()
             coach.years_experience = int(years) if years.isdigit() else None
+            if 'profile_image' in request.FILES:
+                coach.profile_image = request.FILES['profile_image']
+            coach.social_instagram = request.POST.get('social_instagram', '').strip() or None
+            coach.social_youtube = request.POST.get('social_youtube', '').strip() or None
+            coach.social_tiktok = request.POST.get('social_tiktok', '').strip() or None
+            coach.social_facebook = request.POST.get('social_facebook', '').strip() or None
+            coach.social_website = request.POST.get('social_website', '').strip() or None
+            videos_raw = request.POST.get('professional_videos', '').strip()
+            coach.professional_videos = videos_raw or None
             coach.save()
             return redirect(f"{request.path}?saved=profilo")
 

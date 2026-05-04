@@ -46,99 +46,101 @@
             <nav class="p-4 space-y-1 overflow-y-auto">
                 <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3 mt-4">Menu Principale</div>
                 
-                <a href="{% url 'dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-squares-four text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                {% with s=current_section %}
+                <a href="{% url 'dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'dashboard' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-squares-four text-xl mr-3 {% if s == 'dashboard' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Dashboard</span>
                 </a>
                 {% if is_coach %}
-                <a href="{% url 'clienti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-users text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'clienti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'clienti' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-users text-xl mr-3 {% if s == 'clienti' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Clienti</span>
                 </a>
                 {% if can_manage_workouts %}
-                <a href="{% url 'allenamenti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-activity text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'allenamenti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'allenamenti' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-activity text-xl mr-3 {% if s == 'allenamenti' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Allenamenti</span>
                 </a>
                 {% endif %}
                 {% if can_manage_nutrition %}
-                <div x-data="{ expanded: false }" class="space-y-1">
-                    <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all relative">
+                <div x-data="{ expanded: {{ s|yesno:'true,false,false' }}{% if s == 'nutrizione' %}, _forceOpen: true{% endif %} }" class="space-y-1">
+                    <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group {% if s == 'nutrizione' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %}">
                         <div class="flex items-center">
-                            <i class="ph ph-apple-logo text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                            <i class="ph ph-apple-logo text-xl mr-3 {% if s == 'nutrizione' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                             <span class="font-medium text-sm">Nutrizione</span>
                         </div>
                         <i class="ph ph-caret-down text-slate-500 transition-transform" :class="expanded ? 'rotate-180' : ''"></i>
                     </button>
-                    <div x-show="expanded" x-collapse class="pl-11 pr-3 py-1 space-y-1" x-cloak>
+                    <div x-show="expanded" x-collapse class="pl-11 pr-3 py-1 space-y-1" {% if s == 'nutrizione' %}x-init="expanded=true"{% endif %} x-cloak>
                         <a href="{% url 'nutrizione_piani' %}" class="block py-2 text-sm text-slate-400 hover:text-white hover:translate-x-1 transition-all">Piani Alimentari</a>
                         <a href="{% url 'nutrizione_anamnesi' %}" class="block py-2 text-sm text-slate-400 hover:text-white hover:translate-x-1 transition-all">Prime Visite</a>
                         <a href="{% url 'nutrizione_integratori' %}" class="block py-2 text-sm text-slate-400 hover:text-white hover:translate-x-1 transition-all">Integratori</a>
                     </div>
                 </div>
                 {% endif %}
-                <a href="{% url 'agenda_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-calendar-blank text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'agenda_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'agenda' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-calendar-blank text-xl mr-3 {% if s == 'agenda' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Agenda</span>
                 </a>
-                <a href="{% url 'chat_list' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-chats-circle text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'chat_list' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'chat' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-chats-circle text-xl mr-3 {% if s == 'chat' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Chat</span>
                 </a>
-                <a href="{% url 'check_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-check-square-offset text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'check_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'check' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-check-square-offset text-xl mr-3 {% if s == 'check' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Check Progressi</span>
                 </a>
-                <a href="{% url 'abbonamenti_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-credit-card text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'abbonamenti_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'abbonamenti' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-credit-card text-xl mr-3 {% if s == 'abbonamenti' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Abbonamenti</span>
                 </a>
                 {% elif is_client %}
-                <a href="{% url 'allenamenti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-activity text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'allenamenti_list' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'allenamenti' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-activity text-xl mr-3 {% if s == 'allenamenti' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">I Miei Allenamenti</span>
                 </a>
-                <a href="{% url 'nutrizione_piani' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-apple-logo text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'nutrizione_piani' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'nutrizione' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-apple-logo text-xl mr-3 {% if s == 'nutrizione' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Nutrizione</span>
                 </a>
-                <a href="{% url 'agenda_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-calendar-blank text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'agenda_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'agenda' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-calendar-blank text-xl mr-3 {% if s == 'agenda' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Agenda</span>
                 </a>
                 {% if has_any_professional %}
-                <a href="{% url 'chat_list' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-chats-circle text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'chat_list' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'chat' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-chats-circle text-xl mr-3 {% if s == 'chat' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Chat</span>
                 </a>
                 {% endif %}
-                <a href="{% url 'check_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-check-square-offset text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'check_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'check' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-check-square-offset text-xl mr-3 {% if s == 'check' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Check Progressi</span>
                 </a>
                 {% if has_any_professional %}
-                <a href="{% url 'abbonamenti_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-credit-card text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'abbonamenti_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'abbonamenti' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-credit-card text-xl mr-3 {% if s == 'abbonamenti' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Abbonamenti</span>
                 </a>
-                <a href="{% url 'client_my_coach' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
-                    <i class="ph ph-user-circle text-xl mr-3 text-slate-400 group-hover:text-white"></i>
+                <a href="{% url 'client_my_coach' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all {% if s == 'specialista' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %} group">
+                    <i class="ph ph-user-circle text-xl mr-3 {% if s == 'specialista' %}text-white{% else %}text-slate-400 group-hover:text-white{% endif %}"></i>
                     <span class="font-medium text-sm">Il Mio Specialista</span>
                 </a>
                 {% else %}
-                <a href="{% url 'check_coach_directory' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white group transition-all">
+                <a href="{% url 'check_coach_directory' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white text-slate-300 group transition-all">
                     <i class="ph ph-magnifying-glass text-xl mr-3 text-slate-400 group-hover:text-white"></i>
                     <span class="font-medium text-sm">Trova un Coach</span>
                 </a>
                 {% endif %}
                 {% endif %}
+                {% endwith %}
             </nav>
         </div>
 
         <!-- User Profile (Bottom Sidebar) -->
         <div class="p-4 border-t border-slate-800">
-            <a href="{% url 'impostazioni_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-all mb-2">
-                <i class="ph ph-gear text-xl mr-3 text-slate-400"></i>
+            <a href="{% url 'impostazioni_dashboard' %}" class="flex items-center px-3 py-2.5 rounded-lg transition-all mb-2 {% if current_section == 'impostazioni' %}bg-slate-800 text-white{% else %}hover:bg-slate-800 hover:text-white text-slate-300{% endif %}">
+                <i class="ph ph-gear text-xl mr-3 {% if current_section == 'impostazioni' %}text-white{% else %}text-slate-400{% endif %}"></i>
                 <span class="font-medium text-sm">Impostazioni</span>
             </a>
             <div class="flex items-center justify-between px-3 py-2 mt-2 group">

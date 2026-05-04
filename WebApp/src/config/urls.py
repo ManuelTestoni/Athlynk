@@ -46,8 +46,9 @@ urlpatterns = [
     path('clienti/registra/', views_client.registra_client_view, name='clienti_registra'),
     path('clienti/<int:client_id>/', views_client.coach_client_detail_view, name='clienti_detail'),
 
-    # Il mio coach (client)
+    # Il mio specialista (client)
     path('il-mio-coach/', views_client.client_my_coach_view, name='client_my_coach'),
+    path('il-mio-specialista/<int:rel_id>/', views_client.client_specialist_detail_view, name='client_specialist_detail'),
 
     # Nutrizione
     path('nutrizione/piani/', views_nutrition.nutrizione_piani_view, name='nutrizione_piani'),
@@ -116,6 +117,7 @@ urlpatterns = [
     path('api/chat/<int:conversation_id>/send/', views_chat.api_send_message, name='chat_send'),
     path('api/chat/<int:conversation_id>/read/', views_chat.api_mark_read, name='chat_mark_read'),
     path('api/chat/<int:conversation_id>/messages/', views_chat.api_messages_since, name='chat_messages_since'),
+    path('api/chat/<int:conversation_id>/messages/older/', views_chat.api_messages_before, name='chat_messages_before'),
     path('api/chat/<int:conversation_id>/appointment/', views_chat.api_appointment_request, name='chat_appointment_request'),
     path('api/chat/<int:conversation_id>/appointment/<int:appointment_id>/respond/', views_chat.api_appointment_respond, name='chat_appointment_respond'),
 
