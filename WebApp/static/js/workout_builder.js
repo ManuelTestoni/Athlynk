@@ -83,7 +83,7 @@ document.addEventListener('alpine:init', () => {
             const newExercise = {
                 exercise_id: ex.id,
                 name: ex.name,
-                target: ex.target,
+                target_muscle_group: ex.target_muscle_group,
                 sets: '4',
                 reps: '10',
                 rest: '90s',

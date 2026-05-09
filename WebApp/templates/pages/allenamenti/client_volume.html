@@ -23,7 +23,17 @@
   </div>
 
   <div class="al-card mb-6">
-    <h2 class="al-h-3 mb-3">Volume settimanale per gruppo muscolare</h2>
+    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      <h2 class="al-h-3">Volume settimanale per gruppo muscolare</h2>
+      <div class="inline-flex" style="border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); overflow: hidden;">
+        <button type="button" @click="setMode('sets')"
+                :style="mode === 'sets' ? 'background: var(--al-bronze); color: white;' : 'background: transparent;'"
+                class="px-3 py-1 al-small">Serie</button>
+        <button type="button" @click="setMode('reps')"
+                :style="mode === 'reps' ? 'background: var(--al-bronze); color: white;' : 'background: transparent;'"
+                class="px-3 py-1 al-small">Ripetizioni</button>
+      </div>
+    </div>
     <div class="h-96">
       <canvas id="volumeChart"></canvas>
     </div>
@@ -54,21 +64,27 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
+function _parseRepsVol(reps) {
+  if (typeof reps === 'number') return reps;
+  const s = String(reps || '').trim();
+  const m = s.match(/(\d+)(?:\s*[-–]\s*(\d+))?/);
+  if (!m) return 10;
+  if (m[2]) return Math.round((parseInt(m[1]) + parseInt(m[2])) / 2);
+  return parseInt(m[1]) || 10;
+}
 function volumeView() {
+  let _chart = null;
   return {
     days: window.VOLUME_INIT.days,
     totals: { sessions: 0, exercises: 0, sets: 0, duration: 0 },
+    mode: 'reps',
     init() {
       this.computeTotals();
       this.$nextTick(() => this.renderChart());
     },
-    parseReps(reps) {
-      if (typeof reps === 'number') return reps;
-      const s = String(reps || '').trim();
-      const m = s.match(/(\d+)(?:\s*[-–]\s*(\d+))?/);
-      if (!m) return 10;
-      if (m[2]) return Math.round((parseInt(m[1]) + parseInt(m[2])) / 2);
-      return parseInt(m[1]) || 10;
+    setMode(m) {
+      this.mode = m;
+      this.renderChart();
     },
     computeTotals() {
       let exercises = 0, sets = 0, secs = 0;
@@ -91,11 +107,12 @@ function volumeView() {
       const map = {};
       this.days.forEach(d => {
         d.exercises.forEach(ex => {
-          const reps = this.parseReps(ex.reps);
           const sets = parseInt(ex.sets) || 0;
-          const baseVol = sets * reps;
-          (ex.primary_muscles || []).forEach(m => { map[m] = (map[m] || 0) + baseVol; });
-          (ex.secondary_muscles || []).forEach(m => { map[m] = (map[m] || 0) + baseVol * 0.5; });
+          const baseVol = this.mode === 'sets' ? sets : sets * _parseRepsVol(ex.reps);
+          const primary = ex.target_muscle_group || ex.primary_muscle;
+          const secondary = ex.secondary_muscle;
+          if (primary) map[primary] = (map[primary] || 0) + baseVol;
+          if (secondary) map[secondary] = (map[secondary] || 0) + baseVol * 0.5;
         });
       });
       const arr = Object.entries(map).map(([g, v]) => ({ g, v }));
@@ -106,12 +123,13 @@ function volumeView() {
       const data = this.volumeData();
       const ctx = document.getElementById('volumeChart');
       if (!ctx || !window.Chart) return;
-      new Chart(ctx, {
+      if (_chart) { _chart.destroy(); _chart = null; }
+      _chart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: data.map(d => d.g),
           datasets: [{
-            label: 'Volume settimanale (rep totali)',
+            label: this.mode === 'sets' ? 'Serie settimanali totali' : 'Ripetizioni settimanali totali',
             data: data.map(d => d.v),
             backgroundColor: 'rgba(138, 106, 58, 0.8)',
             borderColor: 'rgba(138, 106, 58, 1)',

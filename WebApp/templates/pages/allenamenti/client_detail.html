@@ -36,8 +36,8 @@
   <h2 class="al-h-3 mb-3">Giorni della scheda</h2>
   <div class="space-y-2 mb-6">
     {% for day in plan.days.all %}
-    <div class="al-card" x-data="{ open: {{ forloop.counter0 }} === 0 }">
-      <button @click="open = !open" type="button" class="w-full flex items-center justify-between">
+    <div class="al-card" x-data="dayPanel({{ forloop.counter0 }}, {{ day.id }})">
+      <button @click="toggle()" type="button" class="w-full flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-ink); width:30px; height:30px;">{{ day.day_order }}</div>
           <div class="text-left">
@@ -74,6 +74,30 @@
             </div>
           </div>
           {% endfor %}
+        </div>
+
+        <!-- Per-day volume chart toggle -->
+        <div class="mt-4 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+          <button type="button" @click="toggleChart()"
+                  class="al-btn al-btn-aegean al-btn-sm w-full justify-center">
+            <i class="ph ph-chart-bar"></i>
+            <span x-text="chartOpen ? 'Nascondi grafico volume' : 'Vedi grafico volume del giorno'"></span>
+          </button>
+          <div x-show="chartOpen" x-collapse class="mt-3">
+            <div class="flex items-center justify-end gap-2 mb-2">
+              <div class="inline-flex" style="border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); overflow: hidden;">
+                <button type="button" @click="setMode('sets')"
+                        :style="mode === 'sets' ? 'background: var(--al-bronze); color: white;' : 'background: transparent;'"
+                        class="px-3 py-1 al-small">Serie</button>
+                <button type="button" @click="setMode('reps')"
+                        :style="mode === 'reps' ? 'background: var(--al-bronze); color: white;' : 'background: transparent;'"
+                        class="px-3 py-1 al-small">Ripetizioni</button>
+              </div>
+            </div>
+            <div class="h-64">
+              <canvas :id="'dayChart-' + dayId"></canvas>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -244,6 +268,7 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 function clientDetail() {
   return {
@@ -251,6 +276,83 @@ function clientDetail() {
     init() {},
   };
 }
+
+function _parseRepsCD(reps) {
+  if (typeof reps === 'number') return reps;
+  const s = String(reps || '').trim();
+  const m = s.match(/(\d+)(?:\s*[-–]\s*(\d+))?/);
+  if (!m) return 10;
+  if (m[2]) return Math.round((parseInt(m[1]) + parseInt(m[2])) / 2);
+  return parseInt(m[1]) || 10;
+}
+
+function dayPanel(idx, dayId) {
+  let _chart = null;
+  return {
+    open: false,
+    chartOpen: false,
+    dayId,
+    idx,
+    mode: 'reps',
+    toggle() {
+      this.open = !this.open;
+    },
+    toggleChart() {
+      this.chartOpen = !this.chartOpen;
+      if (this.chartOpen) this.$nextTick(() => this.renderChart());
+    },
+    setMode(m) {
+      this.mode = m;
+      this.renderChart();
+    },
+    volumeData() {
+      const day = (window.CLIENT_DETAIL.days || []).find(d => d.id === this.dayId);
+      if (!day) return [];
+      const map = {};
+      day.exercises.forEach(ex => {
+        const sets = parseInt(ex.sets) || 0;
+        const baseVol = this.mode === 'sets' ? sets : sets * _parseRepsCD(ex.reps);
+        const primary = ex.target_muscle_group || ex.primary_muscle;
+        const secondary = ex.secondary_muscle;
+        if (primary) map[primary] = (map[primary] || 0) + baseVol;
+        if (secondary) map[secondary] = (map[secondary] || 0) + baseVol * 0.5;
+      });
+      const arr = Object.entries(map).map(([g, v]) => ({ g, v }));
+      arr.sort((a, b) => b.v - a.v);
+      return arr;
+    },
+    renderChart() {
+      const data = this.volumeData();
+      const ctx = document.getElementById('dayChart-' + this.dayId);
+      if (!ctx || !window.Chart) return;
+      if (_chart) { _chart.destroy(); _chart = null; }
+      _chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.g),
+          datasets: [{
+            label: this.mode === 'sets' ? 'Serie totali' : 'Ripetizioni totali',
+            data: data.map(d => d.v),
+            backgroundColor: 'rgba(138, 106, 58, 0.8)',
+            borderColor: 'rgba(138, 106, 58, 1)',
+            borderWidth: 1,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } },
+          },
+        },
+      });
+    },
+  };
+}
+window.dayPanel = dayPanel;
 function sessionsHistory(assignmentId, hasMoreInitial, totalInitial) {
   return {
     open: false,

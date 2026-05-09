@@ -20,81 +20,33 @@ from .session_utils import (
 
 
 # ---------------------------------------------------------------------------
-# Normalization maps (target muscles + equipment)
+# Exercise filter helpers (uses new schema fields)
 # ---------------------------------------------------------------------------
 
-MUSCLE_GROUPS = ['Petto', 'Schiena', 'Spalle', 'Bicipiti', 'Tricipiti',
-                 'Quadricipiti', 'Femorali', 'Glutei', 'Core', 'Polpacci', 'Full Body']
-
-MUSCLE_KEYWORDS = {
-    'Petto': ['pettoral', 'petto'],
-    'Schiena': ['dorsal', 'schiena', 'trapez', 'romboid', 'erettor', 'lat'],
-    'Spalle': ['spalle', 'deltoide'],
-    'Bicipiti': ['bicipit', 'brachiorad'],
-    'Tricipiti': ['tricipit'],
-    'Quadricipiti': ['quadricipit'],
-    'Femorali': ['femoral', 'ischiocrural'],
-    'Glutei': ['glute'],
-    'Core': ['core', 'addominal', 'obliqu', 'flessori anca', 'retto', 'piriform', 'rotatori anca'],
-    'Polpacci': ['polpacc', 'gastroc', 'soleo'],
-    'Full Body': ['tutto il corpo', 'full body'],
-}
-
-EQUIP_GROUPS = ['Bilanciere', 'Manubri', 'Macchina', 'Cavi', 'Corpo Libero',
-                'Kettlebell', 'Banda Elastica']
-
-EQUIP_KEYWORDS = {
-    'Bilanciere': ['bilanciere'],
-    'Manubri': ['manubri', 'manubrio'],
-    'Macchina': ['macchina', 'machine', 'leg press', 'leg curl', 'leg extension',
-                 'lat machine', 'hack squat', 'remoergometro'],
-    'Cavi': ['cavi'],
-    'Corpo Libero': ['corpo libero', 'nessun attrezzo', 'sbarra', 'parallele',
-                     'tappetino', 'materassino', 'ab wheel'],
-    'Kettlebell': ['kettlebell'],
-    'Banda Elastica': ['banda elastica', 'elastico'],
-}
-
-
-def normalize_muscles(raw_text):
-    if not raw_text:
-        return []
-    parts = [p.strip().lower() for p in raw_text.split(',') if p.strip()]
-    found = []
-    for part in parts:
-        for group, keywords in MUSCLE_KEYWORDS.items():
-            if any(k in part for k in keywords):
-                if group not in found:
-                    found.append(group)
-                break
-    return found
-
-
-def normalize_equipment(raw_text):
-    if not raw_text:
-        return []
-    parts = [p.strip().lower() for p in raw_text.split(',') if p.strip()]
-    found = []
-    for part in parts:
-        for group, keywords in EQUIP_KEYWORDS.items():
-            if any(k in part for k in keywords):
-                if group not in found:
-                    found.append(group)
-                break
-    return found
+def _distinct_values(field_name):
+    return list(
+        Exercise.objects.exclude(**{f'{field_name}__isnull': True})
+        .exclude(**{field_name: ''})
+        .values_list(field_name, flat=True)
+        .distinct()
+        .order_by(field_name)
+    )
 
 
 def serialize_exercise_card(ex):
     return {
         'id': ex.id,
         'name': ex.name,
-        'target_muscles_raw': ex.target_muscles or '',
-        'secondary_muscles_raw': ex.secondary_muscles or '',
-        'primary_muscles': normalize_muscles(ex.target_muscles),
-        'secondary_muscles': normalize_muscles(ex.secondary_muscles),
-        'equipment_raw': ex.equipment or '',
-        'equipment_groups': normalize_equipment(ex.equipment),
         'video_url': ex.video_url or '',
+        'difficulty_level': ex.difficulty_level or '',
+        'target_muscle_group': ex.target_muscle_group or '',
+        'primary_muscle': ex.primary_muscle or '',
+        'secondary_muscle': ex.secondary_muscle or '',
+        'equipment': ex.equipment or '',
+        'movement_pattern_1': ex.movement_pattern_1 or '',
+        'movement_pattern_2': ex.movement_pattern_2 or '',
+        'body_region': ex.body_region or '',
+        'exercise_classification': ex.exercise_classification or '',
     }
 
 
@@ -131,8 +83,14 @@ def allenamenti_list_view(request):
             a.expected_session_count = weeks * freq
             a.completed_session_count = a.sessions.filter(client=client, completed=True).count()
             a.progress_pct = min(100, round((a.completed_session_count / a.expected_session_count) * 100)) if a.expected_session_count else 0
-            days_list = [{'id': d.id, 'order': d.day_order, 'name': d.day_name or f'Giorno {d.day_order}'} for d in a.workout_plan.days.all().order_by('day_order')]
+            ordered_days = list(a.workout_plan.days.all().order_by('day_order'))
+            days_with_ex = [d for d in ordered_days if d.exercises.exists()]
+            days_list = [{'id': d.id, 'order': d.day_order, 'name': d.day_name or f'Giorno {d.day_order}'} for d in ordered_days if d.exercises.exists()]
             a.days_json = json.dumps(days_list)
+            if not days_with_ex or a.completed_session_count == 0:
+                a.next_day_id = None
+            else:
+                a.next_day_id = days_with_ex[a.completed_session_count % len(days_with_ex)].id
 
         if query:
             assignments = [a for a in assignments if query.lower() in a.workout_plan.title.lower()]
@@ -187,9 +145,10 @@ def _serialize_plan_for_wizard(plan):
                 'pk': ex.id,
                 'exercise_id': ex.exercise.id,
                 'exercise_name': ex.exercise.name,
-                'primary_muscles': normalize_muscles(ex.exercise.target_muscles),
-                'secondary_muscles': normalize_muscles(ex.exercise.secondary_muscles),
-                'equipment_groups': normalize_equipment(ex.exercise.equipment),
+                'target_muscle_group': ex.exercise.target_muscle_group or '',
+                'primary_muscle': ex.exercise.primary_muscle or '',
+                'secondary_muscle': ex.exercise.secondary_muscle or '',
+                'equipment': ex.exercise.equipment or '',
                 'sets': ex.set_count or 3,
                 'reps': ex.rep_range or '10',
                 'load_value': float(ex.load_value) if ex.load_value is not None else None,
@@ -213,6 +172,7 @@ def _serialize_plan_for_wizard(plan):
         'goal': plan.goal or '',
         'level': plan.level or '',
         'frequency_per_week': plan.frequency_per_week or 3,
+        'duration_weeks': plan.duration_weeks or 8,
         'status': plan.status,
         'last_step': plan.last_step or 1,
         'days': days,
@@ -235,6 +195,7 @@ def allenamenti_wizard_view(request, plan_id=None):
             'goal': '',
             'level': '',
             'frequency_per_week': None,
+            'duration_weeks': 8,
             'status': 'DRAFT',
             'last_step': 1,
             'days': [],
@@ -288,6 +249,13 @@ def _apply_payload_to_plan(plan, data, coach):
             f = int(data['frequency_per_week'])
             if 1 <= f <= 6:
                 plan.frequency_per_week = f
+        except (TypeError, ValueError):
+            pass
+    if 'duration_weeks' in data and data.get('duration_weeks'):
+        try:
+            w = int(data['duration_weeks'])
+            if 1 <= w <= 104:
+                plan.duration_weeks = w
         except (TypeError, ValueError):
             pass
     if 'last_step' in data:
@@ -466,10 +434,16 @@ def api_plan_finalize(request, plan_id):
         client_ids = data.get('client_ids') or []
         if not client_ids:
             return JsonResponse({'error': 'Seleziona almeno un cliente.'}, status=400)
-        start_date = data.get('start_date')
-        end_date = data.get('end_date') or None
-        if not start_date:
-            return JsonResponse({'error': 'Data inizio obbligatoria.'}, status=400)
+        try:
+            weeks = int(data.get('weeks') or 0)
+        except (TypeError, ValueError):
+            weeks = 0
+        if weeks < 1:
+            weeks = plan.duration_weeks or 0
+        if weeks < 1:
+            return JsonResponse({'error': 'Durata scheda non valida.'}, status=400)
+        start_date = date.today()
+        end_date = start_date + timedelta(weeks=weeks)
 
         clients = ClientProfile.objects.filter(
             id__in=client_ids,
@@ -549,20 +523,17 @@ def api_search_exercises(request):
     query = request.GET.get('q', '').strip()
     muscle = request.GET.get('muscle', '').strip()
     equipment = request.GET.get('equipment', '').strip()
+    sport = request.GET.get('sport', '').strip()
 
     qs = Exercise.objects.all()
     if query:
         qs = qs.filter(name__icontains=query)
-    if muscle and muscle in MUSCLE_KEYWORDS:
-        kw_q = Q()
-        for kw in MUSCLE_KEYWORDS[muscle]:
-            kw_q |= Q(target_muscles__icontains=kw) | Q(secondary_muscles__icontains=kw)
-        qs = qs.filter(kw_q)
-    if equipment and equipment in EQUIP_KEYWORDS:
-        kw_q = Q()
-        for kw in EQUIP_KEYWORDS[equipment]:
-            kw_q |= Q(equipment__icontains=kw)
-        qs = qs.filter(kw_q)
+    if muscle:
+        qs = qs.filter(target_muscle_group__iexact=muscle)
+    if equipment:
+        qs = qs.filter(equipment__iexact=equipment)
+    if sport:
+        qs = qs.filter(exercise_classification__iexact=sport)
 
     qs = qs.order_by('name')[:20]
     return JsonResponse([serialize_exercise_card(e) for e in qs], safe=False)
@@ -570,8 +541,9 @@ def api_search_exercises(request):
 
 def api_exercise_filters(request):
     return JsonResponse({
-        'muscles': MUSCLE_GROUPS,
-        'equipment': EQUIP_GROUPS,
+        'muscles': _distinct_values('target_muscle_group'),
+        'equipment': _distinct_values('equipment'),
+        'sports': _distinct_values('exercise_classification'),
     })
 
 

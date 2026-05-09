@@ -190,12 +190,7 @@ function sessionRunner() {
       const k = this._key(exId, setN);
       const v = this.localValues[k];
       if (v && v[field] !== undefined && v[field] !== null && v[field] !== '') return v[field];
-      // Inherit from previous set if extant
-      if (setN > 1) {
-        const prev = this.localValues[this._key(exId, setN - 1)];
-        if (prev && prev[field] !== undefined && prev[field] !== null && prev[field] !== '') return prev[field];
-      }
-      // Fallback to prescription
+      // Fallback to prescription (each set independent)
       if (field === 'reps_done') {
         const m = String(ex.reps || '').match(/(\d+)/);
         return m ? parseInt(m[1]) : '';

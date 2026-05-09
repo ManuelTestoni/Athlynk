@@ -22,9 +22,14 @@ class Command(BaseCommand):
             slug='squat-bilanciere',
             defaults={
                 'name': 'Squat con Bilanciere',
-                'target_muscles': 'Quadricipiti, Glutei, Core',
-                'equipment': 'Bilanciere, Rack',
-                'difficulty_level': 'Intermedio'
+                'target_muscle_group': 'Quadricipiti',
+                'primary_muscle': 'Quadricipite',
+                'secondary_muscle': 'Grande gluteo',
+                'equipment': 'Bilanciere',
+                'difficulty_level': 'Intermedio',
+                'movement_pattern_1': 'Squat',
+                'body_region': 'Lower',
+                'exercise_classification': 'Powerlifting',
             }
         )
 
@@ -32,9 +37,14 @@ class Command(BaseCommand):
             slug='panca-piana',
             defaults={
                 'name': 'Panca Piana con Bilanciere',
-                'target_muscles': 'Pettorali, Spalle, Tricipiti',
-                'equipment': 'Panca, Bilanciere',
-                'difficulty_level': 'Intermedio'
+                'target_muscle_group': 'Petto',
+                'primary_muscle': 'Pettorale grande',
+                'secondary_muscle': 'Tricipite',
+                'equipment': 'Bilanciere',
+                'difficulty_level': 'Intermedio',
+                'movement_pattern_1': 'Spinta orizzontale',
+                'body_region': 'Upper',
+                'exercise_classification': 'Powerlifting',
             }
         )
 

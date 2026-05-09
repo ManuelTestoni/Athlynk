@@ -121,22 +121,37 @@
         </div>
       </div>
 
-      <div>
-        <label class="al-label">Allenamenti per settimana *</label>
-        <div class="flex gap-2 flex-wrap">
-          <template x-for="n in [1,2,3,4,5,6]" :key="n">
-            <button type="button" @click="setFrequency(n)"
-                    class="px-4 py-2 rounded transition-all"
-                    :style="plan.frequency_per_week === n
-                            ? 'background: var(--al-ink); color: var(--al-parchment); font-weight:600;'
-                            : 'background: var(--al-stone); color: var(--al-ink);'"
-                    x-text="n">
-            </button>
-          </template>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="al-label">Allenamenti per settimana *</label>
+          <div class="flex gap-2 flex-wrap">
+            <template x-for="n in [1,2,3,4,5,6]" :key="n">
+              <button type="button" @click="setFrequency(n)"
+                      class="px-4 py-2 rounded transition-all"
+                      :style="plan.frequency_per_week === n
+                              ? 'background: var(--al-ink); color: var(--al-parchment); font-weight:600;'
+                              : 'background: var(--al-stone); color: var(--al-ink);'"
+                      x-text="n">
+              </button>
+            </template>
+          </div>
+          <p class="al-small mt-2" style="color: var(--al-ink-faint);">
+            Determina i giorni nel builder. Non modificabile dopo lo step 2.
+          </p>
         </div>
-        <p class="al-small mt-2" style="color: var(--al-ink-faint);">
-          Determina il numero di giorni nel builder. Non modificabile dopo lo step 2.
-        </p>
+        <div>
+          <label class="al-label">Durata scheda (settimane) *</label>
+          <select x-model.number="plan.duration_weeks" @change="markDirty()" class="al-select w-full">
+            <option :value="2">2 settimane</option>
+            <option :value="4">4 settimane</option>
+            <option :value="6">6 settimane</option>
+            <option :value="8">8 settimane</option>
+            <option :value="12">12 settimane</option>
+            <option :value="16">16 settimane</option>
+            <option :value="24">24 settimane</option>
+          </select>
+          <p class="al-small mt-2" style="color: var(--al-ink-faint);">Modificabile in fase di assegnazione.</p>
+        </div>
       </div>
 
       <div>
@@ -176,6 +191,19 @@
           <h3 class="al-h-4 mb-3"><i class="ph ph-books"></i> Libreria</h3>
           <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
                  placeholder="Cerca esercizio..." class="al-input mb-2">
+          <!-- Sport chips -->
+          <div x-show="filters.sports.length" class="flex flex-wrap gap-1 mb-2">
+            <button type="button"
+                    @click="library.sport = ''; loadLibrary()"
+                    :class="library.sport === '' ? 'al-badge al-badge-bronze' : 'al-badge'"
+                    style="font-size: 9px; cursor: pointer;">Tutti</button>
+            <template x-for="s in filters.sports" :key="s">
+              <button type="button"
+                      @click="library.sport = (library.sport === s ? '' : s); loadLibrary()"
+                      :class="library.sport === s ? 'al-badge al-badge-bronze' : 'al-badge'"
+                      style="font-size: 9px; cursor: pointer;" x-text="s"></button>
+            </template>
+          </div>
           <div class="grid grid-cols-2 gap-2 mb-3">
             <select x-model="library.muscle" @change="loadLibrary()" class="al-select" style="font-size:.85rem; padding: 4px 8px;">
               <option value="">Muscolo</option>
@@ -204,11 +232,11 @@
                    @click="addExerciseToActiveDay(ex)">
                 <p class="font-semibold text-sm leading-tight" x-text="ex.name"></p>
                 <div class="flex flex-wrap gap-1 mt-1">
-                  <template x-for="m in ex.primary_muscles" :key="m">
-                    <span class="al-tag" style="background: var(--al-bronze-faint); color: var(--al-bronze); font-size: .7rem;" x-text="m"></span>
+                  <template x-if="ex.target_muscle_group">
+                    <span class="al-tag" style="background: var(--al-bronze-faint); color: var(--al-bronze); font-size: .7rem;" x-text="ex.target_muscle_group"></span>
                   </template>
-                  <template x-for="e in ex.equipment_groups" :key="e">
-                    <span class="al-tag" style="background: var(--al-stone); font-size: .7rem;" x-text="e"></span>
+                  <template x-if="ex.equipment">
+                    <span class="al-tag" style="background: var(--al-stone); font-size: .7rem;" x-text="ex.equipment"></span>
                   </template>
                 </div>
               </div>
@@ -482,15 +510,19 @@
                 </template>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="al-label">Data inizio *</label>
-                <input type="date" x-model="assignStart" class="al-input">
-              </div>
-              <div>
-                <label class="al-label">Data fine</label>
-                <input type="date" x-model="assignEnd" class="al-input">
-              </div>
+            <div>
+              <label class="al-label">Durata scheda *</label>
+              <select x-model.number="assignWeeks" class="al-select w-full">
+                <option :value="null" x-text="'Default scheda (' + plan.duration_weeks + ' sett.)'"></option>
+                <option :value="2">2 settimane</option>
+                <option :value="4">4 settimane</option>
+                <option :value="6">6 settimane</option>
+                <option :value="8">8 settimane</option>
+                <option :value="12">12 settimane</option>
+                <option :value="16">16 settimane</option>
+                <option :value="24">24 settimane</option>
+              </select>
+              <p class="al-small mt-2" style="color: var(--al-ink-faint);">Override opzionale del valore impostato nella scheda.</p>
             </div>
             <p x-show="errors.assign" x-text="errors.assign" class="al-input-error"></p>
             <button @click="doAssign()" :disabled="finalizing" type="button" class="al-btn al-btn-bronze w-full">
@@ -533,5 +565,5 @@
 
 <!-- SortableJS for drag-drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{% static 'js/workout_wizard.js' %}"></script>
+<script src="{% static 'js/workout_wizard.js' %}?v=5"></script>
 {% endblock %}

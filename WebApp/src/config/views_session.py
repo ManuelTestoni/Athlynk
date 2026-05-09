@@ -19,7 +19,6 @@ from domain.chat.models import Notification
 from .session_utils import (
     get_session_user, get_session_client, get_session_coach, can_manage_workouts,
 )
-from .views_workouts import normalize_muscles
 
 
 # ---------------------------------------------------------------------------
@@ -142,8 +141,9 @@ def client_assignment_detail_view(request, assignment_id):
                 'load_unit': ex.load_unit or 'KG',
                 'recovery_seconds': ex.recovery_seconds or 90,
                 'notes': ex.technique_notes or '',
-                'primary_muscles': normalize_muscles(ex.exercise.target_muscles),
-                'secondary_muscles': normalize_muscles(ex.exercise.secondary_muscles),
+                'primary_muscle': ex.exercise.primary_muscle or '',
+                'secondary_muscle': ex.exercise.secondary_muscle or '',
+                'target_muscle_group': ex.exercise.target_muscle_group or '',
             })
         days_data.append({
             'id': d.id,
@@ -191,8 +191,9 @@ def client_assignment_volume_view(request, assignment_id):
                 'sets': ex.set_count or 3,
                 'reps': ex.rep_range or '10',
                 'recovery_seconds': ex.recovery_seconds or 90,
-                'primary_muscles': normalize_muscles(ex.exercise.target_muscles),
-                'secondary_muscles': normalize_muscles(ex.exercise.secondary_muscles),
+                'primary_muscle': ex.exercise.primary_muscle or '',
+                'secondary_muscle': ex.exercise.secondary_muscle or '',
+                'target_muscle_group': ex.exercise.target_muscle_group or '',
             })
         days_data.append({'id': d.id, 'order': d.day_order, 'exercises': ex_list})
     return render(request, 'pages/allenamenti/client_volume.html', {
@@ -268,7 +269,6 @@ def client_session_active_view(request, assignment_id, day_id):
         exercises_data.append({
             'id': ex.id,
             'name': ex.exercise.name,
-            'image_url': ex.exercise.image_url or '',
             'sets': ex.set_count or 3,
             'reps': ex.rep_range or '10',
             'load_value': float(ex.load_value) if ex.load_value else None,
@@ -277,7 +277,9 @@ def client_session_active_view(request, assignment_id, day_id):
             'notes': ex.technique_notes or '',
             'video_url': ex.exercise.video_url or '',
             'superset_group_id': ex.superset_group_id,
-            'instructions': ex.exercise.instructions or '',
+            'primary_muscle': ex.exercise.primary_muscle or '',
+            'target_muscle_group': ex.exercise.target_muscle_group or '',
+            'equipment': ex.exercise.equipment or '',
             'alternative_exercise': {
                 'id': alt.id,
                 'name': alt.name,
@@ -661,15 +663,16 @@ def api_progress_volume(request, client_id):
         # Monday of week
         monday = d - timedelta(days=d.weekday())
         wkey = monday.isoformat()
-        muscles_p = normalize_muscles(sl.workout_exercise.exercise.target_muscles)
-        muscles_s = normalize_muscles(sl.workout_exercise.exercise.secondary_muscles)
+        ex = sl.workout_exercise.exercise
+        primary = ex.target_muscle_group or ex.primary_muscle or ''
+        secondary = ex.secondary_muscle or ''
         reps = sl.reps_done or 0
-        for m in muscles_p:
-            weekly.setdefault(wkey, {}).setdefault(m, 0)
-            weekly[wkey][m] += reps
-        for m in muscles_s:
-            weekly.setdefault(wkey, {}).setdefault(m, 0)
-            weekly[wkey][m] += reps * 0.5
+        if primary:
+            weekly.setdefault(wkey, {}).setdefault(primary, 0)
+            weekly[wkey][primary] += reps
+        if secondary:
+            weekly.setdefault(wkey, {}).setdefault(secondary, 0)
+            weekly[wkey][secondary] += reps * 0.5
 
     weeks = sorted(weekly.keys())
     muscles_set = set()

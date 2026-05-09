@@ -115,7 +115,7 @@ window.WORKOUT_BUILDER_URLS = {
               <i class="ph ph-dots-six-vertical text-ink-line text-sm mt-0.5 shrink-0"></i>
               <div class="min-w-0 flex-1">
                 <p class="text-[13px] font-medium text-ink truncate" x-text="ex.name"></p>
-                <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target || ex.equipment || '—'"></p>
+                <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target_muscle_group || ex.equipment || '—'"></p>
               </div>
               <button type="button" @click="quickAddToActiveDay(ex)"
                       class="al-btn-icon al-btn al-btn-ghost shrink-0" title="Aggiungi al giorno attivo"
@@ -181,7 +181,7 @@ window.WORKOUT_BUILDER_URLS = {
                     </span>
                     <div class="min-w-0 flex-1">
                       <p class="text-[13px] font-medium text-ink truncate" x-text="ex.name"></p>
-                      <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target || '—'"></p>
+                      <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target_muscle_group || '—'"></p>
                     </div>
                     <span class="al-badge shrink-0 hidden sm:inline-flex"
                           style="font-size: 10px;"
@@ -273,7 +273,7 @@ window.WORKOUT_BUILDER_URLS = {
                             class="w-full text-left px-3 py-2 hover:bg-marble"
                             style="border-bottom: 1px solid var(--al-rule-faint);">
                       <p class="text-[12px] font-medium text-ink" x-text="r.name"></p>
-                      <p class="al-tag" style="font-size: 9px;" x-text="r.target || r.equipment || '—'"></p>
+                      <p class="al-tag" style="font-size: 9px;" x-text="r.target_muscle_group || r.equipment || '—'"></p>
                     </button>
                   </template>
                 </div>
@@ -359,5 +359,5 @@ window.WORKOUT_BUILDER_URLS = {
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="/static/js/workout_builder.js"></script>
+<script src="/static/js/workout_builder.js?v=3"></script>
 {% endblock %}

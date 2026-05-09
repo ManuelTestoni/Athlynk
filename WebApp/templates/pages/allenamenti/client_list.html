@@ -76,11 +76,18 @@
           <a href="{% url 'client_assignment_detail' assignment.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center">
             <i class="ph ph-eye"></i> Dettagli
           </a>
-          {% if assignment.status == 'ACTIVE' and assignment.start_date <= today %}
+          {% if assignment.status == 'ACTIVE' %}
+            {% if assignment.next_day_id %}
+            <a href="{% url 'client_session_active' assignment.id assignment.next_day_id %}"
+               class="al-btn al-btn-bronze al-btn-sm flex-1 justify-center">
+              <i class="ph ph-play"></i> Sessione
+            </a>
+            {% else %}
             <button @click='pickDay = { aid: {{ assignment.id }}, title: "{{ assignment.workout_plan.title|escapejs }}", days: {{ assignment.days_json|safe }} }'
                     class="al-btn al-btn-bronze al-btn-sm flex-1 justify-center">
               <i class="ph ph-play"></i> Sessione
             </button>
+            {% endif %}
           {% else %}
             <button disabled class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center opacity-50 cursor-not-allowed">
               <i class="ph ph-play"></i> Sessione

@@ -135,7 +135,7 @@ window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <p class="text-[13px] font-medium text-ink" x-text="ex.name"></p>
-                  <p class="al-tag" style="font-size:9px;" x-text="ex.target"></p>
+                  <p class="al-tag" style="font-size:9px;" x-text="ex.target_muscle_group"></p>
                 </div>
                 <button @click="removeExercise(dayIndex, exIndex)" type="button" class="text-ink-line hover:text-danger transition-colors shrink-0">
                   <i class="ph ph-x text-xs"></i>
@@ -191,9 +191,9 @@ window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <p class="text-[13px] font-medium text-ink" x-text="ex.name"></p>
-                      <p class="al-tag" style="font-size:9px;" x-text="ex.target"></p>
+                      <p class="al-tag" style="font-size:9px;" x-text="ex.target_muscle_group"></p>
                     </div>
-                    <span class="al-badge al-badge-bronze" style="font-size:9px;" x-text="ex.exercise_type"></span>
+                    <span class="al-badge al-badge-bronze" style="font-size:9px;" x-text="ex.exercise_classification"></span>
                   </div>
                 </button>
               </template>
@@ -216,5 +216,5 @@ window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
   </div>
 </div>
 
-<script src="/static/js/workout_builder.js"></script>
+<script src="/static/js/workout_builder.js?v=3"></script>
 {% endblock %}

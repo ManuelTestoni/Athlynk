@@ -452,7 +452,6 @@
           <span class="ss-pill is-primary">
             <i class="ph ph-calendar-blank"></i> Settimana <span x-text="weekIndex"></span> · Giorno <span x-text="dayOrder"></span>
           </span>
-          <span class="ss-pill" title="Tempo totale sessione"><i class="ph ph-timer"></i> <span x-text="formatTime(elapsed)"></span></span>
         </div>
       </div>
     </div>
@@ -471,8 +470,7 @@
     <template x-if="nextExercise()">
       <div class="ss-next-card">
         <div class="ss-thumb">
-          <template x-if="nextExercise().image_url"><img :src="nextExercise().image_url" alt=""></template>
-          <template x-if="!nextExercise().image_url"><i class="ph ph-barbell"></i></template>
+          <i class="ph ph-barbell"></i>
         </div>
         <div class="flex-1 min-w-0">
           <p class="ss-eyebrow" style="color: var(--al-bronze);">Prossimo esercizio</p>
@@ -627,8 +625,6 @@
                 <p class="ss-timer-time" x-text="formatTime(Math.max(0, timers[ex.id].sec))"></p>
               </div>
               <div class="flex items-center gap-2">
-                <button class="ss-set-icon" @click="adjustTimer(ex.id, -15)">-15s</button>
-                <button class="ss-set-icon" @click="adjustTimer(ex.id, 15)">+15s</button>
                 <button class="ss-timer-btn" @click="toggleTimer(ex.id)">
                   <i class="ph" :class="timers[ex.id].paused ? 'ph-play-fill' : 'ph-pause-fill'"></i>
                 </button>
@@ -681,7 +677,6 @@
         <i class="ph ph-pause"></i>
       </button>
       <button @click="finishModalOpen = true" class="ss-bottom-btn">
-        <i class="ph ph-flag-checkered"></i>
         Termina sessione
       </button>
     </div>
@@ -789,5 +784,5 @@
 
 </div>
 
-<script src="{% static 'js/workout_session.js' %}"></script>
+<script src="{% static 'js/workout_session.js' %}?v=3"></script>
 {% endblock %}

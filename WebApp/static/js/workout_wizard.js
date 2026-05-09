@@ -10,8 +10,8 @@ document.addEventListener('alpine:init', () => {
     mobileTab: 'lib',
     analyticsOpen: false,
 
-    library: { query: '', muscle: '', equipment: '', items: [], loading: false },
-    filters: { muscles: [], equipment: [] },
+    library: { query: '', muscle: '', equipment: '', sport: '', items: [], loading: false },
+    filters: { muscles: [], equipment: [], sports: [] },
 
     saveState: 'idle',
     saveTimer: null,
@@ -24,8 +24,7 @@ document.addEventListener('alpine:init', () => {
     clientQuery: '',
     clientsList: [],
     selectedClientIds: [],
-    assignStart: '',
-    assignEnd: '',
+    assignWeeks: null,
     finalizing: false,
 
     errors: { step1: '', step2: '', assign: '', finalize: '' },
@@ -43,6 +42,7 @@ document.addEventListener('alpine:init', () => {
         goal: init.goal || '',
         level: init.level || '',
         frequency_per_week: init.frequency_per_week || null,
+        duration_weeks: init.duration_weeks || 8,
         status: init.status || 'DRAFT',
         last_step: init.last_step || 1,
         days: this._materializeDays(init.days || []),
@@ -81,9 +81,10 @@ document.addEventListener('alpine:init', () => {
           pk: ex.pk || null,
           exercise_id: ex.exercise_id,
           exercise_name: ex.exercise_name,
-          primary_muscles: ex.primary_muscles || [],
-          secondary_muscles: ex.secondary_muscles || [],
-          equipment_groups: ex.equipment_groups || [],
+          target_muscle_group: ex.target_muscle_group || '',
+          primary_muscle: ex.primary_muscle || '',
+          secondary_muscle: ex.secondary_muscle || '',
+          equipment: ex.equipment || '',
           sets: ex.sets ?? 3,
           reps: ex.reps ?? '10',
           load_value: ex.load_value ?? null,
@@ -104,7 +105,7 @@ document.addEventListener('alpine:init', () => {
     stepName(s) { return ({1:'Informazioni', 2:'Builder', 3:'Riepilogo & Assegna'})[s]; },
 
     canAdvanceStep1() {
-      return this.plan && this.plan.title.trim().length > 0 && !!this.plan.frequency_per_week;
+      return this.plan && this.plan.title.trim().length > 0 && !!this.plan.frequency_per_week && !!this.plan.duration_weeks;
     },
 
     canAdvanceStep2() {
@@ -194,6 +195,7 @@ document.addEventListener('alpine:init', () => {
       if (this.library.query) params.set('q', this.library.query);
       if (this.library.muscle) params.set('muscle', this.library.muscle);
       if (this.library.equipment) params.set('equipment', this.library.equipment);
+      if (this.library.sport) params.set('sport', this.library.sport);
       try {
         const r = await fetch(`${this.urls.search_exercises}?${params.toString()}`);
         this.library.items = await r.json();
@@ -222,9 +224,10 @@ document.addEventListener('alpine:init', () => {
         pk: null,
         exercise_id: libEx.id,
         exercise_name: libEx.name,
-        primary_muscles: libEx.primary_muscles || [],
-        secondary_muscles: libEx.secondary_muscles || [],
-        equipment_groups: libEx.equipment_groups || [],
+        target_muscle_group: libEx.target_muscle_group || '',
+        primary_muscle: libEx.primary_muscle || '',
+        secondary_muscle: libEx.secondary_muscle || '',
+        equipment: libEx.equipment || '',
         sets: 3,
         reps: '10',
         load_value: null,
@@ -327,12 +330,10 @@ document.addEventListener('alpine:init', () => {
           const reps = this._parseReps(ex.reps);
           const sets = parseInt(ex.sets) || 0;
           const baseVol = sets * reps;
-          (ex.primary_muscles || []).forEach(m => {
-            map[m] = (map[m] || 0) + baseVol;
-          });
-          (ex.secondary_muscles || []).forEach(m => {
-            map[m] = (map[m] || 0) + baseVol * 0.5;
-          });
+          const primary = ex.target_muscle_group || ex.primary_muscle;
+          const secondary = ex.secondary_muscle;
+          if (primary) map[primary] = (map[primary] || 0) + baseVol;
+          if (secondary) map[secondary] = (map[secondary] || 0) + baseVol * 0.5;
         });
       });
       const arr = Object.entries(map).map(([group, value]) => ({ group, value }));
@@ -405,6 +406,7 @@ document.addEventListener('alpine:init', () => {
         goal: this.plan.goal,
         level: this.plan.level,
         frequency_per_week: this.plan.frequency_per_week,
+        duration_weeks: this.plan.duration_weeks,
         last_step: this.step,
         days: this.plan.days.map((d, di) => ({
           pk: d.pk,
@@ -531,8 +533,9 @@ document.addEventListener('alpine:init', () => {
         this.errors.assign = 'Seleziona almeno un cliente.';
         return;
       }
-      if (!this.assignStart) {
-        this.errors.assign = 'Data inizio obbligatoria.';
+      const weeks = this.assignWeeks || this.plan.duration_weeks;
+      if (!weeks || weeks < 1) {
+        this.errors.assign = 'Durata scheda mancante.';
         return;
       }
       // Ensure latest state on server
@@ -540,8 +543,7 @@ document.addEventListener('alpine:init', () => {
       const d = await this._finalize({
         action: 'assign',
         client_ids: this.selectedClientIds,
-        start_date: this.assignStart,
-        end_date: this.assignEnd || null,
+        weeks: weeks,
       });
       if (d) {
         this._showToast('Scheda assegnata!');
