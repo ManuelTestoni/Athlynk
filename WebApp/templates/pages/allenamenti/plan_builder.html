@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ plan.title }} — Builder{% endblock %}
+
+{% block content %}
+<script>
+window.WORKOUT_PLAN = {{ plan_data|safe }};
+window.WORKOUT_BUILDER_URLS = {
+  save: "{% url 'allenamenti_plan_builder' plan.id %}",
+  duplicate_day: "/api/allenamenti/{{ plan.id }}/giorni/__DAY_ID__/duplica/",
+  search_exercises: "{% url 'api_search_exercises' %}",
+  exercise_filters: "{% url 'api_exercise_filters' %}",
+  detail: "{% url 'allenamenti_plan_detail' plan.id %}",
+  list: "{% url 'allenamenti_list' %}",
+  meta_edit: "{% url 'allenamenti_plan_meta_edit' plan.id %}",
+};
+</script>
+
+<div class="-m-4 sm:-m-8 flex flex-col" style="height: calc(100vh - 64px); min-height: 0;"
+     x-data="workoutBuilder">
+
+  <!-- Top bar -->
+  <div class="al-card al-card-flush flex items-center gap-2 px-4 sm:px-5 py-3 shrink-0" style="border-radius: 0;">
+    <a :href="urls.meta_edit" class="al-btn-icon al-btn al-btn-ghost" title="Modifica info scheda">
+      <i class="ph ph-arrow-left"></i>
+    </a>
+    <div class="min-w-0 flex-1">
+      <p class="al-eyebrow" style="font-size: 9px;">Builder</p>
+      <h1 class="font-medium text-ink truncate"
+          style="font-family: var(--al-display); font-size: 18px;"
+          x-text="plan.title || 'Scheda senza titolo'"></h1>
+    </div>
+
+    <!-- Save indicator -->
+    <div class="al-tag flex items-center gap-1.5 shrink-0" style="font-size: 10px;">
+      <template x-if="saveState === 'saving'"><i class="ph ph-spinner animate-spin"></i></template>
+      <template x-if="saveState === 'saved'"><i class="ph ph-check-circle" style="color: var(--al-success);"></i></template>
+      <template x-if="saveState === 'dirty'"><i class="ph ph-circle-dashed" style="color: var(--al-bronze);"></i></template>
+      <template x-if="saveState === 'error'"><i class="ph ph-warning-circle" style="color: var(--al-danger);"></i></template>
+      <span x-text="saveLabel()" class="hidden sm:inline"></span>
+    </div>
+
+    <button @click="forceSave()" type="button" class="al-btn al-btn-ghost al-btn-sm shrink-0">
+      <i class="ph ph-floppy-disk text-sm"></i>
+      <span class="hidden md:inline">Salva</span>
+    </button>
+    <a :href="urls.detail" class="al-btn al-btn-bronze al-btn-sm shrink-0">
+      <i class="ph ph-eye text-sm"></i>
+      <span class="hidden md:inline">Dettaglio</span>
+    </a>
+    <button @click="analyticsOpen = !analyticsOpen" type="button" class="al-btn-icon al-btn al-btn-ghost shrink-0"
+            :class="analyticsOpen ? 'text-bronze' : ''" title="Analytics">
+      <i class="ph ph-chart-bar"></i>
+    </button>
+  </div>
+
+  <!-- Info row: read-only metadata (set during creation). Edit via back arrow / "Modifica info". -->
+  <div class="px-4 sm:px-5 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0"
+       style="background: var(--al-marble-warm); border-bottom: 1px solid var(--al-rule);">
+    <span class="al-badge al-badge-aegean" x-show="plan.goal" x-text="plan.goal"></span>
+    <span class="al-badge" x-show="!plan.goal">Generale</span>
+    <span class="al-badge" x-show="plan.level" x-text="plan.level"></span>
+    <span class="al-badge" x-show="!plan.level">Tutti i livelli</span>
+    <p class="al-small italic min-w-0 flex-1 truncate" x-text="plan.description || 'Nessuna descrizione'"></p>
+    <a :href="urls.meta_edit" class="al-link al-link-quiet inline-flex items-center gap-1 text-[11px] uppercase tracking-widest shrink-0">
+      <i class="ph ph-pencil-simple text-xs"></i> Modifica info
+    </a>
+    <div class="al-tag flex items-center gap-2 shrink-0" style="font-size: 10px;">
+      <span x-text="`${plan.days.length} giorni`"></span>
+      <span>·</span>
+      <span x-text="`${totalExercises()} esercizi`"></span>
+      <span>·</span>
+      <span x-text="`${totalSets()} set`"></span>
+    </div>
+  </div>
+
+  <!-- 3-col body -->
+  <div class="flex-1 min-h-0 flex">
+
+    <!-- LIBRARY (left) -->
+    <aside class="shrink-0 w-72 flex flex-col"
+           style="background: var(--al-marble-warm); border-right: 1px solid var(--al-rule);">
+      <div class="px-4 py-3 shrink-0" style="border-bottom: 1px solid var(--al-rule);">
+        <p class="al-eyebrow mb-2">Libreria esercizi</p>
+        <div class="flex items-center gap-2 px-3 py-2"
+             style="background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
+          <i class="ph ph-magnifying-glass text-ink-line text-sm"></i>
+          <input type="text" x-model="library.q" @input.debounce.250ms="searchLibrary()"
+                 placeholder="Cerca esercizio..."
+                 class="flex-1 bg-transparent text-[13px] focus:outline-none">
+        </div>
+        <!-- Filter chips: muscle -->
+        <div class="flex flex-wrap gap-1.5 mt-3" x-show="library.filters.muscles.length">
+          <button type="button" @click="library.muscle = ''; searchLibrary()"
+                  :class="library.muscle === '' ? 'al-badge al-badge-ink' : 'al-badge'"
+                  style="font-size: 9px; cursor: pointer;">Tutti</button>
+          <template x-for="m in library.filters.muscles.slice(0, 8)" :key="m">
+            <button type="button" @click="library.muscle = m; searchLibrary()"
+                    :class="library.muscle === m ? 'al-badge al-badge-bronze' : 'al-badge'"
+                    style="font-size: 9px; cursor: pointer;" x-text="m"></button>
+          </template>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto" id="library-list">
+        <template x-if="library.loading">
+          <div class="px-4 py-6 text-center al-tag">Caricamento...</div>
+        </template>
+        <template x-for="ex in library.results" :key="ex.id">
+          <div class="library-item px-4 py-2.5 cursor-grab active:cursor-grabbing transition-colors hover:bg-marble"
+               style="border-bottom: 1px solid var(--al-rule-faint);"
+               :data-exercise-id="ex.id"
+               :data-exercise-payload="JSON.stringify(ex)">
+            <div class="flex items-start gap-2">
+              <i class="ph ph-dots-six-vertical text-ink-line text-sm mt-0.5 shrink-0"></i>
+              <div class="min-w-0 flex-1">
+                <p class="text-[13px] font-medium text-ink truncate" x-text="ex.name"></p>
+                <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target || ex.equipment || '—'"></p>
+              </div>
+              <button type="button" @click="quickAddToActiveDay(ex)"
+                      class="al-btn-icon al-btn al-btn-ghost shrink-0" title="Aggiungi al giorno attivo"
+                      style="padding: 4px; min-width: 0;">
+                <i class="ph ph-plus text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </template>
+        <template x-if="!library.loading && library.results.length === 0">
+          <div class="px-4 py-6 text-center al-tag">Nessun risultato</div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- EDITOR (center) -->
+    <main class="flex-1 min-w-0 overflow-y-auto" style="background: var(--al-marble);">
+      <div class="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
+
+        <template x-for="(day, dayIndex) in plan.days" :key="day.id || day._tmpId">
+          <div class="al-card al-card-flush"
+               :class="activeDayIndex === dayIndex ? 'ring-2 ring-bronze-soft' : ''"
+               @click="activeDayIndex = dayIndex">
+
+            <!-- Day header -->
+            <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3"
+                 style="border-bottom: 1px solid var(--al-rule); background: var(--al-marble-warm);">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div class="al-avatar al-avatar-sm al-avatar-sq shrink-0"
+                     style="background: var(--al-ink); width: 28px; height: 28px;" x-text="dayIndex + 1"></div>
+                <input type="text" x-model="day.name" @input.debounce.500ms="markDirty()"
+                       placeholder="Nome giornata"
+                       class="bg-transparent font-medium text-ink focus:outline-none placeholder:text-ink-line min-w-0 flex-1"
+                       style="font-family: var(--al-display); font-size: 16px; border: none; padding: 0;">
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <input type="text" x-model="day.focus_area" @input.debounce.500ms="markDirty()"
+                       placeholder="Focus (es. push)"
+                       class="al-input hidden md:inline-block"
+                       style="width: 130px; padding: 5px 9px; font-size: 11px;">
+                <button @click.stop="duplicateDay(dayIndex)" type="button"
+                        class="al-btn-icon al-btn al-btn-ghost" title="Duplica giorno">
+                  <i class="ph ph-copy text-sm"></i>
+                </button>
+                <button @click.stop="removeDay(dayIndex)" type="button"
+                        class="al-btn-icon al-btn al-btn-ghost hover:text-danger" title="Elimina giorno">
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Exercise list (sortable) -->
+            <div class="exercise-list" :data-day-index="dayIndex">
+              <template x-for="(ex, exIndex) in day.exercises" :key="ex._uid">
+                <div class="exercise-row" :data-ex-index="exIndex"
+                     :class="ex._expanded ? 'exercise-row-open' : ''"
+                     style="border-bottom: 1px solid var(--al-rule-faint); background: var(--al-parchment);">
+                  <!-- Collapsed header (always shown) -->
+                  <div class="flex items-center gap-2 px-3 sm:px-5 py-2.5 cursor-pointer"
+                       @click.stop="ex._expanded = !ex._expanded">
+                    <span class="exercise-handle text-ink-line cursor-grab active:cursor-grabbing shrink-0" @click.stop>
+                      <i class="ph ph-dots-six-vertical text-sm"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-[13px] font-medium text-ink truncate" x-text="ex.name"></p>
+                      <p class="al-tag mt-0.5" style="font-size: 9px;" x-text="ex.target || '—'"></p>
+                    </div>
+                    <span class="al-badge shrink-0 hidden sm:inline-flex"
+                          style="font-size: 10px;"
+                          x-text="`${ex.sets || 0}×${ex.reps || '—'}` + (ex.load_kg ? ` · ${ex.load_kg}kg` : '') + ` · ${ex.rest_sec || 0}″`"></span>
+                    <button type="button" @click.stop="removeExercise(dayIndex, exIndex)"
+                            class="al-btn-icon al-btn al-btn-ghost shrink-0 hover:text-danger" title="Rimuovi">
+                      <i class="ph ph-x text-xs"></i>
+                    </button>
+                    <i class="ph text-ink-line text-sm shrink-0"
+                       :class="ex._expanded ? 'ph-caret-up' : 'ph-caret-down'"></i>
+                  </div>
+
+                  <!-- Expanded body -->
+                  <div x-show="ex._expanded" x-collapse class="px-3 sm:px-5 pb-3 pt-1"
+                       style="background: var(--al-marble-warm);">
+                    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-2">
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">Serie</p>
+                        <input type="number" min="1" max="20" x-model.number="ex.sets" @input.debounce.500ms="markDirty()"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">Reps</p>
+                        <input type="text" x-model="ex.reps" @input.debounce.500ms="markDirty()"
+                               placeholder="8-10"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">Carico (kg)</p>
+                        <input type="number" min="0" step="0.5" x-model.number="ex.load_kg" @input.debounce.500ms="markDirty()"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">Recupero (s)</p>
+                        <input type="number" min="0" step="5" x-model.number="ex.rest_sec" @input.debounce.500ms="markDirty()"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">RIR</p>
+                        <input type="number" min="0" max="10" x-model.number="ex.rir" @input.debounce.500ms="markDirty()"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <p class="al-label" style="font-size: 9px;">Tempo</p>
+                        <input type="text" x-model="ex.tempo" @input.debounce.500ms="markDirty()"
+                               placeholder="3-1-1"
+                               class="al-input text-center" style="padding: 5px 4px; font-size: 12px;">
+                      </div>
+                    </div>
+                    <div>
+                      <p class="al-label" style="font-size: 9px;">Note tecniche / progressione</p>
+                      <textarea x-model="ex.notes" @input.debounce.500ms="markDirty()"
+                                rows="2" placeholder="Es. presa larga, fermo 1″ al petto, +2.5kg quando arrivi a 10 reps RIR 1..."
+                                class="al-textarea" style="padding: 6px 10px; font-size: 12px;"></textarea>
+                    </div>
+                    <template x-if="ex.video_url">
+                      <a :href="ex.video_url" target="_blank" class="al-link al-link-bronze inline-flex items-center gap-1 mt-2 text-[11px]">
+                        <i class="ph ph-play-circle"></i> Video demo
+                      </a>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <template x-if="day.exercises.length === 0">
+                <div class="empty-day-zone px-5 py-6 text-center" :data-day-index="dayIndex">
+                  <p class="al-tag">Trascina un esercizio qui o usa la libreria</p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Day footer: quick search input -->
+            <div class="px-3 sm:px-5 py-3" style="border-top: 1px solid var(--al-rule);">
+              <div class="relative">
+                <div class="flex items-center gap-2 px-3 py-2"
+                     style="background: var(--al-marble); border: 1px dashed var(--al-rule-strong); border-radius: var(--al-r-sm);">
+                  <i class="ph ph-plus text-ink-line text-sm"></i>
+                  <input type="text" x-model="day._search.q"
+                         @focus="activeDayIndex = dayIndex"
+                         @input.debounce.250ms="searchForDay(dayIndex)"
+                         placeholder="Aggiungi esercizio rapido..."
+                         class="flex-1 bg-transparent text-[12px] focus:outline-none">
+                </div>
+                <div x-show="day._search.show && day._search.results.length > 0"
+                     @click.outside="day._search.show = false"
+                     class="absolute left-0 right-0 top-full mt-1 z-20 max-h-48 overflow-y-auto"
+                     style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
+                  <template x-for="r in day._search.results" :key="r.id">
+                    <button type="button" @click="addExerciseToDay(dayIndex, r); day._search.q=''; day._search.show=false;"
+                            class="w-full text-left px-3 py-2 hover:bg-marble"
+                            style="border-bottom: 1px solid var(--al-rule-faint);">
+                      <p class="text-[12px] font-medium text-ink" x-text="r.name"></p>
+                      <p class="al-tag" style="font-size: 9px;" x-text="r.target || r.equipment || '—'"></p>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <button @click="addDay()" :disabled="plan.days.length >= 20" type="button"
+                class="w-full py-4 flex items-center justify-center gap-2 transition-colors font-medium text-sm"
+                style="border: 2px dashed var(--al-rule-strong); background: var(--al-parchment); color: var(--al-ink-mute); border-radius: var(--al-r-sm);"
+                :class="plan.days.length < 20 ? 'hover:border-bronze hover:text-bronze cursor-pointer' : 'opacity-50 cursor-not-allowed'">
+          <i class="ph ph-plus text-base"></i>
+          <span x-text="plan.days.length < 20 ? 'Aggiungi giornata' : 'Max 20 giornate'"></span>
+        </button>
+
+      </div>
+    </main>
+
+    <!-- ANALYTICS (right, collapsible) -->
+    <aside x-show="analyticsOpen" x-transition.opacity
+           class="shrink-0 w-64 flex flex-col"
+           style="background: var(--al-parchment); border-left: 1px solid var(--al-rule);">
+      <div class="px-4 py-3 shrink-0" style="border-bottom: 1px solid var(--al-rule);">
+        <p class="al-eyebrow mb-1">Analytics</p>
+        <p class="al-small">Riassunto del volume.</p>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+        <div>
+          <p class="al-tag mb-1">Frequenza settimanale</p>
+          <p class="al-h-2" x-text="`${plan.days.length} ${plan.days.length === 1 ? 'giorno' : 'giorni'}`"></p>
+        </div>
+
+        <div>
+          <p class="al-tag mb-1">Esercizi totali</p>
+          <p class="al-h-3" x-text="totalExercises()"></p>
+        </div>
+
+        <div>
+          <p class="al-tag mb-1">Set totali</p>
+          <p class="al-h-3" x-text="totalSets()"></p>
+        </div>
+
+        <div>
+          <p class="al-tag mb-1">Durata stimata / giorno</p>
+          <p class="al-h-3" x-text="`~${avgDurationMin()} min`"></p>
+        </div>
+
+        <div>
+          <p class="al-tag mb-2">Volume per gruppo</p>
+          <div class="space-y-1.5">
+            <template x-for="entry in volumeByMuscle()" :key="entry.muscle">
+              <div>
+                <div class="flex items-center justify-between text-[11px] text-ink-soft mb-0.5">
+                  <span x-text="entry.muscle"></span>
+                  <span class="al-tag" style="font-size: 9px;" x-text="`${entry.sets} set`"></span>
+                </div>
+                <div class="h-1.5" style="background: var(--al-rule-faint); border-radius: 999px;">
+                  <div class="h-full" :style="`width: ${entry.pct}%; background: ${entry.color}; border-radius: 999px;`"></div>
+                </div>
+              </div>
+            </template>
+            <template x-if="volumeByMuscle().length === 0">
+              <p class="al-tag">Aggiungi esercizi per vedere il volume.</p>
+            </template>
+          </div>
+        </div>
+
+        <!-- TODO: superset visualization, automatic progression preview, voice notes (placeholder UI in expanded row) -->
+
+      </div>
+    </aside>
+  </div>
+</div>
+
+<style>
+.exercise-row.exercise-row-open { box-shadow: inset 3px 0 0 var(--al-bronze); }
+.sortable-ghost { opacity: 0.4; }
+.sortable-drag { background: var(--al-parchment); box-shadow: var(--al-shadow-3); }
+.exercise-list.drop-active { background: var(--al-marble-warm); }
+.empty-day-zone.drop-active { background: var(--al-marble-warm); border: 1px dashed var(--al-bronze); }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="/static/js/workout_builder.js"></script>
+{% endblock %}

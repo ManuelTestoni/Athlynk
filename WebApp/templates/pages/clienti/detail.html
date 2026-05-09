@@ -89,7 +89,7 @@
                     </div>
                     <span class="al-eyebrow" style="color: var(--al-ink-mute);">Allenamento</span>
                 </div>
-                <a href="{% url 'allenamenti_list' %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Tutti</a>
+                <a href="{% url 'coach_client_progressi' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Progressi</a>
             </div>
             {% if active_workout %}
             <p class="al-h-3 truncate">{{ active_workout.workout_plan.title }}</p>

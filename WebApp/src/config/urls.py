@@ -30,6 +30,7 @@ from . import views_nutrition
 from . import views_anamnesi
 from . import views_chat
 from . import views_notifications
+from . import views_session
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -73,10 +74,40 @@ urlpatterns = [
     
     # Allenamenti
     path('allenamenti/', views_workouts.allenamenti_list_view, name='allenamenti_list'),
-    path('allenamenti/crea/', views_workouts.allenamenti_create_view, name='allenamenti_create'),
-    path('allenamenti/<int:assignment_id>/modifica/', views_workouts.allenamenti_edit_view, name='allenamenti_edit'),
+    path('allenamenti/wizard/', views_workouts.allenamenti_wizard_view, name='allenamenti_wizard'),
+    path('allenamenti/wizard/<int:plan_id>/', views_workouts.allenamenti_wizard_view, name='allenamenti_wizard_resume'),
+    path('allenamenti/assegnazione/<int:assignment_id>/dettagli/', views_session.client_assignment_detail_view, name='client_assignment_detail'),
+    path('allenamenti/assegnazione/<int:assignment_id>/volume/', views_session.client_assignment_volume_view, name='client_assignment_volume'),
+    path('allenamenti/assegnazione/<int:assignment_id>/sessione/<int:day_id>/', views_session.client_session_active_view, name='client_session_active'),
+    path('api/allenamenti/assegnazione/<int:assignment_id>/sessioni/', views_session.api_assignment_sessions_list, name='api_assignment_sessions_list'),
+    path('clienti/<int:client_id>/progressi/', views_session.coach_client_progressi_view, name='coach_client_progressi'),
+    path('allenamenti/<int:plan_id>/', views_workouts.allenamenti_plan_detail_view, name='allenamenti_plan_detail'),
+    # Session APIs
+    path('api/sessioni/avvia/', views_session.api_session_start, name='api_session_start'),
+    path('api/sessioni/<int:session_id>/serie/', views_session.api_session_log_set, name='api_session_log_set'),
+    path('api/sessioni/<int:session_id>/concludi/', views_session.api_session_finish, name='api_session_finish'),
+    path('api/sessioni/<int:session_id>/media/', views_session.api_session_upload_media, name='api_session_upload_media'),
+    path('api/sessioni/<int:session_id>/dettaglio/', views_session.api_session_detail, name='api_session_detail'),
+    path('api/sessioni/<int:session_id>/nota-coach/', views_session.api_session_coach_note, name='api_session_coach_note'),
+    path('api/media/<int:media_id>/commento/', views_session.api_media_comment, name='api_media_comment'),
+    # Coach progress APIs
+    path('api/coach/clienti/<int:client_id>/progressi/kpi/', views_session.api_progress_kpi, name='api_progress_kpi'),
+    path('api/coach/clienti/<int:client_id>/progressi/carichi/', views_session.api_progress_loads, name='api_progress_loads'),
+    path('api/coach/clienti/<int:client_id>/progressi/volume/', views_session.api_progress_volume, name='api_progress_volume'),
+    path('api/coach/clienti/<int:client_id>/progressi/aderenza/', views_session.api_progress_adherence, name='api_progress_adherence'),
+    path('api/coach/clienti/<int:client_id>/progressi/rpe/', views_session.api_progress_rpe, name='api_progress_rpe'),
+    path('api/coach/clienti/<int:client_id>/progressi/sessioni/', views_session.api_progress_sessions, name='api_progress_sessions'),
+    path('api/coach/clienti/<int:client_id>/progressi/media/', views_session.api_progress_media_gallery, name='api_progress_media'),
+    path('api/allenamenti/save/', views_workouts.api_plan_save, name='api_plan_save_new'),
+    path('api/allenamenti/<int:plan_id>/save/', views_workouts.api_plan_save, name='api_plan_save'),
+    path('api/allenamenti/<int:plan_id>/finalize/', views_workouts.api_plan_finalize, name='api_plan_finalize'),
+    path('api/allenamenti/<int:plan_id>/elimina/', views_workouts.api_plan_delete, name='api_plan_delete'),
     path('api/clients/search/', views_workouts.api_search_clients, name='api_search_clients'),
     path('api/exercises/search/', views_workouts.api_search_exercises, name='api_search_exercises'),
+    path('api/exercises/filters/', views_workouts.api_exercise_filters, name='api_exercise_filters'),
+    # Legacy
+    path('allenamenti/crea/', views_workouts.allenamenti_create_view, name='allenamenti_create'),
+    path('allenamenti/legacy/<int:assignment_id>/modifica/', views_workouts.allenamenti_edit_view, name='allenamenti_edit'),
     path('allenamenti/dettaglio/', TemplateView.as_view(template_name='pages/allenamenti/detail.html'), name='allenamenti_detail'),
     
     # Agenda

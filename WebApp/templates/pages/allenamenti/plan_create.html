@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_mode %}Modifica info — {{ plan.title }}{% else %}Nuova scheda{% endif %}{% endblock %}
+
+{% block content %}
+<script>
+window.PLAN_FORM = {
+  edit_mode: {{ edit_mode|yesno:"true,false" }},
+  post_url: "{% if edit_mode %}{% url 'allenamenti_plan_meta_edit' plan.id %}{% else %}{% url 'allenamenti_plan_create' %}{% endif %}",
+  back_url: "{% if edit_mode %}{% url 'allenamenti_plan_builder' plan.id %}{% else %}{% url 'allenamenti_list' %}{% endif %}",
+  initial: {
+    title: {{ plan.title|default_if_none:""|escapejs|stringformat:'r' }} || "",
+    description: {{ plan.description|default_if_none:""|escapejs|stringformat:'r' }} || "",
+    goal: {{ plan.goal|default_if_none:""|escapejs|stringformat:'r' }} || "",
+    level: {{ plan.level|default_if_none:""|escapejs|stringformat:'r' }} || "",
+  }
+};
+</script>
+
+<div class="max-w-2xl mx-auto" x-data="planForm()">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-8">
+    <a :href="cfg.back_url" class="al-btn-icon al-btn al-btn-ghost">
+      <i class="ph ph-arrow-left"></i>
+    </a>
+    <div>
+      <p class="al-eyebrow mb-1">Studio &middot; Schede</p>
+      <h1 class="al-h-2">
+        <span x-show="!cfg.edit_mode">Nuova <span class="al-display-i">scheda</span></span>
+        <span x-show="cfg.edit_mode">Modifica <span class="al-display-i">info scheda</span></span>
+      </h1>
+      <p class="al-small mt-1" x-show="!cfg.edit_mode">Fase 1 — Definisci l'identità della scheda. Aggiungerai esercizi e clienti dopo.</p>
+      <p class="al-small mt-1" x-show="cfg.edit_mode">Aggiorna i dati base. La struttura (giorni ed esercizi) resta invariata.</p>
+    </div>
+  </div>
+
+  <!-- Stepper (only on create) -->
+  <div x-show="!cfg.edit_mode" class="flex items-center gap-3 mb-6 al-tag">
+    <span class="px-3 py-1.5" style="background: var(--al-ink); color: var(--al-parchment); border-radius: var(--al-r-sm);">1. Dati base</span>
+    <i class="ph ph-caret-right text-ink-line"></i>
+    <span class="text-ink-line">2. Builder</span>
+    <i class="ph ph-caret-right text-ink-line"></i>
+    <span class="text-ink-line">3. Assegna</span>
+  </div>
+
+  <!-- Form -->
+  <div class="al-card space-y-5">
+    <div>
+      <label class="al-label">Titolo *</label>
+      <input type="text" x-model="form.title" placeholder="Es. Ipertrofia Base 4gg" class="al-input"
+             @keydown.enter.prevent="submit()">
+    </div>
+
+    <div>
+      <label class="al-label">Descrizione / Note</label>
+      <textarea x-model="form.description" rows="3" placeholder="Linee guida generali, contesto, periodizzazione..." class="al-textarea"></textarea>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="al-label">Obiettivo</label>
+        <select x-model="form.goal" class="al-select">
+          <option value="">Generale</option>
+          <option>Ipertrofia</option>
+          <option>Forza</option>
+          <option>Dimagrimento</option>
+          <option>Ricondizionamento</option>
+          <option>Endurance</option>
+          <option>Powerlifting</option>
+        </select>
+      </div>
+      <div>
+        <label class="al-label">Livello atleta</label>
+        <select x-model="form.level" class="al-select">
+          <option value="">Tutti</option>
+          <option>Principiante</option>
+          <option>Intermedio</option>
+          <option>Avanzato</option>
+        </select>
+      </div>
+    </div>
+
+    <p x-show="error" x-text="error" class="al-input-error"></p>
+
+    <div class="flex items-center justify-end gap-3 pt-2 border-t" style="border-color: var(--al-rule-faint);">
+      <a :href="cfg.back_url" class="al-btn al-btn-ghost">Annulla</a>
+      <button @click="submit()" :disabled="saving" type="button" class="al-btn al-btn-bronze">
+        <span x-show="!saving && !cfg.edit_mode">Crea e apri builder</span>
+        <span x-show="!saving && cfg.edit_mode">Salva e torna al builder</span>
+        <span x-show="saving">Salvataggio...</span>
+        <i class="ph ph-arrow-right text-sm"></i>
+      </button>
+    </div>
+  </div>
+
+  <p class="al-small mt-4 text-center" x-show="!cfg.edit_mode">
+    <i class="ph ph-info-fill" style="color: var(--al-bronze);"></i>
+    La scheda sarà un template indipendente. Potrai assegnarla a uno o più clienti in qualsiasi momento.
+  </p>
+
+</div>
+
+<script>
+function planForm() {
+  return {
+    cfg: window.PLAN_FORM,
+    form: {
+      title: window.PLAN_FORM.initial.title,
+      description: window.PLAN_FORM.initial.description,
+      goal: window.PLAN_FORM.initial.goal,
+      level: window.PLAN_FORM.initial.level,
+    },
+    saving: false,
+    error: '',
+    getCsrf() {
+      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+    },
+    async submit() {
+      this.error = '';
+      if (!this.form.title.trim()) { this.error = 'Il titolo è obbligatorio'; return; }
+      this.saving = true;
+      try {
+        const r = await fetch(this.cfg.post_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify(this.form),
+        });
+        const d = await r.json();
+        if (r.ok && d.redirect_url) { window.location.href = d.redirect_url; }
+        else { this.error = d.error || 'Errore'; }
+      } catch (e) {
+        this.error = 'Errore di rete';
+      } finally {
+        this.saving = false;
+      }
+    }
+  };
+}
+</script>
+{% endblock %}

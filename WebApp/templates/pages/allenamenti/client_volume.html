@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Volume — {{ plan.title }}{% endblock %}
+
+{% block content %}
+<script>
+  window.VOLUME_INIT = { days: {{ days_json|safe }} };
+</script>
+
+<div class="max-w-5xl mx-auto" x-data="volumeView()" x-init="init()">
+
+  <a href="{% url 'client_assignment_detail' assignment.id %}" class="al-link al-link-quiet inline-flex items-center gap-1 text-[12px] mb-4">
+    <i class="ph ph-arrow-left"></i> Torna alla scheda
+  </a>
+
+  <div class="al-card mb-6">
+    <p class="al-eyebrow mb-2">Analisi volume</p>
+    <h1 class="al-h-1">{{ plan.title }}</h1>
+    <p class="al-body mt-2" style="color: var(--al-ink-mute);">
+      Volume settimanale per gruppo muscolare. Volume primario × peso pieno · secondario × 0.5.
+    </p>
+  </div>
+
+  <div class="al-card mb-6">
+    <h2 class="al-h-3 mb-3">Volume settimanale per gruppo muscolare</h2>
+    <div class="h-96">
+      <canvas id="volumeChart"></canvas>
+    </div>
+  </div>
+
+  <div class="al-card">
+    <h2 class="al-h-3 mb-3">Statistiche scheda</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div>
+        <p class="al-eyebrow">Giorni</p>
+        <p class="font-bold text-2xl" x-text="totals.sessions"></p>
+      </div>
+      <div>
+        <p class="al-eyebrow">Esercizi totali</p>
+        <p class="font-bold text-2xl" x-text="totals.exercises"></p>
+      </div>
+      <div>
+        <p class="al-eyebrow">Serie totali</p>
+        <p class="font-bold text-2xl" x-text="totals.sets"></p>
+      </div>
+      <div>
+        <p class="al-eyebrow">Durata stimata</p>
+        <p class="font-bold text-2xl"><span x-text="totals.duration"></span> min</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+function volumeView() {
+  return {
+    days: window.VOLUME_INIT.days,
+    totals: { sessions: 0, exercises: 0, sets: 0, duration: 0 },
+    init() {
+      this.computeTotals();
+      this.$nextTick(() => this.renderChart());
+    },
+    parseReps(reps) {
+      if (typeof reps === 'number') return reps;
+      const s = String(reps || '').trim();
+      const m = s.match(/(\d+)(?:\s*[-–]\s*(\d+))?/);
+      if (!m) return 10;
+      if (m[2]) return Math.round((parseInt(m[1]) + parseInt(m[2])) / 2);
+      return parseInt(m[1]) || 10;
+    },
+    computeTotals() {
+      let exercises = 0, sets = 0, secs = 0;
+      this.days.forEach(d => {
+        exercises += d.exercises.length;
+        d.exercises.forEach(ex => {
+          const s = parseInt(ex.sets) || 0;
+          const r = parseInt(ex.recovery_seconds) || 0;
+          sets += s;
+          secs += s * r + 60;
+        });
+      });
+      this.totals = {
+        sessions: this.days.length,
+        exercises, sets,
+        duration: Math.round(secs / 60),
+      };
+    },
+    volumeData() {
+      const map = {};
+      this.days.forEach(d => {
+        d.exercises.forEach(ex => {
+          const reps = this.parseReps(ex.reps);
+          const sets = parseInt(ex.sets) || 0;
+          const baseVol = sets * reps;
+          (ex.primary_muscles || []).forEach(m => { map[m] = (map[m] || 0) + baseVol; });
+          (ex.secondary_muscles || []).forEach(m => { map[m] = (map[m] || 0) + baseVol * 0.5; });
+        });
+      });
+      const arr = Object.entries(map).map(([g, v]) => ({ g, v }));
+      arr.sort((a, b) => b.v - a.v);
+      return arr;
+    },
+    renderChart() {
+      const data = this.volumeData();
+      const ctx = document.getElementById('volumeChart');
+      if (!ctx || !window.Chart) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.g),
+          datasets: [{
+            label: 'Volume settimanale (rep totali)',
+            data: data.map(d => d.v),
+            backgroundColor: 'rgba(138, 106, 58, 0.8)',
+            borderColor: 'rgba(138, 106, 58, 1)',
+            borderWidth: 1,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } },
+          },
+        },
+      });
+    },
+  };
+}
+window.volumeView = volumeView;
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Progressi — {{ client.first_name }} {{ client.last_name }}{% endblock %}
+
+{% block content %}
+<script>
+  window.PROGRESS_INIT = {
+    client_id: {{ client.id }},
+    exercises_in_program: {{ exercises_in_program_json|safe }},
+    urls: {
+      kpi: "/api/coach/clienti/{{ client.id }}/progressi/kpi/",
+      loads: "/api/coach/clienti/{{ client.id }}/progressi/carichi/",
+      volume: "/api/coach/clienti/{{ client.id }}/progressi/volume/",
+      adherence: "/api/coach/clienti/{{ client.id }}/progressi/aderenza/",
+      rpe: "/api/coach/clienti/{{ client.id }}/progressi/rpe/",
+      sessions: "/api/coach/clienti/{{ client.id }}/progressi/sessioni/",
+      session_detail: "/api/sessioni/__SID__/dettaglio/",
+      coach_note: "/api/sessioni/__SID__/nota-coach/",
+      media: "/api/coach/clienti/{{ client.id }}/progressi/media/",
+      media_comment: "/api/media/__MID__/commento/",
+    },
+  };
+</script>
+
+<div class="max-w-7xl mx-auto" x-data="coachProgressi" x-init="init()">
+
+  <!-- Header -->
+  <div class="al-card mb-6">
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="al-avatar al-avatar-md al-avatar-sq" style="background: var(--al-bronze); width:56px; height:56px; font-size:1.25rem;">
+        {{ client.first_name|slice:":1" }}{{ client.last_name|slice:":1" }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <a href="{% url 'clienti_detail' client.id %}" class="al-link al-link-quiet text-[12px] mb-1 inline-block">
+          <i class="ph ph-arrow-left"></i> Torna al cliente
+        </a>
+        <h1 class="al-h-2">{{ client.first_name }} {{ client.last_name }} — Progressi</h1>
+        <div class="flex items-center gap-3 mt-2 al-small flex-wrap">
+          {% if active_assignment %}
+          <span><i class="ph ph-barbell"></i> Scheda attiva: <strong>{{ active_assignment.workout_plan.title }}</strong></span>
+          {% else %}
+          <span style="color: var(--al-ink-faint);"><em>Nessuna scheda attiva</em></span>
+          {% endif %}
+          {% if last_session %}
+          <span style="color: var(--al-ink-faint);">· Ultima sessione: {{ last_session.started_at|date:"d M Y H:i" }}</span>
+          {% else %}
+          <span style="color: var(--al-ink-faint);">· Mai allenato</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="al-card text-center">
+      <p class="al-small" style="color: var(--al-ink-faint);">Sessioni totali</p>
+      <p class="text-2xl font-bold" x-text="kpi.total_sessions || 0"></p>
+    </div>
+    <div class="al-card text-center">
+      <p class="al-small" style="color: var(--al-ink-faint);">Aderenza</p>
+      <p class="text-2xl font-bold">
+        <span x-text="kpi.overall_adherence_pct !== null ? kpi.overall_adherence_pct + '%' : '—'"></span>
+      </p>
+    </div>
+    <div class="al-card text-center">
+      <p class="al-small" style="color: var(--al-ink-faint);">Serie/sessione</p>
+      <p class="text-2xl font-bold" x-text="kpi.avg_sets_per_session || 0"></p>
+    </div>
+    <div class="al-card text-center">
+      <p class="al-small" style="color: var(--al-ink-faint);">Streak</p>
+      <p class="text-2xl font-bold"><span x-text="kpi.streak_days || 0"></span> gg</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 border-b mb-4 overflow-x-auto" style="border-color: var(--al-rule-faint);">
+    <template x-for="t in tabs" :key="t.key">
+      <button @click="activeTab = t.key; loadTab(t.key)" type="button"
+              class="px-4 py-2 whitespace-nowrap"
+              :style="activeTab === t.key ? 'border-bottom: 2px solid var(--al-bronze); font-weight: 700;' : 'color: var(--al-ink-faint);'"
+              x-text="t.label"></button>
+    </template>
+  </div>
+
+  <!-- TAB 1: Carichi -->
+  <section x-show="activeTab === 'loads'">
+    <div class="al-card">
+      <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <h2 class="al-h-3">Progressioni carichi</h2>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select x-model="loads.exerciseId" @change="loadLoads()" class="al-select" style="font-size:.85rem;">
+            <option value="">Seleziona esercizio...</option>
+            <template x-for="ex in exercisesInProgram" :key="ex.workout_exercise_id">
+              <option :value="ex.workout_exercise_id" x-text="ex.name"></option>
+            </template>
+          </select>
+          <select x-model="loads.range" @change="loadLoads()" class="al-select" style="font-size:.85rem;">
+            <option value="all">Tutto</option>
+            <option value="3months">Ultimi 3 mesi</option>
+            <option value="month">Ultimo mese</option>
+            <option value="week">Ultima settimana</option>
+          </select>
+        </div>
+      </div>
+
+      <p x-show="loads.progress_4w !== null" class="mb-3">
+        <span class="al-badge" :style="loads.progress_4w > 0 ? 'background:#d1fae5; color:#065f46;' : 'background:#fee2e2; color:#991b1b;'">
+          <span x-text="(loads.progress_4w > 0 ? '+' : '') + loads.progress_4w + ' kg'"></span> nelle ultime 4 settimane
+        </span>
+      </p>
+
+      <div class="h-72">
+        <canvas id="loadsChart"></canvas>
+      </div>
+      <p x-show="loads.empty" class="text-center py-8 al-small" style="color: var(--al-ink-faint);">Nessun dato per l'esercizio selezionato.</p>
+    </div>
+  </section>
+
+  <!-- TAB 2: Volume + analytics -->
+  <section x-show="activeTab === 'volume'">
+    <div class="al-card mb-4">
+      <h2 class="al-h-3 mb-3">Volume settimanale per gruppo muscolare</h2>
+      <div class="h-80">
+        <canvas id="volumeChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="al-card">
+        <h2 class="al-h-3 mb-3">Aderenza al programma</h2>
+        <div class="h-64">
+          <canvas id="adherenceChart"></canvas>
+        </div>
+      </div>
+      <div class="al-card">
+        <h2 class="al-h-3 mb-3">Andamento RPE medio</h2>
+        <div class="h-64">
+          <canvas id="rpeChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: Storico sessioni -->
+  <section x-show="activeTab === 'sessions'">
+    <div class="al-card">
+      <h2 class="al-h-3 mb-3">Storico sessioni</h2>
+      <div class="space-y-2">
+        <template x-for="s in sessions" :key="s.id">
+          <div class="border rounded p-3 cursor-pointer hover:bg-stone" style="border-color: var(--al-rule-faint);" @click="openSession(s.id)">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-semibold" x-text="s.day_name + ' — ' + s.plan_title"></p>
+                <p class="al-small" style="color: var(--al-ink-faint);">
+                  <span x-text="new Date(s.date).toLocaleString('it-IT')"></span>
+                  · <span x-text="s.duration_minutes ? s.duration_minutes + ' min' : '—'"></span>
+                  · RPE <span x-text="s.avg_rpe || '—'"></span>
+                </p>
+                <p x-show="s.notes" class="al-small italic mt-1" x-text="'« ' + s.notes + ' »'"></p>
+              </div>
+              <div class="text-right">
+                <p class="al-small font-semibold" x-text="s.sets_completed + '/' + s.sets_total + ' serie'"></p>
+                <span class="al-tag" :style="s.completed ? 'background:#d1fae5;color:#065f46;' : (s.interrupted ? 'background:#fee2e2;color:#991b1b;' : 'background:#fef3c7;color:#92400e;')"
+                      x-text="s.completed ? 'Completata' : (s.interrupted ? 'Interrotta' : 'In corso')"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template x-if="sessions.length === 0">
+          <p class="text-center py-8 al-small" style="color: var(--al-ink-faint);">Nessuna sessione registrata.</p>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: Foto & Media -->
+  <section x-show="activeTab === 'media'">
+    <div class="al-card">
+      <h2 class="al-h-3 mb-3">Foto & video allegati</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <template x-for="m in media" :key="m.id">
+          <div class="rounded overflow-hidden cursor-pointer" style="border: 1px solid var(--al-rule-faint);" @click="openLightbox(m)">
+            <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-40 object-cover"></template>
+            <template x-if="m.type === 'VIDEO'"><div class="w-full h-40 flex items-center justify-center" style="background: var(--al-stone);"><i class="ph ph-video text-3xl" style="color: var(--al-ink-faint);"></i></div></template>
+            <div class="p-2">
+              <p class="al-small font-semibold" x-text="m.day_name"></p>
+              <p class="al-small" style="color: var(--al-ink-faint);" x-text="new Date(m.uploaded_at).toLocaleDateString('it-IT')"></p>
+            </div>
+          </div>
+        </template>
+        <template x-if="media.length === 0">
+          <p class="col-span-3 text-center py-8 al-small" style="color: var(--al-ink-faint);">Nessun media allegato.</p>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session detail modal -->
+  <div x-show="sessionModal.open" class="al-modal-backdrop" @click.self="sessionModal.open = false" x-cloak>
+    <div class="al-modal-panel" style="max-width: 640px; max-height: 80vh; overflow-y: auto;">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="al-h-3">Dettaglio sessione</h3>
+        <button @click="sessionModal.open = false" class="al-btn-icon"><i class="ph ph-x"></i></button>
+      </div>
+      <template x-if="sessionModal.data">
+        <div>
+          <p class="al-small mb-2"><span x-text="new Date(sessionModal.data.started_at).toLocaleString('it-IT')"></span> · <span x-text="sessionModal.data.duration_minutes + ' min'"></span> · RPE <span x-text="sessionModal.data.avg_rpe || '—'"></span></p>
+          <p x-show="sessionModal.data.notes" class="italic mb-3" x-text="'« ' + sessionModal.data.notes + ' »'"></p>
+
+          <template x-for="ex in sessionModal.data.exercises" :key="ex.workout_exercise_id">
+            <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
+              <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
+              <table class="w-full al-small">
+                <thead><tr><th class="text-left">Set</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th></tr></thead>
+                <tbody>
+                  <template x-for="set in ex.sets" :key="set.set_number">
+                    <tr><td x-text="set.set_number"></td><td x-text="set.reps_done ?? '—'"></td><td x-text="(set.load_used ?? '—') + (set.load_unit==='KG'?' kg':'')"></td><td x-text="set.rpe ?? '—'"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </template>
+
+          <h4 class="al-h-4 mt-4">Note del coach</h4>
+          <template x-for="n in sessionModal.data.coach_notes" :key="n.id">
+            <div class="al-card mb-2" style="background: var(--al-marble-warm); padding: .5rem;">
+              <p class="al-small" x-text="n.text"></p>
+              <p class="al-small italic" style="color: var(--al-ink-faint);" x-text="n.coach_name + ' · ' + new Date(n.created_at).toLocaleString('it-IT')"></p>
+            </div>
+          </template>
+          <textarea x-model="coachNoteText" placeholder="Aggiungi una nota..." class="al-textarea" rows="2"></textarea>
+          <button @click="addCoachNote()" class="al-btn al-btn-bronze al-btn-sm mt-2">Salva nota</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div x-show="lightbox.open" class="al-modal-backdrop" @click.self="lightbox.open=false" x-cloak>
+    <div class="al-modal-panel" style="max-width: 800px;">
+      <div class="flex justify-between mb-2">
+        <p class="al-small" x-text="lightbox.media ? lightbox.media.day_name : ''"></p>
+        <button @click="lightbox.open=false" class="al-btn-icon"><i class="ph ph-x"></i></button>
+      </div>
+      <template x-if="lightbox.media && lightbox.media.type === 'PHOTO'">
+        <img :src="lightbox.media.url" class="w-full rounded">
+      </template>
+      <template x-if="lightbox.media && lightbox.media.type === 'VIDEO'">
+        <video :src="lightbox.media.url" controls class="w-full rounded"></video>
+      </template>
+      <textarea x-model="lightbox.comment" placeholder="Commento del coach..." class="al-textarea mt-3" rows="2"></textarea>
+      <button @click="saveMediaComment()" class="al-btn al-btn-bronze al-btn-sm mt-2">Salva commento</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/coach_progressi.js' %}"></script>
+{% endblock %}

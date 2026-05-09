@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ plan.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" x-data="{ busy: false }">
+
+  <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+    <a href="{% url 'allenamenti_list' %}" class="al-link al-link-quiet inline-flex items-center gap-1 text-[12px]">
+      <i class="ph ph-arrow-left"></i> Torna alla libreria
+    </a>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-ghost al-btn-sm">
+        <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
+      </a>
+      <button @click="if(confirm('Eliminare la scheda?')){ busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) }"
+              type="button" class="al-btn-icon al-btn al-btn-ghost" :disabled="busy" title="Elimina">
+        <i class="ph ph-trash" style="color: #b91c1c;"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="al-card mb-6">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <p class="al-eyebrow mb-2">Studio &middot; Scheda</p>
+        <h1 class="al-h-1 truncate">{{ plan.title }}</h1>
+        {% if plan.description %}<p class="al-body mt-3 max-w-3xl">{{ plan.description }}</p>{% endif %}
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+          {% if plan.status == 'TEMPLATE' %}<span class="al-badge" style="background:#dbeafe;color:#1e40af;">Template</span>{% endif %}
+          {% if plan.status == 'ACTIVE' %}<span class="al-badge" style="background:#d1fae5;color:#065f46;">Attiva</span>{% endif %}
+          {% if plan.goal %}<span class="al-badge al-badge-aegean">{{ plan.goal }}</span>{% endif %}
+          {% if plan.level %}<span class="al-badge">{{ plan.level }}</span>{% endif %}
+          {% if plan.frequency_per_week %}<span class="al-badge"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <div class="lg:col-span-2 space-y-4">
+      <h2 class="al-h-3">Programmazione</h2>
+      {% for day in plan.days.all %}
+      <div class="al-card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="al-h-4">{{ day.day_name|default:"Giorno" }} {{ forloop.counter }}</h3>
+          <span class="al-tag">{{ day.exercises.count }} esercizi</span>
+        </div>
+        <div class="space-y-2">
+          {% for ex in day.exercises.all %}
+          <div class="flex justify-between al-small p-2 border rounded" style="border-color: var(--al-rule-faint);">
+            <div>
+              <span class="font-semibold">{{ ex.exercise.name }}</span>
+              {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
+              {% if ex.technique_notes %}<p class="italic" style="color: var(--al-ink-faint);">{{ ex.technique_notes }}</p>{% endif %}
+            </div>
+            <div style="color: var(--al-ink-faint); white-space: nowrap;">
+              {{ ex.set_count|default:3 }}×{{ ex.rep_range|default:"10" }}
+              {% if ex.load_value %} · {{ ex.load_value }} {% if ex.load_unit == 'KG' %}kg{% elif ex.load_unit == 'PERCENT_1RM' %}%1RM{% else %}BW{% endif %}{% endif %}
+              · {{ ex.recovery_seconds|default:90 }}s
+            </div>
+          </div>
+          {% empty %}
+          <p class="al-small italic" style="color: var(--al-ink-faint);">Giorno vuoto</p>
+          {% endfor %}
+        </div>
+      </div>
+      {% empty %}
+      <p class="al-small italic">Nessun giorno definito.</p>
+      {% endfor %}
+    </div>
+
+    <div class="space-y-4">
+      <h2 class="al-h-3">Assegnazioni</h2>
+      <div class="al-card">
+        {% for a in plan.assignments.all %}
+        <div class="flex items-center justify-between py-2 {% if not forloop.last %}border-b{% endif %}" style="border-color: var(--al-rule-faint);">
+          <div class="flex items-center gap-2">
+            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze);">
+              {{ a.client.first_name|slice:":1" }}{{ a.client.last_name|slice:":1" }}
+            </div>
+            <div>
+              <p class="font-semibold text-sm">{{ a.client.first_name }} {{ a.client.last_name }}</p>
+              <p class="al-small" style="color: var(--al-ink-faint);">{{ a.start_date|default:"—" }}{% if a.end_date %} → {{ a.end_date }}{% endif %}</p>
+            </div>
+          </div>
+          <span class="al-badge">{{ a.status }}</span>
+        </div>
+        {% empty %}
+        <p class="al-small italic" style="color: var(--al-ink-faint);">Nessuna assegnazione.</p>
+        {% endfor %}
+      </div>
+
+      <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-bronze w-full justify-center">
+        <i class="ph ph-paper-plane-right"></i> Apri wizard per assegnare
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

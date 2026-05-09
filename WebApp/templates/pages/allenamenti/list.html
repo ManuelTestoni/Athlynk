@@ -16,72 +16,80 @@
         <div class="flex gap-3 items-center">
             <form method="GET" action="{% url 'allenamenti_list' %}" class="al-search hidden md:block max-w-xs">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" name="q" value="{{ query }}" placeholder="Cerca scheda o cliente..." class="al-input">
+                <input type="text" name="q" value="{{ query }}" placeholder="Cerca scheda..." class="al-input">
+                {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
             </form>
-            <button @click="filterOpen = !filterOpen" type="button" class="al-btn al-btn-ghost">
-                <i class="ph ph-funnel" :class="filterOpen ? 'text-bronze' : ''"></i>
-                <span class="hidden sm:inline">Filtri</span>
-            </button>
-            <a href="{% url 'allenamenti_create' %}" class="al-btn">
+            <a href="{% url 'allenamenti_wizard' %}" class="al-btn al-btn-bronze">
                 <i class="ph ph-plus text-sm"></i>
-                <span>Crea Scheda</span>
+                <span>Nuova scheda</span>
             </a>
         </div>
     </div>
 
-    <!-- Active Filters -->
-    <div x-show="filterOpen" x-collapse x-cloak class="al-card mb-6 flex flex-wrap gap-2 items-center" style="padding: 14px 18px;">
-        <span class="al-tag mr-2">Filtri attivi:</span>
-        <span class="al-badge">Livello: Avanzato <button class="ml-1.5 hover:text-bronze"><i class="ph ph-x"></i></button></span>
-        <span class="al-badge">Obiettivo: Ipertrofia <button class="ml-1.5 hover:text-bronze"><i class="ph ph-x"></i></button></span>
-        <button class="al-link al-link-quiet ml-auto text-[11px]">Pulisci</button>
+    <!-- Status filter chips -->
+    <div class="flex flex-wrap gap-2 mb-5">
+        <a href="{% url 'allenamenti_list' %}{% if query %}?q={{ query }}{% endif %}"
+           class="al-tag {% if not filter_status %}is-active{% endif %}"
+           style="{% if not filter_status %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Tutte</a>
+        <a href="?status=ACTIVE{% if query %}&q={{ query }}{% endif %}"
+           class="al-tag"
+           style="{% if filter_status == 'ACTIVE' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Attive</a>
+        <a href="?status=TEMPLATE{% if query %}&q={{ query }}{% endif %}"
+           class="al-tag"
+           style="{% if filter_status == 'TEMPLATE' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Template</a>
+        <a href="?status=DRAFT{% if query %}&q={{ query }}{% endif %}"
+           class="al-tag"
+           style="{% if filter_status == 'DRAFT' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Bozze</a>
     </div>
 
     <!-- Control bar -->
     <div class="flex items-center justify-between mb-5">
-        <p class="al-tag">{{ assignments|length }} programmi</p>
-        <div class="flex items-center border" style="border-color: var(--al-rule-strong); background: var(--al-marble-warm); border-radius: var(--al-r-sm);">
-            <button @click="view = 'grid'" type="button"
-                    :class="view === 'grid' ? 'bg-ink text-parchment' : 'text-ink-mute hover:text-ink'"
-                    class="px-2.5 py-1.5 transition-colors" title="Griglia"><i class="ph ph-squares-four text-base"></i></button>
-            <button @click="view = 'list'" type="button"
-                    :class="view === 'list' ? 'bg-ink text-parchment' : 'text-ink-mute hover:text-ink'"
-                    class="px-2.5 py-1.5 transition-colors" title="Lista"><i class="ph ph-list text-base"></i></button>
-        </div>
+        <p class="al-tag">{{ plans|length }} schede</p>
     </div>
 
     <!-- Grid view -->
-    <div x-show="view === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {% for assignment in assignments %}
-        <div class="al-card al-interactive al-reveal flex flex-col justify-between" style="--d:{{ forloop.counter0|add:0 }}0ms;">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for plan in plans %}
+        <div class="al-card flex flex-col justify-between" style="--d:{{ forloop.counter0|add:0 }}0ms;">
             <div>
                 <div class="flex justify-between items-start mb-4">
-                    <span class="al-badge al-badge-aegean">{{ assignment.workout_plan.goal|default:"Generale" }}</span>
+                    <span class="al-badge al-badge-aegean">{{ plan.goal|default:"Generale" }}</span>
                     <div class="flex items-center gap-2">
-                        {% if assignment.status == 'DRAFT' %}
-                        <span class="al-badge"><i class="ph ph-lock-key"></i>Bozza</span>
+                        {% if plan.status == 'DRAFT' %}
+                        <span class="al-badge" style="background: #fef3c7; color: #92400e;"><i class="ph ph-pencil-simple"></i>Bozza</span>
+                        {% elif plan.status == 'TEMPLATE' %}
+                        <span class="al-badge" style="background: #dbeafe; color: #1e40af;"><i class="ph ph-bookmark-simple"></i>Template</span>
+                        {% elif plan.status == 'ACTIVE' %}
+                        <span class="al-badge" style="background: #d1fae5; color: #065f46;"><i class="ph ph-check-circle"></i>Attiva</span>
                         {% endif %}
-                        <a href="{% url 'allenamenti_edit' assignment.id %}" class="text-ink-line hover:text-bronze transition-colors">
-                            <i class="ph ph-pencil-simple text-lg"></i>
-                        </a>
                     </div>
                 </div>
-                <h3 class="al-h-2 mb-2">{{ assignment.workout_plan.title }}</h3>
-                <p class="al-body line-clamp-2 mb-5">{{ assignment.workout_plan.description|default:"Nessuna descrizione disponibile." }}</p>
+                <h3 class="al-h-2 mb-2">{{ plan.title }}</h3>
+                <p class="al-body line-clamp-2 mb-5">{{ plan.description|default:"Nessuna descrizione." }}</p>
             </div>
 
             <div>
                 <div class="flex items-center al-tag gap-3 mb-4">
-                    <span class="flex items-center gap-1"><i class="ph ph-barbell text-sm"></i>{{ assignment.workout_plan.level|default:"Tutti" }}</span>
+                    <span class="flex items-center gap-1"><i class="ph ph-barbell text-sm"></i>{{ plan.level|default:"Tutti" }}</span>
+                    <span class="flex items-center gap-1"><i class="ph ph-calendar text-sm"></i>{{ plan.frequency_per_week|default:plan.day_count }} gg/sett</span>
+                    {% if plan.assignment_count %}
+                    <span class="flex items-center gap-1"><i class="ph ph-users text-sm"></i>{{ plan.assignment_count }}</span>
+                    {% endif %}
                 </div>
 
-                <div class="pt-4 border-t flex items-center justify-between" style="border-color: var(--al-rule-faint);">
-                    <div class="flex items-center gap-2.5">
-                        <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze);">
-                            {{ assignment.client.first_name|slice:":1" }}{{ assignment.client.last_name|slice:":1" }}
-                        </div>
-                        <span class="text-[13px] font-medium text-ink-soft">{{ assignment.client.first_name }} {{ assignment.client.last_name }}</span>
-                    </div>
+                <div class="pt-4 border-t flex items-center gap-2" style="border-color: var(--al-rule-faint);">
+                    {% if plan.status == 'DRAFT' %}
+                    <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-bronze al-btn-sm flex-1">
+                        <i class="ph ph-arrow-clockwise"></i> Riprendi
+                    </a>
+                    {% else %}
+                    <a href="{% url 'allenamenti_plan_detail' plan.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1">
+                        <i class="ph ph-eye"></i> Apri
+                    </a>
+                    <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn-icon al-btn-ghost" title="Modifica">
+                        <i class="ph ph-pencil-simple"></i>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -89,11 +97,11 @@
         <div class="col-span-full al-card al-card-warm">
             <div class="al-empty">
                 <i class="ph ph-folder-open al-empty-icon"></i>
-                <h3>Nessun programma trovato</h3>
-                <p>Crea il tuo primo piano di allenamento per iniziare.</p>
-                <a href="{% url 'allenamenti_create' %}" class="al-btn al-btn-bronze">
+                <h3>Nessuna scheda trovata</h3>
+                <p>Crea la tua prima scheda di allenamento.</p>
+                <a href="{% url 'allenamenti_wizard' %}" class="al-btn al-btn-bronze">
                     <i class="ph ph-plus"></i>
-                    <span>Crea Scheda</span>
+                    <span>Nuova scheda</span>
                 </a>
             </div>
         </div>

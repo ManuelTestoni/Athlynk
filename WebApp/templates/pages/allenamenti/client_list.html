@@ -1,41 +1,134 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
-    <div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">I Miei Allenamenti</h1>
-        <p class="text-sm text-slate-500 mt-1">Vedi solo le schede assegnate al tuo account da {{ coach.first_name }} {{ coach.last_name }}.</p>
-    </div>
+{% block title %}I miei allenamenti{% endblock %}
 
-    {% if assignments %}
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {% for assignment in assignments %}
-        <article class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center justify-between gap-3 mb-3">
-                <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-accent uppercase tracking-wider">
-                    {{ assignment.workout_plan.goal|default:"Generale" }}
-                </span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
-                    {{ assignment.status }}
-                </span>
-            </div>
-            <h3 class="text-lg font-bold text-slate-900 mb-1">{{ assignment.workout_plan.title }}</h3>
-            <p class="text-sm text-slate-500 line-clamp-3">{{ assignment.workout_plan.description|default:"Nessuna descrizione disponibile." }}</p>
-            <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-600">
-                <span><i class="ph ph-barbell mr-1"></i> {{ assignment.workout_plan.level|default:"Tutti" }}</span>
-                <span>{{ assignment.client.first_name }} {{ assignment.client.last_name }}</span>
-            </div>
-        </article>
-        {% endfor %}
+{% block content %}
+<div class="max-w-7xl mx-auto" x-data="{ pickDay: null }">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">I miei &middot; Allenamenti</p>
+      <h1 class="al-h-1">Programma di <span class="al-display-i">allenamento</span></h1>
+      <p class="al-body mt-2">Schede assegnate da {{ coach.first_name }} {{ coach.last_name }}.</p>
+      <div class="al-rule-bronze mt-5"></div>
     </div>
-    {% else %}
-    <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4">
-            <i class="ph ph-folder-open text-3xl"></i>
+  </div>
+
+  {% if assignments %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% for assignment in assignments %}
+    {% with plan=assignment.workout_plan %}
+    <div class="al-card flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-start mb-3">
+          <span class="al-badge al-badge-aegean">{{ plan.goal|default:"Generale" }}</span>
+          <div class="flex items-center gap-2">
+            {% if assignment.status == 'ACTIVE' %}
+              {% if assignment.start_date and assignment.start_date > today %}
+              <span class="al-badge" style="background: #e0e7ff; color: #3730a3;"><i class="ph ph-clock"></i> In arrivo</span>
+              {% else %}
+              <span class="al-badge" style="background: #d1fae5; color: #065f46;"><i class="ph ph-play-circle"></i> Attiva</span>
+              {% endif %}
+            {% elif assignment.status == 'COMPLETED' %}
+              <span class="al-badge" style="background: #e5e7eb; color: #374151;"><i class="ph ph-check-circle"></i> Completata</span>
+            {% endif %}
+          </div>
         </div>
-        <h3 class="text-lg font-bold text-slate-900">Nessun allenamento assegnato</h3>
-        <p class="text-sm text-slate-500 mt-2">Il tuo coach non ha ancora pubblicato una scheda per il tuo account.</p>
+
+        <h3 class="al-h-2 mb-2">{{ plan.title }}</h3>
+        <div class="flex flex-wrap gap-2 mb-3">
+          {% if plan.level %}<span class="al-tag">{{ plan.level }}</span>{% endif %}
+          {% if plan.frequency_per_week %}<span class="al-tag"><i class="ph ph-calendar"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+        </div>
+        <p class="al-body line-clamp-2 mb-4">{{ plan.description|default:"Nessuna descrizione." }}</p>
+
+        <p class="al-small mb-2" style="color: var(--al-ink-faint);">
+          <i class="ph ph-calendar-blank"></i>
+          {% if assignment.start_date %}{{ assignment.start_date|date:"d M Y" }}{% else %}—{% endif %}
+          →
+          {% if assignment.end_date %}{{ assignment.end_date|date:"d M Y" }}{% else %}<em>In corso</em>{% endif %}
+        </p>
+
+        <!-- Progress bar -->
+        {% if assignment.completed_session_count is not None %}
+        <div class="mb-3">
+          <div class="flex justify-between al-small mb-1">
+            <span style="color: var(--al-ink-faint);">Progresso</span>
+            <span><strong>{{ assignment.completed_session_count }}</strong> / {{ assignment.expected_session_count }}</span>
+          </div>
+          <div style="background: var(--al-stone); height: 8px; border-radius: 4px;">
+            <div style="background: var(--al-bronze); height: 8px; border-radius: 4px; width: {{ assignment.progress_pct }}%;"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="pt-3 border-t" style="border-color: var(--al-rule-faint);">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze);">
+            {{ assignment.coach.first_name|slice:":1" }}{{ assignment.coach.last_name|slice:":1" }}
+          </div>
+          <span class="text-[13px] font-medium">{{ assignment.coach.first_name }} {{ assignment.coach.last_name }}</span>
+        </div>
+
+        <div class="flex gap-2">
+          <a href="{% url 'client_assignment_detail' assignment.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center">
+            <i class="ph ph-eye"></i> Dettagli
+          </a>
+          {% if assignment.status == 'ACTIVE' and assignment.start_date <= today %}
+            <button @click='pickDay = { aid: {{ assignment.id }}, title: "{{ assignment.workout_plan.title|escapejs }}", days: {{ assignment.days_json|safe }} }'
+                    class="al-btn al-btn-bronze al-btn-sm flex-1 justify-center">
+              <i class="ph ph-play"></i> Sessione
+            </button>
+          {% else %}
+            <button disabled class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center opacity-50 cursor-not-allowed">
+              <i class="ph ph-play"></i> Sessione
+            </button>
+          {% endif %}
+        </div>
+      </div>
     </div>
-    {% endif %}
+    {% endwith %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="al-card al-card-warm">
+    <div class="al-empty">
+      <i class="ph ph-folder-open al-empty-icon"></i>
+      <h3>Nessun allenamento assegnato</h3>
+      <p>Il tuo coach ti assegnerà presto una scheda.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Day picker modal -->
+  <div x-show="pickDay" x-cloak class="al-modal-backdrop" @click.self="pickDay = null">
+    <div class="al-modal-panel" style="max-width: 480px;">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <p class="al-eyebrow">Avvia sessione</p>
+          <h3 class="al-h-3" x-text="pickDay && pickDay.title"></h3>
+        </div>
+        <button @click="pickDay = null" class="al-btn-icon"><i class="ph ph-x"></i></button>
+      </div>
+      <p class="al-small mb-4" style="color: var(--al-ink-faint);">Scegli il giorno da allenare oggi.</p>
+      <div class="space-y-2">
+        <template x-for="d in (pickDay ? pickDay.days : [])" :key="d.id">
+          <a :href="`/allenamenti/assegnazione/${pickDay.aid}/sessione/${d.id}/`"
+             class="block border rounded p-3 hover:bg-stone transition-colors"
+             style="border-color: var(--al-rule-faint);">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); width: 32px; height: 32px;" x-text="d.order"></div>
+                <span class="font-semibold" x-text="d.name"></span>
+              </div>
+              <i class="ph ph-arrow-right" style="color: var(--al-bronze);"></i>
+            </div>
+          </a>
+        </template>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

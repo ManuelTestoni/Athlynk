@@ -1,0 +1,793 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sessione — {{ day.day_name|default:"Giorno" }} {{ day.day_order }}{% endblock %}
+
+{% block content %}
+<script>
+  window.SESSION_INIT = {
+    assignment_id: {{ assignment.id }},
+    day_id: {{ day.id }},
+    day_order: {{ day.day_order }},
+    day_name: "{{ day.day_name|default:""|escapejs }}",
+    week_index: {{ week_index }},
+    plan_title: "{{ plan.title|escapejs }}",
+    plan_goal: "{{ plan.goal|default:""|escapejs }}",
+    place: "Palestra",
+    exercises: {{ exercises_json|safe }},
+    urls: {
+      start: "{% url 'api_session_start' %}",
+      log_set_tpl: "/api/sessioni/__SID__/serie/",
+      finish_tpl: "/api/sessioni/__SID__/concludi/",
+      media_tpl: "/api/sessioni/__SID__/media/",
+      back: "{% url 'client_assignment_detail' assignment.id %}"
+    }
+  };
+</script>
+
+<style>
+  /* Session view — Athlynk light theme */
+  .session-shell {
+    background: var(--al-parchment);
+    color: var(--al-ink);
+    min-height: 100vh;
+    margin: -1rem -2rem -2rem;
+    padding: 0 0 110px;
+    font-size: 16px;
+  }
+  @media (max-width: 768px) {
+    .session-shell { margin: -1rem; padding-bottom: 110px; }
+  }
+
+  .ss-back-btn {
+    width: 36px; height: 36px;
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    color: var(--al-ink);
+    border-radius: var(--al-r-sm);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 1.05rem;
+    transition: background .15s;
+  }
+  .ss-back-btn:hover { background: var(--al-marble); }
+
+  .ss-connect-badge {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 90px; z-index: 50;
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    padding: .5rem .9rem;
+    border-radius: var(--al-r-pill);
+    font-size: .78rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: .5rem;
+    box-shadow: var(--al-shadow-2);
+  }
+  .ss-connect-badge.ss-connect-err {
+    background: var(--al-danger); color: #fff;
+  }
+
+  .ss-header {
+    position: sticky; top: 0; z-index: 30;
+    background: var(--al-parchment);
+    padding: 1.1rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+  }
+  .ss-eyebrow {
+    font-family: var(--al-sans);
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--al-bronze);
+    margin-bottom: .3rem;
+  }
+  .ss-title {
+    font-family: var(--al-display);
+    font-weight: 500;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.15;
+    color: var(--al-ink);
+    letter-spacing: -0.01em;
+  }
+  .ss-subtitle { font-size: .9rem; color: var(--al-ink-mute); margin-top: .2rem; }
+  .ss-pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    padding: .25rem .7rem;
+    border-radius: var(--al-r-pill);
+    font-size: .75rem; font-weight: 500;
+    color: var(--al-ink-soft);
+    margin-top: .65rem;
+  }
+  .ss-pill.is-primary {
+    background: var(--al-aegean);
+    color: var(--al-parchment);
+    border-color: var(--al-aegean);
+  }
+
+  .ss-progress-track {
+    height: 4px;
+    background: var(--al-stone);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: .9rem;
+  }
+  .ss-progress-bar { background: var(--al-bronze); height: 100%; transition: width .3s; }
+
+  .ss-section { padding: 1rem 1.5rem; max-width: 760px; margin: 0 auto; }
+
+  /* Next exercise card */
+  .ss-next-card {
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 1rem;
+    margin: 0 0 1.1rem;
+    display: flex; gap: .9rem;
+    box-shadow: var(--al-shadow-1);
+  }
+  .ss-thumb {
+    width: 72px; height: 72px;
+    border-radius: var(--al-r-sm);
+    background: var(--al-marble);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: hidden;
+  }
+  .ss-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .ss-thumb i { font-size: 1.8rem; color: var(--al-ink-mute); }
+
+  /* Exercise accordion */
+  .ss-ex {
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    margin-bottom: .8rem;
+    overflow: hidden;
+    box-shadow: var(--al-shadow-1);
+  }
+  .ss-ex.is-active { border-color: var(--al-bronze); }
+  .ss-ex.is-done { opacity: .65; }
+  .ss-ex-head {
+    padding: 1rem 1.1rem;
+    display: flex; align-items: center; gap: .8rem;
+    cursor: pointer; user-select: none;
+  }
+  .ss-ex-num {
+    font-family: var(--al-display);
+    font-weight: 500; color: var(--al-bronze);
+    font-size: 1.1rem; min-width: 1.4rem;
+  }
+  .ss-ex-name { flex: 1; font-weight: 600; font-size: 1rem; line-height: 1.2; color: var(--al-ink); }
+  .ss-ex-name .original {
+    color: var(--al-ink-mute); text-decoration: line-through;
+    font-size: .78rem; display: block; font-weight: 400;
+  }
+  .ss-badge {
+    background: var(--al-marble);
+    border: 1px solid var(--al-rule-faint);
+    padding: .22rem .65rem;
+    border-radius: var(--al-r-pill);
+    font-size: .72rem; font-weight: 600;
+    color: var(--al-ink-soft);
+    flex-shrink: 0;
+  }
+  .ss-badge.gold {
+    background: var(--al-bronze);
+    color: var(--al-parchment);
+    border-color: var(--al-bronze);
+  }
+  .ss-chev { color: var(--al-ink-mute); }
+
+  .ss-ex-body {
+    padding: 0 1.1rem 1.1rem;
+    border-top: 1px solid var(--al-rule-faint);
+  }
+
+  /* Alternative exercise banner */
+  .ss-alt-banner {
+    background: var(--al-info-bg);
+    border: 1px solid var(--al-aegean-t);
+    border-radius: var(--al-r-sm);
+    padding: .65rem .85rem;
+    margin: .85rem 0;
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    font-size: .85rem;
+    color: var(--al-aegean-d);
+  }
+  .ss-alt-banner button {
+    color: var(--al-aegean);
+    font-weight: 600;
+    padding: .35rem .7rem;
+    border-radius: var(--al-r-sm);
+    border: 1px solid var(--al-aegean);
+    background: transparent;
+  }
+  .ss-alt-banner button:hover { background: var(--al-aegean); color: var(--al-parchment); }
+  .ss-alt-banner.ss-alt-banner-active {
+    background: var(--al-bronze);
+    border-color: var(--al-bronze);
+    color: var(--al-parchment);
+  }
+  .ss-alt-banner.ss-alt-banner-active .ss-eyebrow { color: var(--al-bronze-l) !important; }
+  .ss-alt-banner.ss-alt-banner-active button {
+    color: var(--al-parchment); border-color: var(--al-parchment);
+  }
+  .ss-alt-banner.ss-alt-banner-active button:hover {
+    background: var(--al-parchment); color: var(--al-bronze);
+  }
+
+  /* Sets grid */
+  .ss-sets-head, .ss-set-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 1fr 1fr 1.1fr 38px;
+    gap: .35rem;
+    align-items: center;
+  }
+  .ss-sets-head {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--al-ink-mute); font-weight: 600;
+    padding: .5rem 0 .55rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+  }
+  .ss-set-row {
+    padding: .5rem 0;
+    border-bottom: 1px solid var(--al-rule-faint);
+    min-height: 54px;
+  }
+  .ss-set-row:last-of-type { border-bottom: none; }
+  .ss-set-row.is-done .ss-set-cell { color: var(--al-ink-mute); }
+  .ss-set-row.is-active {
+    background: var(--al-marble-w);
+    border-radius: var(--al-r-sm);
+    padding-left: .4rem; padding-right: .4rem;
+  }
+
+  .ss-set-num { font-weight: 700; text-align: center; font-size: 1rem; color: var(--al-ink); font-family: var(--al-display); }
+  .ss-set-num.extra { color: var(--al-bronze); }
+  .ss-set-cell { text-align: center; font-size: .9rem; font-weight: 600; color: var(--al-ink-soft); }
+  .ss-set-input {
+    background: var(--al-parchment);
+    color: var(--al-ink);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: .5rem .35rem;
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+    font-size: 17px;
+    min-height: 42px;
+    font-family: var(--al-mono);
+  }
+  .ss-set-input:focus { outline: none; border-color: var(--al-bronze); box-shadow: var(--al-shadow-glow-bronze); }
+  .ss-set-input:disabled, .ss-set-input[readonly] {
+    background: transparent;
+    color: var(--al-ink-mute);
+    border-color: transparent;
+  }
+  select.ss-set-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238a6a3a' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 22px;
+    cursor: pointer;
+  }
+  select.ss-set-select:disabled { background-image: none; padding-right: .35rem; cursor: default; }
+
+  .ss-set-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--al-r-sm);
+    background: var(--al-marble);
+    color: var(--al-ink);
+    border: 1px solid var(--al-rule-faint);
+  }
+  .ss-set-icon.power {
+    background: var(--al-bronze);
+    color: var(--al-parchment);
+    border-color: var(--al-bronze);
+  }
+  .ss-set-icon.power:hover { background: var(--al-bronze-s); }
+  .ss-set-icon.power:active { transform: scale(0.95); }
+  .ss-set-icon.check {
+    background: var(--al-success-bg);
+    color: var(--al-success);
+    border-color: var(--al-success);
+  }
+
+  .ss-add-set {
+    margin-top: .7rem; width: 100%;
+    background: transparent;
+    border: 1px dashed var(--al-rule-strong);
+    color: var(--al-ink-mute);
+    border-radius: var(--al-r-sm);
+    padding: .65rem;
+    font-size: .85rem; font-weight: 600;
+    transition: color .15s, border-color .15s;
+  }
+  .ss-add-set:hover { color: var(--al-bronze); border-color: var(--al-bronze); }
+
+  .ss-timer {
+    margin-top: 1rem;
+    background: var(--al-marble-w);
+    color: var(--al-ink);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ss-timer .ss-eyebrow { color: var(--al-bronze); }
+  .ss-timer-time {
+    font-family: var(--al-mono);
+    font-size: 2rem; font-weight: 500;
+    color: var(--al-bronze);
+    line-height: 1;
+  }
+  .ss-timer.urgent .ss-timer-time { color: var(--al-danger); animation: pulseTime .6s infinite; }
+  @keyframes pulseTime { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+  .ss-timer .ss-set-icon {
+    background: #fff;
+    border-color: var(--al-rule);
+    color: var(--al-ink);
+    font-size: .75rem;
+  }
+  .ss-timer-btn {
+    width: 42px; height: 42px;
+    border-radius: var(--al-r-pill);
+    background: var(--al-bronze); color: var(--al-parchment);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+  }
+  .ss-timer-btn:hover { background: var(--al-bronze-s); }
+
+  .ss-notes-toggle {
+    margin-top: 1rem;
+    padding: .7rem .9rem;
+    background: var(--al-marble);
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    color: var(--al-ink-soft);
+    width: 100%; text-align: left;
+    font-size: .88rem; font-weight: 500;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ss-notes-toggle:hover { background: var(--al-marble-w); }
+  .ss-notes-area {
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: .75rem;
+    color: var(--al-ink);
+    width: 100%; min-height: 80px;
+    font-size: .92rem;
+    margin-top: .5rem;
+    font-family: var(--al-sans);
+  }
+  .ss-notes-area:focus { outline: none; border-color: var(--al-bronze); box-shadow: var(--al-shadow-glow-bronze); }
+
+  .ss-end-ex {
+    margin-top: 1rem; width: 100%;
+    background: var(--al-marble);
+    color: var(--al-ink);
+    padding: .85rem;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    font-weight: 600;
+    font-size: .95rem;
+    min-height: 48px;
+  }
+  .ss-end-ex:hover { background: var(--al-marble-w); }
+
+  /* Bottom action bar */
+  .ss-bottom {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(244,239,228,0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--al-rule-faint);
+    padding: .8rem 1.5rem;
+    z-index: 40;
+    display: flex; gap: .65rem; align-items: center; justify-content: center;
+  }
+  @media (min-width: 1024px) {
+    .ss-bottom { left: 16rem; }
+  }
+  .ss-bottom-inner {
+    display: flex; gap: .65rem; align-items: center; justify-content: center;
+    width: 100%; max-width: 480px;
+  }
+  .ss-bottom-btn {
+    flex: 1; padding: .85rem 1rem;
+    background: var(--al-bronze);
+    color: var(--al-parchment);
+    font-weight: 600;
+    border-radius: var(--al-r-sm);
+    min-height: 48px;
+    font-size: .9rem;
+    border: 1px solid var(--al-bronze);
+    transition: background .15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  }
+  .ss-bottom-btn:hover:not(:disabled) { background: var(--al-bronze-s); }
+  .ss-bottom-btn.secondary {
+    background: #fff; color: var(--al-ink);
+    border-color: var(--al-rule);
+    flex: 0 0 auto; padding: .85rem 1.1rem;
+  }
+  .ss-bottom-btn.secondary:hover { background: var(--al-marble); }
+
+  /* Modals */
+  .ss-modal-bg {
+    position: fixed; inset: 0; background: rgba(20,17,13,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .ss-modal {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 1.5rem;
+    max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto;
+    color: var(--al-ink);
+    box-shadow: var(--al-shadow-3);
+  }
+
+  [x-cloak] { display: none !important; }
+</style>
+
+<div class="session-shell" x-data="sessionRunner()" x-init="init()">
+
+  <!-- HEADER -->
+  <header class="ss-header">
+    <div class="flex items-start gap-3">
+      <a :href="urls.back" class="ss-back-btn" aria-label="Torna alla scheda">
+        <i class="ph ph-arrow-left"></i>
+      </a>
+      <div class="flex-1 min-w-0">
+        <p class="ss-eyebrow">Sessione</p>
+        <h1 class="ss-title" x-text="planTitle"></h1>
+        <p class="ss-subtitle"><span x-text="placeText"></span><span x-show="planGoal"> · <span x-text="planGoal"></span></span></p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="ss-pill is-primary">
+            <i class="ph ph-calendar-blank"></i> Settimana <span x-text="weekIndex"></span> · Giorno <span x-text="dayOrder"></span>
+          </span>
+          <span class="ss-pill" title="Tempo totale sessione"><i class="ph ph-timer"></i> <span x-text="formatTime(elapsed)"></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="ss-progress-track">
+      <div class="ss-progress-bar" :style="'width:' + progressPct + '%'"></div>
+    </div>
+    <p class="ss-eyebrow mt-2">
+      <span x-text="completedExCount"></span> / <span x-text="exercises.length"></span> esercizi · <span x-text="totalDoneSets"></span> serie
+    </p>
+  </header>
+
+  <!-- BODY (rendered eager so exercises show even before /avvia/ resolves) -->
+  <div class="ss-section">
+
+    <!-- Next exercise card -->
+    <template x-if="nextExercise()">
+      <div class="ss-next-card">
+        <div class="ss-thumb">
+          <template x-if="nextExercise().image_url"><img :src="nextExercise().image_url" alt=""></template>
+          <template x-if="!nextExercise().image_url"><i class="ph ph-barbell"></i></template>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="ss-eyebrow" style="color: var(--al-bronze);">Prossimo esercizio</p>
+          <p class="font-bold text-base leading-tight truncate" x-text="exerciseDisplayName(nextExercise())"></p>
+          <p class="text-sm" style="color: var(--al-ink-mute);" x-text="nextExercise().sets + ' serie · ' + nextExercise().reps + ' rip'"></p>
+          <button @click="showInstructions(nextExercise())" class="ss-pill mt-2 w-full justify-center" style="font-size:.85rem;">
+            <i class="ph ph-info"></i> Vedi indicazioni
+          </button>
+        </div>
+      </div>
+    </template>
+
+
+    <!-- Exercises accordion -->
+    <template x-for="(ex, exIdx) in exercises" :key="ex.id">
+      <div class="ss-ex" :class="{'is-active': activeExId === ex.id, 'is-done': isExComplete(ex)}">
+
+        <!-- Header -->
+        <div class="ss-ex-head" @click="toggleExpand(ex.id)">
+          <div class="ss-ex-num" x-text="(exIdx + 1) + '.'"></div>
+          <div class="ss-ex-name">
+            <template x-if="substituted[ex.id]">
+              <div>
+                <span x-text="substituted[ex.id].name"></span>
+                <span class="ss-badge gold" style="margin-left:.4rem;">Sostituito</span>
+                <span class="original" x-text="ex.name"></span>
+              </div>
+            </template>
+            <template x-if="!substituted[ex.id]">
+              <span x-text="ex.name"></span>
+            </template>
+          </div>
+          <span class="ss-badge" x-text="totalSetsFor(ex) + ' serie'"></span>
+          <i x-show="!expanded[ex.id]" class="ph ph-caret-down ss-chev"></i>
+        </div>
+
+        <!-- Body -->
+        <div x-show="expanded[ex.id]" x-collapse class="ss-ex-body">
+
+          <!-- Alternative banner: available -->
+          <template x-if="ex.alternative_exercise && !substituted[ex.id]">
+            <div class="ss-alt-banner">
+              <div>
+                <p class="ss-eyebrow" style="color: var(--al-bronze);">Esercizio alternativo</p>
+                <p class="font-semibold text-sm" x-text="ex.alternative_exercise.name"></p>
+              </div>
+              <button @click="askSubstitute(ex)">
+                <i class="ph ph-arrows-left-right"></i> Sostituisci
+              </button>
+            </div>
+          </template>
+          <!-- Already substituted: undo -->
+          <template x-if="substituted[ex.id]">
+            <div class="ss-alt-banner ss-alt-banner-active">
+              <div>
+                <p class="ss-eyebrow" style="color: var(--al-bronze);">In esecuzione: alternativa</p>
+                <p class="font-semibold text-sm" x-text="substituted[ex.id].name"></p>
+              </div>
+              <button @click="undoSubstitute(ex)" title="Ripristina esercizio originale">
+                <i class="ph ph-arrow-counter-clockwise"></i> Annulla
+              </button>
+            </div>
+          </template>
+          <!-- No alternative configured -->
+          <template x-if="!ex.alternative_exercise">
+            <p class="al-small" style="color: var(--al-ink-mute); margin: .65rem 0 0; font-style: italic;">
+              <i class="ph ph-info"></i> Nessun esercizio alternativo configurato dal coach.
+            </p>
+          </template>
+
+          <!-- Sets grid -->
+          <div class="ss-sets-head">
+            <span style="text-align:center;">SET</span>
+            <span style="text-align:center;">KG</span>
+            <span style="text-align:center;">REPS</span>
+            <span style="text-align:center;">RPE</span>
+            <span style="text-align:center;">RECUP</span>
+            <span></span>
+          </div>
+
+          <template x-for="setNum in totalSetsFor(ex)" :key="setNum">
+            <div class="ss-set-row" :class="{'is-done': isSetDone(ex.id, setNum), 'is-active': isSetActive(ex, setNum)}">
+              <div class="ss-set-num" :class="{ extra: setNum > ex.sets }" x-text="setNum"></div>
+
+              <!-- KG -->
+              <template x-if="isSetDone(ex.id, setNum)">
+                <span class="ss-set-cell" x-text="setValue(ex.id, setNum, 'load_used', ex) || '—'"></span>
+              </template>
+              <template x-if="!isSetDone(ex.id, setNum)">
+                <input type="number" step="0.5" min="0" inputmode="decimal" class="ss-set-input"
+                       :value="setValue(ex.id, setNum, 'load_used', ex)"
+                       @input="updateLocal(ex.id, setNum, 'load_used', $event.target.value)"
+                       :readonly="!isSetActive(ex, setNum)">
+              </template>
+
+              <!-- REPS -->
+              <template x-if="isSetDone(ex.id, setNum)">
+                <span class="ss-set-cell" x-text="setValue(ex.id, setNum, 'reps_done', ex) || '—'"></span>
+              </template>
+              <template x-if="!isSetDone(ex.id, setNum)">
+                <input type="number" min="0" inputmode="numeric" class="ss-set-input"
+                       :value="setValue(ex.id, setNum, 'reps_done', ex)"
+                       @input="updateLocal(ex.id, setNum, 'reps_done', $event.target.value)"
+                       :readonly="!isSetActive(ex, setNum)">
+              </template>
+
+              <!-- RPE -->
+              <template x-if="isSetDone(ex.id, setNum)">
+                <span class="ss-set-cell" x-text="setValue(ex.id, setNum, 'rpe', ex) || '—'"></span>
+              </template>
+              <template x-if="!isSetDone(ex.id, setNum)">
+                <select class="ss-set-input ss-set-select"
+                        :value="setValue(ex.id, setNum, 'rpe', ex)"
+                        @change="updateLocal(ex.id, setNum, 'rpe', $event.target.value)"
+                        :disabled="!isSetActive(ex, setNum)">
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </template>
+
+              <!-- RECUP -->
+              <span class="ss-set-cell" x-text="formatTime(ex.recovery_seconds)" style="font-family: ui-monospace, monospace;"></span>
+
+              <!-- Action icon -->
+              <div>
+                <template x-if="isSetDone(ex.id, setNum)">
+                  <div class="ss-set-icon check"><i class="ph ph-check ph-bold"></i></div>
+                </template>
+                <template x-if="!isSetDone(ex.id, setNum) && isSetActive(ex, setNum)">
+                  <button class="ss-set-icon power" @click="completeSetAndStartTimer(ex, setNum)" title="Completa serie + recupero">
+                    <i class="ph ph-power"></i>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Add extra set -->
+          <button @click="addExtraSet(ex.id)" class="ss-add-set">
+            <i class="ph ph-plus"></i> Aggiungi serie
+          </button>
+
+          <!-- Recovery timer -->
+          <template x-if="timers[ex.id] && timers[ex.id].active">
+            <div class="ss-timer" :class="{ urgent: timers[ex.id].sec <= 5 }">
+              <div>
+                <p class="ss-eyebrow">Recupero</p>
+                <p class="ss-timer-time" x-text="formatTime(Math.max(0, timers[ex.id].sec))"></p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="ss-set-icon" @click="adjustTimer(ex.id, -15)">-15s</button>
+                <button class="ss-set-icon" @click="adjustTimer(ex.id, 15)">+15s</button>
+                <button class="ss-timer-btn" @click="toggleTimer(ex.id)">
+                  <i class="ph" :class="timers[ex.id].paused ? 'ph-play-fill' : 'ph-pause-fill'"></i>
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Notes -->
+          <template x-if="!notesOpen[ex.id]">
+            <button class="ss-notes-toggle" @click="notesOpen[ex.id] = true">
+              <span><i class="ph ph-note-pencil"></i> Aggiungi nota a questo esercizio</span>
+              <i class="ph ph-caret-down"></i>
+            </button>
+          </template>
+          <template x-if="notesOpen[ex.id]">
+            <div>
+              <button class="ss-notes-toggle" @click="notesOpen[ex.id] = false">
+                <span><i class="ph ph-note-pencil"></i> Nota esercizio</span>
+                <i class="ph ph-caret-up"></i>
+              </button>
+              <textarea class="ss-notes-area" x-model="exerciseNotes[ex.id]" placeholder="Sensazioni, problemi tecnici, modifiche di carico..."></textarea>
+            </div>
+          </template>
+
+          <!-- End exercise -->
+          <button x-show="(doneSets[ex.id] || []).length >= 1"
+                  @click="endExercise(ex)" class="ss-end-ex">
+            <i class="ph ph-check"></i> Termina esercizio
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="!exercises.length">
+      <div class="text-center py-12">
+        <i class="ph ph-warning-circle" style="font-size: 2.5rem; color: var(--al-ink-mute);"></i>
+        <p class="mt-3 font-bold text-lg">Giorno senza esercizi</p>
+        <p class="mt-1 text-sm" style="color: var(--al-ink-mute);">Il coach non ha ancora aggiunto esercizi a questa giornata.</p>
+        <a :href="urls.back" class="ss-bottom-btn inline-flex items-center gap-2 mt-4" style="display:inline-flex; padding:.7rem 1.2rem; min-height:auto;">
+          <i class="ph ph-arrow-left"></i> Torna alla scheda
+        </a>
+      </div>
+    </template>
+  </div>
+
+  <!-- BOTTOM ACTION BAR -->
+  <div class="ss-bottom">
+    <div class="ss-bottom-inner">
+      <button @click="confirmStop = true" class="ss-bottom-btn secondary" title="Pausa / Interrompi">
+        <i class="ph ph-pause"></i>
+      </button>
+      <button @click="finishModalOpen = true" class="ss-bottom-btn">
+        <i class="ph ph-flag-checkered"></i>
+        Termina sessione
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Instructions -->
+  <div x-show="instructionsModal.open" x-cloak class="ss-modal-bg" @click.self="instructionsModal.open=false">
+    <div class="ss-modal">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xl font-bold" x-text="instructionsModal.ex?.name"></h3>
+        <button @click="instructionsModal.open=false" class="ss-set-icon"><i class="ph ph-x"></i></button>
+      </div>
+      <p class="text-sm mb-3" style="color: var(--al-ink-mute);" x-text="instructionsModal.ex?.notes || 'Nessuna nota dal coach.'"></p>
+      <p x-show="instructionsModal.ex?.instructions" class="text-sm" x-text="instructionsModal.ex?.instructions"></p>
+      <a x-show="instructionsModal.ex?.video_url" :href="instructionsModal.ex?.video_url" target="_blank" class="ss-bottom-btn block mt-4 text-center">
+        <i class="ph ph-play-circle"></i> Guarda video
+      </a>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm substitute -->
+  <div x-show="substituteModal.open" x-cloak class="ss-modal-bg" @click.self="substituteModal.open=false">
+    <div class="ss-modal">
+      <h3 class="text-xl font-bold mb-2">Sostituire esercizio?</h3>
+      <p class="text-sm mb-4" style="color: var(--al-ink-mute);">
+        Vuoi sostituire <strong x-text="substituteModal.ex?.name"></strong> con <strong x-text="substituteModal.ex?.alternative_exercise?.name"></strong>?
+        Questa modifica non cambia la scheda, verrà registrata nel report sessione.
+      </p>
+      <div class="flex gap-2">
+        <button @click="substituteModal.open=false" class="ss-bottom-btn secondary flex-1">Annulla</button>
+        <button @click="confirmSubstitute()" class="ss-bottom-btn flex-1">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Stop confirm -->
+  <div x-show="confirmStop" x-cloak class="ss-modal-bg" @click.self="confirmStop=false">
+    <div class="ss-modal">
+      <h3 class="text-xl font-bold mb-2">Interrompere?</h3>
+      <p class="text-sm mb-4" style="color: var(--al-ink-mute);">Le serie già salvate vengono mantenute.</p>
+      <div class="flex gap-2">
+        <button @click="confirmStop=false" class="ss-bottom-btn secondary flex-1">Annulla</button>
+        <button @click="interrupt()" class="ss-bottom-btn flex-1" style="background:#dc2626; color:#fff;">Interrompi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Finish session -->
+  <div x-show="finishModalOpen" x-cloak class="ss-modal-bg" @click.self="finishModalOpen=false">
+    <div class="ss-modal">
+      <h3 class="text-2xl font-extrabold mb-1">🎉 Ottimo lavoro!</h3>
+      <p class="text-sm mb-4" style="color: var(--al-ink-mute);">Riepilogo sessione e note finali.</p>
+
+      <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+        <div><p class="ss-eyebrow">Durata</p><p class="font-bold text-lg" x-text="Math.round(elapsed/60) + 'm'"></p></div>
+        <div><p class="ss-eyebrow">Serie</p><p class="font-bold text-lg" x-text="totalDoneSets"></p></div>
+        <div><p class="ss-eyebrow">RPE medio</p><p class="font-bold text-lg" x-text="avgRpe || '—'"></p></div>
+      </div>
+
+      <p class="ss-eyebrow mb-1">Esercizi completati / saltati</p>
+      <div class="text-xs mb-3">
+        <template x-for="ex in exercises" :key="ex.id">
+          <div class="flex items-center justify-between py-1 border-b" style="border-color: var(--al-rule-faint);">
+            <span x-text="ex.name"></span>
+            <span x-show="isExComplete(ex)" style="color: var(--al-bronze);"><i class="ph ph-check"></i> completato</span>
+            <span x-show="!isExComplete(ex) && (doneSets[ex.id]||[]).length > 0" style="color:#fbbf24;">parziale</span>
+            <span x-show="!isExComplete(ex) && (doneSets[ex.id]||[]).length === 0" style="color: var(--al-ink-mute);">saltato</span>
+          </div>
+        </template>
+      </div>
+
+      <textarea class="ss-notes-area" x-model="finalNotes" placeholder="Note generali sessione..."></textarea>
+
+      <div class="mt-3">
+        <label class="ss-bottom-btn secondary inline-flex items-center gap-2 cursor-pointer" style="padding:.55rem .9rem; min-height:auto;">
+          <i class="ph ph-camera"></i> Foto/video
+          <input type="file" accept="image/*,video/*" multiple class="hidden" @change="uploadMedia($event)">
+        </label>
+        <p x-show="uploadingCount > 0" class="text-xs mt-1" style="color: var(--al-bronze);">Upload in corso...</p>
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <template x-for="m in uploaded" :key="m.id">
+            <div class="rounded overflow-hidden" style="aspect-ratio:1/1; background: var(--al-marble-w);">
+              <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-full object-cover"></template>
+              <template x-if="m.type === 'VIDEO'"><div class="w-full h-full flex items-center justify-center"><i class="ph ph-video text-2xl" style="color: var(--al-bronze);"></i></div></template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <button @click="finalize()" :disabled="finalizing || uploadingCount > 0" class="ss-bottom-btn w-full mt-4" :class="{ 'opacity-60 cursor-not-allowed': finalizing || uploadingCount > 0 }">
+        <span x-show="!finalizing && uploadingCount === 0">Salva e concludi</span>
+        <span x-show="finalizing">Salvataggio...</span>
+        <span x-show="!finalizing && uploadingCount > 0">Attendi upload…</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Connecting badge (non-blocking) -->
+  <div x-show="!sessionId && !startError" x-cloak class="ss-connect-badge">
+    <i class="ph ph-spinner-gap animate-spin"></i> Connessione sessione…
+  </div>
+  <div x-show="startError" x-cloak class="ss-connect-badge ss-connect-err">
+    <i class="ph ph-warning"></i> <span x-text="startError"></span>
+  </div>
+
+</div>
+
+<script src="{% static 'js/workout_session.js' %}"></script>
+{% endblock %}

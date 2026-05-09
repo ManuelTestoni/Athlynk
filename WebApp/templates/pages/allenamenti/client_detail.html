@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ plan.title }} — Dettaglio{% endblock %}
+
+{% block content %}
+<script>
+  window.CLIENT_DETAIL = {
+    days: {{ days_json|safe }},
+    assignment_id: {{ assignment.id }},
+    plan_title: "{{ plan.title|escapejs }}"
+  };
+</script>
+
+<div class="max-w-5xl mx-auto" x-data="clientDetail()">
+
+  <!-- Breadcrumb -->
+  <a href="{% url 'allenamenti_list' %}" class="al-link al-link-quiet inline-flex items-center gap-1 text-[12px] mb-4">
+    <i class="ph ph-arrow-left"></i> Torna ai miei allenamenti
+  </a>
+
+  <!-- SEZIONE A: Plan details -->
+  <div class="al-card mb-6">
+    <p class="al-eyebrow mb-2">Allenamento</p>
+    <h1 class="al-h-1">{{ plan.title }}</h1>
+    {% if plan.description %}<p class="al-body mt-2">{{ plan.description }}</p>{% endif %}
+    <div class="flex flex-wrap items-center gap-2 mt-4">
+      {% if plan.goal %}<span class="al-badge al-badge-aegean">{{ plan.goal }}</span>{% endif %}
+      {% if plan.level %}<span class="al-badge">{{ plan.level }}</span>{% endif %}
+      {% if plan.frequency_per_week %}<span class="al-badge"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+      <span class="al-badge"><i class="ph ph-user"></i> Coach: {{ coach.first_name }} {{ coach.last_name }}</span>
+    </div>
+  </div>
+
+  <!-- Days accordion -->
+  <h2 class="al-h-3 mb-3">Giorni della scheda</h2>
+  <div class="space-y-2 mb-6">
+    {% for day in plan.days.all %}
+    <div class="al-card" x-data="{ open: {{ forloop.counter0 }} === 0 }">
+      <button @click="open = !open" type="button" class="w-full flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-ink); width:30px; height:30px;">{{ day.day_order }}</div>
+          <div class="text-left">
+            <p class="font-bold">{{ day.day_name|default_if_none:"Giorno" }}{% if not day.day_name %} {{ day.day_order }}{% endif %}</p>
+            <p class="al-small" style="color: var(--al-ink-faint);">{{ day.exercises.count }} esercizi</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          {% if assignment.status == 'ACTIVE' %}
+            {% if day.exercises.count > 0 %}
+            <a href="{% url 'client_session_active' assignment.id day.id %}" @click.stop class="al-btn al-btn-bronze al-btn-sm">
+              <i class="ph ph-play"></i> Avvia
+            </a>
+            {% else %}
+            <span class="al-tag" style="background: var(--al-rule-faint); color: var(--al-ink-faint);" title="Nessun esercizio in questo giorno">Vuoto</span>
+            {% endif %}
+          {% endif %}
+          <i class="ph" :class="open ? 'ph-caret-up' : 'ph-caret-down'"></i>
+        </div>
+      </button>
+      <div x-show="open" x-collapse class="mt-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+        <div class="space-y-2">
+          {% for ex in day.exercises.all %}
+          <div class="flex justify-between al-small p-2 border rounded" style="border-color: var(--al-rule-faint);">
+            <div>
+              <span class="font-semibold">{{ ex.exercise.name }}</span>
+              {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
+              {% if ex.technique_notes %}<p class="italic" style="color: var(--al-ink-faint);">{{ ex.technique_notes }}</p>{% endif %}
+            </div>
+            <div style="color: var(--al-ink-faint); white-space: nowrap;">
+              {{ ex.set_count|default:3 }}×{{ ex.rep_range|default:"10" }}
+              {% if ex.load_value %} · {{ ex.load_value }} {% if ex.load_unit == 'KG' %}kg{% elif ex.load_unit == 'PERCENT_1RM' %}%1RM{% else %}BW{% endif %}{% endif %}
+              · {{ ex.recovery_seconds|default:90 }}s
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Volume chart access (link to dedicated view) -->
+  <div class="al-card mb-6 flex items-center justify-between gap-3">
+    <div>
+      <h2 class="al-h-3 mb-1">Volume settimanale per gruppo muscolare</h2>
+      <p class="al-small" style="color: var(--al-ink-faint);">Visualizza il grafico completo in una vista dedicata.</p>
+    </div>
+    <a href="{% url 'client_assignment_volume' assignment.id %}" class="al-btn al-btn-aegean al-btn-sm">
+      <i class="ph ph-chart-bar"></i> Apri grafico
+    </a>
+  </div>
+
+  <!-- SEZIONE B: Storico sessioni (collapsed by default + pagination) -->
+  <div class="al-card mb-6"
+       x-data="sessionsHistory({{ assignment.id }}, {{ has_more_sessions|yesno:'true,false' }}, {{ total_sessions }})">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="al-h-3 mb-1">Storico sessioni</h2>
+        <p class="al-small" style="color: var(--al-ink-faint);">
+          <span x-text="total"></span> sessioni totali
+          <span x-show="loaded > 0"> · <span x-text="loaded"></span> caricate</span>
+        </p>
+      </div>
+      <button type="button" @click="open = !open" class="al-btn al-btn-ghost al-btn-sm">
+        <i class="ph" :class="open ? 'ph-eye-slash' : 'ph-eye'"></i>
+        <span x-text="open ? 'Nascondi' : 'Mostra'"></span>
+      </button>
+    </div>
+
+    <div x-show="open" x-collapse class="mt-4">
+      {% if sessions %}
+      <div class="space-y-3">
+        {% for s in sessions %}
+        <div class="al-card" style="background: var(--al-marble-w); padding: .85rem 1rem;"
+             x-data="{ open: false, full: null, loading: false }">
+          <button @click="open = !open; if(open && !full){ loading = true; fetch('/api/sessioni/' + {{ s.id }} + '/dettaglio/').then(r=>r.json()).then(d=>{ full = d; loading = false; }) }" type="button" class="w-full flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="al-avatar al-avatar-sm al-avatar-sq"
+                   style="background: {% if s.completed %}var(--al-success){% elif s.interrupted %}var(--al-danger){% else %}var(--al-ink-mute){% endif %};">
+                <i class="ph ph-{% if s.completed %}check{% elif s.interrupted %}x{% else %}clock{% endif %}"></i>
+              </div>
+              <div class="text-left">
+                <p class="font-semibold">{{ s.workout_day.day_name|default_if_none:"Giorno" }}{% if not s.workout_day.day_name %} {{ s.workout_day.day_order }}{% endif %}</p>
+                <p class="al-small" style="color: var(--al-ink-faint);">
+                  {{ s.started_at|date:"d M Y H:i" }}
+                  {% if s.duration_minutes %} · {{ s.duration_minutes }} min{% endif %}
+                  {% if s.avg_rpe %} · RPE {{ s.avg_rpe }}{% endif %}
+                </p>
+              </div>
+            </div>
+            <i class="ph" :class="open ? 'ph-caret-up' : 'ph-caret-down'"></i>
+          </button>
+
+          <div x-show="open" x-collapse class="mt-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+            <p x-show="loading" class="al-small">Caricamento...</p>
+            <template x-if="full">
+              <div>
+                <p x-show="full.notes" class="italic mb-3" x-text="'Note: ' + full.notes"></p>
+                <template x-for="ex in full.exercises" :key="ex.workout_exercise_id">
+                  <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
+                    <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
+                    <table class="w-full al-small">
+                      <thead>
+                        <tr style="color: var(--al-ink-faint);"><th class="text-left">Serie</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th><th class="text-left">Note</th></tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="set in ex.sets" :key="set.set_number">
+                          <tr><td x-text="set.set_number"></td><td x-text="set.reps_done ?? '—'"></td><td x-text="(set.load_used ?? '—') + (set.load_unit==='KG'?' kg':(set.load_unit==='PERCENT_1RM'?'%':''))"></td><td x-text="set.rpe ?? '—'"></td><td x-text="set.notes"></td></tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+                <div x-show="full.media.length" class="mt-3">
+                  <p class="al-small font-semibold mb-2">Allegati</p>
+                  <div class="grid grid-cols-3 gap-2">
+                    <template x-for="m in full.media" :key="m.id">
+                      <a :href="m.url" target="_blank" class="block">
+                        <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-24 object-cover rounded"></template>
+                        <template x-if="m.type === 'VIDEO'"><div class="w-full h-24 rounded flex items-center justify-center" style="background: var(--al-ink); color: var(--al-parchment);"><i class="ph ph-video text-2xl"></i></div></template>
+                      </a>
+                    </template>
+                  </div>
+                </div>
+                <div x-show="full.coach_notes.length" class="mt-3">
+                  <p class="al-small font-semibold mb-1">Note del tuo coach</p>
+                  <template x-for="n in full.coach_notes" :key="n.id">
+                    <div class="al-card" style="background: var(--al-marble-warm); padding: .5rem .75rem; margin-bottom:.25rem;">
+                      <p class="al-small" x-text="n.text"></p>
+                      <p class="al-small italic" style="color: var(--al-ink-faint);" x-text="n.coach_name + ' · ' + new Date(n.created_at).toLocaleString('it-IT')"></p>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Dynamically loaded extra sessions -->
+      <div class="space-y-3 mt-3">
+        <template x-for="s in extra" :key="s.id">
+          <div class="al-card" style="background: var(--al-marble-w); padding: .85rem 1rem;"
+               x-data="{ open: false, full: null, loading: false }">
+            <button @click="open = !open; if(open && !full){ loading = true; fetch('/api/sessioni/' + s.id + '/dettaglio/').then(r=>r.json()).then(d=>{ full = d; loading = false; }) }" type="button" class="w-full flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="al-avatar al-avatar-sm al-avatar-sq"
+                     :style="'background:' + (s.completed ? 'var(--al-success)' : (s.interrupted ? 'var(--al-danger)' : 'var(--al-ink-mute)'))">
+                  <i class="ph" :class="s.completed ? 'ph-check' : (s.interrupted ? 'ph-x' : 'ph-clock')"></i>
+                </div>
+                <div class="text-left">
+                  <p class="font-semibold" x-text="s.day_name"></p>
+                  <p class="al-small" style="color: var(--al-ink-faint);">
+                    <span x-text="s.started_at_display"></span>
+                    <template x-if="s.duration_minutes"><span> · <span x-text="s.duration_minutes"></span> min</span></template>
+                    <template x-if="s.avg_rpe"><span> · RPE <span x-text="s.avg_rpe"></span></span></template>
+                  </p>
+                </div>
+              </div>
+              <i class="ph" :class="open ? 'ph-caret-up' : 'ph-caret-down'"></i>
+            </button>
+            <div x-show="open" x-collapse class="mt-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+              <p x-show="loading" class="al-small">Caricamento...</p>
+              <template x-if="full">
+                <div>
+                  <p x-show="full.notes" class="italic mb-3" x-text="'Note: ' + full.notes"></p>
+                  <template x-for="ex in full.exercises" :key="ex.workout_exercise_id">
+                    <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
+                      <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
+                      <table class="w-full al-small">
+                        <thead><tr style="color: var(--al-ink-faint);"><th class="text-left">Serie</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th><th class="text-left">Note</th></tr></thead>
+                        <tbody>
+                          <template x-for="set in ex.sets" :key="set.set_number">
+                            <tr><td x-text="set.set_number"></td><td x-text="set.reps_done ?? '—'"></td><td x-text="(set.load_used ?? '—') + (set.load_unit==='KG'?' kg':(set.load_unit==='PERCENT_1RM'?'%':''))"></td><td x-text="set.rpe ?? '—'"></td><td x-text="set.notes"></td></tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Carica altri -->
+      <div x-show="hasMore" class="text-center mt-4">
+        <button type="button" @click="loadMore()" :disabled="loading" class="al-btn al-btn-light al-btn-sm">
+          <i class="ph ph-arrow-down" x-show="!loading"></i>
+          <i class="ph ph-spinner-gap animate-spin" x-show="loading"></i>
+          <span x-text="loading ? 'Caricamento…' : 'Carica altri 20'"></span>
+        </button>
+      </div>
+      {% else %}
+      <div class="al-card al-card-warm text-center">
+        <p class="al-small italic" style="color: var(--al-ink-faint);">Nessuna sessione completata. Avvia il tuo primo allenamento!</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+function clientDetail() {
+  return {
+    days: window.CLIENT_DETAIL.days,
+    init() {},
+  };
+}
+function sessionsHistory(assignmentId, hasMoreInitial, totalInitial) {
+  return {
+    open: false,
+    assignmentId,
+    extra: [],
+    initialCount: {{ sessions|length }},
+    pageSize: {{ sessions_page_size }},
+    total: totalInitial,
+    hasMore: hasMoreInitial,
+    loading: false,
+    get loaded() { return this.initialCount + this.extra.length; },
+    init() {},
+    async loadMore() {
+      if (this.loading || !this.hasMore) return;
+      this.loading = true;
+      try {
+        const offset = this.initialCount + this.extra.length;
+        const r = await fetch(`/api/allenamenti/assegnazione/${this.assignmentId}/sessioni/?offset=${offset}&limit=${this.pageSize}`);
+        if (!r.ok) throw new Error('fetch failed');
+        const d = await r.json();
+        this.extra = [...this.extra, ...(d.sessions || [])];
+        this.hasMore = !!d.has_more;
+        this.total = d.total ?? this.total;
+      } catch (e) {
+        alert('Errore nel caricamento delle sessioni.');
+      } finally {
+        this.loading = false;
+      }
+    },
+  };
+}
+window.clientDetail = clientDetail;
+window.sessionsHistory = sessionsHistory;
+</script>
+{% endblock %}
