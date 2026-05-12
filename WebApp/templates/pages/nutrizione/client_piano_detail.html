@@ -90,8 +90,8 @@
       {% for item in md.items %}
       <div class="flex items-center gap-4 px-5 py-3">
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-slate-800">{{ item.food.name }}</p>
-          <p class="text-xs text-slate-400 mt-0.5">{{ item.food.category }}</p>
+          <p class="text-sm font-medium text-slate-800">{{ item.food.nome_alimento }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">{{ item.food.categoria_alimento }}</p>
         </div>
         <div class="text-right shrink-0 space-y-0.5">
           <p class="text-sm font-bold text-slate-700">{{ item.quantity_g|floatformat:0 }}g</p>

@@ -2,20 +2,44 @@ from django.db import models
 
 
 class Food(models.Model):
-    name = models.CharField(max_length=200)
-    category = models.CharField(max_length=100, null=True, blank=True)
-    kcal_per_100g = models.FloatField(default=0)
-    protein_per_100g = models.FloatField(default=0)
-    carb_per_100g = models.FloatField(default=0)
-    fat_per_100g = models.FloatField(default=0)
-    fiber_per_100g = models.FloatField(default=0)
-    sugar_per_100g = models.FloatField(default=0)
+    nome_alimento = models.CharField(max_length=200, db_column='Nome_Alimento')
+    categoria_alimento = models.CharField(max_length=100, null=True, blank=True, db_column='Categoria_Alimento')
+    energia_kcal = models.FloatField(default=0, db_column='Energia(Kcal)')
+    proteine_g = models.FloatField(default=0, db_column='Proteine(g)')
+    lipidi_g = models.FloatField(default=0, db_column='Lipidi(g)')
+    colesterolo_mg = models.FloatField(default=0, db_column='Colesterolo(mg)')
+    carboidrati_g = models.FloatField(default=0, db_column='Carboidrati(g)')
+    carboidrati_solubili_g = models.FloatField(default=0, db_column='Carboidrati_Solubili(g)')
+    fibra_g = models.FloatField(default=0, db_column='Fibra(g)')
+    fe_mg = models.FloatField(default=0, db_column='Fe(mg)')
+    ca_mg = models.FloatField(default=0, db_column='Ca(mg)')
+    na_mg = models.FloatField(default=0, db_column='Na(mg)')
+    k_mg = models.FloatField(default=0, db_column='K(mg)')
+    p_mg = models.FloatField(default=0, db_column='P(mg)')
+    zn_mg = models.FloatField(default=0, db_column='Zn(mg)')
+    mg_mg = models.FloatField(default=0, db_column='Mg(mg)')
+    cu_mg = models.FloatField(default=0, db_column='Cu(mg)')
+    se_ug = models.FloatField(default=0, db_column='Se(ug)')
+    i_ug = models.FloatField(default=0, db_column='I(ug)')
+    mn_mg = models.FloatField(default=0, db_column='Mn(mg)')
+    vit_b1_mg = models.FloatField(default=0, db_column='Vit_B1(mg)')
+    vit_b2_mg = models.FloatField(default=0, db_column='Vit_B2(mg)')
+    vit_c_mg = models.FloatField(default=0, db_column='Vit_C(mg)')
+    niacina_mg = models.FloatField(default=0, db_column='Niacina(mg)')
+    vit_b6_mg = models.FloatField(default=0, db_column='Vit_B6(mg)')
+    folati_ug = models.FloatField(default=0, db_column='Folati(ug)')
+    vit_b12_ug = models.FloatField(default=0, db_column='Vit_B12(ug)')
+    lipidi_saturi_g = models.FloatField(default=0, db_column='Lipidi_Saturi(g)')
+    isoleucina_mg = models.FloatField(default=0, db_column='Isoleucina(mg)')
+    leucina_mg = models.FloatField(default=0, db_column='Leucina(mg)')
+    valina_mg = models.FloatField(default=0, db_column='Valina(mg)')
+    lattosio_g = models.FloatField(default=0, db_column='Lattosio(g)')
 
     class Meta:
-        ordering = ['name']
+        ordering = ['nome_alimento']
 
     def __str__(self):
-        return self.name
+        return self.nome_alimento
 
 
 class NutritionPlan(models.Model):
@@ -60,26 +84,26 @@ class MealItem(models.Model):
 
     @property
     def kcal(self):
-        return round(self.food.kcal_per_100g * self.quantity_g / 100, 1)
+        return round(self.food.energia_kcal * self.quantity_g / 100, 1)
 
     @property
     def protein(self):
-        return round(self.food.protein_per_100g * self.quantity_g / 100, 1)
+        return round(self.food.proteine_g * self.quantity_g / 100, 1)
 
     @property
     def carbs(self):
-        return round(self.food.carb_per_100g * self.quantity_g / 100, 1)
+        return round(self.food.carboidrati_g * self.quantity_g / 100, 1)
 
     @property
     def fat(self):
-        return round(self.food.fat_per_100g * self.quantity_g / 100, 1)
+        return round(self.food.lipidi_g * self.quantity_g / 100, 1)
 
     @property
     def fiber(self):
-        return round(self.food.fiber_per_100g * self.quantity_g / 100, 1)
+        return round(self.food.fibra_g * self.quantity_g / 100, 1)
 
     def __str__(self):
-        return f"{self.quantity_g}g {self.food.name}"
+        return f"{self.quantity_g}g {self.food.nome_alimento}"
 
 
 class Supplement(models.Model):

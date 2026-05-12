@@ -212,3 +212,255 @@ class SessionCoachNote(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+# ---------------------------------------------------------------------------
+# Progression engine models
+# ---------------------------------------------------------------------------
+
+class WeekDefinition(models.Model):
+    TYPE_STANDARD = 'STANDARD'
+    TYPE_DELOAD = 'DELOAD'
+    TYPE_TEST = 'TEST'
+    TYPE_TECHNIQUE = 'TECHNIQUE'
+    TYPE_RECOVERY = 'RECOVERY'
+    WEEK_TYPE_CHOICES = [
+        (TYPE_STANDARD, 'Standard'),
+        (TYPE_DELOAD, 'Deload'),
+        (TYPE_TEST, 'Test'),
+        (TYPE_TECHNIQUE, 'Tecnica'),
+        (TYPE_RECOVERY, 'Recovery'),
+    ]
+
+    workout_plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, related_name='weeks')
+    week_number = models.PositiveIntegerField()
+    label = models.CharField(max_length=40, blank=True, default='')
+    week_type = models.CharField(max_length=20, choices=WEEK_TYPE_CHOICES, default=TYPE_STANDARD)
+    preset = models.CharField(max_length=40, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('workout_plan', 'week_number')]
+        ordering = ['week_number']
+
+    def __str__(self):
+        return f"{self.workout_plan_id} S{self.week_number} ({self.week_type})"
+
+
+class ProgressionRule(models.Model):
+    FAMILY_LOAD = 'LOAD'
+    FAMILY_VOLUME = 'VOLUME'
+    FAMILY_INTENSITY = 'INTENSITY'
+    FAMILY_DENSITY = 'DENSITY'
+    FAMILY_TEMPO = 'TEMPO'
+    FAMILY_ROM = 'ROM'
+    FAMILY_VARIANT = 'VARIANT'
+    FAMILY_FREQUENCY = 'FREQUENCY'
+    FAMILY_UNDULATION = 'UNDULATION'
+    FAMILY_DELOAD = 'DELOAD'
+    FAMILY_VELOCITY = 'VELOCITY'
+    FAMILY_CHOICES = [
+        (FAMILY_LOAD, 'Carico'),
+        (FAMILY_VOLUME, 'Volume'),
+        (FAMILY_INTENSITY, 'Intensità'),
+        (FAMILY_DENSITY, 'Densità'),
+        (FAMILY_TEMPO, 'Tempo'),
+        (FAMILY_ROM, 'ROM'),
+        (FAMILY_VARIANT, 'Variante'),
+        (FAMILY_FREQUENCY, 'Frequenza'),
+        (FAMILY_UNDULATION, 'Ondulazione'),
+        (FAMILY_DELOAD, 'Deload'),
+        (FAMILY_VELOCITY, 'Velocità'),
+    ]
+
+    SUBTYPE_CHOICES = [
+        # LOAD
+        ('LOAD_LINEAR', 'Carico lineare'),
+        ('LOAD_PERCENT', 'Carico percentuale'),
+        ('LOAD_MICRO', 'Micro-load'),
+        ('LOAD_MANUAL', 'Carico manuale per settimana'),
+        ('LOAD_TOP_BACKOFF', 'Top set / Back-off'),
+        # VOLUME
+        ('VOL_SETS', 'Progressione serie'),
+        ('VOL_REPS', 'Progressione reps'),
+        ('VOL_SETS_REPS', 'Serie + reps combinate'),
+        ('VOL_DOUBLE', 'Double progression'),
+        ('VOL_TRIPLE', 'Triple progression'),
+        # INTENSITY
+        ('INT_RPE', 'RPE progressivo'),
+        ('INT_RIR', 'RIR progressivo'),
+        ('INT_PCT1RM', '% 1RM per settimana'),
+        # DENSITY
+        ('DEN_REST', 'Riduzione recupero'),
+        ('DEN_TIME', 'Densità tempo'),
+        # TEMPO
+        ('TEMPO_PRESET', 'Preset tempo'),
+        ('TEMPO_ECC', 'Tempo eccentrico'),
+        ('TEMPO_CON', 'Tempo concentrico'),
+        ('TEMPO_PAUSE', 'Pausa isometrica'),
+        # ROM
+        ('ROM_INCREASE', 'Aumento ROM'),
+        ('ROM_DEFICIT', 'Deficit / rialzo'),
+        ('ROM_PAUSE', 'Pausa in allungamento'),
+        # VARIANT
+        ('VAR_TRANSITION', 'Transizione variante'),
+        # FREQUENCY
+        ('FREQ_ADD', 'Aumento frequenza'),
+        # UNDULATION
+        ('UND_WUP', 'WUP — Ondulata settimanale'),
+        ('UND_DUP', 'DUP — Ondulata giornaliera'),
+        ('UND_BLOCK', 'Periodizzazione a blocchi'),
+        # DELOAD
+        ('DEL_AUTO', 'Deload automatico'),
+        ('DEL_MANUAL', 'Deload manuale'),
+        # VELOCITY
+        ('VEL_TARGET', 'Target velocità'),
+        ('VEL_RANGE', 'Range velocità'),
+    ]
+
+    METRIC_LOAD = 'load'
+    METRIC_SETS = 'sets'
+    METRIC_REPS = 'reps'
+    METRIC_REP_RANGE = 'rep_range'
+    METRIC_RPE = 'rpe'
+    METRIC_RIR = 'rir'
+    METRIC_REST = 'rest'
+    METRIC_TEMPO = 'tempo'
+    METRIC_ROM = 'rom'
+    METRIC_DURATION = 'duration'
+    METRIC_VARIANT = 'exercise_variant'
+    METRIC_FREQUENCY = 'frequency'
+    METRIC_VELOCITY = 'velocity'
+    METRIC_NOTES = 'notes'
+    METRIC_CHOICES = [
+        (METRIC_LOAD, 'Carico'),
+        (METRIC_SETS, 'Serie'),
+        (METRIC_REPS, 'Ripetizioni'),
+        (METRIC_REP_RANGE, 'Range ripetizioni'),
+        (METRIC_RPE, 'RPE'),
+        (METRIC_RIR, 'RIR'),
+        (METRIC_REST, 'Recupero'),
+        (METRIC_TEMPO, 'Tempo'),
+        (METRIC_ROM, 'ROM'),
+        (METRIC_DURATION, 'Durata'),
+        (METRIC_VARIANT, 'Variante'),
+        (METRIC_FREQUENCY, 'Frequenza'),
+        (METRIC_VELOCITY, 'Velocità'),
+        (METRIC_NOTES, 'Note'),
+    ]
+
+    MODE_FIXED = 'FIXED_INCREMENT'
+    MODE_PERCENT = 'PERCENT_INCREMENT'
+    MODE_EXPLICIT = 'EXPLICIT_VALUES'
+    MODE_RULE = 'RULE_BASED'
+    MODE_MILESTONE = 'MILESTONE_BASED'
+    MODE_OVERRIDE = 'MANUAL_OVERRIDE'
+    MODE_CHOICES = [
+        (MODE_FIXED, 'Incremento fisso'),
+        (MODE_PERCENT, 'Incremento percentuale'),
+        (MODE_EXPLICIT, 'Valori espliciti'),
+        (MODE_RULE, 'Basato su regola'),
+        (MODE_MILESTONE, 'Basato su milestone'),
+        (MODE_OVERRIDE, 'Override manuale'),
+    ]
+
+    CONFLICT_LAST_WINS = 'LAST_WINS'
+    CONFLICT_ADD = 'ADD'
+    CONFLICT_MULTIPLY = 'MULTIPLY'
+    CONFLICT_REPLACE = 'REPLACE'
+    CONFLICT_ERROR = 'ERROR'
+    CONFLICT_CHOICES = [
+        (CONFLICT_LAST_WINS, 'Ultimo prevale'),
+        (CONFLICT_ADD, 'Somma'),
+        (CONFLICT_MULTIPLY, 'Moltiplica'),
+        (CONFLICT_REPLACE, 'Sostituisce'),
+        (CONFLICT_ERROR, 'Errore'),
+    ]
+
+    workout_plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, related_name='progression_rules')
+    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='progression_rules')
+    order_index = models.PositiveIntegerField(default=0)
+
+    family = models.CharField(max_length=20, choices=FAMILY_CHOICES)
+    subtype = models.CharField(max_length=40, choices=SUBTYPE_CHOICES)
+    target_metric = models.CharField(max_length=30, choices=METRIC_CHOICES)
+    application_mode = models.CharField(max_length=30, choices=MODE_CHOICES, default=MODE_FIXED)
+
+    start_week = models.PositiveIntegerField(default=1)
+    end_week = models.PositiveIntegerField(null=True, blank=True)
+
+    parameters = models.JSONField(default=dict, blank=True)
+    stackable = models.BooleanField(default=True)
+    conflict_strategy = models.CharField(max_length=20, choices=CONFLICT_CHOICES, default=CONFLICT_LAST_WINS)
+    label = models.CharField(max_length=80, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['workout_exercise_id', 'order_index', 'id']
+
+    def __str__(self):
+        return f"{self.subtype} on ex{self.workout_exercise_id}"
+
+
+class WeeklyOverride(models.Model):
+    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='weekly_overrides')
+    week_number = models.PositiveIntegerField()
+    metric = models.CharField(max_length=30, choices=ProgressionRule.METRIC_CHOICES)
+    value_json = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('workout_exercise', 'week_number', 'metric')]
+        ordering = ['workout_exercise_id', 'week_number', 'metric']
+
+    def __str__(self):
+        return f"override ex{self.workout_exercise_id} S{self.week_number} {self.metric}"
+
+
+class WeeklyValue(models.Model):
+    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='weekly_values')
+    week_number = models.PositiveIntegerField()
+
+    load_value = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    load_unit = models.CharField(max_length=20, blank=True, default='')
+    set_count = models.PositiveSmallIntegerField(null=True, blank=True)
+    rep_range = models.CharField(max_length=32, blank=True, default='')
+    rpe = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    rir = models.PositiveSmallIntegerField(null=True, blank=True)
+    recovery_seconds = models.PositiveIntegerField(null=True, blank=True)
+    tempo = models.CharField(max_length=10, blank=True, default='')
+    rom_stage = models.CharField(max_length=20, blank=True, default='')
+    variant_exercise = models.ForeignKey(
+        Exercise, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='weekly_value_variants',
+    )
+    velocity_target = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    is_override = models.BooleanField(default=False)
+    is_deload = models.BooleanField(default=False)
+    computed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('workout_exercise', 'week_number')]
+        ordering = ['workout_exercise_id', 'week_number']
+        indexes = [models.Index(fields=['workout_exercise', 'week_number'])]
+
+    def __str__(self):
+        return f"value ex{self.workout_exercise_id} S{self.week_number}"
+
+
+class ExerciseVariantTransition(models.Model):
+    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='variant_transitions')
+    week_number = models.PositiveIntegerField()
+    target_exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name='variant_transition_targets')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('workout_exercise', 'week_number')]
+        ordering = ['workout_exercise_id', 'week_number']

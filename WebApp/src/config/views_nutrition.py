@@ -182,12 +182,12 @@ def nutrizione_piano_edit_view(request, plan_id):
         for item in meal.items.all():
             items_data.append({
                 'food_id': item.food_id,
-                'food_name': item.food.name,
+                'food_name': item.food.nome_alimento,
                 'quantity_g': item.quantity_g,
-                'kcal_per_100g': item.food.kcal_per_100g,
-                'protein_per_100g': item.food.protein_per_100g,
-                'carb_per_100g': item.food.carb_per_100g,
-                'fat_per_100g': item.food.fat_per_100g,
+                'kcal_per_100g': item.food.energia_kcal,
+                'protein_per_100g': item.food.proteine_g,
+                'carb_per_100g': item.food.carboidrati_g,
+                'fat_per_100g': item.food.lipidi_g,
                 'notes': item.notes or '',
             })
         meals_data.append({
@@ -296,22 +296,22 @@ def api_food_search(request):
 
     foods = Food.objects.all()
     if q:
-        foods = foods.filter(name__icontains=q)
+        foods = foods.filter(nome_alimento__icontains=q)
     if category:
-        foods = foods.filter(category=category)
+        foods = foods.filter(categoria_alimento=category)
     foods = foods[:30]
 
     return JsonResponse({
         'results': [
             {
                 'id': f.id,
-                'name': f.name,
-                'category': f.category or '',
-                'kcal': f.kcal_per_100g,
-                'protein': f.protein_per_100g,
-                'carb': f.carb_per_100g,
-                'fat': f.fat_per_100g,
-                'fiber': f.fiber_per_100g,
+                'name': f.nome_alimento,
+                'category': f.categoria_alimento or '',
+                'kcal': f.energia_kcal,
+                'protein': f.proteine_g,
+                'carb': f.carboidrati_g,
+                'fat': f.lipidi_g,
+                'fiber': f.fibra_g,
             }
             for f in foods
         ]

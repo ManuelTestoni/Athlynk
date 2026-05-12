@@ -132,15 +132,15 @@ class Command(BaseCommand):
         for row in FOODS:
             name, category, kcal, protein, carb, fat, fiber, sugar = row
             _, made = Food.objects.get_or_create(
-                name=name,
+                nome_alimento=name,
                 defaults=dict(
-                    category=category,
-                    kcal_per_100g=kcal,
-                    protein_per_100g=protein,
-                    carb_per_100g=carb,
-                    fat_per_100g=fat,
-                    fiber_per_100g=fiber,
-                    sugar_per_100g=sugar,
+                    categoria_alimento=category,
+                    energia_kcal=kcal,
+                    proteine_g=protein,
+                    carboidrati_g=carb,
+                    lipidi_g=fat,
+                    fibra_g=fiber,
+                    carboidrati_solubili_g=sugar,
                 )
             )
             if made:

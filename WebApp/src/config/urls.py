@@ -31,6 +31,7 @@ from . import views_anamnesi
 from . import views_chat
 from . import views_notifications
 from . import views_session
+from . import views_progression
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -102,6 +103,8 @@ urlpatterns = [
     path('api/allenamenti/<int:plan_id>/save/', views_workouts.api_plan_save, name='api_plan_save'),
     path('api/allenamenti/<int:plan_id>/finalize/', views_workouts.api_plan_finalize, name='api_plan_finalize'),
     path('api/allenamenti/<int:plan_id>/elimina/', views_workouts.api_plan_delete, name='api_plan_delete'),
+    path('api/allenamenti/<int:plan_id>/progression/preview/', views_progression.api_progression_preview, name='api_progression_preview'),
+    path('api/allenamenti/<int:plan_id>/progression/week/<int:week_number>/special/', views_progression.api_progression_special_week, name='api_progression_special_week'),
     path('api/clients/search/', views_workouts.api_search_clients, name='api_search_clients'),
     path('api/exercises/search/', views_workouts.api_search_exercises, name='api_search_exercises'),
     path('api/exercises/filters/', views_workouts.api_exercise_filters, name='api_exercise_filters'),

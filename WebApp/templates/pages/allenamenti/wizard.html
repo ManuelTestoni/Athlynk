@@ -43,6 +43,132 @@
     .wiz-drawer { max-width: 100vw; }
   }
   [x-cloak] { display: none !important; }
+
+  /* === Progressione (Step 3) === */
+  .prog-week-pill {
+    padding: .4rem .7rem;
+    border-radius: var(--al-r-sm);
+    border: 1px solid var(--al-rule-faint);
+    background: white;
+    font-weight: 600;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .prog-week-pill:hover { border-color: var(--al-bronze); }
+  .prog-week-pill.is-active { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
+  .prog-week-pill.is-deload { background: rgba(28,74,82,0.1); border-color: var(--al-aegean, #1c4a52); color: var(--al-aegean, #1c4a52); }
+  .prog-week-pill.is-deload.is-active { background: var(--al-aegean, #1c4a52); color: var(--al-parchment); }
+  .prog-week-pill.is-test { background: rgba(166,128,43,0.12); border-color: #a6802b; color: #a6802b; }
+  .prog-week-pill.is-tech { background: rgba(74,107,58,0.12); border-color: #4a6b3a; color: #4a6b3a; }
+  .prog-week-pill.is-recovery { background: rgba(138,58,58,0.1); border-color: #8a3a3a; color: #8a3a3a; }
+  .prog-week-pill-suffix { font-size: .65rem; opacity: .85; text-transform: uppercase; letter-spacing: .03em; }
+
+  .prog-ex-row {
+    padding: .75rem .9rem;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    background: white;
+  }
+  .prog-rule-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--al-bronze, #8a6a3a);
+    color: white;
+    font-size: .7rem;
+    font-weight: 600;
+    cursor: default;
+  }
+  .prog-cell-override {
+    position: relative;
+    padding-right: 10px;
+  }
+  .prog-cell-override::after {
+    content: '•';
+    color: var(--al-bronze, #8a6a3a);
+    font-weight: 900;
+    margin-left: 4px;
+  }
+
+  .prog-preview-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: .35rem;
+  }
+  .prog-preview-cell {
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    padding: .35rem .4rem;
+    background: white;
+    text-align: center;
+    min-height: 54px;
+  }
+  .prog-preview-cell.is-active { border-color: var(--al-ink); box-shadow: inset 0 0 0 1px var(--al-ink); }
+  .prog-preview-cell.is-deload { background: rgba(28,74,82,0.08); border-color: var(--al-aegean, #1c4a52); }
+  .prog-preview-w { font-size: .65rem; color: var(--al-ink-faint); margin: 0; font-weight: 600; }
+  .prog-preview-v { font-size: .8rem; font-weight: 600; margin: 0; line-height: 1.1; }
+
+  /* Per-week analytics + multi-week chart on the progressions step */
+  .prog-analytics {
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md, 8px);
+    padding: .85rem;
+    background: var(--al-stone, #f7f4ee);
+  }
+  .prog-analytics-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: .5rem;
+    margin-bottom: .85rem;
+  }
+  .prog-stat {
+    background: white;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    padding: .45rem .55rem;
+    text-align: center;
+  }
+  .prog-stat-v { font-size: 1.1rem; font-weight: 800; margin: 2px 0 0; line-height: 1.1; }
+  .prog-chart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem;
+  }
+  .prog-chart {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+    gap: .35rem;
+    align-items: end;
+    background: white;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    padding: .6rem .5rem .45rem;
+  }
+  .prog-chart-col {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    cursor: pointer; user-select: none;
+  }
+  .prog-chart-bar-wrap {
+    width: 100%;
+    height: 90px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .prog-chart-bar {
+    width: 70%;
+    min-height: 2px;
+    background: var(--al-bronze, #a6802b);
+    border-radius: 3px 3px 0 0;
+    transition: height .25s ease;
+  }
+  .prog-chart-col.is-active .prog-chart-bar { background: var(--al-ink); }
+  .prog-chart-col:hover .prog-chart-bar { filter: brightness(0.92); }
+  .prog-chart-val { font-size: .68rem; font-weight: 700; margin: 0; color: var(--al-ink); }
+  .prog-chart-w { font-size: .62rem; color: var(--al-ink-faint); margin: 0; font-weight: 600; text-transform: uppercase; }
 </style>
 
 <div x-data="workoutWizard" x-init="init()" x-cloak>
@@ -57,19 +183,20 @@
           <h1 class="al-h-3 leading-tight">
             <span x-show="step === 1">Nuova <span class="al-display-i">scheda</span></span>
             <span x-show="step === 2">Costruisci <span class="al-display-i">la struttura</span></span>
-            <span x-show="step === 3">Riepilogo &amp; <span class="al-display-i">assegna</span></span>
+            <span x-show="step === 3">Progressione <span class="al-display-i">settimanale</span></span>
+            <span x-show="step === 4">Riepilogo &amp; <span class="al-display-i">assegna</span></span>
           </h1>
         </div>
       </div>
 
       <!-- Step indicator -->
       <div class="flex items-center gap-2">
-        <template x-for="s in [1,2,3]" :key="s">
+        <template x-for="s in visibleSteps()" :key="s">
           <div class="flex items-center gap-2">
             <span class="wiz-step-pill"
                   :class="{'is-active': step===s, 'is-done': step>s, 'is-todo': step<s}"
                   x-text="s + '. ' + stepName(s)"></span>
-            <i x-show="s<3" class="ph ph-caret-right" style="color: var(--al-ink-faint);"></i>
+            <i x-show="s < lastVisibleStep()" class="ph ph-caret-right" style="color: var(--al-ink-faint);"></i>
           </div>
         </template>
       </div>
@@ -371,7 +498,7 @@
             <i class="ph ph-arrow-left"></i> Indietro
           </button>
           <button @click="goNext()" type="button" class="al-btn al-btn-bronze">
-            Avanti — Riepilogo <i class="ph ph-arrow-right"></i>
+            Avanti <i class="ph ph-arrow-right"></i>
           </button>
         </div>
       </main>
@@ -427,8 +554,473 @@
     </div>
   </section>
 
-  <!-- ==================== STEP 3 ==================== -->
-  <section x-show="step === 3" class="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
+  <!-- ==================== STEP 3 — PROGRESSIONE ==================== -->
+  <section x-show="step === 3" class="max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
+    <div class="al-card">
+      <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+        <div>
+          <h2 class="al-h-3">Progressione</h2>
+          <p class="al-small" style="color: var(--al-ink-faint);">
+            Definisci come evolvono carico, volume e intensità lungo le <span x-text="plan.duration_weeks"></span> settimane del blocco.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="al-tag" x-text="progression.rules.length + ' regole attive'"></span>
+          <template x-if="progression.conflicts && progression.conflicts.length">
+            <span class="al-badge al-badge-danger" x-text="progression.conflicts.length + ' conflitti'"></span>
+          </template>
+        </div>
+      </div>
+
+      <!-- Week selector -->
+      <div class="flex items-center gap-1 flex-wrap mb-4 pb-3 border-b" style="border-color: var(--al-rule-faint);">
+        <template x-for="w in weekNumbers()" :key="w">
+          <button type="button"
+                  class="prog-week-pill"
+                  :class="{ 'is-active': progUi.activeWeek === w }"
+                  @click="progUi.activeWeek = w">
+            <span x-text="'S' + w"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- Analytics: per-week stats + multi-week bar chart -->
+      <div class="prog-analytics mb-4">
+        <div class="prog-analytics-stats">
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">Settimana</p>
+            <p class="prog-stat-v">S<span x-text="progUi.activeWeek"></span></p>
+          </div>
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">Esercizi</p>
+            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).exercises"></p>
+          </div>
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">Serie totali</p>
+            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).sets"></p>
+          </div>
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">Volume (set×rep)</p>
+            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).volume"></p>
+          </div>
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">Carico (kg)</p>
+            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).tonnage"></p>
+          </div>
+          <div class="prog-stat">
+            <p class="al-eyebrow mb-0">RPE medio</p>
+            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).avg_rpe || '—'"></p>
+          </div>
+        </div>
+
+        <div class="prog-chart-header">
+          <p class="al-eyebrow mb-0">Andamento settimanale</p>
+          <div class="flex items-center gap-1">
+            <button type="button" class="al-btn al-btn-sm"
+                    :class="progUi.chartMetric === 'volume' ? 'al-btn-bronze' : 'al-btn-ghost'"
+                    @click="progUi.chartMetric = 'volume'">Volume</button>
+            <button type="button" class="al-btn al-btn-sm"
+                    :class="progUi.chartMetric === 'tonnage' ? 'al-btn-bronze' : 'al-btn-ghost'"
+                    @click="progUi.chartMetric = 'tonnage'">Carico</button>
+            <button type="button" class="al-btn al-btn-sm"
+                    :class="progUi.chartMetric === 'intensity' ? 'al-btn-bronze' : 'al-btn-ghost'"
+                    @click="progUi.chartMetric = 'intensity'">Intensità</button>
+          </div>
+        </div>
+        <div class="prog-chart">
+          <template x-for="w in weekNumbers()" :key="w">
+            <div class="prog-chart-col"
+                 :class="{ 'is-active': progUi.activeWeek === w }"
+                 @click="progUi.activeWeek = w">
+              <div class="prog-chart-bar-wrap">
+                <div class="prog-chart-bar"
+                     :style="'height: ' + chartBarPct(progUi.chartMetric, w) + '%'"></div>
+              </div>
+              <p class="prog-chart-val" x-text="chartLabelFor(progUi.chartMetric, w)"></p>
+              <p class="prog-chart-w">S<span x-text="w"></span></p>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Day accordion -->
+      <div class="space-y-3">
+        <template x-for="(d, dIdx) in plan.days" :key="d.local_id">
+          <div class="border rounded" style="border-color: var(--al-rule-faint);">
+            <button type="button"
+                    @click="toggleDayOpen(d.local_id)"
+                    class="w-full px-3 py-2 flex items-center justify-between"
+                    style="background: var(--al-stone);">
+              <span class="font-semibold" x-text="d.name + ' · ' + d.exercises.length + ' esercizi'"></span>
+              <i class="ph" :class="dayOpen(d.local_id) ? 'ph-caret-up' : 'ph-caret-down'"></i>
+            </button>
+            <div x-show="dayOpen(d.local_id)" class="p-3 space-y-2">
+              <template x-for="ex in d.exercises" :key="ex.local_id">
+                <div class="prog-ex-row">
+                  <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="flex-1 min-w-0">
+                      <p class="font-semibold" x-text="ex.exercise_name"></p>
+                      <p class="al-small" style="color: var(--al-ink-faint);">
+                        Base: <span x-text="ex.sets + '×' + ex.reps"></span>
+                        <template x-if="ex.load_value"> · <span x-text="ex.load_value + ' ' + (ex.load_unit==='KG'?'kg':ex.load_unit==='PERCENT_1RM'?'%':'BW')"></span></template>
+                        <template x-if="ex.rpe"> · RPE <span x-text="ex.rpe"></span></template>
+                        · <span x-text="ex.recovery_seconds + 's'"></span>
+                      </p>
+                      <p class="al-small mt-1">
+                        <strong>S<span x-text="progUi.activeWeek"></span>:</strong>
+                        <span x-text="formatCell(ex, progUi.activeWeek)"
+                              :class="{'prog-cell-override': cellIsOverride(ex, progUi.activeWeek)}"></span>
+                      </p>
+                      <div class="flex flex-wrap gap-1 mt-2">
+                        <template x-for="r in rulesForExercise(ex)" :key="r.id || r._local_id">
+                          <span class="prog-rule-chip" :title="ruleSummary(r)">
+                            <i class="ph ph-lightning"></i>
+                            <span x-text="ruleChipLabel(r)"></span>
+                          </span>
+                        </template>
+                        <template x-if="rulesForExercise(ex).length === 0">
+                          <span class="al-small italic" style="color: var(--al-ink-faint);">Nessuna progressione</span>
+                        </template>
+                      </div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <button type="button" @click="openProgressionDrawer(ex)"
+                              class="al-btn al-btn-sm"
+                              :class="rulesForExercise(ex).length ? 'al-btn-ghost' : 'al-btn-bronze'">
+                        <i class="ph" :class="rulesForExercise(ex).length ? 'ph-pencil-simple' : 'ph-plus'"></i>
+                        <span x-text="rulesForExercise(ex).length ? 'Modifica' : 'Aggiungi'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="d.exercises.length === 0">
+                <p class="al-small italic" style="color: var(--al-ink-faint);">Giorno vuoto. Torna al builder per aggiungere esercizi.</p>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Step 3 nav -->
+      <div class="flex justify-between gap-3 mt-4 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+        <button @click="goPrev()" type="button" class="al-btn al-btn-ghost">
+          <i class="ph ph-arrow-left"></i> Indietro al builder
+        </button>
+        <button @click="goNext()" type="button" class="al-btn al-btn-bronze">
+          Avanti — Riepilogo <i class="ph ph-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Progression drawer -->
+    <div class="wiz-drawer-backdrop" :class="{open: progUi.drawerOpen}" @click="closeProgressionDrawer()"></div>
+    <div class="wiz-drawer" :class="{open: progUi.drawerOpen}">
+      <div class="p-5" x-show="progUi.drawerOpen">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="al-eyebrow mb-0">Progressione</p>
+            <h3 class="al-h-3" x-text="progUi.activeExercise ? progUi.activeExercise.exercise_name : ''"></h3>
+          </div>
+          <button @click="closeProgressionDrawer()" class="al-btn-icon al-btn-ghost"><i class="ph ph-x"></i></button>
+        </div>
+
+        <!-- Mode: list -->
+        <div x-show="progUi.drawerMode === 'list'" class="space-y-3">
+          <p class="al-eyebrow" x-text="'Progressioni attive (' + (progUi.activeExercise ? rulesForExercise(progUi.activeExercise).length : 0) + ')'"></p>
+          <template x-for="r in (progUi.activeExercise ? rulesForExercise(progUi.activeExercise) : [])" :key="r.id || r._local_id">
+            <div class="border rounded p-3" style="border-color: var(--al-rule-faint);">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="font-semibold" x-text="ruleChipLabel(r)"></p>
+                  <p class="al-small" style="color: var(--al-ink-faint);" x-text="ruleSummary(r)"></p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button type="button" @click="startEditRule(r)" class="al-btn-icon al-btn-ghost"><i class="ph ph-pencil-simple"></i></button>
+                  <button type="button" @click="removeRule(r)" class="al-btn-icon al-btn-ghost"><i class="ph ph-trash" style="color: #b91c1c;"></i></button>
+                </div>
+              </div>
+            </div>
+          </template>
+          <template x-if="progUi.activeExercise && rulesForExercise(progUi.activeExercise).length === 0">
+            <p class="al-small italic" style="color: var(--al-ink-faint);">Nessuna progressione su questo esercizio. La scheda usa i valori base per tutte le settimane.</p>
+          </template>
+
+          <button type="button" @click="startAddRule()" class="al-btn al-btn-bronze w-full">
+            <i class="ph ph-plus"></i> Aggiungi progressione
+          </button>
+
+          <!-- Preview strip -->
+          <div class="mt-4 pt-4 border-t" style="border-color: var(--al-rule-faint);">
+            <p class="al-eyebrow mb-2">Preview settimane</p>
+            <div class="prog-preview-strip">
+              <template x-for="w in weekNumbers()" :key="w">
+                <div class="prog-preview-cell" :class="{
+                       'is-active': progUi.activeWeek === w,
+                       'is-deload': weekTypeOf(w) === 'DELOAD' || (progUi.activeExercise && computedCell(progUi.activeExercise, w).is_deload),
+                     }">
+                  <p class="prog-preview-w">S<span x-text="w"></span></p>
+                  <p class="prog-preview-v" x-text="progUi.activeExercise ? formatCell(progUi.activeExercise, w) : '—'"></p>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode: edit/add -->
+        <div x-show="progUi.drawerMode === 'edit' || progUi.drawerMode === 'add'" class="space-y-4">
+          <button type="button" @click="progUi.drawerMode = 'list'" class="al-btn al-btn-ghost al-btn-sm">
+            <i class="ph ph-arrow-left"></i> Indietro
+          </button>
+
+          <div>
+            <label class="al-label">Famiglia</label>
+            <select class="al-select w-full"
+                    x-model="draftRule.family"
+                    @change="pickFamily(draftRule.family)">
+              <option value="">— Seleziona famiglia —</option>
+              <option value="LOAD">Carico</option>
+              <option value="VOLUME">Volume</option>
+              <option value="INTENSITY">Intensità</option>
+              <option value="DENSITY">Densità</option>
+              <option value="UNDULATION">Ondulazione</option>
+              <option value="DELOAD">Deload</option>
+            </select>
+          </div>
+
+          <div x-show="draftRule.family">
+            <label class="al-label">Sottotipo</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <template x-for="s in subtypesFor(draftRule.family)" :key="s.value">
+                <label class="flex items-center gap-2 p-2 border rounded cursor-pointer"
+                       :class="draftRule.subtype === s.value ? 'border-bronze' : ''"
+                       :style="draftRule.subtype === s.value ? 'background: var(--al-stone); border-color: var(--al-bronze);' : 'border-color: var(--al-rule-faint);'">
+                  <input type="radio" :value="s.value" :name="'subtype-' + (progUi.activeExercise ? progUi.activeExercise.local_id : 'x')"
+                         :checked="draftRule.subtype === s.value"
+                         @change="pickSubtype(s.value)">
+                  <span class="al-small" x-text="s.label"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+
+          <!-- Parameter forms (dynamic per subtype) -->
+          <div x-show="draftRule.subtype" class="space-y-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+            <label class="al-label">Parametri</label>
+
+            <!-- LOAD_LINEAR / LOAD_MICRO -->
+            <template x-if="draftRule.subtype === 'LOAD_LINEAR' || draftRule.subtype === 'LOAD_MICRO'">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="al-small">Delta</label>
+                  <input type="number" step="0.25" class="al-input" x-model.number="draftRule.parameters.delta" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Unità</label>
+                  <select class="al-select" x-model="draftRule.parameters.unit" @change="paramChanged()">
+                    <option value="KG">kg</option>
+                    <option value="PERCENT_1RM">%1RM</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="al-small">Ogni N settimane</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.every_n_weeks" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- LOAD_PERCENT -->
+            <template x-if="draftRule.subtype === 'LOAD_PERCENT'">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="al-small">Delta %</label>
+                  <input type="number" step="0.5" class="al-input" x-model.number="draftRule.parameters.delta_pct" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Arrotonda a</label>
+                  <input type="number" step="0.25" class="al-input" x-model.number="draftRule.parameters.round_to" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Ogni N settimane</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.every_n_weeks" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- LOAD_MANUAL / TEMPO_PRESET / VAR_TRANSITION / VEL_TARGET / UND_WUP / UND_DUP -->
+            <template x-if="['LOAD_MANUAL','TEMPO_PRESET','VEL_TARGET','UND_WUP','UND_DUP','INT_RPE','INT_RIR','INT_PCT1RM'].includes(draftRule.subtype)">
+              <div class="space-y-1">
+                <p class="al-small" style="color: var(--al-ink-faint);">Valore per settimana:</p>
+                <template x-for="w in weekNumbers()" :key="w">
+                  <div class="flex items-center gap-2">
+                    <span class="al-small" style="width: 36px;">S<span x-text="w"></span></span>
+                    <template x-if="draftRule.subtype === 'UND_WUP' || draftRule.subtype === 'UND_DUP'">
+                      <select class="al-select flex-1" :value="(draftRule.parameters.by_week || {})[String(w)] || ''" @change="setByWeek(w, $event.target.value)">
+                        <option value="">—</option>
+                        <option value="HYPERTROPHY">Ipertrofia</option>
+                        <option value="STRENGTH">Forza</option>
+                        <option value="POWER">Potenza</option>
+                        <option value="DELOAD">Deload</option>
+                      </select>
+                    </template>
+                    <template x-if="!['UND_WUP','UND_DUP'].includes(draftRule.subtype)">
+                      <input :type="draftRule.subtype === 'TEMPO_PRESET' ? 'text' : 'number'"
+                             step="0.5" class="al-input flex-1"
+                             :value="(draftRule.parameters.by_week || {})[String(w)] !== undefined ? (draftRule.parameters.by_week || {})[String(w)] : ''"
+                             @input="setByWeek(w, $event.target.value)">
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- VOL_DOUBLE -->
+            <template x-if="draftRule.subtype === 'VOL_DOUBLE'">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="al-small">Reps min</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.rep_low" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Reps max</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.rep_high" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Step carico</label>
+                  <input type="number" step="0.25" class="al-input" x-model.number="draftRule.parameters.load_step" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- VOL_SETS -->
+            <template x-if="draftRule.subtype === 'VOL_SETS'">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="al-small">Da</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.start" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">A</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.end" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Step</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.step" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- VOL_REPS -->
+            <template x-if="draftRule.subtype === 'VOL_REPS'">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="al-small">Reps min</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.min" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Reps max</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.max" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Step</label>
+                  <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.step" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- DEN_REST -->
+            <template x-if="draftRule.subtype === 'DEN_REST'">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="al-small">Inizio (s)</label>
+                  <input type="number" min="0" class="al-input" x-model.number="draftRule.parameters.start_seconds" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Delta (s)</label>
+                  <input type="number" class="al-input" x-model.number="draftRule.parameters.delta_seconds" @input="paramChanged()">
+                </div>
+                <div>
+                  <label class="al-small">Min (s)</label>
+                  <input type="number" min="0" class="al-input" x-model.number="draftRule.parameters.min_seconds" @input="paramChanged()">
+                </div>
+              </div>
+            </template>
+
+            <!-- DEL_AUTO -->
+            <template x-if="draftRule.subtype === 'DEL_AUTO'">
+              <div class="space-y-2">
+                <div>
+                  <label class="al-small">Settimane deload (separate da virgola)</label>
+                  <input type="text" class="al-input" :value="(draftRule.parameters.on_weeks || []).join(', ')"
+                         @input="setOnWeeks($event.target.value)">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <div>
+                    <label class="al-small">Load factor</label>
+                    <input type="number" step="0.05" min="0" max="1" class="al-input" x-model.number="draftRule.parameters.load_factor" @input="paramChanged()">
+                  </div>
+                  <div>
+                    <label class="al-small">Volume factor</label>
+                    <input type="number" step="0.05" min="0" max="1" class="al-input" x-model.number="draftRule.parameters.volume_factor" @input="paramChanged()">
+                  </div>
+                  <div>
+                    <label class="al-small">RPE cap</label>
+                    <input type="number" step="0.5" min="1" max="10" class="al-input" x-model.number="draftRule.parameters.rpe_cap" @input="paramChanged()">
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- ROM_INCREASE -->
+            <template x-if="draftRule.subtype === 'ROM_INCREASE'">
+              <div>
+                <label class="al-small">Stadi (separati da virgola)</label>
+                <input type="text" class="al-input" :value="(draftRule.parameters.stages || ['partial','mid','full']).join(', ')"
+                       @input="setStages($event.target.value)">
+                <label class="al-small mt-2">Settimane per stadio</label>
+                <input type="number" min="1" class="al-input" x-model.number="draftRule.parameters.weeks_per_stage" @input="paramChanged()">
+              </div>
+            </template>
+
+            <!-- Window -->
+            <div class="grid grid-cols-2 gap-2 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+              <div>
+                <label class="al-small">Settimana inizio</label>
+                <input type="number" min="1" :max="plan.duration_weeks" class="al-input" x-model.number="draftRule.start_week" @input="paramChanged()">
+              </div>
+              <div>
+                <label class="al-small">Settimana fine (vuoto = fino alla fine)</label>
+                <input type="number" min="1" :max="plan.duration_weeks" class="al-input" :value="draftRule.end_week || ''" @input="draftRule.end_week = $event.target.value ? Number($event.target.value) : null; paramChanged()">
+              </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="pt-3 border-t" style="border-color: var(--al-rule-faint);">
+              <p class="al-eyebrow mb-2">Preview live</p>
+              <div class="prog-preview-strip">
+                <template x-for="w in weekNumbers()" :key="w">
+                  <div class="prog-preview-cell">
+                    <p class="prog-preview-w">S<span x-text="w"></span></p>
+                    <p class="prog-preview-v" x-text="previewCell(w)"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+            <button type="button" @click="cancelDraftRule()" class="al-btn al-btn-ghost">Annulla</button>
+            <button type="button" @click="saveDraftRule()" :disabled="!canSaveDraftRule()" class="al-btn al-btn-bronze">
+              <i class="ph ph-check"></i> Salva
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== STEP 4 ==================== -->
+  <section x-show="step === 4" class="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
     <!-- Recap -->
     <div class="al-card">
       <h2 class="al-h-3" x-text="plan.title"></h2>
@@ -552,7 +1144,7 @@
 
       <div class="flex justify-between gap-3 mt-4 pt-3 border-t" style="border-color: var(--al-rule-faint);">
         <button @click="goPrev()" type="button" class="al-btn al-btn-ghost">
-          <i class="ph ph-arrow-left"></i> Indietro al builder
+          <i class="ph ph-arrow-left"></i> Indietro
         </button>
       </div>
     </div>
@@ -565,5 +1157,5 @@
 
 <!-- SortableJS for drag-drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{% static 'js/workout_wizard.js' %}?v=5"></script>
+<script src="{% static 'js/workout_wizard.js' %}?v=6"></script>
 {% endblock %}

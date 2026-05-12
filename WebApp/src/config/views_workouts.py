@@ -9,8 +9,10 @@ import json
 
 from domain.accounts.models import ClientProfile
 from domain.workouts.models import (
-    Exercise, WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment
+    Exercise, WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment,
+    ProgressionRule, WeekDefinition, WeeklyOverride, WeeklyValue,
 )
+from domain.workouts import progression_engine
 from domain.chat.models import Notification
 
 from .session_utils import (
@@ -135,6 +137,90 @@ def allenamenti_list_view(request):
 # Wizard view (single page, 3 steps)
 # ---------------------------------------------------------------------------
 
+def _decimal_to_float(value):
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _serialize_progression(plan):
+    weeks = [
+        {
+            'id': w.id,
+            'week_number': w.week_number,
+            'label': w.label,
+            'week_type': w.week_type,
+            'preset': w.preset,
+            'notes': w.notes,
+        }
+        for w in plan.weeks.all().order_by('week_number')
+    ]
+
+    rules = [
+        {
+            'id': r.id,
+            'workout_exercise_id': r.workout_exercise_id,
+            'order_index': r.order_index,
+            'family': r.family,
+            'subtype': r.subtype,
+            'target_metric': r.target_metric,
+            'application_mode': r.application_mode,
+            'start_week': r.start_week,
+            'end_week': r.end_week,
+            'parameters': r.parameters or {},
+            'stackable': r.stackable,
+            'conflict_strategy': r.conflict_strategy,
+            'label': r.label,
+        }
+        for r in plan.progression_rules.all().order_by('workout_exercise_id', 'order_index', 'id')
+    ]
+
+    overrides = [
+        {
+            'id': ov.id,
+            'workout_exercise_id': ov.workout_exercise_id,
+            'week_number': ov.week_number,
+            'metric': ov.metric,
+            'value_json': ov.value_json,
+        }
+        for ov in WeeklyOverride.objects.filter(
+            workout_exercise__workout_day__workout_plan=plan,
+        ).order_by('workout_exercise_id', 'week_number', 'metric')
+    ]
+
+    computed = {}
+    for wv in WeeklyValue.objects.filter(
+        workout_exercise__workout_day__workout_plan=plan,
+    ).order_by('workout_exercise_id', 'week_number'):
+        ex_bucket = computed.setdefault(str(wv.workout_exercise_id), {})
+        ex_bucket[str(wv.week_number)] = {
+            'load_value': _decimal_to_float(wv.load_value),
+            'load_unit': wv.load_unit or '',
+            'set_count': wv.set_count,
+            'rep_range': wv.rep_range or '',
+            'rpe': _decimal_to_float(wv.rpe),
+            'rir': wv.rir,
+            'recovery_seconds': wv.recovery_seconds,
+            'tempo': wv.tempo or '',
+            'rom_stage': wv.rom_stage or '',
+            'variant_exercise_id': wv.variant_exercise_id,
+            'velocity_target': _decimal_to_float(wv.velocity_target),
+            'notes': wv.notes or '',
+            'is_override': wv.is_override,
+            'is_deload': wv.is_deload,
+        }
+
+    return {
+        'weeks': weeks,
+        'rules': rules,
+        'overrides': overrides,
+        'computed': computed,
+    }
+
+
 def _serialize_plan_for_wizard(plan):
     days = []
     for d in plan.days.all().order_by('day_order'):
@@ -176,6 +262,7 @@ def _serialize_plan_for_wizard(plan):
         'status': plan.status,
         'last_step': plan.last_step or 1,
         'days': days,
+        'progression': _serialize_progression(plan),
     }
 
 
@@ -199,6 +286,7 @@ def allenamenti_wizard_view(request, plan_id=None):
             'status': 'DRAFT',
             'last_step': 1,
             'days': [],
+            'progression': {'weeks': [], 'rules': [], 'overrides': [], 'computed': {}},
         }
 
     return render(request, 'pages/allenamenti/wizard.html', {
@@ -260,15 +348,16 @@ def _apply_payload_to_plan(plan, data, coach):
             pass
     if 'last_step' in data:
         try:
-            plan.last_step = max(1, min(3, int(data['last_step'])))
+            plan.last_step = max(1, min(4, int(data['last_step'])))
         except (TypeError, ValueError):
             pass
     plan.coach = coach
     plan.save()
 
-    if 'days' not in data:
+    if 'days' not in data and 'progression' not in data:
         return
 
+    ex_local_to_pk = {}
     days_payload = data.get('days') or []
 
     existing_days = {d.id: d for d in plan.days.all()}
@@ -351,6 +440,10 @@ def _apply_payload_to_plan(plan, data, coach):
                 seen_ex_ids.add(we.id)
                 ex_data['pk'] = we.id
 
+            local_id = ex_data.get('local_id')
+            if local_id:
+                ex_local_to_pk[local_id] = we.id
+
         for ex_id, we in existing_ex.items():
             if ex_id not in seen_ex_ids:
                 we.delete()
@@ -358,6 +451,135 @@ def _apply_payload_to_plan(plan, data, coach):
     for day_id, day in existing_days.items():
         if day_id not in seen_day_ids:
             day.delete()
+
+    # Sync week definitions to plan.duration_weeks BEFORE applying rules.
+    progression_engine.sync_week_definitions(plan)
+    progression_engine.truncate_rules_to_duration(plan)
+
+    if 'progression' in data:
+        _apply_progression_payload(plan, data.get('progression') or {}, ex_local_to_pk)
+
+    # Always recompute weekly values to keep cache fresh
+    progression_engine.compute_weekly_values(plan)
+
+
+def _resolve_exercise_id(payload_value, ex_local_to_pk):
+    if payload_value in (None, ''):
+        return None
+    if isinstance(payload_value, int):
+        return payload_value
+    s = str(payload_value)
+    if s.isdigit():
+        return int(s)
+    return ex_local_to_pk.get(s)
+
+
+def _apply_progression_payload(plan, payload, ex_local_to_pk):
+    duration = plan.duration_weeks or 1
+    valid_exercise_ids = set(
+        WorkoutExercise.objects.filter(workout_day__workout_plan=plan).values_list('id', flat=True)
+    )
+
+    # Week definitions (upsert)
+    weeks_payload = payload.get('weeks') or []
+    existing_weeks = {w.week_number: w for w in plan.weeks.all()}
+    for w_data in weeks_payload:
+        try:
+            wn = int(w_data.get('week_number'))
+        except (TypeError, ValueError):
+            continue
+        if wn < 1 or wn > duration:
+            continue
+        wd = existing_weeks.get(wn) or WeekDefinition(workout_plan=plan, week_number=wn)
+        wd.label = (w_data.get('label') or '')[:40]
+        wd.week_type = w_data.get('week_type') or 'STANDARD'
+        wd.preset = (w_data.get('preset') or '')[:40]
+        wd.notes = w_data.get('notes') or ''
+        wd.save()
+
+    # Rules (full diff: upsert + delete missing)
+    rules_payload = payload.get('rules') or []
+    existing_rules = {r.id: r for r in plan.progression_rules.all()}
+    seen_rule_ids = set()
+    for r_data in rules_payload:
+        ex_id = _resolve_exercise_id(
+            r_data.get('workout_exercise_id') or r_data.get('workout_exercise_local_id'),
+            ex_local_to_pk,
+        )
+        if ex_id not in valid_exercise_ids:
+            continue
+        rule_pk = r_data.get('id')
+        rule = existing_rules.get(rule_pk) if rule_pk else None
+        if rule is None:
+            rule = ProgressionRule(workout_plan=plan, workout_exercise_id=ex_id)
+        else:
+            rule.workout_exercise_id = ex_id
+        rule.order_index = int(r_data.get('order_index') or 0)
+        rule.family = r_data.get('family') or ''
+        rule.subtype = r_data.get('subtype') or ''
+        rule.target_metric = r_data.get('target_metric') or ''
+        rule.application_mode = r_data.get('application_mode') or 'FIXED_INCREMENT'
+        try:
+            rule.start_week = max(1, int(r_data.get('start_week') or 1))
+        except (TypeError, ValueError):
+            rule.start_week = 1
+        end_week = r_data.get('end_week')
+        try:
+            rule.end_week = int(end_week) if end_week not in (None, '') else None
+        except (TypeError, ValueError):
+            rule.end_week = None
+        if rule.end_week and rule.end_week > duration:
+            rule.end_week = duration
+        params = r_data.get('parameters') or {}
+        rule.parameters = params if isinstance(params, dict) else {}
+        rule.stackable = bool(r_data.get('stackable', True))
+        rule.conflict_strategy = r_data.get('conflict_strategy') or 'LAST_WINS'
+        rule.label = (r_data.get('label') or '')[:80]
+        rule.save()
+        seen_rule_ids.add(rule.id)
+        r_data['id'] = rule.id
+
+    for rid, rule in existing_rules.items():
+        if rid not in seen_rule_ids:
+            rule.delete()
+
+    # Overrides (full diff)
+    overrides_payload = payload.get('overrides') or []
+    existing_overrides = {
+        (ov.workout_exercise_id, ov.week_number, ov.metric): ov
+        for ov in WeeklyOverride.objects.filter(workout_exercise__workout_day__workout_plan=plan)
+    }
+    seen_override_keys = set()
+    for o_data in overrides_payload:
+        ex_id = _resolve_exercise_id(
+            o_data.get('workout_exercise_id') or o_data.get('workout_exercise_local_id'),
+            ex_local_to_pk,
+        )
+        if ex_id not in valid_exercise_ids:
+            continue
+        try:
+            wn = int(o_data.get('week_number'))
+        except (TypeError, ValueError):
+            continue
+        if wn < 1 or wn > duration:
+            continue
+        metric = o_data.get('metric')
+        if not metric:
+            continue
+        value_json = o_data.get('value_json')
+        if not isinstance(value_json, dict):
+            value_json = {'value': value_json}
+        key = (ex_id, wn, metric)
+        ov = existing_overrides.get(key) or WeeklyOverride(
+            workout_exercise_id=ex_id, week_number=wn, metric=metric,
+        )
+        ov.value_json = value_json
+        ov.save()
+        seen_override_keys.add(key)
+
+    for key, ov in existing_overrides.items():
+        if key not in seen_override_keys:
+            ov.delete()
 
 
 @csrf_exempt

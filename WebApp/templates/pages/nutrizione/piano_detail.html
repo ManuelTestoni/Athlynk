@@ -125,8 +125,8 @@
         {% for item in md.items %}
         <tr class="hover:bg-slate-50 transition-colors">
           <td class="px-5 py-3">
-            <p class="font-medium text-slate-800">{{ item.food.name }}</p>
-            {% if item.food.category %}<p class="text-xs text-slate-400">{{ item.food.category }}</p>{% endif %}
+            <p class="font-medium text-slate-800">{{ item.food.nome_alimento }}</p>
+            {% if item.food.categoria_alimento %}<p class="text-xs text-slate-400">{{ item.food.categoria_alimento }}</p>{% endif %}
           </td>
           <td class="px-3 py-3 text-right text-slate-600">{{ item.quantity_g|floatformat:0 }}</td>
           <td class="px-3 py-3 text-right font-semibold text-slate-800">{{ item.kcal }}</td>
