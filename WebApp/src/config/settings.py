@@ -20,6 +20,34 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
+SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
+CONSENT_VERSION = config('CONSENT_VERSION', default='2026-05-13.v1')
+
+# --- Email configuration ---------------------------------------------------
+# EMAIL_MODE selects the backend. Values:
+#   console          -> stdout (default in dev)
+#   file             -> writes to tmp/emails/
+#   smtp_test        -> real SMTP with a personal test inbox (Gmail/Outlook)
+#   smtp_production  -> real SMTP with provider/domain credentials
+EMAIL_MODE = config('EMAIL_MODE', default='console')
+
+if EMAIL_MODE == 'console':
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+elif EMAIL_MODE == 'file':
+    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+    EMAIL_FILE_PATH = BASE_DIR.parent / 'tmp' / 'emails'
+else:  # smtp_test or smtp_production
+    EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@localhost')
+SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
+
 
 # Application definition
 
@@ -40,6 +68,8 @@ INSTALLED_APPS = [
     'domain.calendar',
     'domain.billing',
     'domain.chat',
+    'domain.newsletter',
+    'domain.consent',
 ]
 
 MIDDLEWARE = [

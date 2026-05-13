@@ -111,6 +111,22 @@
         <span x-show="!pwMatch" class="al-input-error">Le password non coincidono.</span>
     </div>
 
+    <!-- Newsletter opt-in (NON preselezionato, separato dall'accettazione termini) -->
+    <label class="flex items-start gap-3 cursor-pointer pt-2">
+        <input type="checkbox" name="newsletter_optin" class="al-checkbox mt-0.5">
+        <span class="text-[13px] text-ink-soft leading-relaxed">
+            Iscrivimi alla newsletter Athlynk per ricevere tips di allenamento e nutrizione.
+            <span class="al-small block mt-1">Consenso facoltativo, separato dalla registrazione. Puoi disiscriverti in qualsiasi momento.</span>
+        </span>
+    </label>
+
+    <p class="al-small">
+        Creando l'account accetti la
+        <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>
+        e la
+        <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie Policy</a>.
+    </p>
+
     <button type="submit" :disabled="!pwMatch" class="al-btn al-btn-lg w-full justify-center mt-2">
         <span>Crea Account</span>
         <i class="ph ph-arrow-right text-sm"></i>

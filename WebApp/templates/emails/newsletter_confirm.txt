@@ -1,0 +1,14 @@
+Ciao,
+
+hai richiesto l'iscrizione alla newsletter Athlynk.
+
+Per completare l'iscrizione conferma il tuo indirizzo cliccando sul link
+qui sotto:
+
+  {{ confirm_url }}
+
+Se non hai richiesto l'iscrizione, ignora questa email.
+Per non ricevere più questa newsletter: {{ unsubscribe_url }}
+
+— Il team Athlynk
+{{ site_url }}

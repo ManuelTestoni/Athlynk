@@ -48,6 +48,12 @@
                         style="font-size: 13px; font-weight: 500;">
                     <i class="ph ph-shield-check text-base mr-3"></i>Sicurezza
                 </button>
+                <button @click="activeTab = 'newsletter'" type="button"
+                        :class="activeTab === 'newsletter' ? 'border-bronze text-ink bg-marble-warm' : 'border-transparent text-ink-mute hover:text-ink hover:bg-marble'"
+                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
+                        style="font-size: 13px; font-weight: 500;">
+                    <i class="ph ph-envelope text-base mr-3"></i>Newsletter
+                </button>
 
                 <div class="pt-3 mt-3 border-t" style="border-color: var(--al-rule);">
                     <p class="al-tag px-4 mb-2">In arrivo</p>
@@ -271,6 +277,75 @@
                         </button>
                     </div>
                 </form>
+            </div>
+
+            <!-- Newsletter -->
+            <div x-show="activeTab === 'newsletter'" class="p-6 md:p-8" x-cloak
+                 x-data="{
+                    status: '{{ newsletter_status|default:'NONE' }}',
+                    msg: '',
+                    busy: false,
+                    csrf: '{{ csrf_token }}',
+                    async toggle(want) {
+                        this.busy = true; this.msg = '';
+                        const fd = new FormData();
+                        if (want) fd.append('subscribe', 'on');
+                        try {
+                            const r = await fetch('{% url 'newsletter_toggle' %}', {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': this.csrf },
+                                body: fd,
+                            });
+                            const d = await r.json();
+                            if (r.ok) { this.status = d.status; this.msg = d.message; }
+                        } catch(e) { this.msg = 'Errore di rete'; }
+                        finally { this.busy = false; }
+                    }
+                 }">
+                <div class="al-section-head">
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                    <h2 class="al-h-2 mt-1">Newsletter</h2>
+                    <p class="al-small mt-2">Iscriviti per ricevere tips di allenamento, nutrizione e novità Athlynk.</p>
+                </div>
+
+                <div class="max-w-md mt-6 space-y-5">
+                    <div class="al-card al-card-warm" style="padding: 18px;">
+                        <div class="flex items-start gap-3">
+                            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); color: var(--al-parchment);">
+                                <i class="ph ph-envelope-simple"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-ink text-[14px]">{{ auth_user.email }}</p>
+                                <p class="al-small mt-1">
+                                    <template x-if="status === 'CONFIRMED'"><span style="color: var(--al-success);">✓ Iscritto</span></template>
+                                    <template x-if="status === 'PENDING'"><span style="color: var(--al-bronze);">In attesa di conferma — controlla la tua email</span></template>
+                                    <template x-if="status === 'UNSUBSCRIBED' || status === 'NONE'"><span style="color: var(--al-ink-mute);">Non iscritto</span></template>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p x-show="msg" x-text="msg" class="al-small" style="color: var(--al-bronze);"></p>
+
+                    <div class="flex items-center gap-3">
+                        <button type="button" @click="toggle(true)" :disabled="busy || status === 'CONFIRMED' || status === 'PENDING'"
+                                class="al-btn al-btn-bronze">
+                            <i class="ph ph-paper-plane-tilt text-sm"></i>
+                            <span>Iscrivimi</span>
+                        </button>
+                        <button type="button" @click="toggle(false)" :disabled="busy || status === 'UNSUBSCRIBED' || status === 'NONE'"
+                                class="al-btn al-btn-ghost">
+                            <i class="ph ph-x text-sm"></i>
+                            <span>Disiscrivimi</span>
+                        </button>
+                    </div>
+
+                    <p class="al-small pt-3 border-t" style="border-color: var(--al-rule-faint);">
+                        Il consenso alla newsletter è separato dall'accettazione dei termini d'uso. Puoi
+                        modificare questa scelta in qualsiasi momento. Per dettagli vedi la
+                        <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>.
+                    </p>
+                </div>
             </div>
         </div>
     </div>

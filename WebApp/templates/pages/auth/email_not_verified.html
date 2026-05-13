@@ -1,0 +1,37 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Email non verificata{% endblock %}
+{% block auth_eyebrow %}Account in attesa{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph ph-warning-circle text-3xl" style="color:var(--al-bronze);"></i>
+    </div>
+
+    <h1 class="al-h-1" style="font-size: clamp(22px, 3.6vw, 30px);">Conferma la tua email</h1>
+
+    <p class="al-body mt-3">
+        Per accedere devi prima confermare l'indirizzo<br>
+        <strong style="color: var(--al-ink); font-weight: 500;">{{ email }}</strong>
+    </p>
+
+    <p class="al-small mt-5">
+        Controlla la tua casella di posta (e la cartella spam) e clicca sul link di verifica.
+    </p>
+
+    <form action="{% url 'resend_verification' %}" method="POST" class="mt-7">
+        {% csrf_token %}
+        <input type="hidden" name="email" value="{{ email }}">
+        <button type="submit" class="al-btn al-btn-bronze">
+            <i class="ph ph-paper-plane-tilt"></i>
+            <span>Reinvia link di verifica</span>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+<a href="{% url 'login' %}" class="al-link al-link-bronze">Cambia account</a>
+{% endblock %}

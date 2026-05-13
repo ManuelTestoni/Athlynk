@@ -1,0 +1,40 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Link non valido{% endblock %}
+{% block auth_eyebrow %}Verifica account{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph ph-x-circle text-3xl" style="color:var(--al-danger);"></i>
+    </div>
+
+    <h1 class="al-h-1" style="font-size: clamp(22px, 3.6vw, 30px);">
+        {% if expired %}Link scaduto{% else %}Link non valido{% endif %}
+    </h1>
+
+    <p class="al-body mt-3">
+        {% if expired %}
+            Questo link di verifica è scaduto. Richiedi un nuovo link qui sotto.
+        {% else %}
+            Il link di verifica non è valido o è già stato utilizzato.
+        {% endif %}
+    </p>
+
+    {% if expired and email %}
+    <form action="{% url 'resend_verification' %}" method="POST" class="mt-7">
+        {% csrf_token %}
+        <input type="hidden" name="email" value="{{ email }}">
+        <button type="submit" class="al-btn al-btn-bronze">
+            <i class="ph ph-paper-plane-tilt"></i>
+            <span>Richiedi un nuovo link</span>
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+<a href="{% url 'login' %}" class="al-link al-link-bronze">Torna al login</a>
+{% endblock %}

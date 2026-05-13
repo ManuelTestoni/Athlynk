@@ -1,0 +1,13 @@
+Ciao,
+
+grazie per esserti registrato su Athlynk.
+
+Per attivare il tuo account conferma il tuo indirizzo email cliccando sul link
+qui sotto (valido per 7 giorni):
+
+  {{ verify_url }}
+
+Se non hai creato tu questo account, ignora questa email.
+
+— Il team Athlynk
+{{ site_url }}

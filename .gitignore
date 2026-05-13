@@ -129,6 +129,11 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+
+# Email file backend output
+tmp/emails/
+WebApp/tmp/
 .venv
 env/
 venv/

@@ -1,0 +1,28 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Iscrizione confermata{% endblock %}
+{% block auth_eyebrow %}Newsletter{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph-fill ph-check-circle text-3xl" style="color:var(--al-bronze);"></i>
+    </div>
+    <h1 class="al-h-1" style="font-size: clamp(22px, 3.6vw, 30px);">
+        {% if already %}Iscrizione già attiva{% else %}Iscrizione confermata{% endif %}
+    </h1>
+    <p class="al-body mt-3">
+        {% if already %}
+            La newsletter è già attiva su <strong style="color:var(--al-ink); font-weight: 500;">{{ subscriber.email }}</strong>.
+        {% else %}
+            Riceverai i nostri contenuti su <strong style="color:var(--al-ink); font-weight: 500;">{{ subscriber.email }}</strong>.
+            Puoi disiscriverti in qualsiasi momento dal link in ogni email.
+        {% endif %}
+    </p>
+    <a href="/" class="al-btn al-btn-bronze mt-8">
+        <span>Vai al sito</span>
+        <i class="ph ph-arrow-right text-sm"></i>
+    </a>
+</div>
+{% endblock %}

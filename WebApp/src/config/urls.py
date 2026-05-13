@@ -32,6 +32,10 @@ from . import views_chat
 from . import views_notifications
 from . import views_session
 from . import views_progression
+from . import views_search
+from . import views_newsletter
+from . import views_legal
+from . import views_consent
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -40,6 +44,19 @@ urlpatterns = [
     path('login/', views_auth.login_view, name='login'),
     path('registrati/', views_auth.signup_view, name='signup'),
     path('logout/', views_auth.logout_view, name='logout'),
+    path('verify/<str:token>/', views_auth.verify_email_view, name='verify_email'),
+    path('verify/reinvia/', views_auth.resend_verification_view, name='resend_verification'),
+
+    # Legal
+    path('privacy/', views_legal.privacy_view, name='privacy'),
+    path('cookie/', views_legal.cookie_view, name='cookie_policy'),
+    path('cookie/preferenze/', views_legal.cookie_preferences_view, name='cookie_preferences'),
+    path('api/consent/', views_consent.consent_api, name='api_consent'),
+
+    # Newsletter
+    path('newsletter/conferma/<str:token>/', views_newsletter.confirm_subscription, name='newsletter_confirm'),
+    path('newsletter/disiscriviti/<str:token>/', views_newsletter.unsubscribe, name='newsletter_unsubscribe'),
+    path('api/newsletter/toggle/', views_newsletter.toggle_subscription, name='newsletter_toggle'),
     
     path('', views.dashboard_view, name='dashboard'),
 
@@ -116,8 +133,6 @@ urlpatterns = [
     # Agenda
     path('agenda/', views_agenda.agenda_dashboard_view, name='agenda_dashboard'),
     path('api/agenda/events/', views_agenda.api_agenda_events, name='api_agenda_events'),
-    path('agenda/lista/', TemplateView.as_view(template_name='pages/agenda/list.html'), name='agenda_list'),
-    path('agenda/dettaglio/', TemplateView.as_view(template_name='pages/agenda/detail.html'), name='agenda_detail'),
     
     # Abbonamenti
     path('abbonamenti/', views_client.abbonamenti_dashboard_view, name='abbonamenti_dashboard'),
@@ -159,6 +174,9 @@ urlpatterns = [
     path('api/chat/<int:conversation_id>/messages/older/', views_chat.api_messages_before, name='chat_messages_before'),
     path('api/chat/<int:conversation_id>/appointment/', views_chat.api_appointment_request, name='chat_appointment_request'),
     path('api/chat/<int:conversation_id>/appointment/<int:appointment_id>/respond/', views_chat.api_appointment_respond, name='chat_appointment_respond'),
+
+    # Global search
+    path('api/search/', views_search.search_api, name='api_search'),
 
     # Notifications
     path('api/notifications/', views_notifications.api_notifications_list, name='notifications_list'),

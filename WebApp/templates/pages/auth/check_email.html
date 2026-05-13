@@ -1,0 +1,49 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Controlla la tua email{% endblock %}
+{% block auth_eyebrow %}Verifica account{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph ph-envelope-simple text-3xl" style="color:var(--al-bronze);"></i>
+    </div>
+
+    <h1 class="al-h-1" style="font-size: clamp(24px, 3.6vw, 32px);">Controlla la tua casella</h1>
+
+    <p class="al-body mt-3">
+        Abbiamo inviato un link di conferma a<br>
+        <strong style="color: var(--al-ink); font-weight: 500;">{{ email }}</strong>
+    </p>
+
+    {% if resent %}
+    <div class="mt-5 inline-flex items-center gap-2 al-badge-success"
+         style="font-family: var(--al-sans); padding: 8px 14px; letter-spacing: 0; text-transform: none; font-size: 13px;">
+        <i class="ph ph-check"></i>
+        <span>Email reinviata.</span>
+    </div>
+    {% endif %}
+
+    <p class="al-small mt-6">
+        Apri l'email e clicca sul link per attivare l'account.
+        Il link scade dopo 7 giorni.
+    </p>
+
+    <div class="mt-8 pt-6 border-t" style="border-color: var(--al-rule-faint);">
+        <p class="al-small mb-3">Non hai ricevuto l'email?</p>
+        <form action="{% url 'resend_verification' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ email }}">
+            <button type="submit" class="al-btn al-btn-ghost al-btn-sm">
+                <i class="ph ph-arrow-clockwise"></i>
+                <span>Reinvia link</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+<a href="{% url 'login' %}" class="al-link al-link-bronze">Torna al login</a>
+{% endblock %}

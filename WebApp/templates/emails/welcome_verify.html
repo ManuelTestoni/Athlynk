@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Conferma il tuo account Athlynk</title>
+</head>
+<body style="margin:0;padding:0;background:#f4efe4;font-family:'Inter',Helvetica,Arial,sans-serif;color:#14110d;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe4;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+             style="max-width:560px;background:#ffffff;border:1px solid #d8cfba;border-radius:2px;">
+        <tr>
+          <td style="padding:32px 36px 8px;border-bottom:1px solid #ece5d6;">
+            <span style="font-family:'Bodoni Moda',Georgia,serif;font-size:24px;letter-spacing:-0.01em;">Athlynk</span>
+            <div style="height:2px;background:linear-gradient(90deg,transparent,#8a6a3a,transparent);margin-top:18px;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 36px 16px;">
+            <p style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5b554a;margin:0 0 12px;">Conferma account</p>
+            <h1 style="font-family:'Bodoni Moda',Georgia,serif;font-size:24px;margin:0 0 16px;color:#14110d;line-height:1.25;">
+              Conferma la tua email
+            </h1>
+            <p style="font-size:15px;line-height:1.55;color:#2a2620;margin:0 0 22px;">
+              Grazie per esserti registrato su Athlynk. Per attivare il tuo account e
+              accedere alla piattaforma, conferma il tuo indirizzo email cliccando sul
+              pulsante qui sotto.
+            </p>
+            <p style="margin:0 0 26px;">
+              <a href="{{ verify_url }}"
+                 style="display:inline-block;background:#14110d;color:#f4efe4;text-decoration:none;
+                        padding:12px 28px;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;
+                        font-weight:500;border-radius:2px;">
+                Conferma email
+              </a>
+            </p>
+            <p style="font-size:13px;color:#5b554a;line-height:1.5;margin:0 0 12px;">
+              Oppure copia e incolla questo link nel browser:
+            </p>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1c4a52;
+                      word-break:break-all;background:#f4efe4;border:1px solid #ece5d6;
+                      padding:10px 12px;border-radius:2px;margin:0 0 22px;">
+              {{ verify_url }}
+            </p>
+            <p style="font-size:12px;color:#8a8270;margin:0;line-height:1.5;">
+              Il link scade dopo 7 giorni. Se non hai creato tu questo account, ignora
+              questa email.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:18px 36px 28px;border-top:1px solid #ece5d6;background:#f4efe4;">
+            <p style="font-size:11px;color:#8a8270;margin:0;text-align:center;">
+              Athlynk · <a href="{{ site_url }}" style="color:#8a6a3a;text-decoration:none;">{{ site_url }}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

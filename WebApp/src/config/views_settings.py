@@ -4,6 +4,15 @@ from django.contrib.auth.hashers import check_password, make_password
 from .session_utils import get_session_user, get_session_coach, get_session_client
 
 
+def _newsletter_status(email):
+    try:
+        from domain.newsletter.models import Subscriber
+        sub = Subscriber.objects.filter(email=email).first()
+        return sub.status if sub else 'NONE'
+    except Exception:
+        return 'NONE'
+
+
 def impostazioni_view(request):
     user = get_session_user(request)
     if not user:
@@ -61,6 +70,7 @@ def impostazioni_view(request):
             'active_tab': active_tab,
             'error': error,
             'saved': saved,
+            'newsletter_status': _newsletter_status(user.email),
         })
 
     # COACH
@@ -121,4 +131,5 @@ def impostazioni_view(request):
         'active_tab': active_tab,
         'error': error,
         'saved': saved,
+        'newsletter_status': _newsletter_status(user.email),
     })

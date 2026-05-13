@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ partner_name }}{% endblock %}
+{% block page_id %}chat{% endblock %}
 
 {% block content %}
 <div class="-m-4 sm:-m-8 flex flex-col"
@@ -53,10 +54,10 @@
     </div>
 
     <template x-for="m in messages" :key="m.id">
-      <div :class="m.sender_user_id === currentUserId ? 'flex justify-end' : 'flex justify-start'">
-        <div class="flex flex-col" :class="m.sender_user_id === currentUserId ? 'items-end' : 'items-start'">
+      <div :class="m.sender_user_id === currentUserId ? 'flex justify-end' : 'flex justify-start'" class="w-full">
+        <div class="flex flex-col max-w-[78%] sm:max-w-[65%]" :class="m.sender_user_id === currentUserId ? 'items-end' : 'items-start'">
           <div :class="m.sender_user_id === currentUserId ? 'al-bubble-mine' : 'al-bubble-other'"
-               class="max-w-[75%] px-4 py-2.5"
+               class="px-3.5 py-2 leading-relaxed"
                style="border-radius: var(--al-r-sm);">
 
             <template x-if="m.message_type === 'IMAGE' && m.attachment_url">

@@ -1,0 +1,30 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Email confermata{% endblock %}
+{% block auth_eyebrow %}Account attivato{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph-fill ph-check-circle text-3xl" style="color:var(--al-bronze);"></i>
+    </div>
+
+    <h1 class="al-h-1" style="font-size: clamp(24px, 3.6vw, 32px);">
+        {% if already %}Account già attivo{% else %}Email confermata{% endif %}
+    </h1>
+
+    <p class="al-body mt-3">
+        {% if already %}
+            La tua email <strong style="color: var(--al-ink); font-weight: 500;">{{ email }}</strong> è già stata verificata.
+        {% else %}
+            La tua email <strong style="color: var(--al-ink); font-weight: 500;">{{ email }}</strong> è stata verificata con successo.
+        {% endif %}
+    </p>
+
+    <a href="{% url 'login' %}" class="al-btn al-btn-bronze mt-8">
+        <span>Vai al login</span>
+        <i class="ph ph-arrow-right text-sm"></i>
+    </a>
+</div>
+{% endblock %}

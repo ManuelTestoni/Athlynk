@@ -1,3 +1,5 @@
+import json
+from django.conf import settings
 from .session_utils import build_identity_context, get_session_user
 
 _NOTIF_SECTION = {
@@ -50,4 +52,43 @@ def identity_context(request):
             if sec:
                 sidebar_notifications[sec] = sidebar_notifications.get(sec, 0) + 1
     ctx['sidebar_notifications'] = sidebar_notifications
+    ctx['CONSENT_VERSION'] = getattr(settings, 'CONSENT_VERSION', '')
+    ctx['cookie_consent_needed'] = _cookie_consent_needed(request, user)
     return ctx
+
+
+def _cookie_consent_needed(request, user):
+    """Return True if the banner must be shown.
+
+    Rules:
+      - If browser cookie 'cookie_consent' missing or its version differs from
+        settings.CONSENT_VERSION → needed.
+      - If user is logged in and has no CookieConsentRecord for the current
+        version → needed (even if a stale cookie exists from another browser).
+    """
+    target_version = getattr(settings, 'CONSENT_VERSION', '')
+    raw = request.COOKIES.get('cookie_consent')
+    cookie_ok = False
+    if raw:
+        try:
+            data = json.loads(raw)
+            if data.get('version') == target_version:
+                cookie_ok = True
+        except (ValueError, TypeError):
+            cookie_ok = False
+
+    if not cookie_ok:
+        return True
+
+    if user is not None:
+        try:
+            from domain.consent.models import CookieConsentRecord
+            exists = CookieConsentRecord.objects.filter(
+                user=user, consent_version=target_version,
+            ).exists()
+            if not exists:
+                return True
+        except Exception:
+            pass
+
+    return False

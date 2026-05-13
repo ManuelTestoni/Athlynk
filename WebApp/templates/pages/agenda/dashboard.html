@@ -1,354 +1,409 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Agenda{% endblock %}
+{% block page_id %}agenda{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/agenda.css' %}">
+{% endblock %}
 
 {% block content %}
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<div class="max-w-7xl mx-auto" x-data="agendaApp" x-init="init()">
+  {% csrf_token %}
 
-<style>
-/* FullCalendar — Athlynk theme overrides */
-:root {
-  --fc-border-color: rgba(20,17,13,0.08);
-  --fc-button-bg-color: transparent;
-  --fc-button-border-color: rgba(20,17,13,0.32);
-  --fc-button-text-color: #2a2620;
-  --fc-button-hover-bg-color: #ece5d6;
-  --fc-button-hover-border-color: #8a6a3a;
-  --fc-button-active-bg-color: #14110d;
-  --fc-button-active-border-color: #14110d;
-  --fc-today-bg-color: rgba(138,106,58,0.06);
-}
-.fc { font-family: var(--al-sans); color: var(--al-ink); }
-.fc-header-toolbar { margin-bottom: 1.5rem !important; }
-.fc .fc-toolbar-title {
-  font-family: var(--al-display);
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--al-ink);
-  letter-spacing: -0.01em;
-}
-.fc .fc-button-primary {
-  border-radius: var(--al-r-sm);
-  font-family: var(--al-sans);
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 6px 14px;
-  transition: all 0.3s var(--al-ease);
-  outline: none !important;
-  box-shadow: none !important;
-}
-.fc .fc-button-primary:not(:disabled):active,
-.fc .fc-button-primary:not(:disabled).fc-button-active {
-  background-color: var(--al-ink) !important;
-  border-color: var(--al-ink) !important;
-  color: var(--al-parchment) !important;
-}
-.fc .fc-button-primary:hover:not(:disabled):not(.fc-button-active) {
-  background-color: var(--al-marble) !important;
-  color: var(--al-ink) !important;
-  border-color: var(--al-bronze) !important;
-}
-.fc-theme-standard .fc-scrollgrid {
-  border-radius: var(--al-r-sm);
-  overflow: hidden;
-  border: 1px solid var(--al-rule) !important;
-}
-.fc-theme-standard th {
-  padding: 12px 0;
-  font-family: var(--al-sans);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--al-ink-mute);
-  font-weight: 500;
-  background-color: var(--al-marble-warm);
-  border-bottom: 1px solid var(--al-rule-strong) !important;
-}
-.fc-theme-standard td, .fc-theme-standard th { border-color: var(--al-rule-faint) !important; }
-.fc-daygrid-day-number {
-  font-family: var(--al-mono);
-  color: var(--al-ink-soft);
-  font-weight: 500;
-  font-size: 12px;
-  padding: 0.5rem 0.625rem !important;
-}
-.fc-day-today .fc-daygrid-day-number {
-  background: var(--al-ink);
-  color: var(--al-parchment);
-  margin: 0.25rem;
-  padding: 0.25rem 0.5rem !important;
-}
-.fc .fc-timegrid-slot-label-cushion {
-  font-family: var(--al-mono);
-  color: var(--al-ink-line);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-}
-.fc .fc-timegrid-slot { height: 2.5rem; }
-.fc-v-event {
-  background: var(--al-aegean) !important;
-  border: none !important;
-  border-radius: var(--al-r-sm) !important;
-  border-left: 3px solid var(--al-bronze) !important;
-  padding: 4px 8px;
-  box-shadow: 0 2px 8px rgba(28,74,82,0.18);
-}
-.fc-v-event .fc-event-main-frame {
-  color: var(--al-parchment);
-  font-weight: 500;
-  font-size: 12px;
-}
-.fc-v-event .fc-event-title, .fc-v-event .fc-event-time {
-  color: var(--al-parchment);
-  font-family: var(--al-sans);
-}
-.fc-h-event {
-  background: var(--al-aegean) !important;
-  border: none !important;
-  border-radius: var(--al-r-sm) !important;
-  border-left: 3px solid var(--al-bronze) !important;
-  padding: 2px 6px;
-  box-shadow: 0 1px 4px rgba(28,74,82,0.15);
-}
-.fc-h-event .fc-event-title {
-  color: var(--al-parchment);
-  font-weight: 500;
-  font-size: 12px;
-}
-.fc-h-event .fc-event-time { color: rgba(244,239,228,0.8); font-family: var(--al-mono); }
-.fc-timegrid-event .fc-event-main { padding: 2px; }
-.fc-timegrid-now-indicator-line {
-  border-color: var(--al-bronze) !important;
-  border-width: 2px !important;
-}
-.fc-timegrid-now-indicator-arrow { border-color: var(--al-bronze) !important; }
-.fc-col-header-cell-cushion { text-decoration: none !important; }
-.fc-daygrid-day-number { text-decoration: none !important; }
-</style>
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">Studio &middot; Agenda</p>
+      <h1 class="al-h-1">Calendario <span class="al-display-i">appuntamenti</span></h1>
+      <p class="al-body mt-2">Consulenze, check periodici e sessioni — in un unico flusso.</p>
+      <div class="al-rule-bronze mt-5"></div>
+    </div>
+    {% if can_manage_agenda %}
+    <div>
+      <button @click="openCreate(null)" type="button" class="al-btn">
+        <i class="ph ph-plus text-sm"></i>
+        <span>Nuovo appuntamento</span>
+      </button>
+    </div>
+    {% endif %}
+  </div>
 
-<div class="max-w-7xl mx-auto h-full flex flex-col" x-data="agendaDashboard">
-    {% csrf_token %}
+  <div class="agenda-shell">
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 flex-shrink-0">
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="agenda-sidebar">
+      <!-- Mini calendar -->
+      <div class="agenda-sidebar-section">
+        <div class="mini-cal-head">
+          <span class="mini-cal-month" x-text="(new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric'})).format(miniCursor)"></span>
+          <div class="mini-cal-nav">
+            <button @click="miniPrev()" type="button" aria-label="Mese precedente"><i class="ph ph-caret-left text-xs"></i></button>
+            <button @click="miniNext()" type="button" aria-label="Mese successivo"><i class="ph ph-caret-right text-xs"></i></button>
+          </div>
+        </div>
+        <div class="mini-cal-grid">
+          <template x-for="d in dowLabels" :key="d">
+            <div class="mini-cal-dow" x-text="d.charAt(0)"></div>
+          </template>
+          <template x-for="cell in miniGrid()" :key="cell.date.getTime()">
+            <div class="mini-cal-day"
+                 :class="{
+                   'is-out': cell.isOut,
+                   'is-today': cell.isToday,
+                   'is-selected': cell.isSelected,
+                   'has-events': cell.hasEvents,
+                 }"
+                 @click="miniSelect(cell.date)"
+                 x-text="cell.date.getDate()"></div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Type filter -->
+      <div class="agenda-sidebar-section">
+        <p class="agenda-sidebar-title">Tipo</p>
+        <template x-for="t in types" :key="t.value">
+          <label class="agenda-filter-row">
+            <input type="checkbox"
+                   :checked="typeFilter.includes(t.value)"
+                   @change="toggleType(t.value)"
+                   class="al-checkbox">
+            <span class="agenda-filter-swatch" :style="`background: ${t.color};`"></span>
+            <span x-text="t.label"></span>
+          </label>
+        </template>
+      </div>
+
+      <!-- Upcoming -->
+      <div class="agenda-sidebar-section">
+        <p class="agenda-sidebar-title">Prossimi 7 giorni</p>
+        <template x-if="upcomingDays().length === 0">
+          <p class="text-xs text-ink-mute">Nessun appuntamento.</p>
+        </template>
+        <template x-for="g in upcomingDays()" :key="g.date.getTime()">
+          <div>
+            <template x-for="e in g.events" :key="e.id">
+              <div class="agenda-up-item" @click="openDetail(e)">
+                <p class="agenda-up-day" x-text="fmtDayLabel(g.date)"></p>
+                <p class="agenda-up-title" x-text="e.title"></p>
+                <p class="agenda-up-meta">
+                  <span x-text="fmtTime(e._start)"></span>
+                  <span> · </span>
+                  <span x-text="typeLabel(e._type)"></span>
+                </p>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <section class="agenda-main">
+      <!-- Toolbar -->
+      <div class="agenda-toolbar">
+        <div class="agenda-toolbar-left">
+          <div class="agenda-nav">
+            <button @click="prev()" type="button" aria-label="Indietro"><i class="ph ph-caret-left"></i></button>
+            <button @click="goToday()" type="button" class="agenda-nav-today">Oggi</button>
+            <button @click="next()" type="button" aria-label="Avanti"><i class="ph ph-caret-right"></i></button>
+          </div>
+          <h2 class="agenda-title" x-text="headerTitle()"></h2>
+        </div>
+        <div class="agenda-view-switch">
+          <button :class="{ 'is-active': view === 'today' }" @click="setView('today')" type="button">Giorno</button>
+          <button :class="{ 'is-active': view === 'week' }"  @click="setView('week')"  type="button">Settimana</button>
+          <button :class="{ 'is-active': view === 'month' }" @click="setView('month')" type="button">Mese</button>
+        </div>
+      </div>
+
+      <!-- ===== Today view ===== -->
+      <div x-show="view === 'today'">
+        <div class="agenda-today-body">
+          <div class="agenda-today-card">
+            <p class="agenda-today-eyebrow" x-text="isToday(currentDate) ? 'Oggi' : 'Giornata'"></p>
+            <h3 class="agenda-today-headline" x-text="fmtFullDate(currentDate)"></h3>
+            <p class="agenda-today-count"
+               x-text="todayEvents().length + ' ' + (todayEvents().length === 1 ? 'appuntamento' : 'appuntamenti')"></p>
+          </div>
+
+          <template x-if="todayEvents().length === 0">
+            <div class="agenda-empty">
+              <i class="ph ph-calendar-x"></i>
+              <p>Nessun appuntamento per questa giornata.</p>
+              {% if can_manage_agenda %}
+              <button @click="openCreate(currentDate)" type="button" class="al-btn al-btn-sm mt-4">
+                <i class="ph ph-plus text-xs"></i><span>Aggiungi</span>
+              </button>
+              {% endif %}
+            </div>
+          </template>
+
+          <div class="agenda-day-group" x-show="todayEvents().length">
+            <template x-for="e in todayEvents()" :key="e.id">
+              <div class="agenda-event-row" :class="typeClass(e._type)" @click="openDetail(e)">
+                <div class="agenda-event-time">
+                  <span x-text="fmtTime(e._start)"></span><br>
+                  <span class="text-ink-line" x-text="fmtTime(e._end)"></span>
+                </div>
+                <div class="agenda-event-marker"></div>
+                <div class="agenda-event-main">
+                  <p class="agenda-event-title" x-text="e.title"></p>
+                  <p class="agenda-event-sub">
+                    <i class="ph ph-user text-xs"></i>
+                    <span x-text="e.client_name"></span>
+                  </p>
+                </div>
+                <span class="agenda-event-tag" x-text="typeLabel(e._type)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Week view ===== -->
+      <div x-show="view === 'week'" class="agenda-week-wrap">
+        <!-- Header row -->
+        <div class="agenda-week-headrow">
+          <div class="agenda-week-corner"></div>
+          <template x-for="d in weekDays()" :key="'wh-' + d.getTime()">
+            <div class="agenda-week-headcell" :class="{ 'is-today': isToday(d) }">
+              <span x-text="dowLabels[(d.getDay()+6)%7]"></span>
+              <span class="dow-num" x-text="d.getDate()"></span>
+            </div>
+          </template>
+        </div>
+        <!-- Body row -->
+        <div class="agenda-week-body">
+          <div class="agenda-week-gutter">
+            <template x-for="h in weekHours()" :key="'gh-' + h">
+              <div class="agenda-week-hour" x-text="String(h).padStart(2,'0') + ':00'"></div>
+            </template>
+          </div>
+          <template x-for="d in weekDays()" :key="'wcol-' + d.getTime()">
+            <div class="agenda-week-col" :class="{ 'is-today-col': isToday(d) }">
+              <template x-for="h in weekHours()" :key="'wcell-' + d.getTime() + '-' + h">
+                <div class="agenda-week-cell"
+                     @click="openCreate(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0, 0))">
+                </div>
+              </template>
+              <template x-for="e in weekEventsForDay(d)" :key="e.id">
+                <div class="agenda-week-event" :class="typeClass(e._type)"
+                     :style="weekEventStyle(e)"
+                     @click.stop="openDetail(e)">
+                  <span class="we-time" x-text="fmtTime(e._start) + ' – ' + fmtTime(e._end)"></span>
+                  <span class="we-title" x-text="e.title"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ===== Month view ===== -->
+      <div x-show="view === 'month'" class="agenda-month-grid">
+        <template x-for="d in dowLabels" :key="'mh-' + d">
+          <div class="agenda-month-dow" x-text="d"></div>
+        </template>
+        <template x-for="cell in monthGrid()" :key="cell.date.getTime()">
+          <div class="agenda-month-cell"
+               :class="{ 'is-out': cell.isOut, 'is-today': cell.isToday }"
+               @click="openCreate(cell.date)">
+            <span class="agenda-month-num" x-text="cell.date.getDate()"></span>
+            <template x-for="(e, idx) in cell.events.slice(0, 3)" :key="e.id">
+              <span class="agenda-month-pill" :class="typeClass(e._type)"
+                    @click.stop="openDetail(e)"
+                    x-text="fmtTime(e._start) + ' ' + e.title"></span>
+            </template>
+            <span x-show="cell.events.length > 3" class="agenda-month-more"
+                  x-text="'+ ' + (cell.events.length - 3) + ' altri'"></span>
+          </div>
+        </template>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ DETAIL MODAL ============ -->
+  <div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="closeDetail()"></div>
+    <div class="al-modal-panel relative" style="max-width: 480px;" @click.away="closeDetail()">
+      <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
+        <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);"
+           x-text="selectedEvent ? typeLabel(selectedEvent._type) : ''"></p>
+        <div class="flex items-start justify-between gap-3">
+          <h3 class="al-h-2" style="color: var(--al-parchment);" x-text="selectedEvent?.title"></h3>
+          <button @click="closeDetail()" type="button"
+                  class="al-btn-icon al-btn al-btn-ghost shrink-0"
+                  style="color: var(--al-parchment); border-color: rgba(244,239,228,0.2);">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+      </div>
+      <div class="al-modal-body space-y-3" x-show="selectedEvent">
+        <div class="flex items-start gap-3 py-2">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
+            <i class="ph ph-user"></i>
+          </div>
+          <div>
+            <p class="al-tag">Cliente</p>
+            <p class="font-medium text-ink mt-0.5" x-text="selectedEvent?.client_name"></p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
+            <i class="ph ph-clock"></i>
+          </div>
+          <div>
+            <p class="al-tag">Quando</p>
+            <p class="font-medium text-ink mt-0.5"
+               x-text="selectedEvent ? fmtFullDate(selectedEvent._start) + ' · ' + fmtTime(selectedEvent._start) + ' – ' + fmtTime(selectedEvent._end) : ''"></p>
+          </div>
+        </div>
+        <div x-show="selectedEvent?.description" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
+            <i class="ph ph-note"></i>
+          </div>
+          <div>
+            <p class="al-tag mb-1">Note</p>
+            <p class="al-body" x-text="selectedEvent?.description"></p>
+          </div>
+        </div>
+        <div x-show="selectedEvent?.meeting_url" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
+            <i class="ph ph-video-camera"></i>
+          </div>
+          <div>
+            <p class="al-tag mb-1">Link videochiamata</p>
+            <a :href="selectedEvent?.meeting_url" target="_blank"
+               class="al-link al-link-bronze text-[13px] flex items-center gap-1 break-all">
+              <i class="ph ph-arrow-square-out shrink-0"></i>
+              <span x-text="selectedEvent?.meeting_url"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="al-modal-foot">
+        <button @click="closeDetail()" type="button" class="al-btn al-btn-ghost">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CREATE MODAL ============ -->
+  {% if can_manage_agenda %}
+  <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="closeCreate()"></div>
+    <div class="al-modal-panel relative" style="max-width: 540px;" @click.away="closeCreate()">
+      <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
+        <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);">Nuovo</p>
+        <div class="flex items-center justify-between">
+          <h3 class="al-h-2" style="color: var(--al-parchment);">Appuntamento</h3>
+          <button @click="closeCreate()" type="button"
+                  class="al-btn-icon al-btn al-btn-ghost shrink-0"
+                  style="color: var(--al-parchment); border-color: rgba(244,239,228,0.2);">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+      </div>
+      <div class="al-modal-body space-y-5 max-h-[70vh] overflow-y-auto">
+
         <div>
-            <p class="al-eyebrow mb-3">Studio &middot; Agenda</p>
-            <h1 class="al-h-1">Calendario <span class="al-display-i">appuntamenti</span></h1>
-            <p class="al-body mt-2">Consulenze, check periodici e sessioni.</p>
-            <div class="al-rule-bronze mt-5"></div>
+          <label class="al-label">Tipo</label>
+          <div class="grid grid-cols-2 gap-2">
+            <template x-for="opt in types" :key="opt.value">
+              <button type="button"
+                      @click="newEvent.appointment_type = opt.value"
+                      :class="newEvent.appointment_type === opt.value
+                        ? 'border-bronze bg-marble-warm text-ink'
+                        : 'border-rule text-ink-mute hover:border-bronze-soft hover:bg-marble'"
+                      class="flex items-center gap-2.5 px-3.5 py-2.5 border transition-all text-left text-[13px] font-medium"
+                      style="border-radius: var(--al-r-sm);">
+                <i :class="opt.icon" class="text-base"></i>
+                <span x-text="opt.label"></span>
+              </button>
+            </template>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button @click="connectGoogle" type="button" class="al-btn al-btn-ghost al-btn-sm">
-                <i class="ph ph-google-logo text-base"></i>
-                <span class="hidden sm:inline">Google</span>
+
+        <div>
+          <label class="al-label">Titolo</label>
+          <input type="text" x-model="newEvent.title" class="al-input" :placeholder="typePlaceholder()">
+        </div>
+
+        <div>
+          <label class="al-label">Cliente</label>
+          <div class="relative">
+            <input type="text" x-model="clientSearchQuery" @input.debounce.300ms="searchClients()"
+                   class="al-input" placeholder="Cerca per nome...">
+            <div x-show="clientSearchResults.length > 0"
+                 class="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto"
+                 style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
+              <template x-for="cl in clientSearchResults" :key="cl.id">
+                <div @click="selectClient(cl)"
+                     class="px-4 py-2.5 hover:bg-marble cursor-pointer text-[13px] text-ink-soft font-medium transition-colors"
+                     x-text="cl.name"></div>
+              </template>
+            </div>
+          </div>
+          <div x-show="newEvent.client_id"
+               class="mt-2 text-xs flex items-center gap-2 al-badge al-badge-success"
+               style="font-family: var(--al-sans); padding: 6px 10px; letter-spacing: 0; text-transform: none; font-size: 12px;">
+            <i class="ph-fill ph-check-circle"></i>
+            <span x-text="selectedClientName"></span>
+            <button @click="newEvent.client_id = null; selectedClientName = ''" type="button" class="ml-auto hover:text-danger">
+              <i class="ph ph-x text-xs"></i>
             </button>
-            <button @click="connectApple" type="button" class="al-btn al-btn-ghost al-btn-sm">
-                <i class="ph ph-apple-logo text-base"></i>
-                <span class="hidden sm:inline">Apple</span>
-            </button>
-            {% if can_manage_agenda %}
-            <button @click="openCreateModal()" type="button" class="al-btn">
-                <i class="ph ph-plus text-sm"></i>
-                <span>Nuovo</span>
-            </button>
-            {% endif %}
+          </div>
         </div>
-    </div>
 
-    <!-- Calendar -->
-    <div class="al-card al-card-flush mb-6">
-        <div class="p-6">
-            <div id="calendar" class="w-full min-h-[600px]"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="al-label">Inizio</label>
+            <input type="datetime-local" x-model="newEvent.start_datetime" class="al-input">
+          </div>
+          <div>
+            <label class="al-label">Fine</label>
+            <input type="datetime-local" x-model="newEvent.end_datetime" class="al-input">
+          </div>
         </div>
-    </div>
 
-    <!-- Modal Dettaglio -->
-    <div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="al-modal-backdrop" @click="showDetailModal = false"></div>
-        <div class="al-modal-panel relative" style="max-width: 480px;" @click.away="showDetailModal = false">
-            <!-- Dark header -->
-            <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
-                <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);" x-text="selectedEvent?.extendedProps?.type"></p>
-                <div class="flex items-start justify-between gap-3">
-                    <h3 class="al-h-2" style="color: var(--al-parchment);" x-text="selectedEvent?.title"></h3>
-                    <button @click="showDetailModal = false" type="button"
-                            class="al-btn-icon al-btn al-btn-ghost shrink-0"
-                            style="color: var(--al-parchment); border-color: rgba(244,239,228,0.2);">
-                        <i class="ph ph-x"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="al-modal-body space-y-3">
-                <div class="flex items-start gap-3 py-2">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
-                        <i class="ph ph-user"></i>
-                    </div>
-                    <div>
-                        <p class="al-tag">Cliente</p>
-                        <p class="font-medium text-ink mt-0.5" x-text="selectedEvent?.extendedProps?.client_name"></p>
-                    </div>
-                </div>
-                <div class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
-                        <i class="ph ph-clock"></i>
-                    </div>
-                    <div>
-                        <p class="al-tag">Data e ora</p>
-                        <p class="font-medium text-ink mt-0.5" x-text="formatDate(selectedEvent?.start) + ' · ' + formatTime(selectedEvent?.start) + ' – ' + formatTime(selectedEvent?.end)"></p>
-                    </div>
-                </div>
-                <div x-show="selectedEvent?.extendedProps?.description" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
-                        <i class="ph ph-note"></i>
-                    </div>
-                    <div>
-                        <p class="al-tag mb-1">Note</p>
-                        <p class="al-body" x-text="selectedEvent?.extendedProps?.description"></p>
-                    </div>
-                </div>
-                <div x-show="selectedEvent?.extendedProps?.meeting_url" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
-                        <i class="ph ph-video-camera"></i>
-                    </div>
-                    <div>
-                        <p class="al-tag mb-1">Link videochiamata</p>
-                        <a :href="selectedEvent?.extendedProps?.meeting_url" target="_blank" class="al-link al-link-bronze text-[13px] flex items-center gap-1 break-all">
-                            <i class="ph ph-arrow-square-out shrink-0"></i>
-                            <span x-text="selectedEvent?.extendedProps?.meeting_url"></span>
-                        </a>
-                    </div>
-                </div>
-                <div x-show="selectedEvent?.extendedProps?.check_url" class="al-card al-card-warm" style="margin-top: 12px;">
-                    <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Check Progressi</p>
-                    <p class="al-body mb-4">Compila il check legato a questo appuntamento.</p>
-                    <a :href="selectedEvent?.extendedProps?.check_url" class="al-btn al-btn-sm al-btn-bronze">
-                        <i class="ph ph-paper-plane-tilt text-xs"></i>
-                        <span>Compila check</span>
-                    </a>
-                </div>
-            </div>
-            <div class="al-modal-foot">
-                <button @click="showDetailModal = false" type="button" class="al-btn al-btn-ghost">Chiudi</button>
-            </div>
+        <div x-show="newEvent.appointment_type === 'check'" class="al-card al-card-warm space-y-3" style="padding: 16px;">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" x-model="newEvent.is_recurring" class="al-checkbox">
+            <span class="text-[13px] font-medium text-ink">Check ricorrente</span>
+          </label>
+          <div x-show="newEvent.is_recurring">
+            <label class="al-label">Frequenza <span class="al-tag" style="margin-left: 6px;">8 appuntamenti</span></label>
+            <select x-model="newEvent.recurrence_rule" class="al-select">
+              <option value="settimanale">Settimanale</option>
+              <option value="bisettimanale">Bisettimanale</option>
+              <option value="mensile">Mensile</option>
+            </select>
+          </div>
         </div>
-    </div>
 
-    <!-- Modal Crea -->
-    <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="al-modal-backdrop" @click="showCreateModal = false"></div>
-        <div class="al-modal-panel relative" style="max-width: 540px;" @click.away="showCreateModal = false">
-            <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
-                <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);">Nuovo</p>
-                <div class="flex items-center justify-between">
-                    <h3 class="al-h-2" style="color: var(--al-parchment);">Appuntamento</h3>
-                    <button @click="showCreateModal = false" type="button"
-                            class="al-btn-icon al-btn al-btn-ghost shrink-0"
-                            style="color: var(--al-parchment); border-color: rgba(244,239,228,0.2);">
-                        <i class="ph ph-x"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="al-modal-body space-y-5 max-h-[70vh] overflow-y-auto">
-                <!-- Tipo -->
-                <div>
-                    <label class="al-label">Tipo</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <template x-for="opt in appointmentTypes" :key="opt.value">
-                            <button type="button"
-                                    @click="newEvent.appointment_type = opt.value"
-                                    :class="newEvent.appointment_type === opt.value
-                                        ? 'border-bronze bg-marble-warm text-ink'
-                                        : 'border-rule text-ink-mute hover:border-bronze-soft hover:bg-marble'"
-                                    class="flex items-center gap-2.5 px-3.5 py-2.5 border transition-all text-left text-[13px] font-medium"
-                                    style="border-radius: var(--al-r-sm);">
-                                <span x-text="opt.icon" class="text-base leading-none"></span>
-                                <span x-text="opt.label"></span>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Titolo -->
-                <div>
-                    <label class="al-label">Titolo</label>
-                    <input type="text" x-model="newEvent.title" class="al-input" :placeholder="appointmentTypePlaceholder()">
-                </div>
-
-                <!-- Cliente -->
-                <div>
-                    <label class="al-label">Cliente</label>
-                    <div class="relative">
-                        <input type="text" x-model="clientSearchQuery" @input.debounce.300ms="searchClients" class="al-input" placeholder="Cerca per nome...">
-                        <div x-show="clientSearchResults.length > 0"
-                             class="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto"
-                             style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
-                            <template x-for="cl in clientSearchResults" :key="cl.id">
-                                <div @click="selectClient(cl)" class="px-4 py-2.5 hover:bg-marble cursor-pointer text-[13px] text-ink-soft font-medium transition-colors" x-text="cl.name"></div>
-                            </template>
-                        </div>
-                    </div>
-                    <div x-show="newEvent.client_id" class="mt-2 text-xs flex items-center gap-2 al-badge al-badge-success" style="font-family: var(--al-sans); padding: 6px 10px; letter-spacing: 0; text-transform: none; font-size: 12px;">
-                        <i class="ph-fill ph-check-circle"></i>
-                        <span x-text="selectedClientName"></span>
-                        <button @click="newEvent.client_id=null; selectedClientName=''" type="button" class="ml-auto hover:text-danger">
-                            <i class="ph ph-x text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Date -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="al-label">Inizio</label>
-                        <input type="datetime-local" x-model="newEvent.start_datetime" class="al-input">
-                    </div>
-                    <div>
-                        <label class="al-label">Fine</label>
-                        <input type="datetime-local" x-model="newEvent.end_datetime" class="al-input">
-                    </div>
-                </div>
-
-                <!-- Recurring (check) -->
-                <div x-show="newEvent.appointment_type === 'check'" class="al-card al-card-warm space-y-3" style="padding: 16px;">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" x-model="newEvent.is_recurring" class="al-checkbox">
-                        <span class="text-[13px] font-medium text-ink">Check ricorrente</span>
-                    </label>
-                    <div x-show="newEvent.is_recurring">
-                        <label class="al-label">Frequenza <span class="al-tag" style="margin-left: 6px;">8 appuntamenti</span></label>
-                        <select x-model="newEvent.recurrence_rule" class="al-select">
-                            <option value="settimanale">Settimanale</option>
-                            <option value="bisettimanale">Bisettimanale</option>
-                            <option value="mensile">Mensile</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Meeting URL -->
-                <div x-show="newEvent.appointment_type === 'consulenza'">
-                    <label class="al-label">Link videochiamata</label>
-                    <input type="url" x-model="newEvent.meeting_url" class="al-input" placeholder="https://meet.google.com/...">
-                </div>
-
-                <!-- Note -->
-                <div>
-                    <label class="al-label">Note (opzionale)</label>
-                    <textarea x-model="newEvent.description" rows="2" class="al-textarea"></textarea>
-                </div>
-            </div>
-            <div class="al-modal-foot">
-                <button @click="showCreateModal = false" type="button" class="al-btn al-btn-ghost">Annulla</button>
-                <button @click="saveAppointment()" type="button" class="al-btn al-btn-bronze">Salva</button>
-            </div>
+        <div x-show="newEvent.appointment_type === 'consulenza'">
+          <label class="al-label">Link videochiamata</label>
+          <input type="url" x-model="newEvent.meeting_url" class="al-input" placeholder="https://meet.google.com/...">
         </div>
+
+        <div>
+          <label class="al-label">Note (opzionale)</label>
+          <textarea x-model="newEvent.description" rows="2" class="al-textarea"></textarea>
+        </div>
+      </div>
+      <div class="al-modal-foot">
+        <button @click="closeCreate()" type="button" class="al-btn al-btn-ghost">Annulla</button>
+        <button @click="saveAppointment()" type="button" class="al-btn al-btn-bronze">Salva</button>
+      </div>
     </div>
+  </div>
+  {% endif %}
 </div>
 
-<script>window.INITIAL_EVENTS = {{ events_json|safe }};</script>
-<script src="/static/js/agenda_dashboard.js"></script>
-
+<script>
+  window.AGENDA_CAN_MANAGE = {% if can_manage_agenda %}true{% else %}false{% endif %};
+</script>
+<script src="{% static 'js/agenda_v2.js' %}"></script>
 {% endblock %}

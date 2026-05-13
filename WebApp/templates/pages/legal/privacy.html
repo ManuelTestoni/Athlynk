@@ -1,0 +1,86 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Privacy Policy{% endblock %}
+
+{% block legal_content %}
+<article class="space-y-6">
+  <header>
+    <p class="al-eyebrow">Informativa</p>
+    <h1 class="al-h-1 mt-2">Privacy Policy</h1>
+    <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">1. Titolare del trattamento</h2>
+    <p class="al-body">
+      <!-- TODO: inserire ragione sociale, indirizzo, P.IVA / C.F., email di contatto, eventuale DPO. -->
+      <em>[TODO: Titolare del trattamento — ragione sociale, indirizzo, contatti, eventuale DPO]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">2. Dati raccolti</h2>
+    <p class="al-body">
+      <!-- TODO: elencare le categorie di dati: account (email, nome, ruolo, password hash),
+           profilo (foto, città, bio, dati di salute per gli atleti), uso piattaforma (logs, IP),
+           comunicazioni (chat, appuntamenti). -->
+      <em>[TODO: Categorie di dati personali trattati]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">3. Finalità e base giuridica</h2>
+    <p class="al-body">
+      <!-- TODO: per ogni finalità (esecuzione contratto, marketing, obblighi di legge, interesse legittimo)
+           specificare la base giuridica art. 6 GDPR. -->
+      <em>[TODO: Finalità del trattamento e base giuridica ex art. 6 GDPR]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">4. Categorie di destinatari</h2>
+    <p class="al-body">
+      <em>[TODO: Hosting provider, email provider (SMTP), strumenti analytics, eventuali responsabili esterni]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">5. Periodo di conservazione</h2>
+    <p class="al-body">
+      <em>[TODO: Tempi di conservazione per categoria di dato. Esempio: account = vita del rapporto + 10 anni per obblighi fiscali]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">6. Diritti dell'interessato</h2>
+    <p class="al-body">
+      Hai diritto di accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e reclamo
+      al Garante. Per esercitare questi diritti scrivi a <em>[TODO: email di contatto]</em>.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">7. Trasferimenti extra-UE</h2>
+    <p class="al-body">
+      <em>[TODO: Specificare se vengono trasferiti dati fuori dall'UE e su quali basi (SCC, adeguatezza)]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">8. Modifiche alla policy</h2>
+    <p class="al-body">
+      Ogni modifica sostanziale a questa informativa verrà notificata via email o tramite avviso in
+      piattaforma. La versione attuale è identificata da: <span class="font-mono">{{ consent_version }}</span>.
+    </p>
+  </section>
+
+  <div class="al-card al-card-warm mt-6" style="padding: 16px;">
+    <p class="al-tag mb-2" style="color: var(--al-bronze);">Nota</p>
+    <p class="al-small">
+      I testi di questa pagina sono placeholder strutturati. Prima della messa online vanno compilati
+      con i dati reali del titolare e revisionati da un consulente privacy.
+    </p>
+  </div>
+</article>
+{% endblock %}

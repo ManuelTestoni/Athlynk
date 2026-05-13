@@ -1,0 +1,107 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Cookie Policy{% endblock %}
+
+{% block legal_content %}
+<article class="space-y-6">
+  <header>
+    <p class="al-eyebrow">Informativa</p>
+    <h1 class="al-h-1 mt-2">Cookie Policy</h1>
+    <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">Cosa sono i cookie</h2>
+    <p class="al-body">
+      I cookie sono piccoli file di testo che i siti visitati salvano sul tuo dispositivo. Servono a
+      farli funzionare correttamente o a raccogliere informazioni sull'uso che ne fai. Insieme ai
+      cookie possiamo usare tecnologie simili (es. localStorage, pixel) — in questa pagina li
+      chiamiamo tutti "cookie" per semplicità.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">Categorie di cookie utilizzati</h2>
+    <p class="al-body">
+      I cookie sono raggruppati in quattro categorie. Solo i cookie strettamente necessari sono
+      attivi senza il tuo consenso. Per le altre categorie chiediamo il tuo consenso esplicito.
+    </p>
+
+    <div class="overflow-x-auto mt-3">
+      <table class="w-full text-[13px]" style="border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--al-marble); text-align: left;">
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Categoria</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Finalità</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Durata</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Consenso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3 font-medium">Necessari</td>
+            <td class="px-3 py-3">Sessione utente, CSRF, autenticazione, preferenze di consenso cookie.</td>
+            <td class="px-3 py-3">Sessione / 180 gg</td>
+            <td class="px-3 py-3"><span class="al-badge al-badge-success">Sempre attivi</span></td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3 font-medium">Preferenze</td>
+            <td class="px-3 py-3">Memorizzano scelte UI (tema, lingua) per migliorare l'esperienza.</td>
+            <td class="px-3 py-3">Fino a 12 mesi</td>
+            <td class="px-3 py-3">Richiesto</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3 font-medium">Analytics</td>
+            <td class="px-3 py-3">
+              <em>[TODO: elencare strumenti (es. Plausible, GA4) e dati raccolti in forma aggregata]</em>
+            </td>
+            <td class="px-3 py-3"><em>[TODO]</em></td>
+            <td class="px-3 py-3">Richiesto</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-3 font-medium">Marketing</td>
+            <td class="px-3 py-3"><em>[TODO: ad esempio retargeting Meta Pixel, ad attualmente non attivi]</em></td>
+            <td class="px-3 py-3"><em>[TODO]</em></td>
+            <td class="px-3 py-3">Richiesto</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">Come gestire le preferenze</h2>
+    <p class="al-body">
+      Puoi accettare, rifiutare o personalizzare i cookie dal banner al primo accesso o
+      successivamente dalla pagina
+      <a href="{% url 'cookie_preferences' %}" class="al-link al-link-bronze">Gestione preferenze cookie</a>.
+      Il consenso viene conservato per 6 mesi e ti chiederemo di nuovo qualora aggiornassimo
+      sostanzialmente questa policy o l'elenco vendor.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">Cookie di terze parti</h2>
+    <p class="al-body">
+      <em>[TODO: elencare cookie di terze parti, link alle relative privacy policy]</em>
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">Disabilitare i cookie dal browser</h2>
+    <p class="al-body">
+      Puoi disabilitare i cookie direttamente dalle impostazioni del browser. Tieni presente che
+      alcuni cookie necessari sono indispensabili al funzionamento del servizio: disabilitandoli,
+      l'autenticazione e altre funzioni potrebbero non funzionare correttamente.
+    </p>
+  </section>
+
+  <div class="al-card al-card-warm mt-6" style="padding: 16px;">
+    <p class="al-tag mb-2" style="color: var(--al-bronze);">Nota</p>
+    <p class="al-small">
+      Tabella vendor e tempi di conservazione vanno completati prima della messa online.
+    </p>
+  </div>
+</article>
+{% endblock %}

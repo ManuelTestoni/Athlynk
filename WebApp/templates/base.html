@@ -19,9 +19,15 @@
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+    <!-- CSRF + consent version (used by cookie banner JS) -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="consent-version" content="{{ CONSENT_VERSION }}">
+    <meta name="cookie-consent-needed" content="{{ cookie_consent_needed|yesno:'1,0' }}">
+
     <!-- Legacy + Athlynk design system -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/athlynk.css' %}">
+    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}">
 
     <script>
         tailwind.config = {
@@ -73,7 +79,7 @@
     </script>
     {% block extra_head %}{% endblock %}
 </head>
-<body x-data="{ sidebarOpen: false }" class="h-screen overflow-hidden flex text-ink">
+<body x-data="{ sidebarOpen: false }" class="h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}">
 
     <!-- Mobile overlay -->
     <div x-show="sidebarOpen" x-transition.opacity x-cloak
@@ -277,10 +283,44 @@
                 </button>
 
                 <!-- Search -->
-                <div class="al-search hidden sm:block max-w-sm w-full">
+                {% if current_user %}
+                <div class="al-search hidden sm:block max-w-sm w-full relative"
+                     x-data="globalSearch()" @click.outside="close()">
                     <i class="ph ph-magnifying-glass text-base"></i>
-                    <input type="text" placeholder="Cerca clienti, schede, check..." class="al-input">
+                    <input type="text"
+                           x-model="q"
+                           @input.debounce.250ms="run()"
+                           @focus="onFocus()"
+                           @keydown="onKeyDown($event)"
+                           placeholder="Cerca clienti, allenamenti, nutrizione..."
+                           class="al-input"
+                           autocomplete="off">
+                    <div x-show="open" x-cloak class="al-search-dropdown">
+                        <template x-if="loading && !results.length">
+                            <div class="al-search-empty"><i class="ph ph-spinner animate-spin"></i> Ricerca...</div>
+                        </template>
+                        <template x-if="!loading && q.length >= 2 && !results.length">
+                            <div class="al-search-empty">Nessun risultato per "<span x-text="q"></span>"</div>
+                        </template>
+                        <template x-for="group in groups" :key="group">
+                            <div>
+                                <div class="al-search-group" x-text="group"></div>
+                                <template x-for="(r, idx) in resultsForGroup(group)" :key="r.type + '-' + r.url">
+                                    <a :href="r.url"
+                                       :class="results.indexOf(r) === activeIndex ? 'bg-marble-warm' : ''"
+                                       class="al-search-item">
+                                        <span class="al-search-icon"><i :class="r.icon"></i></span>
+                                        <span class="flex-1 min-w-0">
+                                            <span class="al-search-label" x-text="r.label"></span>
+                                            <span class="al-search-sub" x-text="r.sublabel" x-show="r.sublabel"></span>
+                                        </span>
+                                    </a>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
                 </div>
+                {% endif %}
             </div>
 
             <div class="flex items-center gap-4">
@@ -347,8 +387,21 @@
             <div class="al-page p-4 sm:p-8">
                 {% block content %}{% endblock %}
             </div>
+            <footer class="px-4 sm:px-8 py-5 mt-4" style="border-top: 1px solid var(--al-rule-faint);">
+                <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 al-small">
+                    <p>© Athlynk · <span class="font-mono">{{ CONSENT_VERSION }}</span></p>
+                    <div class="flex items-center gap-4">
+                        <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
+                        <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
+                        <a href="#" onclick="window.cookieConsent && window.cookieConsent.open(); return false;" class="al-link al-link-bronze">Gestisci preferenze</a>
+                    </div>
+                </div>
+            </footer>
         </main>
     </div>
+
+    <!-- Cookie consent banner root -->
+    <div id="cookie-banner-root"></div>
 
     <!-- Reveal-on-scroll observer -->
     <script>
@@ -367,6 +420,12 @@
     </script>
 
     <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/global_search.js' %}"></script>
+    <script>
+      window.CONSENT_VERSION = "{{ CONSENT_VERSION }}";
+      window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
+    </script>
+    <script src="{% static 'js/cookie_banner.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,109 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Preferenze Cookie{% endblock %}
+
+{% block legal_content %}
+<article x-data="cookiePreferencesPage()" x-init="init()">
+  <header>
+    <p class="al-eyebrow">Cookie</p>
+    <h1 class="al-h-1 mt-2">Gestione preferenze</h1>
+    <p class="al-body mt-3">
+      Scegli quali cookie autorizzare. La tua scelta viene conservata per 6 mesi.
+      Puoi modificarla in qualsiasi momento da questa pagina o dal link "Gestisci preferenze cookie" in footer.
+    </p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <div class="space-y-4 mt-8">
+
+    <div class="al-card" style="padding: 18px;">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h3 class="al-h-3">Necessari</h3>
+          <p class="al-small mt-1">
+            Indispensabili al funzionamento (sessione, CSRF, autenticazione, salvataggio preferenze cookie).
+            Sempre attivi: senza questi cookie il servizio non funziona.
+          </p>
+        </div>
+        <span class="al-badge al-badge-success shrink-0">Sempre attivi</span>
+      </div>
+    </div>
+
+    <label class="al-card cursor-pointer block" style="padding: 18px;">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h3 class="al-h-3">Preferenze</h3>
+          <p class="al-small mt-1">Memorizzano scelte UI (tema, lingua) per migliorare l'esperienza.</p>
+        </div>
+        <input type="checkbox" x-model="prefs.preferences" class="al-checkbox mt-1 shrink-0">
+      </div>
+    </label>
+
+    <label class="al-card cursor-pointer block" style="padding: 18px;">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h3 class="al-h-3">Analytics</h3>
+          <p class="al-small mt-1">Statistiche aggregate sull'uso del sito per migliorarlo.</p>
+        </div>
+        <input type="checkbox" x-model="prefs.analytics" class="al-checkbox mt-1 shrink-0">
+      </div>
+    </label>
+
+    <label class="al-card cursor-pointer block" style="padding: 18px;">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h3 class="al-h-3">Marketing</h3>
+          <p class="al-small mt-1">Pubblicità personalizzata e remarketing. Attualmente <em>[TODO]</em>.</p>
+        </div>
+        <input type="checkbox" x-model="prefs.marketing" class="al-checkbox mt-1 shrink-0">
+      </div>
+    </label>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 mt-8 pt-6 border-t" style="border-color: var(--al-rule-faint);">
+    <button type="button" @click="acceptAll()" class="al-btn">
+      <i class="ph ph-check"></i><span>Accetta tutti</span>
+    </button>
+    <button type="button" @click="rejectAll()" class="al-btn al-btn-ghost">
+      <i class="ph ph-x"></i><span>Rifiuta tutti</span>
+    </button>
+    <button type="button" @click="save()" class="al-btn al-btn-bronze ml-auto">
+      <i class="ph ph-floppy-disk"></i><span>Salva scelta</span>
+    </button>
+  </div>
+
+  <p x-show="saved" x-text="savedMsg" class="al-small mt-4" style="color: var(--al-success);"></p>
+</article>
+
+<script>
+  function cookiePreferencesPage() {
+    return {
+      prefs: { preferences: false, analytics: false, marketing: false },
+      saved: false,
+      savedMsg: '',
+      init() {
+        // Read current state from cookie via banner helper
+        if (window.cookieConsent && typeof window.cookieConsent.snapshot === 'function') {
+          const s = window.cookieConsent.snapshot();
+          if (s) {
+            this.prefs.preferences = !!s.preferences;
+            this.prefs.analytics = !!s.analytics;
+            this.prefs.marketing = !!s.marketing;
+          }
+        }
+      },
+      acceptAll() { this.prefs.preferences = true; this.prefs.analytics = true; this.prefs.marketing = true; this.save(); },
+      rejectAll() { this.prefs.preferences = false; this.prefs.analytics = false; this.prefs.marketing = false; this.save(); },
+      save() {
+        if (window.cookieConsent && typeof window.cookieConsent.savePrefs === 'function') {
+          window.cookieConsent.savePrefs(this.prefs).then(() => {
+            this.saved = true;
+            this.savedMsg = 'Scelta salvata.';
+            setTimeout(() => { this.saved = false; }, 3000);
+          });
+        }
+      },
+    };
+  }
+</script>
+{% endblock %}

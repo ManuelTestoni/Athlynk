@@ -6,6 +6,8 @@ class User(models.Model):
     role = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(max_length=128, blank=True, default='')
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

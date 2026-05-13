@@ -1,0 +1,183 @@
+/* Cookie consent banner — GDPR/ePrivacy compliant
+   No dark patterns: 3 buttons of equal visual weight. */
+
+.cc-root {
+  position: fixed;
+  left: 16px; right: 16px; bottom: 16px;
+  z-index: 9999;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #14110d;
+  display: none;
+}
+.cc-root.is-open { display: block; }
+
+@media (min-width: 640px) {
+  .cc-root { left: 24px; right: 24px; bottom: 24px; max-width: 720px; }
+}
+
+.cc-banner {
+  position: relative;
+  background: #f4efe4;
+  border: 1px solid #c4b89c;
+  border-top: 3px solid #8a6a3a;
+  box-shadow: 0 30px 80px -30px rgba(20,17,13,0.45);
+  padding: 22px 24px;
+  border-radius: 2px;
+}
+
+.cc-close-x {
+  position: absolute;
+  top: 8px; right: 10px;
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: #8a8270;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 200ms ease, background 200ms ease;
+}
+.cc-close-x:hover { color: #14110d; background: #ece5d6; }
+
+.cc-banner h2 {
+  font-family: 'Bodoni Moda', Georgia, serif;
+  font-size: 20px;
+  margin: 0 0 8px;
+  color: #14110d;
+  letter-spacing: -0.01em;
+}
+.cc-banner p {
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  color: #2a2620;
+}
+.cc-banner p a { color: #8a6a3a; text-decoration: underline; }
+
+.cc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.cc-btn {
+  border: 1px solid #8a8270;
+  background: #ffffff;
+  color: #14110d;
+  padding: 10px 18px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.cc-btn:hover { border-color: #8a6a3a; }
+.cc-btn-primary {
+  background: #14110d;
+  color: #f4efe4;
+  border-color: #14110d;
+}
+.cc-btn-primary:hover { background: #2a2620; }
+.cc-btn-bronze {
+  background: #8a6a3a;
+  color: #f4efe4;
+  border-color: #8a6a3a;
+}
+.cc-btn-bronze:hover { background: #a78554; }
+
+.cc-modal-back {
+  position: fixed; inset: 0;
+  background: rgba(20,17,13,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+  display: none;
+}
+.cc-modal-back.is-open { display: block; }
+.cc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.cc-modal.is-open { display: flex; }
+.cc-modal-panel {
+  background: #f4efe4;
+  border: 1px solid #c4b89c;
+  max-width: 520px;
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  border-radius: 2px;
+  box-shadow: 0 30px 80px -30px rgba(20,17,13,0.5);
+}
+.cc-modal-head {
+  background: #14110d;
+  color: #f4efe4;
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cc-modal-head h3 {
+  font-family: 'Bodoni Moda', Georgia, serif;
+  font-size: 18px;
+  margin: 0;
+}
+.cc-modal-close {
+  background: transparent; border: 0; color: #f4efe4; cursor: pointer; font-size: 18px;
+}
+.cc-modal-body { padding: 20px 22px; }
+
+.cc-cat {
+  padding: 14px 0;
+  border-bottom: 1px solid #d8cfba;
+}
+.cc-cat:last-child { border-bottom: 0; }
+.cc-cat-row {
+  display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
+}
+.cc-cat h4 {
+  font-size: 14px;
+  margin: 0 0 4px;
+  color: #14110d;
+  font-weight: 600;
+}
+.cc-cat p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b554a;
+  margin: 0;
+}
+.cc-toggle {
+  position: relative;
+  width: 36px; height: 20px;
+  background: #d8cfba;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 200ms ease;
+  flex-shrink: 0;
+}
+.cc-toggle.is-on { background: #8a6a3a; }
+.cc-toggle.is-locked { background: #1c4a52; cursor: not-allowed; opacity: 0.85; }
+.cc-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+}
+.cc-toggle.is-on::after, .cc-toggle.is-locked::after { transform: translateX(16px); }
+
+.cc-modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid #d8cfba;
+  display: flex; gap: 10px; flex-wrap: wrap;
+  background: #ece5d6;
+}
+.cc-modal-foot .cc-btn { flex: 1; min-width: 140px; text-align: center; }
