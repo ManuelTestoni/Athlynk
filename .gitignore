@@ -219,3 +219,5 @@ WebApp/src/CLAUDE.md
 /WebApp/media/progress_photos/*
 /WebApp/src/progress_photos
 calcoli_macro.xlsx
+skills-lock.json
+.agents

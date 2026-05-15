@@ -43,7 +43,7 @@ def search_api(request):
         for c in clients:
             results.append({
                 'type': 'client',
-                'group': 'Clienti',
+                'group': 'Atleti',
                 'icon': 'ph ph-user',
                 'label': f"{c.first_name} {c.last_name}",
                 'sublabel': c.user.email,

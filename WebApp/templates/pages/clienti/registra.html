@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Registra Cliente{% endblock %}
+{% block title %}Registra Atleta{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto" x-data="{ noPlansModal: {{ no_plans_modal|yesno:'true,false' }} }">
@@ -20,11 +20,11 @@
             </div>
             <div class="al-modal-body">
                 <p class="al-body">
-                    Per registrare un cliente devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui.
+                    Per registrare un atleta devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui.
                 </p>
             </div>
             <div class="al-modal-foot">
-                <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost flex-1">Torna ai clienti</a>
+                <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost flex-1">Torna agli atleti</a>
                 <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-bronze flex-1">
                     <i class="ph ph-plus"></i><span>Crea piano</span>
                 </a>
@@ -35,7 +35,7 @@
     <!-- Breadcrumb -->
     <nav class="al-tag flex items-center gap-2 mb-6">
         <a href="{% url 'clienti_list' %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-users text-xs"></i><span>Clienti</span>
+            <i class="ph ph-users text-xs"></i><span>Atleti</span>
         </a>
         <i class="ph ph-caret-right text-[9px]"></i>
         <span class="text-ink">Registra</span>
@@ -44,8 +44,8 @@
     <!-- Header -->
     <div class="mb-8">
         <p class="al-eyebrow mb-3">Studio &middot; Onboarding</p>
-        <h1 class="al-h-1">Registra <span class="al-display-i">cliente</span></h1>
-        <p class="al-body mt-2">Crea l'account del cliente che si è presentato in studio. La password inserita sarà quella usata per accedere alla piattaforma.</p>
+        <h1 class="al-h-1">Registra <span class="al-display-i">atleta</span></h1>
+        <p class="al-body mt-2">Crea l'account dell'atleta che si è presentato in studio. La password inserita sarà quella usata per accedere alla piattaforma.</p>
         <div class="al-rule-bronze mt-5"></div>
     </div>
 
@@ -81,7 +81,7 @@
 
                     <div>
                         <label class="al-label">Email *</label>
-                        <input type="email" name="email" value="{{ post_data.email|default:'' }}" required placeholder="cliente@email.com"
+                        <input type="email" name="email" value="{{ post_data.email|default:'' }}" required placeholder="atleta@email.com"
                                class="al-input {% if errors.email %}is-error{% endif %}">
                         {% if errors.email %}<span class="al-input-error">{{ errors.email }}</span>{% endif %}
                     </div>
@@ -155,7 +155,7 @@
                         <h2 class="al-h-3">Accesso alla Piattaforma</h2>
                     </div>
                 </div>
-                <p class="al-body mb-6">Il cliente userà questa email e password per accedere ad Athlynk.</p>
+                <p class="al-body mb-6">L'atleta userà questa email e password per accedere ad Athlynk.</p>
 
                 <div class="max-w-sm space-y-4" x-data="{ pw: '', cpw: '', get match() { return this.cpw === '' || this.pw === this.cpw; } }">
                     <div>
@@ -172,7 +172,7 @@
                                :class="!match ? 'is-error' : ''" class="al-input">
                         <span x-show="!match" class="al-input-error">Le password non coincidono.</span>
                     </div>
-                    <span class="al-input-help">Comunicala al cliente. Potrà cambiarla in autonomia.</span>
+                    <span class="al-input-help">Comunicala all'atleta. Potrà cambiarla in autonomia.</span>
                 </div>
             </div>
 
@@ -206,7 +206,7 @@
                         <label class="al-label">Note Pagamento</label>
                         <input type="text" name="payment_notes" value="{{ post_data.payment_notes|default:'' }}"
                                placeholder="Es. Pagato in contanti, bonifico..." class="al-input">
-                        <span class="al-input-help">Nota interna non visibile al cliente.</span>
+                        <span class="al-input-help">Nota interna non visibile all'atleta.</span>
                     </div>
                 </div>
             </div>
@@ -216,7 +216,7 @@
                 <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost">Annulla</a>
                 <button type="submit" {% if not plans %}disabled{% endif %} class="al-btn">
                     <i class="ph ph-user-plus text-sm"></i>
-                    <span>Registra Cliente</span>
+                    <span>Registra Atleta</span>
                 </button>
             </div>
         </div>

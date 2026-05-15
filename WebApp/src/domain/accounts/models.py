@@ -70,3 +70,27 @@ class ClientProfile(models.Model):
 
     def __str__(self):
         return f"Client: {self.first_name} {self.last_name}"
+
+
+class PasswordResetToken(models.Model):
+    """Single-use, short-lived password-reset token.
+
+    The plaintext token is only ever shown to the user via email link;
+    the database stores the SHA-256 hash of the token to neutralise DB leaks.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    request_ip = models.GenericIPAddressField(null=True, blank=True)
+    request_user_agent = models.CharField(max_length=512, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'used_at']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"ResetToken(user={self.user_id}, used={self.used_at is not None})"

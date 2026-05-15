@@ -625,7 +625,7 @@ def api_check_schedule(request):
         return JsonResponse({'success': True, 'appointment_id': appointment.id})
 
     except ClientProfile.DoesNotExist:
-        return JsonResponse({'error': 'Cliente non trovato o non associato'}, status=404)
+        return JsonResponse({'error': 'Atleta non trovato o non associato'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

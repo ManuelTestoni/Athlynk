@@ -9,7 +9,7 @@
   <div class="mb-8">
     <p class="al-eyebrow mb-3">Studio &middot; Chat</p>
     <h1 class="al-h-1">Conversazioni</h1>
-    <p class="al-body mt-2">{% if is_coach %}Le tue conversazioni con i clienti.{% else %}Le tue conversazioni con i professionisti.{% endif %}</p>
+    <p class="al-body mt-2">{% if is_coach %}Le tue conversazioni con gli atleti.{% else %}Le tue conversazioni con i professionisti.{% endif %}</p>
     <div class="al-rule-bronze mt-5"></div>
   </div>
 
@@ -64,7 +64,7 @@
     <div class="al-empty">
       <i class="ph ph-chats-circle al-empty-icon"></i>
       <h3>Nessuna conversazione</h3>
-      <p>{% if is_coach %}Le chat con i tuoi clienti appariranno qui.{% else %}Connettiti a un professionista per iniziare a chattare.{% endif %}</p>
+      <p>{% if is_coach %}Le chat con i tuoi atleti appariranno qui.{% else %}Connettiti a un professionista per iniziare a chattare.{% endif %}</p>
     </div>
     {% endif %}
   </div>

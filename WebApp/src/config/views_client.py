@@ -550,7 +550,7 @@ def assign_plan_to_client_view(request, plan_id):
     payment_notes = request.POST.get('payment_notes', '').strip()
 
     if not client_id:
-        return JsonResponse({'error': 'Seleziona un cliente.'}, status=400)
+        return JsonResponse({'error': 'Seleziona un atleta.'}, status=400)
 
     client = get_object_or_404(
         ClientProfile,
@@ -560,7 +560,7 @@ def assign_plan_to_client_view(request, plan_id):
     )
 
     if ClientSubscription.objects.filter(client=client, subscription_plan__coach=coach, status='ACTIVE').exists():
-        return JsonResponse({'error': 'Questo cliente ha già un abbonamento attivo con te.'}, status=400)
+        return JsonResponse({'error': 'Questo atleta ha già un abbonamento attivo con te.'}, status=400)
 
     end_date = None
     if plan.duration_days:
@@ -696,7 +696,7 @@ def subscription_plan_delete_view(request, plan_id):
     active_subs = ClientSubscription.objects.filter(subscription_plan=plan, status='ACTIVE')
     if active_subs.exists():
         return JsonResponse({
-            'error': f'Impossibile eliminare: {active_subs.count()} clienti attivi su questo piano'
+            'error': f'Impossibile eliminare: {active_subs.count()} atleti attivi su questo piano'
         }, status=400)
     
     plan.delete()

@@ -119,9 +119,9 @@
                 {% if is_coach %}
 
                 <a href="{% url 'clienti_list' %}"
-                   class="al-nav-link {% if s == 'clienti' %}is-active{% endif %}">
+                   class="al-nav-link {% if s == 'atleti' %}is-active{% endif %}">
                     <i class="ph ph-users"></i>
-                    <span>Clienti</span>
+                    <span>Atleti</span>
                 </a>
 
                 {% if can_manage_workouts %}
@@ -260,7 +260,7 @@
                     </div>
                     <div class="overflow-hidden">
                         <p class="text-[13px] font-medium text-parchment/95 truncate max-w-[110px]">{{ display_name|default:"Utente" }}</p>
-                        <p class="al-tag" style="color: rgba(244,239,228,0.4); font-size: 9px;">{{ user_role|default:"Guest" }}</p>
+                        <p class="al-tag" style="color: rgba(244,239,228,0.4); font-size: 9px;">{% if is_client %}Atleta{% elif is_coach %}{% if coach.professional_type == 'ALLENATORE' %}Allenatore{% elif coach.professional_type == 'NUTRIZIONISTA' %}Nutrizionista{% else %}Coach{% endif %}{% else %}Guest{% endif %}</p>
                     </div>
                 </div>
                 <a href="{% url 'logout' %}" class="text-parchment/30 hover:text-bronze-light p-1.5 transition-colors" title="Esci">
@@ -292,7 +292,7 @@
                            @input.debounce.250ms="run()"
                            @focus="onFocus()"
                            @keydown="onKeyDown($event)"
-                           placeholder="Cerca clienti, allenamenti, nutrizione..."
+                           placeholder="Cerca atleti, allenamenti, nutrizione..."
                            class="al-input"
                            autocomplete="off">
                     <div x-show="open" x-cloak class="al-search-dropdown">

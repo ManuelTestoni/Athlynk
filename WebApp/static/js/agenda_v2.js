@@ -61,6 +61,7 @@ document.addEventListener('alpine:init', () => {
     currentDate: new Date(),
     miniCursor: new Date(),
     events: [],
+    eventsVersion: 0,
     loading: false,
     selectedDate: new Date(),
 
@@ -98,6 +99,7 @@ document.addEventListener('alpine:init', () => {
             _end: new Date(e.end),
             _type: (e.type || '').toLowerCase(),
           }));
+          this.eventsVersion++;
         }
       } catch (e) {
         console.error(e);
@@ -173,14 +175,32 @@ document.addEventListener('alpine:init', () => {
       return this.eventsOn(this.currentDate);
     },
     upcomingDays() {
-      // next 7 days starting tomorrow, grouped
+      // next 7 days starting tomorrow, grouped. Anchored to today
+      // (not currentDate) so the sidebar always reflects the real next week.
+      void this.eventsVersion; // explicit reactive dep
+      const today = startOfDay(new Date());
       const groups = [];
       for (let i = 1; i <= 7; i++) {
-        const d = addDays(this.currentDate, i);
+        const d = addDays(today, i);
         const events = this.eventsOn(d);
         if (events.length) groups.push({ date: d, events });
       }
       return groups;
+    },
+
+    upcomingItems() {
+      // Flat, reactive list for the sidebar — one row per event, day label included.
+      // Flat structure avoids nested x-for keying pitfalls where the outer group
+      // is keyed by a stable date and Alpine fails to refresh the inner array
+      // when only event membership changes.
+      void this.eventsVersion;
+      const out = [];
+      for (const g of this.upcomingDays()) {
+        for (const e of g.events) {
+          out.push({ event: e, dayLabel: fmtDayLabel(g.date) });
+        }
+      }
+      return out;
     },
 
     /* ---------------- week view ---------------- */

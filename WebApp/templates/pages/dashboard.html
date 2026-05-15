@@ -10,13 +10,13 @@
         <div>
             <p class="al-eyebrow mb-3">Studio &middot; Coach Dashboard</p>
             <h1 class="al-h-1">Bentornato, <span class="al-display-i">{{ coach.user.first_name|default:"Coach" }}</span></h1>
-            <p class="al-body mt-2 max-w-xl">Una sintesi del tuo studio oggi: clienti, check da rivedere, piani in scadenza e appuntamenti.</p>
+            <p class="al-body mt-2 max-w-xl">Una sintesi del tuo studio oggi: atleti, check da rivedere, piani in scadenza e appuntamenti.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div class="flex gap-3 shrink-0">
             <a href="{% url 'clienti_registra' %}" class="al-btn">
                 <i class="ph ph-user-plus text-sm"></i>
-                <span>Aggiungi Cliente</span>
+                <span>Aggiungi Atleta</span>
             </a>
         </div>
     </div>
@@ -24,7 +24,7 @@
     <!-- KPI grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
         <div class="al-kpi al-reveal" style="--d:0ms;">
-            <div class="al-kpi-label">Clienti Totali</div>
+            <div class="al-kpi-label">Atleti Totali</div>
             <div class="al-kpi-num">{{ total_clients|default:"0" }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-users text-bronze"></i>
@@ -67,7 +67,7 @@
         <div class="lg:col-span-2 al-card al-card-flush al-reveal">
             <div class="al-card-head">
                 <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01 — Clienti</p>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01 — Atleti</p>
                     <h2 class="al-h-2 mt-1">Recenti</h2>
                 </div>
                 <a href="{% url 'clienti_list' %}" class="al-link al-link-bronze text-[12px]">
@@ -79,7 +79,7 @@
                 <table class="al-table">
                     <thead>
                         <tr>
-                            <th>Cliente</th>
+                            <th>Atleta</th>
                             <th class="hidden md:table-cell">Registrato</th>
                             <th class="text-right">&nbsp;</th>
                         </tr>
@@ -111,11 +111,11 @@
                             <td colspan="3">
                                 <div class="al-empty">
                                     <i class="ph ph-users-three al-empty-icon"></i>
-                                    <h3>Nessun cliente</h3>
+                                    <h3>Nessun atleta</h3>
                                     <p>Aggiungi il primo atleta per iniziare a gestire schede e nutrizione.</p>
                                     <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-sm al-btn-bronze">
                                         <i class="ph ph-user-plus"></i>
-                                        <span>Aggiungi Cliente</span>
+                                        <span>Aggiungi Atleta</span>
                                     </a>
                                 </div>
                             </td>

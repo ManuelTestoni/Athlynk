@@ -44,6 +44,27 @@ def send_welcome_verify(user, token):
     )
 
 
+def send_password_reset(user, token):
+    """Password-reset link email. `token` is the plaintext token (not the hash)."""
+    reset_url = f"{settings.SITE_URL}{reverse('reset_password')}?token={token}"
+    return send_html_mail(
+        to=user.email,
+        subject='Reimposta la tua password Athlynk',
+        template_base='password_reset',
+        context={'user': user, 'reset_url': reset_url, 'ttl_minutes': 30},
+    )
+
+
+def send_password_changed(user):
+    """Notify user that their password was just changed."""
+    return send_html_mail(
+        to=user.email,
+        subject='La tua password Athlynk è stata modificata',
+        template_base='password_changed',
+        context={'user': user},
+    )
+
+
 def send_newsletter_confirm(subscriber):
     """Double opt-in confirmation email."""
     confirm_url = f"{settings.SITE_URL}{reverse('newsletter_confirm', args=[subscriber.confirm_token])}"

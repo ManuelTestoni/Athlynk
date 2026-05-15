@@ -79,22 +79,18 @@
       <!-- Upcoming -->
       <div class="agenda-sidebar-section">
         <p class="agenda-sidebar-title">Prossimi 7 giorni</p>
-        <template x-if="upcomingDays().length === 0">
+        <template x-if="upcomingItems().length === 0">
           <p class="text-xs text-ink-mute">Nessun appuntamento.</p>
         </template>
-        <template x-for="g in upcomingDays()" :key="g.date.getTime()">
-          <div>
-            <template x-for="e in g.events" :key="e.id">
-              <div class="agenda-up-item" @click="openDetail(e)">
-                <p class="agenda-up-day" x-text="fmtDayLabel(g.date)"></p>
-                <p class="agenda-up-title" x-text="e.title"></p>
-                <p class="agenda-up-meta">
-                  <span x-text="fmtTime(e._start)"></span>
-                  <span> · </span>
-                  <span x-text="typeLabel(e._type)"></span>
-                </p>
-              </div>
-            </template>
+        <template x-for="item in upcomingItems()" :key="item.event.id">
+          <div class="agenda-up-item" @click="openDetail(item.event)">
+            <p class="agenda-up-day" x-text="item.dayLabel"></p>
+            <p class="agenda-up-title" x-text="item.event.title"></p>
+            <p class="agenda-up-meta">
+              <span x-text="fmtTime(item.event._start)"></span>
+              <span> · </span>
+              <span x-text="typeLabel(item.event._type)"></span>
+            </p>
           </div>
         </template>
       </div>
@@ -247,7 +243,7 @@
             <i class="ph ph-user"></i>
           </div>
           <div>
-            <p class="al-tag">Cliente</p>
+            <p class="al-tag">Atleta</p>
             <p class="font-medium text-ink mt-0.5" x-text="selectedEvent?.client_name"></p>
           </div>
         </div>
@@ -332,7 +328,7 @@
         </div>
 
         <div>
-          <label class="al-label">Cliente</label>
+          <label class="al-label">Atleta</label>
           <div class="relative">
             <input type="text" x-model="clientSearchQuery" @input.debounce.300ms="searchClients()"
                    class="al-input" placeholder="Cerca per nome...">

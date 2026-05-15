@@ -1,5 +1,7 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.hashers import check_password
+from django.views.decorators.http import require_POST
+from django.db import transaction
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
 
@@ -42,26 +44,13 @@ def impostazioni_view(request):
                 client.save()
                 return redirect(f"{request.path}?saved=profilo")
 
-            elif action == 'sicurezza':
-                active_tab = 'sicurezza'
-                current_pw = request.POST.get('current_password', '')
-                new_pw = request.POST.get('new_password', '')
-                confirm_pw = request.POST.get('confirm_password', '')
-
-                if not check_password(current_pw, user.password_hash):
-                    error = 'La password attuale non è corretta.'
-                elif len(new_pw) < 8:
-                    error = 'La nuova password deve essere di almeno 8 caratteri.'
-                elif new_pw != confirm_pw:
-                    error = 'Le due password non coincidono.'
-                else:
-                    user.password_hash = make_password(new_pw)
-                    user.save()
-                    return redirect(f"{request.path}?saved=sicurezza")
-
         saved = request.GET.get('saved')
         if saved and not error:
             active_tab = saved
+
+        reset_request_sent = request.session.pop('reset_request_sent', False)
+        if reset_request_sent:
+            active_tab = 'sicurezza'
 
         return render(request, 'pages/impostazioni/dashboard.html', {
             'client': client,
@@ -71,6 +60,7 @@ def impostazioni_view(request):
             'error': error,
             'saved': saved,
             'newsletter_status': _newsletter_status(user.email),
+            'reset_request_sent': reset_request_sent,
         })
 
     # COACH
@@ -103,26 +93,13 @@ def impostazioni_view(request):
             coach.save()
             return redirect(f"{request.path}?saved=profilo")
 
-        elif action == 'sicurezza':
-            active_tab = 'sicurezza'
-            current_pw = request.POST.get('current_password', '')
-            new_pw = request.POST.get('new_password', '')
-            confirm_pw = request.POST.get('confirm_password', '')
-
-            if not check_password(current_pw, user.password_hash):
-                error = 'La password attuale non è corretta.'
-            elif len(new_pw) < 8:
-                error = 'La nuova password deve essere di almeno 8 caratteri.'
-            elif new_pw != confirm_pw:
-                error = 'Le due password non coincidono.'
-            else:
-                user.password_hash = make_password(new_pw)
-                user.save()
-                return redirect(f"{request.path}?saved=sicurezza")
-
     saved = request.GET.get('saved')
     if saved and not error:
         active_tab = saved
+
+    reset_request_sent = request.session.pop('reset_request_sent', False)
+    if reset_request_sent:
+        active_tab = 'sicurezza'
 
     return render(request, 'pages/impostazioni/dashboard.html', {
         'coach': coach,
@@ -132,4 +109,48 @@ def impostazioni_view(request):
         'error': error,
         'saved': saved,
         'newsletter_status': _newsletter_status(user.email),
+        'reset_request_sent': reset_request_sent,
     })
+
+
+@require_POST
+def delete_account_view(request):
+    """Hard delete the currently logged-in user account.
+
+    Requires the current password as confirmation. Cascades to profile and
+    all related domain rows via Django FK CASCADE. Flushes the session.
+    """
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    password = request.POST.get('confirm_password', '')
+    confirm_text = request.POST.get('confirm_text', '').strip().upper()
+
+    error = None
+    if not check_password(password, user.password_hash):
+        error = 'Password non corretta.'
+    elif confirm_text != 'ELIMINA':
+        error = 'Digita ELIMINA per confermare.'
+
+    if error:
+        active_tab = 'elimina'
+        ctx = {
+            'auth_user': user,
+            'active_tab': active_tab,
+            'error': error,
+            'newsletter_status': _newsletter_status(user.email),
+        }
+        if user.role == 'COACH':
+            ctx['coach'] = get_session_coach(request)
+            ctx['is_coach'] = True
+        else:
+            ctx['client'] = get_session_client(request)
+            ctx['is_client'] = True
+        return render(request, 'pages/impostazioni/dashboard.html', ctx)
+
+    with transaction.atomic():
+        user.delete()
+
+    request.session.flush()
+    return redirect('login')

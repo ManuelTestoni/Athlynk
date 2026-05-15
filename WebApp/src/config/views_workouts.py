@@ -655,7 +655,7 @@ def api_plan_finalize(request, plan_id):
     if action == 'assign':
         client_ids = data.get('client_ids') or []
         if not client_ids:
-            return JsonResponse({'error': 'Seleziona almeno un cliente.'}, status=400)
+            return JsonResponse({'error': 'Seleziona almeno un atleta.'}, status=400)
         try:
             weeks = int(data.get('weeks') or 0)
         except (TypeError, ValueError):
@@ -674,7 +674,7 @@ def api_plan_finalize(request, plan_id):
         ).distinct()
 
         if not clients.exists():
-            return JsonResponse({'error': 'Nessun cliente valido trovato.'}, status=400)
+            return JsonResponse({'error': 'Nessun atleta valido trovato.'}, status=400)
 
         with transaction.atomic():
             for client in clients:

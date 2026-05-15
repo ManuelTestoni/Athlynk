@@ -48,7 +48,7 @@
     },
     async submitSchedule() {
         this.scheduleError = '';
-        if (!this.schedule.client_id) { this.scheduleError = 'Seleziona un cliente.'; return; }
+        if (!this.schedule.client_id) { this.scheduleError = 'Seleziona un atleta.'; return; }
         if (!this.schedule.date) { this.scheduleError = 'Inserisci una data.'; return; }
         this.scheduling = true;
         try {
@@ -128,7 +128,7 @@
         <div class="flex items-center gap-3 w-full sm:w-auto">
             <div class="al-search flex-1 sm:w-64">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" x-model="query" @input.debounce.350ms="page=1; fetchChecks()" placeholder="Cerca cliente..." class="al-input">
+                <input type="text" x-model="query" @input.debounce.350ms="page=1; fetchChecks()" placeholder="Cerca atleta..." class="al-input">
             </div>
             <select @change="setPerPage($event.target.value)" class="al-select" style="width: 80px;">
                 <option value="10" :selected="perPage === 10">10</option>
@@ -143,7 +143,7 @@
             <table class="al-table">
                 <thead>
                     <tr>
-                        <th>Cliente</th>
+                        <th>Atleta</th>
                         <th>Data Invio</th>
                         <th>Obiettivo</th>
                         <th>Peso</th>
@@ -254,27 +254,24 @@
                 </div>
 
                 <div class="relative">
-                    <label class="al-label">Cliente *</label>
-                    <template x-if="!schedule.client_id">
+                    <label class="al-label">Atleta *</label>
+                    <template x-if= PROTECT5 >
                         <div>
-                            <input type="text" x-model="clientFilter" placeholder="Cerca per nome..." class="al-input">
-                            <div x-show="filteredClients.length > 0 && clientFilter.length > 0"
+                            <input type="text" x-model= PROTECT6  placeholder="Cerca per nome..." class="al-input">
+                            <div x-show= PROTECT7 
                                  class="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto"
                                  style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
-                                <template x-for="c in filteredClients" :key="c.client__id">
+                                <template x-for="c in filteredClients" :key= PROTECT8 >
                                     <button @click="selectClient(c)" type="button" class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-marble transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                                        <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
+                                        <span x-text= PROTECT9 ></span>
                                     </button>
                                 </template>
                             </div>
-                            <template x-if="clients.length === 0"><span class="al-input-help">Nessun cliente attivo associato.</span></template>
-                        </div>
-                    </template>
-                    <template x-if="schedule.client_id">
+                            <template x-if= PROTECT10 ><span class="al-input-help PROTECT11 schedule.client_id">
                         <div class="flex items-center gap-2 al-badge al-badge-success" style="font-family: var(--al-sans); padding: 8px 12px; letter-spacing: 0; text-transform: none; font-size: 13px;">
                             <i class="ph-fill ph-check-circle"></i>
-                            <span x-text="schedule.client_name"></span>
-                            <button @click="schedule.client_id = null; schedule.client_name = ''" type="button" class="ml-auto hover:text-danger">Cambia</button>
+                            <span x-text= PROTECT12 ></span>
+                            <button @click= PROTECT13  type="button" class="ml-auto hover:text-danger">Cambia</button>
                         </div>
                     </template>
                 </div>
@@ -296,8 +293,7 @@
                 </div>
 
                 <div>
-                    <label class="al-label">Note per il cliente</label>
-                    <textarea x-model="schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni..." class="al-textarea"></textarea>
+                    <label class="al-label PROTECT14 schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni..." class="al-textarea"></textarea>
                 </div>
             </div>
 
@@ -318,7 +314,7 @@
             <div class="al-modal-head flex items-start justify-between gap-4">
                 <div>
                     <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Check</p>
-                    <h3 class="al-h-2">Compila per Cliente</h3>
+                    <h3 class="al-h-2">Compila per Atleta</h3>
                     <p class="al-small mt-1">Compila il check di persona</p>
                 </div>
                 <button @click="showCompileModal = false" type="button" class="al-btn-icon al-btn al-btn-ghost shrink-0">
@@ -327,8 +323,8 @@
             </div>
             <div class="al-modal-body space-y-3">
                 <div>
-                    <label class="al-label">Cliente *</label>
-                    <input type="text" x-model="compileFilter" placeholder="Cerca cliente..." class="al-input mb-2">
+                    <label class="al-label">Atleta *</label>
+                    <input type="text" x-model="compileFilter" placeholder="Cerca atleta..." class="al-input mb-2">
                     <template x-if="!compileClientId">
                         <div class="max-h-48 overflow-y-auto" style="border: 1px solid var(--al-rule); background: var(--al-parchment);">
                             <template x-for="c in compileFilteredClients" :key="c.client__id">
@@ -339,7 +335,7 @@
                                 </button>
                             </template>
                             <template x-if="compileFilteredClients.length === 0">
-                                <p class="px-4 py-3 al-tag text-center">Nessun cliente trovato</p>
+                                <p class="px-4 py-3 al-tag text-center">Nessun atleta trovato</p>
                             </template>
                         </div>
                     </template>

@@ -114,10 +114,10 @@
         </div>
     </div>
 
-    <!-- Clienti Affiliati -->
+    <!-- Atleti Affiliati -->
     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200">
-            <h2 class="text-lg font-bold text-slate-900">Clienti Affiliati</h2>
+            <h2 class="text-lg font-bold text-slate-900">Atleti Affiliati</h2>
             <p class="text-sm text-slate-500 mt-1">{{ subscriptions.count }} abbonamenti totali</p>
         </div>
 
@@ -126,7 +126,7 @@
             <table class="w-full">
                 <thead class="bg-slate-50 border-b border-slate-200">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Cliente</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Atleta</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Email</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Data Inizio</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Stato</th>
@@ -181,8 +181,8 @@
         {% else %}
         <div class="px-6 py-12 text-center">
             <i class="ph ph-users text-4xl text-slate-300 mx-auto"></i>
-            <p class="mt-4 text-slate-600 font-medium">Nessun cliente affiliato</p>
-            <p class="text-sm text-slate-500 mt-1">Questo piano non ha ancora clienti attivi.</p>
+            <p class="mt-4 text-slate-600 font-medium">Nessun atleta affiliato</p>
+            <p class="text-sm text-slate-500 mt-1">Questo piano non ha ancora atleti attivi.</p>
         </div>
         {% endif %}
     </div>
@@ -198,7 +198,7 @@
 
 <script>
 function deleteplan(planId) {
-    if (!confirm('Sei sicuro di voler eliminare questo piano? Nessun cliente attivo deve essere presente.')) {
+    if (!confirm('Sei sicuro di voler eliminare questo piano? Nessun atleta attivo deve essere presente.')) {
         return;
     }
 

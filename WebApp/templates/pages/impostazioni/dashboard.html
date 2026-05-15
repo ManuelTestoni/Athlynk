@@ -3,7 +3,7 @@
 {% block title %}Impostazioni{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ activeTab: '{{ active_tab|default:"profilo" }}' }">
+<div class="max-w-7xl mx-auto" x-data="{ activeTab: '{{ active_tab|default:"profilo" }}', showDeleteModal: false, showResetPwModal: false }">
 
     <!-- Header -->
     <div class="mb-8">
@@ -55,6 +55,13 @@
                     <i class="ph ph-envelope text-base mr-3"></i>Newsletter
                 </button>
 
+                <button @click="activeTab = 'elimina'" type="button"
+                        :class="activeTab === 'elimina' ? 'border-red-600 text-red-700 bg-red-50' : 'border-transparent text-ink-mute hover:text-red-700 hover:bg-red-50'"
+                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
+                        style="font-size: 13px; font-weight: 500;">
+                    <i class="ph ph-trash text-base mr-3"></i>Elimina account
+                </button>
+
                 <div class="pt-3 mt-3 border-t" style="border-color: var(--al-rule);">
                     <p class="al-tag px-4 mb-2">In arrivo</p>
                     <button disabled type="button" class="flex items-center px-4 py-3 text-ink-line cursor-not-allowed w-full text-left text-[13px]">
@@ -78,7 +85,7 @@
                 <div class="al-section-head">
                     <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
                     <h2 class="al-h-2 mt-1">Profilo</h2>
-                    <p class="al-small mt-2">{% if is_coach %}Visibile ai tuoi clienti nella directory.{% else %}Aggiorna i tuoi dati personali.{% endif %}</p>
+                    <p class="al-small mt-2">{% if is_coach %}Visibile ai tuoi atleti nella directory.{% else %}Aggiorna i tuoi dati personali.{% endif %}</p>
                 </div>
 
                 <form method="POST" action="{% url 'impostazioni_dashboard' %}" enctype="multipart/form-data" class="space-y-6">
@@ -250,33 +257,38 @@
                 <div class="al-section-head">
                     <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
                     <h2 class="al-h-2 mt-1">Sicurezza Account</h2>
-                    <p class="al-small mt-2">Aggiorna la tua password di accesso.</p>
+                    <p class="al-small mt-2">Cambia la tua password tramite link sicuro inviato via email.</p>
                 </div>
 
-                <form method="POST" action="{% url 'impostazioni_dashboard' %}#sicurezza" class="max-w-md space-y-5">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="sicurezza">
+                {% if reset_request_sent %}
+                <div class="al-toast is-success mt-5 max-w-md">
+                    <i class="ph-fill ph-check-circle"></i>
+                    <span>Email inviata a <strong>{{ auth_user.email }}</strong>. Controlla la casella per il link di reset (valido 30 minuti).</span>
+                </div>
+                {% endif %}
 
-                    <div>
-                        <label class="al-label">Password Attuale *</label>
-                        <input type="password" name="current_password" required autocomplete="current-password" class="al-input">
-                    </div>
-                    <div>
-                        <label class="al-label">Nuova Password *</label>
-                        <input type="password" name="new_password" required minlength="8" autocomplete="new-password" class="al-input">
-                        <span class="al-input-help">Minimo 8 caratteri.</span>
-                    </div>
-                    <div>
-                        <label class="al-label">Conferma Nuova Password *</label>
-                        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password" class="al-input">
+                <div class="max-w-md mt-6 space-y-5">
+                    <div class="al-card al-card-warm" style="padding: 18px;">
+                        <div class="flex items-start gap-3">
+                            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); color: var(--al-parchment);">
+                                <i class="ph ph-shield-check"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-ink text-[14px]">Reimposta password</p>
+                                <p class="al-small mt-1">Invieremo un link al tuo indirizzo <strong>{{ auth_user.email }}</strong>. Cliccandolo potrai impostare una nuova password.</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="pt-3 border-t" style="border-color: var(--al-rule);">
-                        <button type="submit" class="al-btn">
-                            <i class="ph ph-shield-check text-sm"></i><span>Aggiorna Password</span>
-                        </button>
-                    </div>
-                </form>
+                    <button type="button" @click="showResetPwModal = true" class="al-btn al-btn-bronze">
+                        <i class="ph ph-paper-plane-tilt text-sm"></i>
+                        <span>Invia link di reset</span>
+                    </button>
+
+                    <p class="al-small pt-3 border-t" style="border-color: var(--al-rule-faint);">
+                        Il link scade dopo 30 minuti e può essere usato una sola volta. Se non lo richiedi tu, ignora l'email.
+                    </p>
+                </div>
             </div>
 
             <!-- Newsletter -->
@@ -347,7 +359,124 @@
                     </p>
                 </div>
             </div>
+
+            <!-- Elimina account -->
+            <div x-show="activeTab === 'elimina'" class="p-6 md:p-8" x-cloak>
+                <div class="al-section-head">
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">04</p>
+                    <h2 class="al-h-2 mt-1" style="color: #b91c1c;">Elimina account</h2>
+                    <p class="al-small mt-2">Operazione irreversibile. Tutti i tuoi dati saranno rimossi dalla piattaforma.</p>
+                </div>
+
+                <div class="max-w-xl mt-6">
+                    <div class="border" style="border-color: #fecaca; background: #fef2f2; padding: 18px; border-radius: var(--al-r-sm);">
+                        <div class="flex items-start gap-3">
+                            <i class="ph-fill ph-warning-octagon text-2xl" style="color: #b91c1c;"></i>
+                            <div class="flex-1">
+                                <p class="font-semibold text-[14px]" style="color: #991b1b;">Cosa succede se elimini l'account?</p>
+                                <ul class="al-small mt-2 space-y-1" style="color: #7f1d1d; list-style: disc; padding-left: 18px;">
+                                    <li>Account e profilo cancellati definitivamente.</li>
+                                    {% if is_coach %}
+                                    <li>Schede di allenamento, piani nutrizionali, schede integratori, abbonamenti e relazioni con gli atleti vengono rimossi.</li>
+                                    <li>Le anamnesi compilate per gli atleti restano (autore anonimo).</li>
+                                    {% else %}
+                                    <li>Sessioni di allenamento, check di progresso, foto, anamnesi e relazioni con i tuoi professionisti vengono rimossi.</li>
+                                    {% endif %}
+                                    <li>Le conversazioni e i messaggi associati verranno eliminati.</li>
+                                    <li>L'operazione non può essere annullata.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button type="button" @click="showDeleteModal = true" class="al-btn"
+                                style="background: #b91c1c; color: #fff; border-color: #b91c1c;">
+                            <i class="ph ph-trash text-sm"></i>
+                            <span>Elimina il mio account</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
+
+    <!-- ===================== MODALS (root-level) ===================== -->
+
+    <!-- Modal: conferma eliminazione account -->
+    <div x-show="showDeleteModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style="background: rgba(0,0,0,0.55);"
+         @click.self="showDeleteModal = false"
+         @keydown.escape.window="showDeleteModal = false">
+        <div class="bg-white max-w-md w-full"
+             style="border-radius: var(--al-r-md); border: 1px solid var(--al-rule);">
+            <form method="POST" action="{% url 'delete_account' %}">
+                {% csrf_token %}
+                <div class="p-6 border-b" style="border-color: var(--al-rule);">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 flex items-center justify-center" style="background: #fef2f2; border-radius: var(--al-r-sm);">
+                            <i class="ph-fill ph-warning-octagon text-xl" style="color: #b91c1c;"></i>
+                        </span>
+                        <h3 class="al-h-3" style="color: #991b1b;">Conferma eliminazione</h3>
+                    </div>
+                    <p class="al-small mt-3">Per procedere inserisci la tua password attuale e digita <strong>ELIMINA</strong> nel campo di conferma.</p>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="al-label">Password attuale *</label>
+                        <input type="password" name="confirm_password" required autocomplete="current-password" class="al-input">
+                    </div>
+                    <div>
+                        <label class="al-label">Digita ELIMINA *</label>
+                        <input type="text" name="confirm_text" required placeholder="ELIMINA" class="al-input" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="p-6 border-t flex justify-end gap-3" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
+                    <button type="button" @click="showDeleteModal = false" class="al-btn al-btn-ghost">Annulla</button>
+                    <button type="submit" class="al-btn"
+                            style="background: #b91c1c; color: #fff; border-color: #b91c1c;">
+                        <i class="ph ph-trash text-sm"></i>
+                        <span>Elimina definitivamente</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: conferma invio reset password -->
+    <div x-show="showResetPwModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style="background: rgba(0,0,0,0.55);"
+         @click.self="showResetPwModal = false"
+         @keydown.escape.window="showResetPwModal = false">
+        <div class="bg-white max-w-md w-full"
+             style="border-radius: var(--al-r-md); border: 1px solid var(--al-rule);">
+            <form method="POST" action="{% url 'request_password_reset' %}">
+                {% csrf_token %}
+                <input type="hidden" name="from_settings" value="1">
+                <div class="p-6 border-b" style="border-color: var(--al-rule);">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 flex items-center justify-center" style="background: var(--al-marble-warm); border-radius: var(--al-r-sm);">
+                            <i class="ph-fill ph-paper-plane-tilt text-xl text-bronze"></i>
+                        </span>
+                        <h3 class="al-h-3">Invia link di reset</h3>
+                    </div>
+                    <p class="al-small mt-3">Riceverai una mail a <strong>{{ auth_user.email }}</strong> con un link valido 30 minuti per impostare una nuova password.</p>
+                </div>
+                <div class="p-6 border-t flex justify-end gap-3" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
+                    <button type="button" @click="showResetPwModal = false" class="al-btn al-btn-ghost">Annulla</button>
+                    <button type="submit" class="al-btn al-btn-bronze">
+                        <i class="ph ph-paper-plane-tilt text-sm"></i>
+                        <span>Invia link</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

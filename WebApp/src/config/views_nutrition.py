@@ -340,7 +340,7 @@ def api_piano_assign(request, plan_id):
     client = get_object_or_404(ClientProfile, id=client_id)
     rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
     if not rel:
-        return JsonResponse({'error': 'Cliente non associato'}, status=403)
+        return JsonResponse({'error': 'Atleta non associato'}, status=403)
 
     NutritionAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
     assignment = NutritionAssignment.objects.create(
@@ -636,7 +636,7 @@ def api_sheet_assign(request, sheet_id):
     client = get_object_or_404(ClientProfile, id=client_id)
     rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
     if not rel:
-        return JsonResponse({'error': 'Cliente non associato'}, status=403)
+        return JsonResponse({'error': 'Atleta non associato'}, status=403)
 
     SupplementAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
     assignment = SupplementAssignment.objects.create(

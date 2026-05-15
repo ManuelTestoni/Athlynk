@@ -1082,13 +1082,13 @@
         <!-- Action: Assign -->
         <div class="border rounded p-3" style="border-color: var(--al-rule-faint);">
           <button @click="finalAction = finalAction === 'assign' ? null : 'assign'; if(finalAction==='assign'){loadClients()}" type="button" class="w-full flex items-center justify-between">
-            <span><i class="ph ph-user-plus"></i> <strong>Assegna a clienti</strong> — fai partire il programma</span>
+            <span><i class="ph ph-user-plus"></i> <strong>Assegna a atleti</strong> — fai partire il programma</span>
             <i class="ph" :class="finalAction === 'assign' ? 'ph-caret-up' : 'ph-caret-down'"></i>
           </button>
           <div x-show="finalAction === 'assign'" class="mt-3 space-y-3">
             <div>
-              <label class="al-label">Clienti</label>
-              <input type="text" x-model="clientQuery" @input.debounce.300ms="loadClients()" placeholder="Cerca cliente..." class="al-input mb-2">
+              <label class="al-label">Atleti</label>
+              <input type="text" x-model="clientQuery" @input.debounce.300ms="loadClients()" placeholder="Cerca atleta..." class="al-input mb-2">
               <div class="max-h-48 overflow-y-auto border rounded" style="border-color: var(--al-rule-faint);">
                 <template x-for="c in clientsList" :key="c.id">
                   <label class="flex items-center gap-2 px-3 py-2 border-b cursor-pointer hover:bg-stone" style="border-color: var(--al-rule-faint);">
@@ -1098,7 +1098,7 @@
                   </label>
                 </template>
                 <template x-if="clientsList.length === 0">
-                  <p class="al-small text-center py-4" style="color: var(--al-ink-faint);">Nessun cliente.</p>
+                  <p class="al-small text-center py-4" style="color: var(--al-ink-faint);">Nessun atleta.</p>
                 </template>
               </div>
             </div>
@@ -1118,7 +1118,7 @@
             </div>
             <p x-show="errors.assign" x-text="errors.assign" class="al-input-error"></p>
             <button @click="doAssign()" :disabled="finalizing" type="button" class="al-btn al-btn-bronze w-full">
-              <i class="ph ph-check"></i> Assegna a <span x-text="selectedClientIds.length"></span> clienti
+              <i class="ph ph-check"></i> Assegna a <span x-text="selectedClientIds.length"></span> atleti
             </button>
           </div>
         </div>

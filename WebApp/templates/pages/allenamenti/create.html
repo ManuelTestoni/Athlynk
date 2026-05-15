@@ -73,7 +73,7 @@ window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
 
       <!-- Client search -->
       <div>
-        <label class="al-label">Assegna al cliente *</label>
+        <label class="al-label">Assegna all'atleta *</label>
 
         <div x-show="selectedClient" class="flex items-center justify-between px-3 py-2.5"
              style="background: rgba(138,106,58,0.08); border: 1px solid rgba(138,106,58,0.3); border-radius: var(--al-r-sm);">
@@ -93,7 +93,7 @@ window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
                style="background: var(--al-marble); border: 1px dashed var(--al-rule-strong); border-radius: var(--al-r-sm);">
             <i class="ph ph-magnifying-glass text-ink-line text-sm"></i>
             <input type="text" x-model="clientSearchQuery" @input.debounce.300ms="searchClients()"
-                   placeholder="Cerca cliente per nome..."
+                   placeholder="Cerca atleta per nome..."
                    class="flex-1 bg-transparent text-[13px] text-ink-soft placeholder-ink-line focus:outline-none">
           </div>
           <div x-show="clientSearchResults.length > 0" @click.outside="clientSearchResults = []"

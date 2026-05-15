@@ -73,7 +73,7 @@
         <div class="flex flex-col sm:flex-row gap-3">
             <a href="{% url 'check_client_history' response.client.id %}"
                class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm justify-center">
-                <i class="ph ph-clock-counter-clockwise"></i> Storico cliente
+                <i class="ph ph-clock-counter-clockwise"></i> Storico atleta
             </a>
             <button @click="activeTab = 'note'; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth' }))"
                     class="bg-accent hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2 justify-center">
@@ -90,7 +90,7 @@
         <!-- Left: Info + Nav -->
         <div class="space-y-4">
 
-            <!-- Cliente card -->
+            <!-- Atleta card -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-3">
                 <div class="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center font-bold text-base shrink-0">
                     {{ response.client.first_name|slice:":1" }}{{ response.client.last_name|slice:":1" }}
@@ -353,10 +353,10 @@
             <!-- ── TAB NOTE ── -->
             <div x-show="activeTab === 'note'" class="space-y-4" x-cloak>
 
-                <!-- Note del cliente -->
+                <!-- Note dell'atleta -->
                 {% if response.notes or response.injuries or response.limitations %}
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h2 class="text-sm font-bold text-slate-800 mb-4">Segnalazioni del cliente</h2>
+                    <h2 class="text-sm font-bold text-slate-800 mb-4">Segnalazioni dell'atleta</h2>
                     <div class="space-y-4">
                         {% if response.notes %}
                         <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
@@ -380,7 +380,7 @@
                 </div>
                 {% endif %}
 
-                <!-- Feedback coach (visibile al cliente solo se compilato) -->
+                <!-- Feedback coach (visibile all'atleta solo se compilato) -->
                 {% if is_client and response.coach_feedback %}
                 <div class="bg-accent/5 border border-accent/20 rounded-2xl p-5">
                     <p class="text-xs font-semibold uppercase tracking-wider text-accent mb-2">Feedback del coach</p>
@@ -396,7 +396,7 @@
                     <!-- Feedback pubblico -->
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Feedback pubblico
-                            <span class="text-xs font-normal text-slate-400 ml-1">(visibile al cliente)</span>
+                            <span class="text-xs font-normal text-slate-400 ml-1">(visibile all'atleta)</span>
                         </label>
                         <div class="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-accent focus-within:border-transparent transition-all shadow-sm">
                             <textarea x-model="coachFeedback" rows="5"
@@ -413,7 +413,7 @@
                         </label>
                         <textarea x-model="privateNotes" rows="2"
                                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none"
-                                  placeholder="Appunti non visibili al cliente..."></textarea>
+                                  placeholder="Appunti non visibili all'atleta..."></textarea>
                     </div>
 
                     <!-- Feedback/save messages -->
