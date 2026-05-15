@@ -6,43 +6,43 @@
   <!-- Header -->
   <div class="flex items-center gap-3">
     <a href="{% url 'nutrizione_piani' %}"
-       class="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600">
+       class="p-2 rounded-al-sm border border-rule hover:bg-marble transition-colors text-ink-soft">
       <i class="ph ph-arrow-left text-lg"></i>
     </a>
     <div>
       {% if plan.plan_type %}
-      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ plan.plan_type }}</span>
+      <span class="text-[10px] font-bold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</span>
       {% endif %}
-      <h1 class="text-2xl font-bold text-slate-900">{{ plan.title }}</h1>
+      <h1 class="text-2xl font-bold text-ink">{{ plan.title }}</h1>
     </div>
   </div>
 
   <!-- Macro card -->
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+  <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
       <div class="sm:col-span-1 flex flex-col items-center justify-center">
-        <p class="text-4xl font-bold text-slate-900">{{ total_kcal }}</p>
-        <p class="text-xs text-slate-500 uppercase tracking-wider mt-1">kcal / giorno</p>
+        <p class="text-4xl font-bold text-ink">{{ total_kcal }}</p>
+        <p class="text-xs text-ink-mute uppercase tracking-wider mt-1">kcal / giorno</p>
       </div>
-      <div class="p-3 bg-blue-50 rounded-xl">
+      <div class="p-3 bg-blue-50 rounded-al-sm">
         <p class="text-xl font-bold text-blue-700">{{ total_prot }}g</p>
         <p class="text-xs text-blue-400 uppercase">Proteine</p>
       </div>
-      <div class="p-3 bg-amber-50 rounded-xl">
+      <div class="p-3 bg-amber-50 rounded-al-sm">
         <p class="text-xl font-bold text-amber-700">{{ total_carb }}g</p>
         <p class="text-xs text-amber-400 uppercase">Carboidrati</p>
       </div>
-      <div class="p-3 bg-rose-50 rounded-xl">
+      <div class="p-3 bg-rose-50 rounded-al-sm">
         <p class="text-xl font-bold text-rose-700">{{ total_fat }}g</p>
         <p class="text-xs text-rose-400 uppercase">Grassi</p>
       </div>
     </div>
 
     {% if plan.description %}
-    <p class="text-sm text-slate-600 mt-4 pt-4 border-t border-slate-100 leading-relaxed">{{ plan.description }}</p>
+    <p class="text-sm text-ink-soft mt-4 pt-4 border-t border-rule leading-relaxed">{{ plan.description }}</p>
     {% endif %}
 
-    <div class="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-400">
+    <div class="flex flex-wrap items-center gap-3 mt-3 text-xs text-ink-mute">
       {% if assignment.start_date %}
       <span><i class="ph ph-calendar-blank mr-1"></i>Inizio {{ assignment.start_date|date:"d M Y" }}</span>
       {% endif %}
@@ -57,8 +57,8 @@
     </div>
 
     {% if assignment.notes %}
-    <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-600">
-      <p class="text-xs font-semibold text-slate-500 uppercase mb-1">Note dal coach</p>
+    <div class="mt-4 p-3 bg-marble rounded-al-sm border border-rule text-sm text-ink-soft">
+      <p class="text-xs font-semibold text-ink-mute uppercase mb-1">Note dal coach</p>
       {{ assignment.notes }}
     </div>
     {% endif %}
@@ -66,18 +66,18 @@
 
   <!-- Meals -->
   {% for md in meals_detail %}
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="flex items-center justify-between px-5 py-4 bg-slate-50 border-b border-slate-100">
+  <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 bg-marble border-b border-rule">
       <div class="flex items-center gap-3">
         <div class="w-7 h-7 rounded-lg bg-accent/10 text-accent flex items-center justify-center text-xs font-bold">
           {{ forloop.counter }}
         </div>
-        <h3 class="font-bold text-slate-900">{{ md.meal.name }}</h3>
+        <h3 class="font-bold text-ink">{{ md.meal.name }}</h3>
         {% if md.meal.time_of_day %}
-        <span class="text-xs text-slate-400"><i class="ph ph-clock mr-0.5"></i>{{ md.meal.time_of_day }}</span>
+        <span class="text-xs text-ink-mute"><i class="ph ph-clock mr-0.5"></i>{{ md.meal.time_of_day }}</span>
         {% endif %}
       </div>
-      <span class="text-sm font-bold text-slate-500">{{ md.kcal }} kcal</span>
+      <span class="text-sm font-bold text-ink-mute">{{ md.kcal }} kcal</span>
     </div>
 
     {% if md.meal.notes %}
@@ -86,16 +86,16 @@
     </div>
     {% endif %}
 
-    <div class="divide-y divide-slate-50">
+    <div class="divide-y divide-rule">
       {% for item in md.items %}
       <div class="flex items-center gap-4 px-5 py-3">
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-slate-800">{{ item.food.nome_alimento }}</p>
-          <p class="text-xs text-slate-400 mt-0.5">{{ item.food.categoria_alimento }}</p>
+          <p class="text-sm font-medium text-ink-soft">{{ item.food.nome_alimento }}</p>
+          <p class="text-xs text-ink-mute mt-0.5">{{ item.food.categoria_alimento }}</p>
         </div>
         <div class="text-right shrink-0 space-y-0.5">
-          <p class="text-sm font-bold text-slate-700">{{ item.quantity_g|floatformat:0 }}g</p>
-          <p class="text-xs text-slate-400">{{ item.kcal }} kcal</p>
+          <p class="text-sm font-bold text-ink-soft">{{ item.quantity_g|floatformat:0 }}g</p>
+          <p class="text-xs text-ink-mute">{{ item.kcal }} kcal</p>
         </div>
         <div class="text-right shrink-0 space-y-0.5 hidden sm:block">
           <p class="text-xs text-blue-600">P {{ item.protein }}g</p>
@@ -104,18 +104,18 @@
         </div>
       </div>
       {% empty %}
-      <p class="px-5 py-4 text-sm text-slate-400">Nessun alimento</p>
+      <p class="px-5 py-4 text-sm text-ink-mute">Nessun alimento</p>
       {% endfor %}
     </div>
 
-    <div class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 text-center text-xs">
+    <div class="grid grid-cols-3 divide-x divide-rule border-t border-rule text-center text-xs">
       <div class="py-2 text-blue-600"><span class="font-bold">{{ md.prot }}g</span><span class="text-blue-400 ml-1">prot</span></div>
       <div class="py-2 text-amber-600"><span class="font-bold">{{ md.carb }}g</span><span class="text-amber-400 ml-1">carb</span></div>
       <div class="py-2 text-rose-600"><span class="font-bold">{{ md.fat }}g</span><span class="text-rose-400 ml-1">fat</span></div>
     </div>
   </div>
   {% empty %}
-  <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center text-slate-400">
+  <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center text-ink-mute">
     Piano senza pasti. Contatta il tuo coach.
   </div>
   {% endfor %}

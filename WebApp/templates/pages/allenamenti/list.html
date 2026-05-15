@@ -3,7 +3,31 @@
 {% block title %}Allenamenti{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ view: 'grid', filterOpen: false }">
+<div class="max-w-7xl mx-auto"
+     x-data="{
+       view: 'grid',
+       filterOpen: false,
+       filter: '{{ filter_status|default_if_none:'' }}',
+       q: '{{ query|default_if_none:'' }}',
+       counts: { '': {{ plans|length }}, ACTIVE: 0, TEMPLATE: 0, DRAFT: 0 },
+       swapping: false,
+       setFilter(v) {
+         if (this.filter === v) return;
+         this.swapping = true;
+         setTimeout(() => { this.filter = v; this.swapping = false; }, 220);
+       },
+       matches(plan) {
+         const okStatus = !this.filter || plan.status === this.filter;
+         const qq = (this.q || '').toLowerCase().trim();
+         const okQ = !qq || (plan.title || '').toLowerCase().includes(qq);
+         return okStatus && okQ;
+       }
+     }"
+     x-init="
+       counts.ACTIVE = document.querySelectorAll('[data-status=&quot;ACTIVE&quot;]').length;
+       counts.TEMPLATE = document.querySelectorAll('[data-status=&quot;TEMPLATE&quot;]').length;
+       counts.DRAFT = document.querySelectorAll('[data-status=&quot;DRAFT&quot;]').length;
+     ">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
@@ -14,11 +38,10 @@
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div class="flex gap-3 items-center">
-            <form method="GET" action="{% url 'allenamenti_list' %}" class="al-search hidden md:block max-w-xs">
+            <div class="al-search hidden md:block max-w-xs">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" name="q" value="{{ query }}" placeholder="Cerca scheda..." class="al-input">
-                {% if filter_status %}<input type="hidden" name="status" value="{{ filter_status }}">{% endif %}
-            </form>
+                <input type="text" x-model="q" placeholder="Cerca scheda..." class="al-input">
+            </div>
             <a href="{% url 'allenamenti_wizard' %}" class="al-btn al-btn-bronze">
                 <i class="ph ph-plus text-sm"></i>
                 <span>Nuova scheda</span>
@@ -26,31 +49,37 @@
         </div>
     </div>
 
-    <!-- Status filter chips -->
-    <div class="flex flex-wrap gap-2 mb-5">
-        <a href="{% url 'allenamenti_list' %}{% if query %}?q={{ query }}{% endif %}"
-           class="al-tag {% if not filter_status %}is-active{% endif %}"
-           style="{% if not filter_status %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Tutte</a>
-        <a href="?status=ACTIVE{% if query %}&q={{ query }}{% endif %}"
-           class="al-tag"
-           style="{% if filter_status == 'ACTIVE' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Attive</a>
-        <a href="?status=TEMPLATE{% if query %}&q={{ query }}{% endif %}"
-           class="al-tag"
-           style="{% if filter_status == 'TEMPLATE' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Template</a>
-        <a href="?status=DRAFT{% if query %}&q={{ query }}{% endif %}"
-           class="al-tag"
-           style="{% if filter_status == 'DRAFT' %}background:var(--al-ink);color:var(--al-parchment);{% endif %}">Bozze</a>
+    <!-- Status filter chips (al-filter standard) -->
+    <div class="al-filter mb-5" role="tablist" aria-label="Filtra schede">
+        <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': !filter }" :aria-selected="!filter" @click="setFilter('')">
+            <span>Tutte</span><span class="al-filter-count" x-text="counts['']"></span>
+        </button>
+        <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': filter==='ACTIVE' }" :aria-selected="filter==='ACTIVE'" @click="setFilter('ACTIVE')">
+            <span>Attive</span><span class="al-filter-count" x-text="counts.ACTIVE"></span>
+        </button>
+        <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': filter==='TEMPLATE' }" :aria-selected="filter==='TEMPLATE'" @click="setFilter('TEMPLATE')">
+            <span>Template</span><span class="al-filter-count" x-text="counts.TEMPLATE"></span>
+        </button>
+        <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': filter==='DRAFT' }" :aria-selected="filter==='DRAFT'" @click="setFilter('DRAFT')">
+            <span>Bozze</span><span class="al-filter-count" x-text="counts.DRAFT"></span>
+        </button>
     </div>
 
     <!-- Control bar -->
     <div class="flex items-center justify-between mb-5">
-        <p class="al-tag">{{ plans|length }} schede</p>
+        <p class="al-tag"><span x-text="$el.parentElement.parentElement.querySelectorAll('.al-filter-item:not(.is-filtered-out)').length"></span> schede</p>
     </div>
 
     <!-- Grid view -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="al-filter-target grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+         :data-filter-swapping="swapping ? '1' : '0'"
+         :data-filter-anim="!swapping && filter ? '1' : '0'">
         {% for plan in plans %}
-        <div class="al-card flex flex-col justify-between" style="--d:{{ forloop.counter0|add:0 }}0ms;">
+        <div class="al-card al-filter-item flex flex-col justify-between"
+             data-status="{{ plan.status }}"
+             data-title="{{ plan.title|lower }}"
+             :class="{ 'is-filtered-out': (filter && '{{ plan.status }}' !== filter) || (q && '{{ plan.title|escapejs|lower }}'.indexOf(q.toLowerCase().trim()) === -1) }"
+             style="--d:{{ forloop.counter0|add:0 }}0ms;">
             <div>
                 <div class="flex justify-between items-start mb-4">
                     <span class="al-badge al-badge-aegean">{{ plan.goal|default:"Generale" }}</span>

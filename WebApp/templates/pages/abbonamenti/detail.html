@@ -6,24 +6,24 @@
     <!-- Breadcrumbs -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 flex-shrink-0">
         <div>
-            <div class="flex items-center text-sm text-slate-500 mb-2 font-medium">
-                <a href="{% url 'dashboard' %}" class="hover:text-slate-800 transition-colors">Home</a>
-                <span class="mx-2 text-slate-300">/</span>
-                <a href="{% url 'abbonamenti_dashboard' %}" class="hover:text-slate-800 transition-colors">Abbonamenti</a>
-                <span class="mx-2 text-slate-300">/</span>
-                <span class="text-slate-800">Dettaglio Piano</span>
+            <div class="flex items-center text-sm text-ink-mute mb-2 font-medium">
+                <a href="{% url 'dashboard' %}" class="hover:text-ink-soft transition-colors">Home</a>
+                <span class="mx-2 text-ink-line">/</span>
+                <a href="{% url 'abbonamenti_dashboard' %}" class="hover:text-ink-soft transition-colors">Abbonamenti</a>
+                <span class="mx-2 text-ink-line">/</span>
+                <span class="text-ink-soft">Dettaglio Piano</span>
             </div>
             <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Premium Coaching</h1>
+                <h1 class="text-2xl font-bold text-ink tracking-tight">Premium Coaching</h1>
                 <span class="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs uppercase tracking-widest font-bold rounded-lg border border-blue-100">Bestseller</span>
             </div>
-            <p class="text-sm text-slate-500 mt-1 flex items-center">
-                <i class="ph ph-link mr-1"></i> <a href="{% url 'abbonamenti_checkout' %}" class="hover:text-accent underline decoration-slate-300 underline-offset-4">https://trainelite.app/p/checkout/premium-coaching-p9m4</a>
-                <button class="ml-2 text-slate-400 hover:text-slate-700"><i class="ph ph-copy"></i></button>
+            <p class="text-sm text-ink-mute mt-1 flex items-center">
+                <i class="ph ph-link mr-1"></i> <a href="{% url 'abbonamenti_checkout' %}" class="hover:text-accent underline decoration-stone underline-offset-4">https://trainelite.app/p/checkout/premium-coaching-p9m4</a>
+                <button class="ml-2 text-ink-mute hover:text-ink-soft"><i class="ph ph-copy"></i></button>
             </p>
         </div>
         <div class="flex gap-3">
-            <button class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm flex items-center">
+            <button class="bg-white border border-rule text-ink-soft px-4 py-2 rounded-lg text-sm font-medium hover:bg-marble transition-colors shadow-sm flex items-center">
                 <i class="ph ph-pencil-simple mr-2 text-lg"></i> Modifica Piano
             </button>
             <button class="bg-rose-50 border border-rose-200 text-rose-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-100 transition-colors shadow-sm flex items-center">
@@ -36,38 +36,38 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         
         <!-- Pricing Config -->
-        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative overflow-hidden">
+        <div class="lg:col-span-2 bg-white rounded-al-sm border border-rule shadow-sm p-6 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-brand"></div>
-            <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center">
+            <h3 class="text-base font-bold text-ink-soft mb-4 flex items-center">
                 <i class="ph ph-gear mr-2 text-brand text-xl"></i> Configurazione Prezzo
             </h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-4">
                 <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Prezzo Base</p>
-                    <p class="text-slate-900 font-bold text-xl flex items-center gap-2">
-                        € 150 <span class="text-slate-400 text-sm font-normal">/ mese</span>
+                    <p class="text-xs font-semibold text-ink-mute uppercase tracking-wide mb-1">Prezzo Base</p>
+                    <p class="text-ink font-bold text-xl flex items-center gap-2">
+                        € 150 <span class="text-ink-mute text-sm font-normal">/ mese</span>
                     </p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Billing Cycle</p>
-                    <p class="text-slate-900 font-medium flex items-center gap-2">
-                        <i class="ph ph-arrows-clockwise text-slate-400"></i> Ricorrente (30 giorni)
+                    <p class="text-xs font-semibold text-ink-mute uppercase tracking-wide mb-1">Billing Cycle</p>
+                    <p class="text-ink font-medium flex items-center gap-2">
+                        <i class="ph ph-arrows-clockwise text-ink-mute"></i> Ricorrente (30 giorni)
                     </p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Costo Setup / Attivazione</p>
-                    <p class="text-slate-900 font-medium">Nessuno (€ 0)</p>
+                    <p class="text-xs font-semibold text-ink-mute uppercase tracking-wide mb-1">Costo Setup / Attivazione</p>
+                    <p class="text-ink font-medium">Nessuno (€ 0)</p>
                 </div>
                 <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Visibilità Checkout</p>
+                    <p class="text-xs font-semibold text-ink-mute uppercase tracking-wide mb-1">Visibilità Checkout</p>
                     <p class="font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded inline-flex border border-emerald-200">Pubblico sul tuo profilo</p>
                 </div>
             </div>
 
-            <div class="mt-6 pt-6 border-t border-slate-100 pb-2">
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Descrizione Visibile al Atleta</p>
-                <p class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed italic">
+            <div class="mt-6 pt-6 border-t border-rule pb-2">
+                <p class="text-xs font-semibold text-ink-mute uppercase tracking-wide mb-2">Descrizione Visibile al Atleta</p>
+                <p class="text-sm text-ink-soft bg-marble p-4 rounded-al-sm border border-rule leading-relaxed italic">
                     "Il pacchetto premium che include scheda d'allenamento bi-settimanale, macro nutrizionali, 2 check video al mese e priorità WhatsApp. L'ideale per trasformazioni radicate."
                 </p>
             </div>
@@ -75,20 +75,20 @@
 
         <!-- Metrics -->
         <div class="space-y-6">
-            <div class="bg-primary rounded-2xl border border-slate-800 shadow-md p-6 text-white relative overflow-hidden">
-                <i class="ph-fill ph-chart-line-up absolute -right-4 -bottom-4 text-7xl text-slate-800/80"></i>
-                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1 relative z-10">MRR di questo piano</h3>
+            <div class="bg-primary rounded-al-sm border border-ink shadow-md p-6 text-white relative overflow-hidden">
+                <i class="ph-fill ph-chart-line-up absolute -right-4 -bottom-4 text-7xl text-ink-soft/80"></i>
+                <h3 class="text-xs font-semibold text-ink-mute uppercase tracking-widest mb-1 relative z-10">MRR di questo piano</h3>
                 <p class="text-3xl font-bold text-white relative z-10">€ 6.300</p>
-                <div class="mt-4 pt-4 border-t border-slate-700/50 flex justify-between relative z-10 text-sm">
-                    <span class="text-slate-400">Iscritti attivi:</span>
+                <div class="mt-4 pt-4 border-t border-ink flex justify-between relative z-10 text-sm">
+                    <span class="text-ink-mute">Iscritti attivi:</span>
                     <span class="font-bold text-white">42</span>
                 </div>
             </div>
             
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative overflow-hidden flex items-center justify-between">
+            <div class="bg-white rounded-al-sm border border-rule shadow-sm p-6 relative overflow-hidden flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Tasso Acquisizione</p>
-                    <p class="text-xl font-bold text-slate-900">+12%</p>
+                    <p class="text-xs font-semibold text-ink-mute uppercase tracking-widest mb-1">Tasso Acquisizione</p>
+                    <p class="text-xl font-bold text-ink">+12%</p>
                 </div>
                 <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
                     <i class="ph ph-trend-up text-xl font-bold"></i>
@@ -99,18 +99,18 @@
     </div>
 
     <!-- Subscribers Sub-Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
-        <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-            <h3 class="text-base font-bold text-primary flex items-center"><i class="ph ph-users text-lg mr-2 text-slate-400"></i> Atleti iscritti a questo piano (42)</h3>
+    <div class="bg-white rounded-al-sm border border-rule shadow-sm p-0 overflow-hidden">
+        <div class="p-6 border-b border-rule flex justify-between items-center bg-marble/50">
+            <h3 class="text-base font-bold text-primary flex items-center"><i class="ph ph-users text-lg mr-2 text-ink-mute"></i> Atleti iscritti a questo piano (42)</h3>
             <div class="relative w-48">
-                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" placeholder="Cerca..." class="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute"></i>
+                <input type="text" placeholder="Cerca..." class="w-full pl-9 pr-4 py-1.5 bg-white border border-rule-strong rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent">
             </div>
         </div>
         
         <table class="w-full text-left border-collapse bg-white">
             <thead>
-                <tr class="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                <tr class="border-b border-rule text-xs uppercase tracking-wider text-ink-mute font-semibold">
                     <th class="px-6 py-4">Atleta</th>
                     <th class="px-6 py-4">Iscritto dal</th>
                     <th class="px-6 py-4">Prossima Rata</th>
@@ -118,59 +118,59 @@
                     <th class="px-6 py-4 text-right">Azioni</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-50 text-sm text-slate-700">
-                <tr class="hover:bg-slate-50 transition-colors">
+            <tbody class="divide-y divide-rule text-sm text-ink-soft">
+                <tr class="hover:bg-marble transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" class="w-8 h-8 rounded-full border border-slate-200 mr-3">
-                            <p class="font-semibold text-slate-900">Luca Moretti</p>
+                            <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" class="w-8 h-8 rounded-full border border-rule mr-3">
+                            <p class="font-semibold text-ink">Luca Moretti</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500">12 Febbraio 2026</td>
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-800">12 Maggio 2026</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-ink-mute">12 Febbraio 2026</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-ink-soft">12 Maggio 2026</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded border border-emerald-100"><i class="ph ph-check-circle mr-1"></i>Regolare</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button class="text-slate-400 hover:text-accent"><i class="ph text-lg ph-dots-three-vertical"></i></button>
+                        <button class="text-ink-mute hover:text-accent"><i class="ph text-lg ph-dots-three-vertical"></i></button>
                     </td>
                 </tr>
-                <tr class="hover:bg-slate-50 transition-colors">
+                <tr class="hover:bg-marble transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <img src="https://i.pravatar.cc/150?img=47" alt="Avatar" class="w-8 h-8 rounded-full border border-slate-200 mr-3">
-                            <p class="font-semibold text-slate-900">Elena Conti</p>
+                            <img src="https://i.pravatar.cc/150?img=47" alt="Avatar" class="w-8 h-8 rounded-full border border-rule mr-3">
+                            <p class="font-semibold text-ink">Elena Conti</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500">5 Aprile 2026</td>
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-800">5 Maggio 2026</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-ink-mute">5 Aprile 2026</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-ink-soft">5 Maggio 2026</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded border border-amber-100"><i class="ph ph-clock mr-1"></i>In Attesa (Bonifico)</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button class="text-slate-400 hover:text-accent"><i class="ph text-lg ph-dots-three-vertical"></i></button>
+                        <button class="text-ink-mute hover:text-accent"><i class="ph text-lg ph-dots-three-vertical"></i></button>
                     </td>
                 </tr>
-                <tr class="hover:bg-slate-50 transition-colors bg-rose-50/20">
+                <tr class="hover:bg-marble transition-colors bg-rose-50/20">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold mr-3">GB</div>
-                            <p class="font-semibold text-slate-900">Giacomo Bruni</p>
+                            <div class="w-8 h-8 rounded-full bg-marble-warm text-ink-soft flex items-center justify-center text-xs font-bold mr-3">GB</div>
+                            <p class="font-semibold text-ink">Giacomo Bruni</p>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500">10 Gennaio 2026</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-ink-mute">10 Gennaio 2026</td>
                     <td class="px-6 py-4 whitespace-nowrap text-rose-600 font-bold">10 Aprile 2026</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2.5 py-1 bg-rose-50 text-rose-700 text-xs font-semibold rounded border border-rose-100"><i class="ph ph-warning-circle mr-1"></i>Carta Scaduta/Rifiutata</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button class="text-accent underline text-xs font-medium mr-3 hover:text-blue-800">Invia sollecito</button>
-                        <button class="text-slate-400 hover:text-slate-600"><i class="ph text-lg ph-dots-three-vertical"></i></button>
+                        <button class="text-ink-mute hover:text-ink-soft"><i class="ph text-lg ph-dots-three-vertical"></i></button>
                     </td>
                 </tr>
             </tbody>
         </table>
-        <div class="p-4 border-t border-slate-100 text-center">
+        <div class="p-4 border-t border-rule text-center">
             <button class="text-sm font-bold text-accent hover:text-blue-700">Carica Altri Iscritti</button>
         </div>
     </div>

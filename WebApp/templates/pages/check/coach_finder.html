@@ -19,27 +19,27 @@
 
   <!-- Header -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-slate-900">Trova il tuo professionista</h1>
-    <p class="text-sm text-slate-500 mt-1">Esplora coach, allenatori e nutrizionisti disponibili sulla piattaforma.</p>
+    <h1 class="text-3xl font-bold text-ink">Trova il tuo professionista</h1>
+    <p class="text-sm text-ink-mute mt-1">Esplora coach, allenatori e nutrizionisti disponibili sulla piattaforma.</p>
   </div>
 
   <!-- Search + Filter -->
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-    <div class="flex-1 flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus-within:bg-white focus-within:border-accent transition-colors">
-      <i class="ph ph-magnifying-glass text-slate-400"></i>
+  <div class="bg-white border border-rule rounded-al-sm shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+    <div class="flex-1 flex items-center gap-2 px-3 py-2 border border-rule rounded-al-sm bg-marble focus-within:bg-white focus-within:border-accent transition-colors">
+      <i class="ph ph-magnifying-glass text-ink-mute"></i>
       <input type="text" x-model="search" @input.debounce.400ms="runSearch()"
              placeholder="Cerca per nome, città, specializzazione..."
-             class="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 focus:outline-none">
+             class="flex-1 bg-transparent text-sm text-ink-soft placeholder-ink-mute focus:outline-none">
     </div>
     <div class="flex items-center gap-2 flex-wrap">
-      <button @click="filterType='ALL'" :class="filterType==='ALL'?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-              class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors">Tutti</button>
-      <button @click="filterType='COACH'" :class="filterType==='COACH'?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-              class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-graduation-cap"></i> Coach</button>
-      <button @click="filterType='ALLENATORE'" :class="filterType==='ALLENATORE'?'bg-blue-500 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-              class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-barbell"></i> Allenatori</button>
-      <button @click="filterType='NUTRIZIONISTA'" :class="filterType==='NUTRIZIONISTA'?'bg-emerald-500 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-              class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-apple-logo"></i> Nutrizionisti</button>
+      <button @click="filterType='ALL'" :class="filterType==='ALL'?'bg-ink text-white':'bg-marble text-ink-soft hover:bg-marble-warm'"
+              class="px-4 py-2 rounded-al-sm text-xs font-semibold transition-colors">Tutti</button>
+      <button @click="filterType='COACH'" :class="filterType==='COACH'?'bg-ink text-white':'bg-marble text-ink-soft hover:bg-marble-warm'"
+              class="px-4 py-2 rounded-al-sm text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-graduation-cap"></i> Coach</button>
+      <button @click="filterType='ALLENATORE'" :class="filterType==='ALLENATORE'?'bg-blue-500 text-white':'bg-marble text-ink-soft hover:bg-marble-warm'"
+              class="px-4 py-2 rounded-al-sm text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-barbell"></i> Allenatori</button>
+      <button @click="filterType='NUTRIZIONISTA'" :class="filterType==='NUTRIZIONISTA'?'bg-emerald-500 text-white':'bg-marble text-ink-soft hover:bg-marble-warm'"
+              class="px-4 py-2 rounded-al-sm text-xs font-semibold transition-colors flex items-center gap-1.5"><i class="ph-fill ph-apple-logo"></i> Nutrizionisti</button>
     </div>
   </div>
 
@@ -47,15 +47,15 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
     <template x-for="coach in visibleCoaches()" :key="coach.id">
       <a :href="'/check/trova-coach/' + coach.id + '/'"
-         class="group block bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all overflow-hidden">
+         class="group block bg-white border border-rule rounded-al-sm shadow-sm hover:shadow-md hover:border-accent/40 transition-all overflow-hidden">
 
         <!-- Header banner -->
-        <div class="h-24 bg-gradient-to-br from-slate-700 to-slate-500 relative">
-          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"></div>
+        <div class="h-24 bg-gradient-to-br from-ink to-ink-soft relative">
+          <div class="absolute inset-0 bg-gradient-to-t from-ink to-transparent"></div>
           <!-- Badge ruolo -->
           <div class="absolute top-3 right-3">
             <span x-show="coach.professional_type === 'COACH'"
-                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-slate-900 text-[10px] font-bold uppercase tracking-wider shadow">
+                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-ink text-[10px] font-bold uppercase tracking-wider shadow">
               <i class="ph-fill ph-graduation-cap"></i> Coach
             </span>
             <span x-show="coach.professional_type === 'ALLENATORE'"
@@ -71,17 +71,17 @@
 
         <!-- Avatar overlap -->
         <div class="px-5 -mt-8 relative">
-          <div class="w-16 h-16 rounded-2xl border-4 border-white shadow-lg bg-slate-200 flex items-center justify-center overflow-hidden">
+          <div class="w-16 h-16 rounded-al-sm border-4 border-white shadow-lg bg-marble-warm flex items-center justify-center overflow-hidden">
             <img :src="coach.avatar" :alt="coach.name" class="w-full h-full object-cover">
           </div>
         </div>
 
         <!-- Body -->
         <div class="px-5 pt-3 pb-5">
-          <h3 class="text-base font-bold text-slate-900 group-hover:text-accent transition-colors" x-text="coach.name"></h3>
-          <p class="text-xs text-slate-500 mt-0.5" x-text="coach.title"></p>
+          <h3 class="text-base font-bold text-ink group-hover:text-accent transition-colors" x-text="coach.name"></h3>
+          <p class="text-xs text-ink-mute mt-0.5" x-text="coach.title"></p>
 
-          <div class="flex items-center gap-3 text-xs text-slate-400 mt-3">
+          <div class="flex items-center gap-3 text-xs text-ink-mute mt-3">
             <span class="inline-flex items-center gap-1">
               <i class="ph ph-map-pin"></i> <span x-text="coach.city"></span>
             </span>
@@ -90,11 +90,11 @@
             </span>
           </div>
 
-          <p class="text-sm text-slate-600 mt-3 leading-relaxed line-clamp-2" x-text="coach.bio"></p>
+          <p class="text-sm text-ink-soft mt-3 leading-relaxed line-clamp-2" x-text="coach.bio"></p>
 
           <!-- CTA -->
-          <div class="mt-4 flex items-center justify-between pt-3 border-t border-slate-100">
-            <span class="text-sm font-semibold text-slate-900" x-text="coach.price"></span>
+          <div class="mt-4 flex items-center justify-between pt-3 border-t border-rule">
+            <span class="text-sm font-semibold text-ink" x-text="coach.price"></span>
             <span class="inline-flex items-center gap-1 text-xs font-semibold text-accent group-hover:gap-2 transition-all">
               Vedi dettagli <i class="ph ph-arrow-right"></i>
             </span>
@@ -105,10 +105,10 @@
   </div>
 
   <!-- Empty state -->
-  <div x-show="visibleCoaches().length === 0" class="bg-white border border-dashed border-slate-300 rounded-2xl p-16 text-center mt-6">
-    <i class="ph ph-magnifying-glass text-4xl text-slate-300"></i>
-    <h2 class="mt-4 text-base font-semibold text-slate-700">Nessun professionista trovato</h2>
-    <p class="text-sm text-slate-500 mt-1">Prova a modificare la ricerca o i filtri.</p>
+  <div x-show="visibleCoaches().length === 0" class="bg-white border border-dashed border-rule-strong rounded-al-sm p-16 text-center mt-6">
+    <i class="ph ph-magnifying-glass text-4xl text-ink-line"></i>
+    <h2 class="mt-4 text-base font-semibold text-ink-soft">Nessun professionista trovato</h2>
+    <p class="text-sm text-ink-mute mt-1">Prova a modificare la ricerca o i filtri.</p>
   </div>
 </div>
 {% endblock %}

@@ -3,15 +3,15 @@
 poiché è un form di pagamento pubblico per l'atleta. -->
 
 {% block content %}
-<div class="fixed inset-0 z-50 bg-slate-50 flex flex-col overflow-y-auto">
+<div class="fixed inset-0 z-50 bg-marble flex flex-col overflow-y-auto">
     
     <!-- Modale Header Finto -->
-    <header class="bg-white border-b border-slate-200 py-4 px-6 flex justify-between items-center flex-shrink-0 sticky top-0 z-10 shadow-sm">
+    <header class="bg-white border-b border-rule py-4 px-6 flex justify-between items-center flex-shrink-0 sticky top-0 z-10 shadow-sm">
         <div class="flex items-center">
             <i class="ph-fill ph-barbell text-2xl text-brand mr-2"></i>
             <span class="font-bold text-xl text-primary tracking-tight">TrainElite<span class="text-brand">.</span> Checkout</span>
         </div>
-        <button class="text-slate-400 hover:text-slate-800 transition-colors bg-slate-100 hover:bg-slate-200 p-2 rounded-full flex items-center justify-center" aria-label="Chiudi e torna indietro" onclick="window.history.back()">
+        <button class="text-ink-mute hover:text-ink-soft transition-colors bg-marble hover:bg-marble-warm p-2 rounded-full flex items-center justify-center" aria-label="Chiudi e torna indietro" onclick="window.history.back()">
             <i class="ph ph-x"></i> Annulla
         </button>
     </header>
@@ -20,75 +20,75 @@ poiché è un form di pagamento pubblico per l'atleta. -->
         
         <!-- Left Column: Form -->
         <div class="lg:col-span-7 space-y-6">
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Completa la tua iscrizione</h1>
-            <p class="text-sm text-slate-500 mb-6">Stai per acquistare il piano di coaching con il tuo personal trainer.</p>
+            <h1 class="text-2xl font-bold text-ink tracking-tight">Completa la tua iscrizione</h1>
+            <p class="text-sm text-ink-mute mb-6">Stai per acquistare il piano di coaching con il tuo personal trainer.</p>
 
-            <form action="{% url 'abbonamenti_checkout_success' %}" method="GET" class="space-y-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <form action="{% url 'abbonamenti_checkout_success' %}" method="GET" class="space-y-8 bg-white p-6 rounded-al-sm border border-rule shadow-sm">
                 
                 <!-- Anagrafica -->
                 <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2">I tuoi dati</h3>
+                    <h3 class="text-lg font-bold text-ink-soft border-b border-rule pb-2">I tuoi dati</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Nome</label>
-                            <input type="text" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="Mario">
+                            <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Nome</label>
+                            <input type="text" class="w-full px-4 py-2 bg-marble border border-rule rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="Mario">
                         </div>
                         <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Cognome</label>
-                            <input type="text" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="Rossi">
+                            <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Cognome</label>
+                            <input type="text" class="w-full px-4 py-2 bg-marble border border-rule rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="Rossi">
                         </div>
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</label>
-                        <input type="email" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="mario.rossi@email.com">
-                        <p class="text-[10px] text-slate-400">Su questa email riceverai le istruzioni e la ricevuta.</p>
+                        <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Email</label>
+                        <input type="email" class="w-full px-4 py-2 bg-marble border border-rule rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" required placeholder="mario.rossi@email.com">
+                        <p class="text-[10px] text-ink-mute">Su questa email riceverai le istruzioni e la ricevuta.</p>
                     </div>
                 </div>
 
                 <!-- Modulo di Pagamento (Mock Stripe) -->
-                <div class="space-y-4 pt-4 border-t border-slate-100">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <h3 class="text-lg font-bold text-slate-800">Metodo di Pagamento</h3>
-                        <div class="flex gap-1 text-slate-400 text-xl">
+                <div class="space-y-4 pt-4 border-t border-rule">
+                    <div class="flex items-center justify-between border-b border-rule pb-2">
+                        <h3 class="text-lg font-bold text-ink-soft">Metodo di Pagamento</h3>
+                        <div class="flex gap-1 text-ink-mute text-xl">
                             <i class="ph-fill ph-stripe-logo text-[#635BFF]"></i>
                             <i class="ph ph-credit-card"></i>
                         </div>
                     </div>
                     
-                    <div class="p-4 border border-slate-200 rounded-xl bg-slate-50/50 space-y-4">
+                    <div class="p-4 border border-rule rounded-al-sm bg-marble/50 space-y-4">
                         <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Numero Carta</label>
+                            <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Numero Carta</label>
                             <div class="relative">
-                                <i class="ph ph-credit-card absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums tracking-wider" placeholder="0000 0000 0000 0000" maxlength="19">
+                                <i class="ph ph-credit-card absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute"></i>
+                                <input type="text" class="w-full pl-10 pr-4 py-2.5 bg-white border border-rule-strong rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums tracking-wider" placeholder="0000 0000 0000 0000" maxlength="19">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Scadenza (MM/AA)</label>
-                                <input type="text" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums" placeholder="12/26" maxlength="5">
+                                <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Scadenza (MM/AA)</label>
+                                <input type="text" class="w-full px-4 py-2.5 bg-white border border-rule-strong rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums" placeholder="12/26" maxlength="5">
                             </div>
                             <div class="space-y-1.5">
-                                <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">CVC</label>
-                                <input type="text" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums" placeholder="123" maxlength="4">
+                                <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">CVC</label>
+                                <input type="text" class="w-full px-4 py-2.5 bg-white border border-rule-strong rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent tabular-nums" placeholder="123" maxlength="4">
                             </div>
                         </div>
                         <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Nome sulla Carta</label>
-                            <input type="text" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" placeholder="Mario Rossi uppercase">
+                            <label class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Nome sulla Carta</label>
+                            <input type="text" class="w-full px-4 py-2.5 bg-white border border-rule-strong rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" placeholder="Mario Rossi uppercase">
                         </div>
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-2 flex items-center justify-center gap-1.5">
+                    <p class="text-[10px] text-ink-mute mt-2 flex items-center justify-center gap-1.5">
                         <i class="ph-fill ph-lock-key text-emerald-500"></i> 
                         Pagamento sicuro e crittografato tramite Stripe (Mock Environment)
                     </p>
                 </div>
 
                 <div class="pt-6">
-                    <button type="submit" class="w-full bg-[#635BFF] hover:bg-[#4E44E6] text-white px-6 py-4 rounded-xl font-bold transition-colors shadow flex items-center justify-center text-lg">
+                    <button type="submit" class="w-full bg-[#635BFF] hover:bg-[#4E44E6] text-white px-6 py-4 rounded-al-sm font-bold transition-colors shadow flex items-center justify-center text-lg">
                         Abbonati Ora - € 150 <i class="ph ph-arrow-right ml-2"></i>
                     </button>
-                    <p class="text-xs text-center text-slate-500 mt-4 leading-relaxed max-w-sm mx-auto">
+                    <p class="text-xs text-center text-ink-mute mt-4 leading-relaxed max-w-sm mx-auto">
                         Cliccando su "Abbonati Ora", accetti di attivare un abbonamento ricorrente mensile. 
                         Puoi disdire in qualsiasi momento.
                     </p>
@@ -99,8 +99,8 @@ poiché è un form di pagamento pubblico per l'atleta. -->
 
         <!-- Right Column: Order Summary -->
         <div class="lg:col-span-5 relative mt-6 lg:mt-0">
-            <div class="lg:sticky lg:top-24 bg-gradient-to-b from-slate-900 to-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl text-white border border-slate-700">
-                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-700/50 pb-4">Riepilogo Ordine</h2>
+            <div class="lg:sticky lg:top-24 bg-gradient-to-b from-ink to-ink p-6 sm:p-8 rounded-al-sm shadow-xl text-white border border-ink">
+                <h2 class="text-xs font-bold text-ink-mute uppercase tracking-widest mb-6 border-b border-ink pb-4">Riepilogo Ordine</h2>
                 
                 <div class="flex justify-between items-start mb-6">
                     <div>
@@ -109,51 +109,51 @@ poiché è un form di pagamento pubblico per l'atleta. -->
                     </div>
                 </div>
 
-                <div class="bg-slate-800/50 backdrop-blur rounded-xl p-4 border border-slate-700/80 mb-6 space-y-3 relative overflow-hidden">
-                    <div class="absolute -right-6 -bottom-6 text-slate-700/60"><i class="ph-fill ph-barbell text-8xl"></i></div>
+                <div class="bg-ink backdrop-blur rounded-al-sm p-4 border border-ink mb-6 space-y-3 relative overflow-hidden">
+                    <div class="absolute -right-6 -bottom-6 text-ink-soft/60"><i class="ph-fill ph-barbell text-8xl"></i></div>
                     
-                    <h4 class="text-sm font-medium text-slate-300 mb-2 relative z-10">Cosa include:</h4>
+                    <h4 class="text-sm font-medium text-ink-line mb-2 relative z-10">Cosa include:</h4>
                     <ul class="space-y-2 relative z-10">
                         <li class="flex items-start text-sm">
                             <i class="ph-fill ph-check-circle text-accent mt-0.5 mr-2"></i> 
-                            <span class="text-slate-200">Scheda allenamento personalizzata</span>
+                            <span class="text-ink-line">Scheda allenamento personalizzata</span>
                         </li>
                         <li class="flex items-start text-sm">
                             <i class="ph-fill ph-check-circle text-accent mt-0.5 mr-2"></i> 
-                            <span class="text-slate-200">Piano nutrizionale e macro</span>
+                            <span class="text-ink-line">Piano nutrizionale e macro</span>
                         </li>
                         <li class="flex items-start text-sm">
                             <i class="ph-fill ph-check-circle text-accent mt-0.5 mr-2"></i> 
-                            <span class="text-slate-200">Check bisettimanale (Meet)</span>
+                            <span class="text-ink-line">Check bisettimanale (Meet)</span>
                         </li>
                         <li class="flex items-start text-sm">
                             <i class="ph-fill ph-check-circle text-accent mt-0.5 mr-2"></i> 
-                            <span class="text-slate-200">Supporto WhatsApp prioritario</span>
+                            <span class="text-ink-line">Supporto WhatsApp prioritario</span>
                         </li>
                     </ul>
                 </div>
 
-                <div class="space-y-3 pb-6 border-b border-slate-700/50">
+                <div class="space-y-3 pb-6 border-b border-ink">
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-400">Subtotale</span>
-                        <span class="text-slate-200 font-medium">€ 122,95</span>
+                        <span class="text-ink-mute">Subtotale</span>
+                        <span class="text-ink-line font-medium">€ 122,95</span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-400">IVA (22%)</span>
-                        <span class="text-slate-200 font-medium">€ 27,05</span>
+                        <span class="text-ink-mute">IVA (22%)</span>
+                        <span class="text-ink-line font-medium">€ 27,05</span>
                     </div>
                 </div>
 
                 <div class="flex items-end justify-between mt-6">
-                    <span class="text-sm font-semibold text-slate-300">Totale Mensile</span>
+                    <span class="text-sm font-semibold text-ink-line">Totale Mensile</span>
                     <div class="text-right">
                         <span class="text-4xl font-bold text-white tabular-nums tracking-tight">€ 150</span>
-                        <span class="text-slate-400 font-medium text-sm ml-1">/mo</span>
+                        <span class="text-ink-mute font-medium text-sm ml-1">/mo</span>
                     </div>
                 </div>
                 
                 <!-- Guarantee Badge -->
-                <div class="mt-8 flex items-center justify-center p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <div class="mt-8 flex items-center justify-center p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-al-sm">
                     <i class="ph-fill ph-shield-check text-2xl text-emerald-400 mr-3"></i>
                     <div>
                         <p class="text-xs font-bold text-emerald-300 uppercase tracking-widest leading-none mb-1">Pagamento Sicuro</p>
@@ -162,7 +162,7 @@ poiché è un form di pagamento pubblico per l'atleta. -->
                 </div>
             </div>
             
-            <p class="text-center text-[10px] text-slate-400 mt-6 max-w-sm mx-auto hidden lg:block">
+            <p class="text-center text-[10px] text-ink-mute mt-6 max-w-sm mx-auto hidden lg:block">
                 Powered by TrainElite. Hai bisogno di aiuto? Contatta il supporto o il tuo preparatore.
             </p>
         </div>

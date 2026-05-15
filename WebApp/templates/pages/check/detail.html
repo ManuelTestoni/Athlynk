@@ -34,23 +34,23 @@
 }">
 
     <!-- Image Modal -->
-    <div x-show="showImageModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4" x-cloak>
-        <button @click="showImageModal = false" class="absolute top-6 right-6 text-white hover:text-slate-300 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+    <div x-show="showImageModal" class="fixed inset-0 z-50 flex items-center justify-center bg-ink backdrop-blur-sm p-4" x-cloak>
+        <button @click="showImageModal = false" class="absolute top-6 right-6 text-white hover:text-ink-line w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
             <i class="ph ph-x text-xl"></i>
         </button>
-        <img :src="activeImage" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain">
+        <img :src="activeImage" class="max-w-full max-h-[90vh] rounded-al-sm shadow-2xl object-contain">
     </div>
 
     <!-- Header -->
     <div class="mb-6 flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div class="flex items-center gap-4">
             <a href="{% if is_coach %}{% url 'check_dashboard' %}{% else %}{% url 'check_dashboard' %}{% endif %}"
-               class="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm">
+               class="w-10 h-10 bg-white border border-rule rounded-al-sm flex items-center justify-center text-ink-mute hover:text-ink hover:bg-marble transition-colors shadow-sm">
                 <i class="ph ph-arrow-left text-lg"></i>
             </a>
             <div>
                 <div class="flex items-center gap-3 flex-wrap">
-                    <h1 class="text-xl font-bold text-slate-900">Check #{{ check_number }}</h1>
+                    <h1 class="text-xl font-bold text-ink">Check #{{ check_number }}</h1>
                     {% if response.status == 'REVIEWED' %}
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <i class="ph-bold ph-check"></i> Revisionato
@@ -61,10 +61,10 @@
                     </span>
                     {% endif %}
                 </div>
-                <p class="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-                    <span><i class="ph ph-user text-slate-400"></i> {{ response.client.first_name }} {{ response.client.last_name }}</span>
-                    <span class="text-slate-300">•</span>
-                    <span><i class="ph ph-calendar text-slate-400"></i> {{ response.submitted_at|date:"d M Y, H:i" }}</span>
+                <p class="text-sm text-ink-mute mt-1 flex items-center gap-2 flex-wrap">
+                    <span><i class="ph ph-user text-ink-mute"></i> {{ response.client.first_name }} {{ response.client.last_name }}</span>
+                    <span class="text-ink-line">•</span>
+                    <span><i class="ph ph-calendar text-ink-mute"></i> {{ response.submitted_at|date:"d M Y, H:i" }}</span>
                 </p>
             </div>
         </div>
@@ -72,11 +72,11 @@
         {% if is_coach %}
         <div class="flex flex-col sm:flex-row gap-3">
             <a href="{% url 'check_client_history' response.client.id %}"
-               class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm justify-center">
+               class="bg-white border border-rule text-ink-soft px-4 py-2 rounded-al-sm text-sm font-medium hover:bg-marble transition-colors flex items-center gap-2 shadow-sm justify-center">
                 <i class="ph ph-clock-counter-clockwise"></i> Storico atleta
             </a>
             <button @click="activeTab = 'note'; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth' }))"
-                    class="bg-accent hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center gap-2 justify-center">
+                    class="bg-accent hover:bg-blue-700 text-white px-4 py-2 rounded-al-sm text-sm font-medium transition-colors shadow-sm flex items-center gap-2 justify-center">
                 <i class="ph ph-check-circle text-lg"></i>
                 {% if response.status == 'REVIEWED' %}Modifica feedback{% else %}Revisiona{% endif %}
             </button>
@@ -91,24 +91,24 @@
         <div class="space-y-4">
 
             <!-- Atleta card -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-3">
+            <div class="bg-white p-5 rounded-al-sm border border-rule shadow-sm flex items-start gap-3">
                 <div class="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center font-bold text-base shrink-0">
                     {{ response.client.first_name|slice:":1" }}{{ response.client.last_name|slice:":1" }}
                 </div>
                 <div>
-                    <h3 class="font-bold text-slate-900">{{ response.client.first_name }} {{ response.client.last_name }}</h3>
+                    <h3 class="font-bold text-ink">{{ response.client.first_name }} {{ response.client.last_name }}</h3>
                     {% if response.client.primary_goal %}
-                    <p class="text-xs text-slate-500 mt-0.5">{{ response.client.primary_goal }}</p>
+                    <p class="text-xs text-ink-mute mt-0.5">{{ response.client.primary_goal }}</p>
                     {% endif %}
                     {% if response.client.height_cm or response.client.gender %}
                     <div class="mt-2 flex flex-wrap gap-1.5">
                         {% if response.client.gender %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-marble text-ink-soft">
                             {{ response.client.gender }}
                         </span>
                         {% endif %}
                         {% if response.client.height_cm %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-marble text-ink-soft">
                             {{ response.client.height_cm }} cm
                         </span>
                         {% endif %}
@@ -119,12 +119,12 @@
 
             <!-- Variazione peso -->
             {% if weight_delta is not None %}
-            <div class="{% if weight_delta < 0 %}bg-emerald-50 border-emerald-100{% elif weight_delta > 0 %}bg-rose-50 border-rose-100{% else %}bg-slate-50 border-slate-200{% endif %} border p-4 rounded-2xl">
-                <p class="text-xs font-semibold uppercase tracking-wider {% if weight_delta < 0 %}text-emerald-700{% elif weight_delta > 0 %}text-rose-700{% else %}text-slate-500{% endif %} mb-1">
+            <div class="{% if weight_delta < 0 %}bg-emerald-50 border-emerald-100{% elif weight_delta > 0 %}bg-rose-50 border-rose-100{% else %}bg-marble border-rule{% endif %} border p-4 rounded-al-sm">
+                <p class="text-xs font-semibold uppercase tracking-wider {% if weight_delta < 0 %}text-emerald-700{% elif weight_delta > 0 %}text-rose-700{% else %}text-ink-mute{% endif %} mb-1">
                     Var. dal check precedente
                 </p>
                 <div class="flex items-center gap-2">
-                    <span class="text-2xl font-bold {% if weight_delta < 0 %}text-emerald-800{% elif weight_delta > 0 %}text-rose-800{% else %}text-slate-800{% endif %}">
+                    <span class="text-2xl font-bold {% if weight_delta < 0 %}text-emerald-800{% elif weight_delta > 0 %}text-rose-800{% else %}text-ink-soft{% endif %}">
                         {% if weight_delta > 0 %}+{% endif %}{{ weight_delta|floatformat:1 }} kg
                     </span>
                     {% if weight_delta < 0 %}<i class="ph-bold ph-trend-down text-emerald-600 text-xl"></i>
@@ -135,20 +135,20 @@
             {% endif %}
 
             <!-- Tab nav -->
-            <nav class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <nav class="bg-white border border-rule rounded-al-sm overflow-hidden shadow-sm">
                 <button @click="activeTab = 'metriche'"
-                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'metriche', 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50': activeTab !== 'metriche'}"
-                        class="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-left border-b border-slate-100">
+                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'metriche', 'border-l-4 border-transparent text-ink-soft hover:bg-marble': activeTab !== 'metriche'}"
+                        class="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-left border-b border-rule">
                     <i class="ph ph-ruler text-xl mr-3"></i> Metriche
                 </button>
                 <button @click="activeTab = 'foto'"
-                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'foto', 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50': activeTab !== 'foto'}"
-                        class="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-left border-b border-slate-100">
+                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'foto', 'border-l-4 border-transparent text-ink-soft hover:bg-marble': activeTab !== 'foto'}"
+                        class="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-left border-b border-rule">
                     <i class="ph ph-camera text-xl mr-3"></i> Foto
-                    {% if photos %}<span class="ml-auto text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">{{ photos|length }}</span>{% endif %}
+                    {% if photos %}<span class="ml-auto text-xs bg-marble text-ink-soft px-2 py-0.5 rounded-full font-semibold">{{ photos|length }}</span>{% endif %}
                 </button>
                 <button @click="activeTab = 'note'"
-                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'note', 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50': activeTab !== 'note'}"
+                        :class="{'border-l-4 border-accent bg-accent/5 text-accent': activeTab === 'note', 'border-l-4 border-transparent text-ink-soft hover:bg-marble': activeTab !== 'note'}"
                         class="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-left">
                     <i class="ph ph-notebook text-xl mr-3"></i> Note & Feedback
                     {% if response.status != 'REVIEWED' and is_coach %}
@@ -165,22 +165,22 @@
             <div x-show="activeTab === 'metriche'" class="space-y-5" x-cloak>
 
                 <!-- Peso -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i class="ph-fill ph-scales"></i></div>
-                        <h3 class="text-sm font-bold text-slate-800">Peso corporeo</h3>
+                        <h3 class="text-sm font-bold text-ink-soft">Peso corporeo</h3>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                            <p class="text-xs text-slate-500 mb-1">Peso attuale</p>
-                            <p class="text-2xl font-bold text-slate-900">
-                                {% if response.weight_kg %}{{ response.weight_kg }} <span class="text-base font-medium text-slate-400">kg</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
+                        <div class="border border-rule rounded-al-sm p-4 bg-marble/50">
+                            <p class="text-xs text-ink-mute mb-1">Peso attuale</p>
+                            <p class="text-2xl font-bold text-ink">
+                                {% if response.weight_kg %}{{ response.weight_kg }} <span class="text-base font-medium text-ink-mute">kg</span>{% else %}<span class="text-ink-mute">—</span>{% endif %}
                             </p>
                         </div>
                         {% if prev_response and prev_response.weight_kg %}
-                        <div class="border border-slate-200 rounded-xl p-4">
-                            <p class="text-xs text-slate-500 mb-1">Check precedente</p>
-                            <p class="text-2xl font-bold text-slate-500">{{ prev_response.weight_kg }} <span class="text-base font-medium text-slate-400">kg</span></p>
+                        <div class="border border-rule rounded-al-sm p-4">
+                            <p class="text-xs text-ink-mute mb-1">Check precedente</p>
+                            <p class="text-2xl font-bold text-ink-mute">{{ prev_response.weight_kg }} <span class="text-base font-medium text-ink-mute">kg</span></p>
                         </div>
                         {% endif %}
                     </div>
@@ -189,42 +189,42 @@
                 <!-- Benessere soggettivo -->
                 {% with answers=answers %}
                 {% if answers.mood or answers.diet_adherence or answers.workout_adherence %}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"><i class="ph-fill ph-smiley"></i></div>
-                        <h3 class="text-sm font-bold text-slate-800">Benessere soggettivo</h3>
+                        <h3 class="text-sm font-bold text-ink-soft">Benessere soggettivo</h3>
                     </div>
                     <div class="space-y-3">
                         {% if answers.mood %}
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-slate-600">Umore</span>
+                            <span class="text-sm text-ink-soft">Umore</span>
                             <div class="flex items-center gap-1.5">
                                 {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.mood|add:0 %}bg-accent{% else %}bg-slate-200{% endif %}"></span>
+                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.mood|add:0 %}bg-accent{% else %}bg-marble-warm{% endif %}"></span>
                                 {% endfor %}
-                                <span class="text-sm font-semibold text-slate-700 ml-1">{{ answers.mood }}/5</span>
+                                <span class="text-sm font-semibold text-ink-soft ml-1">{{ answers.mood }}/5</span>
                             </div>
                         </div>
                         {% endif %}
                         {% if answers.diet_adherence %}
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-slate-600">Aderenza dieta</span>
+                            <span class="text-sm text-ink-soft">Aderenza dieta</span>
                             <div class="flex items-center gap-1.5">
                                 {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.diet_adherence|add:0 %}bg-emerald-500{% else %}bg-slate-200{% endif %}"></span>
+                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.diet_adherence|add:0 %}bg-emerald-500{% else %}bg-marble-warm{% endif %}"></span>
                                 {% endfor %}
-                                <span class="text-sm font-semibold text-slate-700 ml-1">{{ answers.diet_adherence }}/5</span>
+                                <span class="text-sm font-semibold text-ink-soft ml-1">{{ answers.diet_adherence }}/5</span>
                             </div>
                         </div>
                         {% endif %}
                         {% if answers.workout_adherence %}
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-slate-600">Aderenza allenamento</span>
+                            <span class="text-sm text-ink-soft">Aderenza allenamento</span>
                             <div class="flex items-center gap-1.5">
                                 {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.workout_adherence|add:0 %}bg-orange-400{% else %}bg-slate-200{% endif %}"></span>
+                                <span class="w-2.5 h-2.5 rounded-full {% if forloop.counter <= answers.workout_adherence|add:0 %}bg-orange-400{% else %}bg-marble-warm{% endif %}"></span>
                                 {% endfor %}
-                                <span class="text-sm font-semibold text-slate-700 ml-1">{{ answers.workout_adherence }}/5</span>
+                                <span class="text-sm font-semibold text-ink-soft ml-1">{{ answers.workout_adherence }}/5</span>
                             </div>
                         </div>
                         {% endif %}
@@ -236,14 +236,14 @@
                 <!-- Circonferenze -->
                 {% with has_circs=response.body_circumferences %}
                 {% if has_circs %}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center"><i class="ph-fill ph-ruler"></i></div>
-                        <h3 class="text-sm font-bold text-slate-800">Circonferenze <span class="font-normal text-slate-400">(cm)</span></h3>
+                        <h3 class="text-sm font-bold text-ink-soft">Circonferenze <span class="font-normal text-ink-mute">(cm)</span></h3>
                     </div>
-                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="bg-white border border-rule rounded-al-sm overflow-hidden">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500">
+                            <thead class="bg-marble border-b border-rule text-xs text-ink-mute">
                                 <tr>
                                     <th class="px-4 py-3 font-semibold">Punto</th>
                                     {% if prev_response %}<th class="px-4 py-3 font-semibold hidden sm:table-cell">Precedente</th>{% endif %}
@@ -251,15 +251,15 @@
                                     {% if prev_response %}<th class="px-4 py-3 font-semibold text-right">Δ</th>{% endif %}
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-rule">
                                 {% for row in circ_rows %}
                                 {% if row.current %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="px-4 py-3 font-medium text-slate-800">{{ row.label }}</td>
+                                <tr class="hover:bg-marble">
+                                    <td class="px-4 py-3 font-medium text-ink-soft">{{ row.label }}</td>
                                     {% if prev_response %}
-                                    <td class="px-4 py-3 text-slate-500 hidden sm:table-cell">{{ row.previous|default:"—" }}</td>
+                                    <td class="px-4 py-3 text-ink-mute hidden sm:table-cell">{{ row.previous|default:"—" }}</td>
                                     {% endif %}
-                                    <td class="px-4 py-3 font-semibold text-slate-900">{{ row.current }}</td>
+                                    <td class="px-4 py-3 font-semibold text-ink">{{ row.current }}</td>
                                     {% if prev_response %}
                                     <td class="px-4 py-3 text-right">
                                         {% if row.delta is not None %}
@@ -272,10 +272,10 @@
                                                 <i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ row.delta }}
                                             </span>
                                             {% else %}
-                                            <span class="inline-flex items-center text-slate-500 text-xs font-medium bg-slate-100 px-2 py-0.5 rounded">= 0</span>
+                                            <span class="inline-flex items-center text-ink-mute text-xs font-medium bg-marble px-2 py-0.5 rounded">= 0</span>
                                             {% endif %}
                                         {% else %}
-                                        <span class="text-slate-400 text-xs">—</span>
+                                        <span class="text-ink-mute text-xs">—</span>
                                         {% endif %}
                                     </td>
                                     {% endif %}
@@ -292,19 +292,19 @@
                 <!-- Pliche -->
                 {% with has_sf=response.skinfolds %}
                 {% if has_sf %}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center"><i class="ph-fill ph-first-aid"></i></div>
-                        <h3 class="text-sm font-bold text-slate-800">Pliche cutanee <span class="font-normal text-slate-400">(mm)</span></h3>
+                        <h3 class="text-sm font-bold text-ink-soft">Pliche cutanee <span class="font-normal text-ink-mute">(mm)</span></h3>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         {% for row in skinfold_rows %}
                         {% if row.current %}
-                        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                            <p class="text-xs text-slate-500 mb-1">{{ row.label }}</p>
-                            <p class="font-bold text-slate-900">{{ row.current }} <span class="text-xs font-normal text-slate-400">mm</span></p>
+                        <div class="border border-rule rounded-al-sm p-3 bg-marble/50">
+                            <p class="text-xs text-ink-mute mb-1">{{ row.label }}</p>
+                            <p class="font-bold text-ink">{{ row.current }} <span class="text-xs font-normal text-ink-mute">mm</span></p>
                             {% if row.delta is not None and prev_response %}
-                            <p class="text-xs mt-1 {% if row.delta < 0 %}text-emerald-600{% elif row.delta > 0 %}text-rose-600{% else %}text-slate-400{% endif %}">
+                            <p class="text-xs mt-1 {% if row.delta < 0 %}text-emerald-600{% elif row.delta > 0 %}text-rose-600{% else %}text-ink-mute{% endif %}">
                                 {% if row.delta > 0 %}+{% endif %}{{ row.delta }}
                             </p>
                             {% endif %}
@@ -318,16 +318,16 @@
             </div>
 
             <!-- ── TAB FOTO ── -->
-            <div x-show="activeTab === 'foto'" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" x-cloak>
-                <div class="p-5 border-b border-slate-100">
-                    <h2 class="text-base font-semibold text-slate-900">Foto progressi</h2>
+            <div x-show="activeTab === 'foto'" class="bg-white rounded-al-sm border border-rule shadow-sm overflow-hidden" x-cloak>
+                <div class="p-5 border-b border-rule">
+                    <h2 class="text-base font-semibold text-ink">Foto progressi</h2>
                 </div>
                 <div class="p-5">
                     {% if photos %}
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {% for photo in photos %}
-                        <div class="relative group aspect-[3/4] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                            <div class="absolute top-2 left-2 z-10 bg-slate-900/70 text-white text-[10px] font-bold px-2 py-1 rounded">
+                        <div class="relative group aspect-[3/4] bg-marble rounded-al-sm overflow-hidden border border-rule">
+                            <div class="absolute top-2 left-2 z-10 bg-ink text-white text-[10px] font-bold px-2 py-1 rounded">
                                 {{ photo.photo_type }}
                             </div>
                             <img src="{{ photo.file_url }}" alt="{{ photo.photo_type }}"
@@ -342,7 +342,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div class="py-10 text-center text-slate-400">
+                    <div class="py-10 text-center text-ink-mute">
                         <i class="ph ph-image-slash text-4xl mb-3 block"></i>
                         <p class="text-sm">Nessuna foto caricata per questo check.</p>
                     </div>
@@ -355,25 +355,25 @@
 
                 <!-- Note dell'atleta -->
                 {% if response.notes or response.injuries or response.limitations %}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h2 class="text-sm font-bold text-slate-800 mb-4">Segnalazioni dell'atleta</h2>
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
+                    <h2 class="text-sm font-bold text-ink-soft mb-4">Segnalazioni dell'atleta</h2>
                     <div class="space-y-4">
                         {% if response.notes %}
-                        <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
+                        <div class="bg-orange-50 border border-orange-100 rounded-al-sm p-4">
                             <p class="text-xs font-semibold uppercase tracking-wider text-orange-700 mb-2">Messaggio</p>
-                            <p class="text-sm text-slate-700 leading-relaxed italic">"{{ response.notes }}"</p>
+                            <p class="text-sm text-ink-soft leading-relaxed italic">"{{ response.notes }}"</p>
                         </div>
                         {% endif %}
                         {% if response.injuries %}
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Infortuni / Dolori</p>
-                            <p class="text-sm text-slate-700">{{ response.injuries }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-1">Infortuni / Dolori</p>
+                            <p class="text-sm text-ink-soft">{{ response.injuries }}</p>
                         </div>
                         {% endif %}
                         {% if response.limitations %}
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Limitazioni</p>
-                            <p class="text-sm text-slate-700">{{ response.limitations }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-1">Limitazioni</p>
+                            <p class="text-sm text-ink-soft">{{ response.limitations }}</p>
                         </div>
                         {% endif %}
                     </div>
@@ -382,50 +382,50 @@
 
                 <!-- Feedback coach (visibile all'atleta solo se compilato) -->
                 {% if is_client and response.coach_feedback %}
-                <div class="bg-accent/5 border border-accent/20 rounded-2xl p-5">
+                <div class="bg-accent/5 border border-accent/20 rounded-al-sm p-5">
                     <p class="text-xs font-semibold uppercase tracking-wider text-accent mb-2">Feedback del coach</p>
-                    <p class="text-sm text-slate-700 leading-relaxed">{{ response.coach_feedback }}</p>
+                    <p class="text-sm text-ink-soft leading-relaxed">{{ response.coach_feedback }}</p>
                 </div>
                 {% endif %}
 
                 <!-- Form revisione coach -->
                 {% if is_coach %}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h2 class="text-sm font-bold text-slate-800 mb-4">Revisione coach</h2>
+                <div class="bg-white rounded-al-sm border border-rule shadow-sm p-5">
+                    <h2 class="text-sm font-bold text-ink-soft mb-4">Revisione coach</h2>
 
                     <!-- Feedback pubblico -->
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Feedback pubblico
-                            <span class="text-xs font-normal text-slate-400 ml-1">(visibile all'atleta)</span>
+                        <label class="block text-sm font-medium text-ink-soft mb-1.5">Feedback pubblico
+                            <span class="text-xs font-normal text-ink-mute ml-1">(visibile all'atleta)</span>
                         </label>
-                        <div class="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-accent focus-within:border-transparent transition-all shadow-sm">
+                        <div class="border border-rule rounded-al-sm overflow-hidden focus-within:ring-2 focus-within:ring-accent focus-within:border-transparent transition-all shadow-sm">
                             <textarea x-model="coachFeedback" rows="5"
-                                      class="w-full p-4 text-sm bg-white border-none focus:ring-0 outline-none resize-none placeholder-slate-400"
+                                      class="w-full p-4 text-sm bg-white border-none focus:ring-0 outline-none resize-none placeholder-ink-mute"
                                       placeholder="Scrivi la tua valutazione del check..."></textarea>
                         </div>
                     </div>
 
                     <!-- Note private -->
                     <div class="mb-5">
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                            <i class="ph-fill ph-lock-key text-slate-400"></i> Appunti privati
-                            <span class="text-xs font-normal text-slate-400">(solo per te)</span>
+                        <label class="block text-sm font-medium text-ink-soft mb-1.5 flex items-center gap-1.5">
+                            <i class="ph-fill ph-lock-key text-ink-mute"></i> Appunti privati
+                            <span class="text-xs font-normal text-ink-mute">(solo per te)</span>
                         </label>
                         <textarea x-model="privateNotes" rows="2"
-                                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none"
+                                  class="w-full rounded-al-sm border border-rule bg-marble px-4 py-3 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all resize-none"
                                   placeholder="Appunti non visibili all'atleta..."></textarea>
                     </div>
 
                     <!-- Feedback/save messages -->
-                    <div x-show="saved" class="flex items-center gap-2 text-emerald-700 text-sm bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-3">
+                    <div x-show="saved" class="flex items-center gap-2 text-emerald-700 text-sm bg-emerald-50 border border-emerald-200 rounded-al-sm px-4 py-3 mb-3">
                         <i class="ph-fill ph-check-circle"></i> Salvato e marcato come revisionato.
                     </div>
-                    <div x-show="saveError" class="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3">
+                    <div x-show="saveError" class="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-al-sm px-4 py-3 mb-3">
                         <i class="ph-fill ph-warning-circle"></i> <span x-text="saveError"></span>
                     </div>
 
                     <button @click="submitReview()" :disabled="saving"
-                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-accent hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-60">
+                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-accent hover:bg-blue-700 text-white text-sm font-semibold rounded-al-sm transition-colors shadow-sm disabled:opacity-60">
                         <i class="ph ph-check-circle text-lg"></i>
                         <span x-text="saving ? 'Salvataggio...' : '{% if response.status == 'REVIEWED' %}Aggiorna revisione{% else %}Marca come revisionato{% endif %}'"></span>
                     </button>

@@ -276,7 +276,7 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
     conversationId, currentUserId,
     hasOlder: hasOlderInit, oldestId: oldestIdInit, loadingOlder: false,
     messages: [
-      {% for m in messages %}
+      {% for m in chat_messages %}
       {
         id: {{ m.id }},
         body: {{ m.body|escapejs|stringformat:'r' }} || '',

@@ -37,28 +37,28 @@
         <aside class="w-full md:w-56 shrink-0">
             <nav class="flex flex-col space-y-1">
                 <button @click="activeTab = 'profilo'" type="button"
-                        :class="activeTab === 'profilo' ? 'border-bronze text-ink bg-marble-warm' : 'border-transparent text-ink-mute hover:text-ink hover:bg-marble'"
-                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
-                        style="font-size: 13px; font-weight: 500;">
+                        :class="{ 'is-active': activeTab === 'profilo' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-user-circle text-base mr-3"></i>{% if is_coach %}Profilo Trainer{% else %}Il mio profilo{% endif %}
                 </button>
                 <button @click="activeTab = 'sicurezza'" type="button"
-                        :class="activeTab === 'sicurezza' ? 'border-bronze text-ink bg-marble-warm' : 'border-transparent text-ink-mute hover:text-ink hover:bg-marble'"
-                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
-                        style="font-size: 13px; font-weight: 500;">
+                        :class="{ 'is-active': activeTab === 'sicurezza' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-shield-check text-base mr-3"></i>Sicurezza
                 </button>
                 <button @click="activeTab = 'newsletter'" type="button"
-                        :class="activeTab === 'newsletter' ? 'border-bronze text-ink bg-marble-warm' : 'border-transparent text-ink-mute hover:text-ink hover:bg-marble'"
-                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
-                        style="font-size: 13px; font-weight: 500;">
+                        :class="{ 'is-active': activeTab === 'newsletter' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-envelope text-base mr-3"></i>Newsletter
                 </button>
 
                 <button @click="activeTab = 'elimina'" type="button"
-                        :class="activeTab === 'elimina' ? 'border-red-600 text-red-700 bg-red-50' : 'border-transparent text-ink-mute hover:text-red-700 hover:bg-red-50'"
-                        class="flex items-center px-4 py-3 transition-colors text-left w-full border-l-2"
-                        style="font-size: 13px; font-weight: 500;">
+                        :class="{ 'is-active': activeTab === 'elimina' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-trash text-base mr-3"></i>Elimina account
                 </button>
 
@@ -406,12 +406,15 @@
 
     <!-- Modal: conferma eliminazione account -->
     <div x-show="showDeleteModal" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4"
-         style="background: rgba(0,0,0,0.55);"
+         class="al-modal-backdrop"
+         x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end"
+         x-transition:leave="al-fade-leave" x-transition:leave-start="al-fade-leave-start" x-transition:leave-end="al-fade-leave-end"
          @click.self="showDeleteModal = false"
          @keydown.escape.window="showDeleteModal = false">
-        <div class="bg-white max-w-md w-full"
-             style="border-radius: var(--al-r-md); border: 1px solid var(--al-rule);">
+        <div class="al-modal-panel max-w-md w-full"
+             x-show="showDeleteModal"
+             x-transition:enter="al-pop-enter" x-transition:enter-start="al-pop-enter-start" x-transition:enter-end="al-pop-enter-end"
+             x-transition:leave="al-pop-leave" x-transition:leave-start="al-pop-leave-start" x-transition:leave-end="al-pop-leave-end">
             <form method="POST" action="{% url 'delete_account' %}">
                 {% csrf_token %}
                 <div class="p-6 border-b" style="border-color: var(--al-rule);">
@@ -449,12 +452,15 @@
 
     <!-- Modal: conferma invio reset password -->
     <div x-show="showResetPwModal" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4"
-         style="background: rgba(0,0,0,0.55);"
+         class="al-modal-backdrop"
+         x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end"
+         x-transition:leave="al-fade-leave" x-transition:leave-start="al-fade-leave-start" x-transition:leave-end="al-fade-leave-end"
          @click.self="showResetPwModal = false"
          @keydown.escape.window="showResetPwModal = false">
-        <div class="bg-white max-w-md w-full"
-             style="border-radius: var(--al-r-md); border: 1px solid var(--al-rule);">
+        <div class="al-modal-panel max-w-md w-full"
+             x-show="showResetPwModal"
+             x-transition:enter="al-pop-enter" x-transition:enter-start="al-pop-enter-start" x-transition:enter-end="al-pop-enter-end"
+             x-transition:leave="al-pop-leave" x-transition:leave-start="al-pop-leave-start" x-transition:leave-end="al-pop-leave-end">
             <form method="POST" action="{% url 'request_password_reset' %}">
                 {% csrf_token %}
                 <input type="hidden" name="from_settings" value="1">

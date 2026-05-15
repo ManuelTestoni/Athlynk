@@ -4,12 +4,12 @@
 <div class="w-full max-w-4xl mx-auto">
 
     <!-- Hero coach card -->
-    <section class="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
-        <div class="h-40 bg-gradient-to-br from-slate-800 to-slate-600 relative">
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent"></div>
+    <section class="bg-white border border-rule rounded-3xl shadow-sm overflow-hidden mb-6">
+        <div class="h-40 bg-gradient-to-br from-ink to-ink-soft relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-ink to-transparent"></div>
             <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div class="flex items-end gap-4">
-                    <div class="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-600 overflow-hidden shrink-0">
+                    <div class="w-20 h-20 rounded-al-sm border-4 border-white shadow-xl bg-marble-warm flex items-center justify-center text-2xl font-bold text-ink-soft overflow-hidden shrink-0">
                         {% if coach.profile_image %}
                         <img src="{{ coach.profile_image.url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
                         {% elif coach.profile_image_url %}
@@ -19,13 +19,13 @@
                         {% endif %}
                     </div>
                     <div>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-slate-900 text-[10px] font-bold uppercase tracking-wider">Il tuo specialista</span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-ink text-[10px] font-bold uppercase tracking-wider">Il tuo specialista</span>
                         <h1 class="mt-1.5 text-2xl font-bold text-white">{{ coach_name }}</h1>
-                        <p class="text-sm text-slate-300">{{ coach.specialization|default:"Specialista del fitness" }}</p>
+                        <p class="text-sm text-ink-line">{{ coach.specialization|default:"Specialista del fitness" }}</p>
                     </div>
                 </div>
                 {% if coach.city %}
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 text-white text-xs font-medium backdrop-blur-sm">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-al-sm bg-white/20 text-white text-xs font-medium backdrop-blur-sm">
                     <i class="ph ph-map-pin"></i> {{ coach.city }}
                 </span>
                 {% endif %}
@@ -33,14 +33,14 @@
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100">
+        <div class="grid grid-cols-2 divide-x divide-rule border-t border-rule">
             <div class="p-5 text-center">
-                <p class="text-2xl font-bold text-slate-900">{{ total_checks }}</p>
-                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">I tuoi check</p>
+                <p class="text-2xl font-bold text-ink">{{ total_checks }}</p>
+                <p class="text-xs text-ink-mute uppercase tracking-wider mt-0.5">I tuoi check</p>
             </div>
             <div class="p-5 text-center">
-                <p class="text-2xl font-bold text-slate-900">{{ relationship.start_date|date:"M Y" }}</p>
-                <p class="text-xs text-slate-500 uppercase tracking-wider mt-0.5">Inizio percorso</p>
+                <p class="text-2xl font-bold text-ink">{{ relationship.start_date|date:"M Y" }}</p>
+                <p class="text-xs text-ink-mute uppercase tracking-wider mt-0.5">Inizio percorso</p>
             </div>
         </div>
     </section>
@@ -52,18 +52,18 @@
 
             <!-- Bio -->
             {% if coach.bio %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Chi è {{ coach.first_name }}</h2>
-                <p class="text-sm text-slate-700 leading-7">{{ coach.bio }}</p>
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-3">Chi è {{ coach.first_name }}</h2>
+                <p class="text-sm text-ink-soft leading-7">{{ coach.bio }}</p>
             </div>
             {% endif %}
 
             <!-- Specializzazione & certificazioni -->
             {% if coach.specialization or coach.certifications %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 space-y-4">
                 {% if coach.specialization %}
                 <div>
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Specializzazione</h2>
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-2">Specializzazione</h2>
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
                         {{ coach.specialization }}
                     </span>
@@ -71,10 +71,10 @@
                 {% endif %}
                 {% if coach.certifications %}
                 <div>
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Certificazioni</h2>
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-2">Certificazioni</h2>
                     <div class="flex flex-wrap gap-2">
                         {% for cert in coach.certifications.split %}
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{{ cert }}</span>
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-marble text-ink-soft">{{ cert }}</span>
                         {% endfor %}
                     </div>
                 </div>
@@ -84,12 +84,12 @@
 
             <!-- Social links -->
             {% if social_links %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Seguimi sui social</h2>
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Seguimi sui social</h2>
                 <div class="flex flex-wrap gap-3">
                     {% for icon, color, url in social_links %}
                     <a href="{{ url }}" target="_blank" rel="noopener"
-                       class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors">
+                       class="flex items-center gap-2 px-4 py-2 rounded-al-sm bg-marble border border-rule text-ink-soft text-sm font-medium hover:bg-marble transition-colors">
                         <i class="ph {{ icon }} text-lg {{ color }}"></i>
                         <span>{{ url|cut:"https://"|cut:"http://"|truncatechars:20 }}</span>
                     </a>
@@ -100,11 +100,11 @@
 
             <!-- Video professionali -->
             {% if video_urls %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Video</h2>
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Video</h2>
                 <div class="space-y-3">
                     {% for vurl in video_urls %}
-                    <div class="rounded-xl overflow-hidden bg-slate-900 aspect-video">
+                    <div class="rounded-al-sm overflow-hidden bg-ink aspect-video">
                         <iframe src="{{ vurl }}" class="w-full h-full" frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowfullscreen loading="lazy"></iframe>
@@ -116,15 +116,15 @@
 
             <!-- Piani disponibili -->
             {% if active_plans %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Piani &amp; Prezzi</h2>
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Piani &amp; Prezzi</h2>
                 <div class="space-y-3">
                     {% for plan in active_plans %}
-                    <div class="border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-4
+                    <div class="border border-rule rounded-al-sm p-4 flex items-start justify-between gap-4
                         {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}ring-2 ring-accent/30 border-accent/30 bg-accent/5{% endif %}">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="font-semibold text-slate-900 text-sm">{{ plan.name }}</h3>
+                                <h3 class="font-semibold text-ink text-sm">{{ plan.name }}</h3>
                                 {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent text-white uppercase tracking-wider">
                                     <i class="ph-bold ph-check"></i> Attivo
@@ -132,16 +132,16 @@
                                 {% endif %}
                             </div>
                             {% if plan.description %}
-                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">{{ plan.description }}</p>
+                            <p class="text-xs text-ink-mute mt-1 leading-relaxed">{{ plan.description }}</p>
                             {% endif %}
                             {% if plan.duration_days %}
-                            <p class="text-xs text-slate-400 mt-1.5"><i class="ph ph-clock"></i> {{ plan.duration_days }} giorni</p>
+                            <p class="text-xs text-ink-mute mt-1.5"><i class="ph ph-clock"></i> {{ plan.duration_days }} giorni</p>
                             {% endif %}
                         </div>
                         <div class="shrink-0 text-right">
-                            <p class="text-xl font-bold text-slate-900">€{{ plan.price }}</p>
+                            <p class="text-xl font-bold text-ink">€{{ plan.price }}</p>
                             {% if plan.billing_interval %}
-                            <p class="text-xs text-slate-400">/ {{ plan.billing_interval }}</p>
+                            <p class="text-xs text-ink-mute">/ {{ plan.billing_interval }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -157,28 +157,28 @@
 
             <!-- Il tuo piano attivo -->
             {% if my_subscription %}
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Il tuo abbonamento</h3>
+            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-5">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-3">Il tuo abbonamento</h3>
                 <div class="space-y-2.5 text-sm">
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Piano</span>
-                        <span class="font-semibold text-slate-900">{{ my_subscription.subscription_plan.name }}</span>
+                        <span class="text-ink-mute">Piano</span>
+                        <span class="font-semibold text-ink">{{ my_subscription.subscription_plan.name }}</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Stato</span>
+                        <span class="text-ink-mute">Stato</span>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Attivo
                         </span>
                     </div>
                     {% if my_subscription.end_date %}
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Scadenza</span>
-                        <span class="font-semibold text-slate-900">{{ my_subscription.end_date|date:"d M Y" }}</span>
+                        <span class="text-ink-mute">Scadenza</span>
+                        <span class="font-semibold text-ink">{{ my_subscription.end_date|date:"d M Y" }}</span>
                     </div>
                     {% endif %}
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Prezzo</span>
-                        <span class="font-semibold text-slate-900">€{{ my_subscription.subscription_plan.price }}</span>
+                        <span class="text-ink-mute">Prezzo</span>
+                        <span class="font-semibold text-ink">€{{ my_subscription.subscription_plan.price }}</span>
                     </div>
                 </div>
             </div>
@@ -186,39 +186,39 @@
 
             <!-- Chat CTA -->
             <a href="{% url 'chat_list' %}"
-               class="flex items-center gap-3 px-4 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-colors shadow-sm">
+               class="flex items-center gap-3 px-4 py-3 bg-ink text-white rounded-al-sm hover:bg-ink transition-colors shadow-sm">
                 <i class="ph ph-chat-circle-dots text-xl shrink-0"></i>
                 <div>
                     <p class="text-sm font-semibold">Scrivi a {{ coach.first_name }}</p>
-                    <p class="text-xs text-slate-400">Apri la chat</p>
+                    <p class="text-xs text-ink-mute">Apri la chat</p>
                 </div>
             </a>
 
             <!-- Disconnect -->
             <div x-data="{ confirmLeave: false }">
                 <button @click="confirmLeave = true"
-                        class="w-full flex items-center gap-3 px-4 py-3 bg-white border border-red-200 text-red-600 rounded-2xl hover:bg-red-50 transition-colors text-sm font-medium">
+                        class="w-full flex items-center gap-3 px-4 py-3 bg-white border border-red-200 text-red-600 rounded-al-sm hover:bg-red-50 transition-colors text-sm font-medium">
                     <i class="ph ph-user-minus text-xl shrink-0"></i>
                     <span>Rimuoviti da {{ coach.first_name }}</span>
                 </button>
 
-                <div x-show="confirmLeave" x-transition.opacity class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" x-cloak>
+                <div x-show="confirmLeave" x-transition.opacity class="fixed inset-0 z-50 bg-ink backdrop-blur-sm flex items-center justify-center p-4" x-cloak>
                     <div x-show="confirmLeave" x-transition @click.outside="confirmLeave = false"
-                         class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-                        <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto mb-4">
+                         class="bg-white rounded-al-sm shadow-xl w-full max-w-sm p-6">
+                        <div class="w-12 h-12 rounded-al-sm bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto mb-4">
                             <i class="ph ph-warning"></i>
                         </div>
-                        <h3 class="text-base font-bold text-slate-900 text-center mb-2">Confermi di uscire?</h3>
-                        <p class="text-sm text-slate-500 text-center mb-6">Perderai l'accesso ai contenuti di <strong>{{ coach.first_name }} {{ coach.last_name }}</strong>. Potrai sempre trovare un nuovo specialista.</p>
+                        <h3 class="text-base font-bold text-ink text-center mb-2">Confermi di uscire?</h3>
+                        <p class="text-sm text-ink-mute text-center mb-6">Perderai l'accesso ai contenuti di <strong>{{ coach.first_name }} {{ coach.last_name }}</strong>. Potrai sempre trovare un nuovo specialista.</p>
                         <div class="flex gap-3">
                             <button @click="confirmLeave = false"
-                                    class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                                    class="flex-1 px-4 py-2.5 rounded-al-sm border border-rule text-ink-soft text-sm font-medium hover:bg-marble transition-colors">
                                 Annulla
                             </button>
                             <form method="post" action="{% url 'client_disconnect_coach' relationship.id %}" class="flex-1">
                                 {% csrf_token %}
                                 <button type="submit"
-                                        class="w-full px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors">
+                                        class="w-full px-4 py-2.5 rounded-al-sm bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors">
                                     Sì, esci
                                 </button>
                             </form>

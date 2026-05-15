@@ -3,16 +3,16 @@
 {% block content %}
 <div class="w-full max-w-4xl mx-auto space-y-6">
     <div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">I miei specialisti</h1>
-        <p class="text-sm text-slate-500 mt-1">Scegli lo specialista di cui vuoi visualizzare il profilo.</p>
+        <h1 class="text-2xl font-bold text-ink tracking-tight">I miei specialisti</h1>
+        <p class="text-sm text-ink-mute mt-1">Scegli lo specialista di cui vuoi visualizzare il profilo.</p>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {% for item in specialists %}
         {% with coach=item.coach rel=item.relationship %}
         <a href="{% url 'client_specialist_detail' rel.id %}"
-           class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex items-center gap-5 group">
-            <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-lg overflow-hidden shrink-0">
+           class="bg-white border border-rule rounded-al-sm p-6 shadow-sm hover:shadow-md hover:border-rule-strong transition-all flex items-center gap-5 group">
+            <div class="w-16 h-16 rounded-al-sm bg-marble border border-rule flex items-center justify-center text-ink-soft font-bold text-lg overflow-hidden shrink-0">
                 {% if coach.profile_image %}
                 <img src="{{ coach.profile_image.url }}" alt="" class="w-full h-full object-cover">
                 {% elif coach.profile_image_url %}
@@ -22,16 +22,16 @@
                 {% endif %}
             </div>
             <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{{ item.rel_label }}</p>
-                <h2 class="text-base font-bold text-slate-900 group-hover:text-accent transition-colors">{{ coach.first_name }} {{ coach.last_name }}</h2>
+                <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-0.5">{{ item.rel_label }}</p>
+                <h2 class="text-base font-bold text-ink group-hover:text-accent transition-colors">{{ coach.first_name }} {{ coach.last_name }}</h2>
                 {% if coach.specialization %}
-                <p class="text-sm text-slate-500 mt-0.5 truncate">{{ coach.specialization }}</p>
+                <p class="text-sm text-ink-mute mt-0.5 truncate">{{ coach.specialization }}</p>
                 {% endif %}
                 {% if coach.city %}
-                <p class="text-xs text-slate-400 mt-1 flex items-center gap-1"><i class="ph ph-map-pin"></i>{{ coach.city }}</p>
+                <p class="text-xs text-ink-mute mt-1 flex items-center gap-1"><i class="ph ph-map-pin"></i>{{ coach.city }}</p>
                 {% endif %}
             </div>
-            <i class="ph ph-caret-right text-slate-400 group-hover:text-slate-700 transition-colors shrink-0"></i>
+            <i class="ph ph-caret-right text-ink-mute group-hover:text-ink-soft transition-colors shrink-0"></i>
         </a>
         {% endwith %}
         {% endfor %}

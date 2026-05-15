@@ -1,99 +1,124 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="w-full max-w-3xl mx-auto space-y-6">
+{% block title %}Prima Visita{% endblock %}
 
-    <div class="flex items-center gap-3">
-        <a href="{% url 'nutrizione_anamnesi' %}"
-           class="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600">
-            <i class="ph ph-arrow-left text-lg"></i>
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'nutrizione_anamnesi' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-clipboard-text text-xs"></i><span>Prime Visite</span>
         </a>
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Prima Visita</p>
-            <h1 class="text-2xl font-bold text-slate-900">{{ client.first_name }} {{ client.last_name }}</h1>
-        </div>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">{{ client.first_name }} {{ client.last_name }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <p class="al-eyebrow mb-3">Studio &middot; Anamnesi</p>
+        <h1 class="al-h-1">Prima <span class="al-display-i">visita</span></h1>
+        <p class="al-body mt-2">Raccogli dati clinici, stile di vita e obiettivi di {{ client.first_name }} {{ client.last_name }}.</p>
+        <div class="al-rule-bronze mt-5"></div>
     </div>
 
     {% if existing %}
-    <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-        <i class="ph ph-warning shrink-0 text-amber-500 text-lg"></i>
-        Esiste già una prima visita del {{ existing.anamnesis_date|date:"d M Y" }}. Compilando questo form creerai una nuova versione.
-        <a href="{% url 'nutrizione_anamnesi_detail' existing.id %}" class="ml-auto font-semibold underline shrink-0">Vedi esistente</a>
+    <div class="al-card al-card-warm mb-6 flex items-center gap-3">
+        <i class="ph-fill ph-warning-circle text-bronze text-xl shrink-0"></i>
+        <p class="al-body flex-1">
+            Esiste già una prima visita del {{ existing.anamnesis_date|date:"d M Y" }}. Compilando questo form creerai una nuova versione.
+        </p>
+        <a href="{% url 'nutrizione_anamnesi_detail' existing.id %}" class="al-link al-link-bronze text-[12px] shrink-0">
+            <span>Vedi esistente</span><i class="ph ph-arrow-right text-xs"></i>
+        </a>
     </div>
     {% endif %}
 
     <form method="POST" action="{% url 'nutrizione_anamnesi_crea' client.id %}">
         {% csrf_token %}
+
         <div class="space-y-6">
 
-            <!-- Dati base -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Dati generali</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <!-- Sezione 1 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-identification-card text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                        <h2 class="al-h-3">Dati Generali</h2>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-5">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Data visita</label>
-                        <input type="date" name="anamnesis_date" value="{{ today }}" required
-                               class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+                        <label class="al-label">Data visita *</label>
+                        <input type="date" name="anamnesis_date" value="{{ today }}" required class="al-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Età</label>
-                        <input type="number" name="age" min="10" max="100" placeholder="—"
-                               class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+                        <label class="al-label">Età</label>
+                        <input type="number" name="age" min="10" max="100" placeholder="—" class="al-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Peso (kg)</label>
-                        <input type="number" name="weight_kg" step="0.1" min="30" max="300" placeholder="—"
-                               class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+                        <label class="al-label">Peso (kg)</label>
+                        <input type="number" name="weight_kg" step="0.1" min="30" max="300" placeholder="—" class="al-input">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Altezza (cm)</label>
-                        <input type="number" name="height_cm" step="0.1" min="100" max="250" placeholder="—"
-                               class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
+                        <label class="al-label">Altezza (cm)</label>
+                        <input type="number" name="height_cm" step="0.1" min="100" max="250" placeholder="—" class="al-input">
                     </div>
                 </div>
             </div>
 
-            <!-- Salute -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Stato di salute</h2>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Anamnesi medica <span class="text-slate-400 font-normal">(patologie, interventi, condizioni)</span></label>
-                    <textarea name="medical_history" rows="3" placeholder="Es. Ipertensione lieve, intervento menisco 2018..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+            <!-- Sezione 2 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-heartbeat text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                        <h2 class="al-h-3">Stato di Salute</h2>
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div class="space-y-5">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Farmaci assunti</label>
-                        <textarea name="medications" rows="2" placeholder="Es. Metformina 500mg..."
-                                  class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+                        <label class="al-label">Anamnesi medica <span class="al-input-help" style="display:inline; margin:0;">(patologie, interventi, condizioni)</span></label>
+                        <textarea name="medical_history" rows="3" placeholder="Es. Ipertensione lieve, intervento menisco 2018…" class="al-textarea"></textarea>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Infortuni / Limitazioni</label>
-                        <textarea name="injuries" rows="2" placeholder="Es. Dolore lombare cronico..."
-                                  class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Allergie</label>
-                        <textarea name="allergies" rows="2" placeholder="Es. Nichel, pollini..."
-                                  class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Intolleranze alimentari</label>
-                        <textarea name="intolerances" rows="2" placeholder="Es. Lattosio, glutine..."
-                                  class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="al-label">Farmaci assunti</label>
+                            <textarea name="medications" rows="2" placeholder="Es. Metformina 500mg…" class="al-textarea"></textarea>
+                        </div>
+                        <div>
+                            <label class="al-label">Infortuni / Limitazioni</label>
+                            <textarea name="injuries" rows="2" placeholder="Es. Dolore lombare cronico…" class="al-textarea"></textarea>
+                        </div>
+                        <div>
+                            <label class="al-label">Allergie</label>
+                            <textarea name="allergies" rows="2" placeholder="Es. Nichel, pollini…" class="al-textarea"></textarea>
+                        </div>
+                        <div>
+                            <label class="al-label">Intolleranze alimentari</label>
+                            <textarea name="intolerances" rows="2" placeholder="Es. Lattosio, glutine…" class="al-textarea"></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Stile di vita -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Stile di vita</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Sezione 3 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-moon-stars text-bronze text-xl"></i>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Qualità del sonno</label>
-                        <select name="sleep_quality"
-                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
-                            <option value="">Seleziona...</option>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                        <h2 class="al-h-3">Stile di Vita</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="al-label">Qualità del sonno</label>
+                        <select name="sleep_quality" class="al-select">
+                            <option value="">Seleziona…</option>
                             <option>Ottima</option>
                             <option>Buona</option>
                             <option>Sufficiente</option>
@@ -102,10 +127,9 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Livello di stress</label>
-                        <select name="stress_level"
-                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none">
-                            <option value="">Seleziona...</option>
+                        <label class="al-label">Livello di stress</label>
+                        <select name="stress_level" class="al-select">
+                            <option value="">Seleziona…</option>
                             <option>Molto basso</option>
                             <option>Basso</option>
                             <option>Moderato</option>
@@ -113,52 +137,63 @@
                             <option>Molto alto</option>
                         </select>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Note stile di vita <span class="text-slate-400 font-normal">(lavoro, attività quotidiana)</span></label>
-                    <textarea name="lifestyle_notes" rows="2" placeholder="Es. Lavoro sedentario 8h/gg, cammina 20min al giorno..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-                </div>
-            </div>
-
-            <!-- Alimentazione -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Alimentazione</h2>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Abitudini alimentari</label>
-                    <textarea name="food_habits" rows="3" placeholder="Es. 3 pasti al giorno, salta la colazione, preferisce carne..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Storico peso</label>
-                    <textarea name="weight_history" rows="2" placeholder="Es. Max 95kg nel 2020, -10kg nel 2022 con dieta..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+                    <div class="sm:col-span-2">
+                        <label class="al-label">Note stile di vita <span class="al-input-help" style="display:inline; margin:0;">(lavoro, attività quotidiana)</span></label>
+                        <textarea name="lifestyle_notes" rows="2" placeholder="Es. Lavoro sedentario 8h/gg, cammina 20min al giorno…" class="al-textarea"></textarea>
+                    </div>
                 </div>
             </div>
 
-            <!-- Obiettivi -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700">Obiettivi e note</h2>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Obiettivo del percorso</label>
-                    <textarea name="path_goal" rows="2" placeholder="Es. Perdere 8kg in 4 mesi, migliorare composizione corporea..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+            <!-- Sezione 4 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-fork-knife text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">04</p>
+                        <h2 class="al-h-3">Alimentazione</h2>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Note professionali <span class="text-slate-400 font-normal">(visibili solo al coach)</span></label>
-                    <textarea name="professional_notes" rows="3" placeholder="Impressioni cliniche, priorità terapeutiche, note interne..."
-                              class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
+
+                <div class="space-y-5">
+                    <div>
+                        <label class="al-label">Abitudini alimentari</label>
+                        <textarea name="food_habits" rows="3" placeholder="Es. 3 pasti al giorno, salta la colazione, preferisce carne…" class="al-textarea"></textarea>
+                    </div>
+                    <div>
+                        <label class="al-label">Storico peso</label>
+                        <textarea name="weight_history" rows="2" placeholder="Es. Max 95kg nel 2020, -10kg nel 2022 con dieta…" class="al-textarea"></textarea>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 pb-4">
-                <a href="{% url 'nutrizione_anamnesi' %}"
-                   class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors">
-                    Annulla
-                </a>
-                <button type="submit"
-                        class="px-6 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors shadow-sm">
-                    <i class="ph ph-paper-plane-tilt mr-1.5"></i>Salva Prima Visita
+            <!-- Sezione 5 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-target text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">05</p>
+                        <h2 class="al-h-3">Obiettivi e Note</h2>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <div>
+                        <label class="al-label">Obiettivo del percorso</label>
+                        <textarea name="path_goal" rows="2" placeholder="Es. Perdere 8kg in 4 mesi, migliorare composizione corporea…" class="al-textarea"></textarea>
+                    </div>
+                    <div>
+                        <label class="al-label">Note professionali <span class="al-input-help" style="display:inline; margin:0;">(visibili solo al coach)</span></label>
+                        <textarea name="professional_notes" rows="3" placeholder="Impressioni cliniche, priorità terapeutiche, note interne…" class="al-textarea"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'nutrizione_anamnesi' %}" class="al-btn al-btn-ghost">Annulla</a>
+                <button type="submit" class="al-btn al-btn-bronze">
+                    <i class="ph ph-paper-plane-tilt text-sm"></i>
+                    <span>Salva Prima Visita</span>
                 </button>
             </div>
         </div>

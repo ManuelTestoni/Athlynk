@@ -25,9 +25,9 @@
     <meta name="cookie-consent-needed" content="{{ cookie_consent_needed|yesno:'1,0' }}">
 
     <!-- Legacy + Athlynk design system -->
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}">
-    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
 
     <script>
         tailwind.config = {
@@ -71,7 +71,11 @@
                         'al-3': '0 30px 80px -30px rgba(20,17,13,0.35)',
                     },
                     borderRadius: {
-                        'al-sm': '2px',
+                        'al-sm': '10px',
+                        'al-md': '16px',
+                        'al-lg': '22px',
+                        'al-xl': '28px',
+                        'al-pill': '999px',
                     },
                 }
             }
@@ -332,12 +336,17 @@
                         <i class="ph ph-bell text-xl"></i>
                         <span x-show="unreadCount > 0"
                               x-text="unreadCount > 9 ? '9+' : unreadCount"
-                              class="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 bg-bronze text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
+                              class="al-pulse-bronze absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 bg-bronze text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
                               style="border: 1px solid var(--al-parchment); border-radius: 2px;"></span>
                     </button>
                     <div x-show="open" @click.outside="open = false" x-cloak
-                         class="absolute right-0 mt-3 w-80 z-50"
-                         style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
+                         x-transition:enter="al-slide-down-enter"
+                         x-transition:enter-start="al-slide-down-enter-start"
+                         x-transition:enter-end="al-slide-down-enter-end"
+                         x-transition:leave="al-slide-down-leave"
+                         x-transition:leave-start="al-slide-down-leave-start"
+                         x-transition:leave-end="al-slide-down-leave-end"
+                         class="al-notif-pop absolute right-0 mt-3 w-80 z-50">
                         <div class="al-card-head" style="padding: 12px 16px; background: var(--al-marble);">
                             <span class="al-tag">Notifiche</span>
                             <button @click="markAllRead()" type="button" x-show="unreadCount > 0"
@@ -403,6 +412,27 @@
     <!-- Cookie consent banner root -->
     <div id="cookie-banner-root"></div>
 
+    <!-- Global toast host -->
+    <div class="al-toast-host" x-data x-cloak>
+      <template x-for="t in $store.toasts.items" :key="t.id">
+        <div :class="['al-toast', 'is-' + t.kind]"
+             x-transition:enter="al-slide-up-enter"
+             x-transition:enter-start="al-slide-up-enter-start"
+             x-transition:enter-end="al-slide-up-enter-end"
+             x-transition:leave="al-slide-up-leave"
+             x-transition:leave-start="al-slide-up-leave-start"
+             x-transition:leave-end="al-slide-up-leave-end">
+          <i :class="t.icon"></i>
+          <span class="flex-1" x-text="t.msg"></span>
+          <button type="button" @click="$store.toasts.dismiss(t.id)"
+                  class="text-parchment/60 hover:text-parchment transition-colors"
+                  aria-label="Chiudi">
+            <i class="ph ph-x text-xs"></i>
+          </button>
+        </div>
+      </template>
+    </div>
+
     <!-- Reveal-on-scroll observer -->
     <script>
       (function () {
@@ -419,6 +449,18 @@
       })();
     </script>
 
+    <script src="{% static 'js/toasts.js' %}"></script>
+    <script src="{% static 'js/visual_polish.js' %}?v={{ ASSET_VERSION }}" defer></script>
+    {% if messages %}
+    <script>
+      document.addEventListener('alpine:initialized', () => {
+        const map = { success: 'success', warning: 'warn', error: 'danger', info: 'info', debug: 'info' };
+        {% for m in messages %}
+          Alpine.store('toasts').push({ kind: map['{{ m.tags|default:"info" }}'] || 'info', msg: '{{ m|escapejs }}' });
+        {% endfor %}
+      });
+    </script>
+    {% endif %}
     <script src="{% static 'js/notifications.js' %}"></script>
     <script src="{% static 'js/global_search.js' %}"></script>
     <script>

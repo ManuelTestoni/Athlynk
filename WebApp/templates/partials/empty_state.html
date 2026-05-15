@@ -1,0 +1,14 @@
+{# Empty state — usage:
+   {% include "partials/empty_state.html" with icon="ph ph-users" title="Nessun atleta" desc="..." cta_url=url cta_label="Aggiungi atleta" %}
+#}
+<div class="al-empty">
+  <i class="{{ icon|default:'ph ph-circle-dashed' }} al-empty-icon"></i>
+  <h3>{{ title }}</h3>
+  {% if desc %}<p>{{ desc }}</p>{% endif %}
+  {% if cta_url and cta_label %}
+  <a href="{{ cta_url }}" class="al-btn al-btn-bronze">
+    {% if cta_icon %}<i class="{{ cta_icon }} text-sm"></i>{% endif %}
+    <span>{{ cta_label }}</span>
+  </a>
+  {% endif %}
+</div>

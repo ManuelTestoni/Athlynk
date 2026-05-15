@@ -150,7 +150,7 @@ def chat_detail_view(request, conversation_id):
 
     return render(request, 'pages/chat/detail.html', {
         'conversation': conversation,
-        'messages': messages,
+        'chat_messages': messages,
         'partner_name': partner_name,
         'partner_avatar': partner_avatar,
         'partner_role': partner_role,

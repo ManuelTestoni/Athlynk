@@ -54,7 +54,28 @@ def identity_context(request):
     ctx['sidebar_notifications'] = sidebar_notifications
     ctx['CONSENT_VERSION'] = getattr(settings, 'CONSENT_VERSION', '')
     ctx['cookie_consent_needed'] = _cookie_consent_needed(request, user)
+    ctx['ASSET_VERSION'] = _asset_version()
     return ctx
+
+
+_asset_version_cache = None
+def _asset_version():
+    """Returns mtime of athlynk.css as cache-buster.
+
+    Cached for the process lifetime in DEBUG=False; re-read every call in DEBUG.
+    """
+    global _asset_version_cache
+    if settings.DEBUG or _asset_version_cache is None:
+        import os
+        try:
+            p = os.path.join(settings.BASE_DIR.parent, 'static', 'css', 'athlynk.css')
+            mtime = int(os.path.getmtime(p))
+        except OSError:
+            mtime = 0
+        if not settings.DEBUG:
+            _asset_version_cache = mtime
+        return mtime
+    return _asset_version_cache
 
 
 def _cookie_consent_needed(request, user):

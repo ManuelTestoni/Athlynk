@@ -18,9 +18,9 @@
     <meta name="consent-version" content="{{ CONSENT_VERSION }}">
     <meta name="cookie-consent-needed" content="{{ cookie_consent_needed|yesno:'1,0' }}">
 
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}">
-    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
 
     <script>
         tailwind.config = {
@@ -100,6 +100,7 @@
         border: 1px solid var(--al-rule-strong);
         box-shadow: var(--al-shadow-3);
         z-index: 2;
+        border-radius: 22px;
       }
       .auth-panel::before {
         content: '';
@@ -122,7 +123,7 @@
                     transform var(--al-d-base) var(--al-ease-out);
         display: flex; flex-direction: column; align-items: center; gap: 8px;
         text-align: center;
-        border-radius: var(--al-r-sm);
+        border-radius: var(--al-r-md);
       }
       .auth-tile:hover { border-color: var(--al-bronze-s); transform: translateY(-2px); }
       .auth-tile.is-on { border-color: var(--al-bronze); background: var(--al-marble-warm); box-shadow: 0 0 0 2px rgba(138,106,58,0.3); }
@@ -132,7 +133,7 @@
         background: var(--al-marble);
         border: 1px solid var(--al-rule);
         display: flex; align-items: center; gap: 12px;
-        border-radius: var(--al-r-sm);
+        border-radius: var(--al-r-md);
         cursor: pointer;
         transition: border-color var(--al-d-base) var(--al-ease), background var(--al-d-base) var(--al-ease);
       }
@@ -143,7 +144,7 @@
         width: 40px; height: 40px;
         display: inline-flex; align-items: center; justify-content: center;
         background: var(--al-stone); color: var(--al-ink-soft);
-        border-radius: var(--al-r-sm);
+        border-radius: 999px;
         font-size: 18px;
         flex-shrink: 0;
       }
@@ -181,7 +182,7 @@
                 </div>
 
                 <!-- Panel -->
-                <div class="auth-panel px-7 sm:px-10 py-10">
+                <div class="auth-panel al-page px-7 sm:px-10 py-10">
                     {% block auth_content %}{% endblock %}
                 </div>
 
@@ -202,5 +203,6 @@
       window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
     </script>
     <script src="{% static 'js/cookie_banner.js' %}"></script>
+    <script src="{% static 'js/visual_polish.js' %}?v={{ ASSET_VERSION }}" defer></script>
 </body>
 </html>

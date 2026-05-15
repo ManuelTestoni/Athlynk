@@ -4,10 +4,10 @@
 <div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Nutrizione</h1>
-            <p class="text-sm text-slate-500 mt-1">Piani assegnati da {{ coach.first_name }} {{ coach.last_name }}.</p>
+            <h1 class="text-2xl font-bold text-ink tracking-tight">Nutrizione</h1>
+            <p class="text-sm text-ink-mute mt-1">Piani assegnati da {{ coach.first_name }} {{ coach.last_name }}.</p>
         </div>
-        <a href="{% url 'chat_list' %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm">
+        <a href="{% url 'chat_list' %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-al-sm border border-rule bg-white text-ink-soft text-sm font-semibold hover:bg-marble transition-colors shadow-sm">
             <i class="ph ph-chat-circle-dots mr-2"></i> Chatta col coach
         </a>
     </div>
@@ -16,46 +16,46 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {% for ad in assignments_data %}
         {% with assignment=ad.assignment plan=ad.assignment.nutrition_plan %}
-        <article class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+        <article class="bg-white border border-rule rounded-al-sm p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div>
                     {% if plan.plan_type %}
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ plan.plan_type }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</p>
                     {% endif %}
-                    <h3 class="text-lg font-bold text-slate-900 mt-0.5">{{ plan.title }}</h3>
+                    <h3 class="text-lg font-bold text-ink mt-0.5">{{ plan.title }}</h3>
                 </div>
                 <span class="inline-flex items-center shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium
-                  {% if assignment.status == 'ACTIVE' %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                  {% if assignment.status == 'ACTIVE' %}bg-emerald-50 text-emerald-700{% else %}bg-marble text-ink-mute{% endif %}">
                     {{ assignment.status }}
                 </span>
             </div>
 
             {% if plan.description %}
-            <p class="text-sm text-slate-500 line-clamp-2 mb-3">{{ plan.description }}</p>
+            <p class="text-sm text-ink-mute line-clamp-2 mb-3">{{ plan.description }}</p>
             {% endif %}
 
             <div class="mt-auto grid grid-cols-4 gap-2 text-center">
-                <div class="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
-                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Kcal</p>
-                    <p class="font-bold text-slate-900 text-sm">{{ ad.kcal }}</p>
+                <div class="rounded-al-sm bg-marble border border-rule p-2.5">
+                    <p class="text-[10px] text-ink-mute uppercase font-semibold">Kcal</p>
+                    <p class="font-bold text-ink text-sm">{{ ad.kcal }}</p>
                 </div>
-                <div class="rounded-xl bg-blue-50 border border-blue-100 p-2.5">
+                <div class="rounded-al-sm bg-blue-50 border border-blue-100 p-2.5">
                     <p class="text-[10px] text-blue-400 uppercase font-semibold">Prot</p>
                     <p class="font-bold text-blue-700 text-sm">{{ ad.prot }}g</p>
                 </div>
-                <div class="rounded-xl bg-amber-50 border border-amber-100 p-2.5">
+                <div class="rounded-al-sm bg-amber-50 border border-amber-100 p-2.5">
                     <p class="text-[10px] text-amber-500 uppercase font-semibold">Carb</p>
                     <p class="font-bold text-amber-700 text-sm">{{ ad.carb }}g</p>
                 </div>
-                <div class="rounded-xl bg-rose-50 border border-rose-100 p-2.5">
+                <div class="rounded-al-sm bg-rose-50 border border-rose-100 p-2.5">
                     <p class="text-[10px] text-rose-400 uppercase font-semibold">Fat</p>
                     <p class="font-bold text-rose-700 text-sm">{{ ad.fat }}g</p>
                 </div>
             </div>
 
-            <div class="mt-4 pt-4 border-t border-slate-100">
+            <div class="mt-4 pt-4 border-t border-rule">
                 <a href="{% url 'nutrizione_client_detail' assignment.id %}"
-                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors">
+                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-al-sm bg-ink text-white text-sm font-semibold hover:bg-ink transition-colors">
                     <i class="ph ph-eye"></i> Vedi dettaglio
                 </a>
             </div>
@@ -64,13 +64,13 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4">
+    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
+        <div class="w-16 h-16 rounded-full bg-marble text-ink-mute flex items-center justify-center mx-auto mb-4">
             <i class="ph ph-apple-logo text-3xl"></i>
         </div>
-        <h3 class="text-lg font-bold text-slate-900">Nessun piano nutrizionale attivo</h3>
-        <p class="text-sm text-slate-500 mt-2">Quando il tuo coach pubblicherà un piano, comparirà qui.</p>
-        <a href="{% url 'chat_list' %}" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm">
+        <h3 class="text-lg font-bold text-ink">Nessun piano nutrizionale attivo</h3>
+        <p class="text-sm text-ink-mute mt-2">Quando il tuo coach pubblicherà un piano, comparirà qui.</p>
+        <a href="{% url 'chat_list' %}" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-al-sm bg-ink text-white text-sm font-semibold hover:bg-ink transition-colors shadow-sm">
             <i class="ph ph-chat-circle-dots"></i> Scrivi al coach
         </a>
     </div>
@@ -79,42 +79,42 @@
   <!-- Supplement sheet section -->
   <div class="space-y-4">
     <div>
-      <h2 class="text-xl font-bold text-slate-900 tracking-tight">Scheda Integrazione</h2>
-      <p class="text-sm text-slate-500 mt-1">Protocollo integratori assegnato dal tuo coach.</p>
+      <h2 class="text-xl font-bold text-ink tracking-tight">Scheda Integrazione</h2>
+      <p class="text-sm text-ink-mute mt-1">Protocollo integratori assegnato dal tuo coach.</p>
     </div>
 
     {% if supp_assignment %}
     {% with sheet=supp_assignment.sheet %}
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+    <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-rule bg-marble flex items-center justify-between">
         <div>
-          <h3 class="text-base font-bold text-slate-900">{{ sheet.title }}</h3>
+          <h3 class="text-base font-bold text-ink">{{ sheet.title }}</h3>
           {% if sheet.notes %}
-          <p class="text-xs text-slate-500 mt-0.5">{{ sheet.notes }}</p>
+          <p class="text-xs text-ink-mute mt-0.5">{{ sheet.notes }}</p>
           {% endif %}
         </div>
-        <span class="text-xs text-slate-400">dal {{ supp_assignment.assigned_at|date:"d M Y" }}</span>
+        <span class="text-xs text-ink-mute">dal {{ supp_assignment.assigned_at|date:"d M Y" }}</span>
       </div>
       {% with items=sheet.items.all %}
       {% if items %}
-      <div class="divide-y divide-slate-50">
+      <div class="divide-y divide-rule">
         {% for item in items %}
         <div class="px-5 py-3 flex items-center justify-between gap-4">
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-slate-800">{{ item.supplement.name }}</p>
-            <p class="text-xs text-slate-400">{{ item.supplement.category }}</p>
+            <p class="text-sm font-semibold text-ink-soft">{{ item.supplement.name }}</p>
+            <p class="text-xs text-ink-mute">{{ item.supplement.category }}</p>
           </div>
           <div class="flex items-center gap-4 text-right shrink-0">
             {% if item.dose %}
             <div>
-              <p class="text-xs text-slate-400 uppercase font-semibold">Dose</p>
-              <p class="text-sm font-bold text-slate-800">{{ item.dose }} {{ item.supplement.unit }}</p>
+              <p class="text-xs text-ink-mute uppercase font-semibold">Dose</p>
+              <p class="text-sm font-bold text-ink-soft">{{ item.dose }} {{ item.supplement.unit }}</p>
             </div>
             {% endif %}
             {% if item.timing %}
             <div>
-              <p class="text-xs text-slate-400 uppercase font-semibold">Quando</p>
-              <p class="text-sm text-slate-600">{{ item.timing }}</p>
+              <p class="text-xs text-ink-mute uppercase font-semibold">Quando</p>
+              <p class="text-sm text-ink-soft">{{ item.timing }}</p>
             </div>
             {% endif %}
           </div>
@@ -122,23 +122,23 @@
         {% endfor %}
       </div>
       {% if supp_assignment.notes %}
-      <div class="px-5 py-3 border-t border-slate-100 bg-slate-50">
-        <p class="text-xs text-slate-500"><span class="font-semibold">Note del coach:</span> {{ supp_assignment.notes }}</p>
+      <div class="px-5 py-3 border-t border-rule bg-marble">
+        <p class="text-xs text-ink-mute"><span class="font-semibold">Note del coach:</span> {{ supp_assignment.notes }}</p>
       </div>
       {% endif %}
       {% else %}
-      <div class="px-5 py-8 text-center text-sm text-slate-400">Nessun integratore in questa scheda.</div>
+      <div class="px-5 py-8 text-center text-sm text-ink-mute">Nessun integratore in questa scheda.</div>
       {% endif %}
       {% endwith %}
     </div>
     {% endwith %}
     {% else %}
-    <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
-      <div class="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3">
-        <i class="ph ph-pill text-3xl text-slate-400"></i>
+    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
+      <div class="w-14 h-14 rounded-full bg-marble flex items-center justify-center mx-auto mb-3">
+        <i class="ph ph-pill text-3xl text-ink-mute"></i>
       </div>
-      <h3 class="text-base font-bold text-slate-900">Nessuna scheda integratori</h3>
-      <p class="text-sm text-slate-500 mt-1">Quando il tuo coach assegnerà una scheda, comparirà qui.</p>
+      <h3 class="text-base font-bold text-ink">Nessuna scheda integratori</h3>
+      <p class="text-sm text-ink-mute mt-1">Quando il tuo coach assegnerà una scheda, comparirà qui.</p>
     </div>
     {% endif %}
   </div>

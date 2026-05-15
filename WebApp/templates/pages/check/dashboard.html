@@ -38,7 +38,17 @@
         } catch(e) { console.error(e); }
         this.loading = false;
     },
-    setTab(t) { this.tab = t; this.page = 1; this.fetchChecks(); },
+    setTab(t) {
+        if (this.tab === t) return;
+        const wrap = document.getElementById('check-table-wrap');
+        if (wrap) wrap.dataset.filterSwapping = '1';
+        setTimeout(() => {
+            this.tab = t;
+            this.page = 1;
+            this.fetchChecks();
+            if (wrap) wrap.dataset.filterSwapping = '0';
+        }, 220);
+    },
     setPage(p) { if (p >= 1 && p <= this.numPages) { this.page = p; this.fetchChecks(); } },
     setPerPage(n) { this.perPage = parseInt(n); this.page = 1; this.fetchChecks(); },
     get pageRange() {
@@ -117,11 +127,17 @@
 
     <!-- Toolbar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-        <div class="al-tabs">
-            <button @click="setTab('da_revisionare')" type="button" :class="tab === 'da_revisionare' ? 'is-active' : ''">
+        <div class="al-filter" role="tablist" aria-label="Filtro check">
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': tab === 'da_revisionare' }"
+                    :aria-selected="tab === 'da_revisionare'"
+                    @click="setTab('da_revisionare')">
                 Da Revisionare
             </button>
-            <button @click="setTab('tutti')" type="button" :class="tab === 'tutti' ? 'is-active' : ''">
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': tab === 'tutti' }"
+                    :aria-selected="tab === 'tutti'"
+                    @click="setTab('tutti')">
                 Tutti
             </button>
         </div>
@@ -138,7 +154,7 @@
     </div>
 
     <!-- Table -->
-    <div class="al-card al-card-flush">
+    <div class="al-card al-card-flush al-filter-target" id="check-table-wrap" data-filter-swapping="0">
         <div class="overflow-x-auto">
             <table class="al-table">
                 <thead>
@@ -255,23 +271,26 @@
 
                 <div class="relative">
                     <label class="al-label">Atleta *</label>
-                    <template x-if= PROTECT5 >
+                    <template x-if="!schedule.client_id">
                         <div>
-                            <input type="text" x-model= PROTECT6  placeholder="Cerca per nome..." class="al-input">
-                            <div x-show= PROTECT7 
+                            <input type="text" x-model="clientFilter" placeholder="Cerca per nome..." class="al-input">
+                            <div x-show="filteredClients.length > 0 && clientFilter.length > 0"
                                  class="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto"
                                  style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
-                                <template x-for="c in filteredClients" :key= PROTECT8 >
+                                <template x-for="c in filteredClients" :key="c.client__id">
                                     <button @click="selectClient(c)" type="button" class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-marble transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                                        <span x-text= PROTECT9 ></span>
+                                        <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
                                     </button>
                                 </template>
                             </div>
-                            <template x-if= PROTECT10 ><span class="al-input-help PROTECT11 schedule.client_id">
+                            <template x-if="clients.length === 0"><span class="al-input-help">Nessun atleta attivo associato.</span></template>
+                        </div>
+                    </template>
+                    <template x-if="schedule.client_id">
                         <div class="flex items-center gap-2 al-badge al-badge-success" style="font-family: var(--al-sans); padding: 8px 12px; letter-spacing: 0; text-transform: none; font-size: 13px;">
                             <i class="ph-fill ph-check-circle"></i>
-                            <span x-text= PROTECT12 ></span>
-                            <button @click= PROTECT13  type="button" class="ml-auto hover:text-danger">Cambia</button>
+                            <span x-text="schedule.client_name"></span>
+                            <button @click="schedule.client_id = null; schedule.client_name = ''" type="button" class="ml-auto hover:text-danger">Cambia</button>
                         </div>
                     </template>
                 </div>
@@ -293,7 +312,8 @@
                 </div>
 
                 <div>
-                    <label class="al-label PROTECT14 schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni..." class="al-textarea"></textarea>
+                    <label class="al-label">Note per l'atleta</label>
+                    <textarea x-model="schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni..." class="al-textarea"></textarea>
                 </div>
             </div>
 

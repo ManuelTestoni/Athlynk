@@ -7,63 +7,63 @@
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
             {% if is_coach_view %}
-            <nav class="flex items-center gap-2 text-sm text-slate-500 mb-2">
-                <a href="{% url 'check_client_history' target_client.id %}" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
+                <a href="{% url 'check_client_history' target_client.id %}" class="hover:text-ink transition-colors flex items-center gap-1">
                     <i class="ph ph-clipboard-text"></i> Storico check
                 </a>
                 <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-slate-900 font-medium">Andamento</span>
+                <span class="text-ink font-medium">Andamento</span>
             </nav>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Andamento – {{ target_client.first_name }} {{ target_client.last_name }}</h1>
+            <h1 class="text-2xl font-bold text-ink tracking-tight">Andamento – {{ target_client.first_name }} {{ target_client.last_name }}</h1>
             {% else %}
-            <nav class="flex items-center gap-2 text-sm text-slate-500 mb-2">
-                <a href="{% url 'check_dashboard' %}" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
+                <a href="{% url 'check_dashboard' %}" class="hover:text-ink transition-colors flex items-center gap-1">
                     <i class="ph ph-clipboard-text"></i> I Miei Check
                 </a>
                 <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-slate-900 font-medium">Il mio andamento</span>
+                <span class="text-ink font-medium">Il mio andamento</span>
             </nav>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Il mio andamento</h1>
+            <h1 class="text-2xl font-bold text-ink tracking-tight">Il mio andamento</h1>
             {% endif %}
-            <p class="text-sm text-slate-500 mt-1">{{ total_checks }} check registrati.</p>
+            <p class="text-sm text-ink-mute mt-1">{{ total_checks }} check registrati.</p>
         </div>
         {% if is_coach_view %}
         <a href="{% url 'check_client_history' target_client.id %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
+           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
             <i class="ph ph-arrow-left"></i> Torna allo storico
         </a>
         {% else %}
         <a href="{% url 'check_dashboard' %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
+           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
             <i class="ph ph-arrow-left"></i> Torna ai check
         </a>
         {% endif %}
     </div>
 
     {% if total_checks < 2 %}
-    <div class="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-        <div class="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center text-3xl mx-auto mb-4">
+    <div class="bg-white border border-rule rounded-al-sm p-12 text-center shadow-sm">
+        <div class="w-16 h-16 rounded-al-sm bg-accent/10 text-accent flex items-center justify-center text-3xl mx-auto mb-4">
             <i class="ph ph-chart-line"></i>
         </div>
-        <h3 class="text-base font-semibold text-slate-900 mb-1">Dati insufficienti</h3>
-        <p class="text-sm text-slate-500 max-w-xs mx-auto">Servono almeno 2 check per visualizzare i grafici di andamento.</p>
+        <h3 class="text-base font-semibold text-ink mb-1">Dati insufficienti</h3>
+        <p class="text-sm text-ink-mute max-w-xs mx-auto">Servono almeno 2 check per visualizzare i grafici di andamento.</p>
     </div>
     {% else %}
 
     <!-- Weight chart -->
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
-        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">Peso corporeo (kg)</h2>
+    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute mb-4">Peso corporeo (kg)</h2>
         <div class="h-64">
             <canvas id="weightChart"></canvas>
         </div>
     </div>
 
     <!-- Circumferences chart -->
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
+    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Circonferenze (cm)</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Circonferenze (cm)</h2>
             <select x-model="activeCirc"
-                    class="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-accent">
+                    class="text-sm border border-rule rounded-al-sm px-3 py-1.5 bg-marble focus:outline-none focus:ring-2 focus:ring-accent">
                 <option value="shoulders">Spalle</option>
                 <option value="chest">Petto</option>
                 <option value="waist">Vita</option>
@@ -78,11 +78,11 @@
     </div>
 
     <!-- Skinfolds chart -->
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
+    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Pliche (mm)</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Pliche (mm)</h2>
             <select x-model="activeSkin"
-                    class="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-accent">
+                    class="text-sm border border-rule rounded-al-sm px-3 py-1.5 bg-marble focus:outline-none focus:ring-2 focus:ring-accent">
                 <option value="chest">Petto</option>
                 <option value="abdomen">Addome</option>
                 <option value="thigh">Coscia</option>

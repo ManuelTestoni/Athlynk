@@ -19,40 +19,40 @@ class SubscriptionPlanForm(forms.ModelForm):
         ]
         widgets = {
             'name': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'es. Piano Base',
+                'class': 'al-input',
+                'placeholder': 'Es. Piano Base',
                 'required': True,
             }),
             'plan_type': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'es. Mensile, Trimestrale, Annuale',
+                'class': 'al-input',
+                'placeholder': 'Es. Mensile, Trimestrale, Annuale',
                 'required': True,
             }),
             'description': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'Descrizione del piano...',
+                'class': 'al-textarea',
+                'placeholder': 'Descrizione del piano…',
                 'rows': 3,
             }),
             'price': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'es. 29.99',
+                'class': 'al-input',
+                'placeholder': 'Es. 29.99',
                 'step': '0.01',
                 'required': True,
             }),
             'currency': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
+                'class': 'al-input',
                 'value': 'EUR',
             }),
             'duration_days': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'es. 30 per mensile, 90 per trimestrale',
+                'class': 'al-input',
+                'placeholder': 'Es. 30 per mensile, 90 per trimestrale',
             }),
             'billing_interval': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent',
-                'placeholder': 'es. monthly, quarterly, yearly',
+                'class': 'al-input',
+                'placeholder': 'Es. monthly, quarterly, yearly',
             }),
             'is_active': forms.CheckboxInput(attrs={
-                'class': 'w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500',
+                'style': 'width:18px;height:18px;accent-color:var(--al-bronze);cursor:pointer;',
             }),
         }
 

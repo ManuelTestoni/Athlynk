@@ -82,10 +82,13 @@
   color: var(--al-ink-soft);
   cursor: pointer;
   border-radius: var(--al-r-sm);
-  transition: all var(--al-d-fast) var(--al-ease);
+  transition: background var(--al-d-snap) var(--al-ease),
+              color var(--al-d-snap) var(--al-ease),
+              transform var(--al-d-snap) var(--al-ease-spr);
   position: relative;
 }
-.mini-cal-day:hover:not(.is-out) { background: var(--al-marble); color: var(--al-ink); }
+.mini-cal-day:hover:not(.is-out) { background: var(--al-marble); color: var(--al-ink); transform: scale(1.06); }
+.mini-cal-day:active:not(.is-out) { transform: scale(0.96); }
 .mini-cal-day.is-out { color: var(--al-stone-deep); opacity: 0.45; }
 .mini-cal-day.is-today {
   background: var(--al-ink);
@@ -117,7 +120,7 @@
 }
 .agenda-filter-swatch {
   width: 10px; height: 10px;
-  border-radius: 2px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
 
@@ -280,6 +283,7 @@
 .agenda-event-row:hover {
   border-color: var(--al-bronze-soft);
   transform: translateX(2px);
+  box-shadow: var(--al-elev-2);
 }
 .agenda-event-time {
   font-family: var(--al-mono);
@@ -291,7 +295,7 @@
 .agenda-event-marker {
   width: 4px;
   align-self: stretch;
-  border-radius: 2px;
+  border-radius: 999px;
 }
 .agenda-event-main { min-width: 0; }
 .agenda-event-title {

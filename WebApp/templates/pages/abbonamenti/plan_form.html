@@ -1,115 +1,120 @@
 {% extends 'base.html' %}
 
+{% block title %}{{ action }} Piano{% endblock %}
+
 {% block content %}
-<div class="flex-1 w-full max-w-3xl mx-auto">
+<div class="max-w-3xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'abbonamenti_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-credit-card text-xs"></i><span>Abbonamenti</span>
+        </a>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">{{ action }} Piano</span>
+    </nav>
+
     <!-- Header -->
     <div class="mb-8">
-        <div class="flex items-center text-sm text-slate-500 mb-2 font-medium">
-            <a href="{% url 'dashboard' %}" class="hover:text-slate-800 transition-colors">Home</a>
-            <span class="mx-2 text-slate-300">/</span>
-            <a href="{% url 'abbonamenti_dashboard' %}" class="hover:text-slate-800 transition-colors">Abbonamenti</a>
-            <span class="mx-2 text-slate-300">/</span>
-            <span class="text-slate-800">{{ action }} Piano</span>
-        </div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ action }} Piano di Abbonamento</h1>
-        <p class="text-sm text-slate-500 mt-1">Compila i dettagli del piano e salva.</p>
+        <p class="al-eyebrow mb-3">Studio &middot; Catalogo</p>
+        <h1 class="al-h-1">{{ action }} <span class="al-display-i">piano</span></h1>
+        <p class="al-body mt-2">Definisci nome, prezzo, durata e ciclo di fatturazione del piano di abbonamento.</p>
+        <div class="al-rule-bronze mt-5"></div>
     </div>
 
-    <!-- Form Container -->
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
+    <form method="post">
+        {% csrf_token %}
 
-            <!-- Nome Piano -->
-            <div>
-                <label for="{{ form.name.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                    {{ form.name.label }}
-                </label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                <p class="text-sm text-red-600 mt-1">{{ form.name.errors.0 }}</p>
-                {% endif %}
-            </div>
+        <div class="space-y-6">
 
-            <!-- Tipo Piano -->
-            <div>
-                <label for="{{ form.plan_type.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                    {{ form.plan_type.label }}
-                </label>
-                {{ form.plan_type }}
-                {% if form.plan_type.errors %}
-                <p class="text-sm text-red-600 mt-1">{{ form.plan_type.errors.0 }}</p>
-                {% endif %}
-                <p class="text-xs text-slate-500 mt-1">es. Mensile, Trimestrale, Annuale</p>
-            </div>
-
-            <!-- Descrizione -->
-            <div>
-                <label for="{{ form.description.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                    {{ form.description.label }}
-                </label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                <p class="text-sm text-red-600 mt-1">{{ form.description.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <!-- Prezzo e Valuta -->
-            <div class="grid grid-cols-2 gap-6">
-                <div>
-                    <label for="{{ form.price.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                        {{ form.price.label }}
-                    </label>
-                    {{ form.price }}
-                    {% if form.price.errors %}
-                    <p class="text-sm text-red-600 mt-1">{{ form.price.errors.0 }}</p>
-                    {% endif %}
+            <!-- Sezione 1 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-tag text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                        <h2 class="al-h-3">Identità del Piano</h2>
+                    </div>
                 </div>
-                <div>
-                    <label for="{{ form.currency.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                        {{ form.currency.label }}
-                    </label>
-                    {{ form.currency }}
+
+                <div class="space-y-5">
+                    <div>
+                        <label for="{{ form.name.id_for_label }}" class="al-label">{{ form.name.label }} *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<span class="al-input-error">{{ form.name.errors.0 }}</span>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.plan_type.id_for_label }}" class="al-label">{{ form.plan_type.label }}</label>
+                        {{ form.plan_type }}
+                        {% if form.plan_type.errors %}<span class="al-input-error">{{ form.plan_type.errors.0 }}</span>{% endif %}
+                        <span class="al-input-help">Es. Mensile, Trimestrale, Annuale.</span>
+                    </div>
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="al-label">{{ form.description.label }}</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}<span class="al-input-error">{{ form.description.errors.0 }}</span>{% endif %}
+                    </div>
                 </div>
             </div>
 
-            <!-- Durata e Intervallo -->
-            <div class="grid grid-cols-2 gap-6">
-                <div>
-                    <label for="{{ form.duration_days.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                        {{ form.duration_days.label }}
-                    </label>
-                    {{ form.duration_days }}
-                    <p class="text-xs text-slate-500 mt-1">Giorni di validità del piano</p>
+            <!-- Sezione 2 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-currency-eur text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                        <h2 class="al-h-3">Prezzo e Durata</h2>
+                    </div>
                 </div>
-                <div>
-                    <label for="{{ form.billing_interval.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
-                        {{ form.billing_interval.label }}
-                    </label>
-                    {{ form.billing_interval }}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="{{ form.price.id_for_label }}" class="al-label">{{ form.price.label }} *</label>
+                        {{ form.price }}
+                        {% if form.price.errors %}<span class="al-input-error">{{ form.price.errors.0 }}</span>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.currency.id_for_label }}" class="al-label">{{ form.currency.label }}</label>
+                        {{ form.currency }}
+                    </div>
+                    <div>
+                        <label for="{{ form.duration_days.id_for_label }}" class="al-label">{{ form.duration_days.label }}</label>
+                        {{ form.duration_days }}
+                        <span class="al-input-help">Giorni di validità del piano.</span>
+                    </div>
+                    <div>
+                        <label for="{{ form.billing_interval.id_for_label }}" class="al-label">{{ form.billing_interval.label }}</label>
+                        {{ form.billing_interval }}
+                    </div>
                 </div>
             </div>
 
-            <!-- Piano Attivo -->
-            <div class="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                {{ form.is_active }}
-                <label for="{{ form.is_active.id_for_label }}" class="text-sm font-medium text-slate-700 cursor-pointer">
-                    {{ form.is_active.label }}
+            <!-- Sezione 3 -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-4">
+                    <i class="ph ph-toggle-right text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                        <h2 class="al-h-3">Visibilità</h2>
+                    </div>
+                </div>
+
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <span style="display: inline-flex;">{{ form.is_active }}</span>
+                    <span class="al-body">{{ form.is_active.label }}</span>
                 </label>
+                <p class="al-input-help">Solo i piani attivi compaiono nella registrazione degli atleti.</p>
             </div>
 
             <!-- Actions -->
-            <div class="flex gap-3 pt-6 border-t border-slate-200">
-                <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm">
-                    <i class="ph ph-check mr-2"></i>
-                    {{ action }} Piano
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'abbonamenti_dashboard' %}" class="al-btn al-btn-ghost">Annulla</a>
+                <button type="submit" class="al-btn al-btn-bronze">
+                    <i class="ph ph-check text-sm"></i>
+                    <span>{{ action }} Piano</span>
                 </button>
-                <a href="{% url 'abbonamenti_dashboard' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors">
-                    <i class="ph ph-x mr-2"></i>
-                    Annulla
-                </a>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 {% endblock %}

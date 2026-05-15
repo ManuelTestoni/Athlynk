@@ -3,42 +3,42 @@
 {% block content %}
 <div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
     <div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Abbonamenti</h1>
-        <p class="text-sm text-slate-500 mt-1">Piani disponibili con {{ coach.first_name }} {{ coach.last_name }}.</p>
+        <h1 class="text-2xl font-bold text-ink tracking-tight">Abbonamenti</h1>
+        <p class="text-sm text-ink-mute mt-1">Piani disponibili con {{ coach.first_name }} {{ coach.last_name }}.</p>
     </div>
 
     {% if available_plans %}
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {% for plan in available_plans %}
         {% with is_active=active_subscription.subscription_plan.id|default:0 %}
-        <article class="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow relative
-            {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}border-emerald-300 ring-2 ring-emerald-100{% else %}border-slate-200{% endif %}">
+        <article class="bg-white border rounded-al-sm p-6 shadow-sm hover:shadow-md transition-shadow relative
+            {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}border-emerald-300 ring-2 ring-emerald-100{% else %}border-rule{% endif %}">
             {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}
             <span class="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Attivo
             </span>
             {% endif %}
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ plan.plan_type }}</p>
-            <h3 class="text-xl font-bold text-slate-900 mt-2 pr-14">{{ plan.name }}</h3>
-            <p class="text-sm text-slate-500 mt-2 line-clamp-3">{{ plan.description|default:"Piano disponibile con il tuo specialista." }}</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</p>
+            <h3 class="text-xl font-bold text-ink mt-2 pr-14">{{ plan.name }}</h3>
+            <p class="text-sm text-ink-mute mt-2 line-clamp-3">{{ plan.description|default:"Piano disponibile con il tuo specialista." }}</p>
             <div class="mt-5 flex items-baseline gap-1">
-                <span class="text-3xl font-bold text-slate-900">€ {{ plan.price }}</span>
-                <span class="text-slate-500 text-sm">{{ plan.billing_interval|default:"al mese" }}</span>
+                <span class="text-3xl font-bold text-ink">€ {{ plan.price }}</span>
+                <span class="text-ink-mute text-sm">{{ plan.billing_interval|default:"al mese" }}</span>
             </div>
             {% if plan.duration_days %}
-            <p class="text-xs text-slate-400 mt-2"><i class="ph ph-clock mr-1"></i>{{ plan.duration_days }} giorni</p>
+            <p class="text-xs text-ink-mute mt-2"><i class="ph ph-clock mr-1"></i>{{ plan.duration_days }} giorni</p>
             {% endif %}
         </article>
         {% endwith %}
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4">
+    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
+        <div class="w-16 h-16 rounded-full bg-marble text-ink-mute flex items-center justify-center mx-auto mb-4">
             <i class="ph ph-credit-card text-3xl"></i>
         </div>
-        <h3 class="text-lg font-bold text-slate-900">Nessun abbonamento disponibile</h3>
-        <p class="text-sm text-slate-500 mt-2">Il tuo specialista non ha ancora pubblicato un listino attivo.</p>
+        <h3 class="text-lg font-bold text-ink">Nessun abbonamento disponibile</h3>
+        <p class="text-sm text-ink-mute mt-2">Il tuo specialista non ha ancora pubblicato un listino attivo.</p>
     </div>
     {% endif %}
 </div>
