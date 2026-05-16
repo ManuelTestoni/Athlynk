@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Il mio profilo{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto" x-data="{ activeTab: 'piani' }">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-house text-xs"></i><span>Dashboard</span>
+        </a>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">Il mio profilo</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <p class="al-eyebrow mb-3">Studio &middot; Profilo</p>
+            <h1 class="al-h-1">Il mio <span class="al-display-i">profilo</span></h1>
+            <p class="al-body mt-2">Anteprima di come gli atleti vedono il tuo profilo.</p>
+            <div class="al-rule-bronze mt-5"></div>
+        </div>
+        <a href="{% url 'impostazioni_dashboard' %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-pencil-simple text-sm"></i><span>Modifica profilo</span>
+        </a>
+    </div>
+
+    <!-- Hero card -->
+    <div class="al-card al-card-flush overflow-hidden mb-6">
+        <div class="relative" style="background: linear-gradient(135deg, var(--al-ink) 0%, var(--al-aegean-deep) 100%); height: 200px;">
+            <div class="absolute inset-0" style="background-image: radial-gradient(ellipse 40% 30% at 20% 100%, rgba(138,106,58,0.25), transparent 70%);"></div>
+            <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div class="flex items-end gap-4">
+                    <div class="w-20 h-20 overflow-hidden shrink-0 flex items-center justify-center text-3xl font-bold"
+                         style="background: var(--al-marble-warm); color: var(--al-ink); border: 3px solid var(--al-parchment); border-radius: var(--al-r-sm); box-shadow: var(--al-shadow-2);">
+                        {% if coach.profile_image %}
+                        <img src="{{ coach.profile_image.url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
+                        {% elif coach.profile_image_url %}
+                        <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                        {{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if coach.professional_type == 'ALLENATORE' %}
+                        <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3);">
+                            <i class="ph-fill ph-barbell"></i> Allenatore
+                        </span>
+                        {% elif coach.professional_type == 'NUTRIZIONISTA' %}
+                        <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3);">
+                            <i class="ph-fill ph-leaf"></i> Nutrizionista
+                        </span>
+                        {% else %}
+                        <span class="al-pill" style="background: rgba(200,167,116,0.20); color: var(--al-bronze-l); border: 1px solid rgba(200,167,116,0.40);">
+                            <i class="ph-fill ph-graduation-cap"></i> Coach
+                        </span>
+                        {% endif %}
+                        <h2 class="mt-2 al-display" style="font-size: 28px; line-height: 1.1; color: var(--al-parchment);">{{ coach_name }}</h2>
+                        <p class="text-sm mt-1" style="color: rgba(244,239,228,0.7);">{{ coach.specialization|default:"Personal Trainer" }}</p>
+                    </div>
+                </div>
+                {% if coach.city %}
+                <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3); backdrop-filter: blur(8px);">
+                    <i class="ph ph-map-pin"></i> {{ coach.city }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="grid grid-cols-3" style="border-top: 1px solid var(--al-rule);">
+            <div class="p-5 text-center" style="border-right: 1px solid var(--al-rule);">
+                <p class="al-display font-mono" style="font-size: 26px; color: var(--al-ink);">{{ coach.coaching_relationships_as_coach.count }}</p>
+                <p class="al-eyebrow mt-1" style="color: var(--al-ink-mute);">Atleti</p>
+            </div>
+            <div class="p-5 text-center" style="border-right: 1px solid var(--al-rule);">
+                <p class="al-display font-mono" style="font-size: 26px; color: var(--al-ink);">{{ coach.years_experience|default:"—" }}</p>
+                <p class="al-eyebrow mt-1" style="color: var(--al-ink-mute);">Anni Esperienza</p>
+            </div>
+            <div class="p-5 text-center">
+                <p class="al-display font-mono" style="font-size: 26px; color: var(--al-ink);">{{ coach.subscription_plans.count }}</p>
+                <p class="al-eyebrow mt-1" style="color: var(--al-ink-mute);">Piani</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+
+        <!-- Left: Profilo -->
+        <div class="al-card space-y-6">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-user text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                    <h2 class="al-h-3">Bio &amp; Specializzazioni</h2>
+                </div>
+            </div>
+
+            {% if coach.bio %}
+            <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Bio</p>
+                <p class="al-body mt-2 leading-7">{{ coach.bio }}</p>
+            </div>
+            {% endif %}
+
+            {% if coach.specialization %}
+            <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Specializzazione</p>
+                <span class="al-pill mt-2" style="background: rgba(138,106,58,0.10); color: var(--al-bronze); border: 1px solid rgba(138,106,58,0.30);">
+                    {{ coach.specialization }}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if coach.certifications %}
+            <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Certificazioni</p>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {% for cert in coach.certifications.split %}
+                    <span class="al-tag" style="padding: 4px 10px; background: var(--al-marble);">{{ cert }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not coach.bio and not coach.specialization and not coach.certifications %}
+            <div class="al-empty" style="padding: 40px 24px;">
+                <i class="ph ph-user text-3xl text-ink-line mb-2 block"></i>
+                <p class="al-tag">Profilo non ancora completo.</p>
+                <a href="{% url 'impostazioni_dashboard' %}" class="al-link al-link-bronze mt-3 inline-block">Completa ora</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right -->
+        <aside class="space-y-5 lg:sticky lg:top-6">
+            <div class="al-card al-card-warm">
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Contatti</p>
+                <div class="mt-3 space-y-2 text-sm">
+                    <p><i class="ph ph-envelope text-ink-mute mr-2"></i>{{ auth_user.email }}</p>
+                    {% if coach.phone %}<p><i class="ph ph-phone text-ink-mute mr-2"></i>{{ coach.phone }}</p>{% endif %}
+                    {% if coach.city %}<p><i class="ph ph-map-pin text-ink-mute mr-2"></i>{{ coach.city }}</p>{% endif %}
+                </div>
+            </div>
+
+            {% if coach.social_instagram or coach.social_youtube or coach.social_tiktok or coach.social_facebook or coach.social_website %}
+            <div class="al-card">
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Social</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    {% if coach.social_instagram %}<a href="{{ coach.social_instagram }}" target="_blank" rel="noopener" class="al-btn al-btn-icon al-btn-ghost"><i class="ph ph-instagram-logo"></i></a>{% endif %}
+                    {% if coach.social_youtube %}<a href="{{ coach.social_youtube }}" target="_blank" rel="noopener" class="al-btn al-btn-icon al-btn-ghost"><i class="ph ph-youtube-logo"></i></a>{% endif %}
+                    {% if coach.social_tiktok %}<a href="{{ coach.social_tiktok }}" target="_blank" rel="noopener" class="al-btn al-btn-icon al-btn-ghost"><i class="ph ph-tiktok-logo"></i></a>{% endif %}
+                    {% if coach.social_facebook %}<a href="{{ coach.social_facebook }}" target="_blank" rel="noopener" class="al-btn al-btn-icon al-btn-ghost"><i class="ph ph-facebook-logo"></i></a>{% endif %}
+                    {% if coach.social_website %}<a href="{{ coach.social_website }}" target="_blank" rel="noopener" class="al-btn al-btn-icon al-btn-ghost"><i class="ph ph-globe"></i></a>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

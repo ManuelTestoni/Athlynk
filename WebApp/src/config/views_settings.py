@@ -4,6 +4,7 @@ from django.views.decorators.http import require_POST
 from django.db import transaction
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
+from .services.images import to_webp, is_image
 
 
 def _newsletter_status(email):
@@ -41,6 +42,10 @@ def impostazioni_view(request):
                 height = request.POST.get('height_cm', '').strip()
                 client.height_cm = int(height) if height.isdigit() else client.height_cm
                 client.primary_goal = request.POST.get('primary_goal', '').strip() or None
+                if 'profile_image' in request.FILES:
+                    raw = request.FILES['profile_image']
+                    if is_image(raw):
+                        client.profile_image = to_webp(raw)
                 client.save()
                 return redirect(f"{request.path}?saved=profilo")
 
@@ -82,7 +87,9 @@ def impostazioni_view(request):
             years = request.POST.get('years_experience', '').strip()
             coach.years_experience = int(years) if years.isdigit() else None
             if 'profile_image' in request.FILES:
-                coach.profile_image = request.FILES['profile_image']
+                raw = request.FILES['profile_image']
+                if is_image(raw):
+                    coach.profile_image = to_webp(raw)
             coach.social_instagram = request.POST.get('social_instagram', '').strip() or None
             coach.social_youtube = request.POST.get('social_youtube', '').strip() or None
             coach.social_tiktok = request.POST.get('social_tiktok', '').strip() or None
@@ -110,6 +117,33 @@ def impostazioni_view(request):
         'saved': saved,
         'newsletter_status': _newsletter_status(user.email),
         'reset_request_sent': reset_request_sent,
+    })
+
+
+def my_profile_view(request):
+    """Self-view: show coach/client their own profile in public-style layout."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    if user.role == 'COACH':
+        coach = get_session_coach(request)
+        if not coach:
+            return redirect('login')
+        return render(request, 'pages/profilo/me_coach.html', {
+            'coach': coach,
+            'coach_name': f'{coach.first_name} {coach.last_name}'.strip(),
+            'auth_user': user,
+            'is_self': True,
+        })
+
+    client = get_session_client(request)
+    if not client:
+        return redirect('login')
+    return render(request, 'pages/profilo/me_client.html', {
+        'client': client,
+        'auth_user': user,
+        'is_self': True,
     })
 
 

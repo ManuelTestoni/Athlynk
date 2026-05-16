@@ -1,130 +1,179 @@
 {% extends 'base.html' %}
 
+{% block title %}{% if sheet %}Modifica Scheda Integrazione{% else %}Nuova Scheda Integrazione{% endif %}{% endblock %}
+
 {% block content %}
 <script>
 window._sheetItems = {{ items_json|safe }};
 window._suppClients = {{ clients_json|safe }};
 </script>
 
-<div class="w-full max-w-3xl mx-auto"
+<div class="max-w-5xl mx-auto"
      x-data="sheetBuilder()"
      x-init="init()"
      @add-supp.window="addItem($event.detail.supp)">
 
-  <div class="flex items-center justify-between mb-6">
-    <div class="flex items-center gap-3">
-      <a href="{% url 'nutrizione_integratori' %}"
-         class="p-2 rounded-al-sm border border-rule hover:bg-marble transition-colors text-ink-soft">
-        <i class="ph ph-arrow-left text-lg"></i>
-      </a>
-      <div>
-        <h1 class="text-2xl font-bold text-ink">
-          {% if sheet %}Modifica Scheda{% else %}Nuova Scheda Integrazione{% endif %}
-        </h1>
-        <p class="text-sm text-ink-mute mt-0.5">Aggiungi integratori, dosi e timing.</p>
-      </div>
-    </div>
-    <button @click="saveSheet()" :disabled="saving"
-            class="inline-flex items-center gap-2 bg-ink hover:bg-ink text-white px-5 py-2.5 rounded-al-sm text-sm font-semibold transition-colors disabled:opacity-50">
-      <i class="ph ph-floppy-disk text-lg"></i>
-      <span x-show="!saving">Salva</span><span x-show="saving">Salvataggio...</span>
-    </button>
-  </div>
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'nutrizione_integratori' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-pill text-xs"></i><span>Schede Integrazione</span>
+        </a>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">{% if sheet %}Modifica{% else %}Nuova{% endif %}</span>
+    </nav>
 
-  <div class="space-y-5">
-
-    <!-- Info base -->
-    <div class="bg-white border border-rule rounded-al-sm p-6 shadow-sm space-y-4">
-      <div>
-        <label class="block text-xs font-semibold text-ink-soft mb-1.5">Titolo *</label>
-        <input type="text" x-model="title" placeholder="Es. Protocollo Massa – Off-season"
-               class="w-full px-3 py-2.5 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none">
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-ink-soft mb-1.5">Note generali</label>
-        <textarea x-model="notes" rows="2" placeholder="Indicazioni generali, avvertenze..."
-                  class="w-full px-3 py-2.5 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-      </div>
-    </div>
-
-    <!-- Items list -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm">
-      <div class="px-5 py-4 border-b border-rule bg-marble">
-        <h2 class="text-sm font-bold text-ink">Integratori in scheda</h2>
-      </div>
-
-      <div class="divide-y divide-rule">
-        <template x-for="(item, idx) in items" :key="idx">
-          <div class="flex items-center gap-3 px-5 py-3">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-ink-soft" x-text="item.supplement_name"></p>
-              <p class="text-xs text-ink-mute" x-text="item.supplement_category"></p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <input type="text" x-model="item.dose"
-                     class="w-24 px-2 py-1 border border-rule rounded-lg text-sm text-center focus:ring-2 focus:ring-accent focus:outline-none bg-marble"
-                     :placeholder="item.supplement_unit">
-              <input type="text" x-model="item.timing"
-                     class="w-28 px-2 py-1 border border-rule rounded-lg text-sm focus:ring-2 focus:ring-accent focus:outline-none bg-marble"
-                     placeholder="Quando...">
-              <button @click="items.splice(idx,1)"
-                      class="p-1 rounded-lg hover:bg-red-50 text-ink-line hover:text-red-400 transition-colors">
-                <i class="ph ph-x text-xs"></i>
-              </button>
-            </div>
-          </div>
-        </template>
-        <div x-show="items.length === 0" class="px-5 py-8 text-center text-sm text-ink-mute">
-          Nessun integratore aggiunto. Cercane uno qui sotto.
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <p class="al-eyebrow mb-3">Studio &middot; Integrazione</p>
+            <h1 class="al-h-1">{% if sheet %}Modifica scheda{% else %}Nuova <span class="al-display-i">scheda integrazione</span>{% endif %}</h1>
+            <p class="al-body mt-2">Aggiungi integratori, dosi e timing in modo strutturato.</p>
+            <div class="al-rule-bronze mt-5"></div>
         </div>
-      </div>
+        <button @click="saveSheet()" :disabled="saving" class="al-btn al-btn-bronze" :class="{ 'is-loading': saving }">
+            <i class="ph ph-floppy-disk text-sm"></i>
+            <span x-show="!saving">Salva Scheda</span>
+            <span x-show="saving">Salvataggio…</span>
+        </button>
+    </div>
 
-      <!-- Search & add -->
-      <div class="px-5 py-4 border-t border-rule"
-           x-data="{
-             q: '', results: [], searching: false, show: false,
-             async search() {
-               if (this.q.length < 2) { this.results=[]; return; }
-               this.searching=true;
-               const r = await fetch('/api/nutrizione/integratori/?q='+encodeURIComponent(this.q));
-               const d = await r.json();
-               this.results=d.results; this.searching=false; this.show=true;
-             },
-             pick(s) {
-               window.dispatchEvent(new CustomEvent('add-supp', {detail:{supp:s}}));
-               this.q=''; this.results=[]; this.show=false;
-             }
-           }">
-        <div class="relative">
-          <div class="flex items-center gap-2 px-3 py-2 border border-dashed border-rule-strong rounded-al-sm hover:border-accent focus-within:border-accent transition-colors bg-marble">
-            <i class="ph ph-magnifying-glass text-ink-mute text-sm"></i>
-            <input type="text" x-model="q" @input.debounce.300ms="search()"
-                   placeholder="Cerca integratore da aggiungere..."
-                   class="flex-1 bg-transparent text-sm text-ink-soft placeholder-ink-mute focus:outline-none">
-            <span x-show="searching" class="text-xs text-ink-mute">...</span>
-          </div>
-          <div x-show="show && results.length > 0" @click.outside="show=false"
-               class="absolute left-0 right-0 top-full mt-1 bg-white border border-rule rounded-al-sm shadow-lg z-20 max-h-52 overflow-y-auto">
-            <template x-for="s in results" :key="s.id">
-              <button type="button" @click="pick(s)"
-                      class="w-full text-left px-4 py-2.5 hover:bg-marble transition-colors border-b border-rule last:border-0">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-medium text-ink-soft" x-text="s.name"></p>
-                    <p class="text-xs text-ink-mute" x-text="s.category"></p>
-                  </div>
-                  <span class="text-xs font-bold text-ink-mute shrink-0" x-text="s.unit"></span>
+    <div class="space-y-6">
+
+        <!-- Sezione 1 — Info base -->
+        <div class="al-card">
+            <div class="flex items-center gap-3 mb-6">
+                <i class="ph ph-info text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                    <h2 class="al-h-3">Informazioni Scheda</h2>
                 </div>
-              </button>
-            </template>
-          </div>
-        </div>
-      </div>
-    </div>
+            </div>
 
-    <div x-show="errorMsg" class="bg-red-50 border border-red-200 rounded-al-sm p-3 text-sm text-red-600"
-         x-text="errorMsg"></div>
-  </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="al-label">Titolo *</label>
+                    <input type="text" x-model="title" placeholder="Es. Protocollo Massa – Off-season" class="al-input">
+                </div>
+                <div>
+                    <label class="al-label">Note generali</label>
+                    <textarea x-model="notes" rows="3" placeholder="Indicazioni generali, avvertenze…" class="al-textarea"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sezione 2 — Cerca integratori -->
+        <div class="al-card"
+             x-data="{
+               q: '', results: [], searching: false, show: false,
+               async search() {
+                 if (this.q.length < 2) { this.results=[]; this.show=false; return; }
+                 this.searching=true;
+                 const r = await fetch('/api/nutrizione/integratori/?q='+encodeURIComponent(this.q));
+                 const d = await r.json();
+                 this.results=d.results; this.searching=false; this.show=true;
+               },
+               pick(s) {
+                 window.dispatchEvent(new CustomEvent('add-supp', {detail:{supp:s}}));
+               }
+             }">
+            <div class="flex items-center gap-3 mb-6">
+                <i class="ph ph-magnifying-glass text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                    <h2 class="al-h-3">Cerca integratori</h2>
+                </div>
+            </div>
+
+            <div class="al-search mb-4">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" x-model="q" @input.debounce.300ms="search()"
+                       placeholder="Digita almeno 2 caratteri (es. creatina, omega-3, magnesio…)"
+                       class="al-input" style="padding-right: 72px;">
+                <span x-show="searching" x-cloak class="al-tag font-mono"
+                      style="position: absolute; right: 40px; top: 50%; transform: translateY(-50%);">…</span>
+                <button type="button" x-show="q" x-cloak @click="q=''; results=[]; show=false"
+                        class="text-ink-mute hover:text-ink transition-colors"
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--al-marble);">
+                    <i class="ph ph-x text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Risultati ricerca (full-width, sotto la barra) -->
+            <div x-show="show && results.length > 0" x-cloak
+                 class="al-card al-card-warm al-card-flush overflow-hidden">
+                <div class="px-5 py-3 flex items-center justify-between" style="border-bottom: 1px solid var(--al-rule); background: var(--al-marble);">
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Risultati</p>
+                    <span class="al-tag font-mono" x-text="results.length + ' trovati'"></span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
+                    <template x-for="s in results" :key="s.id">
+                        <button type="button" @click="pick(s)"
+                                class="text-left px-4 py-3 hover:bg-marble transition-colors"
+                                style="border-bottom: 1px solid var(--al-rule); border-right: 1px solid var(--al-rule);">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-ink truncate" x-text="s.name"></p>
+                                    <p class="al-tag mt-0.5" x-text="s.category"></p>
+                                </div>
+                                <div class="flex flex-col items-end gap-1 shrink-0">
+                                    <span class="al-tag font-mono" x-text="s.unit"></span>
+                                    <i class="ph ph-plus-circle text-bronze text-base"></i>
+                                </div>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="show && !searching && q.length >= 2 && results.length === 0" x-cloak
+                 class="al-empty" style="padding: 28px 20px;">
+                <i class="ph ph-magnifying-glass text-3xl text-ink-line mb-2 block"></i>
+                <p class="al-tag">Nessun integratore trovato per "<span x-text="q"></span>".</p>
+            </div>
+        </div>
+
+        <!-- Sezione 3 — Integratori selezionati -->
+        <div class="al-card">
+            <div class="flex items-center gap-3 mb-6">
+                <i class="ph ph-pill text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                    <h2 class="al-h-3">Integratori in scheda</h2>
+                </div>
+                <span class="ml-auto al-tag font-mono" x-text="items.length + ' selezionati'"></span>
+            </div>
+
+            <div class="al-card al-card-warm al-card-flush overflow-hidden">
+                <div class="divide-y" style="--tw-divide-color: var(--al-rule);">
+                    <template x-for="(item, idx) in items" :key="idx">
+                        <div class="flex items-center gap-3 px-5 py-3" style="border-bottom: 1px solid var(--al-rule);">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-ink" x-text="item.supplement_name"></p>
+                                <p class="al-tag mt-0.5" x-text="item.supplement_category"></p>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <input type="text" x-model="item.dose"
+                                       class="al-input text-center" style="width: 90px; padding: 6px 10px;"
+                                       :placeholder="item.supplement_unit">
+                                <input type="text" x-model="item.timing"
+                                       class="al-input" style="width: 130px; padding: 6px 10px;"
+                                       placeholder="Quando…">
+                                <button type="button" @click="items.splice(idx,1)" class="al-btn al-btn-icon al-btn-ghost">
+                                    <i class="ph ph-x text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="items.length === 0" class="al-empty" style="padding: 28px 20px;">
+                        <i class="ph ph-pill text-3xl text-ink-line mb-2 block"></i>
+                        <p class="al-tag">Nessun integratore. Usa la ricerca sopra.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="errorMsg" class="al-toast is-danger" x-text="errorMsg"></div>
+    </div>
 </div>
 
 <script>

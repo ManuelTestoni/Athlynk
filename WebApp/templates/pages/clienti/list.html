@@ -24,18 +24,24 @@
     </div>
 
     <!-- Search & Filters -->
-    <form method="GET" action="" class="flex flex-col sm:flex-row gap-3 mb-6">
-        <div class="al-search flex-1">
+    <form method="GET" action="" class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        <div class="al-search sm:max-w-xs" style="flex: 0 1 320px;">
             <i class="ph ph-magnifying-glass"></i>
-            <input type="text" name="q" value="{{ search }}" placeholder="Cerca per nome o obiettivo..." class="al-input">
+            <input type="text" name="q" value="{{ search }}" placeholder="Cerca per nome…" class="al-input">
         </div>
-        <select name="status" onchange="this.form.submit()" class="al-select sm:max-w-[200px]">
+        <select name="status" onchange="this.form.submit()" class="al-select sm:max-w-[180px]">
             <option value="" {% if not status_filter %}selected{% endif %}>Tutti gli stati</option>
             <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Attivi</option>
             <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>In attesa</option>
             <option value="INACTIVE" {% if status_filter == 'INACTIVE' %}selected{% endif %}>Inattivi</option>
         </select>
-        {% if search or status_filter %}
+        <select name="plan" onchange="this.form.submit()" class="al-select sm:max-w-[220px]">
+            <option value="" {% if not plan_filter %}selected{% endif %}>Tutti gli abbonamenti</option>
+            {% for p in all_plans %}
+            <option value="{{ p.id }}" {% if plan_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+        {% if search or status_filter or plan_filter %}
         <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost al-btn-sm">
             <i class="ph ph-x"></i>
             <span>Resetta</span>
@@ -125,15 +131,15 @@
                         <td colspan="7">
                             <div class="al-empty">
                                 <i class="ph ph-users-three al-empty-icon"></i>
-                                <h3>{% if search or status_filter %}Nessun risultato{% else %}Nessun atleta{% endif %}</h3>
+                                <h3>{% if search or status_filter or plan_filter %}Nessun risultato{% else %}Nessun atleta{% endif %}</h3>
                                 <p>
-                                    {% if search or status_filter %}
+                                    {% if search or status_filter or plan_filter %}
                                     Modifica i filtri o resetta la ricerca.
                                     {% else %}
                                     Aggiungi il primo atleta per iniziare.
                                     {% endif %}
                                 </p>
-                                {% if not search and not status_filter %}
+                                {% if not search and not status_filter and not plan_filter %}
                                 <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-sm al-btn-bronze">
                                     <i class="ph ph-user-plus"></i>
                                     <span>Aggiungi Atleta</span>
@@ -150,7 +156,7 @@
         {% if total_count > 0 %}
         <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
             <span class="al-tag">
-                {% if search or status_filter %}
+                {% if search or status_filter or plan_filter %}
                 {{ total_count }} risultati
                 {% else %}
                 {{ total_count }} atleti totali

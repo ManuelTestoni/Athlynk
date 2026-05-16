@@ -1,118 +1,111 @@
 {% extends 'base.html' %}
 
+{% block title %}Comparatore foto{% endblock %}
+
 {% block content %}
-<div class="w-full max-w-5xl mx-auto" x-data="comparatore()">
+<div class="max-w-6xl mx-auto" x-data="comparatore()">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        {% if is_coach_view %}
+        <a href="{% url 'check_client_history' target_client.id %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-clipboard-text text-xs"></i><span>Storico check</span>
+        </a>
+        {% else %}
+        <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-clipboard-text text-xs"></i><span>I miei check</span>
+        </a>
+        {% endif %}
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">Comparatore</span>
+    </nav>
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
-            {% if is_coach_view %}
-            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
-                <a href="{% url 'check_client_history' target_client.id %}" class="hover:text-ink transition-colors flex items-center gap-1">
-                    <i class="ph ph-clipboard-text"></i> Storico check
-                </a>
-                <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-ink font-medium">Comparatore</span>
-            </nav>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">Comparatore – {{ target_client.first_name }} {{ target_client.last_name }}</h1>
-            {% else %}
-            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
-                <a href="{% url 'check_dashboard' %}" class="hover:text-ink transition-colors flex items-center gap-1">
-                    <i class="ph ph-clipboard-text"></i> I Miei Check
-                </a>
-                <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-ink font-medium">Comparatore</span>
-            </nav>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">Comparatore foto</h1>
-            {% endif %}
-            <p class="text-sm text-ink-mute mt-1">{{ total_photos }} foto disponibili. Seleziona 2 per confrontarle.</p>
+            <p class="al-eyebrow mb-3">{% if is_coach_view %}Studio &middot; Comparatore{% else %}Atleta &middot; Comparatore{% endif %}</p>
+            <h1 class="al-h-1">{% if is_coach_view %}{{ target_client.first_name }} <span class="al-display-i">{{ target_client.last_name }}</span>{% else %}Comparatore <span class="al-display-i">foto</span>{% endif %}</h1>
+            <p class="al-body mt-2">{{ total_photos }} foto disponibili. Seleziona 2 per confrontarle.</p>
+            <div class="al-rule-bronze mt-5"></div>
         </div>
         {% if is_coach_view %}
-        <a href="{% url 'check_client_history' target_client.id %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-arrow-left"></i> Torna allo storico
+        <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
         </a>
         {% else %}
-        <a href="{% url 'check_dashboard' %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-arrow-left"></i> Torna ai check
+        <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
         </a>
         {% endif %}
     </div>
 
     {% if total_photos == 0 %}
-    <div class="bg-white border border-rule rounded-al-sm p-12 text-center shadow-sm">
-        <div class="w-16 h-16 rounded-al-sm bg-marble text-ink-mute flex items-center justify-center text-3xl mx-auto mb-4">
-            <i class="ph ph-image-slash"></i>
+    <div class="al-card al-card-warm">
+        <div class="al-empty" style="padding: 60px 32px;">
+            <i class="ph ph-image-slash al-empty-icon"></i>
+            <h3>Nessuna foto disponibile</h3>
+            <p>Le foto di progresso vengono caricate durante la compilazione di un check.</p>
         </div>
-        <h3 class="text-base font-semibold text-ink mb-1">Nessuna foto disponibile</h3>
-        <p class="text-sm text-ink-mute max-w-xs mx-auto">Le foto di progresso vengono caricate durante la compilazione di un check.</p>
     </div>
-
     {% else %}
 
-    <!-- Comparison slots -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Confronto</h2>
-            <button x-show="selected.length > 0" @click="selected = []"
-                    class="text-xs text-ink-mute hover:text-red-600 transition-colors flex items-center gap-1">
-                <i class="ph ph-x"></i> Azzera selezione
+    <!-- Slots -->
+    <div class="al-card mb-6">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-arrows-out-simple text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                    <h2 class="al-h-3">Confronto</h2>
+                </div>
+            </div>
+            <button type="button" x-show="selected.length > 0" @click="selected = []" class="al-link al-link-quiet text-[11px] uppercase tracking-widest">
+                <i class="ph ph-x"></i> Azzera
             </button>
         </div>
         <div class="grid grid-cols-2 gap-4 sm:gap-6">
-
-            <!-- Slot A: Prima -->
+            <!-- Prima -->
             <div>
-                <p class="text-xs font-semibold text-ink-mute uppercase tracking-wider mb-2 text-center">Prima</p>
+                <p class="al-eyebrow mb-2 text-center" style="color: var(--al-ink-mute);">Prima</p>
                 <template x-if="selected.length >= 1">
-                    <div class="relative rounded-al-sm overflow-hidden bg-ink aspect-[3/4]">
+                    <div class="relative overflow-hidden aspect-[3/4]" style="background: var(--al-ink); border-radius: var(--al-r-md);">
                         <img :src="selected[0].url" class="w-full h-full object-cover">
-                        <div class="absolute top-2 left-2 bg-ink text-white text-xs px-2 py-1 rounded-lg">
-                            <span x-text="selected[0].date"></span>
-                        </div>
-                        <div class="absolute bottom-2 left-2 bg-ink text-white text-xs px-2 py-1 rounded-lg">
-                            <span x-text="selected[0].photo_type"></span>
-                        </div>
-                        <button @click="selected = selected.slice(1)"
-                                class="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow">
+                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].date"></span>
+                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].photo_type"></span>
+                        <button type="button" @click="selected = selected.slice(1)" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(138,58,58,0.95); color: #fff; border: none; width: 28px; height: 28px;">
                             <i class="ph ph-x text-sm"></i>
                         </button>
                     </div>
                 </template>
                 <template x-if="selected.length < 1">
-                    <div class="aspect-[3/4] rounded-al-sm border-2 border-dashed border-rule flex flex-col items-center justify-center text-ink-mute bg-marble">
+                    <div class="aspect-[3/4] flex flex-col items-center justify-center text-ink-mute" style="background: var(--al-marble); border: 2px dashed var(--al-rule-strong); border-radius: var(--al-r-md);">
                         <i class="ph ph-image text-3xl mb-2"></i>
-                        <p class="text-xs text-center px-4">Seleziona la prima foto dalla galleria</p>
+                        <p class="al-tag text-center px-4">Seleziona la prima foto</p>
                     </div>
                 </template>
             </div>
 
-            <!-- Slot B: Dopo -->
+            <!-- Dopo -->
             <div>
-                <p class="text-xs font-semibold text-ink-mute uppercase tracking-wider mb-2 text-center">Dopo</p>
+                <p class="al-eyebrow mb-2 text-center" style="color: var(--al-ink-mute);">Dopo</p>
                 <template x-if="selected.length >= 2">
-                    <div class="relative rounded-al-sm overflow-hidden bg-ink aspect-[3/4]">
+                    <div class="relative overflow-hidden aspect-[3/4]" style="background: var(--al-ink); border-radius: var(--al-r-md);">
                         <img :src="selected[1].url" class="w-full h-full object-cover">
-                        <div class="absolute top-2 left-2 bg-ink text-white text-xs px-2 py-1 rounded-lg">
-                            <span x-text="selected[1].date"></span>
-                        </div>
-                        <div class="absolute bottom-2 left-2 bg-ink text-white text-xs px-2 py-1 rounded-lg">
-                            <span x-text="selected[1].photo_type"></span>
-                        </div>
-                        <button @click="selected = [selected[0]]"
-                                class="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow">
+                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].date"></span>
+                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].photo_type"></span>
+                        <button type="button" @click="selected = [selected[0]]" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(138,58,58,0.95); color: #fff; border: none; width: 28px; height: 28px;">
                             <i class="ph ph-x text-sm"></i>
                         </button>
                     </div>
                 </template>
                 <template x-if="selected.length < 2">
-                    <div class="aspect-[3/4] rounded-al-sm border-2 border-dashed border-rule flex flex-col items-center justify-center text-ink-mute bg-marble"
-                         :class="selected.length === 0 ? 'opacity-50' : ''">
+                    <div class="aspect-[3/4] flex flex-col items-center justify-center text-ink-mute"
+                         :class="selected.length === 0 ? 'opacity-50' : ''"
+                         style="background: var(--al-marble); border: 2px dashed var(--al-rule-strong); border-radius: var(--al-r-md);">
                         <i class="ph ph-image text-3xl mb-2"></i>
-                        <p class="text-xs text-center px-4">
-                            <span x-show="selected.length === 0">Seleziona prima la foto "Prima"</span>
-                            <span x-show="selected.length === 1">Seleziona la seconda foto dalla galleria</span>
+                        <p class="al-tag text-center px-4">
+                            <span x-show="selected.length === 0">Prima seleziona la foto "Prima"</span>
+                            <span x-show="selected.length === 1">Seleziona la seconda foto</span>
                         </p>
                     </div>
                 </template>
@@ -120,37 +113,37 @@
         </div>
     </div>
 
-    <!-- Photo gallery -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Galleria foto</h2>
-            <p class="text-xs text-ink-mute" x-show="selected.length < 2">
-                <span x-text="2 - selected.length"></span> foto da selezionare
+    <!-- Galleria -->
+    <div class="al-card">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-images text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                    <h2 class="al-h-3">Galleria foto</h2>
+                </div>
+            </div>
+            <p class="al-tag" x-show="selected.length < 2" x-cloak>
+                <span class="font-mono text-ink" x-text="2 - selected.length"></span> da selezionare
             </p>
-            <p class="text-xs text-emerald-600 font-semibold flex items-center gap-1" x-show="selected.length >= 2" x-cloak>
+            <span class="al-pill" x-show="selected.length >= 2" x-cloak style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
                 <i class="ph-bold ph-check-circle"></i> Confronto pronto
-            </p>
+            </span>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             <template x-for="photo in photos" :key="photo.id">
                 <div @click="toggle(photo)"
-                     class="relative group aspect-[3/4] bg-marble rounded-al-sm overflow-hidden transition-all"
-                     :class="isSelected(photo)
-                         ? 'ring-2 ring-accent shadow-md cursor-pointer'
-                         : (selected.length >= 2 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:ring-2 hover:ring-stone')">
-                    <img :src="photo.url" :alt="photo.photo_type"
-                         class="w-full h-full object-cover transition-transform duration-300"
+                     class="relative group aspect-[3/4] overflow-hidden transition-all"
+                     style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);"
+                     :class="isSelected(photo) ? 'ring-2 cursor-pointer' : (selected.length >= 2 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90')"
+                     :style="isSelected(photo) ? '--tw-ring-color: var(--al-bronze); background: var(--al-marble); border-color: var(--al-bronze);' : ''">
+                    <img :src="photo.url" :alt="photo.photo_type" class="w-full h-full object-cover transition-transform duration-300"
                          :class="!isSelected(photo) && selected.length < 2 ? 'group-hover:scale-105' : ''">
-                    <div class="absolute top-2 left-2 bg-ink text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
-                        <span x-text="photo.date"></span>
-                    </div>
-                    <div class="absolute bottom-2 left-2 bg-ink text-white text-[10px] font-medium px-1.5 py-0.5 rounded">
-                        <span x-text="photo.photo_type"></span>
-                    </div>
-                    <div x-show="isSelected(photo)"
-                         class="absolute inset-0 bg-accent/20 flex items-center justify-center">
-                        <div class="w-9 h-9 bg-accent rounded-full flex items-center justify-center shadow-lg">
-                            <i class="ph-bold ph-check text-white text-lg"></i>
+                    <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.date"></span>
+                    <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.photo_type"></span>
+                    <div x-show="isSelected(photo)" class="absolute inset-0 flex items-center justify-center" style="background: rgba(138,106,58,0.30);">
+                        <div class="w-9 h-9 flex items-center justify-center" style="background: var(--al-bronze); border-radius: 999px; box-shadow: var(--al-shadow-2);">
+                            <i class="ph-bold ph-check text-parchment text-lg"></i>
                         </div>
                     </div>
                 </div>

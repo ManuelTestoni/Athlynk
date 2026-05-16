@@ -213,7 +213,7 @@
 
             <!-- Actions -->
             <div class="flex items-center justify-between pt-2">
-                <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost">Annulla</a>
+                <a href="{{ cancel_url|default:'/clienti/' }}" class="al-btn al-btn-ghost">Annulla</a>
                 <button type="submit" {% if not plans %}disabled{% endif %} class="al-btn">
                     <i class="ph ph-user-plus text-sm"></i>
                     <span>Registra Atleta</span>

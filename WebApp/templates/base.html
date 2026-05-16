@@ -105,9 +105,6 @@
                 <span class="al-sidebar-brand-name">Athlynk</span>
             </a>
 
-            <!-- Greek meander accent -->
-            <div class="al-meander al-meander-bronze mx-5 mt-3 mb-1" style="height:8px;"></div>
-
             <!-- Nav -->
             <nav class="overflow-y-auto py-2 flex-1">
                 <p class="al-nav-section-label">Menu</p>
@@ -123,7 +120,7 @@
                 {% if is_coach %}
 
                 <a href="{% url 'clienti_list' %}"
-                   class="al-nav-link {% if s == 'atleti' %}is-active{% endif %}">
+                   class="al-nav-link {% if s == 'clienti' %}is-active{% endif %}">
                     <i class="ph ph-users"></i>
                     <span>Atleti</span>
                 </a>
@@ -249,8 +246,6 @@
 
         <!-- User strip -->
         <div class="p-3 border-t border-white/[0.06]">
-            <div class="al-meander al-meander-bronze mx-2 mb-3" style="height:8px;"></div>
-
             <a href="{% url 'impostazioni_dashboard' %}"
                class="al-nav-link {% if current_section == 'impostazioni' %}is-active{% endif %}">
                 <i class="ph ph-gear-six"></i>
@@ -258,15 +253,23 @@
             </a>
 
             <div class="flex items-center justify-between px-3 py-3 mt-1">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">
-                        {{ display_name|slice:":1"|default:"U" }}
+                <a href="{% url 'my_profile' %}" class="flex items-center gap-3 min-w-0 flex-1 group" title="Apri profilo">
+                    <div class="al-avatar al-avatar-sm al-avatar-sq transition-transform group-hover:scale-105 overflow-hidden" style="background: var(--al-aegean);">
+                        {% if is_coach and coach.profile_image %}
+                            <img src="{{ coach.profile_image.url }}" alt="" class="w-full h-full object-cover">
+                        {% elif is_coach and coach.profile_image_url %}
+                            <img src="{{ coach.profile_image_url }}" alt="" class="w-full h-full object-cover">
+                        {% elif is_client and client.profile_image %}
+                            <img src="{{ client.profile_image.url }}" alt="" class="w-full h-full object-cover">
+                        {% else %}
+                            {{ display_name|slice:":1"|default:"U" }}
+                        {% endif %}
                     </div>
                     <div class="overflow-hidden">
-                        <p class="text-[13px] font-medium text-parchment/95 truncate max-w-[110px]">{{ display_name|default:"Utente" }}</p>
+                        <p class="text-[13px] font-medium text-parchment/95 truncate max-w-[110px] group-hover:text-bronze-light transition-colors">{{ display_name|default:"Utente" }}</p>
                         <p class="al-tag" style="color: rgba(244,239,228,0.4); font-size: 9px;">{% if is_client %}Atleta{% elif is_coach %}{% if coach.professional_type == 'ALLENATORE' %}Allenatore{% elif coach.professional_type == 'NUTRIZIONISTA' %}Nutrizionista{% else %}Coach{% endif %}{% else %}Guest{% endif %}</p>
                     </div>
-                </div>
+                </a>
                 <a href="{% url 'logout' %}" class="text-parchment/30 hover:text-bronze-light p-1.5 transition-colors" title="Esci">
                     <i class="ph ph-sign-out text-lg"></i>
                 </a>
@@ -396,17 +399,26 @@
             <div class="al-page p-4 sm:p-8">
                 {% block content %}{% endblock %}
             </div>
-            <footer class="px-4 sm:px-8 py-5 mt-4" style="border-top: 1px solid var(--al-rule-faint);">
-                <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 al-small">
-                    <p>© Athlynk · <span class="font-mono">{{ CONSENT_VERSION }}</span></p>
-                    <div class="flex items-center gap-4">
-                        <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
-                        <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
-                        <a href="#" onclick="window.cookieConsent && window.cookieConsent.open(); return false;" class="al-link al-link-bronze">Gestisci preferenze</a>
-                    </div>
-                </div>
-            </footer>
         </main>
+
+        <!-- Fixed footer (sibling of main, always at viewport bottom) -->
+        <footer class="al-footer shrink-0 px-4 sm:px-8 py-3" style="border-top: 1px solid var(--al-rule-faint); background: rgba(244,239,228,0.92); backdrop-filter: saturate(140%) blur(10px);">
+            <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 al-small">
+                <div class="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 1.5 L29 9 L29 23 L16 30.5 L3 23 L3 9 Z" stroke="#8a6a3a" stroke-width="1.2"/>
+                        <path d="M16 7 L22 23 M16 7 L10 23 M12.5 18 H19.5" stroke="#8a6a3a" stroke-width="1.4"/>
+                    </svg>
+                    <span>© Athlynk</span>
+                    <span class="font-mono text-ink-mute">· {{ CONSENT_VERSION }}</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
+                    <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
+                    <a href="{% url 'cookie_preferences' %}" onclick="if(window.cookieConsent){window.cookieConsent.open();return false;}" class="al-link al-link-bronze">Gestisci preferenze</a>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- Cookie consent banner root -->

@@ -1033,7 +1033,21 @@ body[data-page="chat"] .al-search { display: none !important; }
     radial-gradient(ellipse 60% 40% at 50% 0%, rgba(28,74,82,0.20), transparent 70%),
     radial-gradient(ellipse 50% 30% at 50% 100%, rgba(138,106,58,0.10), transparent 70%);
   position: relative;
+  flex: 0 0 16rem;
+  width: 16rem;
+  min-width: 16rem;
+  max-width: 16rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  height: 100vh;
+  contain: layout paint;
 }
+.al-sidebar > * { min-width: 0; min-height: 0; }
+.al-sidebar .al-nav-link { min-width: 0; }
+.al-sidebar .al-nav-link > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-sidebar nav { scrollbar-width: none; -ms-overflow-style: none; }
+.al-sidebar nav::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.al-sidebar ::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 .al-sidebar::after {
   content: '';

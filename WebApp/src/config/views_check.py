@@ -13,6 +13,7 @@ from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, P
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
+from .services.images import to_webp, is_image
 
 try:
     from domain.calendar.models import Appointment
@@ -260,18 +261,21 @@ def check_create_view(request):
 
     for key, photo_type in [('photo_front', 'Front'), ('photo_side', 'Side'), ('photo_back', 'Back')]:
         file = request.FILES.get(key)
-        if file:
-            ext = os.path.splitext(file.name)[1].lower() or '.jpg'
-            save_path = f'progress_photos/{client.id}/{photo_type.lower()}{ext}'
-            saved_path = default_storage.save(save_path, ContentFile(file.read()))
-            ProgressPhoto.objects.create(
-                client=client,
-                coach=coach,
-                questionnaire_response=response,
-                file_url=default_storage.url(saved_path),
-                photo_type=photo_type,
-                captured_at=timezone.now(),
-            )
+        if not file:
+            continue
+        if not is_image(file):
+            continue
+        webp_file = to_webp(file)
+        save_path = f'progress_photos/{client.id}/{photo_type.lower()}_{int(timezone.now().timestamp())}.webp'
+        saved_path = default_storage.save(save_path, webp_file)
+        ProgressPhoto.objects.create(
+            client=client,
+            coach=coach,
+            questionnaire_response=response,
+            file_url=default_storage.url(saved_path),
+            photo_type=photo_type,
+            captured_at=timezone.now(),
+        )
 
     if coach_filling_for_client:
         Notification.objects.create(

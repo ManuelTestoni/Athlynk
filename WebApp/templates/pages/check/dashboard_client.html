@@ -1,109 +1,109 @@
 {% extends 'base.html' %}
 
+{% block title %}I miei check{% endblock %}
+
 {% block content %}
-<div class="w-full max-w-4xl mx-auto">
+<div class="max-w-5xl mx-auto">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">I Miei Check</h1>
-            <p class="text-sm text-ink-mute mt-1">Tieni traccia dei tuoi progressi e visualizza lo storico delle misurazioni.</p>
+            <p class="al-eyebrow mb-3">Atleta &middot; Check Progressi</p>
+            <h1 class="al-h-1">I miei <span class="al-display-i">check</span></h1>
+            <p class="al-body mt-2">Storico delle misurazioni e progressi inviati al coach.</p>
+            <div class="al-rule-bronze mt-5"></div>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="{% url 'check_comparator' %}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-rule text-ink-soft text-sm font-semibold rounded-al-sm shadow-sm hover:bg-marble transition-colors">
-                <i class="ph ph-arrows-out-simple text-lg"></i> Comparatore
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'check_comparator' %}" class="al-btn al-btn-ghost">
+                <i class="ph ph-arrows-out-simple text-sm"></i><span>Comparatore</span>
             </a>
-            <a href="{% url 'check_progress_charts' %}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-rule text-ink-soft text-sm font-semibold rounded-al-sm shadow-sm hover:bg-marble transition-colors">
-                <i class="ph ph-chart-line text-lg"></i> Il mio andamento
+            <a href="{% url 'check_progress_charts' %}" class="al-btn al-btn-ghost">
+                <i class="ph ph-chart-line text-sm"></i><span>Andamento</span>
             </a>
-            <a href="{% url 'check_create' %}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-blue-700 text-white text-sm font-semibold rounded-al-sm shadow-sm transition-colors">
-                <i class="ph ph-plus-circle text-lg"></i> Nuovo Check
+            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze">
+                <i class="ph ph-plus-circle text-sm"></i><span>Nuovo check</span>
             </a>
         </div>
     </div>
 
-    <!-- Banner appuntamento check in arrivo -->
+    <!-- Banner check programmato -->
     {% if upcoming_check %}
-    <div class="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/30 rounded-al-sm p-5 mb-6 flex items-start gap-4">
-        <div class="w-10 h-10 rounded-al-sm bg-accent/20 text-accent flex items-center justify-center text-xl shrink-0">
-            <i class="ph-fill ph-calendar-check"></i>
+    <div class="al-card al-card-warm mb-6" style="border-left: 3px solid var(--al-bronze);">
+        <div class="flex items-start gap-4">
+            <div class="al-avatar al-avatar-md al-avatar-sq" style="background: var(--al-bronze); color: var(--al-parchment);">
+                <i class="ph-fill ph-calendar-check"></i>
+            </div>
+            <div class="flex-1">
+                <p class="al-eyebrow" style="color: var(--al-bronze);">Programmato</p>
+                <h3 class="al-h-3 mt-1">Check fissato dal tuo coach</h3>
+                <p class="al-body mt-1">
+                    <strong>{{ upcoming_check.start_datetime|date:"d M Y" }}</strong>
+                    alle <strong class="font-mono">{{ upcoming_check.start_datetime|date:"H:i" }}</strong>
+                </p>
+                {% if upcoming_check.description %}
+                <p class="al-small mt-2">{{ upcoming_check.description }}</p>
+                {% endif %}
+            </div>
+            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze shrink-0">
+                <i class="ph ph-paper-plane-tilt text-sm"></i><span>Compila ora</span>
+            </a>
         </div>
-        <div class="flex-1">
-            <p class="text-sm font-bold text-ink">Check programmato</p>
-            <p class="text-sm text-ink-soft mt-0.5">
-                Il tuo coach ha fissato un check per
-                <strong>{{ upcoming_check.start_datetime|date:"d M Y" }}</strong>
-                alle <strong>{{ upcoming_check.start_datetime|date:"H:i" }}</strong>.
-                {% if upcoming_check.description %}<br><span class="text-xs text-ink-mute">{{ upcoming_check.description }}</span>{% endif %}
-            </p>
-        </div>
-        <a href="{% url 'check_create' %}"
-           class="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-sm font-semibold rounded-al-sm hover:bg-blue-700 transition-colors shrink-0">
-            <i class="ph ph-paper-plane-tilt"></i> Compila ora
-        </a>
     </div>
     {% endif %}
 
     <!-- Lista check -->
     {% if page_obj.object_list %}
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
+    <div class="al-card al-card-flush overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="al-table">
                 <thead>
-                    <tr class="bg-marble border-b border-rule text-xs uppercase tracking-wider text-ink-mute">
-                        <th class="px-6 py-4 font-semibold">Data</th>
-                        <th class="px-6 py-4 font-semibold">Peso</th>
-                        <th class="px-6 py-4 font-semibold hidden sm:table-cell">Umore</th>
-                        <th class="px-6 py-4 font-semibold">Stato</th>
-                        <th class="px-6 py-4 font-semibold text-right">Dettagli</th>
+                    <tr>
+                        <th>Data</th>
+                        <th>Peso</th>
+                        <th class="hidden sm:table-cell">Umore</th>
+                        <th>Stato</th>
+                        <th class="text-right">&nbsp;</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-rule text-sm">
+                <tbody>
                     {% for resp in page_obj %}
-                    <tr class="hover:bg-marble transition-colors">
-                        <td class="px-6 py-4">
+                    <tr>
+                        <td>
                             <p class="font-medium text-ink">{{ resp.submitted_at|date:"d M Y" }}</p>
-                            <p class="text-xs text-ink-mute">{{ resp.submitted_at|date:"H:i" }}</p>
+                            <p class="al-tag font-mono">{{ resp.submitted_at|date:"H:i" }}</p>
                         </td>
-                        <td class="px-6 py-4">
+                        <td>
                             {% if resp.weight_kg %}
-                            <span class="font-semibold text-ink">{{ resp.weight_kg }} kg</span>
+                            <span class="font-mono font-bold text-ink">{{ resp.weight_kg }}<span class="text-ink-mute"> kg</span></span>
                             {% else %}
-                            <span class="text-ink-mute">—</span>
+                            <span class="al-tag">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 hidden sm:table-cell">
+                        <td class="hidden sm:table-cell">
                             {% with mood=resp.answers_json.mood %}
                             {% if mood %}
-                            <div class="flex items-center gap-1">
+                            <div class="flex items-center gap-1.5">
                                 {% for i in "12345" %}
-                                <span class="w-2 h-2 rounded-full {% if forloop.counter <= mood|add:0 %}bg-accent{% else %}bg-marble-warm{% endif %}"></span>
+                                <span class="w-2 h-2 rounded-full" style="background: {% if forloop.counter <= mood|add:0 %}var(--al-aegean){% else %}var(--al-marble-warm){% endif %};"></span>
                                 {% endfor %}
-                                <span class="text-xs text-ink-mute ml-1">{{ mood }}/5</span>
+                                <span class="font-mono font-bold text-ink ml-1 text-sm">{{ mood }}/5</span>
                             </div>
                             {% else %}
-                            <span class="text-ink-mute">—</span>
+                            <span class="al-tag">—</span>
                             {% endif %}
                             {% endwith %}
                         </td>
-                        <td class="px-6 py-4">
+                        <td>
                             {% if resp.status == 'REVIEWED' %}
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <i class="ph-bold ph-check"></i> Revisionato
-                            </span>
+                            <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Revisionato</span>
                             {% else %}
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-marble text-ink-soft border border-rule">
-                                <span class="w-1.5 h-1.5 rounded-full bg-stone"></span> In attesa
-                            </span>
+                            <span class="al-badge"><span class="dot"></span>In attesa</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-right">
-                            <a href="{% url 'check_detail' resp.id %}"
-                               class="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-rule text-ink-soft hover:bg-marble rounded-lg text-sm font-medium transition-colors">
-                                Vedi
+                        <td class="text-right">
+                            <a href="{% url 'check_detail' resp.id %}" class="al-btn al-btn-ghost al-btn-sm">
+                                <span>Vedi</span>
+                                <i class="ph ph-arrow-right text-xs"></i>
                             </a>
                         </td>
                     </tr>
@@ -112,57 +112,42 @@
             </table>
         </div>
 
-        <!-- Paginazione -->
         {% if page_obj.paginator.num_pages > 1 %}
-        <div class="px-6 py-4 border-t border-rule flex items-center justify-between bg-marble/50">
-            <span class="text-sm text-ink-mute">
-                Pagina {{ page_obj.number }} di {{ page_obj.paginator.num_pages }}
-                &mdash; {{ page_obj.paginator.count }} check totali
+        <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
+            <span class="al-tag">
+                Pagina <span class="font-mono text-ink">{{ page_obj.number }}</span> di <span class="font-mono text-ink">{{ page_obj.paginator.num_pages }}</span> · {{ page_obj.paginator.count }} totali
             </span>
-            <div class="flex items-center gap-2">
+            <div class="al-pag">
                 {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}"
-                   class="p-2 border border-rule rounded-lg text-ink-soft hover:bg-white bg-white transition-colors">
-                    <i class="ph-bold ph-caret-left"></i>
-                </a>
-                {% else %}
-                <span class="p-2 border border-rule rounded-lg text-ink-line bg-white cursor-not-allowed"><i class="ph-bold ph-caret-left"></i></span>
-                {% endif %}
+                <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}"><i class="ph-bold ph-caret-left"></i></a>
+                {% else %}<span class="opacity-40"><i class="ph-bold ph-caret-left"></i></span>{% endif %}
 
                 {% for p in page_obj.paginator.page_range %}
-                {% if p == page_obj.number %}
-                <span class="px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium">{{ p }}</span>
-                {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
-                <a href="?page={{ p }}&per_page={{ per_page }}"
-                   class="px-3 py-1.5 bg-white border border-rule text-ink-soft hover:bg-marble rounded-lg text-sm font-medium transition-colors">{{ p }}</a>
-                {% endif %}
+                  {% if p == page_obj.number %}
+                  <span class="is-active">{{ p }}</span>
+                  {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+                  <a href="?page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+                  {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}"
-                   class="p-2 border border-rule rounded-lg text-ink-soft hover:bg-white bg-white transition-colors">
-                    <i class="ph-bold ph-caret-right"></i>
-                </a>
-                {% else %}
-                <span class="p-2 border border-rule rounded-lg text-ink-line bg-white cursor-not-allowed"><i class="ph-bold ph-caret-right"></i></span>
-                {% endif %}
+                <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}"><i class="ph-bold ph-caret-right"></i></a>
+                {% else %}<span class="opacity-40"><i class="ph-bold ph-caret-right"></i></span>{% endif %}
             </div>
         </div>
         {% endif %}
     </div>
 
     {% else %}
-    <!-- Empty state -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-12 text-center">
-        <div class="w-16 h-16 rounded-al-sm bg-accent/10 text-accent flex items-center justify-center text-3xl mx-auto mb-4">
-            <i class="ph ph-clipboard-text"></i>
+    <div class="al-card al-card-warm">
+        <div class="al-empty" style="padding: 60px 32px;">
+            <i class="ph ph-clipboard-text al-empty-icon"></i>
+            <h3>Nessun check ancora</h3>
+            <p>Compila il tuo primo check per inviare le tue misurazioni al coach.</p>
+            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze">
+                <i class="ph ph-plus-circle"></i><span>Compila il primo check</span>
+            </a>
         </div>
-        <h3 class="text-base font-semibold text-ink mb-1">Nessun check ancora</h3>
-        <p class="text-sm text-ink-mute mb-6 max-w-xs mx-auto">Compila il tuo primo check per inviare le tue misurazioni al coach.</p>
-        <a href="{% url 'check_create' %}"
-           class="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-al-sm hover:bg-blue-700 transition-colors shadow-sm">
-            <i class="ph ph-plus-circle"></i> Compila il primo check
-        </a>
     </div>
     {% endif %}
 

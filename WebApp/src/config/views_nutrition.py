@@ -508,15 +508,29 @@ def integratori_view(request):
         .order_by('-created_at')
     )
     sheets_data = []
+    sheets_json_data = []
     for s in sheets:
+        item_count = s.items.count()
+        assigned_count = s.assignments.filter(status='ACTIVE').count()
         sheets_data.append({
             'sheet': s,
-            'item_count': s.items.count(),
-            'assigned_count': s.assignments.filter(status='ACTIVE').count(),
+            'item_count': item_count,
+            'assigned_count': assigned_count,
+        })
+        sheets_json_data.append({
+            'id': s.id,
+            'title': s.title,
+            'notes': s.notes or '',
+            'item_count': item_count,
+            'assigned_count': assigned_count,
+            'updated_at': s.updated_at.strftime('%d %b') if s.updated_at else '',
+            'detail_url': f'/nutrizione/integratori/{s.id}/',
+            'edit_url': f'/nutrizione/integratori/{s.id}/modifica/',
         })
 
     return render(request, 'pages/nutrizione/integratori_list.html', {
         'sheets_data': sheets_data,
+        'sheets_json': json.dumps(sheets_json_data),
         'clients_json': _clients_json(coach),
     })
 

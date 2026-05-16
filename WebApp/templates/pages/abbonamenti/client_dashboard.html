@@ -1,45 +1,132 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
-    <div>
-        <h1 class="text-2xl font-bold text-ink tracking-tight">Abbonamenti</h1>
-        <p class="text-sm text-ink-mute mt-1">Piani disponibili con {{ coach.first_name }} {{ coach.last_name }}.</p>
-    </div>
+{% block title %}Abbonamenti{% endblock %}
 
-    {% if available_plans %}
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {% for plan in available_plans %}
-        {% with is_active=active_subscription.subscription_plan.id|default:0 %}
-        <article class="bg-white border rounded-al-sm p-6 shadow-sm hover:shadow-md transition-shadow relative
-            {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}border-emerald-300 ring-2 ring-emerald-100{% else %}border-rule{% endif %}">
-            {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}
-            <span class="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Attivo
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">Atleta &middot; Abbonamenti</p>
+      <h1 class="al-h-1">I tuoi <span class="al-display-i">abbonamenti</span></h1>
+      <p class="al-body mt-2">Piani disponibili con {{ coach.first_name }} {{ coach.last_name }}.</p>
+      <div class="al-rule-bronze mt-5"></div>
+    </div>
+  </div>
+
+  <!-- Active subscription detail -->
+  {% if active_subscription %}
+  {% with sub=active_subscription %}
+  <div class="al-card al-card-flush overflow-hidden mb-8">
+    <div style="height: 3px; background: linear-gradient(90deg, var(--al-aegean), var(--al-bronze));"></div>
+    <div class="p-6 lg:p-8">
+      <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+        <div class="flex-1">
+          <div class="flex items-center gap-3 flex-wrap">
+            <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+              {% if sub.status == 'ACTIVE' %}<span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
+              {% elif sub.status == 'PAUSED' %}In pausa
+              {% elif sub.status == 'CANCELLED' %}Cancellato
+              {% else %}{{ sub.status }}{% endif %}
             </span>
+            {% if sub.subscription_plan.plan_type %}
+            <span class="al-tag">{{ sub.subscription_plan.plan_type }}</span>
             {% endif %}
-            <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</p>
-            <h3 class="text-xl font-bold text-ink mt-2 pr-14">{{ plan.name }}</h3>
-            <p class="text-sm text-ink-mute mt-2 line-clamp-3">{{ plan.description|default:"Piano disponibile con il tuo specialista." }}</p>
-            <div class="mt-5 flex items-baseline gap-1">
-                <span class="text-3xl font-bold text-ink">€ {{ plan.price }}</span>
-                <span class="text-ink-mute text-sm">{{ plan.billing_interval|default:"al mese" }}</span>
-            </div>
-            {% if plan.duration_days %}
-            <p class="text-xs text-ink-mute mt-2"><i class="ph ph-clock mr-1"></i>{{ plan.duration_days }} giorni</p>
-            {% endif %}
-        </article>
-        {% endwith %}
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-marble text-ink-mute flex items-center justify-center mx-auto mb-4">
-            <i class="ph ph-credit-card text-3xl"></i>
+          </div>
+          <h2 class="al-h-2 mt-3">{{ sub.subscription_plan.name }}</h2>
+          {% if sub.subscription_plan.description %}
+          <p class="al-body mt-2">{{ sub.subscription_plan.description }}</p>
+          {% endif %}
         </div>
-        <h3 class="text-lg font-bold text-ink">Nessun abbonamento disponibile</h3>
-        <p class="text-sm text-ink-mute mt-2">Il tuo specialista non ha ancora pubblicato un listino attivo.</p>
+        <div class="text-right shrink-0">
+          <p class="al-display font-mono" style="font-size: 36px; line-height: 1.1; color: var(--al-ink);">€{{ sub.subscription_plan.price }}</p>
+          <p class="al-tag mt-1">{{ sub.subscription_plan.billing_interval|default:"al mese" }}</p>
+        </div>
+      </div>
+
+      <div class="al-divider mt-6"></div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Inizio</p>
+          <p class="font-mono font-medium text-ink mt-1">{{ sub.start_date|date:"d M Y"|default:"—" }}</p>
+        </div>
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Scadenza</p>
+          <p class="font-mono font-medium text-ink mt-1">{{ sub.end_date|date:"d M Y"|default:"Senza scadenza" }}</p>
+        </div>
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Pagamento</p>
+          <p class="font-mono font-medium mt-1" style="color: {% if sub.payment_status == 'PAID' %}var(--al-aegean){% else %}var(--al-bronze){% endif %};">
+            {% if sub.payment_status == 'PAID' %}Saldato{% elif sub.payment_status == 'PENDING' %}In attesa{% else %}{{ sub.payment_status }}{% endif %}
+          </p>
+        </div>
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Rinnovo</p>
+          <p class="font-mono font-medium text-ink mt-1">{% if sub.auto_renew %}Automatico{% else %}Manuale{% endif %}</p>
+        </div>
+      </div>
+
+      {% if sub.external_reference %}
+      <div class="mt-6 p-4" style="background: var(--al-marble-warm); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Note pagamento</p>
+        <p class="al-body mt-1">{{ sub.external_reference }}</p>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
+  </div>
+  {% endwith %}
+  {% endif %}
+
+  <!-- Available plans -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="al-h-3">{% if active_subscription %}Altri piani disponibili{% else %}Piani disponibili{% endif %}</h2>
+  </div>
+
+  {% if available_plans %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% for plan in available_plans %}
+    <article class="al-card al-card-flush flex flex-col"
+             style="{% if active_subscription and active_subscription.subscription_plan.id == plan.id %}border-color: var(--al-aegean); box-shadow: 0 0 0 2px rgba(28,74,82,0.15);{% endif %}">
+      <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
+      <div class="p-5 flex-1">
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div class="min-w-0">
+            {% if plan.plan_type %}<span class="al-tag">{{ plan.plan_type }}</span>{% endif %}
+            <h3 class="al-h-3 mt-2">{{ plan.name }}</h3>
+          </div>
+          {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}
+          <span class="al-pill shrink-0" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
+          </span>
+          {% endif %}
+        </div>
+
+        {% if plan.description %}
+        <p class="al-body line-clamp-3 mb-4">{{ plan.description }}</p>
+        {% endif %}
+
+        <div class="flex items-baseline gap-2 mt-4">
+          <span class="al-display font-mono" style="font-size: 28px; color: var(--al-ink);">€{{ plan.price }}</span>
+          <span class="al-tag">{{ plan.billing_interval|default:"al mese" }}</span>
+        </div>
+
+        {% if plan.duration_days %}
+        <p class="al-tag mt-2 font-mono"><i class="ph ph-clock text-xs"></i> {{ plan.duration_days }} giorni</p>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="al-card al-card-warm">
+    <div class="al-empty" style="padding: 60px 32px;">
+      <i class="ph ph-credit-card al-empty-icon"></i>
+      <h3>Nessun abbonamento disponibile</h3>
+      <p>Il tuo specialista non ha ancora pubblicato un listino attivo.</p>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

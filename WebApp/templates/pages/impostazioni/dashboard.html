@@ -121,33 +121,55 @@
                         {% endif %}
                     </div>
 
-                    {% if is_coach %}
                     <div class="al-divider"></div>
 
-                    <!-- Foto profilo -->
-                    <div>
+                    <!-- Foto profilo (coach + client) -->
+                    <div x-data="{
+                        initialUrl: {% if is_coach and coach.profile_image %}'{{ coach.profile_image.url|escapejs }}'{% elif is_coach and coach.profile_image_url %}'{{ coach.profile_image_url|escapejs }}'{% elif is_client and client.profile_image %}'{{ client.profile_image.url|escapejs }}'{% else %}''{% endif %},
+                        previewUrl: '',
+                        objectUrl: null,
+                        init() { this.previewUrl = this.initialUrl; },
+                        onPick(e) {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+                            this.objectUrl = URL.createObjectURL(f);
+                            this.previewUrl = this.objectUrl;
+                        },
+                        clear(input) {
+                            if (this.objectUrl) { URL.revokeObjectURL(this.objectUrl); this.objectUrl = null; }
+                            this.previewUrl = this.initialUrl;
+                            input.value = '';
+                        }
+                    }">
                         <p class="al-label">Foto profilo</p>
                         <div class="flex items-center gap-5">
                             <div class="w-20 h-20 flex items-center justify-center overflow-hidden shrink-0"
                                  style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
-                                {% if coach.profile_image %}
-                                <img src="{{ coach.profile_image.url }}" alt="" class="w-full h-full object-cover">
-                                {% elif coach.profile_image_url %}
-                                <img src="{{ coach.profile_image_url }}" alt="" class="w-full h-full object-cover">
-                                {% else %}
-                                <i class="ph ph-user text-3xl text-ink-line"></i>
-                                {% endif %}
+                                <template x-if="previewUrl">
+                                    <img :src="previewUrl" alt="" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!previewUrl">
+                                    <i class="ph ph-user text-3xl text-ink-line"></i>
+                                </template>
                             </div>
                             <div class="flex-1">
-                                <label for="profile_image_input" class="al-btn al-btn-ghost cursor-pointer">
-                                    <i class="ph ph-upload-simple"></i><span>Carica foto</span>
-                                </label>
-                                <input type="file" id="profile_image_input" name="profile_image" accept="image/*" class="hidden">
-                                <span class="al-input-help">JPG, PNG o WebP. Max 5 MB.</span>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <label for="profile_image_input" class="al-btn al-btn-ghost cursor-pointer">
+                                        <i class="ph ph-upload-simple"></i><span x-text="objectUrl ? 'Cambia foto' : 'Carica foto'"></span>
+                                    </label>
+                                    <button type="button" x-show="objectUrl" @click="clear($refs.fileInput)" class="al-btn al-btn-ghost">
+                                        <i class="ph ph-x"></i><span>Annulla</span>
+                                    </button>
+                                </div>
+                                <input type="file" id="profile_image_input" name="profile_image" accept="image/*" class="hidden"
+                                       x-ref="fileInput" @change="onPick($event)">
+                                <span class="al-input-help">JPG, PNG o WebP. Max 5 MB. L'anteprima si vede subito, viene salvata cliccando "Salva modifiche".</span>
                             </div>
                         </div>
                     </div>
 
+                    {% if is_coach %}
                     <div class="al-divider"></div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">

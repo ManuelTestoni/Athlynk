@@ -26,6 +26,7 @@ def coach_clients_list_view(request):
 
     search = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '')
+    plan_filter = request.GET.get('plan', '').strip()
 
     relationships_qs = (
         CoachingRelationship.objects
@@ -39,8 +40,15 @@ def coach_clients_list_view(request):
         relationships_qs = relationships_qs.filter(
             Q(client__first_name__icontains=search)
             | Q(client__last_name__icontains=search)
-            | Q(client__primary_goal__icontains=search)
         )
+
+    if plan_filter.isdigit():
+        plan_client_ids = ClientSubscription.objects.filter(
+            subscription_plan_id=int(plan_filter),
+            subscription_plan__coach=coach,
+            status='ACTIVE',
+        ).values_list('client_id', flat=True)
+        relationships_qs = relationships_qs.filter(client_id__in=list(plan_client_ids))
 
     relationships = list(relationships_qs)
     client_ids = [r.client_id for r in relationships]
@@ -78,11 +86,17 @@ def coach_clients_list_view(request):
         for rel in relationships
     ]
 
+    all_plans = list(
+        coach.subscription_plans.filter(is_active=True).order_by('name').values('id', 'name')
+    )
+
     return render(request, 'pages/clienti/list.html', {
         'coach': coach,
         'clients_data': clients_data,
         'search': search,
         'status_filter': status_filter,
+        'plan_filter': plan_filter,
+        'all_plans': all_plans,
         'total_count': len(clients_data),
         'active_count': sum(1 for r in relationships if r.status == 'ACTIVE'),
     })
@@ -156,11 +170,23 @@ def registra_client_view(request):
     plans = SubscriptionPlan.objects.filter(coach=coach, is_active=True).order_by('name')
 
     if request.method == 'GET':
+        # Determine cancel return URL from ?next= or HTTP referer (fallback: dashboard)
+        cancel_url = request.GET.get('next', '').strip()
+        if not cancel_url:
+            ref = request.META.get('HTTP_REFERER', '')
+            if ref:
+                from urllib.parse import urlparse
+                parsed = urlparse(ref)
+                if parsed.path and parsed.path != request.path:
+                    cancel_url = parsed.path
+        if not cancel_url or not cancel_url.startswith('/'):
+            cancel_url = '/'
         return render(request, 'pages/clienti/registra.html', {
             'coach': coach,
             'is_coach': True,
             'plans': plans,
             'no_plans_modal': not plans.exists(),
+            'cancel_url': cancel_url,
         })
 
     # POST — registrazione cliente

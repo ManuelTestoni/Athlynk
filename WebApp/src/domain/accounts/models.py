@@ -65,6 +65,7 @@ class ClientProfile(models.Model):
     payment_status_summary = models.CharField(max_length=100, null=True, blank=True)
     onboarding_status = models.CharField(max_length=100, null=True, blank=True)
     client_status = models.CharField(max_length=100, null=True, blank=True)
+    profile_image = models.FileField(upload_to='client_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

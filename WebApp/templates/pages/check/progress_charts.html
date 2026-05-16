@@ -1,69 +1,79 @@
 {% extends 'base.html' %}
 
+{% block title %}Andamento{% endblock %}
+
 {% block content %}
-<div class="w-full max-w-5xl mx-auto" x-data="progressCharts()">
+<div class="max-w-5xl mx-auto" x-data="progressCharts()" x-init="init()">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        {% if is_coach_view %}
+        <a href="{% url 'check_client_history' target_client.id %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-clipboard-text text-xs"></i><span>Storico check</span>
+        </a>
+        {% else %}
+        <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-clipboard-text text-xs"></i><span>I miei check</span>
+        </a>
+        {% endif %}
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">Andamento</span>
+    </nav>
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
-            {% if is_coach_view %}
-            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
-                <a href="{% url 'check_client_history' target_client.id %}" class="hover:text-ink transition-colors flex items-center gap-1">
-                    <i class="ph ph-clipboard-text"></i> Storico check
-                </a>
-                <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-ink font-medium">Andamento</span>
-            </nav>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">Andamento – {{ target_client.first_name }} {{ target_client.last_name }}</h1>
-            {% else %}
-            <nav class="flex items-center gap-2 text-sm text-ink-mute mb-2">
-                <a href="{% url 'check_dashboard' %}" class="hover:text-ink transition-colors flex items-center gap-1">
-                    <i class="ph ph-clipboard-text"></i> I Miei Check
-                </a>
-                <i class="ph ph-caret-right text-xs"></i>
-                <span class="text-ink font-medium">Il mio andamento</span>
-            </nav>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">Il mio andamento</h1>
-            {% endif %}
-            <p class="text-sm text-ink-mute mt-1">{{ total_checks }} check registrati.</p>
+            <p class="al-eyebrow mb-3">{% if is_coach_view %}Studio &middot; Andamento{% else %}Atleta &middot; Andamento{% endif %}</p>
+            <h1 class="al-h-1">{% if is_coach_view %}{{ target_client.first_name }} <span class="al-display-i">{{ target_client.last_name }}</span>{% else %}Il mio <span class="al-display-i">andamento</span>{% endif %}</h1>
+            <p class="al-body mt-2"><span class="font-mono text-ink">{{ total_checks }}</span> check registrati.</p>
+            <div class="al-rule-bronze mt-5"></div>
         </div>
         {% if is_coach_view %}
-        <a href="{% url 'check_client_history' target_client.id %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-arrow-left"></i> Torna allo storico
+        <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
         </a>
         {% else %}
-        <a href="{% url 'check_dashboard' %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-rule text-ink-soft text-sm font-medium rounded-al-sm hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-arrow-left"></i> Torna ai check
+        <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
         </a>
         {% endif %}
     </div>
 
     {% if total_checks < 2 %}
-    <div class="bg-white border border-rule rounded-al-sm p-12 text-center shadow-sm">
-        <div class="w-16 h-16 rounded-al-sm bg-accent/10 text-accent flex items-center justify-center text-3xl mx-auto mb-4">
-            <i class="ph ph-chart-line"></i>
+    <div class="al-card al-card-warm">
+        <div class="al-empty" style="padding: 60px 32px;">
+            <i class="ph ph-chart-line al-empty-icon"></i>
+            <h3>Dati insufficienti</h3>
+            <p>Servono almeno 2 check per visualizzare i grafici di andamento.</p>
         </div>
-        <h3 class="text-base font-semibold text-ink mb-1">Dati insufficienti</h3>
-        <p class="text-sm text-ink-mute max-w-xs mx-auto">Servono almeno 2 check per visualizzare i grafici di andamento.</p>
     </div>
     {% else %}
 
-    <!-- Weight chart -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
-        <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute mb-4">Peso corporeo (kg)</h2>
+    <!-- Peso -->
+    <div class="al-card mb-6">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="ph ph-scales text-bronze text-xl"></i>
+            <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                <h2 class="al-h-3">Peso corporeo <span class="al-tag font-mono ml-1">kg</span></h2>
+            </div>
+        </div>
         <div class="h-64">
             <canvas id="weightChart"></canvas>
         </div>
     </div>
 
-    <!-- Circumferences chart -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Circonferenze (cm)</h2>
-            <select x-model="activeCirc"
-                    class="text-sm border border-rule rounded-al-sm px-3 py-1.5 bg-marble focus:outline-none focus:ring-2 focus:ring-accent">
+    <!-- Circonferenze -->
+    <div class="al-card mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-ruler text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                    <h2 class="al-h-3">Circonferenze <span class="al-tag font-mono ml-1">cm</span></h2>
+                </div>
+            </div>
+            <select x-model="activeCirc" @change="updateCircChart()" class="al-select" style="max-width: 200px;">
                 <option value="shoulders">Spalle</option>
                 <option value="chest">Petto</option>
                 <option value="waist">Vita</option>
@@ -75,14 +85,20 @@
         <div class="h-64">
             <canvas id="circChart"></canvas>
         </div>
+        <p class="al-tag mt-3 font-mono">Filtro attivo: <span class="text-ink" x-text="CIRC_LABELS[activeCirc]"></span></p>
     </div>
 
-    <!-- Skinfolds chart -->
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink-mute">Pliche (mm)</h2>
-            <select x-model="activeSkin"
-                    class="text-sm border border-rule rounded-al-sm px-3 py-1.5 bg-marble focus:outline-none focus:ring-2 focus:ring-accent">
+    <!-- Pliche -->
+    <div class="al-card mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <div class="flex items-center gap-3">
+                <i class="ph ph-first-aid text-bronze text-xl"></i>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                    <h2 class="al-h-3">Pliche <span class="al-tag font-mono ml-1">mm</span></h2>
+                </div>
+            </div>
+            <select x-model="activeSkin" @change="updateSkinChart()" class="al-select" style="max-width: 200px;">
                 <option value="chest">Petto</option>
                 <option value="abdomen">Addome</option>
                 <option value="thigh">Coscia</option>
@@ -92,6 +108,7 @@
         <div class="h-64">
             <canvas id="skinChart"></canvas>
         </div>
+        <p class="al-tag mt-3 font-mono">Filtro attivo: <span class="text-ink" x-text="SKIN_LABELS[activeSkin]"></span></p>
     </div>
 
     {% endif %}
@@ -108,38 +125,40 @@ const CIRC_LABELS = {
 const SKIN_LABELS = {
     chest: 'Petto', abdomen: 'Addome', thigh: 'Coscia', tricep: 'Tricipite'
 };
-const ACCENT = '#3b82f6';
-const MUTED = 'rgba(148,163,184,0.25)';
 
-function makeDataset(label, data, highlighted, color) {
-    return {
-        label,
-        data,
-        borderColor: highlighted ? color : MUTED,
-        backgroundColor: 'transparent',
-        borderWidth: highlighted ? 2.5 : 1,
-        pointRadius: highlighted ? 4 : 0,
-        pointHoverRadius: highlighted ? 6 : 0,
-        tension: 0.35,
-        spanGaps: true,
-    };
-}
+const AL_BRONZE  = '#8a6a3a';
+const AL_AEGEAN  = '#1c4a52';
+const AL_INK     = '#14110d';
+const AL_MUTED   = 'rgba(91,85,74,0.20)';
+const AL_GRID    = 'rgba(91,85,74,0.12)';
+const AL_LABEL   = '#5b554a';
 
 function baseOptions(yLabel) {
     return {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+            duration: 750,
+            easing: 'easeOutQuart'
+        },
+        transitions: {
+            active: { animation: { duration: 600, easing: 'easeOutQuart' } },
+            resize: { animation: { duration: 200 } }
+        },
         plugins: {
             legend: { display: false },
             tooltip: {
+                backgroundColor: AL_INK,
+                titleColor: '#f4efe4',
+                bodyColor: '#f4efe4',
                 callbacks: {
                     label: ctx => ` ${ctx.parsed.y !== null ? ctx.parsed.y : '—'} ${yLabel}`
                 }
             }
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
-            y: { grid: { color: 'rgba(226,232,240,0.7)' }, ticks: { font: { size: 11 }, color: '#94a3b8' } }
+            x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono, monospace', size: 11 }, color: AL_LABEL } },
+            y: { grid: { color: AL_GRID }, ticks: { font: { family: 'JetBrains Mono, monospace', size: 11 }, color: AL_LABEL } }
         }
     };
 }
@@ -151,14 +170,16 @@ function progressCharts() {
         weightChart: null,
         circChart: null,
         skinChart: null,
+        CIRC_LABELS,
+        SKIN_LABELS,
 
         init() {
-            if (!_chartData.labels.length) return;
-            this.buildWeightChart();
-            this.buildCircChart();
-            this.buildSkinChart();
-            this.$watch('activeCirc', () => this.updateCircChart());
-            this.$watch('activeSkin', () => this.updateSkinChart());
+            if (!_chartData.labels || !_chartData.labels.length) return;
+            this.$nextTick(() => {
+                this.buildWeightChart();
+                this.buildCircChart();
+                this.buildSkinChart();
+            });
         },
 
         buildWeightChart() {
@@ -171,12 +192,13 @@ function progressCharts() {
                     datasets: [{
                         label: 'Peso',
                         data: _chartData.weight,
-                        borderColor: ACCENT,
-                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        borderColor: AL_BRONZE,
+                        backgroundColor: 'rgba(138,106,58,0.10)',
                         fill: true,
                         borderWidth: 2.5,
                         pointRadius: 4,
                         pointHoverRadius: 6,
+                        pointBackgroundColor: AL_BRONZE,
                         tension: 0.35,
                         spanGaps: true,
                     }]
@@ -188,13 +210,9 @@ function progressCharts() {
         buildCircChart() {
             const ctx = document.getElementById('circChart');
             if (!ctx) return;
-            const keys = Object.keys(CIRC_LABELS);
-            const datasets = keys.map(k =>
-                makeDataset(CIRC_LABELS[k], _chartData.circumferences[k], k === this.activeCirc, ACCENT)
-            );
             this.circChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: _chartData.labels, datasets },
+                data: { labels: _chartData.labels, datasets: this.circDatasets() },
                 options: baseOptions('cm')
             });
         },
@@ -202,33 +220,59 @@ function progressCharts() {
         buildSkinChart() {
             const ctx = document.getElementById('skinChart');
             if (!ctx) return;
-            const keys = Object.keys(SKIN_LABELS);
-            const datasets = keys.map(k =>
-                makeDataset(SKIN_LABELS[k], _chartData.skinfolds[k], k === this.activeSkin, ACCENT)
-            );
             this.skinChart = new Chart(ctx, {
                 type: 'line',
-                data: { labels: _chartData.labels, datasets },
+                data: { labels: _chartData.labels, datasets: this.skinDatasets() },
                 options: baseOptions('mm')
             });
         },
 
+        circDatasets() {
+            return [{
+                label: CIRC_LABELS[this.activeCirc],
+                data: _chartData.circumferences[this.activeCirc] || [],
+                borderColor: AL_AEGEAN,
+                backgroundColor: 'rgba(28,74,82,0.10)',
+                fill: true,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: AL_AEGEAN,
+                tension: 0.35,
+                spanGaps: true,
+            }];
+        },
+
+        skinDatasets() {
+            return [{
+                label: SKIN_LABELS[this.activeSkin],
+                data: _chartData.skinfolds[this.activeSkin] || [],
+                borderColor: AL_BRONZE,
+                backgroundColor: 'rgba(138,106,58,0.10)',
+                fill: true,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: AL_BRONZE,
+                tension: 0.35,
+                spanGaps: true,
+            }];
+        },
+
         updateCircChart() {
             if (!this.circChart) return;
-            const keys = Object.keys(CIRC_LABELS);
-            this.circChart.data.datasets = keys.map(k =>
-                makeDataset(CIRC_LABELS[k], _chartData.circumferences[k], k === this.activeCirc, ACCENT)
-            );
-            this.circChart.update();
+            const ds = this.circDatasets()[0];
+            this.circChart.data.datasets[0].label = ds.label;
+            this.circChart.data.datasets[0].data = [...ds.data];
+            this.circChart.update('active');
         },
 
         updateSkinChart() {
             if (!this.skinChart) return;
-            const keys = Object.keys(SKIN_LABELS);
-            this.skinChart.data.datasets = keys.map(k =>
-                makeDataset(SKIN_LABELS[k], _chartData.skinfolds[k], k === this.activeSkin, ACCENT)
-            );
-            this.skinChart.update();
+            const ds = this.skinDatasets()[0];
+            this.skinChart.data.datasets[0].label = ds.label;
+            this.skinChart.data.datasets[0].data = [...ds.data];
+            this.skinChart.update('active');
         }
     };
 }

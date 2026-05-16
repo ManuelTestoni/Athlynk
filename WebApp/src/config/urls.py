@@ -167,6 +167,7 @@ urlpatterns = [
     
     # Impostazioni
     path('impostazioni/', views_settings.impostazioni_view, name='impostazioni_dashboard'),
+    path('profilo/', views_settings.my_profile_view, name='my_profile'),
     path('impostazioni/elimina-account/', views_settings.delete_account_view, name='delete_account'),
 
     # Chat
