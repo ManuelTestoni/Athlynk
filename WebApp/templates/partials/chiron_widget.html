@@ -1,0 +1,457 @@
+{% comment %}
+============================================================
+CHIRON — Widget chat fluttuante
+Incluso da base.html solo se l'utente è un coach (is_coach).
+Auto-contenuto: CSS scoped + HTML + Alpine component.
+============================================================
+{% endcomment %}
+
+<style>
+  /* --- CHIRON widget (tutti gli stili scoped sotto .chiron-root) --- */
+  .chiron-root {
+    position: fixed;
+    inset: auto 0 0 auto;
+    z-index: 9000;
+    font-family: var(--al-sans, 'Inter', system-ui, sans-serif);
+    color: var(--al-ink, #14110d);
+  }
+  .chiron-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--al-r-pill, 999px);
+    background: var(--al-bronze, #8a6a3a);
+    color: var(--al-parchment, #f4efe4);
+    border: 1px solid var(--al-ink, #14110d);
+    box-shadow: var(--al-shadow-2, 0 12px 32px -16px rgba(20,17,13,0.18));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform var(--al-d-snap, 0.18s) var(--al-ease, ease),
+                background var(--al-d-snap, 0.18s) var(--al-ease, ease);
+  }
+  .chiron-fab:hover { transform: translateY(-2px); background: var(--al-bronze-s, #a78554); }
+  .chiron-fab:focus-visible { outline: none; box-shadow: var(--al-shadow-glow-bronze, 0 0 0 3px rgba(138,106,58,0.18)); }
+  .chiron-fab.is-open { background: var(--al-ink, #14110d); color: var(--al-bronze-l, #c8a774); }
+
+  .chiron-panel {
+    position: fixed;
+    right: 24px;
+    bottom: 96px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 560px;
+    max-height: calc(100vh - 120px);
+    background: var(--al-parchment, #f4efe4);
+    border: 1px solid var(--al-ink, #14110d);
+    box-shadow: var(--al-shadow-3, 0 30px 80px -30px rgba(20,17,13,0.35));
+    display: flex;
+    flex-direction: column;
+    transform: translateY(12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--al-d-base, 0.35s) var(--al-ease-emp, cubic-bezier(0.22,1,0.36,1)),
+                opacity var(--al-d-fast, 0.2s) var(--al-ease, ease);
+  }
+  .chiron-panel.is-open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .chiron-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--al-ink, #14110d);
+    color: var(--al-parchment, #f4efe4);
+    border-bottom: 1px solid var(--al-ink, #14110d);
+  }
+  .chiron-head .logo {
+    width: 36px; height: 36px;
+    color: var(--al-bronze-l, #c8a774);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .chiron-head .title {
+    font-family: var(--al-display, 'Bodoni Moda', Georgia, serif);
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+  .chiron-head .sub {
+    font-family: var(--al-mono, 'JetBrains Mono', monospace);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--al-bronze-l, #c8a774);
+    margin-top: 2px;
+  }
+  .chiron-head .grow { flex: 1; }
+  .chiron-head button {
+    background: transparent;
+    color: inherit;
+    border: 1px solid rgba(244,239,228,0.2);
+    border-radius: var(--al-r-pill, 999px);
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background var(--al-d-snap, 0.18s) ease;
+  }
+  .chiron-head button:hover { background: rgba(244,239,228,0.08); }
+
+  .chiron-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--al-parchment, #f4efe4);
+  }
+  .chiron-msg {
+    max-width: 86%;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid var(--al-rule, rgba(20,17,13,0.14));
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .chiron-msg.user {
+    align-self: flex-end;
+    background: var(--al-aegean, #1c4a52);
+    color: var(--al-parchment, #f4efe4);
+    border-color: var(--al-aegean, #1c4a52);
+    border-radius: 2px;
+  }
+  .chiron-msg.assistant {
+    align-self: flex-start;
+    background: #fff;
+    color: var(--al-ink, #14110d);
+    border-radius: 2px;
+  }
+  .chiron-sources {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--al-rule, rgba(20,17,13,0.14));
+    font-size: 12px;
+  }
+  .chiron-sources .label {
+    font-family: var(--al-mono, monospace);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--al-bronze, #8a6a3a);
+    margin-bottom: 4px;
+  }
+  .chiron-sources a {
+    display: block;
+    color: var(--al-aegean, #1c4a52);
+    text-decoration: underline;
+    word-break: break-all;
+    margin: 2px 0;
+  }
+
+  .chiron-typing {
+    align-self: flex-start;
+    display: inline-flex; gap: 4px;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid var(--al-rule, rgba(20,17,13,0.14));
+    border-radius: 2px;
+  }
+  .chiron-typing span {
+    width: 6px; height: 6px;
+    background: var(--al-ink-mute, #5b554a);
+    border-radius: 999px;
+    animation: chiron-dot 1.2s infinite ease-in-out;
+  }
+  .chiron-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .chiron-typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes chiron-dot {
+    0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-3px); }
+  }
+
+  .chiron-input {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--al-rule, rgba(20,17,13,0.14));
+    background: var(--al-marble, #ece5d6);
+  }
+  .chiron-input textarea {
+    flex: 1;
+    resize: none;
+    min-height: 40px;
+    max-height: 140px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--al-ink, #14110d);
+    background: #fff;
+    border: 1px solid var(--al-ink-line, #8a8270);
+    border-radius: 2px;
+    outline: none;
+  }
+  .chiron-input textarea:focus { border-color: var(--al-ink, #14110d); }
+  .chiron-input textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+  .chiron-send {
+    width: 40px;
+    background: var(--al-ink, #14110d);
+    color: var(--al-parchment, #f4efe4);
+    border: 1px solid var(--al-ink, #14110d);
+    border-radius: 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background var(--al-d-snap, 0.18s) ease;
+  }
+  .chiron-send:hover:not(:disabled) { background: var(--al-bronze, #8a6a3a); border-color: var(--al-bronze, #8a6a3a); }
+  .chiron-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  @media (max-width: 768px) {
+    .chiron-panel {
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      border-width: 0;
+    }
+    .chiron-fab { right: 16px; bottom: 16px; }
+  }
+</style>
+
+{% csrf_token %}
+
+<div class="chiron-root"
+     x-data="chironWidget()"
+     x-init="init()">
+
+  {# Pannello chat #}
+  <div class="chiron-panel"
+       :class="{ 'is-open': open }"
+       role="dialog"
+       aria-label="CHIRON, assistente AI"
+       x-show="open"
+       x-cloak>
+    <div class="chiron-head">
+      <span class="logo" aria-hidden="true">
+        {# Logo CHIRON: rombo con C stilizzata, currentColor #}
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 2 L29 16 L16 30 L3 16 Z" stroke="currentColor" stroke-width="1.6" fill="none"/>
+          <path d="M20 11 a6 6 0 1 0 0 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="16" cy="16" r="1.4" fill="currentColor"/>
+        </svg>
+      </span>
+      <div>
+        <div class="title">CHIRON</div>
+        <div class="sub">Assistente AI</div>
+      </div>
+      <div class="grow"></div>
+      <button type="button" @click="clearHistory()" title="Nuova conversazione" aria-label="Pulisci cronologia">
+        <i class="ph ph-eraser" style="font-size:14px;"></i>
+      </button>
+      <button type="button" @click="open = false" title="Chiudi" aria-label="Chiudi">
+        <i class="ph ph-x" style="font-size:14px;"></i>
+      </button>
+    </div>
+
+    <div class="chiron-messages" x-ref="scroller">
+      <template x-for="(m, i) in messages" :key="i">
+        <div :class="'chiron-msg ' + m.role">
+          <div x-text="m.content"></div>
+          <template x-if="m.role === 'assistant' && m.sources && m.sources.length">
+            <div class="chiron-sources">
+              <div class="label">Fonti</div>
+              <template x-for="s in m.sources" :key="s.url">
+                <a :href="s.url" target="_blank" rel="noopener" x-text="s.title"></a>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+      <div class="chiron-typing" x-show="sending" x-cloak>
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="chiron-input">
+      <textarea x-ref="ta"
+                x-model="input"
+                :disabled="sending"
+                @input="autoResize()"
+                @keydown.enter.prevent="onEnter($event)"
+                placeholder="Chiedi qualcosa a CHIRON..."
+                rows="1"></textarea>
+      <button type="button" class="chiron-send" :disabled="sending || !input.trim()" @click="send()" aria-label="Invia">
+        <i class="ph ph-paper-plane-right" style="font-size:16px;"></i>
+      </button>
+    </div>
+  </div>
+
+  {# Bottone flottante #}
+  <button type="button"
+          class="chiron-fab"
+          :class="{ 'is-open': open }"
+          @click="toggle()"
+          :aria-expanded="open ? 'true' : 'false'"
+          aria-label="Apri CHIRON">
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2 L29 16 L16 30 L3 16 Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
+      <path d="M20 11 a6 6 0 1 0 0 10" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <circle cx="16" cy="16" r="1.6" fill="currentColor"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+  /* global Alpine */
+  function chironWidget() {
+    return {
+      open: false,
+      input: '',
+      sending: false,
+      messages: [],
+      loaded: false,
+      role: '{{ coach.professional_type|default:"COACH"|escapejs }}',
+
+      init() {
+        // Bootstrap della cronologia avviene al primo open (toggle).
+      },
+
+      getCsrf() {
+        return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+      },
+
+      welcomeFor(role) {
+        const map = {
+          'COACH': 'Ciao, sono CHIRON. Posso aiutarti su allenamenti, nutrizione, anamnesi e ricerca scientifica. Chiedi pure.',
+          'ALLENATORE': 'Ciao, sono CHIRON. Allenamenti, periodizzazione, biomeccanica, prevenzione: chiedi pure.',
+          'NUTRIZIONISTA': 'Ciao, sono CHIRON. Strategie alimentari, macro, integrazione, anamnesi: chiedi pure.',
+        };
+        return map[role] || 'Ciao, sono CHIRON. Come posso aiutarti?';
+      },
+
+      async toggle() {
+        this.open = !this.open;
+        if (this.open && !this.loaded) {
+          await this.loadHistory();
+          this.loaded = true;
+          if (!this.messages.length) {
+            this.messages.push({ role: 'assistant', content: this.welcomeFor(this.role), sources: [] });
+          }
+          this.$nextTick(() => this.scrollBottom());
+        }
+      },
+
+      async loadHistory() {
+        try {
+          const r = await fetch('/api/chiron/history/');
+          if (!r.ok) return;
+          const d = await r.json();
+          this.messages = (d.messages || []).map(m => ({
+            role: m.role,
+            content: m.content,
+            sources: m.sources || [],
+          }));
+        } catch (e) { /* silent */ }
+      },
+
+      autoResize() {
+        const ta = this.$refs.ta;
+        if (!ta) return;
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+      },
+
+      onEnter(ev) {
+        if (ev.shiftKey) {
+          // newline
+          const ta = this.$refs.ta;
+          const start = ta.selectionStart, end = ta.selectionEnd;
+          this.input = this.input.slice(0, start) + '\n' + this.input.slice(end);
+          this.$nextTick(() => { ta.selectionStart = ta.selectionEnd = start + 1; this.autoResize(); });
+          return;
+        }
+        this.send();
+      },
+
+      scrollBottom() {
+        const s = this.$refs.scroller;
+        if (s) s.scrollTop = s.scrollHeight;
+      },
+
+      pushToast(kind, msg) {
+        if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+          Alpine.store('toasts').push({ kind, msg });
+        }
+      },
+
+      async send() {
+        const text = this.input.trim();
+        if (!text || this.sending) return;
+        this.messages.push({ role: 'user', content: text, sources: [] });
+        this.input = '';
+        this.autoResize();
+        this.sending = true;
+        this.$nextTick(() => this.scrollBottom());
+
+        try {
+          const r = await fetch('/api/chiron/chat/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': this.getCsrf(),
+            },
+            body: JSON.stringify({
+              message: text,
+              user_role: 'coach',  // forzato lato server dal CoachProfile
+              conversation_history: this.messages
+                .slice(0, -1)
+                .filter(m => m.role === 'user' || m.role === 'assistant')
+                .slice(-20)
+                .map(m => ({ role: m.role, content: m.content })),
+            }),
+          });
+          if (!r.ok) {
+            let detail = 'Errore del server.';
+            try { const j = await r.json(); detail = j.error || detail; } catch (_) {}
+            this.pushToast('danger', detail);
+            this.messages.push({ role: 'assistant', content: detail, sources: [] });
+          } else {
+            const d = await r.json();
+            this.messages.push({
+              role: 'assistant',
+              content: d.response || '',
+              sources: d.sources || [],
+            });
+          }
+        } catch (e) {
+          this.pushToast('danger', 'Connessione a CHIRON non disponibile.');
+          this.messages.push({ role: 'assistant', content: 'Connessione non disponibile. Riprova.', sources: [] });
+        } finally {
+          this.sending = false;
+          this.$nextTick(() => this.scrollBottom());
+        }
+      },
+
+      async clearHistory() {
+        if (!confirm('Cancellare la cronologia di CHIRON?')) return;
+        try {
+          await fetch('/api/chiron/clear/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': this.getCsrf() },
+          });
+          this.messages = [{ role: 'assistant', content: this.welcomeFor(this.role), sources: [] }];
+          this.$nextTick(() => this.scrollBottom());
+        } catch (e) { /* silent */ }
+      },
+    };
+  }
+</script>

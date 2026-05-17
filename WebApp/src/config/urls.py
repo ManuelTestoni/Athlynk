@@ -36,6 +36,7 @@ from . import views_search
 from . import views_newsletter
 from . import views_legal
 from . import views_consent
+from . import views_chiron
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -182,6 +183,11 @@ urlpatterns = [
 
     # Global search
     path('api/search/', views_search.search_api, name='api_search'),
+
+    # CHIRON (assistente AI)
+    path('api/chiron/chat/', views_chiron.api_chiron_chat, name='api_chiron_chat'),
+    path('api/chiron/history/', views_chiron.api_chiron_history, name='api_chiron_history'),
+    path('api/chiron/clear/', views_chiron.api_chiron_clear, name='api_chiron_clear'),
 
     # Notifications
     path('api/notifications/', views_notifications.api_notifications_list, name='notifications_list'),

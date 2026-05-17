@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'domain.chat',
     'domain.newsletter',
     'domain.consent',
+    'domain.chiron',
 ]
 
 MIDDLEWARE = [

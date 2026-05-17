@@ -481,5 +481,10 @@
     </script>
     <script src="{% static 'js/cookie_banner.js' %}"></script>
     {% block extra_js %}{% endblock %}
+
+    {# CHIRON — assistente AI, solo coach loggati #}
+    {% if is_coach %}
+      {% include 'partials/chiron_widget.html' %}
+    {% endif %}
 </body>
 </html>
