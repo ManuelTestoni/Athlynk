@@ -76,11 +76,14 @@ urlpatterns = [
 
     # Nutrizione
     path('nutrizione/piani/', views_nutrition.nutrizione_piani_view, name='nutrizione_piani'),
+    path('nutrizione/piani/importa/', views_nutrition.nutrizione_import_view, name='nutrizione_import'),
     path('nutrizione/piani/crea/', views_nutrition.nutrizione_piano_create_view, name='nutrizione_piano_create'),
     path('nutrizione/piani/<int:plan_id>/', views_nutrition.nutrizione_piano_detail_view, name='nutrizione_piano_detail'),
     path('nutrizione/piani/<int:plan_id>/modifica/', views_nutrition.nutrizione_piano_edit_view, name='nutrizione_piano_edit'),
     path('nutrizione/dettaglio/<int:assignment_id>/', views_nutrition.nutrizione_client_detail_view, name='nutrizione_client_detail'),
     path('api/nutrizione/alimenti/', views_nutrition.api_food_search, name='nutrizione_food_search'),
+    path('api/nutrizione/import/excel/', views_nutrition.api_diet_import_excel, name='api_diet_import_excel'),
+    path('api/nutrizione/import/conferma/', views_nutrition.api_diet_import_confirm, name='api_diet_import_confirm'),
     path('api/nutrizione/piani/<int:plan_id>/assegna/', views_nutrition.api_piano_assign, name='nutrizione_piano_assign'),
     path('api/nutrizione/piani/<int:plan_id>/elimina/', views_nutrition.nutrizione_piano_delete_view, name='nutrizione_piano_delete'),
     path('nutrizione/anamnesi/', views_anamnesi.anamnesi_view, name='nutrizione_anamnesi'),

@@ -4,11 +4,13 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
 
-from config.session_utils import get_session_user, get_session_coach, get_session_client
+from config.session_utils import (
+    get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
+)
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
 from domain.nutrition.models import (
-    Food, NutritionPlan, Meal, MealItem, NutritionAssignment,
+    Food, NutritionPlan, Meal, MealItem, NutritionAssignment, DietDay,
     Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
 )
 from domain.accounts.models import ClientProfile
@@ -724,3 +726,218 @@ def _handle_sheet_save(request, coach, sheet):
             )
 
     return JsonResponse({'ok': True, 'sheet_id': sheet.id})
+
+
+# ─── Import Dieta da Excel (AI) ─────────────────────────────────────────────────
+
+# Meal type → label IT per Meal.name salvato in DB
+_MEAL_TYPE_LABELS = {
+    'BREAKFAST': 'Colazione',
+    'MORNING_SNACK': 'Spuntino mattutino',
+    'LUNCH': 'Pranzo',
+    'AFTERNOON_SNACK': 'Spuntino pomeridiano',
+    'DINNER': 'Cena',
+}
+
+_VALID_DAYS = {'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'}
+_VALID_MEAL_TYPES = set(_MEAL_TYPE_LABELS.keys())
+_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def nutrizione_import_view(request):
+    """Pagina SPA Alpine per l'import dieta da Excel (3 step)."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return redirect('dashboard')
+    return render(request, 'pages/nutrizione/import_diet.html', {})
+
+
+@require_http_methods(['POST'])
+def api_diet_import_excel(request):
+    """Riceve multipart {file, plan_title, client_id} → estrazione AI → JSON."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'File mancante'}, status=422)
+    if uploaded.size > _MAX_UPLOAD_SIZE:
+        return JsonResponse({'error': 'File troppo grande (max 10MB)'}, status=422)
+    name_lower = (uploaded.name or '').lower()
+    if not (name_lower.endswith('.xlsx') or name_lower.endswith('.xls')):
+        return JsonResponse({'error': 'Formato file non supportato (solo .xlsx/.xls)'}, status=422)
+
+    plan_title = (request.POST.get('plan_title') or '').strip()[:200]
+    client_id = request.POST.get('client_id') or ''
+
+    # Verifica relazione coach-client (se fornito)
+    client_data = None
+    if client_id:
+        try:
+            client = ClientProfile.objects.get(id=int(client_id))
+            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
+            if not rel:
+                return JsonResponse({'error': 'Atleta non associato'}, status=403)
+            client_data = {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
+        except (ValueError, ClientProfile.DoesNotExist):
+            return JsonResponse({'error': 'Atleta non valido'}, status=422)
+
+    # Import locale per evitare overhead se la view non è chiamata
+    from domain.nutrition.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+
+    try:
+        file_bytes = uploaded.read()
+        extracted, confidence = run_import_pipeline(file_bytes, plan_title)
+    except ExcelParseError as e:
+        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
+    except AIExtractionError as e:
+        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
+    except Exception as e:
+        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
+
+    payload = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'client': client_data,
+        'plan_title': plan_title or extracted.get('diet_name') or '',
+    }
+    status = 206 if confidence.ratio >= 0.5 else 200
+    if status == 206:
+        payload['warning'] = 'high_uncertainty'
+    return JsonResponse(payload, status=status)
+
+
+@require_http_methods(['POST'])
+def api_diet_import_confirm(request):
+    """Salva nel DB il JSON revisionato dal nutrizionista."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Body JSON non valido'}, status=400)
+
+    diet_json = data.get('diet_json') or {}
+    plan_title = (data.get('plan_title') or diet_json.get('diet_name') or '').strip()[:200]
+    notes = (data.get('notes') or '') or None
+    assign_now = bool(data.get('assign_now', True))
+    client_id = data.get('client_id')
+
+    if not plan_title:
+        return JsonResponse({'error': 'Titolo piano obbligatorio'}, status=400)
+
+    client = None
+    if client_id:
+        try:
+            client = ClientProfile.objects.get(id=int(client_id))
+            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
+            if not rel:
+                return JsonResponse({'error': 'Atleta non associato'}, status=403)
+        except (ValueError, ClientProfile.DoesNotExist):
+            return JsonResponse({'error': 'Atleta non valido'}, status=400)
+
+    days_data = diet_json.get('days') or []
+    if not days_data:
+        return JsonResponse({'error': 'Nessun giorno nella dieta'}, status=400)
+
+    # Persistenza atomica
+    try:
+        with transaction.atomic():
+            plan = NutritionPlan.objects.create(
+                coach=coach,
+                title=plan_title,
+                description=diet_json.get('extraction_notes') or None,
+                status='DRAFT',
+                is_template=False,
+            )
+
+            for day_idx, day in enumerate(days_data):
+                dow = day.get('day_of_week')
+                if dow not in _VALID_DAYS:
+                    continue
+                diet_day = DietDay.objects.create(
+                    plan=plan,
+                    day_of_week=dow,
+                    order=day_idx,
+                    notes=day.get('notes') or None,
+                )
+                for meal_idx, meal in enumerate(day.get('meals') or []):
+                    mt = meal.get('meal_type')
+                    if mt not in _VALID_MEAL_TYPES:
+                        continue
+                    meal_obj = Meal.objects.create(
+                        plan=plan,
+                        day=diet_day,
+                        name=_MEAL_TYPE_LABELS[mt],
+                        order=meal_idx,
+                        notes=meal.get('notes') or None,
+                    )
+                    for food in (meal.get('foods') or []):
+                        raw_name = (food.get('name') or '').strip()
+                        if not raw_name:
+                            continue
+                        food_id = food.get('food_id')
+                        food_obj = None
+                        if food_id:
+                            try:
+                                food_obj = Food.objects.get(id=int(food_id))
+                            except (ValueError, Food.DoesNotExist):
+                                food_obj = None
+                        # Quantità in grammi (conversione minimale per unit g/ml; portion/tbsp/tsp salvate as-is)
+                        qty = food.get('quantity')
+                        try:
+                            qty_g = float(qty) if qty is not None else 0.0
+                        except (TypeError, ValueError):
+                            qty_g = 0.0
+                        MealItem.objects.create(
+                            meal=meal_obj,
+                            food=food_obj,
+                            quantity_g=qty_g,
+                            notes=food.get('notes') or None,
+                            uncertain=bool(food.get('uncertain')) or food_obj is None,
+                            raw_name=raw_name if not food_obj else None,
+                        )
+
+            assignment_id = None
+            if assign_now and client:
+                # Cancella precedente assignment attivo (coerente con api_piano_assign)
+                NutritionAssignment.objects.filter(
+                    client=client, coach=coach, status='ACTIVE',
+                ).update(status='CANCELLED')
+                assignment = NutritionAssignment.objects.create(
+                    nutrition_plan=plan,
+                    client=client,
+                    coach=coach,
+                    status='ACTIVE',
+                    notes=notes,
+                )
+                assignment_id = assignment.id
+                Notification.objects.create(
+                    target_user=client.user,
+                    notification_type='NUTRITION_ASSIGNED',
+                    title='Nuovo piano alimentare',
+                    body=f'Ti è stato assegnato il piano "{plan.title}".',
+                    link_url=f'/nutrizione/dettaglio/{assignment.id}/',
+                )
+    except Exception as e:
+        return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
+
+    return JsonResponse({
+        'ok': True,
+        'plan_id': plan.id,
+        'assignment_id': assignment_id,
+    })

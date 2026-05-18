@@ -60,10 +60,16 @@
       <p class="al-body mt-2">Gestisci i tuoi protocolli e assegnali agli atleti.</p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
-    <a href="{% url 'nutrizione_piano_create' %}" class="al-btn">
-      <i class="ph ph-plus text-sm"></i>
-      <span>Nuovo Piano</span>
-    </a>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'nutrizione_import' %}" class="al-btn al-btn-ghost">
+        <i class="ph ph-sparkle text-sm"></i>
+        <span>Importa da Excel</span>
+      </a>
+      <a href="{% url 'nutrizione_piano_create' %}" class="al-btn">
+        <i class="ph ph-plus text-sm"></i>
+        <span>Nuovo Piano</span>
+      </a>
+    </div>
   </div>
 
   {% if plans_data %}

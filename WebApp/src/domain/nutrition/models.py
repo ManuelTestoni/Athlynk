@@ -62,8 +62,32 @@ class NutritionPlan(models.Model):
         return f"{self.title} (by {self.coach})"
 
 
+class DietDay(models.Model):
+    DAY_CHOICES = [
+        ('MONDAY', 'Lunedì'),
+        ('TUESDAY', 'Martedì'),
+        ('WEDNESDAY', 'Mercoledì'),
+        ('THURSDAY', 'Giovedì'),
+        ('FRIDAY', 'Venerdì'),
+        ('SATURDAY', 'Sabato'),
+        ('SUNDAY', 'Domenica'),
+    ]
+    plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='days')
+    day_of_week = models.CharField(max_length=10, choices=DAY_CHOICES)
+    order = models.PositiveIntegerField(default=0)
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = [('plan', 'day_of_week')]
+
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} – {self.plan.title}"
+
+
 class Meal(models.Model):
     plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='meals')
+    day = models.ForeignKey(DietDay, on_delete=models.CASCADE, related_name='meals', null=True, blank=True)
     name = models.CharField(max_length=100)
     order = models.PositiveIntegerField(default=0)
     time_of_day = models.CharField(max_length=10, null=True, blank=True)
@@ -78,32 +102,45 @@ class Meal(models.Model):
 
 class MealItem(models.Model):
     meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='items')
-    food = models.ForeignKey(Food, on_delete=models.CASCADE)
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True)
     quantity_g = models.FloatField()
     notes = models.TextField(null=True, blank=True)
+    uncertain = models.BooleanField(default=False)
+    raw_name = models.CharField(max_length=200, null=True, blank=True)
 
     @property
     def kcal(self):
+        if not self.food:
+            return 0
         return round(self.food.energia_kcal * self.quantity_g / 100, 1)
 
     @property
     def protein(self):
+        if not self.food:
+            return 0
         return round(self.food.proteine_g * self.quantity_g / 100, 1)
 
     @property
     def carbs(self):
+        if not self.food:
+            return 0
         return round(self.food.carboidrati_g * self.quantity_g / 100, 1)
 
     @property
     def fat(self):
+        if not self.food:
+            return 0
         return round(self.food.lipidi_g * self.quantity_g / 100, 1)
 
     @property
     def fiber(self):
+        if not self.food:
+            return 0
         return round(self.food.fibra_g * self.quantity_g / 100, 1)
 
     def __str__(self):
-        return f"{self.quantity_g}g {self.food.nome_alimento}"
+        label = self.food.nome_alimento if self.food else (self.raw_name or '???')
+        return f"{self.quantity_g}g {label}"
 
 
 class Supplement(models.Model):
