@@ -140,6 +140,7 @@ urlpatterns = [
     # Agenda
     path('agenda/', views_agenda.agenda_dashboard_view, name='agenda_dashboard'),
     path('api/agenda/events/', views_agenda.api_agenda_events, name='api_agenda_events'),
+    path('api/agenda/events/<int:event_id>/', views_agenda.api_agenda_event_detail, name='api_agenda_event_detail'),
     
     # Abbonamenti
     path('abbonamenti/', views_client.abbonamenti_dashboard_view, name='abbonamenti_dashboard'),

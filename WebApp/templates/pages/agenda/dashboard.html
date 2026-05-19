@@ -223,7 +223,7 @@
 
   <!-- ============ DETAIL MODAL ============ -->
   <div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" @click="closeDetail()"></div>
+    <div class="al-modal-backdrop agenda-modal-backdrop" @click="closeDetail()"></div>
     <div class="al-modal-panel relative" style="max-width: 480px;" @click.away="closeDetail()">
       <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
         <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);"
@@ -282,17 +282,23 @@
       </div>
       <div class="al-modal-foot">
         <button @click="closeDetail()" type="button" class="al-btn al-btn-ghost">Chiudi</button>
+        {% if can_manage_agenda %}
+        <button @click="openEdit(selectedEvent)" type="button" class="al-btn al-btn-bronze">
+          <i class="ph ph-pencil-simple text-sm"></i>
+          <span>Modifica</span>
+        </button>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- ============ CREATE MODAL ============ -->
+  <!-- ============ CREATE / EDIT MODAL ============ -->
   {% if can_manage_agenda %}
   <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" @click="closeCreate()"></div>
+    <div class="al-modal-backdrop agenda-modal-backdrop" @click="closeCreate()"></div>
     <div class="al-modal-panel relative" style="max-width: 540px;" @click.away="closeCreate()">
       <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
-        <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);">Nuovo</p>
+        <p class="al-eyebrow mb-2" style="color: var(--al-bronze-l);" x-text="editingId ? 'Modifica' : 'Nuovo'"></p>
         <div class="flex items-center justify-between">
           <h3 class="al-h-2" style="color: var(--al-parchment);">Appuntamento</h3>
           <button @click="closeCreate()" type="button"
@@ -364,7 +370,7 @@
           </div>
         </div>
 
-        <div x-show="newEvent.appointment_type === 'check'" class="al-card al-card-warm space-y-3" style="padding: 16px;">
+        <div x-show="newEvent.appointment_type === 'check' && !editingId" class="al-card al-card-warm space-y-3" style="padding: 16px;">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" x-model="newEvent.is_recurring" class="al-checkbox">
             <span class="text-[13px] font-medium text-ink">Check ricorrente</span>
@@ -388,10 +394,23 @@
           <label class="al-label">Note (opzionale)</label>
           <textarea x-model="newEvent.description" rows="2" class="al-textarea"></textarea>
         </div>
+
+        <div x-show="saveError" x-cloak
+             class="al-alert al-alert-danger text-[13px]"
+             style="padding: 10px 12px;"
+             x-text="saveError"></div>
       </div>
       <div class="al-modal-foot">
+        <div x-show="editingId" class="mr-auto">
+          <button @click="deleteAppointment()" type="button" class="al-btn al-btn-ghost text-danger">
+            <i class="ph ph-trash text-sm"></i>
+            <span>Elimina</span>
+          </button>
+        </div>
         <button @click="closeCreate()" type="button" class="al-btn al-btn-ghost">Annulla</button>
-        <button @click="saveAppointment()" type="button" class="al-btn al-btn-bronze">Salva</button>
+        <button @click="saveAppointment()" type="button" class="al-btn al-btn-bronze">
+          <span x-text="editingId ? 'Aggiorna' : 'Salva'"></span>
+        </button>
       </div>
     </div>
   </div>

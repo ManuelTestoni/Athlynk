@@ -75,6 +75,8 @@ document.addEventListener('alpine:init', () => {
     selectedEvent: null,
     showCreateModal: false,
     newEvent: emptyAgendaEvent(),
+    editingId: null,
+    saveError: '',
     clientSearchQuery: '',
     clientSearchResults: [],
     selectedClientName: '',
@@ -281,6 +283,8 @@ document.addEventListener('alpine:init', () => {
       if (start.getHours() === 0) start.setHours(9, 0, 0, 0);
       const end = new Date(start);
       end.setHours(end.getHours() + 1);
+      this.editingId = null;
+      this.saveError = '';
       this.newEvent = this._emptyEvent();
       this.newEvent.start_datetime = this._toLocalInput(start);
       this.newEvent.end_datetime = this._toLocalInput(end);
@@ -288,13 +292,65 @@ document.addEventListener('alpine:init', () => {
       this.clientSearchResults = [];
       this.selectedClientName = '';
       this.showCreateModal = true;
+      this._syncDateInputs();
     },
-    closeCreate() { this.showCreateModal = false; },
+
+    openEdit(evt) {
+      if (!this.canManage || !evt) return;
+      this.showDetailModal = false;
+      this.editingId = evt.id;
+      this.saveError = '';
+      this.newEvent = {
+        title: evt.title || '',
+        client_id: evt.client_id || null,
+        appointment_type: evt._type || evt.type || 'check',
+        start_datetime: this._toLocalInput(evt._start),
+        end_datetime: this._toLocalInput(evt._end),
+        description: evt.description || '',
+        meeting_url: evt.meeting_url || '',
+        is_recurring: false,
+        recurrence_rule: 'settimanale',
+      };
+      this.selectedClientName = evt.client_name || '';
+      this.clientSearchQuery = '';
+      this.clientSearchResults = [];
+      // resolve client_id if missing (older fetch payloads may lack it)
+      if (!this.newEvent.client_id && evt.client_name) {
+        this._resolveClientId(evt.client_name);
+      }
+      this.showCreateModal = true;
+      this._syncDateInputs();
+    },
+
+    async _resolveClientId(name) {
+      try {
+        const r = await fetch('/api/clients/search/?q=' + encodeURIComponent(name));
+        if (!r.ok) return;
+        const list = await r.json();
+        if (list && list.length) {
+          const match = list.find(c => c.name === name) || list[0];
+          this.newEvent.client_id = match.id;
+        }
+      } catch (e) {}
+    },
+
+    closeCreate() { this.showCreateModal = false; this.editingId = null; this.saveError = ''; },
 
     _toLocalInput(d) {
       const tzOffset = d.getTimezoneOffset();
       const local = new Date(d.getTime() - tzOffset * 60000);
       return local.toISOString().slice(0, 16);
+    },
+
+    _syncDateInputs() {
+      // After programmatic x-model writes, push values into Flatpickr instances.
+      this.$nextTick(() => {
+        document.querySelectorAll(
+          '[x-model="newEvent.start_datetime"], [x-model="newEvent.end_datetime"]'
+        ).forEach(el => {
+          if (el._fp && el.value) el._fp.setDate(el.value, false);
+        });
+      });
     },
 
     async searchClients() {
@@ -331,24 +387,60 @@ document.addEventListener('alpine:init', () => {
 
     async saveAppointment() {
       const e = this.newEvent;
+      this.saveError = '';
       if (!e.title || !e.client_id || !e.start_datetime || !e.end_datetime) {
-        alert('Completa titolo, cliente, inizio e fine.');
+        this.saveError = 'Completa titolo, atleta, inizio e fine.';
         return;
       }
+      const startMs = new Date(e.start_datetime).getTime();
+      const endMs = new Date(e.end_datetime).getTime();
+      if (!isFinite(startMs) || !isFinite(endMs)) {
+        this.saveError = 'Date non valide.';
+        return;
+      }
+      if (endMs <= startMs) {
+        this.saveError = 'La fine deve essere successiva all’inizio.';
+        return;
+      }
+      const isEdit = !!this.editingId;
+      const url = isEdit
+        ? `/api/agenda/events/${this.editingId}/`
+        : '/api/agenda/events/';
+      const method = isEdit ? 'PUT' : 'POST';
       try {
-        const r = await fetch('/api/agenda/events/', {
-          method: 'POST',
+        const r = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
           body: JSON.stringify(e),
         });
         if (r.ok) {
           this.showCreateModal = false;
+          this.editingId = null;
           await this.fetchEvents();
         } else {
-          const d = await r.json();
-          alert(d.error || 'Errore di salvataggio');
+          const d = await r.json().catch(() => ({}));
+          this.saveError = d.error || 'Errore di salvataggio';
         }
-      } catch (err) { alert('Errore di rete'); }
+      } catch (err) { this.saveError = 'Errore di rete'; }
+    },
+
+    async deleteAppointment() {
+      if (!this.canManage || !this.editingId) return;
+      if (!confirm('Eliminare questo appuntamento?')) return;
+      try {
+        const r = await fetch(`/api/agenda/events/${this.editingId}/`, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        if (r.ok) {
+          this.showCreateModal = false;
+          this.editingId = null;
+          await this.fetchEvents();
+        } else {
+          const d = await r.json().catch(() => ({}));
+          this.saveError = d.error || 'Errore eliminazione';
+        }
+      } catch (err) { this.saveError = 'Errore di rete'; }
     },
 
     /* ---------------- formatting helpers (exposed to template) ---------------- */
