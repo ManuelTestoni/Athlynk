@@ -71,7 +71,10 @@ document.addEventListener('alpine:init', () => {
       previewComputed: {},
       previewTimer: null,
       chartMetric: 'volume', // volume | tonnage | intensity
+      chartType: 'histogram', // histogram | line
     },
+    _progChart: null,
+    _progCanvas: null,
     draftRule: null,
 
     FAMILY_DEFS: [
@@ -199,6 +202,11 @@ document.addEventListener('alpine:init', () => {
       ['mousemove', 'keydown', 'click'].forEach(evt =>
         document.addEventListener(evt, () => this._resetIdleTimer(), { passive: true })
       );
+
+      // Re-render progression chart when relevant state changes.
+      this.$watch('step', (v) => { if (v === 3) setTimeout(() => this._refreshProgChart(), 250); });
+      this.$watch('progUi.activeWeek', () => this._refreshProgChart());
+      this.$watch('progression.rules', () => this._refreshProgChart());
     },
 
     _materializeDays(srvDays) {
@@ -809,6 +817,132 @@ document.addEventListener('alpine:init', () => {
       if (metric === 'tonnage') return s.tonnage ? `${s.tonnage} kg` : '—';
       if (metric === 'intensity') return s.avg_rpe ? `${s.avg_rpe}` : '—';
       return s.volume ? String(s.volume) : '—';
+    },
+
+    // ---- Chart.js progression chart (Step 3) ----
+    dayRulesCount(d) {
+      if (!d || !d.exercises) return 0;
+      return d.exercises.reduce((sum, ex) => sum + this.rulesForExercise(ex).length, 0);
+    },
+
+    setProgMetric(m) {
+      if (this.progUi.chartMetric === m) return;
+      this.progUi.chartMetric = m;
+      this.renderProgChart();
+    },
+    setProgChartType(t) {
+      if (this.progUi.chartType === t) return;
+      this.progUi.chartType = t;
+      this.renderProgChart();
+    },
+
+    mountProgChart(el) {
+      this._progCanvas = el;
+      // Render after the section transition + drawer-slide settles.
+      setTimeout(() => this.renderProgChart(), 200);
+    },
+
+    _destroyProgChart() {
+      if (this._progChart) {
+        try { this._progChart.destroy(); } catch (_) { /* ignore */ }
+        this._progChart = null;
+      }
+    },
+
+    renderProgChart() {
+      if (!this._progCanvas || typeof Chart === 'undefined') return;
+      this._destroyProgChart();
+
+      const all = this.weekStatsAll();
+      const key = this.progUi.chartMetric === 'tonnage' ? 'tonnage'
+                : this.progUi.chartMetric === 'intensity' ? 'avg_rpe'
+                : 'volume';
+      const labels = all.map(s => 'S' + s.week);
+      const data = all.map(s => Number(s[key]) || 0);
+
+      const metricLabel = this.progUi.chartMetric === 'tonnage' ? 'Carico (kg)'
+                       : this.progUi.chartMetric === 'intensity' ? 'RPE medio'
+                       : 'Volume (set×rep)';
+
+      const ctx = this._progCanvas.getContext('2d');
+      const bronze = '#8a6a3a';
+      const ink = '#14110d';
+
+      const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 360, easing: 'easeOutCubic' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(20,17,13,0.92)',
+            titleColor: '#f4efe4',
+            bodyColor: '#f4efe4',
+            padding: 10,
+            cornerRadius: 6,
+            callbacks: {
+              label: (c) => {
+                const v = c.parsed?.y ?? c.parsed ?? 0;
+                const suffix = key === 'tonnage' ? ' kg' : key === 'avg_rpe' ? '' : '';
+                return `${metricLabel}: ${(+v).toFixed(key === 'avg_rpe' ? 1 : 0)}${suffix}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11, weight: '600' } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.10)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
+        },
+      };
+
+      if (this.progUi.chartType === 'histogram') {
+        this._progChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: metricLabel,
+              data,
+              backgroundColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze + 'cc'),
+              borderColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze),
+              borderWidth: 1,
+              borderRadius: 6,
+              borderSkipped: false,
+              maxBarThickness: 44,
+            }],
+          },
+          options: baseOpts,
+        });
+      } else {
+        this._progChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: metricLabel,
+              data,
+              borderColor: bronze,
+              backgroundColor: 'rgba(138,106,58,0.10)',
+              pointBackgroundColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze),
+              pointBorderColor: '#f4efe4',
+              pointBorderWidth: 1.5,
+              pointRadius: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? 7 : 5),
+              pointHoverRadius: 8,
+              borderWidth: 2.5,
+              tension: 0.32,
+              fill: true,
+              spanGaps: true,
+            }],
+          },
+          options: baseOpts,
+        });
+      }
+    },
+
+    _refreshProgChart() {
+      if (this.step === 3 && this._progCanvas) {
+        this.renderProgChart();
+      }
     },
 
     // ---- Save / autosave ----

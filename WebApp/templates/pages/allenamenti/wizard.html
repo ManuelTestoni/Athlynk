@@ -38,8 +38,8 @@
   .wiz-mini-input { padding: .25rem .5rem; border: 1px solid var(--al-rule-faint); border-radius: 4px; width: 100%; font-size: .85rem; }
   .wiz-drawer { position: fixed; top: 0; right: 0; width: 100%; max-width: 50vw; height: 100vh; background: var(--al-parchment); box-shadow: -8px 0 24px rgba(0,0,0,.15); transform: translateX(100%); transition: transform .3s; z-index: 60; overflow-y: auto; }
   .wiz-drawer.open { transform: translateX(0); }
-  .wiz-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 59; opacity: 0; pointer-events: none; transition: opacity .3s; }
-  .wiz-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .wiz-drawer-backdrop { position: fixed; inset: 0; background: transparent; z-index: 59; pointer-events: none; }
+  .wiz-drawer-backdrop.open { pointer-events: auto; }
   .wiz-bar { background: linear-gradient(90deg, var(--al-bronze), #d4af37); height: 14px; border-radius: 4px; }
   .wiz-superset-bracket { width: 4px; background: var(--al-bronze); border-radius: 2px; align-self: stretch; }
   .wiz-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--al-ink); color: var(--al-parchment); padding: 12px 20px; border-radius: var(--al-r-sm); z-index: 80; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
@@ -118,61 +118,356 @@
   .prog-preview-w { font-size: .65rem; color: var(--al-ink-faint); margin: 0; font-weight: 600; }
   .prog-preview-v { font-size: .8rem; font-weight: 600; margin: 0; line-height: 1.1; }
 
-  /* Per-week analytics + multi-week chart on the progressions step */
-  .prog-analytics {
-    border: 1px solid var(--al-rule-faint);
-    border-radius: var(--al-r-md, 8px);
-    padding: .85rem;
-    background: var(--al-stone, #f7f4ee);
+  /* =====================================================================
+     Step 3 · Progressione — refined editorial layout (prg-*)
+     ===================================================================== */
+  .prg-hero {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1.5rem; flex-wrap: wrap;
+    padding: 1.25rem 1.5rem;
+    background:
+      linear-gradient(135deg, rgba(244,239,228,0.85) 0%, rgba(236,229,214,0.65) 100%),
+      var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-left: 4px solid var(--al-bronze);
+    border-radius: var(--al-r-md);
+    position: relative;
+    overflow: hidden;
   }
-  .prog-analytics-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: .5rem;
-    margin-bottom: .85rem;
+  .prg-hero::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 90% 20%, rgba(138,106,58,0.10), transparent 60%);
+    pointer-events: none;
   }
-  .prog-stat {
-    background: white;
+  .prg-title { font-family: var(--al-display); font-size: 26px; margin: 0; letter-spacing: -0.01em; line-height: 1.1; }
+  .prg-sub { margin-top: 6px; color: var(--al-ink-mute); font-size: 13px; max-width: 480px; }
+  .prg-hero-meta { display: flex; gap: 8px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .prg-meta-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 999px;
+    background: var(--al-ink); color: var(--al-parchment);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .prg-meta-pill.prg-meta-danger { background: #8a3a3a; }
+
+  /* Week strip — bronze rail */
+  .prg-week-strip {
+    display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px;
+    scrollbar-width: thin; scrollbar-color: var(--al-rule-strong) transparent;
+  }
+  .prg-week-strip::-webkit-scrollbar { height: 5px; }
+  .prg-week-strip::-webkit-scrollbar-thumb { background: var(--al-rule-strong); border-radius: 3px; }
+  .prg-week {
+    flex-shrink: 0;
+    min-width: 64px;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 160ms var(--al-ease);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    line-height: 1.05;
+  }
+  .prg-week:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
+  .prg-week.is-active {
+    background: var(--al-ink); border-color: var(--al-ink); color: var(--al-parchment);
+    box-shadow: 0 3px 12px rgba(20,17,13,0.18);
+  }
+  .prg-week-lab {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; opacity: 0.75;
+  }
+  .prg-week-num {
+    font-family: var(--al-display); font-size: 18px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Generic prg card */
+  .prg-card {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    padding: 1.1rem 1.25rem;
+  }
+  .prg-card-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: .9rem;
+  }
+  .prg-card-title { font-family: var(--al-display); font-size: 19px; margin: 0; letter-spacing: -0.005em; }
+  .prg-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* Segmented control */
+  .prg-segctl {
+    display: inline-flex;
+    background: var(--al-marble);
+    border: 1px solid var(--al-rule);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .prg-segctl button {
+    border: none; background: transparent; cursor: pointer;
+    padding: 5px 12px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; color: var(--al-ink-soft);
+    border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 140ms var(--al-ease);
+  }
+  .prg-segctl button.is-active {
+    background: var(--al-ink); color: var(--al-parchment);
+    box-shadow: 0 1px 4px rgba(20,17,13,0.18);
+  }
+
+  .prg-chart-wrap {
+    position: relative; width: 100%; height: 260px;
+    background: rgba(255,255,255,0.55);
     border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-sm);
-    padding: .45rem .55rem;
-    text-align: center;
+    padding: 10px;
   }
-  .prog-stat-v { font-size: 1.1rem; font-weight: 800; margin: 2px 0 0; line-height: 1.1; }
-  .prog-chart-header {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem;
+
+  /* Day accordion */
+  .prg-days { display: flex; flex-direction: column; gap: 14px; }
+  .prg-day {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    overflow: hidden;
+    transition: border-color 160ms var(--al-ease), box-shadow 160ms var(--al-ease);
   }
-  .prog-chart {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
-    gap: .35rem;
-    align-items: end;
-    background: white;
+  .prg-day:hover { border-color: var(--al-rule-strong); }
+  .prg-day-head {
+    width: 100%; border: none; background: transparent;
+    padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+    cursor: pointer; text-align: left;
+    border-bottom: 1px solid transparent;
+    transition: background 140ms var(--al-ease);
+  }
+  .prg-day-head:hover { background: rgba(236,229,214,0.4); }
+  .prg-day-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: var(--al-ink); color: var(--al-parchment);
+    border-radius: var(--al-r-sm);
+    font-family: var(--al-display); font-size: 16px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .prg-day-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .prg-day-name { font-family: var(--al-display); font-size: 17px; font-weight: 600; color: var(--al-ink); }
+  .prg-day-meta {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--al-ink-mute);
+    font-variant-numeric: tabular-nums;
+  }
+  .prg-day-dot { display: inline-block; margin: 0 4px; color: var(--al-ink-line); }
+  .prg-day-chev { color: var(--al-ink-mute); font-size: 16px; transition: transform 200ms var(--al-ease); }
+  .prg-day-body {
+    padding: 6px 18px 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    border-top: 1px solid var(--al-rule-faint);
+  }
+
+  /* Exercise row */
+  .prg-ex {
+    background: rgba(255,255,255,0.6);
     border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-sm);
-    padding: .6rem .5rem .45rem;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 140ms var(--al-ease), background 140ms var(--al-ease);
   }
-  .prog-chart-col {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    cursor: pointer; user-select: none;
+  .prg-ex:hover {
+    border-color: var(--al-rule-strong);
+    background: rgba(255,255,255,0.85);
   }
-  .prog-chart-bar-wrap {
-    width: 100%;
-    height: 90px;
-    display: flex; align-items: flex-end; justify-content: center;
+  .prg-ex-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .prg-ex-main { flex: 1; min-width: 0; }
+  .prg-ex-name {
+    font-family: var(--al-display); font-size: 16px; font-weight: 600;
+    color: var(--al-ink); margin: 0 0 6px;
+    letter-spacing: -0.005em;
   }
-  .prog-chart-bar {
-    width: 70%;
-    min-height: 2px;
-    background: var(--al-bronze, #a6802b);
-    border-radius: 3px 3px 0 0;
-    transition: height .25s ease;
+  .prg-ex-base { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+  .prg-base-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    background: var(--al-marble);
+    border: 1px solid var(--al-rule-faint);
+    border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    color: var(--al-ink);
+    font-variant-numeric: tabular-nums;
   }
-  .prog-chart-col.is-active .prog-chart-bar { background: var(--al-ink); }
-  .prog-chart-col:hover .prog-chart-bar { filter: brightness(0.92); }
-  .prog-chart-val { font-size: .68rem; font-weight: 700; margin: 0; color: var(--al-ink); }
-  .prog-chart-w { font-size: .62rem; color: var(--al-ink-faint); margin: 0; font-weight: 600; text-transform: uppercase; }
+  .prg-base-chip .key {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--al-ink-mute);
+  }
+  .prg-add-btn {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px;
+    border: 1px solid var(--al-bronze);
+    background: var(--al-bronze); color: var(--al-parchment);
+    border-radius: var(--al-r-sm);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 140ms var(--al-ease);
+  }
+  .prg-add-btn:hover { background: var(--al-bronze-s, #a78554); border-color: var(--al-bronze-s, #a78554); }
+  .prg-add-btn.is-edit {
+    background: transparent; color: var(--al-bronze);
+    border-color: var(--al-rule-strong);
+  }
+  .prg-add-btn.is-edit:hover { background: rgba(138,106,58,0.08); border-color: var(--al-bronze); }
+
+  .prg-ex-week {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 12px;
+    background: var(--al-ink); color: var(--al-parchment);
+    border-radius: var(--al-r-sm);
+    align-self: flex-start;
+    font-variant-numeric: tabular-nums;
+  }
+  .prg-ex-week-key {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; opacity: 0.7;
+  }
+  .prg-ex-week-v { font-size: 13px; font-weight: 600; }
+  .prg-ex-week-v.is-override::after {
+    content: '●'; margin-left: 5px; color: var(--al-bronze-light, #c8a774);
+  }
+
+  .prg-ex-rules { display: flex; flex-wrap: wrap; gap: 4px; }
+  .prg-rule {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px;
+    background: rgba(138,106,58,0.12);
+    border: 1px solid rgba(138,106,58,0.3);
+    color: var(--al-bronze);
+    border-radius: 999px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+    cursor: default;
+  }
+  .prg-rule i { font-size: 11px; }
+
+  .prg-ex-empty {
+    font-size: 11.5px; font-style: italic; color: var(--al-ink-mute); margin: 0;
+  }
+  .prg-day-empty {
+    padding: 16px; font-size: 12px; font-style: italic;
+    color: var(--al-ink-mute); text-align: center;
+  }
+
+  .prg-nav {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 1rem 1.25rem;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    flex-wrap: wrap;
+  }
+
+  /* =====================================================================
+     Step 3 · Progression drawer — refined add/edit panel
+     ===================================================================== */
+  .prg-drawer-head {
+    position: sticky; top: 0;
+    background: linear-gradient(180deg, var(--al-parchment) 0%, rgba(244,239,228,0.95) 100%);
+    border-bottom: 1px solid var(--al-rule);
+    padding: 18px 22px 14px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    z-index: 2; backdrop-filter: blur(6px);
+  }
+  .prg-drawer-head h3 { font-family: var(--al-display); font-size: 22px; margin: 0; line-height: 1.15; letter-spacing: -0.01em; }
+  .prg-drawer-body { padding: 18px 22px 100px; display: flex; flex-direction: column; gap: 18px; }
+  .prg-drawer-foot {
+    position: sticky; bottom: 0;
+    background: rgba(244,239,228,0.96);
+    border-top: 1px solid var(--al-rule);
+    padding: 12px 22px;
+    display: flex; justify-content: flex-end; gap: 10px;
+    backdrop-filter: blur(6px);
+    z-index: 2;
+  }
+
+  .prg-section {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .prg-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; color: var(--al-bronze);
+    margin: 0;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .prg-section-label::before {
+    content: ''; width: 6px; height: 6px; background: var(--al-bronze); border-radius: 50%;
+  }
+
+  /* Subtype card grid */
+  .prg-subtype-grid {
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  .prg-subtype {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 13px;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    cursor: pointer;
+    transition: all 140ms var(--al-ease);
+    text-align: left;
+  }
+  .prg-subtype:hover { border-color: var(--al-bronze); background: rgba(138,106,58,0.04); }
+  .prg-subtype.is-selected {
+    background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink);
+    box-shadow: 0 4px 12px rgba(20,17,13,0.20);
+  }
+  .prg-subtype input { display: none; }
+  .prg-subtype-name { flex: 1; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+  .prg-subtype-check { font-size: 14px; opacity: 0.4; }
+  .prg-subtype.is-selected .prg-subtype-check { opacity: 1; color: var(--al-bronze-light, #c8a774); }
+
+  /* Existing rule cards in list mode */
+  .prg-rule-card {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 12px 14px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    transition: border-color 140ms var(--al-ease);
+  }
+  .prg-rule-card:hover { border-color: var(--al-bronze); }
+  .prg-rule-card-title {
+    font-family: var(--al-display); font-size: 15px; font-weight: 600;
+    margin: 0 0 3px; color: var(--al-ink);
+  }
+  .prg-rule-card-sub { font-size: 11.5px; color: var(--al-ink-mute); margin: 0; line-height: 1.4; }
+
+  /* Preview strip refined */
+  .prg-preview-strip {
+    display: grid; gap: 5px;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  }
+  .prg-preview-cell {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    padding: 6px 4px;
+    text-align: center; min-height: 50px;
+    font-variant-numeric: tabular-nums;
+  }
+  .prg-preview-cell.is-active {
+    border-color: var(--al-ink); box-shadow: inset 0 0 0 1px var(--al-ink);
+  }
+  .prg-preview-cell.is-deload {
+    background: rgba(28,74,82,0.08); border-color: var(--al-aegean, #1c4a52);
+  }
+  .prg-preview-w {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--al-ink-mute); margin: 0;
+  }
+  .prg-preview-v { font-size: 12px; font-weight: 600; margin: 2px 0 0; line-height: 1.15; color: var(--al-ink); }
 </style>
 
 <div x-data="workoutWizard" x-init="init()" x-cloak>
@@ -848,227 +1143,232 @@
     </div>
   </div>
 
-  <!-- ==================== STEP 3 — PROGRESSIONE ==================== -->
-  <section x-show="step === 3" x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end" class="max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
-    <div class="al-card">
-      <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
-        <div>
-          <h2 class="al-h-3">Progressione</h2>
-          <p class="al-small" style="color: var(--al-ink-faint);">
-            Definisci come evolvono carico, volume e intensità lungo le <span x-text="plan.duration_weeks"></span> settimane del blocco.
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="al-tag" x-text="progression.rules.length + ' regole attive'"></span>
-          <template x-if="progression.conflicts && progression.conflicts.length">
-            <span class="al-badge al-badge-danger" x-text="progression.conflicts.length + ' conflitti'"></span>
-          </template>
-        </div>
-      </div>
+  <!-- ==================== STEP 3 — PROGRESSIONE (REDESIGN) ==================== -->
+  <section x-show="step === 3"
+           x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end"
+           class="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
 
-      <!-- Week selector -->
-      <div class="flex items-center gap-1 flex-wrap mb-4 pb-3 border-b" style="border-color: var(--al-rule-faint);">
-        <template x-for="w in weekNumbers()" :key="w">
-          <button type="button"
-                  class="prog-week-pill"
-                  :class="{ 'is-active': progUi.activeWeek === w }"
-                  @click="progUi.activeWeek = w">
-            <span x-text="'S' + w"></span>
-          </button>
+    <!-- Hero -->
+    <div class="prg-hero">
+      <div style="position: relative; z-index: 1;">
+        <p class="al-eyebrow" style="margin-bottom: 4px;">Step 3</p>
+        <h2 class="prg-title">Progressione <span class="al-display-i">settimanale</span></h2>
+        <p class="prg-sub">Modella carico, volume e intensità lungo le <strong x-text="plan.duration_weeks"></strong> settimane del blocco. Ogni regola si aggiorna in tempo reale sul grafico e sulle anteprime.</p>
+      </div>
+      <div class="prg-hero-meta">
+        <span class="prg-meta-pill"><i class="ph ph-lightning"></i> <span x-text="progression.rules.length"></span> regole</span>
+        <template x-if="progression.conflicts && progression.conflicts.length">
+          <span class="prg-meta-pill prg-meta-danger"><i class="ph ph-warning"></i> <span x-text="progression.conflicts.length"></span> conflitti</span>
         </template>
-      </div>
-
-      <!-- Analytics: per-week stats + multi-week bar chart -->
-      <div class="prog-analytics mb-4">
-        <div class="prog-analytics-stats">
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">Settimana</p>
-            <p class="prog-stat-v">S<span x-text="progUi.activeWeek"></span></p>
-          </div>
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">Esercizi</p>
-            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).exercises"></p>
-          </div>
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">Serie totali</p>
-            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).sets"></p>
-          </div>
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">Volume (set×rep)</p>
-            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).volume"></p>
-          </div>
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">Carico (kg)</p>
-            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).tonnage"></p>
-          </div>
-          <div class="prog-stat">
-            <p class="al-eyebrow mb-0">RPE medio</p>
-            <p class="prog-stat-v" x-text="weekStats(progUi.activeWeek).avg_rpe || '—'"></p>
-          </div>
-        </div>
-
-        <div class="prog-chart-header">
-          <p class="al-eyebrow mb-0">Andamento settimanale</p>
-          <div class="flex items-center gap-1">
-            <button type="button" class="al-btn al-btn-sm"
-                    :class="progUi.chartMetric === 'volume' ? 'al-btn-bronze' : 'al-btn-ghost'"
-                    @click="progUi.chartMetric = 'volume'">Volume</button>
-            <button type="button" class="al-btn al-btn-sm"
-                    :class="progUi.chartMetric === 'tonnage' ? 'al-btn-bronze' : 'al-btn-ghost'"
-                    @click="progUi.chartMetric = 'tonnage'">Carico</button>
-            <button type="button" class="al-btn al-btn-sm"
-                    :class="progUi.chartMetric === 'intensity' ? 'al-btn-bronze' : 'al-btn-ghost'"
-                    @click="progUi.chartMetric = 'intensity'">Intensità</button>
-          </div>
-        </div>
-        <div class="prog-chart">
-          <template x-for="w in weekNumbers()" :key="w">
-            <div class="prog-chart-col"
-                 :class="{ 'is-active': progUi.activeWeek === w }"
-                 @click="progUi.activeWeek = w">
-              <div class="prog-chart-bar-wrap">
-                <div class="prog-chart-bar"
-                     :style="'height: ' + chartBarPct(progUi.chartMetric, w) + '%'"></div>
-              </div>
-              <p class="prog-chart-val" x-text="chartLabelFor(progUi.chartMetric, w)"></p>
-              <p class="prog-chart-w">S<span x-text="w"></span></p>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- Day accordion -->
-      <div class="space-y-3">
-        <template x-for="(d, dIdx) in plan.days" :key="d.local_id">
-          <div class="border rounded" style="border-color: var(--al-rule-faint);">
-            <button type="button"
-                    @click="toggleDayOpen(d.local_id)"
-                    class="w-full px-3 py-2 flex items-center justify-between"
-                    style="background: var(--al-stone);">
-              <span class="font-semibold" x-text="d.name + ' · ' + d.exercises.length + ' esercizi'"></span>
-              <i class="ph" :class="dayOpen(d.local_id) ? 'ph-caret-up' : 'ph-caret-down'"></i>
-            </button>
-            <div x-show="dayOpen(d.local_id)" class="p-3 space-y-2">
-              <template x-for="ex in d.exercises" :key="ex.local_id">
-                <div class="prog-ex-row">
-                  <div class="flex items-start justify-between gap-3 flex-wrap">
-                    <div class="flex-1 min-w-0">
-                      <p class="font-semibold" x-text="ex.exercise_name"></p>
-                      <p class="al-small" style="color: var(--al-ink-faint);">
-                        Base: <span x-text="ex.sets + '×' + ex.reps"></span>
-                        <template x-if="ex.load_value"> · <span x-text="ex.load_value + ' ' + (ex.load_unit==='KG'?'kg':ex.load_unit==='PERCENT_1RM'?'%':'BW')"></span></template>
-                        <template x-if="ex.rpe"> · RPE <span x-text="ex.rpe"></span></template>
-                        · <span x-text="ex.recovery_seconds + 's'"></span>
-                      </p>
-                      <p class="al-small mt-1">
-                        <strong>S<span x-text="progUi.activeWeek"></span>:</strong>
-                        <span x-text="formatCell(ex, progUi.activeWeek)"
-                              :class="{'prog-cell-override': cellIsOverride(ex, progUi.activeWeek)}"></span>
-                      </p>
-                      <div class="flex flex-wrap gap-1 mt-2">
-                        <template x-for="r in rulesForExercise(ex)" :key="r.id || r._local_id">
-                          <span class="prog-rule-chip" :title="ruleSummary(r)">
-                            <i class="ph ph-lightning"></i>
-                            <span x-text="ruleChipLabel(r)"></span>
-                          </span>
-                        </template>
-                        <template x-if="rulesForExercise(ex).length === 0">
-                          <span class="al-small italic" style="color: var(--al-ink-faint);">Nessuna progressione</span>
-                        </template>
-                      </div>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                      <button type="button" @click="openProgressionDrawer(ex)"
-                              class="al-btn al-btn-sm"
-                              :class="rulesForExercise(ex).length ? 'al-btn-ghost' : 'al-btn-bronze'">
-                        <i class="ph" :class="rulesForExercise(ex).length ? 'ph-pencil-simple' : 'ph-plus'"></i>
-                        <span x-text="rulesForExercise(ex).length ? 'Modifica' : 'Aggiungi'"></span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-              <template x-if="d.exercises.length === 0">
-                <p class="al-small italic" style="color: var(--al-ink-faint);">Giorno vuoto. Torna al builder per aggiungere esercizi.</p>
-              </template>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Step 3 nav -->
-      <div class="flex justify-between gap-3 mt-4 pt-3 border-t" style="border-color: var(--al-rule-faint);">
-        <button @click="goPrev()" type="button" class="al-btn al-btn-ghost">
-          <i class="ph ph-arrow-left"></i> Indietro al builder
-        </button>
-        <button @click="goNext()" type="button" class="al-btn al-btn-bronze">
-          Avanti — Riepilogo <i class="ph ph-arrow-right"></i>
-        </button>
       </div>
     </div>
 
-    <!-- Progression drawer -->
+    <!-- Week strip -->
+    <div class="prg-week-strip">
+      <template x-for="w in weekNumbers()" :key="w">
+        <button type="button" class="prg-week"
+                :class="{ 'is-active': progUi.activeWeek === w }"
+                @click="progUi.activeWeek = w">
+          <span class="prg-week-lab">Sett</span>
+          <span class="prg-week-num" x-text="w"></span>
+        </button>
+      </template>
+    </div>
+
+    <!-- Chart card -->
+    <div class="prg-card">
+      <div class="prg-card-head">
+        <div>
+          <p class="al-eyebrow" style="margin-bottom: 2px;">Andamento</p>
+          <h3 class="prg-card-title">
+            <span x-show="progUi.chartMetric === 'volume'">Volume per settimana</span>
+            <span x-show="progUi.chartMetric === 'tonnage'">Carico per settimana</span>
+            <span x-show="progUi.chartMetric === 'intensity'">Intensità per settimana</span>
+          </h3>
+        </div>
+        <div class="prg-controls">
+          <div class="prg-segctl" role="tablist" aria-label="Metrica">
+            <button type="button" :class="{'is-active': progUi.chartMetric === 'volume'}" @click="setProgMetric('volume')">
+              <i class="ph ph-stack"></i> Volume
+            </button>
+            <button type="button" :class="{'is-active': progUi.chartMetric === 'tonnage'}" @click="setProgMetric('tonnage')">
+              <i class="ph ph-barbell"></i> Carico
+            </button>
+            <button type="button" :class="{'is-active': progUi.chartMetric === 'intensity'}" @click="setProgMetric('intensity')">
+              <i class="ph ph-flame"></i> Intensità
+            </button>
+          </div>
+          <div class="prg-segctl" role="tablist" aria-label="Tipo grafico">
+            <button type="button" :class="{'is-active': progUi.chartType === 'histogram'}" @click="setProgChartType('histogram')" title="Istogramma" aria-label="Istogramma">
+              <i class="ph ph-chart-bar"></i>
+            </button>
+            <button type="button" :class="{'is-active': progUi.chartType === 'line'}" @click="setProgChartType('line')" title="Linea" aria-label="Linea">
+              <i class="ph ph-chart-line"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="prg-chart-wrap">
+        <canvas x-init="mountProgChart($el)"></canvas>
+      </div>
+    </div>
+
+    <!-- Day accordion -->
+    <div class="prg-days">
+      <template x-for="(d, dIdx) in plan.days" :key="d.local_id">
+        <article class="prg-day">
+          <button type="button" class="prg-day-head" @click="toggleDayOpen(d.local_id)">
+            <span class="prg-day-num" x-text="dIdx + 1"></span>
+            <span class="prg-day-info">
+              <span class="prg-day-name" x-text="d.name"></span>
+              <span class="prg-day-meta">
+                <span x-text="d.exercises.length"></span> esercizi
+                <span class="prg-day-dot">·</span>
+                <span x-text="dayRulesCount(d)"></span> regole
+              </span>
+            </span>
+            <i class="ph prg-day-chev" :class="dayOpen(d.local_id) ? 'ph-caret-up' : 'ph-caret-down'"></i>
+          </button>
+          <div x-show="dayOpen(d.local_id)" x-collapse class="prg-day-body">
+            <template x-for="ex in d.exercises" :key="ex.local_id">
+              <div class="prg-ex">
+                <div class="prg-ex-head">
+                  <div class="prg-ex-main">
+                    <h4 class="prg-ex-name" x-text="ex.exercise_name"></h4>
+                    <div class="prg-ex-base">
+                      <span class="prg-base-chip"><span class="key">Base</span> <span x-text="ex.sets + '×' + ex.reps"></span></span>
+                      <template x-if="ex.load_value">
+                        <span class="prg-base-chip"><span class="key">Carico</span> <span x-text="ex.load_value + ' ' + (ex.load_unit==='KG'?'kg':ex.load_unit==='PERCENT_1RM'?'%':'BW')"></span></span>
+                      </template>
+                      <template x-if="ex.rpe">
+                        <span class="prg-base-chip"><span class="key">RPE</span> <span x-text="ex.rpe"></span></span>
+                      </template>
+                      <span class="prg-base-chip"><span class="key">Rec</span> <span x-text="ex.recovery_seconds + 's'"></span></span>
+                    </div>
+                  </div>
+                  <button type="button" @click="openProgressionDrawer(ex)" class="prg-add-btn" :class="{ 'is-edit': rulesForExercise(ex).length }">
+                    <i class="ph" :class="rulesForExercise(ex).length ? 'ph-pencil-simple' : 'ph-plus'"></i>
+                    <span x-text="rulesForExercise(ex).length ? 'Modifica' : 'Aggiungi'"></span>
+                  </button>
+                </div>
+
+                <span class="prg-ex-week">
+                  <span class="prg-ex-week-key">S<span x-text="progUi.activeWeek"></span></span>
+                  <span class="prg-ex-week-v" :class="{'is-override': cellIsOverride(ex, progUi.activeWeek)}" x-text="formatCell(ex, progUi.activeWeek)"></span>
+                </span>
+
+                <template x-if="rulesForExercise(ex).length">
+                  <div class="prg-ex-rules">
+                    <template x-for="r in rulesForExercise(ex)" :key="r.id || r._local_id">
+                      <span class="prg-rule" :title="ruleSummary(r)">
+                        <i class="ph ph-lightning"></i> <span x-text="ruleChipLabel(r)"></span>
+                      </span>
+                    </template>
+                  </div>
+                </template>
+                <p class="prg-ex-empty" x-show="!rulesForExercise(ex).length">Nessuna progressione · valori base per tutte le settimane</p>
+              </div>
+            </template>
+            <p class="prg-day-empty" x-show="d.exercises.length === 0">Giorno vuoto. Torna al builder per aggiungere esercizi.</p>
+          </div>
+        </article>
+      </template>
+    </div>
+
+    <!-- Nav -->
+    <div class="prg-nav">
+      <button @click="goPrev()" type="button" class="al-btn al-btn-ghost">
+        <i class="ph ph-arrow-left"></i> Indietro al builder
+      </button>
+      <button @click="goNext()" type="button" class="al-btn al-btn-bronze">
+        Avanti — Riepilogo <i class="ph ph-arrow-right"></i>
+      </button>
+    </div>
+
+    <!-- ====================== PROGRESSION DRAWER (REDESIGN) ====================== -->
     <div class="wiz-drawer-backdrop" :class="{open: progUi.drawerOpen}" @click="closeProgressionDrawer()"></div>
     <div class="wiz-drawer" :class="{open: progUi.drawerOpen}">
-      <div class="p-5" x-show="progUi.drawerOpen">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <p class="al-eyebrow mb-0">Progressione</p>
-            <h3 class="al-h-3" x-text="progUi.activeExercise ? progUi.activeExercise.exercise_name : ''"></h3>
-          </div>
-          <button @click="closeProgressionDrawer()" class="al-btn-icon al-btn-ghost"><i class="ph ph-x"></i></button>
-        </div>
 
-        <!-- Mode: list -->
-        <div x-show="progUi.drawerMode === 'list'" class="space-y-3">
-          <p class="al-eyebrow" x-text="'Progressioni attive (' + (progUi.activeExercise ? rulesForExercise(progUi.activeExercise).length : 0) + ')'"></p>
-          <template x-for="r in (progUi.activeExercise ? rulesForExercise(progUi.activeExercise) : [])" :key="r.id || r._local_id">
-            <div class="border rounded p-3" style="border-color: var(--al-rule-faint);">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <p class="font-semibold" x-text="ruleChipLabel(r)"></p>
-                  <p class="al-small" style="color: var(--al-ink-faint);" x-text="ruleSummary(r)"></p>
+      <!-- Sticky header -->
+      <div class="prg-drawer-head" x-show="progUi.drawerOpen">
+        <div style="min-width: 0; flex: 1;">
+          <p class="al-eyebrow" style="margin-bottom: 4px;">Progressione esercizio</p>
+          <h3 x-text="progUi.activeExercise ? progUi.activeExercise.exercise_name : ''"></h3>
+          <template x-if="progUi.activeExercise">
+            <p style="margin-top: 4px; font-size: 11.5px; color: var(--al-ink-mute);">
+              Base
+              <span x-text="progUi.activeExercise.sets + '×' + progUi.activeExercise.reps"></span>
+              <template x-if="progUi.activeExercise.load_value">
+                <span> · <span x-text="progUi.activeExercise.load_value + ' ' + (progUi.activeExercise.load_unit==='KG'?'kg':progUi.activeExercise.load_unit==='PERCENT_1RM'?'%':'BW')"></span></span>
+              </template>
+              <template x-if="progUi.activeExercise.rpe">
+                <span> · RPE <span x-text="progUi.activeExercise.rpe"></span></span>
+              </template>
+            </p>
+          </template>
+        </div>
+        <button @click="closeProgressionDrawer()" class="al-btn-icon al-btn-ghost" aria-label="Chiudi">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="prg-drawer-body" x-show="progUi.drawerOpen">
+
+        <!-- ============ Mode: LIST ============ -->
+        <div x-show="progUi.drawerMode === 'list'" class="space-y-4">
+          <div class="prg-section">
+            <p class="prg-section-label">
+              Progressioni attive
+              <span style="color: var(--al-ink-mute); font-weight: 600;" x-text="'(' + (progUi.activeExercise ? rulesForExercise(progUi.activeExercise).length : 0) + ')'"></span>
+            </p>
+            <template x-for="r in (progUi.activeExercise ? rulesForExercise(progUi.activeExercise) : [])" :key="r.id || r._local_id">
+              <div class="prg-rule-card">
+                <div style="flex: 1; min-width: 0;">
+                  <p class="prg-rule-card-title" x-text="ruleChipLabel(r)"></p>
+                  <p class="prg-rule-card-sub" x-text="ruleSummary(r)"></p>
                 </div>
-                <div class="flex items-center gap-1">
-                  <button type="button" @click="startEditRule(r)" class="al-btn-icon al-btn-ghost"><i class="ph ph-pencil-simple"></i></button>
-                  <button type="button" @click="removeRule(r)" class="al-btn-icon al-btn-ghost"><i class="ph ph-trash" style="color: #b91c1c;"></i></button>
+                <div class="flex items-center gap-1" style="flex-shrink: 0;">
+                  <button type="button" @click="startEditRule(r)" class="al-btn-icon al-btn-ghost" title="Modifica"><i class="ph ph-pencil-simple"></i></button>
+                  <button type="button" @click="removeRule(r)" class="al-btn-icon al-btn-ghost" title="Elimina"><i class="ph ph-trash" style="color: #b91c1c;"></i></button>
                 </div>
               </div>
-            </div>
-          </template>
-          <template x-if="progUi.activeExercise && rulesForExercise(progUi.activeExercise).length === 0">
-            <p class="al-small italic" style="color: var(--al-ink-faint);">Nessuna progressione su questo esercizio. La scheda usa i valori base per tutte le settimane.</p>
-          </template>
+            </template>
+            <template x-if="progUi.activeExercise && rulesForExercise(progUi.activeExercise).length === 0">
+              <p style="padding: 18px; text-align: center; font-size: 12.5px; font-style: italic; color: var(--al-ink-mute); background: var(--al-marble); border: 1px dashed var(--al-rule); border-radius: var(--al-r-sm);">
+                Nessuna progressione su questo esercizio.<br>La scheda usa i valori base per tutte le settimane.
+              </p>
+            </template>
+          </div>
 
           <button type="button" @click="startAddRule()" class="al-btn al-btn-bronze w-full">
             <i class="ph ph-plus"></i> Aggiungi progressione
           </button>
 
-          <!-- Preview strip -->
-          <div class="mt-4 pt-4 border-t" style="border-color: var(--al-rule-faint);">
-            <p class="al-eyebrow mb-2">Preview settimane</p>
-            <div class="prog-preview-strip">
+          <div class="prg-section">
+            <p class="prg-section-label">Preview settimane</p>
+            <div class="prg-preview-strip">
               <template x-for="w in weekNumbers()" :key="w">
-                <div class="prog-preview-cell" :class="{
+                <div class="prg-preview-cell" :class="{
                        'is-active': progUi.activeWeek === w,
                        'is-deload': weekTypeOf(w) === 'DELOAD' || (progUi.activeExercise && computedCell(progUi.activeExercise, w).is_deload),
                      }">
-                  <p class="prog-preview-w">S<span x-text="w"></span></p>
-                  <p class="prog-preview-v" x-text="progUi.activeExercise ? formatCell(progUi.activeExercise, w) : '—'"></p>
+                  <p class="prg-preview-w">S<span x-text="w"></span></p>
+                  <p class="prg-preview-v" x-text="progUi.activeExercise ? formatCell(progUi.activeExercise, w) : '—'"></p>
                 </div>
               </template>
             </div>
           </div>
         </div>
 
-        <!-- Mode: edit/add -->
+        <!-- ============ Mode: EDIT / ADD ============ -->
         <div x-show="progUi.drawerMode === 'edit' || progUi.drawerMode === 'add'" class="space-y-4">
-          <button type="button" @click="progUi.drawerMode = 'list'" class="al-btn al-btn-ghost al-btn-sm">
-            <i class="ph ph-arrow-left"></i> Indietro
+
+          <button type="button" @click="progUi.drawerMode = 'list'" class="al-btn al-btn-ghost al-btn-sm" style="align-self: flex-start;">
+            <i class="ph ph-arrow-left"></i> Torna alle progressioni
           </button>
 
-          <div>
-            <label class="al-label">Famiglia</label>
+          <div class="prg-section">
+            <p class="prg-section-label">1 · Famiglia</p>
             <select class="al-select w-full"
                     x-model="draftRule.family"
                     @change="pickFamily(draftRule.family)">
@@ -1082,25 +1382,24 @@
             </select>
           </div>
 
-          <div x-show="draftRule.family">
-            <label class="al-label">Sottotipo</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="prg-section" x-show="draftRule.family">
+            <p class="prg-section-label">2 · Sottotipo</p>
+            <div class="prg-subtype-grid">
               <template x-for="s in subtypesFor(draftRule.family)" :key="s.value">
-                <label class="flex items-center gap-2 p-2 border rounded cursor-pointer"
-                       :class="draftRule.subtype === s.value ? 'border-bronze' : ''"
-                       :style="draftRule.subtype === s.value ? 'background: var(--al-stone); border-color: var(--al-bronze);' : 'border-color: var(--al-rule-faint);'">
+                <label class="prg-subtype" :class="{ 'is-selected': draftRule.subtype === s.value }">
                   <input type="radio" :value="s.value" :name="'subtype-' + (progUi.activeExercise ? progUi.activeExercise.local_id : 'x')"
                          :checked="draftRule.subtype === s.value"
                          @change="pickSubtype(s.value)">
-                  <span class="al-small" x-text="s.label"></span>
+                  <span class="prg-subtype-name" x-text="s.label"></span>
+                  <i class="ph prg-subtype-check" :class="draftRule.subtype === s.value ? 'ph-check-circle-fill' : 'ph-circle'"></i>
                 </label>
               </template>
             </div>
           </div>
 
           <!-- Parameter forms (dynamic per subtype) -->
-          <div x-show="draftRule.subtype" class="space-y-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
-            <label class="al-label">Parametri</label>
+          <div x-show="draftRule.subtype" class="prg-section">
+            <p class="prg-section-label">3 · Parametri</p>
 
             <!-- LOAD_LINEAR / LOAD_MICRO -->
             <template x-if="draftRule.subtype === 'LOAD_LINEAR' || draftRule.subtype === 'LOAD_MICRO'">
@@ -1276,39 +1575,44 @@
               </div>
             </template>
 
-            <!-- Window -->
-            <div class="grid grid-cols-2 gap-2 pt-3 border-t" style="border-color: var(--al-rule-faint);">
+          </div>
+
+          <!-- Window -->
+          <div x-show="draftRule.subtype" class="prg-section">
+            <p class="prg-section-label">4 · Finestra di applicazione</p>
+            <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="al-small">Settimana inizio</label>
                 <input type="number" min="1" :max="plan.duration_weeks" class="al-input" x-model.number="draftRule.start_week" @input="paramChanged()">
               </div>
               <div>
-                <label class="al-small">Settimana fine (vuoto = fino alla fine)</label>
+                <label class="al-small">Settimana fine <span style="color: var(--al-ink-mute);">(vuoto = fine blocco)</span></label>
                 <input type="number" min="1" :max="plan.duration_weeks" class="al-input" :value="draftRule.end_week || ''" @input="draftRule.end_week = $event.target.value ? Number($event.target.value) : null; paramChanged()">
               </div>
             </div>
+          </div>
 
-            <!-- Preview -->
-            <div class="pt-3 border-t" style="border-color: var(--al-rule-faint);">
-              <p class="al-eyebrow mb-2">Preview live</p>
-              <div class="prog-preview-strip">
-                <template x-for="w in weekNumbers()" :key="w">
-                  <div class="prog-preview-cell">
-                    <p class="prog-preview-w">S<span x-text="w"></span></p>
-                    <p class="prog-preview-v" x-text="previewCell(w)"></p>
-                  </div>
-                </template>
-              </div>
+          <!-- Preview live -->
+          <div x-show="draftRule.subtype" class="prg-section">
+            <p class="prg-section-label">Preview live</p>
+            <div class="prg-preview-strip">
+              <template x-for="w in weekNumbers()" :key="w">
+                <div class="prg-preview-cell">
+                  <p class="prg-preview-w">S<span x-text="w"></span></p>
+                  <p class="prg-preview-v" x-text="previewCell(w)"></p>
+                </div>
+              </template>
             </div>
           </div>
-
-          <div class="flex justify-end gap-2 pt-3 border-t" style="border-color: var(--al-rule-faint);">
-            <button type="button" @click="cancelDraftRule()" class="al-btn al-btn-ghost">Annulla</button>
-            <button type="button" @click="saveDraftRule()" :disabled="!canSaveDraftRule()" class="al-btn al-btn-bronze">
-              <i class="ph ph-check"></i> Salva
-            </button>
-          </div>
         </div>
+      </div>
+
+      <!-- Sticky footer (only in edit/add mode) -->
+      <div class="prg-drawer-foot" x-show="progUi.drawerOpen && (progUi.drawerMode === 'edit' || progUi.drawerMode === 'add')">
+        <button type="button" @click="cancelDraftRule()" class="al-btn al-btn-ghost">Annulla</button>
+        <button type="button" @click="saveDraftRule()" :disabled="!canSaveDraftRule()" class="al-btn al-btn-bronze">
+          <i class="ph ph-check"></i> Salva progressione
+        </button>
       </div>
     </div>
   </section>
