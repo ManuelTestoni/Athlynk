@@ -1,6 +1,85 @@
 from django.db import models
 from django.utils import timezone
 
+
+# ---------------------------------------------------------------------------
+# Taxonomy: Sport + MuscleGroup
+# ---------------------------------------------------------------------------
+
+class Sport(models.Model):
+    REGION_CHOICES = [
+        ('FORCE', 'Forza'),
+        ('TEAM', 'Squadra'),
+        ('ENDURANCE', 'Endurance'),
+        ('COMBAT', 'Combattimento'),
+        ('RACKET', 'Racchetta'),
+        ('OTHER', 'Altro'),
+    ]
+    name = models.CharField(max_length=80, unique=True)
+    slug = models.SlugField(max_length=80, unique=True)
+    icon = models.CharField(max_length=60, blank=True, default='')  # phosphor icon name
+    category = models.CharField(max_length=20, choices=REGION_CHOICES, default='OTHER')
+    order = models.PositiveSmallIntegerField(default=0)
+    is_system = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        'accounts.CoachProfile', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='sports_created',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class MuscleGroup(models.Model):
+    REGION_UPPER = 'UPPER'
+    REGION_LOWER = 'LOWER'
+    REGION_CORE = 'CORE'
+    REGION_CHOICES = [
+        (REGION_UPPER, 'Parte superiore'),
+        (REGION_LOWER, 'Parte inferiore'),
+        (REGION_CORE, 'Core'),
+    ]
+    name = models.CharField(max_length=60, unique=True)
+    slug = models.SlugField(max_length=60, unique=True)
+    region = models.CharField(max_length=10, choices=REGION_CHOICES, default=REGION_UPPER)
+    color_token = models.CharField(max_length=30, blank=True, default='')  # mg-chest, etc.
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['region', 'order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+# ---------------------------------------------------------------------------
+# Folders (per-coach, optional)
+# ---------------------------------------------------------------------------
+
+class WorkoutFolder(models.Model):
+    coach = models.ForeignKey(
+        'accounts.CoachProfile', on_delete=models.CASCADE,
+        related_name='workout_folders',
+    )
+    title = models.CharField(max_length=120)
+    label_text = models.CharField(max_length=40, blank=True, default='')
+    label_color = models.CharField(max_length=20, blank=True, default='')  # token slug: bronze|aegean|amber|emerald|...
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'title']
+        unique_together = [('coach', 'title')]
+
+    def __str__(self):
+        return f"{self.title} ({self.coach_id})"
+
+
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
@@ -14,6 +93,17 @@ class Exercise(models.Model):
     movement_pattern_2 = models.CharField(max_length=100, null=True, blank=True)
     body_region = models.CharField(max_length=50, null=True, blank=True)
     exercise_classification = models.CharField(max_length=100, null=True, blank=True)
+    # New normalized taxonomy
+    sports = models.ManyToManyField(Sport, blank=True, related_name='exercises')
+    primary_muscles = models.ManyToManyField(MuscleGroup, blank=True, related_name='exercises_primary')
+    secondary_muscles = models.ManyToManyField(MuscleGroup, blank=True, related_name='exercises_secondary')
+    is_custom = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        'accounts.CoachProfile', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='custom_exercises',
+    )
+    cover_image = models.ImageField(upload_to='exercises/covers/', null=True, blank=True)
+    coach_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,6 +120,13 @@ class WorkoutPlan(models.Model):
         (STATUS_ACTIVE, 'Attiva'),
     ]
 
+    KIND_WEEKLY = 'WEEKLY'
+    KIND_PROGRAM = 'PROGRAM'
+    KIND_CHOICES = [
+        (KIND_WEEKLY, 'Scheda settimanale'),
+        (KIND_PROGRAM, 'Programmazione'),
+    ]
+
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='workout_plans')
     title = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
@@ -40,6 +137,15 @@ class WorkoutPlan(models.Model):
     frequency_per_week = models.IntegerField(null=True, blank=True)
     duration_weeks = models.IntegerField(null=True, blank=True)
     last_step = models.IntegerField(default=1)
+    folder = models.ForeignKey(
+        WorkoutFolder, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='plans',
+    )
+    sport = models.ForeignKey(
+        Sport, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='plans',
+    )
+    plan_kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_WEEKLY)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

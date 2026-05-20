@@ -1,0 +1,204 @@
+{% comment %}
+Volume Analytics Drawer · reusable slide-over.
+Listens on the global `volume-analytics:open` event for payload:
+  { planKind, durationWeeks, days: [{exercises:[...]}] }
+{% endcomment %}
+<div x-data="volumeAnalytics()"
+     id="athlynk-volume-root"
+     style="position: relative; z-index: 80;">
+
+  <!-- Backdrop -->
+  <div class="va-backdrop"
+       :class="{ 'is-open': isOpen }"
+       @click="close()"
+       x-cloak></div>
+
+  <!-- Drawer panel -->
+  <aside class="va-drawer"
+         :class="{ 'is-open': isOpen }"
+         x-cloak
+         role="dialog"
+         aria-label="Volume d'allenamento">
+
+    <header class="va-header">
+      <div>
+        <p class="al-eyebrow mb-1">Analisi volume</p>
+        <h3>Volume d'allenamento</h3>
+        <p>Serie per gruppo muscolare · Primario × 1.0 · Secondario × 0.5</p>
+      </div>
+      <button type="button"
+              class="al-btn-icon al-btn-ghost"
+              @click.stop="close()"
+              aria-label="Chiudi"
+              title="Chiudi">
+        <i class="ph ph-x"></i>
+      </button>
+    </header>
+
+    <div class="va-body">
+
+      <!-- Chart switcher + secondary toggle -->
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="va-segctl" role="tablist" aria-label="Tipo grafico">
+          <button type="button" :class="{ 'is-active': chartType === 'histogram' }" @click="setChartType('histogram')">
+            <i class="ph ph-chart-bar"></i> Istogramma
+          </button>
+          <button type="button" :class="{ 'is-active': chartType === 'line' }" @click="setChartType('line')">
+            <i class="ph ph-chart-line"></i> Linea
+          </button>
+          <button type="button" :class="{ 'is-active': chartType === 'radar' }" @click="setChartType('radar')">
+            <i class="ph ph-chart-polar"></i> Radar
+          </button>
+        </div>
+
+        <label class="va-secondary-toggle">
+          <input type="checkbox" :checked="showSecondary" @change="setShowSecondary($event.target.checked)">
+          Mostra secondari (×0.5)
+        </label>
+      </div>
+
+      <!-- Empty state -->
+      <template x-if="!hasData()">
+        <div class="va-chart-empty">
+          <i class="ph ph-chart-bar" style="font-size: 32px; opacity: 0.4;"></i>
+          <p class="mt-2">Aggiungi esercizi al builder per vedere il volume.</p>
+        </div>
+      </template>
+
+      <!-- Filters + chart (only if data) -->
+      <template x-if="hasData()">
+        <div class="flex flex-col gap-4">
+
+          <!-- Week filter (PROGRAM only or if >1 week) -->
+          <template x-if="durationWeeks > 1">
+            <div class="va-filter-row">
+              <div class="flex justify-between items-center">
+                <span class="va-filter-label">Settimane</span>
+                <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllWeeks()">Tutte</button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="w in Array.from({length: durationWeeks}, (_, i) => i + 1)" :key="w">
+                  <button type="button" class="va-chip va-chip-week"
+                          :class="{ 'is-active': weeksSelected.includes(w) }"
+                          @click="toggleWeek(w)">
+                    <span x-text="'S' + w"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Muscle filter -->
+          <div class="va-filter-row">
+            <div class="flex justify-between items-center">
+              <span class="va-filter-label">Gruppi muscolari</span>
+              <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllGroups()">Tutti</button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="g in computedGroups" :key="g.slug">
+                <button type="button" class="va-chip"
+                        :class="{ 'is-active': groupsSelected.includes(g.slug) }"
+                        :style="groupsSelected.includes(g.slug) ? 'background:' + groupColor(g) + '; color: var(--al-parchment); border-color:' + groupColor(g) + ';' : ''"
+                        @click="toggleGroup(g.slug)"
+                        x-text="g.name"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Radar overflow warnings -->
+          <template x-if="chartType === 'radar' && activeGroups().length > 8">
+            <div class="va-info-banner">
+              Il radar è più leggibile con max 8 gruppi muscolari. Considera di filtrare.
+            </div>
+          </template>
+          <template x-if="chartType === 'radar' && weeksSelected.length > 4">
+            <div class="va-info-banner">
+              Il radar mostra al massimo 4 settimane. Le altre sono escluse temporaneamente.
+            </div>
+          </template>
+
+          <!-- Chart frame -->
+          <div class="va-chart-frame">
+            <div class="va-chart-canvas-wrap">
+              <canvas x-init="mountCanvas($el)"></canvas>
+            </div>
+
+            <!-- Legend -->
+            <div class="va-legend">
+              <!-- Histogram + Line: legend per muscle group -->
+              <template x-if="chartType === 'histogram' || chartType === 'line'">
+                <template x-for="g in activeGroups()" :key="g.slug">
+                  <span class="va-legend-item">
+                    <span class="va-legend-swatch" :style="'background:' + groupColor(g)"></span>
+                    <span x-text="g.name"></span>
+                  </span>
+                </template>
+              </template>
+              <!-- Radar: legend per week, with semi-transparent fill swatch -->
+              <template x-if="chartType === 'radar'">
+                <template x-for="(w, i) in weeksSelected.slice(0, 4)" :key="w">
+                  <span class="va-legend-item">
+                    <span class="va-legend-swatch"
+                          :style="'background:' + weekColor(i) + '; opacity: 0.55; border: 1.5px solid ' + weekColor(i) + ';'"></span>
+                    <span x-text="'Settimana ' + w"></span>
+                  </span>
+                </template>
+              </template>
+            </div>
+          </div>
+
+          <!-- Per-muscle totals (always shown) -->
+          <div class="va-diff-card">
+            <h4>
+              <i class="ph ph-list-numbers"></i>
+              Serie per gruppo muscolare
+              <span class="ml-2" style="text-transform: none; letter-spacing: 0; font-weight: 500;"
+                    x-text="weeksSelected.length === 1
+                            ? 'Settimana ' + weeksSelected[0]
+                            : 'Media ' + weeksSelected.length + ' settimane'"></span>
+            </h4>
+            <div class="va-diff-list">
+              <template x-for="g in activeGroups()" :key="g.slug">
+                <div class="va-diff-row">
+                  <span class="label">
+                    <span class="va-legend-swatch" :style="'background:' + groupColor(g) + '; display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle;'"></span>
+                    <span x-text="g.name"></span>
+                  </span>
+                  <span class="delta delta--flat"
+                        x-text="(weeksSelected.reduce((s, w) => s + groupTotalForWeek(g, w), 0) / weeksSelected.length).toFixed(1) + ' serie'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Week diff card — only meaningful for PROGRAM plans with progression -->
+          <template x-if="planKind === 'PROGRAM' && weeksSelected.length >= 2 && diffPayload() && Math.abs(diffPayload().totalDelta) > 0.01">
+            <div class="va-diff-card">
+              <h4>
+                <i class="ph ph-arrows-left-right"></i>
+                Δ S<span x-text="diffPayload().wFirst"></span> → S<span x-text="diffPayload().wLast"></span>
+                <span class="ml-2" style="text-transform: none; letter-spacing: 0; font-weight: 500;">
+                  Variazione totale:
+                  <span class="delta"
+                        :class="diffPayload().totalDelta > 0 ? 'delta--up' : (diffPayload().totalDelta < 0 ? 'delta--down' : 'delta--flat')"
+                        x-text="(diffPayload().totalDelta > 0 ? '+' : '') + diffPayload().totalDelta.toFixed(1) + ' serie'"></span>
+                </span>
+              </h4>
+              <div class="va-diff-list">
+                <template x-for="row in diffPayload().rows" :key="row.name">
+                  <div class="va-diff-row">
+                    <span class="label" x-text="row.name"></span>
+                    <span class="delta"
+                          :class="row.delta > 0 ? 'delta--up' : (row.delta < 0 ? 'delta--down' : 'delta--flat')"
+                          x-text="(row.delta > 0 ? '+' : '') + row.delta.toFixed(1)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+        </div>
+      </template>
+    </div>
+  </aside>
+</div>

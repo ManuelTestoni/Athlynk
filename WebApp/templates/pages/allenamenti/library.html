@@ -1,0 +1,622 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Libreria allenamenti{% endblock %}
+
+{% block content %}
+<script>
+  window.LIBRARY_INIT = {
+    plans: {{ plans_json|safe }},
+    folders: {{ folders_json|safe }},
+    urls: {
+      folders: "{% url 'api_workout_folders' %}",
+      folderDetail: "/api/allenamenti/cartelle/__ID__/",
+      wizardNew: "{% url 'allenamenti_wizard' %}",
+      wizardResume: "/allenamenti/wizard/__ID__/",
+      planDetail: "/allenamenti/__ID__/",
+      planSave: "{% url 'api_plan_save_new' %}",
+      planUpdateSave: "/api/allenamenti/__ID__/save/",
+      planDelete: "/api/allenamenti/__ID__/elimina/",
+    },
+  };
+  function csrfToken() {
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+  }
+</script>
+
+<div class="max-w-7xl mx-auto"
+     x-data="workoutLibrary()"
+     x-init="init()"
+     @keydown.escape.window="closeTypePicker()">
+
+  <!-- =================== HEADER =================== -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-7 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">Studio &middot; Allenamenti</p>
+      <h1 class="al-h-1">Libreria <span class="al-display-i">allenamenti</span></h1>
+      <p class="al-body mt-2">Programma, struttura e analizza le tue schede.</p>
+      <div class="al-rule-bronze mt-5"></div>
+    </div>
+    <div class="flex gap-3 items-center">
+      <button type="button"
+              class="al-btn al-btn-bronze"
+              @click="openTypePicker()">
+        <i class="ph ph-plus text-sm"></i>
+        <span>Nuova scheda</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- =================== 2-COL SHELL =================== -->
+  <div class="wb-shell">
+
+    <!-- ---------- SIDEBAR ---------- -->
+    <aside class="wb-sidebar">
+      <div class="wb-sidebar-header">
+        <h3>Cartelle</h3>
+        <button type="button"
+                class="al-btn-icon al-btn-ghost"
+                title="Nuova cartella"
+                @click="startCreateFolder()">
+          <i class="ph ph-plus"></i>
+        </button>
+      </div>
+
+      <div class="wb-folder-list">
+        <!-- All -->
+        <div class="wb-folder-item"
+             :class="{ 'is-active': selectedFolderId === 'all' }"
+             @click="selectedFolderId = 'all'">
+          <i class="ph ph-stack"></i>
+          <span>Tutte</span>
+          <span class="wb-folder-count" x-text="plans.length"></span>
+        </div>
+
+        <!-- Unfiled -->
+        <div class="wb-folder-item"
+             :class="{ 'is-active': selectedFolderId === 'unfiled', 'is-drop-target': dropTargetId === 'unfiled' }"
+             @click="selectedFolderId = 'unfiled'"
+             @dragover.prevent="dropTargetId = 'unfiled'"
+             @dragleave="dropTargetId = null"
+             @drop.prevent="dropPlanOnFolder(null)">
+          <i class="ph ph-folder-dashed"></i>
+          <span>Senza cartella</span>
+          <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
+        </div>
+
+        <!-- User folders -->
+        <template x-for="folder in folders" :key="folder.id">
+          <div class="wb-folder-item"
+               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id }"
+               @click="selectFolder(folder.id)"
+               @dragover.prevent="dropTargetId = folder.id"
+               @dragleave="dropTargetId = null"
+               @drop.prevent="dropPlanOnFolder(folder.id)">
+            <span class="wb-folder-label-dot"
+                  :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
+                  :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
+
+            <span x-show="editingFolderId !== folder.id" x-text="folder.title"
+                  @dblclick.stop="startEditFolder(folder)"></span>
+
+            <input x-show="editingFolderId === folder.id"
+                   x-ref="folderEditInput"
+                   class="wb-folder-inline-input"
+                   x-model="folderEditDraft"
+                   @blur="finishEditFolder(folder)"
+                   @keydown.enter.prevent="finishEditFolder(folder)"
+                   @keydown.escape.prevent="cancelEditFolder()"
+                   @click.stop>
+
+            <span class="wb-folder-count" x-show="editingFolderId !== folder.id" x-text="folder.plan_count"></span>
+
+            <button type="button"
+                    class="wb-folder-menu-btn"
+                    @click.stop="openFolderMenu(folder)"
+                    title="Opzioni cartella"
+                    x-show="editingFolderId !== folder.id">
+              <i class="ph ph-dots-three-vertical"></i>
+            </button>
+          </div>
+        </template>
+
+        <!-- Inline create -->
+        <div class="wb-folder-item" x-show="creatingFolder">
+          <i class="ph ph-folder-plus"></i>
+          <input x-ref="folderCreateInput"
+                 class="wb-folder-inline-input"
+                 x-model="folderCreateDraft"
+                 placeholder="Nome cartella…"
+                 @blur="finishCreateFolder()"
+                 @keydown.enter.prevent="finishCreateFolder()"
+                 @keydown.escape.prevent="cancelCreateFolder()">
+        </div>
+      </div>
+
+      <!-- Color picker popover -->
+      <template x-if="menuFolder">
+        <div class="wb-fade-in mt-3 p-3 rounded"
+             style="border: 1px solid var(--al-rule); background: var(--al-parchment);">
+          <p class="al-eyebrow mb-2">Etichetta colorata</p>
+          <input type="text" x-model="menuFolder.label_text"
+                 @change="patchFolderLabel(menuFolder)"
+                 placeholder="Es. Business"
+                 class="al-input mb-2"
+                 style="font-size: 12px; padding: 5px 8px;">
+          <div class="flex flex-wrap gap-1 mb-3">
+            <template x-for="c in availableLabelColors" :key="c">
+              <button type="button"
+                      class="wb-folder-label-dot"
+                      :class="'wb-folder-label-dot--' + c"
+                      :style="menuFolder.label_color === c ? 'outline: 2px solid var(--al-bronze); outline-offset: 2px;' : ''"
+                      :title="c"
+                      style="width: 18px; height: 18px;"
+                      @click="setFolderColor(menuFolder, c)"></button>
+            </template>
+            <button type="button" class="wb-folder-label-dot"
+                    style="width: 18px; height: 18px; background: transparent; border: 1px dashed var(--al-rule-strong);"
+                    @click="setFolderColor(menuFolder, '')"
+                    title="Senza colore"></button>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="al-btn al-btn-ghost al-btn-sm flex-1"
+                    @click="confirmDeleteFolder(menuFolder)">
+              <i class="ph ph-trash"></i> Elimina
+            </button>
+            <button type="button" class="al-btn al-btn-bronze al-btn-sm flex-1"
+                    @click="menuFolder = null">Chiudi</button>
+          </div>
+        </div>
+      </template>
+    </aside>
+
+    <!-- ---------- WORKSPACE ---------- -->
+    <main>
+      <!-- Filter bar -->
+      <div class="flex items-center gap-3 mb-5 flex-wrap">
+        <div class="al-search flex-1 min-w-[220px]">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" class="al-input" placeholder="Cerca scheda…" x-model="search">
+        </div>
+
+        <div class="al-filter" role="tablist" aria-label="Stato">
+          <template x-for="tab in statusTabs" :key="tab.key">
+            <button type="button" class="al-filter-chip"
+                    :class="{ 'is-active': statusFilter === tab.key }"
+                    @click="statusFilter = tab.key">
+              <span x-text="tab.label"></span>
+              <span class="al-filter-count" x-text="countByStatus(tab.key)"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Cards grid -->
+      <template x-if="visiblePlans().length === 0">
+        <div class="al-card al-card-warm">
+          <div class="al-empty">
+            <i class="ph ph-folder-open al-empty-icon"></i>
+            <h3 x-text="emptyTitle()"></h3>
+            <p x-text="emptyDescription()"></p>
+            <button type="button" @click="openTypePicker()" class="al-btn al-btn-bronze">
+              <i class="ph ph-plus"></i><span>Crea scheda</span>
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div class="wb-card-grid">
+        <template x-for="plan in visiblePlans()" :key="plan.id">
+          <article class="wb-card"
+                   draggable="true"
+                   @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
+                   @dragend="draggedPlanId = null; dropTargetId = null"
+                   :style="'animation-delay: ' + ($el.dataset.idx || 0) + 'ms;'"
+                   @click="window.location.href = urls.planDetail.replace('__ID__', plan.id)">
+            <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
+
+            <div class="wb-card-header">
+              <div>
+                <h3 class="wb-card-title" x-text="plan.title"></h3>
+                <p class="wb-card-meta mt-2">
+                  <span x-show="plan.sport_name" x-text="plan.sport_name"></span>
+                  <span x-show="plan.sport_name">·</span>
+                  <span x-text="plan.plan_kind === 'PROGRAM' ? plan.duration_weeks + ' settimane' : '1 settimana'"></span>
+                  <span x-show="plan.frequency_per_week">·</span>
+                  <span x-show="plan.frequency_per_week" x-text="plan.frequency_per_week + ' gg/sett'"></span>
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-1">
+                <span class="wb-kind-badge"
+                      :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
+                      x-text="plan.plan_kind === 'PROGRAM' ? 'Programma' : 'Settimana'"></span>
+                <template x-if="plan.status === 'DRAFT'">
+                  <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-pencil-simple"></i>Bozza</span>
+                </template>
+                <template x-if="plan.status === 'TEMPLATE'">
+                  <span class="al-badge" style="background:#dbeafe;color:#1e40af;font-size:9px;"><i class="ph ph-bookmark-simple"></i>Template</span>
+                </template>
+                <template x-if="plan.status === 'ACTIVE'">
+                  <span class="al-badge" style="background:#d1fae5;color:#065f46;font-size:9px;"><i class="ph ph-check-circle"></i>Attiva</span>
+                </template>
+              </div>
+            </div>
+
+            <p class="al-small" style="color: var(--al-ink-mute); line-height: 1.5;"
+               x-show="plan.description"
+               x-text="plan.description.length > 110 ? plan.description.slice(0, 110) + '…' : plan.description"></p>
+
+            <div class="wb-card-foot">
+              <span><i class="ph ph-users"></i> <span x-text="plan.assignment_count"></span> assegn.</span>
+              <span x-text="relativeTime(plan.updated_at)"></span>
+            </div>
+          </article>
+        </template>
+      </div>
+    </main>
+  </div>
+
+  <!-- =================== TYPE PICKER MODAL =================== -->
+  <div x-show="typePickerOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" style="background: rgba(20,17,13,0.45);" @click="closeTypePicker()"></div>
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 760px;">
+      <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p class="al-eyebrow">Nuova scheda</p>
+          <h2 class="al-h-3">Che tipo di scheda vuoi creare?</h2>
+        </div>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="closeTypePicker()">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="al-modal-body">
+        <div class="flex flex-col md:flex-row gap-4">
+          <button type="button" class="wb-type-card"
+                  :class="{ 'is-selected': typePickerChoice === 'PROGRAM' }"
+                  @click="typePickerChoice = 'PROGRAM'"
+                  @dblclick="confirmTypePicker()">
+            <span class="wb-type-card-icon"><i class="ph ph-stack"></i></span>
+            <h3 class="wb-type-card-title">Programmazione</h3>
+            <p class="wb-type-card-desc">Più settimane con regole di progressione. Ideale per cicli di forza, ipertrofia o periodizzazione.</p>
+            <ul class="wb-type-card-bullets">
+              <li>2–16 settimane</li>
+              <li>Regole di progressione</li>
+              <li>Comparazione volume</li>
+            </ul>
+          </button>
+          <button type="button" class="wb-type-card"
+                  :class="{ 'is-selected': typePickerChoice === 'WEEKLY' }"
+                  @click="typePickerChoice = 'WEEKLY'"
+                  @dblclick="confirmTypePicker()">
+            <span class="wb-type-card-icon"><i class="ph ph-calendar-blank"></i></span>
+            <h3 class="wb-type-card-title">Scheda settimanale</h3>
+            <p class="wb-type-card-desc">Una settimana autonoma, pronta in pochi minuti. Ideale per check rapidi o sessioni standalone.</p>
+            <ul class="wb-type-card-bullets">
+              <li>1 settimana</li>
+              <li>Senza progressione</li>
+              <li>Ideale per check rapidi</li>
+            </ul>
+          </button>
+        </div>
+      </div>
+      <div class="al-modal-foot">
+        <button type="button" class="al-btn al-btn-ghost" @click="closeTypePicker()">Annulla</button>
+        <button type="button" class="al-btn al-btn-bronze"
+                :disabled="!typePickerChoice"
+                @click="confirmTypePicker()">
+          Continua <i class="ph ph-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================== DELETE FOLDER MODAL =================== -->
+  <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" style="background: rgba(20,17,13,0.45);" @click="deleteFolderOpen = false"></div>
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
+      <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <h2 class="al-h-4">Elimina cartella</h2>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="deleteFolderOpen = false"><i class="ph ph-x"></i></button>
+      </div>
+      <div class="al-modal-body">
+        <template x-if="folderToDelete && folderToDelete.plan_count === 0">
+          <p class="al-body">Elimino la cartella «<span x-text="folderToDelete.title"></span>»?</p>
+        </template>
+        <template x-if="folderToDelete && folderToDelete.plan_count > 0">
+          <div>
+            <p class="al-body mb-3">
+              La cartella «<span x-text="folderToDelete.title"></span>» contiene <strong x-text="folderToDelete.plan_count"></strong> schede.
+              Scegli come procedere:
+            </p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                <input type="radio" value="move_to_unfiled" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small">Sposta in <strong>Senza cartella</strong></span>
+              </label>
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                <input type="radio" value="move_to" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small flex-1">
+                  Sposta in un'altra cartella:
+                  <select x-model="deleteFolderTarget" class="al-select mt-1" style="font-size: 12px; padding: 4px 6px;" @click.stop>
+                    <option value="">— Scegli —</option>
+                    <template x-for="f in folders.filter(x => x.id !== folderToDelete?.id)" :key="f.id">
+                      <option :value="f.id" x-text="f.title"></option>
+                    </template>
+                  </select>
+                </span>
+              </label>
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule); background: rgba(138,58,58,0.05);">
+                <input type="radio" value="delete_plans" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small">
+                  <strong style="color: var(--al-danger);">Elimina anche le schede</strong> (irreversibile)
+                </span>
+              </label>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="al-modal-foot">
+        <button type="button" class="al-btn al-btn-ghost" @click="deleteFolderOpen = false">Annulla</button>
+        <button type="button" class="al-btn"
+                :class="deleteFolderAction === 'delete_plans' ? 'al-btn-danger' : 'al-btn-bronze'"
+                :disabled="folderToDelete && folderToDelete.plan_count > 0 && deleteFolderAction === 'move_to' && !deleteFolderTarget"
+                @click="executeFolderDelete()">
+          Conferma
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function workoutLibrary() {
+  return {
+    /* === state === */
+    plans: window.LIBRARY_INIT.plans || [],
+    folders: window.LIBRARY_INIT.folders || [],
+    urls: window.LIBRARY_INIT.urls,
+    search: '',
+    statusFilter: 'all',
+    selectedFolderId: 'all',
+    statusTabs: [
+      { key: 'all',      label: 'Tutte' },
+      { key: 'ACTIVE',   label: 'Attive' },
+      { key: 'TEMPLATE', label: 'Template' },
+      { key: 'DRAFT',    label: 'Bozze' },
+    ],
+    availableLabelColors: ['bronze','aegean','amber','emerald','rose','violet','slate','sand','crimson','teal'],
+
+    /* drag */
+    draggedPlanId: null,
+    dropTargetId: null,
+
+    /* folder edit */
+    editingFolderId: null,
+    folderEditDraft: '',
+    creatingFolder: false,
+    folderCreateDraft: '',
+    menuFolder: null,
+
+    /* type picker */
+    typePickerOpen: false,
+    typePickerChoice: null,
+
+    /* delete folder */
+    deleteFolderOpen: false,
+    folderToDelete: null,
+    deleteFolderAction: 'move_to_unfiled',
+    deleteFolderTarget: '',
+
+    init() {},
+
+    /* === selectors === */
+    selectFolder(id) { this.selectedFolderId = id; },
+    countByStatus(key) {
+      if (key === 'all') return this.plansInFolder().length;
+      return this.plansInFolder().filter(p => p.status === key).length;
+    },
+    plansInFolder() {
+      if (this.selectedFolderId === 'all') return this.plans;
+      if (this.selectedFolderId === 'unfiled') return this.plans.filter(p => !p.folder_id);
+      return this.plans.filter(p => p.folder_id === this.selectedFolderId);
+    },
+    visiblePlans() {
+      const q = (this.search || '').toLowerCase().trim();
+      return this.plansInFolder().filter(p => {
+        if (this.statusFilter !== 'all' && p.status !== this.statusFilter) return false;
+        if (q && !p.title.toLowerCase().includes(q)) return false;
+        return true;
+      });
+    },
+    emptyTitle() {
+      if (this.selectedFolderId === 'all' && !this.search) return 'Nessuna scheda ancora';
+      return 'Nessun risultato';
+    },
+    emptyDescription() {
+      if (this.selectedFolderId === 'all' && !this.search) {
+        return 'Crea la tua prima programmazione o una scheda settimanale.';
+      }
+      return 'Nessuna scheda corrisponde ai filtri attivi.';
+    },
+
+    /* === folders === */
+    startCreateFolder() {
+      this.creatingFolder = true;
+      this.folderCreateDraft = '';
+      this.$nextTick(() => this.$refs.folderCreateInput?.focus());
+    },
+    cancelCreateFolder() {
+      this.creatingFolder = false;
+      this.folderCreateDraft = '';
+    },
+    async finishCreateFolder() {
+      const title = (this.folderCreateDraft || '').trim();
+      if (!title) { this.cancelCreateFolder(); return; }
+      try {
+        const res = await fetch(this.urls.folders, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ title }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Errore'); return; }
+        this.folders.push(data);
+        this.selectedFolderId = data.id;
+      } catch (e) {
+        alert('Errore di rete.');
+      }
+      this.cancelCreateFolder();
+    },
+
+    startEditFolder(folder) {
+      this.editingFolderId = folder.id;
+      this.folderEditDraft = folder.title;
+      this.$nextTick(() => this.$refs.folderEditInput?.focus());
+    },
+    cancelEditFolder() {
+      this.editingFolderId = null;
+      this.folderEditDraft = '';
+    },
+    async finishEditFolder(folder) {
+      const newTitle = (this.folderEditDraft || '').trim();
+      if (!newTitle || newTitle === folder.title) { this.cancelEditFolder(); return; }
+      try {
+        const res = await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ title: newTitle }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error); this.cancelEditFolder(); return; }
+        folder.title = data.title;
+      } catch (e) { alert('Errore di rete.'); }
+      this.cancelEditFolder();
+    },
+
+    openFolderMenu(folder) {
+      this.menuFolder = this.menuFolder === folder ? null : folder;
+    },
+    async patchFolderLabel(folder) {
+      try {
+        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ label_text: folder.label_text || '' }),
+        });
+      } catch (e) { /* swallow */ }
+    },
+    async setFolderColor(folder, color) {
+      folder.label_color = color;
+      try {
+        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ label_color: color }),
+        });
+      } catch (e) { /* swallow */ }
+    },
+    confirmDeleteFolder(folder) {
+      this.folderToDelete = folder;
+      this.deleteFolderOpen = true;
+      this.deleteFolderAction = 'move_to_unfiled';
+      this.deleteFolderTarget = '';
+      this.menuFolder = null;
+    },
+    async executeFolderDelete() {
+      if (!this.folderToDelete) return;
+      let url = this.urls.folderDetail.replace('__ID__', this.folderToDelete.id);
+      const params = new URLSearchParams();
+      params.set('action', this.deleteFolderAction);
+      if (this.deleteFolderAction === 'move_to' && this.deleteFolderTarget) {
+        params.set('target_folder_id', this.deleteFolderTarget);
+      }
+      url += '?' + params.toString();
+      try {
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': csrfToken() },
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Errore');
+          return;
+        }
+        const deletedId = this.folderToDelete.id;
+        // reflect locally
+        if (this.deleteFolderAction === 'delete_plans') {
+          this.plans = this.plans.filter(p => p.folder_id !== deletedId);
+        } else if (this.deleteFolderAction === 'move_to_unfiled') {
+          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = null; });
+        } else {
+          const tid = parseInt(this.deleteFolderTarget, 10);
+          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = tid; });
+          const tgt = this.folders.find(f => f.id === tid);
+          if (tgt) tgt.plan_count = this.plans.filter(p => p.folder_id === tid).length;
+        }
+        this.folders = this.folders.filter(f => f.id !== deletedId);
+        if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
+      } catch (e) { alert('Errore di rete.'); }
+      this.deleteFolderOpen = false;
+      this.folderToDelete = null;
+    },
+
+    /* === drag & drop === */
+    async dropPlanOnFolder(folderId) {
+      this.dropTargetId = null;
+      const pid = this.draggedPlanId;
+      this.draggedPlanId = null;
+      if (!pid) return;
+      const plan = this.plans.find(p => p.id === pid);
+      if (!plan) return;
+      const previousFolderId = plan.folder_id;
+      plan.folder_id = folderId;
+      try {
+        await fetch(this.urls.planUpdateSave.replace('__ID__', pid), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ folder_id: folderId }),
+        });
+        if (previousFolderId) {
+          const f = this.folders.find(f => f.id === previousFolderId);
+          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
+        }
+        if (folderId) {
+          const f = this.folders.find(f => f.id === folderId);
+          if (f) f.plan_count += 1;
+        }
+      } catch (e) { plan.folder_id = previousFolderId; alert('Errore di rete.'); }
+    },
+
+    /* === type picker === */
+    openTypePicker() {
+      this.typePickerOpen = true;
+      this.typePickerChoice = null;
+    },
+    closeTypePicker() {
+      this.typePickerOpen = false;
+      this.typePickerChoice = null;
+    },
+    confirmTypePicker() {
+      if (!this.typePickerChoice) return;
+      const folderId = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
+      const params = new URLSearchParams();
+      params.set('kind', this.typePickerChoice);
+      if (folderId) params.set('folder_id', folderId);
+      window.location.href = this.urls.wizardNew + '?' + params.toString();
+    },
+
+    /* === utils === */
+    relativeTime(iso) {
+      if (!iso) return '';
+      const date = new Date(iso);
+      const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diff < 60) return 'adesso';
+      if (diff < 3600) return Math.floor(diff/60) + ' min fa';
+      if (diff < 86400) return Math.floor(diff/3600) + ' h fa';
+      if (diff < 604800) return Math.floor(diff/86400) + ' g fa';
+      return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -15,6 +15,10 @@
     search_exercises: "{% url 'api_search_exercises' %}",
     search_clients: "{% url 'api_search_clients' %}",
     filters: "{% url 'api_exercise_filters' %}",
+    muscle_groups: "{% url 'api_muscle_groups' %}",
+    sports: "{% url 'api_workout_sports' %}",
+    folders: "{% url 'api_workout_folders' %}",
+    custom_exercises: "{% url 'api_custom_exercises' %}",
   };
 </script>
 
@@ -218,9 +222,64 @@
   <!-- ==================== STEP 1 ==================== -->
   <section x-show="step === 1" x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end" class="max-w-2xl mx-auto p-4 sm:p-6">
     <div class="al-card space-y-5">
+
+      <!-- Plan kind eyebrow -->
+      <div class="flex items-center gap-2 -mt-1">
+        <span class="wb-kind-badge"
+              :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
+              x-text="plan.plan_kind === 'PROGRAM' ? 'Programmazione' : 'Scheda settimanale'"></span>
+        <button type="button" class="al-link al-link-quiet text-xs"
+                @click="plan.plan_kind = plan.plan_kind === 'PROGRAM' ? 'WEEKLY' : 'PROGRAM'; plan.duration_weeks = plan.plan_kind === 'PROGRAM' ? Math.max(2, plan.duration_weeks || 4) : 1; markDirty();">
+          Cambia tipo
+        </button>
+      </div>
+
       <div>
         <label class="al-label">Titolo scheda *</label>
         <input type="text" x-model="plan.title" @input="markDirty()" placeholder="Es. Ipertrofia Base 4gg" class="al-input">
+      </div>
+
+      <!-- Sport combobox -->
+      <div class="wb-combobox" @click.away="sportCombobox.open = false">
+        <label class="al-label">Sport</label>
+        <input type="text"
+               class="al-input"
+               x-model="sportCombobox.query"
+               @input="onSportInput()"
+               @focus="sportCombobox.open = true; _refreshSportCombobox()"
+               @keydown.escape="sportCombobox.open = false"
+               placeholder="Es. Bodybuilding, Calcio, Tennis...">
+        <div class="wb-combobox-list" x-show="sportCombobox.open" x-cloak>
+          <template x-for="s in sportCombobox.filtered" :key="s.id">
+            <div class="wb-combobox-item" @click="pickSport(s)">
+              <i :class="'ph ' + (s.icon || 'ph-stack')"></i>
+              <span x-text="s.name"></span>
+              <span class="al-small ml-auto" style="color: var(--al-ink-mute);" x-show="!s.is_system">tuo</span>
+            </div>
+          </template>
+          <template x-if="sportCombobox.query && !sportCombobox.filtered.some(s => s.name.toLowerCase() === sportCombobox.query.toLowerCase().trim())">
+            <div class="wb-combobox-item wb-combobox-item-create" @click="createSportFromQuery()">
+              <i class="ph ph-plus-circle"></i>
+              <span>Crea sport "<span x-text="sportCombobox.query"></span>"</span>
+            </div>
+          </template>
+          <template x-if="sportCombobox.filtered.length === 0 && !sportCombobox.query">
+            <div class="wb-combobox-item" style="color: var(--al-ink-mute); cursor: default;">Nessuno sport disponibile.</div>
+          </template>
+        </div>
+        <p class="al-small mt-1" style="color: var(--al-ink-faint);" x-show="!plan.sport_id">
+          Senza sport vedrai tutti gli esercizi della libreria.
+        </p>
+      </div>
+
+      <div>
+        <label class="al-label">Cartella (opzionale)</label>
+        <select x-model.number="plan.folder_id" @change="markDirty()" class="al-select">
+          <option :value="null">— Senza cartella —</option>
+          <template x-for="f in foldersCatalog" :key="f.id">
+            <option :value="f.id" x-text="f.title"></option>
+          </template>
+        </select>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -266,7 +325,7 @@
             Determina i giorni nel builder. Non modificabile dopo lo step 2.
           </p>
         </div>
-        <div>
+        <div x-show="plan.plan_kind === 'PROGRAM'">
           <label class="al-label">Durata scheda (settimane) *</label>
           <select x-model.number="plan.duration_weeks" @change="markDirty()" class="al-select w-full">
             <option :value="2">2 settimane</option>
@@ -278,6 +337,11 @@
             <option :value="24">24 settimane</option>
           </select>
           <p class="al-small mt-2" style="color: var(--al-ink-faint);">Modificabile in fase di assegnazione.</p>
+        </div>
+        <div x-show="plan.plan_kind === 'WEEKLY'">
+          <label class="al-label">Durata</label>
+          <div class="al-input" style="background: var(--al-marble); color: var(--al-ink-mute); cursor: default;">1 settimana</div>
+          <p class="al-small mt-2" style="color: var(--al-ink-faint);">Le schede settimanali hanno durata fissa.</p>
         </div>
       </div>
 
@@ -311,61 +375,97 @@
     </div>
 
     <div class="flex gap-4" style="min-height: calc(100vh - 180px);">
-      <!-- LEFT: Library (25%) -->
+      <!-- LEFT: Library (Athlynk redesign) -->
       <aside class="md:basis-1/4 md:max-w-xs w-full"
              :class="{'hidden md:block': mobileTab !== 'lib'}">
-        <div class="al-card sticky top-20" style="max-height: calc(100vh - 100px); display: flex; flex-direction: column;">
-          <h3 class="al-h-4 mb-3"><i class="ph ph-books"></i> Libreria</h3>
-          <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
-                 placeholder="Cerca esercizio..." class="al-input mb-2">
-          <!-- Sport chips -->
-          <div x-show="filters.sports.length" class="flex flex-wrap gap-1 mb-2">
+        <div class="wb-libpanel">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="al-h-4 m-0"><i class="ph ph-books"></i> Libreria</h3>
             <button type="button"
-                    @click="library.sport = ''; loadLibrary()"
-                    :class="library.sport === '' ? 'al-badge al-badge-bronze' : 'al-badge'"
-                    style="font-size: 9px; cursor: pointer;">Tutti</button>
-            <template x-for="s in filters.sports" :key="s">
-              <button type="button"
-                      @click="library.sport = (library.sport === s ? '' : s); loadLibrary()"
-                      :class="library.sport === s ? 'al-badge al-badge-bronze' : 'al-badge'"
-                      style="font-size: 9px; cursor: pointer;" x-text="s"></button>
-            </template>
+                    class="al-btn al-btn-bronze al-btn-sm wb-cta-custom"
+                    @click="openCustomExerciseDrawer()">
+              <i class="ph ph-question"></i> Non trovi il tuo esercizio?
+            </button>
           </div>
-          <div class="grid grid-cols-2 gap-2 mb-3">
-            <select x-model="library.muscle" @change="loadLibrary()" class="al-select" style="font-size:.85rem; padding: 4px 8px;">
-              <option value="">Muscolo</option>
-              <template x-for="m in filters.muscles" :key="m">
-                <option :value="m" x-text="m"></option>
+
+          <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
+                 placeholder="Cerca esercizio..." class="al-input">
+
+          <!-- Sport scope indicator (active filter + unlock) -->
+          <template x-if="activeSportSlugInLibrary()">
+            <div class="wb-sport-filter-row">
+              <i class="ph ph-target"></i>
+              <span class="al-small">Sport:</span>
+              <span class="wb-sport-name" x-text="activeSportNameInLibrary()"></span>
+              <button type="button" class="wb-unfilter" @click="unlockSportFilter()" title="Mostra tutti gli sport">
+                <i class="ph ph-x text-xs"></i> Rimuovi
+              </button>
+            </div>
+          </template>
+
+          <!-- Dropdown filters (sport / muscle / equipment) -->
+          <div class="grid grid-cols-2 gap-2">
+            <select class="al-select wb-filter-select"
+                    @change="library.sport_slug = $event.target.value; library.sport_filter_locked = false; loadLibrary()">
+              <option value="" :selected="!library.sport_slug">Sport: tutti</option>
+              <template x-for="s in (sportsCatalog || [])" :key="s.slug">
+                <option :value="s.slug" :selected="library.sport_slug === s.slug" x-text="s.name"></option>
               </template>
             </select>
-            <select x-model="library.equipment" @change="loadLibrary()" class="al-select" style="font-size:.85rem; padding: 4px 8px;">
-              <option value="">Attrezzo</option>
-              <template x-for="e in filters.equipment" :key="e">
-                <option :value="e" x-text="e"></option>
+            <select class="al-select wb-filter-select"
+                    @change="library.muscle_slug = $event.target.value; loadLibrary()">
+              <option value="" :selected="!library.muscle_slug">Muscolo: tutti</option>
+              <template x-for="m in (muscleGroups || [])" :key="m.slug">
+                <option :value="m.slug" :selected="library.muscle_slug === m.slug" x-text="m.name"></option>
               </template>
             </select>
           </div>
 
-          <div class="flex-1 overflow-y-auto pr-1 space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <select class="al-select wb-filter-select"
+                    @change="library.equipment = $event.target.value; loadLibrary()">
+              <option value="" :selected="!library.equipment">Attrezzo: tutti</option>
+              <template x-for="e in ((filters && filters.equipment) || [])" :key="e">
+                <option :value="e" :selected="library.equipment === e" x-text="e"></option>
+              </template>
+            </select>
+            <label class="al-small flex items-center gap-2" title="Mostra solo esercizi personalizzati">
+              <input type="checkbox" x-model="library.custom_only" @change="loadLibrary()">
+              <span><i class="ph ph-bookmark-simple"></i> Personalizzati</span>
+            </label>
+          </div>
+
+          <div class="wb-lib-results">
             <template x-if="library.loading">
-              <p class="al-small text-center py-4" style="color: var(--al-ink-faint);">Caricamento...</p>
+              <p class="wb-lib-empty">Caricamento…</p>
             </template>
             <template x-if="!library.loading && library.items.length === 0">
-              <p class="al-small text-center py-4" style="color: var(--al-ink-faint);">Nessun risultato.</p>
+              <div class="wb-lib-empty">
+                <p>Nessun esercizio trovato.</p>
+                <button type="button" class="al-btn al-btn-bronze al-btn-sm mt-3" @click="openCustomExerciseDrawer()">
+                  <i class="ph ph-question"></i> Non trovi il tuo esercizio?
+                </button>
+              </div>
             </template>
             <template x-for="ex in library.items" :key="ex.id">
-              <div class="wiz-lib-card p-2 rounded"
+              <div class="wb-lib-item"
                    :class="{flash: flashIds.includes(ex.id)}"
                    @click="addExerciseToActiveDay(ex)">
-                <p class="font-semibold text-sm leading-tight" x-text="ex.name"></p>
-                <div class="flex flex-wrap gap-1 mt-1">
-                  <template x-if="ex.target_muscle_group">
-                    <span class="al-tag" style="background: var(--al-bronze-faint); color: var(--al-bronze); font-size: .7rem;" x-text="ex.target_muscle_group"></span>
+                <p class="wb-lib-item-name" x-text="ex.name"></p>
+                <div class="wb-lib-item-meta">
+                  <template x-for="m in (ex.primary_muscles || [])" :key="m.slug">
+                    <span class="mg" x-text="m.name"></span>
+                  </template>
+                  <template x-if="(ex.primary_muscles?.length || 0) === 0 && ex.target_muscle_group">
+                    <span class="mg" x-text="ex.target_muscle_group"></span>
                   </template>
                   <template x-if="ex.equipment">
-                    <span class="al-tag" style="background: var(--al-stone); font-size: .7rem;" x-text="ex.equipment"></span>
+                    <span class="al-tag" style="background: var(--al-stone); font-size: 10px;" x-text="ex.equipment"></span>
                   </template>
                 </div>
+                <template x-if="ex.is_custom">
+                  <span class="wb-lib-item-custom-badge">Tuo</span>
+                </template>
               </div>
             </template>
           </div>
@@ -386,8 +486,8 @@
                 <span class="al-small italic truncate max-w-md" x-text="plan.description" :title="plan.description"></span>
               </template>
             </div>
-            <button @click="analyticsOpen = true" type="button" class="al-btn al-btn-ghost al-btn-sm">
-              <i class="ph ph-chart-bar"></i> Dettaglio
+            <button @click="openVolumeAnalytics()" type="button" class="al-btn al-btn-ghost al-btn-sm">
+              <i class="ph ph-chart-bar"></i> Volume d'allenamento
             </button>
           </div>
         </div>
@@ -424,54 +524,146 @@
 
             <div :id="'day-list-' + activeDay().local_id" class="space-y-2">
               <template x-for="(ex, exIdx) in activeDay().exercises" :key="ex.local_id">
-                <div class="wiz-ex-row" :class="{'is-superset': ex.superset_group_id}" :data-local-id="ex.local_id">
-                  <div class="flex items-start gap-3">
+                <div class="wb-row" :class="{'is-superset': ex.superset_group_id}" :data-local-id="ex.local_id">
+
+                  <!-- TOP ROW: handle + name + set-type + actions -->
+                  <div class="wb-row-top">
                     <input type="checkbox" :checked="selectedExIds.includes(ex.local_id)"
-                           @change="toggleSelect(ex.local_id)" class="mt-1">
-                    <i class="ph ph-dots-six-vertical drag-handle cursor-move mt-1" style="color: var(--al-ink-faint);"></i>
-                    <div class="flex-1">
-                      <div class="flex items-center justify-between mb-2">
-                        <p class="font-semibold" x-text="ex.exercise_name"></p>
-                        <div class="flex items-center gap-1">
-                          <span x-show="ex.superset_group_id" class="al-tag" style="background: var(--al-bronze); color: white; font-size: .7rem;">SS<span x-text="ex.superset_group_id"></span></span>
-                          <button x-show="ex.superset_group_id" @click="ex.superset_group_id = null; markDirty()" class="al-btn-icon al-btn-ghost" title="Rimuovi superset">
-                            <i class="ph ph-link-break"></i>
-                          </button>
-                          <button @click="removeExercise(exIdx)" class="al-btn-icon al-btn-ghost" title="Rimuovi">
-                            <i class="ph ph-trash" style="color: #b91c1c;"></i>
-                          </button>
-                        </div>
-                      </div>
-                      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                        <div>
-                          <label class="al-small">Serie</label>
-                          <input type="number" min="1" x-model.number="ex.sets" @input="markDirty()" class="wiz-mini-input">
-                        </div>
-                        <div>
-                          <label class="al-small">Rip.</label>
-                          <input type="text" x-model="ex.reps" @input="markDirty()" placeholder="10" class="wiz-mini-input">
-                        </div>
-                        <div>
-                          <label class="al-small">Carico</label>
-                          <input type="number" step="0.5" x-model.number="ex.load_value" @input="markDirty()" class="wiz-mini-input">
-                        </div>
-                        <div>
-                          <label class="al-small">Unità</label>
-                          <select x-model="ex.load_unit" @change="markDirty()" class="wiz-mini-input">
-                            <option value="KG">kg</option>
-                            <option value="PERCENT_1RM">% 1RM</option>
-                            <option value="BODYWEIGHT">corpo libero</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label class="al-small">Recupero (s)</label>
-                          <input type="number" min="0" x-model.number="ex.recovery_seconds" @input="markDirty()" class="wiz-mini-input">
-                        </div>
-                      </div>
-                      <div class="mt-2">
-                        <input type="text" x-model="ex.notes" @input="markDirty()" placeholder="Note tecniche (opzionale)" class="wiz-mini-input">
+                           @change="toggleSelect(ex.local_id)" title="Seleziona per superset">
+                    <i class="ph ph-dots-six-vertical drag-handle wb-row-handle"></i>
+
+                    <div class="wb-row-name">
+                      <p class="wb-row-name-text" x-text="ex.exercise_name"></p>
+                      <p class="wb-row-muscle"
+                         x-show="ex.target_muscle_group || ex.primary_muscle"
+                         x-text="ex.primary_muscle || ex.target_muscle_group"></p>
+                    </div>
+
+                    <!-- Set type chip dropdown -->
+                    <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                      <button type="button" class="wb-chip-set-type"
+                              :class="{'is-rep': ex.execution_type === 'REPETITION',
+                                       'is-ramp': ex.execution_type === 'RAMPING',
+                                       'is-test': ex.execution_type === 'TEST'}"
+                              @click="open = !open">
+                        <span x-text="({'REPETITION':'Ripetizione','RAMPING':'Ramping','TEST':'Test'})[ex.execution_type || 'REPETITION']"></span>
+                        <i class="ph ph-caret-down text-[10px]"></i>
+                      </button>
+                      <div x-show="open" x-cloak class="al-popover wb-fade-in"
+                           style="position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; background: var(--al-parchment); border: 1px solid var(--al-rule-strong); border-radius: 6px; padding: 4px; min-width: 140px; box-shadow: var(--al-shadow-2);">
+                        <template x-for="opt in [{k:'REPETITION',l:'Ripetizione'},{k:'RAMPING',l:'Ramping'},{k:'TEST',l:'Test'}]" :key="opt.k">
+                          <button type="button" class="block w-full text-left px-2 py-1 rounded text-xs hover:bg-marble"
+                                  style="background: transparent; border: none; cursor: pointer;"
+                                  :style="ex.execution_type === opt.k ? 'background: var(--al-marble); font-weight: 600;' : ''"
+                                  @click="ex.execution_type = opt.k; markDirty(); open = false"
+                                  x-text="opt.l"></button>
+                        </template>
                       </div>
                     </div>
+
+                    <div class="wb-row-actions">
+                      <span x-show="ex.superset_group_id" class="al-tag" style="background: var(--al-bronze); color: white; font-size: .65rem;">SS<span x-text="ex.superset_group_id"></span></span>
+                      <button x-show="ex.superset_group_id" @click="ex.superset_group_id = null; markDirty()" class="wb-icon-btn" title="Rimuovi superset">
+                        <i class="ph ph-link-break"></i>
+                      </button>
+                      <button type="button" class="wb-icon-btn"
+                              :class="{'is-active': ex._showAdvanced}"
+                              @click="ex._showAdvanced = !ex._showAdvanced"
+                              title="Più campi (RPE / RIR / Tempo)">
+                        <i class="ph ph-sliders-horizontal"></i>
+                      </button>
+                      <button type="button" class="wb-icon-btn"
+                              :class="{'is-active': ex._showNote || ex.coach_notes}"
+                              @click="ex._showNote = !ex._showNote"
+                              title="Note coach">
+                        <i class="ph ph-note"></i>
+                      </button>
+                      <button type="button" class="wb-icon-btn" @click="removeExercise(exIdx)" title="Rimuovi" style="color: var(--al-danger);">
+                        <i class="ph ph-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- PARAMS (adaptive by set type) -->
+                  <div class="wb-row-params" x-show="(ex.execution_type || 'REPETITION') === 'REPETITION'">
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Serie</label>
+                      <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Reps</label>
+                      <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="8-10">
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Carico</label>
+                      <input type="number" step="0.5" class="wb-mini-input" x-model.number="ex.load_value" @input="markDirty()">
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Unità</label>
+                      <select class="wb-mini-input" x-model="ex.load_unit" @change="markDirty()">
+                        <option value="KG">kg</option>
+                        <option value="PERCENT_1RM">%1RM</option>
+                        <option value="BODYWEIGHT">corpo libero</option>
+                      </select>
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Recupero (s)</label>
+                      <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
+                    </div>
+                  </div>
+
+                  <div class="wb-row-params" x-show="ex.execution_type === 'RAMPING'">
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Set</label>
+                      <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                    </div>
+                    <div class="wb-mini-field" style="grid-column: span 2;">
+                      <label class="wb-mini-field-label">Sequenza carico</label>
+                      <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="60·70·80·90·100 %">
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Recupero (s)</label>
+                      <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
+                    </div>
+                  </div>
+
+                  <div class="wb-row-params" x-show="ex.execution_type === 'TEST'">
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Obiettivo</label>
+                      <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="1RM">
+                    </div>
+                    <div class="wb-mini-field">
+                      <label class="wb-mini-field-label">Tentativi</label>
+                      <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                    </div>
+                    <div class="wb-mini-field" style="grid-column: span 2;">
+                      <label class="wb-mini-field-label">Recupero</label>
+                      <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="Pieno">
+                    </div>
+                  </div>
+
+                  <!-- ADVANCED FIELDS (collapsible) -->
+                  <div class="wb-row-ribbon" x-show="ex._showAdvanced" x-cloak>
+                    <div class="wb-row-params">
+                      <div class="wb-mini-field">
+                        <label class="wb-mini-field-label">RPE</label>
+                        <input type="number" min="1" max="10" class="wb-mini-input" x-model.number="ex.rpe" @input="markDirty()">
+                      </div>
+                      <div class="wb-mini-field">
+                        <label class="wb-mini-field-label">RIR</label>
+                        <input type="number" min="0" max="10" class="wb-mini-input" x-model.number="ex.rir" @input="markDirty()">
+                      </div>
+                      <div class="wb-mini-field">
+                        <label class="wb-mini-field-label">TUT / Tempo</label>
+                        <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="4-0-2-0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- NOTE RIBBON -->
+                  <div class="wb-row-ribbon" x-show="ex._showNote" x-cloak>
+                    <textarea x-model="ex.coach_notes" @input="ex.notes = $event.target.value; markDirty()"
+                              maxlength="500" placeholder="Es. scendi controllato in 3 secondi, scapole addotte."></textarea>
                   </div>
                 </div>
               </template>
@@ -504,55 +696,157 @@
       </main>
     </div>
 
-    <!-- Analytics drawer -->
-    <div class="wiz-drawer-backdrop" :class="{open: analyticsOpen}" @click="analyticsOpen=false"></div>
-    <div class="wiz-drawer" :class="{open: analyticsOpen}">
-      <div class="p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="al-h-3"><i class="ph ph-chart-bar"></i> Analytics</h3>
-          <button @click="analyticsOpen=false" class="al-btn-icon al-btn-ghost"><i class="ph ph-x"></i></button>
-        </div>
+  </section>
 
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="al-card" style="padding: .75rem;">
-            <p class="al-small" style="color: var(--al-ink-faint);">Sessioni</p>
-            <p class="al-h-3" x-text="plan.days.length"></p>
-          </div>
-          <div class="al-card" style="padding: .75rem;">
-            <p class="al-small" style="color: var(--al-ink-faint);">Esercizi totali</p>
-            <p class="al-h-3" x-text="totalExercises()"></p>
-          </div>
-          <div class="al-card" style="padding: .75rem;">
-            <p class="al-small" style="color: var(--al-ink-faint);">Serie totali</p>
-            <p class="al-h-3" x-text="totalSets()"></p>
-          </div>
-          <div class="al-card" style="padding: .75rem;">
-            <p class="al-small" style="color: var(--al-ink-faint);">Durata stimata</p>
-            <p class="al-h-3" x-text="estimatedDurationMin() + ' min/sett.'"></p>
-          </div>
-        </div>
+  <!-- ==================== VOLUME ANALYTICS DRAWER (Phase 3) ==================== -->
+  {% include 'pages/allenamenti/_volume_drawer.html' %}
 
-        <h4 class="al-h-4 mb-2">Volume per gruppo muscolare</h4>
-        <p class="al-small mb-3" style="color: var(--al-ink-faint);">Primario × peso pieno · Secondario × 0.5</p>
-        <div class="space-y-2">
-          <template x-for="row in volumeByMuscle()" :key="row.group">
-            <div>
-              <div class="flex justify-between al-small mb-1">
-                <span x-text="row.group"></span>
-                <span x-text="row.value.toFixed(0) + ' rep totali'"></span>
-              </div>
-              <div class="bg-stone rounded" style="background: var(--al-stone); height: 14px;">
-                <div class="wiz-bar" :style="'width:' + row.pct + '%; height:14px;'"></div>
-              </div>
-            </div>
+  <!-- ==================== CUSTOM EXERCISE DRAWER (used inside Step 2) ==================== -->
+  <div class="wb-drawer-backdrop" :class="{'is-open': customExerciseOpen}" @click="closeCustomExerciseDrawer()"></div>
+  <div class="wb-drawer-right" :class="{'is-open': customExerciseOpen}">
+    <div class="wb-drawer-header">
+      <div>
+        <p class="al-eyebrow">Libreria</p>
+        <h3>Nuovo esercizio personalizzato</h3>
+      </div>
+      <button type="button" class="al-btn-icon al-btn-ghost" @click="closeCustomExerciseDrawer()">
+        <i class="ph ph-x"></i>
+      </button>
+    </div>
+    <div class="wb-drawer-body">
+      <div>
+        <label class="al-label">Nome esercizio *</label>
+        <input type="text" class="al-input" x-model="customExercise.name" placeholder="Es. Spinte alla russa con kettlebell">
+      </div>
+
+      <div>
+        <label class="al-label">Sport *</label>
+        <div class="flex flex-wrap gap-2 mt-1">
+          <template x-for="s in sportsCatalog" :key="s.id">
+            <button type="button" class="wb-chip"
+                    :class="{ 'is-active': customExercise.sport_ids.includes(s.id) }"
+                    @click="toggleCustomSport(s.id)">
+              <i :class="'ph ' + (s.icon || 'ph-stack')"></i>
+              <span x-text="s.name"></span>
+            </button>
           </template>
-          <template x-if="volumeByMuscle().length === 0">
-            <p class="al-small text-center py-4" style="color: var(--al-ink-faint);">Aggiungi esercizi per vedere il volume.</p>
-          </template>
+        </div>
+        <p class="al-small mt-1" style="color: var(--al-ink-faint);">
+          Selezionando più sport, l'esercizio comparirà in tutte le tue librerie filtrate.
+        </p>
+      </div>
+
+      <div>
+        <label class="al-label">Muscoli primari *</label>
+        <div class="wb-msel mt-1" x-data="{ open: false }" @click.outside="open = false">
+          <button type="button" class="wb-msel-trigger" :class="{ 'is-open': open }" @click="open = !open">
+            <template x-if="customExercise.primary_muscle_ids.length === 0">
+              <span class="wb-msel-placeholder">Seleziona uno o più muscoli…</span>
+            </template>
+            <template x-if="customExercise.primary_muscle_ids.length > 0">
+              <span class="wb-msel-pills">
+                <template x-for="m in muscleGroups.filter(g => customExercise.primary_muscle_ids.includes(g.id))" :key="'pp-' + m.id">
+                  <span class="wb-msel-pill">
+                    <span x-text="m.name"></span>
+                    <button type="button" @click.stop="toggleCustomMuscle('primary_muscle_ids', m.id)" aria-label="Rimuovi">
+                      <i class="ph ph-x"></i>
+                    </button>
+                  </span>
+                </template>
+              </span>
+            </template>
+            <i class="ph ph-caret-down wb-msel-caret"></i>
+          </button>
+          <div class="wb-msel-menu" x-show="open" x-transition.opacity.duration.120ms x-cloak>
+            <template x-for="m in muscleGroups" :key="'pri-' + m.id">
+              <label class="wb-msel-item">
+                <input type="checkbox"
+                       :checked="customExercise.primary_muscle_ids.includes(m.id)"
+                       @change="toggleCustomMuscle('primary_muscle_ids', m.id)">
+                <span x-text="m.name"></span>
+              </label>
+            </template>
+            <template x-if="!muscleGroups.length">
+              <div class="wb-msel-empty">Nessun muscolo disponibile.</div>
+            </template>
+          </div>
         </div>
       </div>
+
+      <div>
+        <label class="al-label">Muscoli secondari (opzionale)</label>
+        <div class="wb-msel mt-1" x-data="{ open: false }" @click.outside="open = false">
+          <button type="button" class="wb-msel-trigger" :class="{ 'is-open': open }" @click="open = !open">
+            <template x-if="customExercise.secondary_muscle_ids.length === 0">
+              <span class="wb-msel-placeholder">Seleziona uno o più muscoli…</span>
+            </template>
+            <template x-if="customExercise.secondary_muscle_ids.length > 0">
+              <span class="wb-msel-pills">
+                <template x-for="m in muscleGroups.filter(g => customExercise.secondary_muscle_ids.includes(g.id))" :key="'sp-' + m.id">
+                  <span class="wb-msel-pill">
+                    <span x-text="m.name"></span>
+                    <button type="button" @click.stop="toggleCustomMuscle('secondary_muscle_ids', m.id)" aria-label="Rimuovi">
+                      <i class="ph ph-x"></i>
+                    </button>
+                  </span>
+                </template>
+              </span>
+            </template>
+            <i class="ph ph-caret-down wb-msel-caret"></i>
+          </button>
+          <div class="wb-msel-menu" x-show="open" x-transition.opacity.duration.120ms x-cloak>
+            <template x-for="m in muscleGroups" :key="'sec-' + m.id">
+              <label class="wb-msel-item">
+                <input type="checkbox"
+                       :checked="customExercise.secondary_muscle_ids.includes(m.id)"
+                       @change="toggleCustomMuscle('secondary_muscle_ids', m.id)">
+                <span x-text="m.name"></span>
+              </label>
+            </template>
+            <template x-if="!muscleGroups.length">
+              <div class="wb-msel-empty">Nessun muscolo disponibile.</div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="al-label">Attrezzatura</label>
+          <input type="text" class="al-input" x-model="customExercise.equipment" placeholder="Es. Bilanciere">
+        </div>
+        <div>
+          <label class="al-label">Difficoltà</label>
+          <select class="al-select" x-model="customExercise.difficulty_level">
+            <option value="">—</option>
+            <option>Principiante</option>
+            <option>Intermedio</option>
+            <option>Avanzato</option>
+            <option>Agonista</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="al-label">Video URL (opzionale)</label>
+        <input type="url" class="al-input" x-model="customExercise.video_url" placeholder="https://...">
+      </div>
+
+      <div>
+        <label class="al-label">Note tecniche (opzionale)</label>
+        <textarea class="al-textarea" rows="3" x-model="customExercise.coach_notes"></textarea>
+      </div>
+
+      <p x-show="customExercise.error" x-text="customExercise.error" class="al-input-error"></p>
     </div>
-  </section>
+    <div class="wb-drawer-foot">
+      <button type="button" class="al-btn al-btn-ghost" @click="closeCustomExerciseDrawer()">Annulla</button>
+      <button type="button" class="al-btn" @click="saveCustomExercise(false)" :disabled="customExercise.saving">Salva</button>
+      <button type="button" class="al-btn al-btn-bronze" @click="saveCustomExercise(true)" :disabled="customExercise.saving">
+        <i class="ph ph-plus"></i> Salva e aggiungi
+      </button>
+    </div>
+  </div>
 
   <!-- ==================== STEP 3 — PROGRESSIONE ==================== -->
   <section x-show="step === 3" x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end" class="max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
@@ -1157,5 +1451,5 @@
 
 <!-- SortableJS for drag-drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{% static 'js/workout_wizard.js' %}?v=6"></script>
+<script src="{% static 'js/workout_wizard.js' %}?v=14"></script>
 {% endblock %}

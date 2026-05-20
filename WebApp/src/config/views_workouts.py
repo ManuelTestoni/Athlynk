@@ -11,6 +11,7 @@ from domain.accounts.models import ClientProfile
 from domain.workouts.models import (
     Exercise, WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment,
     ProgressionRule, WeekDefinition, WeeklyOverride, WeeklyValue,
+    WorkoutFolder, Sport,
 )
 from domain.workouts import progression_engine
 from domain.chat.models import Notification
@@ -114,18 +115,56 @@ def allenamenti_list_view(request):
     if not coach or not can_manage_workouts(coach):
         return redirect('dashboard')
 
-    plans = (WorkoutPlan.objects
-             .filter(coach=coach)
-             .annotate(day_count=Count('days', distinct=True),
-                       assignment_count=Count('assignments', distinct=True))
-             .order_by('-updated_at'))
-    if query:
-        plans = plans.filter(title__icontains=query)
-    if filter_status:
-        plans = plans.filter(status=filter_status)
+    plans_qs = (WorkoutPlan.objects
+                .filter(coach=coach)
+                .select_related('folder', 'sport')
+                .annotate(day_count=Count('days', distinct=True),
+                          assignment_count=Count('assignments', distinct=True))
+                .order_by('-updated_at'))
 
-    return render(request, 'pages/allenamenti/list.html', {
-        'plans': plans,
+    folders = list(
+        WorkoutFolder.objects.filter(coach=coach)
+        .annotate(plan_count=Count('plans'))
+        .order_by('order', 'title')
+    )
+
+    plans_data = [
+        {
+            'id': p.id,
+            'title': p.title,
+            'description': p.description or '',
+            'status': p.status,
+            'plan_kind': p.plan_kind,
+            'goal': p.goal or '',
+            'level': p.level or '',
+            'frequency_per_week': p.frequency_per_week or 0,
+            'duration_weeks': p.duration_weeks or 0,
+            'day_count': p.day_count,
+            'assignment_count': p.assignment_count,
+            'folder_id': p.folder_id,
+            'sport_id': p.sport_id,
+            'sport_name': p.sport.name if p.sport_id else '',
+            'sport_icon': (p.sport.icon if p.sport_id else '') or '',
+            'updated_at': p.updated_at.isoformat() if p.updated_at else '',
+        }
+        for p in plans_qs
+    ]
+
+    folders_data = [
+        {
+            'id': f.id,
+            'title': f.title,
+            'label_text': f.label_text or '',
+            'label_color': f.label_color or '',
+            'order': f.order,
+            'plan_count': f.plan_count,
+        }
+        for f in folders
+    ]
+
+    return render(request, 'pages/allenamenti/library.html', {
+        'plans_json': json.dumps(plans_data),
+        'folders_json': json.dumps(folders_data),
         'query': query,
         'filter_status': filter_status,
         'is_coach': True,
@@ -225,7 +264,9 @@ def _serialize_plan_for_wizard(plan):
     days = []
     for d in plan.days.all().order_by('day_order'):
         exercises = []
-        for ex in d.exercises.select_related('exercise').order_by('order_index'):
+        for ex in d.exercises.select_related('exercise').prefetch_related(
+            'exercise__primary_muscles', 'exercise__secondary_muscles',
+        ).order_by('order_index'):
             exercises.append({
                 'local_id': f'srv-ex-{ex.id}',
                 'pk': ex.id,
@@ -234,6 +275,14 @@ def _serialize_plan_for_wizard(plan):
                 'target_muscle_group': ex.exercise.target_muscle_group or '',
                 'primary_muscle': ex.exercise.primary_muscle or '',
                 'secondary_muscle': ex.exercise.secondary_muscle or '',
+                'primary_muscles': [
+                    {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
+                    for m in ex.exercise.primary_muscles.all()
+                ],
+                'secondary_muscles': [
+                    {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
+                    for m in ex.exercise.secondary_muscles.all()
+                ],
                 'equipment': ex.exercise.equipment or '',
                 'sets': ex.set_count or 3,
                 'reps': ex.rep_range or '10',
@@ -241,6 +290,11 @@ def _serialize_plan_for_wizard(plan):
                 'load_unit': ex.load_unit or 'KG',
                 'recovery_seconds': ex.recovery_seconds or 90,
                 'notes': ex.technique_notes or '',
+                'coach_notes': ex.technique_notes or '',
+                'execution_type': ex.execution_type or 'REPETITION',
+                'rpe': ex.rpe,
+                'rir': ex.rir,
+                'tempo': ex.tempo or '',
                 'superset_group_id': ex.superset_group_id,
             })
         days.append({
@@ -261,6 +315,10 @@ def _serialize_plan_for_wizard(plan):
         'duration_weeks': plan.duration_weeks or 8,
         'status': plan.status,
         'last_step': plan.last_step or 1,
+        'folder_id': plan.folder_id,
+        'sport_id': plan.sport_id,
+        'sport_name': plan.sport.name if plan.sport_id else '',
+        'plan_kind': plan.plan_kind,
         'days': days,
         'progression': _serialize_progression(plan),
     }
@@ -306,7 +364,9 @@ def allenamenti_plan_detail_view(request, plan_id):
         return redirect('dashboard')
 
     plan = get_object_or_404(
-        WorkoutPlan.objects.prefetch_related('days__exercises__exercise', 'assignments__client'),
+        WorkoutPlan.objects
+            .select_related('folder', 'sport')
+            .prefetch_related('days__exercises__exercise', 'assignments__client'),
         id=plan_id, coach=coach,
     )
 
@@ -351,6 +411,35 @@ def _apply_payload_to_plan(plan, data, coach):
             plan.last_step = max(1, min(4, int(data['last_step'])))
         except (TypeError, ValueError):
             pass
+
+    # Folder (optional, nullable)
+    if 'folder_id' in data:
+        folder_id = data.get('folder_id')
+        if folder_id in (None, '', 0):
+            plan.folder = None
+        else:
+            try:
+                plan.folder = WorkoutFolder.objects.get(id=int(folder_id), coach=coach)
+            except (WorkoutFolder.DoesNotExist, TypeError, ValueError):
+                pass
+
+    # Sport (optional, nullable)
+    if 'sport_id' in data:
+        sport_id = data.get('sport_id')
+        if sport_id in (None, '', 0):
+            plan.sport = None
+        else:
+            try:
+                plan.sport = Sport.objects.get(id=int(sport_id))
+            except (Sport.DoesNotExist, TypeError, ValueError):
+                pass
+
+    # Plan kind (WEEKLY | PROGRAM)
+    if 'plan_kind' in data:
+        kind = (data.get('plan_kind') or '').upper()
+        if kind in (WorkoutPlan.KIND_WEEKLY, WorkoutPlan.KIND_PROGRAM):
+            plan.plan_kind = kind
+
     plan.coach = coach
     plan.save()
 
@@ -396,7 +485,8 @@ def _apply_payload_to_plan(plan, data, coach):
             sets = int(ex_data.get('sets') or 3)
             reps = str(ex_data.get('reps') or '10')
             recovery = int(ex_data.get('recovery_seconds') or 90)
-            notes = ex_data.get('notes') or ''
+            # `coach_notes` is the new canonical key; `notes` kept for back-compat
+            notes = ex_data.get('coach_notes') or ex_data.get('notes') or ''
             superset = ex_data.get('superset_group_id')
             try:
                 superset_int = int(superset) if superset not in (None, '') else None
@@ -411,6 +501,24 @@ def _apply_payload_to_plan(plan, data, coach):
             if load_unit not in ('KG', 'PERCENT_1RM', 'BODYWEIGHT', None):
                 load_unit = None
 
+            # New optional fields
+            execution_type = (ex_data.get('execution_type') or '').strip().upper() or None
+            if execution_type and execution_type not in ('REPETITION', 'RAMPING', 'TEST'):
+                execution_type = None
+
+            def _opt_int(value, lo, hi):
+                if value in (None, ''):
+                    return None
+                try:
+                    v = int(value)
+                except (TypeError, ValueError):
+                    return None
+                return v if lo <= v <= hi else None
+
+            rpe_v = _opt_int(ex_data.get('rpe'), 1, 10)
+            rir_v = _opt_int(ex_data.get('rir'), 0, 10)
+            tempo_v = (ex_data.get('tempo') or '').strip()[:50] or None
+
             if ex_pk and ex_pk in existing_ex:
                 we = existing_ex[ex_pk]
                 we.exercise = exercise_obj
@@ -422,6 +530,10 @@ def _apply_payload_to_plan(plan, data, coach):
                 we.superset_group_id = superset_int
                 we.load_value = load_value_d
                 we.load_unit = load_unit
+                we.execution_type = execution_type
+                we.rpe = rpe_v
+                we.rir = rir_v
+                we.tempo = tempo_v
                 we.save()
                 seen_ex_ids.add(ex_pk)
             else:
@@ -436,6 +548,10 @@ def _apply_payload_to_plan(plan, data, coach):
                     superset_group_id=superset_int,
                     load_value=load_value_d,
                     load_unit=load_unit,
+                    execution_type=execution_type,
+                    rpe=rpe_v,
+                    rir=rir_v,
+                    tempo=tempo_v,
                 )
                 seen_ex_ids.add(we.id)
                 ex_data['pk'] = we.id
@@ -744,21 +860,53 @@ def api_search_clients(request):
 def api_search_exercises(request):
     query = request.GET.get('q', '').strip()
     muscle = request.GET.get('muscle', '').strip()
+    muscle_slug = request.GET.get('muscle_slug', '').strip()
     equipment = request.GET.get('equipment', '').strip()
     sport = request.GET.get('sport', '').strip()
+    sport_slug = request.GET.get('sport_slug', '').strip()
+    custom_only = request.GET.get('custom', '').strip().lower() in ('1', 'true', 'yes')
+
+    coach = get_session_coach(request)
 
     qs = Exercise.objects.all()
+
+    # Hide other coaches' custom exercises
+    if coach:
+        qs = qs.filter(Q(is_custom=False) | Q(created_by=coach))
+    else:
+        qs = qs.filter(is_custom=False)
+
     if query:
         qs = qs.filter(name__icontains=query)
-    if muscle:
+    if muscle_slug:
+        qs = qs.filter(
+            Q(primary_muscles__slug=muscle_slug) | Q(secondary_muscles__slug=muscle_slug)
+        )
+    elif muscle:
         qs = qs.filter(target_muscle_group__iexact=muscle)
     if equipment:
         qs = qs.filter(equipment__iexact=equipment)
-    if sport:
+    if sport_slug:
+        qs = qs.filter(sports__slug=sport_slug)
+    elif sport:
         qs = qs.filter(exercise_classification__iexact=sport)
+    if custom_only:
+        qs = qs.filter(is_custom=True)
 
-    qs = qs.order_by('name')[:20]
-    return JsonResponse([serialize_exercise_card(e) for e in qs], safe=False)
+    qs = qs.distinct().order_by('name')[:30]
+
+    def _card(ex):
+        card = serialize_exercise_card(ex)
+        card.update({
+            'is_custom': ex.is_custom,
+            'primary_muscles': list(ex.primary_muscles.values('slug', 'name', 'color_token')),
+            'secondary_muscles': list(ex.secondary_muscles.values('slug', 'name', 'color_token')),
+            'sports': list(ex.sports.values('slug', 'name', 'icon')),
+            'cover_image': ex.cover_image.url if ex.cover_image else '',
+        })
+        return card
+
+    return JsonResponse([_card(e) for e in qs], safe=False)
 
 
 def api_exercise_filters(request):

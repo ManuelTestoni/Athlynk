@@ -8,10 +8,37 @@ document.addEventListener('alpine:init', () => {
     selectedExIds: [],
     flashIds: [],
     mobileTab: 'lib',
-    analyticsOpen: false,
 
-    library: { query: '', muscle: '', equipment: '', sport: '', items: [], loading: false },
+    library: {
+      query: '', muscle_slug: '', equipment: '', sport_slug: '',
+      sport_filter_locked: true,   // when true, library auto-filters to plan.sport
+      custom_only: false,
+      items: [], loading: false,
+    },
     filters: { muscles: [], equipment: [], sports: [] },
+    muscleGroups: [],
+    sportsCatalog: [],
+    foldersCatalog: [],
+
+    /* Sport combobox UI */
+    sportCombobox: {
+      query: '',
+      open: false,
+      activeIndex: -1,
+      filtered: [],
+    },
+
+    /* Volume drawer open tracker */
+    _volumeOpen: false,
+    _volumeRefreshTimer: null,
+
+    /* Custom exercise drawer */
+    customExerciseOpen: false,
+    customExercise: {
+      name: '', sport_ids: [], primary_muscle_ids: [], secondary_muscle_ids: [],
+      equipment: '', difficulty_level: '', video_url: '', coach_notes: '',
+      saving: false, error: '',
+    },
 
     saveState: 'idle',
     saveTimer: null,
@@ -118,6 +145,12 @@ document.addEventListener('alpine:init', () => {
     // ---- Init ----
     init() {
       const init = window.WIZARD_INIT || {};
+      const urlParams = new URLSearchParams(window.location.search);
+      const kindParam = (urlParams.get('kind') || '').toUpperCase();
+      const folderParam = parseInt(urlParams.get('folder_id') || '0', 10);
+
+      const initialKind = init.plan_kind || (kindParam === 'PROGRAM' ? 'PROGRAM' : (kindParam === 'WEEKLY' ? 'WEEKLY' : 'WEEKLY'));
+
       this.plan = {
         id: init.id || null,
         title: init.title || '',
@@ -125,11 +158,16 @@ document.addEventListener('alpine:init', () => {
         goal: init.goal || '',
         level: init.level || '',
         frequency_per_week: init.frequency_per_week || null,
-        duration_weeks: init.duration_weeks || 8,
+        duration_weeks: init.duration_weeks || (initialKind === 'PROGRAM' ? 4 : 1),
         status: init.status || 'DRAFT',
         last_step: init.last_step || 1,
+        folder_id: init.folder_id || (folderParam || null),
+        sport_id: init.sport_id || null,
+        sport_name: init.sport_name || '',
+        plan_kind: initialKind,
         days: this._materializeDays(init.days || []),
       };
+      this.sportCombobox.query = this.plan.sport_name || '';
 
       // Resume to last_step if existing draft
       if (this.plan.id && this.plan.last_step) {
@@ -145,7 +183,13 @@ document.addEventListener('alpine:init', () => {
 
       // Load filters + library on step 2
       this.loadFilters();
+      this.loadMuscleGroups();
+      this.loadSportsCatalog();
+      this.loadFoldersCatalog();
       this.loadLibrary();
+
+      // Volume drawer close → clear flag
+      window.addEventListener('volume-analytics:closed', () => { this._volumeOpen = false; });
 
       // Beforeunload save
       window.addEventListener('beforeunload', (e) => this._beforeUnload(e));
@@ -171,14 +215,24 @@ document.addEventListener('alpine:init', () => {
           target_muscle_group: ex.target_muscle_group || '',
           primary_muscle: ex.primary_muscle || '',
           secondary_muscle: ex.secondary_muscle || '',
+          primary_muscles_data: ex.primary_muscles || [],
+          secondary_muscles_data: ex.secondary_muscles || [],
           equipment: ex.equipment || '',
           sets: ex.sets ?? 3,
           reps: ex.reps ?? '10',
           load_value: ex.load_value ?? null,
           load_unit: ex.load_unit || 'KG',
           recovery_seconds: ex.recovery_seconds ?? 90,
-          notes: ex.notes || '',
+          notes: ex.notes ?? ex.coach_notes ?? '',
+          coach_notes: ex.coach_notes ?? ex.notes ?? '',
+          execution_type: ex.execution_type || 'REPETITION',
+          rpe: ex.rpe ?? null,
+          rir: ex.rir ?? null,
+          tempo: ex.tempo || '',
           superset_group_id: ex.superset_group_id ?? null,
+          /* UI-only */
+          _showAdvanced: !!(ex.rpe || ex.rir || ex.tempo),
+          _showNote: !!(ex.notes || ex.coach_notes),
         })),
       }));
     },
@@ -289,6 +343,22 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ---- Library ----
+    /**
+     * Build a <select> dropdown via DOM API. Bypasses the well-known
+     * <template x-for>-inside-<select> parser issue and keeps the value
+     * synced when the source array updates.
+     *
+     * @param el        the <select> element
+     * @param emptyLbl  label for the "all" option (value="")
+     * @param getList   () => array
+     * @param valueKey  property to use as option value (null = use the item itself)
+     * @param labelKey  property to use as label (null = use the item itself)
+     * @param getCur    () => currently-selected value
+     */
+    // Filter selects now rendered inline via <template x-for> in wizard.html;
+    // helper kept as no-op for backwards compat with any stale templates.
+    renderFilterSelect() { /* deprecated */ },
+
     async loadFilters() {
       try {
         const r = await fetch(this.urls.filters);
@@ -297,13 +367,44 @@ document.addEventListener('alpine:init', () => {
       } catch (e) { /* silent */ }
     },
 
+    async loadMuscleGroups() {
+      try {
+        const r = await fetch(this.urls.muscle_groups || '/api/muscle-groups/');
+        this.muscleGroups = await r.json();
+      } catch (e) { this.muscleGroups = []; }
+    },
+
+    async loadSportsCatalog() {
+      try {
+        const r = await fetch(this.urls.sports || '/api/allenamenti/sport/');
+        this.sportsCatalog = await r.json();
+        this._refreshSportCombobox();
+      } catch (e) { this.sportsCatalog = []; }
+    },
+
+    async loadFoldersCatalog() {
+      try {
+        const r = await fetch(this.urls.folders || '/api/allenamenti/cartelle/');
+        this.foldersCatalog = await r.json();
+      } catch (e) { this.foldersCatalog = []; }
+    },
+
     async loadLibrary() {
       this.library.loading = true;
       const params = new URLSearchParams();
       if (this.library.query) params.set('q', this.library.query);
-      if (this.library.muscle) params.set('muscle', this.library.muscle);
+      if (this.library.muscle_slug) params.set('muscle_slug', this.library.muscle_slug);
       if (this.library.equipment) params.set('equipment', this.library.equipment);
-      if (this.library.sport) params.set('sport', this.library.sport);
+
+      // Sport filter: when locked + plan has a sport, filter by it.
+      let sportSlug = this.library.sport_slug;
+      if (!sportSlug && this.library.sport_filter_locked && this.plan?.sport_id) {
+        const s = this.sportsCatalog.find(x => x.id === this.plan.sport_id);
+        if (s) sportSlug = s.slug;
+      }
+      if (sportSlug) params.set('sport_slug', sportSlug);
+      if (this.library.custom_only) params.set('custom', 'true');
+
       try {
         const r = await fetch(`${this.urls.search_exercises}?${params.toString()}`);
         this.library.items = await r.json();
@@ -312,6 +413,191 @@ document.addEventListener('alpine:init', () => {
       } finally {
         this.library.loading = false;
       }
+    },
+
+    unlockSportFilter() {
+      this.library.sport_filter_locked = false;
+      this.library.sport_slug = '';
+      this.loadLibrary();
+    },
+
+    activeSportSlugInLibrary() {
+      if (this.library.sport_slug) return this.library.sport_slug;
+      if (this.library.sport_filter_locked && this.plan?.sport_id) {
+        const s = this.sportsCatalog.find(x => x.id === this.plan.sport_id);
+        return s ? s.slug : '';
+      }
+      return '';
+    },
+
+    activeSportNameInLibrary() {
+      const slug = this.activeSportSlugInLibrary();
+      if (!slug) return '';
+      const s = this.sportsCatalog.find(x => x.slug === slug);
+      return s ? s.name : '';
+    },
+
+    /* ---- Sport combobox ---- */
+    _refreshSportCombobox() {
+      const q = (this.sportCombobox.query || '').toLowerCase().trim();
+      const items = this.sportsCatalog;
+      this.sportCombobox.filtered = q
+        ? items.filter(s => s.name.toLowerCase().includes(q))
+        : items.slice(0, 30);
+    },
+
+    onSportInput() {
+      this._refreshSportCombobox();
+      this.sportCombobox.open = true;
+      // user is editing, decouple plan.sport_id until they pick or create
+      if (!this.sportCombobox.query) {
+        this.plan.sport_id = null;
+        this.plan.sport_name = '';
+        this.markDirty();
+      }
+    },
+
+    pickSport(sport) {
+      this.plan.sport_id = sport.id;
+      this.plan.sport_name = sport.name;
+      this.sportCombobox.query = sport.name;
+      this.sportCombobox.open = false;
+      this.markDirty();
+      // Re-lock library filter when a sport is chosen.
+      this.library.sport_filter_locked = true;
+      this.library.sport_slug = '';
+      if (this.step === 2) this.loadLibrary();
+    },
+
+    async createSportFromQuery() {
+      const name = (this.sportCombobox.query || '').trim();
+      if (name.length < 2) return;
+      try {
+        const r = await fetch(this.urls.sports || '/api/allenamenti/sport/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({ name }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+          this.sportsCatalog.push(d);
+          this.pickSport(d);
+        } else {
+          this._showToast(d.error || 'Errore creazione sport.');
+        }
+      } catch (e) { this._showToast('Errore di rete.'); }
+    },
+
+    /* ---- Volume Analytics Drawer ---- */
+    _buildVolumePayload() {
+      const muscleByName = {};
+      (this.muscleGroups || []).forEach(m => { muscleByName[m.name.toLowerCase()] = m; });
+
+      const days = (this.plan?.days || []).map(d => ({
+        name: d.name,
+        exercises: (d.exercises || []).map(ex => {
+          let primary = ex.primary_muscles_data || [];
+          let secondary = ex.secondary_muscles_data || [];
+          if (!primary.length && ex.primary_muscle) {
+            const m = muscleByName[ex.primary_muscle.toLowerCase()];
+            if (m) primary = [m];
+          }
+          if (!primary.length && ex.target_muscle_group) {
+            const m = muscleByName[ex.target_muscle_group.toLowerCase()];
+            if (m) primary = [m];
+          }
+          if (!secondary.length && ex.secondary_muscle) {
+            const m = muscleByName[ex.secondary_muscle.toLowerCase()];
+            if (m) secondary = [m];
+          }
+          return {
+            sets: parseInt(ex.sets, 10) || 0,
+            reps: ex.reps || '',
+            primary_muscles: primary,
+            secondary_muscles: secondary,
+            primary_muscle_text: ex.primary_muscle || ex.target_muscle_group || '',
+          };
+        }),
+      }));
+
+      return {
+        planKind: this.plan.plan_kind || 'WEEKLY',
+        durationWeeks: parseInt(this.plan.duration_weeks, 10) || 1,
+        days,
+      };
+    },
+
+    openVolumeAnalytics() {
+      this._volumeOpen = true;
+      window.AthlynkVolume.open(this._buildVolumePayload());
+    },
+
+    _refreshVolumeIfOpen() {
+      if (!this._volumeOpen) return;
+      if (this._volumeRefreshTimer) clearTimeout(this._volumeRefreshTimer);
+      this._volumeRefreshTimer = setTimeout(() => {
+        window.AthlynkVolume.refresh(this._buildVolumePayload());
+      }, 250);
+    },
+
+    /* ---- Custom exercise drawer ---- */
+    openCustomExerciseDrawer() {
+      this.customExerciseOpen = true;
+      this.customExercise = {
+        name: '', sport_ids: this.plan.sport_id ? [this.plan.sport_id] : [],
+        primary_muscle_ids: [], secondary_muscle_ids: [],
+        equipment: '', difficulty_level: '', video_url: '', coach_notes: '',
+        saving: false, error: '',
+      };
+    },
+    closeCustomExerciseDrawer() {
+      this.customExerciseOpen = false;
+    },
+    toggleCustomMuscle(arrName, id) {
+      const arr = this.customExercise[arrName];
+      const i = arr.indexOf(id);
+      if (i >= 0) arr.splice(i, 1); else arr.push(id);
+    },
+    toggleCustomSport(id) { this.toggleCustomMuscle('sport_ids', id); },
+
+    async saveCustomExercise(addToBuilderAfter) {
+      const ce = this.customExercise;
+      ce.error = '';
+      if ((ce.name || '').trim().length < 3) { ce.error = 'Nome: minimo 3 caratteri.'; return; }
+      if (!ce.sport_ids.length) { ce.error = 'Seleziona almeno uno sport.'; return; }
+      if (!ce.primary_muscle_ids.length) { ce.error = 'Seleziona almeno un muscolo primario.'; return; }
+      ce.saving = true;
+      try {
+        const r = await fetch(this.urls.custom_exercises || '/api/exercises/custom/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({
+            name: ce.name.trim(),
+            sport_ids: ce.sport_ids,
+            primary_muscle_ids: ce.primary_muscle_ids,
+            secondary_muscle_ids: ce.secondary_muscle_ids,
+            equipment: ce.equipment,
+            difficulty_level: ce.difficulty_level,
+            video_url: ce.video_url,
+            coach_notes: ce.coach_notes,
+          }),
+        });
+        const d = await r.json();
+        if (!r.ok) { ce.error = d.error || 'Errore di salvataggio.'; ce.saving = false; return; }
+        // Add to library
+        this.library.items.unshift({
+          id: d.id, name: d.name, is_custom: true,
+          target_muscle_group: '', primary_muscle: '', secondary_muscle: '',
+          equipment: d.equipment || '',
+          primary_muscles: d.primary_muscles || [],
+          secondary_muscles: d.secondary_muscles || [],
+          sports: d.sports || [],
+        });
+        this._showToast('Esercizio personalizzato salvato.');
+        this.closeCustomExerciseDrawer();
+        if (addToBuilderAfter) this.addExerciseToActiveDay(d);
+      } catch (e) { ce.error = 'Errore di rete.'; }
+      ce.saving = false;
     },
 
     openLibraryFocus() {
@@ -332,9 +618,11 @@ document.addEventListener('alpine:init', () => {
         pk: null,
         exercise_id: libEx.id,
         exercise_name: libEx.name,
-        target_muscle_group: libEx.target_muscle_group || '',
-        primary_muscle: libEx.primary_muscle || '',
+        target_muscle_group: libEx.target_muscle_group || (libEx.primary_muscles?.[0]?.name || ''),
+        primary_muscle: libEx.primary_muscle || (libEx.primary_muscles?.[0]?.name || ''),
         secondary_muscle: libEx.secondary_muscle || '',
+        primary_muscles_data: libEx.primary_muscles || [],
+        secondary_muscles_data: libEx.secondary_muscles || [],
         equipment: libEx.equipment || '',
         sets: 3,
         reps: '10',
@@ -342,7 +630,14 @@ document.addEventListener('alpine:init', () => {
         load_unit: 'KG',
         recovery_seconds: 90,
         notes: '',
+        coach_notes: '',
+        execution_type: 'REPETITION',
+        rpe: null,
+        rir: null,
+        tempo: '',
         superset_group_id: null,
+        _showAdvanced: false,
+        _showNote: false,
       });
       this.flashIds.push(libEx.id);
       setTimeout(() => {
@@ -519,6 +814,7 @@ document.addEventListener('alpine:init', () => {
       this.saveState = 'idle';
       if (this.saveTimer) clearTimeout(this.saveTimer);
       this.saveTimer = setTimeout(() => this.saveDraft(), 1500);
+      this._refreshVolumeIfOpen();
     },
 
     async saveDraft(showToast = false) {
@@ -570,6 +866,9 @@ document.addEventListener('alpine:init', () => {
         frequency_per_week: this.plan.frequency_per_week,
         duration_weeks: this.plan.duration_weeks,
         last_step: this.step,
+        folder_id: this.plan.folder_id || null,
+        sport_id: this.plan.sport_id || null,
+        plan_kind: this.plan.plan_kind || 'WEEKLY',
         days: this.plan.days.map((d, di) => ({
           pk: d.pk,
           local_id: d.local_id,
@@ -586,6 +885,11 @@ document.addEventListener('alpine:init', () => {
             load_unit: ex.load_unit,
             recovery_seconds: ex.recovery_seconds,
             notes: ex.notes,
+            coach_notes: ex.coach_notes || ex.notes || '',
+            execution_type: ex.execution_type || 'REPETITION',
+            rpe: ex.rpe,
+            rir: ex.rir,
+            tempo: ex.tempo || '',
             superset_group_id: ex.superset_group_id,
           })),
         })),

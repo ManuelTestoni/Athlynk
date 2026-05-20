@@ -3,6 +3,7 @@
 {% block title %}{{ plan.title }}{% endblock %}
 
 {% block content %}
+{% include 'pages/allenamenti/_volume_drawer.html' %}
 <div class="max-w-6xl mx-auto" x-data="{ busy: false }">
 
   <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
@@ -10,6 +11,11 @@
       <i class="ph ph-arrow-left"></i> Torna alla libreria
     </a>
     <div class="flex items-center gap-2">
+      <button type="button"
+              onclick="AthlynkVolume.open({planId: {{ plan.id }}, planKind: '{{ plan.plan_kind|default:'WEEKLY' }}', durationWeeks: {{ plan.duration_weeks|default:1 }}})"
+              class="al-btn al-btn-ghost al-btn-sm">
+        <i class="ph ph-chart-bar text-sm"></i><span>Volume d'allenamento</span>
+      </button>
       <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-ghost al-btn-sm">
         <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
       </a>
@@ -27,11 +33,22 @@
         <h1 class="al-h-1 truncate">{{ plan.title }}</h1>
         {% if plan.description %}<p class="al-body mt-3 max-w-3xl">{{ plan.description }}</p>{% endif %}
         <div class="flex flex-wrap items-center gap-2 mt-4">
+          <span class="wb-kind-badge {% if plan.plan_kind == 'PROGRAM' %}wb-kind-badge--program{% else %}wb-kind-badge--weekly{% endif %}">
+            {% if plan.plan_kind == 'PROGRAM' %}Programmazione{% else %}Settimana{% endif %}
+          </span>
+          {% if plan.sport %}<span class="al-badge"><i class="ph {{ plan.sport.icon|default:'ph-stack' }}"></i> {{ plan.sport.name }}</span>{% endif %}
+          {% if plan.folder %}
+            <span class="wb-folder-chip {% if plan.folder.label_color %}wb-folder-chip--{{ plan.folder.label_color }}{% endif %}">
+              <i class="ph ph-folder-simple"></i>
+              {% if plan.folder.label_text %}{{ plan.folder.label_text }}{% else %}{{ plan.folder.title }}{% endif %}
+            </span>
+          {% endif %}
           {% if plan.status == 'TEMPLATE' %}<span class="al-badge" style="background:#dbeafe;color:#1e40af;">Template</span>{% endif %}
           {% if plan.status == 'ACTIVE' %}<span class="al-badge" style="background:#d1fae5;color:#065f46;">Attiva</span>{% endif %}
           {% if plan.goal %}<span class="al-badge al-badge-aegean">{{ plan.goal }}</span>{% endif %}
           {% if plan.level %}<span class="al-badge">{{ plan.level }}</span>{% endif %}
           {% if plan.frequency_per_week %}<span class="al-badge"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+          {% if plan.plan_kind == 'PROGRAM' and plan.duration_weeks %}<span class="al-badge"><i class="ph ph-stack"></i> {{ plan.duration_weeks }} settimane</span>{% endif %}
         </div>
       </div>
     </div>
@@ -47,19 +64,41 @@
           <h3 class="al-h-4">{{ day.day_name|default:"Giorno" }} {{ forloop.counter }}</h3>
           <span class="al-tag">{{ day.exercises.count }} esercizi</span>
         </div>
-        <div class="space-y-2">
+        <div class="space-y-3">
           {% for ex in day.exercises.all %}
-          <div class="flex justify-between al-small p-2 border rounded" style="border-color: var(--al-rule-faint);">
-            <div>
-              <span class="font-semibold">{{ ex.exercise.name }}</span>
-              {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
-              {% if ex.technique_notes %}<p class="italic" style="color: var(--al-ink-faint);">{{ ex.technique_notes }}</p>{% endif %}
+          <div class="p-3 rounded" style="border: 1px solid var(--al-rule-faint); background: var(--al-parchment);">
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-semibold" style="font-size: 14px;">{{ ex.exercise.name }}</span>
+                {% if ex.execution_type and ex.execution_type != 'REPETITION' %}
+                  <span class="wb-chip-set-type {% if ex.execution_type == 'RAMPING' %}is-ramp{% elif ex.execution_type == 'TEST' %}is-test{% else %}is-rep{% endif %}">
+                    {% if ex.execution_type == 'RAMPING' %}Ramping{% elif ex.execution_type == 'TEST' %}Test{% else %}Ripetizione{% endif %}
+                  </span>
+                {% endif %}
+                {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
+              </div>
             </div>
-            <div style="color: var(--al-ink-faint); white-space: nowrap;">
-              {{ ex.set_count|default:3 }}×{{ ex.rep_range|default:"10" }}
-              {% if ex.load_value %} · {{ ex.load_value }} {% if ex.load_unit == 'KG' %}kg{% elif ex.load_unit == 'PERCENT_1RM' %}%1RM{% else %}BW{% endif %}{% endif %}
-              · {{ ex.recovery_seconds|default:90 }}s
+
+            <div class="cw-params">
+              {% if ex.set_count %}<span class="cw-chip"><span class="cw-key">Serie</span><span class="cw-val">{{ ex.set_count }}</span></span>{% endif %}
+              {% if ex.rep_range %}<span class="cw-chip"><span class="cw-key">Reps</span><span class="cw-val">{{ ex.rep_range }}</span></span>{% endif %}
+              {% if ex.load_value %}
+                <span class="cw-chip">
+                  <span class="cw-key">Carico</span>
+                  <span class="cw-val">
+                    {{ ex.load_value }}{% if ex.load_unit == 'KG' %} kg{% elif ex.load_unit == 'PERCENT_1RM' %} % 1RM{% elif ex.load_unit == 'BODYWEIGHT' %} BW{% endif %}
+                  </span>
+                </span>
+              {% endif %}
+              {% if ex.recovery_seconds %}<span class="cw-chip"><span class="cw-key">Rec</span><span class="cw-val">{{ ex.recovery_seconds }}s</span></span>{% endif %}
+              {% if ex.rpe %}<span class="cw-chip"><span class="cw-key">RPE</span><span class="cw-val">{{ ex.rpe }}</span></span>{% endif %}
+              {% if ex.rir is not None %}<span class="cw-chip"><span class="cw-key">RIR</span><span class="cw-val">{{ ex.rir }}</span></span>{% endif %}
+              {% if ex.tempo %}<span class="cw-chip"><span class="cw-key">Tempo</span><span class="cw-val">{{ ex.tempo }}</span></span>{% endif %}
             </div>
+
+            {% if ex.technique_notes %}
+            <p class="cw-note">{{ ex.technique_notes }}</p>
+            {% endif %}
           </div>
           {% empty %}
           <p class="al-small italic" style="color: var(--al-ink-faint);">Giorno vuoto</p>

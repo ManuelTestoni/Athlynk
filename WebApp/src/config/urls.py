@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from . import views
 from . import views_workouts
+from . import views_workouts_taxonomy
 from . import views_agenda
 from . import views_check
 from . import views_auth
@@ -132,6 +133,15 @@ urlpatterns = [
     path('api/clients/search/', views_workouts.api_search_clients, name='api_search_clients'),
     path('api/exercises/search/', views_workouts.api_search_exercises, name='api_search_exercises'),
     path('api/exercises/filters/', views_workouts.api_exercise_filters, name='api_exercise_filters'),
+
+    # Workouts redesign — Iterazione 1 foundation APIs
+    path('api/allenamenti/cartelle/', views_workouts_taxonomy.api_folders, name='api_workout_folders'),
+    path('api/allenamenti/cartelle/<int:folder_id>/', views_workouts_taxonomy.api_folder_detail, name='api_workout_folder_detail'),
+    path('api/allenamenti/sport/', views_workouts_taxonomy.api_sports, name='api_workout_sports'),
+    path('api/muscle-groups/', views_workouts_taxonomy.api_muscle_groups, name='api_muscle_groups'),
+    path('api/exercises/custom/', views_workouts_taxonomy.api_custom_exercises, name='api_custom_exercises'),
+    path('api/exercises/custom/<int:exercise_id>/', views_workouts_taxonomy.api_custom_exercise_detail, name='api_custom_exercise_detail'),
+    path('api/allenamenti/<int:plan_id>/volume/', views_workouts_taxonomy.api_plan_volume, name='api_plan_volume'),
     # Legacy
     path('allenamenti/crea/', views_workouts.allenamenti_create_view, name='allenamenti_create'),
     path('allenamenti/legacy/<int:assignment_id>/modifica/', views_workouts.allenamenti_edit_view, name='allenamenti_edit'),
