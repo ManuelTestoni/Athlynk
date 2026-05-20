@@ -5,7 +5,7 @@
 {% block page_id %}agenda{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/agenda.css' %}">
+<link rel="stylesheet" href="{% static 'css/agenda.css' %}?v={{ ASSET_VERSION }}">
 {% endblock %}
 
 {% block content %}
@@ -420,5 +420,5 @@
 <script>
   window.AGENDA_CAN_MANAGE = {% if can_manage_agenda %}true{% else %}false{% endif %};
 </script>
-<script src="{% static 'js/agenda_v2.js' %}"></script>
+<script src="{% static 'js/agenda_v2.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endblock %}

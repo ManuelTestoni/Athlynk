@@ -16,6 +16,31 @@ html, body {
   overflow-x: clip;
   max-width: 100vw;
 }
+/* The scrolling viewport is <main.al-canvas>; cap its horizontal
+   overflow too so a wide editor child can't push a horizontal scrollbar. */
+main.al-canvas {
+  overflow-x: hidden;
+  overflow-x: clip;
+  min-width: 0;
+}
+main.al-canvas > .al-page { min-width: 0; max-width: 100%; }
+
+/* Body scroll lock while any drawer / modal is open. */
+body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
+
+/* Day-tab strip — let it scroll itself, not the page. */
+.wb-day-tabs-row {
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: var(--al-rule-strong) transparent;
+}
+.wb-day-tabs-row::-webkit-scrollbar { height: 5px; }
+.wb-day-tabs-row::-webkit-scrollbar-thumb {
+  background: var(--al-rule-strong); border-radius: 3px;
+}
+.wb-day-tabs-row > * { flex-shrink: 0; }
 
 /* --------- 2-col shell for the Library page ---------------------- */
 .wb-shell {
@@ -358,10 +383,14 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: var(--al-s-3);
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 130px);
   position: sticky;
-  top: 88px;
+  top: 12px;
 }
+/* Sticky needs the aside to NOT stretch — otherwise the libpanel has no
+   scroll headroom above/below to engage `position: sticky`. */
+.wb-shell-row { align-items: flex-start; }
+.wb-shell-row > aside { align-self: flex-start; }
 
 .wb-filter-chips {
   display: flex;
@@ -857,14 +886,11 @@ html, body {
 .wb-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20,17,13,0.30);
+  background: transparent;
   z-index: 79;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms var(--al-ease);
 }
 .wb-drawer-backdrop.is-open {
-  opacity: 1;
   pointer-events: auto;
 }
 
@@ -976,13 +1002,11 @@ html, body {
 .va-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20,17,13,0.30);
+  background: transparent;
   z-index: 79;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms var(--al-ease);
 }
-.va-backdrop.is-open { opacity: 1; pointer-events: auto; }
+.va-backdrop.is-open { pointer-events: auto; }
 
 .va-header {
   padding: var(--al-s-5) var(--al-s-6) var(--al-s-3);

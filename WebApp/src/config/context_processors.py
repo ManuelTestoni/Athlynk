@@ -60,21 +60,34 @@ def identity_context(request):
 
 _asset_version_cache = None
 def _asset_version():
-    """Returns mtime of athlynk.css as cache-buster.
+    """Returns max mtime across all bundled CSS+JS as cache-buster.
 
-    Cached for the process lifetime in DEBUG=False; re-read every call in DEBUG.
+    Watching every asset (not just athlynk.css) ensures that editing a
+    JS file forces every browser — Safari included — to refetch. Cached
+    for the process lifetime in DEBUG=False; re-read every call in DEBUG.
     """
     global _asset_version_cache
     if settings.DEBUG or _asset_version_cache is None:
         import os
-        try:
-            p = os.path.join(settings.BASE_DIR.parent, 'static', 'css', 'athlynk.css')
-            mtime = int(os.path.getmtime(p))
-        except OSError:
-            mtime = 0
+        latest = 0
+        static_root = os.path.join(settings.BASE_DIR.parent, 'static')
+        for sub in ('css', 'js'):
+            d = os.path.join(static_root, sub)
+            try:
+                for name in os.listdir(d):
+                    if not (name.endswith('.css') or name.endswith('.js')):
+                        continue
+                    try:
+                        m = int(os.path.getmtime(os.path.join(d, name)))
+                        if m > latest:
+                            latest = m
+                    except OSError:
+                        pass
+            except OSError:
+                pass
         if not settings.DEBUG:
-            _asset_version_cache = mtime
-        return mtime
+            _asset_version_cache = latest
+        return latest
     return _asset_version_cache
 
 

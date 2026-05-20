@@ -257,8 +257,10 @@
   </div>
 
   <!-- =================== TYPE PICKER MODAL =================== -->
-  <div x-show="typePickerOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" style="background: rgba(20,17,13,0.45);" @click="closeTypePicker()"></div>
+  <div x-show="typePickerOpen" x-cloak
+       x-effect="window.panelLock && (typePickerOpen ? window.panelLock.acquire() : window.panelLock.release())"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="closeTypePicker()"></div>
     <div class="al-modal-panel wb-fade-in relative" style="max-width: 760px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
         <div>
@@ -311,8 +313,10 @@
   </div>
 
   <!-- =================== DELETE FOLDER MODAL =================== -->
-  <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" style="background: rgba(20,17,13,0.45);" @click="deleteFolderOpen = false"></div>
+  <div x-show="deleteFolderOpen" x-cloak
+       x-effect="window.panelLock && (deleteFolderOpen ? window.panelLock.acquire() : window.panelLock.release())"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
     <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
         <h2 class="al-h-4">Elimina cartella</h2>

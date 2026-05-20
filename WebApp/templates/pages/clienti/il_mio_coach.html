@@ -202,7 +202,9 @@
                     <span>Rimuoviti da {{ coach.first_name }}</span>
                 </button>
 
-                <div x-show="confirmLeave" x-transition.opacity class="fixed inset-0 z-50 bg-ink backdrop-blur-sm flex items-center justify-center p-4" x-cloak>
+                <div x-show="confirmLeave" x-transition.opacity
+                     x-effect="window.panelLock && (confirmLeave ? window.panelLock.acquire() : window.panelLock.release())"
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4" x-cloak>
                     <div x-show="confirmLeave" x-transition @click.outside="confirmLeave = false"
                          class="bg-white rounded-al-sm shadow-xl w-full max-w-sm p-6">
                         <div class="w-12 h-12 rounded-al-sm bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto mb-4">

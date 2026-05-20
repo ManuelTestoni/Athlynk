@@ -543,6 +543,7 @@ document.addEventListener('alpine:init', () => {
     /* ---- Custom exercise drawer ---- */
     openCustomExerciseDrawer() {
       this.customExerciseOpen = true;
+      window.panelLock && window.panelLock.acquire();
       this.customExercise = {
         name: '', sport_ids: this.plan.sport_id ? [this.plan.sport_id] : [],
         primary_muscle_ids: [], secondary_muscle_ids: [],
@@ -551,6 +552,7 @@ document.addEventListener('alpine:init', () => {
       };
     },
     closeCustomExerciseDrawer() {
+      if (this.customExerciseOpen) window.panelLock && window.panelLock.release();
       this.customExerciseOpen = false;
     },
     toggleCustomMuscle(arrName, id) {

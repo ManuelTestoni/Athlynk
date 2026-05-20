@@ -418,8 +418,7 @@
 
   /* Modals */
   .ss-modal-bg {
-    position: fixed; inset: 0; background: rgba(20,17,13,0.55);
-    backdrop-filter: blur(4px);
+    position: fixed; inset: 0; background: transparent;
     z-index: 60; display: flex; align-items: center; justify-content: center;
     padding: 1rem;
   }
@@ -784,5 +783,5 @@
 
 </div>
 
-<script src="{% static 'js/workout_session.js' %}?v=3"></script>
+<script src="{% static 'js/workout_session.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endblock %}

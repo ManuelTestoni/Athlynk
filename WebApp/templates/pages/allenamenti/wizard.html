@@ -374,9 +374,9 @@
       </button>
     </div>
 
-    <div class="flex gap-4" style="min-height: calc(100vh - 180px);">
+    <div class="flex gap-4 min-w-0 wb-shell-row" style="min-height: calc(100vh - 180px);">
       <!-- LEFT: Library (Athlynk redesign) -->
-      <aside class="md:basis-1/4 md:max-w-xs w-full"
+      <aside class="md:basis-1/4 md:max-w-xs w-full min-w-0 md:self-start"
              :class="{'hidden md:block': mobileTab !== 'lib'}">
         <div class="wb-libpanel">
           <div class="flex items-center justify-between gap-2">
@@ -473,7 +473,7 @@
       </aside>
 
       <!-- RIGHT: Editor (75%) -->
-      <main class="flex-1" :class="{'hidden md:block': mobileTab !== 'ed'}">
+      <main class="flex-1 min-w-0" :class="{'hidden md:block': mobileTab !== 'ed'}">
         <!-- Editor header: plan recap -->
         <div class="al-card mb-3" style="padding: .75rem 1rem;">
           <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -493,7 +493,7 @@
         </div>
 
         <!-- Day tabs -->
-        <div class="flex gap-1 border-b" style="border-color: var(--al-rule-faint);">
+        <div class="flex gap-1 border-b wb-day-tabs-row" style="border-color: var(--al-rule-faint);">
           <template x-for="(d, i) in plan.days" :key="d.local_id">
             <div class="wiz-day-tab" :class="{'is-active': activeDayIndex === i}"
                  @click="activeDayIndex = i">
@@ -1451,5 +1451,5 @@
 
 <!-- SortableJS for drag-drop -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{% static 'js/workout_wizard.js' %}?v=14"></script>
+<script src="{% static 'js/workout_wizard.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endblock %}

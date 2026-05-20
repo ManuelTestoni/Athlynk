@@ -471,7 +471,24 @@
       })();
     </script>
 
-    <script src="{% static 'js/toasts.js' %}"></script>
+    <script>
+      /* Global panel scroll-lock: ref-counted so multiple panels stack cleanly.
+         Toggles body[data-panel-open], which CSS uses to freeze .al-canvas. */
+      (function () {
+        let n = 0;
+        window.panelLock = {
+          acquire() {
+            n++;
+            if (n === 1) document.body.dataset.panelOpen = '1';
+          },
+          release() {
+            n = Math.max(0, n - 1);
+            if (n === 0) delete document.body.dataset.panelOpen;
+          },
+        };
+      })();
+    </script>
+    <script src="{% static 'js/toasts.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/visual_polish.js' %}?v={{ ASSET_VERSION }}" defer></script>
     {% if messages %}
     <script>
@@ -483,15 +500,15 @@
       });
     </script>
     {% endif %}
-    <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/notifications.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/pickers.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/volume_analytics.js' %}?v={{ ASSET_VERSION }}"></script>
-    <script src="{% static 'js/global_search.js' %}"></script>
+    <script src="{% static 'js/global_search.js' %}?v={{ ASSET_VERSION }}"></script>
     <script>
       window.CONSENT_VERSION = "{{ CONSENT_VERSION }}";
       window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
     </script>
-    <script src="{% static 'js/cookie_banner.js' %}"></script>
+    <script src="{% static 'js/cookie_banner.js' %}?v={{ ASSET_VERSION }}"></script>
     {% block extra_js %}{% endblock %}
 
     {# CHIRON — assistente AI, solo coach loggati #}

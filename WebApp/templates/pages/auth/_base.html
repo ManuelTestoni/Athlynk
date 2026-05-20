@@ -202,7 +202,7 @@
       window.CONSENT_VERSION = "{{ CONSENT_VERSION }}";
       window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
     </script>
-    <script src="{% static 'js/cookie_banner.js' %}"></script>
+    <script src="{% static 'js/cookie_banner.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/visual_polish.js' %}?v={{ ASSET_VERSION }}" defer></script>
 </body>
 </html>

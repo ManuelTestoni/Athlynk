@@ -93,8 +93,8 @@
         this.planKind = (p.planKind || 'WEEKLY').toUpperCase();
         this.durationWeeks = Math.max(1, parseInt(p.durationWeeks || 1, 10));
         this.payload = p.days || [];
+        if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;
-        document.body.style.overflow = 'hidden';
         this.chartType = this.planKind === 'PROGRAM' ? 'line' : 'histogram';
 
         if (p.planId && !(p.days && p.days.length)) {
@@ -136,8 +136,8 @@
       },
 
       close() {
+        if (this.isOpen) window.panelLock && window.panelLock.release();
         this.isOpen = false;
-        document.body.style.overflow = '';
         this._destroyChart();
         window.dispatchEvent(new CustomEvent('volume-analytics:closed'));
       },

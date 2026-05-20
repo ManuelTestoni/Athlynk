@@ -15,9 +15,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}">
-    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/athlynk.css' %}?v={{ ASSET_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
     <script>
       tailwind.config = { theme: { extend: {
         colors: {
@@ -67,6 +67,6 @@
     window.CONSENT_VERSION = "{{ consent_version }}";
     window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
   </script>
-  <script src="{% static 'js/cookie_banner.js' %}"></script>
+  <script src="{% static 'js/cookie_banner.js' %}?v={{ ASSET_VERSION }}"></script>
 </body>
 </html>
