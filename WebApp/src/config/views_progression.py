@@ -6,11 +6,18 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 
 from domain.workouts.models import (
-    ProgressionRule, WeekDefinition, WeeklyOverride, WorkoutExercise, WorkoutPlan,
+    Exercise, ProgressionRule, WeekDefinition, WeeklyOverride, WorkoutDay,
+    WorkoutExercise, WorkoutPlan,
 )
 from domain.workouts import progression_engine
 
 from .session_utils import get_session_coach, can_manage_workouts
+
+
+_CELL_METRICS = {
+    'set_count', 'rep_range', 'load_value', 'load_unit',
+    'rpe', 'rir', 'recovery_seconds', 'tempo',
+}
 
 
 def _coach_plan_or_403(request, plan_id):
@@ -157,4 +164,134 @@ def api_progression_special_week(request, plan_id, week_number):
             'label': wd.label,
         },
         'conflicts': result['conflicts'],
+    })
+
+
+@csrf_exempt
+def api_progression_day_grid(request, plan_id, day_id):
+    """Per-day grid for the new Step 3 UI: every exercise's effective values
+    across all weeks, with forward-fill from WeeklyOverride records."""
+    plan, err = _coach_plan_or_403(request, plan_id)
+    if err:
+        return err
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    if not plan.days.filter(id=day_id).exists():
+        return JsonResponse({'error': 'day not found'}, status=404)
+    grid = progression_engine.compute_day_grid(plan, day_id)
+    # JSON-safe Decimal handling already done in helper for load_value (float).
+    return JsonResponse({'status': 'ok', 'grid': grid})
+
+
+@csrf_exempt
+def api_progression_cell(request, plan_id):
+    """Upsert/clear a single (exercise, week, metric) override. Forward-propagation
+    is handled by compute_day_grid: subsequent weeks inherit until a later
+    override appears."""
+    plan, err = _coach_plan_or_403(request, plan_id)
+    if err:
+        return err
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    try:
+        body = json.loads(request.body or '{}')
+    except Exception:
+        return JsonResponse({'error': 'invalid json'}, status=400)
+
+    try:
+        ex_id = int(body.get('workout_exercise_id'))
+        week = int(body.get('week_number'))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'invalid ids'}, status=400)
+    metric = body.get('metric')
+    if metric not in _CELL_METRICS:
+        return JsonResponse({'error': 'invalid metric'}, status=400)
+
+    try:
+        ex = WorkoutExercise.objects.get(id=ex_id, workout_day__workout_plan=plan)
+    except WorkoutExercise.DoesNotExist:
+        return JsonResponse({'error': 'exercise not found'}, status=404)
+
+    duration = plan.duration_weeks or 1
+    if week < (ex.starts_at_week or 1) or week > duration:
+        return JsonResponse({'error': 'week out of range'}, status=400)
+
+    value = body.get('value', None)
+    clear = bool(body.get('clear')) or value is None or value == ''
+
+    with transaction.atomic():
+        if clear:
+            WeeklyOverride.objects.filter(
+                workout_exercise=ex, week_number=week, metric=metric,
+            ).delete()
+        else:
+            WeeklyOverride.objects.update_or_create(
+                workout_exercise=ex, week_number=week, metric=metric,
+                defaults={'value_json': value},
+            )
+
+    return JsonResponse({'status': 'ok'})
+
+
+@csrf_exempt
+def api_progression_add_exercise(request, plan_id):
+    """Create a new WorkoutExercise on a day, active from `starts_at_week`
+    onward. Used by the "+ Aggiungi" button under each week column."""
+    plan, err = _coach_plan_or_403(request, plan_id)
+    if err:
+        return err
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    try:
+        body = json.loads(request.body or '{}')
+    except Exception:
+        return JsonResponse({'error': 'invalid json'}, status=400)
+
+    try:
+        day_id = int(body.get('workout_day_id'))
+        exercise_id = int(body.get('exercise_id'))
+        starts_at_week = int(body.get('starts_at_week') or 1)
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'invalid ids'}, status=400)
+
+    duration = plan.duration_weeks or 1
+    if starts_at_week < 1 or starts_at_week > duration:
+        return JsonResponse({'error': 'starts_at_week out of range'}, status=400)
+
+    try:
+        day = WorkoutDay.objects.get(id=day_id, workout_plan=plan)
+    except WorkoutDay.DoesNotExist:
+        return JsonResponse({'error': 'day not found'}, status=404)
+    try:
+        ex_def = Exercise.objects.get(id=exercise_id)
+    except Exercise.DoesNotExist:
+        return JsonResponse({'error': 'exercise not found'}, status=404)
+
+    last_order = day.exercises.order_by('-order_index').values_list('order_index', flat=True).first() or 0
+
+    with transaction.atomic():
+        we = WorkoutExercise.objects.create(
+            workout_day=day,
+            exercise=ex_def,
+            order_index=last_order + 1,
+            set_count=body.get('set_count') or 3,
+            rep_range=body.get('rep_range') or '10',
+            load_value=body.get('load_value'),
+            load_unit=body.get('load_unit') or 'KG',
+            recovery_seconds=body.get('recovery_seconds') or 90,
+            rpe=body.get('rpe'),
+            rir=body.get('rir'),
+            tempo=body.get('tempo') or '',
+            starts_at_week=starts_at_week,
+        )
+
+    return JsonResponse({
+        'status': 'ok',
+        'workout_exercise': {
+            'id': we.id,
+            'exercise_id': we.exercise_id,
+            'name': ex_def.name,
+            'order_index': we.order_index,
+            'starts_at_week': we.starts_at_week,
+        },
     })

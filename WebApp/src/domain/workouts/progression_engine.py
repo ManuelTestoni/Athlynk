@@ -763,6 +763,99 @@ def sync_week_definitions(plan: WorkoutPlan) -> None:
             wd.delete()
 
 
+_GRID_METRICS = ('set_count', 'rep_range', 'load_value', 'load_unit', 'rpe', 'rir', 'recovery_seconds', 'tempo')
+
+
+def _ex_base_value(ex: WorkoutExercise, metric: str):
+    if metric == 'set_count':
+        return ex.set_count
+    if metric == 'rep_range':
+        return ex.rep_range or (str(ex.rep_count) if ex.rep_count else '')
+    if metric == 'load_value':
+        return float(ex.load_value) if ex.load_value is not None else None
+    if metric == 'load_unit':
+        return ex.load_unit or ''
+    if metric == 'rpe':
+        return ex.rpe
+    if metric == 'rir':
+        return ex.rir
+    if metric == 'recovery_seconds':
+        return ex.recovery_seconds
+    if metric == 'tempo':
+        return ex.tempo or ''
+    return None
+
+
+def compute_day_grid(plan: WorkoutPlan, day_id: int) -> dict:
+    """Per-week effective values for every exercise in a day, forward-filling from
+    the nearest prior WeeklyOverride. Used by the per-day progression grid UI.
+
+    Returns:
+        {
+          'exercises': [ {id, exercise_id, name, order_index, starts_at_week, base: {...}} ],
+          'cells': {ex_id: {week: {metric: {'value': v, 'source': 'base'|'inherit'|'override', 'override_week': N|null}}}},
+          'duration_weeks': int,
+        }
+    """
+    duration = plan.duration_weeks or 1
+    weeks = list(range(1, duration + 1))
+
+    exercises = list(
+        WorkoutExercise.objects
+        .filter(workout_day_id=day_id, workout_day__workout_plan=plan)
+        .select_related('exercise')
+        .order_by('order_index', 'id')
+    )
+
+    overrides_by_ex = defaultdict(dict)  # ex_id -> {(week, metric): value_json}
+    qs = WeeklyOverride.objects.filter(workout_exercise__workout_day_id=day_id).order_by('workout_exercise_id', 'week_number')
+    for ov in qs:
+        overrides_by_ex[ov.workout_exercise_id][(ov.week_number, ov.metric)] = ov.value_json
+
+    cells = {}
+    serialized = []
+    for ex in exercises:
+        ex_cells = {}
+        per_ex = overrides_by_ex.get(ex.id, {})
+        for w in weeks:
+            row = {}
+            if w < (ex.starts_at_week or 1):
+                # Exercise not active yet at this week.
+                row['_inactive'] = True
+                ex_cells[w] = row
+                continue
+            for metric in _GRID_METRICS:
+                # Walk backward looking for the nearest override at <=w (and >= starts_at_week).
+                src = 'base'
+                src_week = None
+                value = _ex_base_value(ex, metric)
+                for back in range(w, (ex.starts_at_week or 1) - 1, -1):
+                    if (back, metric) in per_ex:
+                        value = per_ex[(back, metric)]
+                        src = 'override' if back == w else 'inherit'
+                        src_week = back
+                        break
+                row[metric] = {'value': value, 'source': src, 'override_week': src_week}
+            ex_cells[w] = row
+        cells[ex.id] = ex_cells
+
+        serialized.append({
+            'id': ex.id,
+            'exercise_id': ex.exercise_id,
+            'name': ex.exercise.name,
+            'order_index': ex.order_index,
+            'starts_at_week': ex.starts_at_week or 1,
+            'superset_group_id': ex.superset_group_id,
+            'base': {m: _ex_base_value(ex, m) for m in _GRID_METRICS},
+        })
+
+    return {
+        'exercises': serialized,
+        'cells': cells,
+        'duration_weeks': duration,
+    }
+
+
 def truncate_rules_to_duration(plan: WorkoutPlan) -> None:
     """When duration_weeks decreases, cap end_week / drop rules wholly out of range, and delete overrides past the new end."""
     duration = plan.duration_weeks or 1

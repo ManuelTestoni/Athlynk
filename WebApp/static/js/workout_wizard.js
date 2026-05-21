@@ -71,6 +71,35 @@ document.addEventListener('alpine:init', () => {
 
     // ---- Progression state ----
     progression: { weeks: [], rules: [], overrides: [], computed: {}, conflicts: [] },
+
+    // Per-day grid for new Step 3 UI (server-fetched, replaces local progression accordion).
+    progGrid: {
+      dayIdx: 0,           // index into plan.days
+      windowStart: 1,      // leftmost visible week
+      windowSize: 3,       // visible columns
+      exercises: [],       // [{id, exercise_id, name, starts_at_week, base:{...}}, ...] for current day
+      cells: {},           // {ex_id: {week: {metric: {value, source, override_week}}}}
+      loading: false,
+    },
+    PRG_FIELDS: [
+      { metric: 'set_count',        label: 'Serie',    type: 'number', step: '1', min: 1 },
+      { metric: 'rep_range',        label: 'Reps',     type: 'text' },
+      { metric: 'load_value',       label: 'Carico',   type: 'number', step: '0.25', min: 0 },
+      { metric: 'rpe',              label: 'RPE',      type: 'number', step: '0.5',  min: 0 },
+      { metric: 'rir',              label: 'RIR',      type: 'number', step: '1',    min: 0 },
+      { metric: 'recovery_seconds', label: 'Rec (s)',  type: 'number', step: '5',    min: 0 },
+    ],
+
+    // Add-exercise-at-week drawer
+    addExUi: {
+      open: false,
+      week: 1,
+      dayIdx: 0,
+      query: '',
+      results: [],
+      loading: false,
+    },
+
     progUi: {
       activeWeek: 1,
       activeExercise: null,
@@ -225,7 +254,13 @@ document.addEventListener('alpine:init', () => {
       );
 
       // Re-render progression chart when relevant state changes.
-      this.$watch('step', (v) => { if (v === 3) setTimeout(() => this._refreshProgChart(), 250); });
+      this.$watch('step', (v) => {
+        if (v === 3) {
+          setTimeout(() => this._refreshProgChart(), 250);
+          // Load per-day grid for new Step 3 UI.
+          this.loadProgGrid();
+        }
+      });
       this.$watch('progUi.activeWeek', () => this._refreshProgChart());
       this.$watch('progression.rules', () => {
         this._refreshProgChart();
@@ -1663,10 +1698,13 @@ document.addEventListener('alpine:init', () => {
     // ============================================================
     _hydrateProgression(srvProg) {
       this.progression.weeks = (srvProg.weeks || []).map(w => ({ ...w }));
-      this.progression.rules = (srvProg.rules || []).map(r => ({ ...r }));
+      // Legacy ProgressionRule objects are no longer used by the redesigned Step 3
+      // grid (per-cell WeeklyOverride only). Drop them client-side so the next
+      // saveDraft diff deletes them server-side.
+      this.progression.rules = [];
       this.progression.overrides = (srvProg.overrides || []).map(o => ({ ...o }));
       this.progression.computed = srvProg.computed || {};
-      this.progression.conflicts = srvProg.conflicts || [];
+      this.progression.conflicts = [];
       this.progUi.activeWeek = 1;
     },
 
@@ -2035,6 +2073,227 @@ document.addEventListener('alpine:init', () => {
       };
       this.progression.rules = this.progression.rules.filter(x => !isSame(x));
       this.markDirty();
+    },
+
+    /* ====================================================================
+       Step 3 — Per-day progression grid (redesigned)
+       ==================================================================== */
+    _currentDay() {
+      return this.plan?.days?.[this.progGrid.dayIdx] || null;
+    },
+
+    setProgGridDay(idx) {
+      if (idx < 0 || idx >= this.plan.days.length) return;
+      this.progGrid.dayIdx = idx;
+      this.progGrid.windowStart = 1;
+      this.loadProgGrid();
+    },
+
+    progGridVisibleWeeks() {
+      const total = parseInt(this.plan?.duration_weeks, 10) || 1;
+      const size = Math.min(this.progGrid.windowSize, total);
+      const start = Math.max(1, Math.min(this.progGrid.windowStart, total - size + 1));
+      const out = [];
+      for (let i = 0; i < size; i++) out.push(start + i);
+      return out;
+    },
+
+    canShiftProgGrid(dir) {
+      const total = parseInt(this.plan?.duration_weeks, 10) || 1;
+      const size = Math.min(this.progGrid.windowSize, total);
+      if (dir < 0) return this.progGrid.windowStart > 1;
+      return this.progGrid.windowStart + size <= total;
+    },
+
+    shiftProgGrid(dir) {
+      if (!this.canShiftProgGrid(dir)) return;
+      this.progGrid.windowStart += dir;
+    },
+
+    async loadProgGrid() {
+      const day = this._currentDay();
+      if (!day || !day.pk || !this.plan.id) {
+        // Day not persisted yet — saveDraft first so we have pks.
+        if (this.plan.id) await this.saveDraft();
+        const d2 = this._currentDay();
+        if (!d2 || !d2.pk) {
+          this.progGrid.exercises = [];
+          this.progGrid.cells = {};
+          return;
+        }
+      }
+      const dayPk = this._currentDay().pk;
+      this.progGrid.loading = true;
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/day/${dayPk}/grid/`, { credentials: 'same-origin' });
+        if (!r.ok) throw new Error('grid fetch failed: ' + r.status);
+        const d = await r.json();
+        const grid = d.grid || {};
+        this.progGrid.exercises = grid.exercises || [];
+        this.progGrid.cells = grid.cells || {};
+      } catch (e) {
+        console.error('[progGrid] load failed', e);
+        this.progGrid.exercises = [];
+        this.progGrid.cells = {};
+      } finally {
+        this.progGrid.loading = false;
+      }
+    },
+
+    progGridExercisesAtWeek(week) {
+      return (this.progGrid.exercises || []).filter(ex => (ex.starts_at_week || 1) <= week)
+        .map(ex => ({
+          pk: ex.id,
+          local_id: 'srv-' + ex.id,
+          exercise_id: ex.exercise_id,
+          exercise_name: ex.name,
+          starts_at_week: ex.starts_at_week || 1,
+          base: ex.base || {},
+        }));
+    },
+
+    _cellFor(ex, week, metric) {
+      const cellsByEx = this.progGrid.cells || {};
+      const exId = ex.pk;
+      return cellsByEx?.[exId]?.[week]?.[metric] || null;
+    },
+
+    cellFieldRawValue(ex, week, metric) {
+      const cell = this._cellFor(ex, week, metric);
+      if (!cell) return '';
+      const v = cell.value;
+      return (v === null || v === undefined) ? '' : String(v);
+    },
+
+    cellFieldPlaceholder(ex, week, metric) {
+      const base = ex.base?.[metric];
+      return (base === null || base === undefined || base === '') ? '—' : String(base);
+    },
+
+    cellFieldClass(ex, week, metric) {
+      const cell = this._cellFor(ex, week, metric);
+      if (!cell) return 'is-inherited';
+      if (cell.source === 'override') return 'is-override';
+      if (cell.source === 'inherit') return 'is-inherited is-from-override';
+      return 'is-inherited';
+    },
+
+    cellFieldHint(ex, week, metric) {
+      const cell = this._cellFor(ex, week, metric);
+      if (!cell) return '';
+      if (cell.source === 'override') return 'Valore impostato in questa settimana';
+      if (cell.source === 'inherit') return 'Ereditato da S' + cell.override_week;
+      return 'Valore base dall\'esercizio';
+    },
+
+    async commitCellEdit(ex, week, metric, raw, evt) {
+      if (evt && evt.target) evt.target.classList.remove('is-focused');
+      const current = this._cellFor(ex, week, metric);
+      const currentVal = current ? current.value : ex.base?.[metric];
+      const trimmed = raw == null ? '' : String(raw).trim();
+
+      // Coerce numeric inputs.
+      const numericMetrics = ['set_count', 'load_value', 'rpe', 'rir', 'recovery_seconds'];
+      let payloadValue = trimmed;
+      if (trimmed === '') {
+        payloadValue = null;
+      } else if (numericMetrics.includes(metric)) {
+        const n = parseFloat(trimmed);
+        if (isNaN(n)) {
+          this._showToast('Valore non valido');
+          await this.loadProgGrid();
+          return;
+        }
+        payloadValue = (metric === 'set_count' || metric === 'rir' || metric === 'recovery_seconds') ? Math.round(n) : n;
+      }
+
+      // No-op if same as current effective value.
+      const a = (currentVal === null || currentVal === undefined) ? null : String(currentVal);
+      const b = (payloadValue === null || payloadValue === undefined) ? null : String(payloadValue);
+      if (a === b && (!current || current.source !== 'override')) return;
+
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/cell/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({
+            workout_exercise_id: ex.pk,
+            week_number: week,
+            metric,
+            value: payloadValue,
+            clear: payloadValue === null,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          this._showToast(d.error || 'Errore aggiornamento');
+        }
+      } catch (_) {
+        this._showToast('Errore di rete');
+      }
+      await this.loadProgGrid();
+    },
+
+    /* ---- Add exercise at week ---- */
+    openAddExerciseForWeek(week) {
+      this.addExUi.open = true;
+      this.addExUi.week = week;
+      this.addExUi.dayIdx = this.progGrid.dayIdx;
+      this.addExUi.query = '';
+      this.addExUi.results = [];
+      window.panelLock && window.panelLock.acquire();
+      this.searchAddExercises();
+    },
+
+    closeAddExerciseAtWeek() {
+      if (this.addExUi.open) window.panelLock && window.panelLock.release();
+      this.addExUi.open = false;
+    },
+
+    async searchAddExercises() {
+      this.addExUi.loading = true;
+      const params = new URLSearchParams();
+      if (this.addExUi.query) params.set('q', this.addExUi.query);
+      if (this.plan?.sport_id) {
+        const s = (this.sportsCatalog || []).find(x => x.id === this.plan.sport_id);
+        if (s) params.set('sport_slug', s.slug);
+      }
+      try {
+        const r = await fetch(`${this.urls.search_exercises}?${params.toString()}`);
+        this.addExUi.results = (await r.json()).slice(0, 20);
+      } catch (_) {
+        this.addExUi.results = [];
+      } finally {
+        this.addExUi.loading = false;
+      }
+    },
+
+    async confirmAddExerciseAtWeek(opt) {
+      const day = this._currentDay();
+      if (!day || !day.pk) {
+        this._showToast('Salva la bozza prima di aggiungere esercizi.');
+        return;
+      }
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/add-exercise/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({
+            workout_day_id: day.pk,
+            exercise_id: opt.id,
+            starts_at_week: this.addExUi.week,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          this._showToast(d.error || 'Errore aggiunta');
+          return;
+        }
+        this.closeAddExerciseAtWeek();
+        await this.loadProgGrid();
+      } catch (_) {
+        this._showToast('Errore di rete');
+      }
     },
   }));
 });

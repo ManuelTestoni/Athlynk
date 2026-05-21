@@ -199,6 +199,9 @@ class WorkoutExercise(models.Model):
         (LOAD_UNIT_BODYWEIGHT, 'corpo libero'),
     ]
     load_unit = models.CharField(max_length=20, choices=LOAD_UNIT_CHOICES, null=True, blank=True)
+    # First week (within the parent plan's duration) where this exercise is active.
+    # Used by the per-week progression grid: exercises appear only from this week onward.
+    starts_at_week = models.PositiveSmallIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
