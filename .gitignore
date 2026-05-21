@@ -223,3 +223,4 @@ skills-lock.json
 .agents
 skill
 /WebApp/media/*
+.gstack/

@@ -23,10 +23,11 @@
 </script>
 
 <style>
-  .wiz-step-pill { padding: .5rem 1rem; border-radius: var(--al-r-sm); font-weight: 600; font-size: .9rem; }
+  .wiz-step-pill { padding: .5rem 1rem; border-radius: var(--al-r-sm); font-weight: 600; font-size: .9rem; border: none; cursor: pointer; transition: all 140ms var(--al-ease); }
   .wiz-step-pill.is-active { background: var(--al-ink); color: var(--al-parchment); }
   .wiz-step-pill.is-done { background: var(--al-bronze); color: white; }
   .wiz-step-pill.is-todo { background: var(--al-stone); color: var(--al-ink-faint); }
+  .wiz-step-pill:hover { transform: translateY(-1px); }
   .wiz-lib-card { cursor: pointer; transition: all .15s; border: 1px solid var(--al-rule-faint); }
   .wiz-lib-card:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
   .wiz-lib-card.flash { background: #d4f4dd; border-color: #16a34a; }
@@ -223,7 +224,14 @@
     background: rgba(255,255,255,0.55);
     border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-sm);
-    padding: 10px;
+    overflow: hidden;
+  }
+  .prg-chart-wrap > canvas {
+    position: absolute !important;
+    top: 10px; left: 10px;
+    width: calc(100% - 20px) !important;
+    height: calc(100% - 20px) !important;
+    display: block;
   }
 
   /* Day accordion */
@@ -488,13 +496,14 @@
         </div>
       </div>
 
-      <!-- Step indicator -->
+      <!-- Step indicator (clickable navigation) -->
       <div class="flex items-center gap-2">
         <template x-for="s in visibleSteps()" :key="s">
           <div class="flex items-center gap-2">
-            <span class="wiz-step-pill"
-                  :class="{'is-active': step===s, 'is-done': step>s, 'is-todo': step<s}"
-                  x-text="s + '. ' + stepName(s)"></span>
+            <button type="button" class="wiz-step-pill"
+                    :class="{'is-active': step===s, 'is-done': step>s, 'is-todo': step<s}"
+                    @click="goToStep(s)"
+                    x-text="s + '. ' + stepName(s)"></button>
             <i x-show="s < lastVisibleStep()" class="ph ph-caret-right" style="color: var(--al-ink-faint);"></i>
           </div>
         </template>

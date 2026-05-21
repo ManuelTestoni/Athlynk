@@ -1099,13 +1099,20 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .va-chip.is-active { background: var(--al-bronze); color: var(--al-parchment); }
 .va-chip-week.is-active { background: var(--al-ink); color: var(--al-parchment); }
 
-.va-secondary-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.va-secondary-select {
+  padding: 7px 10px;
   font-size: 12px;
-  color: var(--al-ink-soft);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  background: var(--al-parchment);
+  color: var(--al-ink);
+  cursor: pointer;
+  transition: all 140ms var(--al-ease);
+  font-family: var(--al-body);
 }
+.va-secondary-select:hover { border-color: var(--al-rule-strong); }
+.va-secondary-select:focus { outline: none; border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,0.1); }
+.va-secondary-select option { color: var(--al-ink); background: white; }
 
 /* Chart canvas frame — Chart.js standard layout pattern:
    relative-positioned parent with explicit height; canvas takes that size. */
@@ -1120,8 +1127,13 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   position: relative;
   width: 100%;
   height: 320px;
+  overflow: hidden;
 }
 .va-chart-canvas-wrap > canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
   display: block;
   box-sizing: border-box;
 }

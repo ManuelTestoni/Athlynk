@@ -316,6 +316,46 @@ document.addEventListener('alpine:init', () => {
       if (this.step === 2) this.$nextTick(() => this.bindSortable());
     },
 
+    goToStep(targetStep) {
+      // Navigate to a specific step, with validation
+      if (targetStep === this.step) return;
+      if (targetStep < 1 || targetStep > 4) return;
+
+      // Can always go backward
+      if (targetStep < this.step) {
+        this.step = targetStep;
+        if (this.step === 2) this.$nextTick(() => this.bindSortable());
+        return;
+      }
+
+      // Going forward: validate each step
+      let currentStep = this.step;
+      while (currentStep < targetStep) {
+        if (currentStep === 1) {
+          if (!this.canAdvanceStep1()) {
+            this.errors.step1 = 'Compila titolo e numero allenamenti per settimana.';
+            return;
+          }
+          this.errors.step1 = '';
+          this._ensureDays();
+          currentStep = 2;
+        } else if (currentStep === 2) {
+          if (!this.canAdvanceStep2()) {
+            this.errors.step2 = 'Aggiungi almeno un esercizio in almeno un giorno.';
+            return;
+          }
+          this.errors.step2 = '';
+          currentStep = this.hasProgressionStep() ? 3 : 4;
+        } else if (currentStep === 3) {
+          currentStep = 4;
+        }
+      }
+      this.step = targetStep;
+      this.plan.last_step = targetStep;
+      this.$nextTick(() => this.bindSortable());
+      this.saveDraft();
+    },
+
     setFrequency(n) {
       this.plan.frequency_per_week = n;
       this.markDirty();
@@ -838,8 +878,11 @@ document.addEventListener('alpine:init', () => {
 
     mountProgChart(el) {
       this._progCanvas = el;
-      // Render after the section transition + drawer-slide settles.
-      setTimeout(() => this.renderProgChart(), 200);
+      // No render here — the $watch on step handles initial paint (and any
+      // re-entry to step 3) so we never double-render between mount + watch.
+      if (this.step === 3) {
+        setTimeout(() => this._refreshProgChart(), 250);
+      }
     },
 
     _destroyProgChart() {
@@ -871,7 +914,7 @@ document.addEventListener('alpine:init', () => {
       const baseOpts = {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 360, easing: 'easeOutCubic' },
+        animation: false,
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -954,6 +997,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     async saveDraft(showToast = false) {
+      // Prevent saving empty plans
+      if (!this.canAdvanceStep2()) {
+        if (showToast) this._showToast('Aggiungi almeno un esercizio', 'error');
+        return;
+      }
+
       if (this.saveInFlight) {
         this.saveQueued = true;
         return;
@@ -1177,6 +1226,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     async _finalize(payload) {
+      // Prevent finalizing empty plans
+      if (!this.canAdvanceStep2()) {
+        this.errors.finalize = 'Aggiungi almeno un esercizio prima di assegnare.';
+        return null;
+      }
+
       if (!this.plan.id) {
         await this.saveDraft();
       }

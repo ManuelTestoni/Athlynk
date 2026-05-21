@@ -68,7 +68,8 @@
       chartType: 'histogram',
       weeksSelected: [],
       groupsSelected: [],
-      showSecondary: true,
+      secondaryMode: 'total',  // 'total' | 'primary' | 'secondary'
+      _builderMode: false,  // hide week filter when in builder context
 
       /* computed cache */
       computedGroups: [],      // [{slug, name, color_token, per_week: [{week, primary_sets, secondary_sets}]}]
@@ -86,6 +87,9 @@
         window.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && this.isOpen) this.close();
         });
+
+        // Watch secondaryMode changes to trigger chart updates
+        this.$watch('secondaryMode', () => { if (this.isOpen && this.hasData()) this.renderChart(); });
       },
 
       handleOpen(detail) {
@@ -95,7 +99,7 @@
         this.payload = p.days || [];
         if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;
-        this.chartType = this.planKind === 'PROGRAM' ? 'line' : 'histogram';
+        this.chartType = 'histogram';
 
         if (p.planId && !(p.days && p.days.length)) {
           // Plan-detail path: pull pre-computed volume from server.
@@ -104,6 +108,8 @@
           this.compute();
           this.weeksSelected = this._allWeeks();
           this.groupsSelected = this.computedGroups.map(g => g.slug);
+          // In builder context, always show all weeks (disable week filtering)
+          this._builderMode = true;
           // Render after drawer slide finishes so canvas has measurable size.
           setTimeout(() => { if (this.isOpen && this.hasData()) this.renderChart(); }, 360);
         }
@@ -127,7 +133,7 @@
             this.weeksSelected = d.weeks && d.weeks.length ? d.weeks.slice() : this._allWeeks();
             this.groupsSelected = this.computedGroups.map(g => g.slug);
             if (!this.chartType || this.chartType === 'histogram') {
-              this.chartType = this.planKind === 'PROGRAM' ? 'line' : 'histogram';
+              this.chartType = 'histogram';
             }
             // Render after drawer slide finishes so canvas has measurable width.
             setTimeout(() => { if (this.isOpen && this.hasData()) this.renderChart(); }, 400);
@@ -271,8 +277,9 @@
         this.chartType = t;
         this.renderChart();
       },
-      setShowSecondary(v) {
-        this.showSecondary = v;
+      setSecondaryMode(mode) {
+        if (this.secondaryMode === mode) return;
+        this.secondaryMode = mode;
         this.renderChart();
       },
 
@@ -285,7 +292,11 @@
       groupTotalForWeek(g, w) {
         const cell = (g.per_week || []).find(c => c.week === w);
         if (!cell) return 0;
-        return (cell.primary_sets || 0) + (this.showSecondary ? (cell.secondary_sets || 0) : 0);
+        const primary = cell.primary_sets || 0;
+        const secondary = cell.secondary_sets || 0;
+        if (this.secondaryMode === 'primary') return primary;
+        if (this.secondaryMode === 'secondary') return secondary;
+        return primary + secondary;  // 'total'
       },
 
       diffPayload() {
@@ -349,7 +360,7 @@
         const baseOpts = {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 380, easing: 'easeOutCubic' },
+          animation: false,
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -370,8 +381,6 @@
 
         if (this.chartType === 'histogram') {
           this._renderHistogram(ctx, groups, baseOpts);
-        } else if (this.chartType === 'line') {
-          this._renderLine(ctx, groups, baseOpts);
         } else if (this.chartType === 'radar') {
           this._renderRadar(ctx, groups, baseOpts);
         }

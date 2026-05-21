@@ -24,7 +24,6 @@ Listens on the global `volume-analytics:open` event for payload:
       <div>
         <p class="al-eyebrow mb-1">Analisi volume</p>
         <h3>Volume d'allenamento</h3>
-        <p>Serie per gruppo muscolare · Primario × 1.0 · Secondario × 0.5</p>
       </div>
       <button type="button"
               class="al-btn-icon al-btn-ghost"
@@ -37,24 +36,23 @@ Listens on the global `volume-analytics:open` event for payload:
 
     <div class="va-body">
 
-      <!-- Chart switcher + secondary toggle -->
+      <!-- Chart switcher + secondary dropdown -->
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="va-segctl" role="tablist" aria-label="Tipo grafico">
           <button type="button" :class="{ 'is-active': chartType === 'histogram' }" @click="setChartType('histogram')">
             <i class="ph ph-chart-bar"></i> Istogramma
-          </button>
-          <button type="button" :class="{ 'is-active': chartType === 'line' }" @click="setChartType('line')">
-            <i class="ph ph-chart-line"></i> Linea
           </button>
           <button type="button" :class="{ 'is-active': chartType === 'radar' }" @click="setChartType('radar')">
             <i class="ph ph-chart-polar"></i> Radar
           </button>
         </div>
 
-        <label class="va-secondary-toggle">
-          <input type="checkbox" :checked="showSecondary" @change="setShowSecondary($event.target.checked)">
-          Mostra secondari (×0.5)
-        </label>
+        <!-- Secondary muscle dropdown -->
+        <select class="va-secondary-select" x-model="secondaryMode" @change="setSecondaryMode(secondaryMode)">
+          <option value="total">Volume totale</option>
+          <option value="primary">Volume muscolo primario</option>
+          <option value="secondary">Volume muscolo secondario</option>
+        </select>
       </div>
 
       <!-- Empty state -->
@@ -69,8 +67,8 @@ Listens on the global `volume-analytics:open` event for payload:
       <template x-if="hasData()">
         <div class="flex flex-col gap-4">
 
-          <!-- Week filter (PROGRAM only or if >1 week) -->
-          <template x-if="durationWeeks > 1">
+          <!-- Week filter (PROGRAM only or if >1 week, but hidden in builder mode) -->
+          <template x-if="durationWeeks > 1 && !_builderMode">
             <div class="va-filter-row">
               <div class="flex justify-between items-center">
                 <span class="va-filter-label">Settimane</span>
@@ -111,7 +109,7 @@ Listens on the global `volume-analytics:open` event for payload:
               Il radar è più leggibile con max 8 gruppi muscolari. Considera di filtrare.
             </div>
           </template>
-          <template x-if="chartType === 'radar' && weeksSelected.length > 4">
+          <template x-if="chartType === 'radar' && weeksSelected.length > 4 && !_builderMode">
             <div class="va-info-banner">
               Il radar mostra al massimo 4 settimane. Le altre sono escluse temporaneamente.
             </div>
@@ -125,8 +123,8 @@ Listens on the global `volume-analytics:open` event for payload:
 
             <!-- Legend -->
             <div class="va-legend">
-              <!-- Histogram + Line: legend per muscle group -->
-              <template x-if="chartType === 'histogram' || chartType === 'line'">
+              <!-- Histogram: legend per muscle group -->
+              <template x-if="chartType === 'histogram'">
                 <template x-for="g in activeGroups()" :key="g.slug">
                   <span class="va-legend-item">
                     <span class="va-legend-swatch" :style="'background:' + groupColor(g)"></span>
