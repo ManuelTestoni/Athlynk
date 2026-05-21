@@ -15,203 +15,468 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     font-family: var(--al-sans, 'Inter', system-ui, sans-serif);
     color: var(--al-ink, #14110d);
   }
+
+  /* ---------- FAB ---------- */
   .chiron-fab {
     position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: var(--al-r-pill, 999px);
-    background: var(--al-bronze, #8a6a3a);
+    right: 26px;
+    bottom: 26px;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,0.22), transparent 55%),
+      linear-gradient(140deg, #a78554 0%, #8a6a3a 55%, #5e4824 100%);
     color: var(--al-parchment, #f4efe4);
-    border: 1px solid var(--al-ink, #14110d);
-    box-shadow: var(--al-shadow-2, 0 12px 32px -16px rgba(20,17,13,0.18));
+    border: none;
+    box-shadow:
+      0 18px 36px -14px rgba(94,72,36,0.55),
+      0 4px 10px -2px rgba(20,17,13,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.20);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform var(--al-d-snap, 0.18s) var(--al-ease, ease),
-                background var(--al-d-snap, 0.18s) var(--al-ease, ease);
+    transition:
+      transform 0.35s cubic-bezier(0.22,1,0.36,1),
+      box-shadow 0.3s ease,
+      background 0.3s ease;
   }
-  .chiron-fab:hover { transform: translateY(-2px); background: var(--al-bronze-s, #a78554); }
-  .chiron-fab:focus-visible { outline: none; box-shadow: var(--al-shadow-glow-bronze, 0 0 0 3px rgba(138,106,58,0.18)); }
-  .chiron-fab.is-open { background: var(--al-ink, #14110d); color: var(--al-bronze-l, #c8a774); }
+  .chiron-fab::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(200,167,116,0.30) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+  .chiron-fab:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow:
+      0 24px 44px -16px rgba(94,72,36,0.65),
+      0 6px 14px -2px rgba(20,17,13,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.24);
+  }
+  .chiron-fab:hover::after { opacity: 1; }
+  .chiron-fab:focus-visible {
+    outline: none;
+    box-shadow:
+      0 18px 36px -14px rgba(94,72,36,0.55),
+      0 0 0 4px rgba(200,167,116,0.30);
+  }
+  .chiron-fab.is-open {
+    background: linear-gradient(140deg, #2a221a 0%, #14110d 100%);
+    color: var(--al-bronze-l, #c8a774);
+  }
 
+  /* Soft breathing pulse when idle */
+  @keyframes chiron-pulse {
+    0%, 100% { box-shadow: 0 18px 36px -14px rgba(94,72,36,0.55), 0 4px 10px -2px rgba(20,17,13,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 0 rgba(200,167,116,0.0); }
+    50%      { box-shadow: 0 18px 36px -14px rgba(94,72,36,0.55), 0 4px 10px -2px rgba(20,17,13,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 10px rgba(200,167,116,0.0); }
+  }
+  .chiron-fab:not(.is-open) { animation: chiron-pulse 4s ease-in-out infinite; }
+
+  /* ---------- Panel ---------- */
   .chiron-panel {
     position: fixed;
-    right: 24px;
-    bottom: 96px;
-    width: 380px;
+    right: 26px;
+    bottom: 102px;
+    width: 400px;
     max-width: calc(100vw - 32px);
-    height: 560px;
-    max-height: calc(100vh - 120px);
-    background: var(--al-parchment, #f4efe4);
-    border: 1px solid var(--al-ink, #14110d);
-    box-shadow: var(--al-shadow-3, 0 30px 80px -30px rgba(20,17,13,0.35));
+    height: 600px;
+    max-height: calc(100vh - 130px);
+    background: linear-gradient(180deg, #f8f3e8 0%, #f4efe4 100%);
+    border: 1px solid rgba(20,17,13,0.06);
+    border-radius: 26px;
+    box-shadow:
+      0 40px 80px -30px rgba(20,17,13,0.40),
+      0 12px 28px -12px rgba(20,17,13,0.18),
+      0 0 0 1px rgba(244,239,228,0.5) inset;
     display: flex;
     flex-direction: column;
-    transform: translateY(12px);
+    overflow: hidden;
+    transform: translateY(20px) scale(0.96);
     opacity: 0;
     pointer-events: none;
-    transition: transform var(--al-d-base, 0.35s) var(--al-ease-emp, cubic-bezier(0.22,1,0.36,1)),
-                opacity var(--al-d-fast, 0.2s) var(--al-ease, ease);
+    transform-origin: bottom right;
+    transition:
+      transform 0.45s cubic-bezier(0.22,1,0.36,1),
+      opacity 0.25s ease;
   }
   .chiron-panel.is-open {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
     pointer-events: auto;
   }
+
+  /* ---------- Header ---------- */
   .chiron-head {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: var(--al-ink, #14110d);
+    gap: 14px;
+    padding: 18px 20px 16px;
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(200,167,116,0.18) 0%, transparent 55%),
+      linear-gradient(135deg, #1c1814 0%, #14110d 60%, #0e0b08 100%);
     color: var(--al-parchment, #f4efe4);
-    border-bottom: 1px solid var(--al-ink, #14110d);
+    border-radius: 26px 26px 0 0;
+  }
+  .chiron-head::after {
+    content: '';
+    position: absolute;
+    left: 20px; right: 20px; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,167,116,0.35), transparent);
   }
   .chiron-head .logo {
-    width: 36px; height: 36px;
+    width: 40px; height: 40px;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(140deg, rgba(200,167,116,0.20), rgba(200,167,116,0.05));
+    border: 1px solid rgba(200,167,116,0.30);
     color: var(--al-bronze-l, #c8a774);
     display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
   }
   .chiron-head .title {
     font-family: var(--al-display, 'Bodoni Moda', Georgia, serif);
-    font-size: 20px;
+    font-size: 22px;
     line-height: 1;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    font-weight: 500;
   }
   .chiron-head .sub {
     font-family: var(--al-mono, 'JetBrains Mono', monospace);
-    font-size: 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--al-bronze-l, #c8a774);
-    margin-top: 2px;
+    letter-spacing: 0.22em;
+    color: rgba(200,167,116,0.85);
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chiron-head .sub::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #6ee7b7;
+    box-shadow: 0 0 8px rgba(110,231,183,0.7);
+    animation: chiron-dot-live 2s ease-in-out infinite;
+  }
+  @keyframes chiron-dot-live {
+    0%,100% { opacity: 0.55; }
+    50% { opacity: 1; }
   }
   .chiron-head .grow { flex: 1; }
   .chiron-head button {
-    background: transparent;
+    background: rgba(244,239,228,0.06);
     color: inherit;
-    border: 1px solid rgba(244,239,228,0.2);
-    border-radius: var(--al-r-pill, 999px);
-    width: 30px; height: 30px;
+    border: 1px solid rgba(244,239,228,0.10);
+    border-radius: 12px;
+    width: 34px; height: 34px;
     display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: background var(--al-d-snap, 0.18s) ease;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   }
-  .chiron-head button:hover { background: rgba(244,239,228,0.08); }
+  .chiron-head button:hover {
+    background: rgba(244,239,228,0.12);
+    border-color: rgba(200,167,116,0.35);
+    transform: translateY(-1px);
+  }
 
+  /* ---------- Messages ---------- */
   .chiron-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 20px 18px 18px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    background: var(--al-parchment, #f4efe4);
+    gap: 12px;
+    background:
+      radial-gradient(60% 40% at 0% 0%, rgba(200,167,116,0.06), transparent 65%),
+      radial-gradient(50% 35% at 100% 100%, rgba(28,74,82,0.04), transparent 60%),
+      linear-gradient(180deg, #f8f3e8 0%, #f4efe4 100%);
+    scroll-behavior: smooth;
   }
+  .chiron-messages::-webkit-scrollbar { width: 6px; }
+  .chiron-messages::-webkit-scrollbar-track { background: transparent; }
+  .chiron-messages::-webkit-scrollbar-thumb {
+    background: rgba(20,17,13,0.12);
+    border-radius: 999px;
+  }
+  .chiron-messages::-webkit-scrollbar-thumb:hover { background: rgba(20,17,13,0.22); }
+
   .chiron-msg {
-    max-width: 86%;
-    padding: 10px 12px;
+    max-width: 84%;
+    padding: 12px 16px;
     font-size: 14px;
-    line-height: 1.5;
-    border: 1px solid var(--al-rule, rgba(20,17,13,0.14));
+    line-height: 1.55;
     white-space: pre-wrap;
     word-wrap: break-word;
+    position: relative;
+    animation: chiron-msg-in 0.35s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes chiron-msg-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
   .chiron-msg.user {
     align-self: flex-end;
-    background: var(--al-aegean, #1c4a52);
+    background: linear-gradient(135deg, #205760 0%, #1c4a52 60%, #173d44 100%);
     color: var(--al-parchment, #f4efe4);
-    border-color: var(--al-aegean, #1c4a52);
-    border-radius: 2px;
+    border-radius: 20px 20px 6px 20px;
+    box-shadow:
+      0 8px 18px -10px rgba(28,74,82,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.08);
   }
   .chiron-msg.assistant {
     align-self: flex-start;
-    background: #fff;
+    background: #ffffff;
     color: var(--al-ink, #14110d);
-    border-radius: 2px;
+    border: 1px solid rgba(20,17,13,0.05);
+    border-radius: 20px 20px 20px 6px;
+    box-shadow:
+      0 6px 16px -10px rgba(20,17,13,0.18),
+      0 1px 0 rgba(20,17,13,0.02);
   }
+
   .chiron-sources {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px dashed var(--al-rule, rgba(20,17,13,0.14));
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(20,17,13,0.06);
     font-size: 12px;
   }
   .chiron-sources .label {
     font-family: var(--al-mono, monospace);
-    font-size: 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.20em;
     color: var(--al-bronze, #8a6a3a);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chiron-sources .label::before {
+    content: '';
+    width: 14px; height: 1px;
+    background: var(--al-bronze, #8a6a3a);
   }
   .chiron-sources a {
-    display: block;
+    display: inline-block;
     color: var(--al-aegean, #1c4a52);
-    text-decoration: underline;
+    text-decoration: none;
     word-break: break-all;
-    margin: 2px 0;
+    margin: 3px 6px 3px 0;
+    padding: 4px 10px;
+    background: rgba(28,74,82,0.06);
+    border-radius: 999px;
+    font-size: 11.5px;
+    transition: background 0.18s ease;
   }
+  .chiron-sources a:hover { background: rgba(28,74,82,0.12); }
 
   .chiron-typing {
     align-self: flex-start;
-    display: inline-flex; gap: 4px;
-    padding: 10px 14px;
+    display: inline-flex; gap: 5px; align-items: center;
+    padding: 12px 16px;
     background: #fff;
-    border: 1px solid var(--al-rule, rgba(20,17,13,0.14));
-    border-radius: 2px;
+    border: 1px solid rgba(20,17,13,0.05);
+    border-radius: 20px 20px 20px 6px;
+    box-shadow: 0 6px 16px -10px rgba(20,17,13,0.18);
   }
   .chiron-typing span {
-    width: 6px; height: 6px;
-    background: var(--al-ink-mute, #5b554a);
+    width: 7px; height: 7px;
+    background: var(--al-bronze, #8a6a3a);
     border-radius: 999px;
     animation: chiron-dot 1.2s infinite ease-in-out;
   }
   .chiron-typing span:nth-child(2) { animation-delay: 0.15s; }
   .chiron-typing span:nth-child(3) { animation-delay: 0.3s; }
   @keyframes chiron-dot {
-    0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
-    40% { opacity: 1; transform: translateY(-3px); }
+    0%, 80%, 100% { opacity: 0.3; transform: translateY(0) scale(0.85); }
+    40% { opacity: 1; transform: translateY(-4px) scale(1); }
   }
 
+  /* ---------- Input ---------- */
   .chiron-input {
     display: flex;
-    gap: 8px;
-    padding: 12px;
-    border-top: 1px solid var(--al-rule, rgba(20,17,13,0.14));
-    background: var(--al-marble, #ece5d6);
+    align-items: flex-end;
+    gap: 10px;
+    padding: 14px 16px 18px;
+    background: linear-gradient(180deg, rgba(236,229,214,0) 0%, rgba(236,229,214,0.55) 100%);
+    border-top: 1px solid rgba(20,17,13,0.05);
+  }
+  .chiron-input .field {
+    flex: 1;
+    background: #fff;
+    border: 1px solid rgba(20,17,13,0.08);
+    border-radius: 22px;
+    padding: 4px 8px 4px 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    box-shadow:
+      0 2px 8px -4px rgba(20,17,13,0.10),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .chiron-input .field:focus-within {
+    border-color: rgba(138,106,58,0.45);
+    box-shadow:
+      0 4px 14px -6px rgba(138,106,58,0.20),
+      0 0 0 3px rgba(200,167,116,0.18);
   }
   .chiron-input textarea {
     flex: 1;
     resize: none;
-    min-height: 40px;
+    min-height: 36px;
     max-height: 140px;
-    padding: 10px 12px;
+    padding: 10px 0;
     font: inherit;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.45;
     color: var(--al-ink, #14110d);
-    background: #fff;
-    border: 1px solid var(--al-ink-line, #8a8270);
-    border-radius: 2px;
+    background: transparent;
+    border: 0;
     outline: none;
   }
-  .chiron-input textarea:focus { border-color: var(--al-ink, #14110d); }
-  .chiron-input textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+  .chiron-input textarea::placeholder { color: rgba(20,17,13,0.40); }
+  .chiron-input textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+
   .chiron-send {
-    width: 40px;
-    background: var(--al-ink, #14110d);
+    width: 40px; height: 40px;
+    flex: 0 0 40px;
+    background: linear-gradient(140deg, #a78554 0%, #8a6a3a 60%, #6e5430 100%);
     color: var(--al-parchment, #f4efe4);
-    border: 1px solid var(--al-ink, #14110d);
-    border-radius: 2px;
+    border: none;
+    border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: background var(--al-d-snap, 0.18s) ease;
+    box-shadow:
+      0 6px 14px -6px rgba(138,106,58,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   }
-  .chiron-send:hover:not(:disabled) { background: var(--al-bronze, #8a6a3a); border-color: var(--al-bronze, #8a6a3a); }
-  .chiron-send:disabled { opacity: 0.45; cursor: not-allowed; }
+  .chiron-send:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.04);
+    box-shadow:
+      0 10px 20px -8px rgba(138,106,58,0.65),
+      inset 0 1px 0 rgba(255,255,255,0.24);
+  }
+  .chiron-send:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+  .chiron-send:disabled {
+    opacity: 0.40;
+    cursor: not-allowed;
+    background: linear-gradient(140deg, #b8b1a4, #8a8270);
+    box-shadow: none;
+  }
+
+  /* ---------- Confirm banner (replaces window.confirm) ---------- */
+  .chiron-confirm {
+    position: absolute;
+    left: 14px; right: 14px;
+    top: 86px;
+    z-index: 20;
+    background: linear-gradient(180deg, #ffffff 0%, #fbf6ec 100%);
+    border: 1px solid rgba(20,17,13,0.08);
+    border-radius: 18px;
+    padding: 16px 16px 14px;
+    box-shadow:
+      0 22px 44px -18px rgba(20,17,13,0.30),
+      0 6px 14px -6px rgba(20,17,13,0.14);
+    transform: translateY(-10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.22s ease;
+  }
+  .chiron-confirm.is-open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .chiron-confirm .head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .chiron-confirm .ico {
+    flex: 0 0 38px;
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(140deg, rgba(185,28,28,0.10), rgba(185,28,28,0.04));
+    color: #b91c1c;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(185,28,28,0.18);
+  }
+  .chiron-confirm .ttl {
+    font-family: var(--al-display, 'Bodoni Moda', Georgia, serif);
+    font-size: 17px;
+    line-height: 1.2;
+    color: var(--al-ink, #14110d);
+    margin: 2px 0 4px;
+  }
+  .chiron-confirm .msg {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(20,17,13,0.62);
+  }
+  .chiron-confirm .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .chiron-confirm .btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+  .chiron-confirm .btn.ghost {
+    background: transparent;
+    border-color: rgba(20,17,13,0.14);
+    color: var(--al-ink, #14110d);
+  }
+  .chiron-confirm .btn.ghost:hover {
+    background: rgba(20,17,13,0.04);
+    border-color: rgba(20,17,13,0.22);
+  }
+  .chiron-confirm .btn.danger {
+    background: linear-gradient(140deg, #c53030 0%, #b91c1c 60%, #991818 100%);
+    color: #fff;
+    box-shadow: 0 6px 14px -6px rgba(185,28,28,0.55), inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .chiron-confirm .btn.danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px -8px rgba(185,28,28,0.65), inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+
+  .chiron-confirm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20,17,13,0.10);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 15;
+  }
+  .chiron-confirm-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
 
   @media (max-width: 768px) {
     .chiron-panel {
@@ -221,9 +486,10 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       height: 100vh;
       max-width: 100vw;
       max-height: 100vh;
-      border-width: 0;
+      border-radius: 22px 22px 0 0;
     }
-    .chiron-fab { right: 16px; bottom: 16px; }
+    .chiron-head { border-radius: 22px 22px 0 0; }
+    .chiron-fab { right: 18px; bottom: 18px; }
   }
 </style>
 
@@ -242,8 +508,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
        x-cloak>
     <div class="chiron-head">
       <span class="logo" aria-hidden="true">
-        {# Logo CHIRON: rombo con C stilizzata, currentColor #}
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 2 L29 16 L16 30 L3 16 Z" stroke="currentColor" stroke-width="1.6" fill="none"/>
           <path d="M20 11 a6 6 0 1 0 0 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
           <circle cx="16" cy="16" r="1.4" fill="currentColor"/>
@@ -251,15 +516,44 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       </span>
       <div>
         <div class="title">CHIRON</div>
-        <div class="sub">Assistente AI</div>
+        <div class="sub">Online · Assistente AI</div>
       </div>
       <div class="grow"></div>
-      <button type="button" @click="clearHistory()" title="Nuova conversazione" aria-label="Pulisci cronologia">
+      <button type="button" @click="askClear()" title="Nuova conversazione" aria-label="Pulisci cronologia">
         <i class="ph ph-eraser" style="font-size:14px;"></i>
       </button>
       <button type="button" @click="open = false" title="Chiudi" aria-label="Chiudi">
         <i class="ph ph-x" style="font-size:14px;"></i>
       </button>
+    </div>
+
+    {# Banner conferma proprietario (sostituisce window.confirm) #}
+    <div class="chiron-confirm-backdrop"
+         :class="{ 'is-open': confirming }"
+         x-show="confirming" x-cloak
+         @click="confirming = false"></div>
+    <div class="chiron-confirm"
+         :class="{ 'is-open': confirming }"
+         role="alertdialog"
+         aria-modal="true"
+         aria-labelledby="chiron-confirm-ttl"
+         x-show="confirming" x-cloak
+         @keydown.escape.window="confirming = false">
+      <div class="head">
+        <div class="ico" aria-hidden="true">
+          <i class="ph-fill ph-eraser" style="font-size:18px;"></i>
+        </div>
+        <div>
+          <div class="ttl" id="chiron-confirm-ttl">Cancellare la cronologia?</div>
+          <div class="msg">Verranno rimossi tutti i messaggi di questa conversazione con CHIRON. L'azione non è reversibile.</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" @click="confirming = false">Annulla</button>
+        <button type="button" class="btn danger" @click="clearHistory()">
+          <i class="ph ph-trash" style="font-size:13px; margin-right:6px; vertical-align:-2px;"></i>Cancella
+        </button>
+      </div>
     </div>
 
     <div class="chiron-messages" x-ref="scroller">
@@ -282,13 +576,15 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     </div>
 
     <div class="chiron-input">
-      <textarea x-ref="ta"
-                x-model="input"
-                :disabled="sending"
-                @input="autoResize()"
-                @keydown.enter.prevent="onEnter($event)"
-                placeholder="Chiedi qualcosa a CHIRON..."
-                rows="1"></textarea>
+      <div class="field">
+        <textarea x-ref="ta"
+                  x-model="input"
+                  :disabled="sending"
+                  @input="autoResize()"
+                  @keydown.enter.prevent="onEnter($event)"
+                  placeholder="Chiedi qualcosa a CHIRON..."
+                  rows="1"></textarea>
+      </div>
       <button type="button" class="chiron-send" :disabled="sending || !input.trim()" @click="send()" aria-label="Invia">
         <i class="ph ph-paper-plane-right" style="font-size:16px;"></i>
       </button>
@@ -302,7 +598,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
           @click="toggle()"
           :aria-expanded="open ? 'true' : 'false'"
           aria-label="Apri CHIRON">
-    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M16 2 L29 16 L16 30 L3 16 Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
       <path d="M20 11 a6 6 0 1 0 0 10" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>
       <circle cx="16" cy="16" r="1.6" fill="currentColor"/>
@@ -319,6 +615,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       sending: false,
       messages: [],
       loaded: false,
+      confirming: false,
       role: '{{ coach.professional_type|default:"COACH"|escapejs }}',
 
       init() {
@@ -340,6 +637,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
 
       async toggle() {
         this.open = !this.open;
+        if (!this.open) this.confirming = false;
         if (this.open && !this.loaded) {
           await this.loadHistory();
           this.loaded = true;
@@ -372,7 +670,6 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
 
       onEnter(ev) {
         if (ev.shiftKey) {
-          // newline
           const ta = this.$refs.ta;
           const start = ta.selectionStart, end = ta.selectionEnd;
           this.input = this.input.slice(0, start) + '\n' + this.input.slice(end);
@@ -411,7 +708,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
             },
             body: JSON.stringify({
               message: text,
-              user_role: 'coach',  // forzato lato server dal CoachProfile
+              user_role: 'coach',
               conversation_history: this.messages
                 .slice(0, -1)
                 .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -441,8 +738,12 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
         }
       },
 
+      askClear() {
+        this.confirming = true;
+      },
+
       async clearHistory() {
-        if (!confirm('Cancellare la cronologia di CHIRON?')) return;
+        this.confirming = false;
         try {
           await fetch('/api/chiron/clear/', {
             method: 'POST',
