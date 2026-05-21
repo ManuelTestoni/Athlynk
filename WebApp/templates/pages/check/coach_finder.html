@@ -1,21 +1,35 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full max-w-7xl mx-auto" x-data='{
-  search: "{{ search|escapejs }}",
-  filterType: "ALL",
-  coaches: {{ coaches|safe }},
-  async runSearch() {
-    const url = "{% url "check_coach_api" %}?q=" + encodeURIComponent(this.search);
-    const r = await fetch(url);
-    const d = await r.json();
-    this.coaches = d.coaches;
-  },
-  visibleCoaches() {
-    if (this.filterType === "ALL") return this.coaches;
-    return this.coaches.filter(c => c.professional_type === this.filterType);
-  }
-}'>
+{# Render the coaches payload as a script-tag JSON island so apostrophes / quotes
+   inside coach names can't break the x-data attribute (root cause of the
+   leaking-source bug). #}
+<script id="coach-finder-data" type="application/json">{{ coaches|safe }}</script>
+<script>
+  window.coachFinder = function () {
+    return {
+      search: "{{ search|default:''|escapejs }}",
+      filterType: 'ALL',
+      coaches: (function(){
+        try { return JSON.parse(document.getElementById('coach-finder-data').textContent || '[]'); }
+        catch (e) { return []; }
+      })(),
+      searchUrl: "{% url 'check_coach_api' %}",
+      _timer: null,
+      async runSearch() {
+        const url = this.searchUrl + '?q=' + encodeURIComponent(this.search);
+        const r = await fetch(url);
+        const d = await r.json();
+        this.coaches = d.coaches || [];
+      },
+      visibleCoaches() {
+        if (this.filterType === 'ALL') return this.coaches;
+        return this.coaches.filter(c => c.professional_type === this.filterType);
+      },
+    };
+  };
+</script>
+<div class="w-full max-w-7xl mx-auto" x-data="coachFinder()">
 
   <!-- Header -->
   <div class="mb-8">

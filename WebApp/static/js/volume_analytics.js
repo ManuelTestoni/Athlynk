@@ -114,11 +114,9 @@
           if (this._builderMode) {
             // Builder: lock to a single week — one bar per muscle group.
             this.weeksSelected = [1];
-          } else if (this._progressionMode) {
-            // Progression: default to the active week passed in payload.
-            const dw = Math.max(1, Math.min(this.durationWeeks, parseInt(p.defaultWeek || 1, 10)));
-            this.weeksSelected = [dw];
           } else {
+            // Progression / plan-detail: default to all weeks so the chart is
+            // immediately useful out-of-the-box.
             this.weeksSelected = this._allWeeks();
           }
           this.groupsSelected = this.computedGroups.map(g => g.slug);

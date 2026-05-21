@@ -38,6 +38,7 @@ document.addEventListener('alpine:init', () => {
       ex: null,
       metric: 'volume',           // 'volume' | 'load' | 'intensity'
       weeksSelected: [],
+      hasData: true,              // false → show "nessun dato" alert instead of empty chart
     },
     _exStatsChart: null,
     _exStatsCanvas: null,
@@ -79,16 +80,26 @@ document.addEventListener('alpine:init', () => {
       windowSize: 3,       // visible columns
       exercises: [],       // [{id, exercise_id, name, starts_at_week, base:{...}}, ...] for current day
       cells: {},           // {ex_id: {week: {metric: {value, source, override_week}}}}
+      expanded: {},        // {ex_id: bool} — expanded shows Carico/RPE/RIR row
+      slideDir: 0,         // -1 = slide-in from left, 1 = slide-in from right, 0 = no anim
       loading: false,
     },
     PRG_FIELDS: [
-      { metric: 'set_count',        label: 'Serie',    type: 'number', step: '1', min: 1 },
-      { metric: 'rep_range',        label: 'Reps',     type: 'text' },
-      { metric: 'load_value',       label: 'Carico',   type: 'number', step: '0.25', min: 0 },
-      { metric: 'rpe',              label: 'RPE',      type: 'number', step: '0.5',  min: 0 },
-      { metric: 'rir',              label: 'RIR',      type: 'number', step: '1',    min: 0 },
-      { metric: 'recovery_seconds', label: 'Rec (s)',  type: 'number', step: '5',    min: 0 },
+      { metric: 'set_count',        label: 'Serie',    type: 'number', step: '1',    min: 1, group: 'default' },
+      { metric: 'rep_range',        label: 'Reps',     type: 'text',                          group: 'default' },
+      { metric: 'recovery_seconds', label: 'Rec (s)',  type: 'number', step: '5',    min: 0, group: 'default' },
+      { metric: 'load_value',       label: 'Carico',   type: 'number', step: '0.25', min: 0, group: 'extra'   },
+      { metric: 'rpe',              label: 'RPE',      type: 'number', step: '0.5',  min: 0, group: 'extra'   },
+      { metric: 'rir',              label: 'RIR',      type: 'number', step: '1',    min: 0, group: 'extra'   },
     ],
+
+    // Delete-cell confirm modal
+    deleteUi: {
+      open: false,
+      exId: null,
+      exName: '',
+      week: 1,
+    },
 
     // Add-exercise-at-week drawer
     addExUi: {
@@ -261,6 +272,11 @@ document.addEventListener('alpine:init', () => {
           this.loadProgGrid();
         }
       });
+      // If init resumed directly at step 3 (page reload), the $watch above never
+      // fires — trigger an initial load explicitly.
+      if (this.step === 3) {
+        this.$nextTick(() => this.loadProgGrid());
+      }
       this.$watch('progUi.activeWeek', () => this._refreshProgChart());
       this.$watch('progression.rules', () => {
         this._refreshProgChart();
@@ -1308,13 +1324,19 @@ document.addEventListener('alpine:init', () => {
     },
 
     renderExStatsChart() {
-      if (!this._exStatsCanvas || typeof Chart === 'undefined') return;
       if (this._exStatsChart) {
         try { this._exStatsChart.destroy(); } catch (_) { /* ignore */ }
         this._exStatsChart = null;
       }
       const weeks = (this.exStats.weeksSelected || []).slice().sort((a, b) => a - b);
-      if (!weeks.length) return;
+      if (!weeks.length) { this.exStats.hasData = false; return; }
+      // Detect "all nulls" case so the UI can show a friendly empty-state instead
+      // of an axis-only blank chart.
+      const sample = weeks.map(w => this.exStatsValue(w));
+      const hasAny = sample.some(v => v !== null && v !== undefined && !(typeof v === 'number' && isNaN(v)));
+      this.exStats.hasData = hasAny;
+      if (!hasAny) return;
+      if (!this._exStatsCanvas || typeof Chart === 'undefined') return;
 
       // Reset inline sizing so Chart.js manages canvas pixel dims.
       this._exStatsCanvas.removeAttribute('width');
@@ -2108,6 +2130,10 @@ document.addEventListener('alpine:init', () => {
     shiftProgGrid(dir) {
       if (!this.canShiftProgGrid(dir)) return;
       this.progGrid.windowStart += dir;
+      this.progGrid.slideDir = dir;
+      // Reset slide marker after animation finishes so subsequent re-renders
+      // (eg field edits inside the grid) don't replay the slide.
+      setTimeout(() => { this.progGrid.slideDir = 0; }, 600);
     },
 
     async loadProgGrid() {
@@ -2140,14 +2166,39 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    isCellExpanded(ex) {
+      return !!this.progGrid.expanded[ex.pk];
+    },
+
+    toggleCellExpanded(ex) {
+      const k = ex.pk;
+      this.progGrid.expanded = { ...this.progGrid.expanded, [k]: !this.progGrid.expanded[k] };
+    },
+
+    visibleCellFields(ex) {
+      const expanded = this.isCellExpanded(ex);
+      return this.PRG_FIELDS.filter(f => f.group === 'default' || (expanded && f.group === 'extra'));
+    },
+
     progGridExercisesAtWeek(week) {
-      return (this.progGrid.exercises || []).filter(ex => (ex.starts_at_week || 1) <= week)
+      return (this.progGrid.exercises || [])
+        .filter(ex => {
+          const starts = ex.starts_at_week || 1;
+          const ends = ex.ends_at_week;  // null = no upper bound
+          const inactive = Array.isArray(ex.inactive_weeks) ? ex.inactive_weeks : [];
+          if (week < starts) return false;
+          if (ends != null && week > ends) return false;
+          if (inactive.includes(week)) return false;
+          return true;
+        })
         .map(ex => ({
           pk: ex.id,
           local_id: 'srv-' + ex.id,
           exercise_id: ex.exercise_id,
           exercise_name: ex.name,
           starts_at_week: ex.starts_at_week || 1,
+          ends_at_week: ex.ends_at_week,
+          inactive_weeks: ex.inactive_weeks || [],
           base: ex.base || {},
         }));
     },
@@ -2230,6 +2281,43 @@ document.addEventListener('alpine:init', () => {
         }
       } catch (_) {
         this._showToast('Errore di rete');
+      }
+      await this.loadProgGrid();
+    },
+
+    /* ---- Delete cell (per-week or forward) ---- */
+    openDeleteCellConfirm(ex, week) {
+      this.deleteUi.exId = ex.pk;
+      this.deleteUi.exName = ex.exercise_name || '';
+      this.deleteUi.week = week;
+      this.deleteUi.open = true;
+      window.panelLock && window.panelLock.acquire();
+    },
+
+    closeDeleteCellConfirm() {
+      if (this.deleteUi.open) window.panelLock && window.panelLock.release();
+      this.deleteUi.open = false;
+    },
+
+    async confirmDeleteCell(mode) {
+      const exId = this.deleteUi.exId;
+      const week = this.deleteUi.week;
+      this.closeDeleteCellConfirm();
+      if (!exId || !this.plan?.id) return;
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/exercise/${exId}/delete-cell/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({ mode, week_number: week }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          this._showToast(d.error || 'Errore cancellazione');
+          return;
+        }
+      } catch (_) {
+        this._showToast('Errore di rete');
+        return;
       }
       await this.loadProgGrid();
     },

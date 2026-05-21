@@ -65,6 +65,80 @@ def send_password_changed(user):
     )
 
 
+def _client_display_name(client_profile):
+    """Best-effort first name for greeting; falls back to email local-part."""
+    if client_profile is None:
+        return ''
+    fn = (getattr(client_profile, 'first_name', '') or '').strip()
+    if fn:
+        return fn
+    user = getattr(client_profile, 'user', None)
+    if user and user.email:
+        return user.email.split('@', 1)[0]
+    return ''
+
+
+def _coach_display_name(coach_profile):
+    if coach_profile is None:
+        return ''
+    fn = (getattr(coach_profile, 'first_name', '') or '').strip()
+    ln = (getattr(coach_profile, 'last_name', '') or '').strip()
+    full = (fn + ' ' + ln).strip()
+    return full or '—'
+
+
+def send_workout_assigned(client_profile, coach_profile, plan, plan_url):
+    """Notify a client that a new workout plan has been assigned by their coach.
+    Honors User.email_prefs['workout_assigned'] (default True)."""
+    user = getattr(client_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    if not user.email_pref('workout_assigned', True):
+        return False
+    settings_url = f"{settings.SITE_URL}{reverse('settings_notifications')}"
+    return send_html_mail(
+        to=user.email,
+        subject='Nuovo piano di allenamento · Athlynk',
+        template_base='workout_assigned',
+        context={
+            'client_name': _client_display_name(client_profile),
+            'coach_name': _coach_display_name(coach_profile),
+            'plan_title': getattr(plan, 'title', '') or '',
+            'plan_url': plan_url,
+            'settings_url': settings_url,
+        },
+    )
+
+
+def send_nutrition_assigned(client_profile, coach_profile, plan, plan_url):
+    """Notify a client that a new nutrition plan has been assigned."""
+    user = getattr(client_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    if not user.email_pref('nutrition_assigned', True):
+        return False
+    settings_url = f"{settings.SITE_URL}{reverse('settings_notifications')}"
+    role_map = {
+        'NUTRIZIONISTA': 'nutrizionista',
+        'COACH': 'coach',
+        'ALLENATORE': 'allenatore',
+    }
+    coach_role = role_map.get(getattr(coach_profile, 'professional_type', ''), 'coach')
+    return send_html_mail(
+        to=user.email,
+        subject='Nuovo piano nutrizionale · Athlynk',
+        template_base='nutrition_assigned',
+        context={
+            'client_name': _client_display_name(client_profile),
+            'coach_name': _coach_display_name(coach_profile),
+            'coach_role': coach_role,
+            'plan_title': getattr(plan, 'title', '') or '',
+            'plan_url': plan_url,
+            'settings_url': settings_url,
+        },
+    )
+
+
 def send_newsletter_confirm(subscriber):
     """Double opt-in confirmation email."""
     confirm_url = f"{settings.SITE_URL}{reverse('newsletter_confirm', args=[subscriber.confirm_token])}"

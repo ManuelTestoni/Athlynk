@@ -1039,7 +1039,9 @@ body[data-page="chat"] .al-search { display: none !important; }
   max-width: 16rem;
   box-sizing: border-box;
   overflow: hidden;
-  height: 100vh;
+  /* Leave room for fixed footer so sidebar ends exactly where footer starts.
+     --al-footer-h is set by JS in base.html from the footer's measured height. */
+  height: calc(100vh - var(--al-footer-h, 56px));
   contain: layout paint;
 }
 .al-sidebar > * { min-width: 0; min-height: 0; }

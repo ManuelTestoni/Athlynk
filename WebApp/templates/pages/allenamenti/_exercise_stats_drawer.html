@@ -79,12 +79,19 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
             </div>
           </div>
 
-          <!-- Chart frame -->
+          <!-- Chart frame: chart OR no-data alert -->
           <div class="va-chart-frame">
-            <div class="va-chart-canvas-wrap">
+            <div class="va-chart-canvas-wrap" x-show="exStats.hasData">
               <canvas x-init="mountExStatsCanvas($el)"></canvas>
             </div>
-            <div class="va-legend">
+            <div class="va-chart-empty" x-show="!exStats.hasData" style="padding: 32px 16px; text-align: center;">
+              <i class="ph ph-chart-line-down" style="font-size: 36px; opacity: 0.35; color: var(--al-ink-mute);"></i>
+              <p class="mt-2" style="font-weight: 600; color: var(--al-ink);">Non ci sono dati per generare il grafico</p>
+              <p class="al-small mt-1" style="color: var(--al-ink-faint); max-width: 32ch; margin-inline: auto;">
+                Aggiungi i valori di <strong x-text="exStatsMetricLabel().toLowerCase()"></strong> nelle settimane della scheda per visualizzarlo.
+              </p>
+            </div>
+            <div class="va-legend" x-show="exStats.hasData">
               <span class="va-legend-item">
                 <span class="va-legend-swatch" :style="'background:' + exStatsColor()"></span>
                 <span x-text="exStatsMetricLabel() + ' (' + exStatsUnit() + ')'"></span>

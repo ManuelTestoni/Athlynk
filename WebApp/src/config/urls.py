@@ -133,6 +133,7 @@ urlpatterns = [
     path('api/allenamenti/<int:plan_id>/progression/day/<int:day_id>/grid/', views_progression.api_progression_day_grid, name='api_progression_day_grid'),
     path('api/allenamenti/<int:plan_id>/progression/cell/', views_progression.api_progression_cell, name='api_progression_cell'),
     path('api/allenamenti/<int:plan_id>/progression/add-exercise/', views_progression.api_progression_add_exercise, name='api_progression_add_exercise'),
+    path('api/allenamenti/<int:plan_id>/progression/exercise/<int:exercise_id>/delete-cell/', views_progression.api_progression_delete_cell, name='api_progression_delete_cell'),
     path('api/clients/search/', views_workouts.api_search_clients, name='api_search_clients'),
     path('api/exercises/search/', views_workouts.api_search_exercises, name='api_search_exercises'),
     path('api/exercises/filters/', views_workouts.api_exercise_filters, name='api_exercise_filters'),
@@ -187,6 +188,10 @@ urlpatterns = [
     path('impostazioni/', views_settings.impostazioni_view, name='impostazioni_dashboard'),
     path('profilo/', views_settings.my_profile_view, name='my_profile'),
     path('impostazioni/elimina-account/', views_settings.delete_account_view, name='delete_account'),
+    path('impostazioni/notifiche/', views_settings.notifications_view, name='settings_notifications'),
+    path('impostazioni/calendario/', views_settings.calendar_view, name='settings_calendar'),
+    path('api/agenda/calendar-token/', views_agenda.api_coach_calendar_token, name='api_coach_calendar_token'),
+    path('calendar/coach/<str:token>.ics', views_agenda.coach_calendar_feed, name='coach_calendar_feed'),
 
     # Chat
     path('chat/', views_chat.chat_list_view, name='chat_list'),

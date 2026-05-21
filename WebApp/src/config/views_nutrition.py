@@ -14,6 +14,7 @@ from domain.nutrition.models import (
     Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
 )
 from domain.accounts.models import ClientProfile
+from config.services.email import send_nutrition_assigned
 
 
 def _get_active_relationship(client):
@@ -361,6 +362,12 @@ def api_piano_assign(request, plan_id):
         body=f'Ti è stato assegnato il piano "{plan.name}".',
         link_url=f'/nutrizione/dettaglio/{assignment.id}/',
     )
+    try:
+        from django.conf import settings as _settings
+        plan_url = f"{_settings.SITE_URL}/nutrizione/dettaglio/{assignment.id}/"
+        send_nutrition_assigned(client, coach, plan, plan_url)
+    except Exception:
+        pass
     return JsonResponse({'ok': True, 'assignment_id': assignment.id})
 
 
@@ -933,6 +940,12 @@ def api_diet_import_confirm(request):
                     body=f'Ti è stato assegnato il piano "{plan.title}".',
                     link_url=f'/nutrizione/dettaglio/{assignment.id}/',
                 )
+                try:
+                    from django.conf import settings as _settings
+                    plan_url = f"{_settings.SITE_URL}/nutrizione/dettaglio/{assignment.id}/"
+                    send_nutrition_assigned(client, coach, plan, plan_url)
+                except Exception:
+                    pass
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 

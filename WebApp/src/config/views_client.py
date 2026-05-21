@@ -192,7 +192,7 @@ def registra_client_view(request):
     # POST — registrazione cliente
     first_name = request.POST.get('first_name', '').strip()
     last_name = request.POST.get('last_name', '').strip()
-    email = request.POST.get('email', '').strip()
+    email = request.POST.get('email', '').strip().lower()
     password = request.POST.get('password', '').strip()
     confirm_password = request.POST.get('confirm_password', '').strip()
     phone = request.POST.get('phone', '').strip() or None
@@ -212,7 +212,7 @@ def registra_client_view(request):
         errors['last_name'] = 'Il cognome è obbligatorio.'
     if not email:
         errors['email'] = "L'email è obbligatoria."
-    elif User.objects.filter(email=email).exists():
+    elif User.objects.filter(email__iexact=email).exists():
         errors['email'] = 'Questa email è già registrata sulla piattaforma.'
     if not password or len(password) < 8:
         errors['password'] = 'La password temporanea deve essere di almeno 8 caratteri.'

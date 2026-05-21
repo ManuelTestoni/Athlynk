@@ -817,10 +817,16 @@ def compute_day_grid(plan: WorkoutPlan, day_id: int) -> dict:
     for ex in exercises:
         ex_cells = {}
         per_ex = overrides_by_ex.get(ex.id, {})
+        inactive_set = set(int(x) for x in (ex.inactive_weeks or []) if isinstance(x, (int, str)) and str(x).isdigit())
+        ends_at = ex.ends_at_week  # None = no upper bound
         for w in weeks:
             row = {}
-            if w < (ex.starts_at_week or 1):
-                # Exercise not active yet at this week.
+            inactive = (
+                w < (ex.starts_at_week or 1)
+                or (ends_at is not None and w > ends_at)
+                or w in inactive_set
+            )
+            if inactive:
                 row['_inactive'] = True
                 ex_cells[w] = row
                 continue
@@ -845,6 +851,8 @@ def compute_day_grid(plan: WorkoutPlan, day_id: int) -> dict:
             'name': ex.exercise.name,
             'order_index': ex.order_index,
             'starts_at_week': ex.starts_at_week or 1,
+            'ends_at_week': ex.ends_at_week,
+            'inactive_weeks': sorted(inactive_set),
             'superset_group_id': ex.superset_group_id,
             'base': {m: _ex_base_value(ex, m) for m in _GRID_METRICS},
         })

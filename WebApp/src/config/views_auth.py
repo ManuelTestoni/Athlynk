@@ -48,7 +48,9 @@ def signup_view(request):
             return render(request, 'pages/auth/signup.html', {'error': 'Le password non coincidono.'})
         if len(password) < 8:
             return render(request, 'pages/auth/signup.html', {'error': 'La password deve essere di almeno 8 caratteri.'})
-        if User.objects.filter(email=email).exists():
+        if not email:
+            return render(request, 'pages/auth/signup.html', {'error': "L'email è obbligatoria."})
+        if User.objects.filter(email__iexact=email).exists():
             return render(request, 'pages/auth/signup.html', {'error': 'Email già in uso. Accedi.'})
 
         token = generate_token()

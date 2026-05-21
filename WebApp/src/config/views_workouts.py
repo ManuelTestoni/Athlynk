@@ -16,6 +16,7 @@ from domain.workouts.models import (
 from domain.workouts import progression_engine
 from domain.chat.models import Notification
 
+from .services.email import send_workout_assigned
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
     get_active_relationship, can_manage_workouts,
@@ -809,6 +810,13 @@ def api_plan_finalize(request, plan_id):
                     body=f'Ti è stata assegnata la scheda "{plan.title}".',
                     link_url='/allenamenti/',
                 )
+                # Fire-and-forget email notification (silenced if user opted out).
+                try:
+                    from django.conf import settings as _settings
+                    plan_url = f"{_settings.SITE_URL}/allenamenti/"
+                    send_workout_assigned(client, coach, plan, plan_url)
+                except Exception:
+                    pass
             plan.status = 'ACTIVE'
             plan.save()
 

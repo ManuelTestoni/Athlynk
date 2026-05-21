@@ -224,3 +224,117 @@ def api_agenda_event_detail(request, event_id):
     evt.save()
 
     return JsonResponse({'status': 'success', 'event_id': evt.id})
+
+
+# ---------------------------------------------------------------------------
+# Calendar feed (Google Calendar / Apple Calendar subscription)
+# ---------------------------------------------------------------------------
+import secrets as _secrets
+from django.http import HttpResponse, Http404
+from django.shortcuts import get_object_or_404 as _get_or_404
+from domain.accounts.models import CoachProfile as _CoachProfile
+from domain.calendar.models import Appointment as _Appointment
+
+
+def _ensure_coach_feed_token(coach):
+    if not coach.calendar_feed_token:
+        coach.calendar_feed_token = _secrets.token_urlsafe(24)
+        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
+    return coach.calendar_feed_token
+
+
+def _ics_escape(text):
+    if text is None:
+        return ''
+    return (
+        str(text)
+        .replace('\\', '\\\\')
+        .replace(',', '\\,')
+        .replace(';', '\;')
+        .replace('\n', '\\n')
+    )
+
+
+def _fmt_ics_dt(dt):
+    if dt is None:
+        return ''
+    # Naive → assume UTC; tz-aware → convert to UTC and format as Zulu time.
+    if dt.tzinfo:
+        dt = dt.astimezone(datetime.timezone.utc)
+    else:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def coach_calendar_feed(request, token):
+    """Public ICS feed for a coach's appointments. Token-protected URL so it can
+    be subscribed in Google Calendar / Apple Calendar without login."""
+    coach = _get_or_404(_CoachProfile, calendar_feed_token=token)
+
+    appts = _Appointment.objects.filter(coach=coach).exclude(status='CANCELLED').order_by('start_datetime')
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Athlynk//Coach Agenda//IT',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        f'X-WR-CALNAME:Athlynk · {_ics_escape((coach.first_name or "") + " " + (coach.last_name or ""))}',
+        'X-WR-TIMEZONE:UTC',
+        'REFRESH-INTERVAL;VALUE=DURATION:PT30M',
+    ]
+    now = _fmt_ics_dt(datetime.datetime.now(datetime.timezone.utc))
+    for a in appts:
+        uid = f'athlynk-appt-{a.id}@athlynk'
+        summary = a.title or 'Appuntamento'
+        client_name = ''
+        if a.client_id:
+            try:
+                client_name = f"{a.client.first_name} {a.client.last_name}".strip()
+            except Exception:
+                client_name = ''
+        if client_name:
+            summary = f'{summary} — {client_name}'
+        description_parts = []
+        if a.description:
+            description_parts.append(a.description)
+        if a.meeting_url:
+            description_parts.append(f'Link: {a.meeting_url}')
+        if client_name:
+            description_parts.append(f'Atleta: {client_name}')
+        description = '\n'.join(description_parts)
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:{uid}',
+            f'DTSTAMP:{now}',
+            f'DTSTART:{_fmt_ics_dt(a.start_datetime)}',
+            f'DTEND:{_fmt_ics_dt(a.end_datetime)}',
+            f'SUMMARY:{_ics_escape(summary)}',
+            f'DESCRIPTION:{_ics_escape(description)}',
+        ]
+        if a.location:
+            lines.append(f'LOCATION:{_ics_escape(a.location)}')
+        if a.meeting_url:
+            lines.append(f'URL:{_ics_escape(a.meeting_url)}')
+        lines.append(f'STATUS:{ "CONFIRMED" if a.status == "SCHEDULED" else "TENTATIVE" }')
+        lines.append('END:VEVENT')
+    lines.append('END:VCALENDAR')
+
+    body = '\r\n'.join(lines) + '\r\n'
+    resp = HttpResponse(body, content_type='text/calendar; charset=utf-8')
+    resp['Content-Disposition'] = 'inline; filename="athlynk-agenda.ics"'
+    return resp
+
+
+def api_coach_calendar_token(request):
+    """Return (or create) the calendar feed token for the logged-in coach."""
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    if request.method == 'POST':
+        # Rotate token (invalidates existing subscriptions).
+        coach.calendar_feed_token = _secrets.token_urlsafe(24)
+        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
+    else:
+        _ensure_coach_feed_token(coach)
+    return JsonResponse({'token': coach.calendar_feed_token})

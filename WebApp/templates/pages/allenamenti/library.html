@@ -257,6 +257,7 @@
   </div>
 
   <!-- =================== TYPE PICKER MODAL =================== -->
+  <template x-teleport="body">
   <div x-show="typePickerOpen" x-cloak
        x-effect="window.panelLock && (typePickerOpen ? window.panelLock.acquire() : window.panelLock.release())"
        class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -311,8 +312,10 @@
       </div>
     </div>
   </div>
+  </template>
 
   <!-- =================== DELETE FOLDER MODAL =================== -->
+  <template x-teleport="body">
   <div x-show="deleteFolderOpen" x-cloak
        x-effect="window.panelLock && (deleteFolderOpen ? window.panelLock.acquire() : window.panelLock.release())"
        class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -370,6 +373,7 @@
       </div>
     </div>
   </div>
+  </template>
 </div>
 
 <script>

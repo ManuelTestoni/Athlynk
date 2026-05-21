@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifiche email · Impostazioni{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+
+  <div class="mb-7">
+    <p class="al-eyebrow mb-2">Impostazioni</p>
+    <h1 class="al-h-2">Notifiche <span class="al-display-i">email</span></h1>
+    <p class="al-body mt-2" style="color: var(--al-ink-mute);">
+      Decidi quali email vuoi ricevere da Athlynk. Le email essenziali (sicurezza, verifica account)
+      vengono inviate sempre.
+    </p>
+    <div class="al-rule-bronze mt-5"></div>
+  </div>
+
+  {% if saved %}
+  <div class="al-toast is-success mb-6">
+    <i class="ph-fill ph-check-circle"></i>
+    <span>Preferenze salvate.</span>
+  </div>
+  {% endif %}
+
+  <form method="post" class="al-card" style="padding: 22px 24px;">
+    {% csrf_token %}
+
+    <div class="flex flex-col gap-3">
+      {% for row in notif_rows %}
+      <label class="flex items-start gap-4" style="padding: 12px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(91,85,74,0.12); border-radius: 12px; cursor: pointer;">
+        <input type="checkbox" name="pref_{{ row.key }}" {% if row.enabled %}checked{% endif %}
+               style="margin-top: 4px; width: 18px; height: 18px; accent-color: #8a6a3a;">
+        <span class="flex-1 min-w-0">
+          <span class="block font-semibold" style="font-size: 14.5px; color: var(--al-ink);">{{ row.label }}</span>
+          <span class="block al-small mt-1" style="color: var(--al-ink-mute);">{{ row.desc }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="flex justify-end mt-6">
+      <button type="submit" class="al-btn al-btn-bronze">
+        <i class="ph ph-check"></i> Salva preferenze
+      </button>
+    </div>
+  </form>
+
+  <p class="al-small mt-4" style="color: var(--al-ink-faint);">
+    Puoi sempre cliccare il link "Gestisci le preferenze email" in fondo a qualsiasi email Athlynk per tornare qui.
+  </p>
+</div>
+{% endblock %}

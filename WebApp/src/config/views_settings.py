@@ -188,3 +188,86 @@ def delete_account_view(request):
 
     request.session.flush()
     return redirect('login')
+
+
+
+_EMAIL_NOTIF_KEYS = [
+    ('workout_assigned',    'Nuovo piano di allenamento', 'Ricevi una mail quando il tuo coach ti assegna una nuova scheda.'),
+    ('nutrition_assigned',  'Nuovo piano nutrizionale',   'Ricevi una mail quando ti viene assegnato un piano alimentare.'),
+]
+
+
+def notifications_view(request):
+    """Per-user email notification preferences (opt-out per category)."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    saved = False
+    if request.method == 'POST':
+        prefs = dict(user.email_prefs or {})
+        for key, _label, _desc in _EMAIL_NOTIF_KEYS:
+            prefs[key] = (request.POST.get(f'pref_{key}') == 'on')
+        user.email_prefs = prefs
+        user.save(update_fields=['email_prefs', 'updated_at'])
+        saved = True
+
+    rows = [
+        {
+            'key': key,
+            'label': label,
+            'desc': desc,
+            'enabled': (user.email_prefs or {}).get(key, True),
+        }
+        for key, label, desc in _EMAIL_NOTIF_KEYS
+    ]
+    ctx = {
+        'auth_user': user,
+        'notif_rows': rows,
+        'saved': saved,
+        'active_tab': 'notifiche',
+    }
+    if user.role == 'COACH':
+        ctx['coach'] = get_session_coach(request)
+        ctx['is_coach'] = True
+    else:
+        ctx['client'] = get_session_client(request)
+        ctx['is_client'] = True
+    return render(request, 'pages/impostazioni/notifications.html', ctx)
+
+
+def calendar_view(request):
+    """Coach calendar subscription page — Google Calendar / Apple Calendar."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('impostazioni_dashboard')
+
+    if request.method == 'POST' and request.POST.get('action') == 'rotate':
+        import secrets as _secrets
+        coach.calendar_feed_token = _secrets.token_urlsafe(24)
+        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
+
+    if not coach.calendar_feed_token:
+        import secrets as _secrets
+        coach.calendar_feed_token = _secrets.token_urlsafe(24)
+        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
+
+    from django.urls import reverse
+    feed_path = reverse('coach_calendar_feed', args=[coach.calendar_feed_token])
+    abs_url = request.build_absolute_uri(feed_path)
+    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
+    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + abs_url
+
+    ctx = {
+        'auth_user': user,
+        'coach': coach,
+        'is_coach': True,
+        'feed_url': abs_url,
+        'webcal_url': webcal_url,
+        'google_subscribe': google_subscribe,
+        'active_tab': 'calendario',
+    }
+    return render(request, 'pages/impostazioni/calendar.html', ctx)

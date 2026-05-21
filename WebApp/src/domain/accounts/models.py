@@ -9,8 +9,17 @@ class User(models.Model):
     email_verification_token = models.CharField(max_length=128, blank=True, default='')
     email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
+    # Per-notification opt-in flags. Settings page exposes one toggle per key.
+    # Defaults: client receives assignment emails; toggle off to silence.
+    email_prefs = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def email_pref(self, key, default=True):
+        """Return True/False for a given notification key. Missing key → default."""
+        prefs = self.email_prefs or {}
+        v = prefs.get(key)
+        return default if v is None else bool(v)
 
     def __str__(self):
         return self.email
@@ -43,6 +52,10 @@ class CoachProfile(models.Model):
     social_facebook = models.URLField(max_length=300, null=True, blank=True)
     social_website = models.URLField(max_length=300, null=True, blank=True)
     professional_videos = models.TextField(null=True, blank=True)
+    # Random token used to expose this coach's appointments as an ICS feed
+    # without requiring login (subscribed in Google/Apple Calendar via URL).
+    # Generated lazily on first request.
+    calendar_feed_token = models.CharField(max_length=64, blank=True, default='')
     platform_subscription_status = models.CharField(max_length=50)
     is_platform_subscription_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

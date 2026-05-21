@@ -501,173 +501,323 @@
   .prg-preview-v { font-size: 12px; font-weight: 600; margin: 2px 0 0; line-height: 1.15; color: var(--al-ink); }
 
   /* =====================================================================
-     Step 3 · Per-day progression grid (redesign)
+     Step 3 · Per-day progression grid (refined · soft, modern)
      ===================================================================== */
   .prg-day-tabs {
-    display: flex; gap: 8px; flex-wrap: wrap;
-    padding: 6px 0;
+    display: flex; gap: 10px; flex-wrap: wrap;
+    justify-content: center;
+    padding: 6px 0 2px;
   }
   .prg-day-tab {
-    display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px;
-    padding: 9px 16px;
-    background: var(--al-parchment);
-    border: 1px solid var(--al-rule);
-    border-radius: var(--al-r-sm);
+    position: relative;
+    display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 11px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(244,239,228,0.85));
+    border: 1px solid var(--al-rule-faint);
+    border-radius: 14px;
     cursor: pointer;
-    transition: all 140ms var(--al-ease);
-    min-width: 110px;
+    transition: transform 180ms var(--al-ease), box-shadow 180ms var(--al-ease),
+                background 180ms var(--al-ease), border-color 180ms var(--al-ease),
+                color 180ms var(--al-ease);
+    min-width: 118px;
+    box-shadow: 0 1px 0 rgba(244,239,228,0.6) inset, 0 1px 2px rgba(20,17,13,0.04);
   }
-  .prg-day-tab .lab { font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--al-ink-mute); }
-  .prg-day-tab .name { font-family: var(--al-display); font-size: 14.5px; font-weight: 600; color: var(--al-ink); letter-spacing: -0.005em; }
-  .prg-day-tab:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
+  .prg-day-tab .lab { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--al-ink-mute); }
+  .prg-day-tab .name { font-family: var(--al-display); font-size: 15px; font-weight: 600; color: var(--al-ink); letter-spacing: -0.01em; }
+  .prg-day-tab:hover {
+    border-color: var(--al-bronze-l, #c8a774);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -8px rgba(138,106,58,0.35), 0 1px 0 rgba(244,239,228,0.6) inset;
+  }
   .prg-day-tab.is-active {
-    background: var(--al-ink); border-color: var(--al-ink);
+    background: linear-gradient(180deg, #2a241b, #1c1917);
+    border-color: #1c1917;
+    box-shadow: 0 10px 24px -10px rgba(20,17,13,0.55);
   }
-  .prg-day-tab.is-active .lab { color: rgba(244,239,228,0.65); }
+  .prg-day-tab.is-active .lab { color: rgba(244,239,228,0.62); }
   .prg-day-tab.is-active .name { color: var(--al-parchment); }
 
   .prg-grid-wrap {
-    display: grid; grid-template-columns: 36px 1fr 36px; gap: 10px;
+    display: grid; grid-template-columns: 40px 1fr 40px; gap: 12px;
     align-items: stretch;
   }
   .prg-grid-arrow {
     align-self: stretch;
     display: flex; align-items: center; justify-content: center;
-    background: var(--al-parchment);
-    border: 1px solid var(--al-rule);
-    border-radius: var(--al-r-sm);
+    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244,239,228,0.85));
+    border: 1px solid var(--al-rule-faint);
+    border-radius: 14px;
     cursor: pointer; color: var(--al-ink);
-    transition: all 140ms var(--al-ease);
+    transition: all 180ms var(--al-ease);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(20,17,13,0.04);
   }
-  .prg-grid-arrow:hover:not(:disabled) { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
+  .prg-grid-arrow:hover:not(:disabled) {
+    background: linear-gradient(180deg, #2a241b, #1c1917);
+    color: var(--al-parchment); border-color: #1c1917;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -10px rgba(20,17,13,0.55);
+  }
   .prg-grid-arrow:disabled { opacity: 0.30; cursor: not-allowed; }
-  .prg-grid-arrow i { font-size: 18px; }
+  .prg-grid-arrow i { font-size: 20px; }
 
   .prg-grid-cols {
-    display: grid; gap: 12px;
+    display: grid; gap: 14px;
+    will-change: transform, opacity, filter;
+  }
+  /* Direction note: `is-slide-left` is fired when the user advances to the NEXT
+     week window (windowStart grows). The new columns enter sliding IN from the
+     right; the previous content fades and lifts away. */
+  .prg-grid-cols.is-slide-left  { animation: prgSlideLeft  560ms cubic-bezier(.16, .84, .22, 1); }
+  .prg-grid-cols.is-slide-right { animation: prgSlideRight 560ms cubic-bezier(.16, .84, .22, 1); }
+  @keyframes prgSlideLeft {
+    0%   { transform: translateX(140px) scale(0.965); opacity: 0; filter: blur(6px); }
+    35%  { opacity: 0.35; filter: blur(3px); }
+    70%  { transform: translateX(-12px) scale(1.005); opacity: 1; filter: blur(0); }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+  @keyframes prgSlideRight {
+    0%   { transform: translateX(-140px) scale(0.965); opacity: 0; filter: blur(6px); }
+    35%  { opacity: 0.35; filter: blur(3px); }
+    70%  { transform: translateX(12px) scale(1.005); opacity: 1; filter: blur(0); }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .prg-grid-cols.is-slide-left,
+    .prg-grid-cols.is-slide-right { animation: none; }
   }
   .prg-grid-cols.cols-1 { grid-template-columns: 1fr; }
   .prg-grid-cols.cols-2 { grid-template-columns: 1fr 1fr; }
   .prg-grid-cols.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 
   .prg-wcol {
-    display: flex; flex-direction: column; gap: 10px;
-    background: var(--al-parchment);
-    border: 1px solid var(--al-rule);
-    border-radius: var(--al-r-md);
-    padding: 14px 12px;
+    display: flex; flex-direction: column; gap: 12px;
+    background:
+      radial-gradient(ellipse 60% 30% at 50% 0%, rgba(138,106,58,0.05), transparent 70%),
+      linear-gradient(180deg, rgba(255,255,255,0.92), rgba(244,239,228,0.78));
+    border: 1px solid var(--al-rule-faint);
+    border-radius: 18px;
+    padding: 16px 14px 14px;
     min-width: 0;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.55) inset,
+      0 16px 40px -28px rgba(20,17,13,0.30),
+      0 2px 6px -2px rgba(20,17,13,0.05);
   }
   .prg-wcol-head {
     display: flex; align-items: baseline; justify-content: space-between;
-    border-bottom: 1px dashed var(--al-rule-faint);
-    padding-bottom: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(138,106,58,0.10);
   }
   .prg-wcol-week {
-    font-family: var(--al-display); font-size: 17px; font-weight: 600;
-    letter-spacing: -0.005em; color: var(--al-ink);
+    font-family: var(--al-display); font-size: 18px; font-weight: 600;
+    letter-spacing: -0.01em; color: var(--al-ink);
   }
   .prg-wcol-suffix {
-    font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em;
-    text-transform: uppercase; color: var(--al-ink-mute);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--al-bronze);
+    padding: 2px 8px;
+    background: rgba(138,106,58,0.08);
+    border-radius: 999px;
   }
 
   .prg-cell-ex {
-    background: rgba(244,239,228,0.5);
-    border: 1px solid var(--al-rule-faint);
-    border-radius: var(--al-r-sm);
-    padding: 10px 11px;
-    display: flex; flex-direction: column; gap: 7px;
-    transition: border-color 140ms var(--al-ease), box-shadow 140ms var(--al-ease);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(244,239,228,0.55) 100%);
+    border: 1px solid rgba(91,85,74,0.10);
+    border-radius: 14px;
+    padding: 12px 13px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: transform 180ms var(--al-ease), border-color 180ms var(--al-ease),
+                box-shadow 180ms var(--al-ease);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(20,17,13,0.04);
+  }
+  .prg-cell-ex:hover {
+    border-color: rgba(138,106,58,0.28);
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 8px 20px -10px rgba(20,17,13,0.18);
   }
   .prg-cell-ex.is-inherit-empty { opacity: 0.55; }
-  .prg-cell-ex:hover { border-color: var(--al-bronze-l, #c8a774); }
+
   .prg-cell-ex-head {
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
   }
+  .prg-cell-ex-head > button { flex-shrink: 0; }
   .prg-cell-ex-name {
-    font-family: var(--al-display); font-size: 13.5px; font-weight: 600;
-    color: var(--al-ink); margin: 0; line-height: 1.2; letter-spacing: -0.005em;
+    font-family: var(--al-display); font-size: 14px; font-weight: 600;
+    color: var(--al-ink); margin: 0; line-height: 1.25; letter-spacing: -0.01em;
     min-width: 0; flex: 1;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .prg-cell-stats-btn {
-    flex-shrink: 0;
-    width: 26px; height: 26px;
+  .prg-cell-trash-btn {
+    width: 28px; height: 28px; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
-    background: transparent; border: 1px solid var(--al-rule-strong);
-    border-radius: 5px; color: var(--al-ink); cursor: pointer;
-    transition: all 140ms var(--al-ease);
+    background: rgba(244,239,228,0.6);
+    border: 1px solid rgba(91,85,74,0.15);
+    border-radius: 9px;
+    color: var(--al-ink-mute); cursor: pointer;
+    transition: all 160ms var(--al-ease);
   }
-  .prg-cell-stats-btn:hover { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
-  .prg-cell-stats-btn i { font-size: 14px; }
+  .prg-cell-trash-btn:hover {
+    background: #b91c1c; color: #fff; border-color: #b91c1c;
+    box-shadow: 0 6px 14px -6px rgba(185,28,28,0.55);
+  }
+  .prg-cell-trash-btn i { font-size: 15px; }
+
+  /* Delete-cell confirm modal */
+  .prg-confirm-backdrop {
+    position: fixed; top: 64px; right: 0; bottom: 0; left: 0;
+    background: rgba(20,17,13,0.35);
+    backdrop-filter: blur(2px);
+    z-index: 95;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .prg-confirm {
+    background: var(--al-parchment);
+    border: 1px solid rgba(91,85,74,0.15);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px -20px rgba(20,17,13,0.45);
+    width: 100%; max-width: 460px;
+    padding: 22px 24px 18px;
+  }
+  .prg-confirm h4 {
+    font-family: var(--al-display); font-size: 19px; font-weight: 600;
+    color: var(--al-ink); margin: 0 0 6px; letter-spacing: -0.01em;
+  }
+  .prg-confirm p { color: var(--al-ink-mute); font-size: 13px; margin: 0 0 14px; }
+  .prg-confirm-options { display: flex; flex-direction: column; gap: 8px; }
+  .prg-confirm-opt {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(91,85,74,0.15);
+    border-radius: 12px;
+    cursor: pointer; text-align: left;
+    transition: all 160ms var(--al-ease);
+  }
+  .prg-confirm-opt:hover {
+    border-color: var(--al-bronze); background: rgba(138,106,58,0.06);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px -10px rgba(138,106,58,0.45);
+  }
+  .prg-confirm-opt.is-danger:hover {
+    border-color: #b91c1c; background: rgba(185,28,28,0.05);
+    box-shadow: 0 8px 18px -10px rgba(185,28,28,0.45);
+  }
+  .prg-confirm-opt i { font-size: 18px; color: var(--al-bronze); margin-top: 2px; }
+  .prg-confirm-opt.is-danger i { color: #b91c1c; }
+  .prg-confirm-opt-body { flex: 1; min-width: 0; }
+  .prg-confirm-opt-title { font-weight: 600; font-size: 13.5px; color: var(--al-ink); }
+  .prg-confirm-opt-sub { font-size: 11.5px; color: var(--al-ink-mute); margin-top: 2px; }
+  .prg-confirm-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+  .prg-cell-toggle-btn,
+  .prg-cell-stats-btn {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(244,239,228,0.6);
+    border: 1px solid rgba(91,85,74,0.15);
+    border-radius: 9px;
+    color: var(--al-ink); cursor: pointer;
+    transition: all 160ms var(--al-ease);
+  }
+  .prg-cell-toggle-btn:hover {
+    background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze);
+    box-shadow: 0 6px 14px -6px rgba(138,106,58,0.55);
+  }
+  .prg-cell-stats-btn:hover {
+    background: #1c1917; color: var(--al-parchment); border-color: #1c1917;
+    box-shadow: 0 6px 14px -6px rgba(20,17,13,0.55);
+  }
+  .prg-cell-toggle-btn i,
+  .prg-cell-stats-btn i { font-size: 15px; }
 
   .prg-cell-fields {
-    display: grid; gap: 5px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: grid; gap: 7px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    animation: prgFieldsIn 220ms var(--al-ease, ease-out);
   }
+  @keyframes prgFieldsIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to   { opacity: 1; transform: none; }
+  }
+
   .prg-field {
-    display: flex; flex-direction: column; gap: 1px;
-    background: white;
-    border: 1px solid var(--al-rule-faint);
-    border-radius: 5px;
-    padding: 5px 7px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: #ffffff;
+    border: 1px solid rgba(91,85,74,0.12);
+    border-radius: 10px;
+    padding: 7px 9px;
     cursor: text;
-    transition: border-color 120ms var(--al-ease), background-color 120ms var(--al-ease);
+    transition: border-color 140ms var(--al-ease), background-color 140ms var(--al-ease),
+                box-shadow 140ms var(--al-ease), transform 140ms var(--al-ease);
     min-width: 0;
   }
-  .prg-field:hover { border-color: var(--al-bronze-l, #c8a774); }
+  .prg-field:hover {
+    border-color: rgba(138,106,58,0.35);
+    box-shadow: 0 4px 10px -6px rgba(20,17,13,0.12);
+  }
   .prg-field:focus-within {
-    border-color: var(--al-ink); box-shadow: 0 0 0 1px var(--al-ink);
+    border-color: var(--al-ink);
+    box-shadow: 0 0 0 3px rgba(28,25,23,0.10), 0 6px 14px -6px rgba(20,17,13,0.18);
+    transform: translateY(-1px);
   }
   .prg-field.is-full { grid-column: 1 / -1; }
   .prg-field-lab {
-    font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em;
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.10em;
     text-transform: uppercase; color: var(--al-ink-mute);
   }
   .prg-field-val {
-    font-size: 13px; font-weight: 600; color: var(--al-ink);
+    font-size: 13.5px; font-weight: 600; color: var(--al-ink);
     font-variant-numeric: tabular-nums;
     background: transparent; border: 0; padding: 0; margin: 0;
     outline: 0; width: 100%; min-width: 0;
+    font-family: var(--al-body, inherit);
   }
-  /* Pre-filled (inherited from base or earlier override): semi-transparent.
+  /* Inherited from base / earlier override: semi-transparent.
      Becomes opaque once the user explicitly sets a value on this week. */
-  .prg-field.is-inherited .prg-field-val { color: rgba(20,17,13,0.45); font-weight: 500; }
-  .prg-field.is-inherited.is-from-override .prg-field-val { color: rgba(20,17,13,0.62); font-style: italic; }
+  .prg-field.is-inherited .prg-field-val { color: rgba(20,17,13,0.42); font-weight: 500; }
+  .prg-field.is-inherited.is-from-override .prg-field-val {
+    color: rgba(138,106,58,0.65); font-style: italic; font-weight: 500;
+  }
   .prg-field.is-override {
-    background: rgba(138,106,58,0.06);
-    border-color: var(--al-bronze);
+    background: linear-gradient(180deg, rgba(138,106,58,0.08), rgba(138,106,58,0.04));
+    border-color: rgba(138,106,58,0.45);
   }
   .prg-field.is-override .prg-field-val { color: var(--al-bronze); }
 
   .prg-cell-inactive {
     background: repeating-linear-gradient(135deg, rgba(91,85,74,0.04) 0 8px, transparent 8px 16px);
-    border: 1px dashed var(--al-rule-faint);
-    border-radius: var(--al-r-sm);
-    padding: 18px 12px;
+    border: 1px dashed rgba(91,85,74,0.20);
+    border-radius: 12px;
+    padding: 20px 12px;
     text-align: center;
     color: var(--al-ink-mute);
     font-size: 11.5px;
     font-style: italic;
   }
+
   .prg-add-ex-btn {
-    margin-top: 4px;
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px dashed var(--al-rule-strong);
-    border-radius: var(--al-r-sm);
-    cursor: pointer; color: var(--al-ink-mute);
-    font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
-    transition: all 140ms var(--al-ease);
+    margin-top: 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 10px 14px;
+    background: rgba(244,239,228,0.5);
+    border: 1.5px dashed rgba(138,106,58,0.35);
+    border-radius: 12px;
+    cursor: pointer; color: var(--al-bronze);
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
+    transition: all 180ms var(--al-ease);
     text-transform: uppercase;
   }
-  .prg-add-ex-btn:hover { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); border-style: solid; }
-  .prg-add-ex-btn i { font-size: 14px; }
+  .prg-add-ex-btn:hover {
+    background: var(--al-bronze); color: var(--al-parchment);
+    border-color: var(--al-bronze); border-style: solid;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -10px rgba(138,106,58,0.55);
+  }
+  .prg-add-ex-btn i { font-size: 15px; }
 
   .prg-wcol-empty {
-    padding: 14px 0;
+    padding: 18px 0;
     text-align: center;
     color: var(--al-ink-mute);
     font-size: 11.5px;
@@ -1403,7 +1553,9 @@
         <i class="ph ph-caret-left"></i>
       </button>
 
-      <div class="prg-grid-cols" :class="'cols-' + progGridVisibleWeeks().length">
+      <div class="prg-grid-cols"
+           :class="['cols-' + progGridVisibleWeeks().length, progGrid.slideDir === 1 ? 'is-slide-right' : (progGrid.slideDir === -1 ? 'is-slide-left' : '')]"
+           :key="progGrid.windowStart + '-' + progGrid.dayIdx">
         <template x-for="(w, colIdx) in progGridVisibleWeeks()" :key="w">
           <div class="prg-wcol">
             <div class="prg-wcol-head">
@@ -1415,17 +1567,33 @@
               <div class="prg-cell-ex">
                 <div class="prg-cell-ex-head">
                   <h4 class="prg-cell-ex-name" :title="ex.exercise_name" x-text="ex.exercise_name"></h4>
-                  <template x-if="colIdx === 0">
-                    <button type="button" class="prg-cell-stats-btn"
-                            @click="openExerciseStats(ex)"
-                            title="Statistiche esercizio">
-                      <i class="ph ph-chart-line-up"></i>
-                    </button>
-                  </template>
+                  <!-- Stats + expand toggle slots always rendered so card heights stay
+                       identical across all columns; non-first cols hide visibility only. -->
+                  <button type="button" class="prg-cell-toggle-btn"
+                          @click="toggleCellExpanded(ex)"
+                          :style="colIdx === 0 ? '' : 'visibility: hidden; pointer-events: none;'"
+                          :tabindex="colIdx === 0 ? 0 : -1"
+                          :aria-hidden="colIdx !== 0"
+                          :title="isCellExpanded(ex) ? 'Nascondi Carico / RPE / RIR' : 'Mostra Carico / RPE / RIR'">
+                    <i class="ph" :class="isCellExpanded(ex) ? 'ph-minus' : 'ph-plus'"></i>
+                  </button>
+                  <button type="button" class="prg-cell-stats-btn"
+                          @click="openExerciseStats(ex)"
+                          :style="colIdx === 0 ? '' : 'visibility: hidden; pointer-events: none;'"
+                          :tabindex="colIdx === 0 ? 0 : -1"
+                          :aria-hidden="colIdx !== 0"
+                          title="Statistiche esercizio">
+                    <i class="ph ph-chart-line-up"></i>
+                  </button>
+                  <button type="button" class="prg-cell-trash-btn"
+                          @click="openDeleteCellConfirm(ex, w)"
+                          title="Cancella esercizio">
+                    <i class="ph ph-trash"></i>
+                  </button>
                 </div>
 
                 <div class="prg-cell-fields">
-                  <template x-for="field in PRG_FIELDS" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
+                  <template x-for="field in visibleCellFields(ex)" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
                     <label class="prg-field"
                            :class="cellFieldClass(ex, w, field.metric)"
                            :title="cellFieldHint(ex, w, field.metric)">
@@ -1474,6 +1642,40 @@
       </button>
     </div>
   </section>
+
+  <!-- ==================== DELETE-CELL CONFIRM ==================== -->
+  <template x-teleport="body">
+    <div x-show="deleteUi.open" x-cloak>
+      <div class="prg-confirm-backdrop" @click.self="closeDeleteCellConfirm()">
+        <div class="prg-confirm" role="dialog" aria-label="Conferma cancellazione esercizio">
+          <h4>Cancella esercizio</h4>
+          <p>
+            Stai per rimuovere <strong x-text="deleteUi.exName"></strong> alla settimana
+            S<span x-text="deleteUi.week"></span>. Scegli come procedere:
+          </p>
+          <div class="prg-confirm-options">
+            <button type="button" class="prg-confirm-opt" @click="confirmDeleteCell('single')">
+              <i class="ph ph-eraser"></i>
+              <div class="prg-confirm-opt-body">
+                <div class="prg-confirm-opt-title">Solo questa settimana</div>
+                <div class="prg-confirm-opt-sub">L'esercizio scompare solo a S<span x-text="deleteUi.week"></span>. Le settimane precedenti e successive restano invariate.</div>
+              </div>
+            </button>
+            <button type="button" class="prg-confirm-opt is-danger" @click="confirmDeleteCell('forward')">
+              <i class="ph ph-arrow-bend-down-right"></i>
+              <div class="prg-confirm-opt-body">
+                <div class="prg-confirm-opt-title">Questa + tutte le successive</div>
+                <div class="prg-confirm-opt-sub">L'esercizio scompare da S<span x-text="deleteUi.week"></span> alla fine del blocco. Le settimane precedenti restano invariate.</div>
+              </div>
+            </button>
+          </div>
+          <div class="prg-confirm-footer">
+            <button type="button" class="al-btn al-btn-ghost" @click="closeDeleteCellConfirm()">Annulla</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
 
   <!-- ==================== ADD-EXERCISE-AT-WEEK PICKER ==================== -->
   <template x-teleport="body">

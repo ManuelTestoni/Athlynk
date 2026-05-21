@@ -1,0 +1,9 @@
+Ciao {{ client_name }}!
+
+Il tuo coach {{ coach_name }} ti ha assegnato un nuovo piano di allenamento{% if plan_title %} — "{{ plan_title }}"{% endif %}.
+
+Controllalo subito: {{ plan_url }}
+
+—
+Per gestire le preferenze email: {{ settings_url }}
+© Athlynk · {{ site_url }}

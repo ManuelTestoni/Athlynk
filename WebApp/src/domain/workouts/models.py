@@ -202,6 +202,13 @@ class WorkoutExercise(models.Model):
     # First week (within the parent plan's duration) where this exercise is active.
     # Used by the per-week progression grid: exercises appear only from this week onward.
     starts_at_week = models.PositiveSmallIntegerField(default=1)
+    # Last active week. NULL = active through the end of the plan's duration.
+    # Setting this hides the exercise from `ends_at_week + 1` onward.
+    ends_at_week = models.PositiveSmallIntegerField(null=True, blank=True, default=None)
+    # Sparse list of week numbers where the exercise is individually skipped
+    # (single-week removal). Lets the grid hide just one cell without breaking
+    # earlier or later weeks. Stored as JSON list of ints.
+    inactive_weeks = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

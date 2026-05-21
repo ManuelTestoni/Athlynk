@@ -234,6 +234,71 @@ def api_progression_cell(request, plan_id):
 
 
 @csrf_exempt
+def api_progression_delete_cell(request, plan_id, exercise_id):
+    """Remove a workout exercise from a specific week onward, or just at that
+    single week. Body: { mode: 'single' | 'forward', week_number }.
+
+    - 'single'  → add week to inactive_weeks (gap; later weeks remain active)
+    - 'forward' → set ends_at_week = week-1 (this week and all following hidden)
+
+    If the result leaves no active week, the WorkoutExercise row is deleted
+    entirely so it disappears from the plan."""
+    plan, err = _coach_plan_or_403(request, plan_id)
+    if err:
+        return err
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    try:
+        body = json.loads(request.body or '{}')
+    except Exception:
+        return JsonResponse({'error': 'invalid json'}, status=400)
+
+    mode = body.get('mode') or 'forward'
+    if mode not in ('single', 'forward'):
+        return JsonResponse({'error': 'invalid mode'}, status=400)
+    try:
+        week = int(body.get('week_number'))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'invalid week'}, status=400)
+
+    try:
+        ex = WorkoutExercise.objects.get(id=exercise_id, workout_day__workout_plan=plan)
+    except WorkoutExercise.DoesNotExist:
+        return JsonResponse({'error': 'exercise not found'}, status=404)
+
+    duration = plan.duration_weeks or 1
+    if week < 1 or week > duration:
+        return JsonResponse({'error': 'week out of range'}, status=400)
+
+    with transaction.atomic():
+        if mode == 'forward':
+            new_end = week - 1
+            if new_end < (ex.starts_at_week or 1):
+                # Nothing left active → delete the row entirely.
+                ex.delete()
+                return JsonResponse({'status': 'ok', 'deleted': True})
+            ex.ends_at_week = new_end
+            # Drop any per-cell overrides past the new boundary.
+            WeeklyOverride.objects.filter(workout_exercise=ex, week_number__gt=new_end).delete()
+            ex.save(update_fields=['ends_at_week', 'updated_at'])
+        else:  # 'single'
+            inactive = list({int(x) for x in (ex.inactive_weeks or []) if str(x).isdigit()})
+            if week not in inactive:
+                inactive.append(week)
+            inactive.sort()
+            ex.inactive_weeks = inactive
+            WeeklyOverride.objects.filter(workout_exercise=ex, week_number=week).delete()
+            # Compute effective active set; if empty, drop row.
+            active = [w for w in range(ex.starts_at_week or 1, (ex.ends_at_week or duration) + 1) if w not in inactive]
+            if not active:
+                ex.delete()
+                return JsonResponse({'status': 'ok', 'deleted': True})
+            ex.save(update_fields=['inactive_weeks', 'updated_at'])
+
+    return JsonResponse({'status': 'ok', 'deleted': False})
+
+
+@csrf_exempt
 def api_progression_add_exercise(request, plan_id):
     """Create a new WorkoutExercise on a day, active from `starts_at_week`
     onward. Used by the "+ Aggiungi" button under each week column."""

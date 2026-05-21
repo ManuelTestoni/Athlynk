@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Calendario · Impostazioni{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+
+  <div class="mb-7">
+    <p class="al-eyebrow mb-2">Impostazioni</p>
+    <h1 class="al-h-2">Sincronizza il tuo <span class="al-display-i">calendario</span></h1>
+    <p class="al-body mt-2" style="color: var(--al-ink-mute);">
+      Iscrivi la tua agenda Athlynk a Google Calendar o Apple Calendar tramite un link sicuro e personale.
+      Gli appuntamenti si aggiornano in automatico ogni 30 minuti circa lato Google/Apple.
+    </p>
+    <div class="al-rule-bronze mt-5"></div>
+  </div>
+
+  <div class="al-card mb-5" style="padding: 22px 24px;">
+    <p class="al-eyebrow mb-2">Link di sottoscrizione</p>
+    <div class="flex items-center gap-2" style="background: rgba(244,239,228,0.6); border: 1px solid rgba(91,85,74,0.12); border-radius: 10px; padding: 10px 12px;">
+      <i class="ph ph-link" style="color: var(--al-bronze);"></i>
+      <input type="text" readonly value="{{ feed_url }}" id="feed-url"
+             style="flex:1; min-width: 0; background: transparent; border: 0; outline: 0; font-family: var(--al-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12.5px; color: var(--al-ink);">
+      <button type="button" class="al-btn al-btn-ghost al-btn-sm"
+              onclick="navigator.clipboard.writeText(document.getElementById('feed-url').value); this.innerText='Copiato!'; setTimeout(()=>this.innerText='Copia', 1600);">
+        Copia
+      </button>
+    </div>
+    <p class="al-small mt-3" style="color: var(--al-ink-faint);">
+      Mantieni questo link riservato. Chiunque lo possegga può vedere il tuo calendario (solo lettura).
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <a href="{{ google_subscribe }}" target="_blank" rel="noopener"
+       class="al-card flex items-center gap-3"
+       style="padding: 16px 18px; text-decoration: none; border-radius: 14px; transition: all 180ms ease;"
+       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 28px -14px rgba(20,17,13,0.30)';"
+       onmouseout="this.style.transform='';this.style.boxShadow='';">
+      <div style="width: 44px; height: 44px; display:flex; align-items:center; justify-content:center; background: #fff; border: 1px solid rgba(91,85,74,0.10); border-radius: 10px;">
+        <svg width="22" height="22" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="9" width="38" height="34" rx="4" fill="#fff" stroke="#dadce0" stroke-width="2"/>
+          <text x="24" y="34" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#1a73e8">G</text>
+          <rect x="5" y="9" width="38" height="6" fill="#1a73e8"/>
+        </svg>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold" style="font-size: 14.5px; color: var(--al-ink);">Aggiungi a Google Calendar</p>
+        <p class="al-small" style="color: var(--al-ink-mute);">Apre Google Calendar per confermare la sottoscrizione.</p>
+      </div>
+      <i class="ph ph-arrow-up-right" style="color: var(--al-ink-mute);"></i>
+    </a>
+
+    <a href="{{ webcal_url }}"
+       class="al-card flex items-center gap-3"
+       style="padding: 16px 18px; text-decoration: none; border-radius: 14px; transition: all 180ms ease;"
+       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 28px -14px rgba(20,17,13,0.30)';"
+       onmouseout="this.style.transform='';this.style.boxShadow='';">
+      <div style="width: 44px; height: 44px; display:flex; align-items:center; justify-content:center; background: #1c1917; border-radius: 10px;">
+        <i class="ph ph-apple-logo" style="color: #fff; font-size: 22px;"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold" style="font-size: 14.5px; color: var(--al-ink);">Aggiungi a Apple Calendar</p>
+        <p class="al-small" style="color: var(--al-ink-mute);">Usa il link <code>webcal://</code> per macOS e iOS.</p>
+      </div>
+      <i class="ph ph-arrow-up-right" style="color: var(--al-ink-mute);"></i>
+    </a>
+  </div>
+
+  <div class="al-card mb-6" style="padding: 18px 20px;">
+    <p class="al-eyebrow mb-2">Istruzioni rapide</p>
+    <ol class="list-decimal pl-5 al-small" style="color: var(--al-ink-mute); line-height: 1.6;">
+      <li><strong>Google Calendar (web)</strong>: clicca il pulsante qui sopra oppure vai su <em>Altri calendari → +</em> e incolla l'URL.</li>
+      <li><strong>iPhone / iPad</strong>: tocca "Aggiungi a Apple Calendar", oppure <em>Impostazioni → Calendario → Account → Aggiungi → Altro → Aggiungi calendario con iscrizione</em>.</li>
+      <li><strong>macOS</strong>: <em>File → Nuovo calendario con iscrizione</em>, incolla l'URL.</li>
+    </ol>
+  </div>
+
+  <form method="post" class="al-card flex items-center justify-between gap-3" style="padding: 14px 18px; background: rgba(185,28,28,0.04); border: 1px solid rgba(185,28,28,0.20); border-radius: 12px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="rotate">
+    <div class="flex-1 min-w-0">
+      <p class="font-semibold" style="font-size: 13.5px; color: #b91c1c;">Rigenera il link</p>
+      <p class="al-small" style="color: var(--al-ink-mute);">Invalida l'URL attuale e ne crea uno nuovo. Tutte le sottoscrizioni esistenti smetteranno di funzionare.</p>
+    </div>
+    <button type="submit" class="al-btn al-btn-danger al-btn-sm"
+            onclick="return confirm('Rigenerare il link? Le iscrizioni esistenti smetteranno di funzionare.');">
+      Rigenera
+    </button>
+  </form>
+</div>
+{% endblock %}

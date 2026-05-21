@@ -1,0 +1,59 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Nuovo piano nutrizionale · Athlynk</title>
+</head>
+<body style="margin:0;padding:0;background:#f4efe4;font-family:'Inter',Helvetica,Arial,sans-serif;color:#14110d;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe4;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0"
+             style="max-width:560px;background:#ffffff;border:1px solid #d8cfba;border-radius:2px;">
+        <tr>
+          <td style="padding:32px 36px 8px;border-bottom:1px solid #ece5d6;">
+            <span style="font-family:'Bodoni Moda',Georgia,serif;font-size:24px;letter-spacing:-0.01em;">Athlynk</span>
+            <div style="height:2px;background:linear-gradient(90deg,transparent,#1c4a52,transparent);margin-top:18px;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 36px 16px;">
+            <p style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5b554a;margin:0 0 12px;">Nuova dieta</p>
+            <h1 style="font-family:'Bodoni Moda',Georgia,serif;font-size:24px;margin:0 0 16px;color:#14110d;line-height:1.25;">
+              Ciao {{ client_name }}!
+            </h1>
+            <p style="font-size:15px;line-height:1.55;color:#2a2620;margin:0 0 14px;">
+              Il tuo {{ coach_role }} <strong>{{ coach_name }}</strong> ti ha assegnato un nuovo piano nutrizionale.
+            </p>
+            {% if plan_title %}
+            <p style="font-size:14px;line-height:1.5;color:#5b554a;margin:0 0 22px;">
+              Dieta · <strong style="color:#14110d;">{{ plan_title }}</strong>
+            </p>
+            {% endif %}
+            <p style="font-size:15px;line-height:1.55;color:#2a2620;margin:0 0 22px;">
+              Controllala subito per pianificare i tuoi pasti.
+            </p>
+            <p style="margin:0 0 26px;">
+              <a href="{{ plan_url }}"
+                 style="display:inline-block;background:#1c4a52;color:#f4efe4;text-decoration:none;
+                        padding:12px 28px;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;
+                        font-weight:500;border-radius:2px;">
+                Apri il piano
+              </a>
+            </p>
+            <p style="font-size:12px;color:#8a8270;line-height:1.5;margin:0;">
+              Non vuoi più ricevere queste notifiche?
+              <a href="{{ settings_url }}" style="color:#8a6a3a;text-decoration:underline;">Gestisci le preferenze email</a>.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 36px 28px;background:#f4efe4;border-top:1px solid #ece5d6;">
+            <p style="font-size:11px;color:#8a8270;margin:0;">© Athlynk · {{ site_url }}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
