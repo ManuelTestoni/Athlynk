@@ -74,10 +74,21 @@ def agenda_dashboard_view(request):
     events = Appointment.objects.filter(coach=coach).select_related('client')
     events_data = [_serialize_event(e, coach_view=True) for e in events]
 
+    # Calendar subscription links (Google / Apple) — surface them in agenda header.
+    from django.urls import reverse as _reverse
+    token = _ensure_coach_feed_token(coach)
+    feed_path = _reverse('coach_calendar_feed', args=[token])
+    abs_url = request.build_absolute_uri(feed_path)
+    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
+    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + abs_url
+
     context = {
         'coach': coach,
         'events_json': json.dumps(events_data),
         'can_manage_agenda': True,
+        'calendar_feed_url': abs_url,
+        'calendar_webcal_url': webcal_url,
+        'calendar_google_url': google_subscribe,
     }
     return render(request, 'pages/agenda/dashboard.html', context)
 

@@ -851,6 +851,7 @@ def api_search_clients(request):
     if not coach:
         return JsonResponse([], safe=False)
     query = request.GET.get('q', '').strip()
+    exclude_plan_id = request.GET.get('exclude_plan_id', '').strip()
 
     qs = ClientProfile.objects.filter(
         coaching_relationships_as_client__coach=coach,
@@ -859,6 +860,17 @@ def api_search_clients(request):
 
     if query:
         qs = qs.filter(Q(first_name__icontains=query) | Q(last_name__icontains=query))
+
+    if exclude_plan_id:
+        try:
+            assigned_ids = WorkoutAssignment.objects.filter(
+                workout_plan_id=int(exclude_plan_id),
+                coach=coach,
+                status='ACTIVE',
+            ).values_list('client_id', flat=True)
+            qs = qs.exclude(id__in=list(assigned_ids))
+        except (ValueError, TypeError):
+            pass
 
     clients = qs.order_by('first_name', 'last_name')[:30]
     data = [{'id': c.id, 'name': f"{c.first_name} {c.last_name}".strip()} for c in clients]

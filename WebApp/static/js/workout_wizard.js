@@ -1627,6 +1627,7 @@ document.addEventListener('alpine:init', () => {
     async loadClients() {
       const params = new URLSearchParams();
       if (this.clientQuery) params.set('q', this.clientQuery);
+      if (this.plan && this.plan.id) params.set('exclude_plan_id', this.plan.id);
       try {
         const r = await fetch(`${this.urls.search_clients}?${params.toString()}`);
         this.clientsList = await r.json();
