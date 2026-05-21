@@ -27,6 +27,19 @@
     <!-- Chart.js (shared across analytics views) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 
+    <!-- Pre-set the footer-height CSS variable BEFORE first paint so layout never
+         flashes a stale value (the precise px is re-measured by JS later). The
+         value here matches the footer's single-row height on >=sm screens with
+         current padding (py-1.5 = 12px + 18px line + 1px border ≈ 32px). On
+         very narrow viewports the footer wraps to 2 rows; we use a slightly
+         larger initial value there to avoid the inverse flash. -->
+    <script>
+      (function () {
+        var initial = (window.innerWidth < 640) ? '58px' : '32px';
+        document.documentElement.style.setProperty('--al-footer-h', initial);
+      })();
+    </script>
+
     <!-- CSRF + consent version (used by cookie banner JS) -->
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="consent-version" content="{{ CONSENT_VERSION }}">
@@ -405,14 +418,14 @@
         </header>
 
         <!-- Content -->
-        <main class="flex-1 min-h-0 overflow-y-auto al-canvas" style="padding-bottom: var(--al-footer-h, 56px);">
+        <main class="flex-1 min-h-0 overflow-y-auto al-canvas" style="padding-bottom: var(--al-footer-h, 32px);">
             <div class="al-page p-4 sm:p-8">
                 {% block content %}{% endblock %}
             </div>
         </main>
 
-        <!-- Fixed footer pinned to viewport bottom -->
-        <footer class="al-footer shrink-0 px-4 sm:px-8 py-3" style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(244,239,228,0.92); backdrop-filter: saturate(140%) blur(10px);">
+        <!-- Fixed footer pinned to viewport bottom; on lg+ screens starts after the sidebar so it never sits under it. -->
+        <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(244,239,228,0.92); backdrop-filter: saturate(140%) blur(10px);">
             <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 al-small">
                 <div class="flex items-center gap-2">
                     <svg width="16" height="16" viewBox="0 0 32 32" fill="none">

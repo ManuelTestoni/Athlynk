@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="-m-4 sm:-m-8 flex flex-col"
-     style="height: calc(100vh - 64px); min-height: 0;"
+     style="height: calc(100vh - 64px - var(--al-footer-h, 32px)); min-height: 0;"
      x-data='chatRoom({{ conversation.id }}, {{ current_user_id }}, {{ has_older|yesno:"true,false" }}, {{ oldest_id }})'
      x-init="init()">
 
