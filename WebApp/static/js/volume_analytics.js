@@ -69,7 +69,9 @@
       weeksSelected: [],
       groupsSelected: [],
       secondaryMode: 'total',  // 'total' | 'primary' | 'secondary'
-      _builderMode: false,  // hide week filter when in builder context
+      _builderMode: false,    // hide week filter when in builder context (single-week locked)
+      _progressionMode: false, // wizard step 3: show line tab, allow week filter, hide radar
+      hideRadar: false,
 
       /* computed cache */
       computedGroups: [],      // [{slug, name, color_token, per_week: [{week, primary_sets, secondary_sets}]}]
@@ -97,6 +99,9 @@
         this.planKind = (p.planKind || 'WEEKLY').toUpperCase();
         this.durationWeeks = Math.max(1, parseInt(p.durationWeeks || 1, 10));
         this.payload = p.days || [];
+        this._progressionMode = !!p.progressionMode;
+        this._builderMode = !this._progressionMode && !(p.planId);
+        this.hideRadar = !!p.hideRadar || this._progressionMode;
         if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;
         this.chartType = 'histogram';
@@ -106,10 +111,17 @@
           this._loadFromServer(p.planId);
         } else {
           this.compute();
-          this.weeksSelected = this._allWeeks();
+          if (this._builderMode) {
+            // Builder: lock to a single week — one bar per muscle group.
+            this.weeksSelected = [1];
+          } else if (this._progressionMode) {
+            // Progression: default to the active week passed in payload.
+            const dw = Math.max(1, Math.min(this.durationWeeks, parseInt(p.defaultWeek || 1, 10)));
+            this.weeksSelected = [dw];
+          } else {
+            this.weeksSelected = this._allWeeks();
+          }
           this.groupsSelected = this.computedGroups.map(g => g.slug);
-          // In builder context, always show all weeks (disable week filtering)
-          this._builderMode = true;
           // Render after drawer slide finishes so canvas has measurable size.
           setTimeout(() => { if (this.isOpen && this.hasData()) this.renderChart(); }, 360);
         }
@@ -381,6 +393,8 @@
 
         if (this.chartType === 'histogram') {
           this._renderHistogram(ctx, groups, baseOpts);
+        } else if (this.chartType === 'line') {
+          this._renderLine(ctx, groups, baseOpts);
         } else if (this.chartType === 'radar') {
           this._renderRadar(ctx, groups, baseOpts);
         }

@@ -2043,8 +2043,11 @@ body[data-al-page-ready="1"] .al-canvas {
 }
 
 @keyframes al-stagger-in {
+  /* End state MUST be `transform: none` so staggered children of .al-canvas
+     don't establish a containing block for nested `position: fixed` drawers.
+     translateY(0) is technically a transform, which traps fixed descendants. */
   from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 body[data-al-page-ready="1"] .al-canvas > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]):not(.al-toast):not(.al-popover) {
   animation: al-stagger-in var(--al-d-velvet) var(--al-ease-silk) both;

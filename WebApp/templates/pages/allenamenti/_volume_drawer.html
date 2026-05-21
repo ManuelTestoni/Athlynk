@@ -2,7 +2,11 @@
 Volume Analytics Drawer · reusable slide-over.
 Listens on the global `volume-analytics:open` event for payload:
   { planKind, durationWeeks, days: [{exercises:[...]}] }
+
+Wrapped in <template x-teleport="body"> so position:fixed inside is
+anchored to the viewport, not any transformed ancestor of .al-canvas.
 {% endcomment %}
+<template x-teleport="body">
 <div x-data="volumeAnalytics()"
      id="athlynk-volume-root"
      style="position: relative; z-index: 80;">
@@ -42,9 +46,16 @@ Listens on the global `volume-analytics:open` event for payload:
           <button type="button" :class="{ 'is-active': chartType === 'histogram' }" @click="setChartType('histogram')">
             <i class="ph ph-chart-bar"></i> Istogramma
           </button>
-          <button type="button" :class="{ 'is-active': chartType === 'radar' }" @click="setChartType('radar')">
-            <i class="ph ph-chart-polar"></i> Radar
-          </button>
+          <template x-if="_progressionMode">
+            <button type="button" :class="{ 'is-active': chartType === 'line' }" @click="setChartType('line')">
+              <i class="ph ph-chart-line"></i> Linea
+            </button>
+          </template>
+          <template x-if="!hideRadar">
+            <button type="button" :class="{ 'is-active': chartType === 'radar' }" @click="setChartType('radar')">
+              <i class="ph ph-chart-polar"></i> Radar
+            </button>
+          </template>
         </div>
 
         <!-- Secondary muscle dropdown -->
@@ -123,8 +134,8 @@ Listens on the global `volume-analytics:open` event for payload:
 
             <!-- Legend -->
             <div class="va-legend">
-              <!-- Histogram: legend per muscle group -->
-              <template x-if="chartType === 'histogram'">
+              <!-- Histogram / Line: legend per muscle group -->
+              <template x-if="chartType === 'histogram' || chartType === 'line'">
                 <template x-for="g in activeGroups()" :key="g.slug">
                   <span class="va-legend-item">
                     <span class="va-legend-swatch" :style="'background:' + groupColor(g)"></span>
@@ -200,3 +211,5 @@ Listens on the global `volume-analytics:open` event for payload:
     </div>
   </aside>
 </div>
+</template>
+

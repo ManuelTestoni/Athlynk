@@ -37,10 +37,10 @@
   .wiz-ex-row { padding: .9rem; border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm); margin-bottom: .5rem; background: white; }
   .wiz-ex-row.is-superset { border-left: 4px solid var(--al-bronze); }
   .wiz-mini-input { padding: .25rem .5rem; border: 1px solid var(--al-rule-faint); border-radius: 4px; width: 100%; font-size: .85rem; }
-  .wiz-drawer { position: fixed; top: 0; right: 0; width: 100%; max-width: 50vw; height: 100vh; background: var(--al-parchment); box-shadow: -8px 0 24px rgba(0,0,0,.15); transform: translateX(100%); transition: transform .3s; z-index: 60; overflow-y: auto; }
-  .wiz-drawer.open { transform: translateX(0); }
-  .wiz-drawer-backdrop { position: fixed; inset: 0; background: transparent; z-index: 59; pointer-events: none; }
-  .wiz-drawer-backdrop.open { pointer-events: auto; }
+  .wiz-drawer { position: fixed; top: 64px; right: 0; width: 100%; max-width: 50vw; height: calc(100vh - 64px); background: var(--al-parchment); box-shadow: -8px 0 24px rgba(0,0,0,.15); transform: translateX(110%); visibility: hidden; transition: transform .3s, visibility 0s linear .3s; z-index: 60; overflow-y: auto; overscroll-behavior: contain; }
+  .wiz-drawer.open { transform: translateX(0); visibility: visible; transition: transform .3s, visibility 0s linear 0s; }
+  .wiz-drawer-backdrop { position: fixed; top: 64px; right: 0; bottom: 0; left: 0; background: transparent; z-index: 59; pointer-events: none; visibility: hidden; }
+  .wiz-drawer-backdrop.open { pointer-events: auto; visibility: visible; }
   .wiz-bar { background: linear-gradient(90deg, var(--al-bronze), #d4af37); height: 14px; border-radius: 4px; }
   .wiz-superset-bracket { width: 4px; background: var(--al-bronze); border-radius: 2px; align-self: stretch; }
   .wiz-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--al-ink); color: var(--al-parchment); padding: 12px 20px; border-radius: var(--al-r-sm); z-index: 80; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
@@ -327,6 +327,29 @@
     border-color: var(--al-rule-strong);
   }
   .prg-add-btn.is-edit:hover { background: rgba(138,106,58,0.08); border-color: var(--al-bronze); }
+
+  .prg-ex-actions {
+    flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+    min-width: 116px;
+  }
+  .prg-stats-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--al-rule-strong);
+    background: transparent;
+    color: var(--al-ink);
+    border-radius: var(--al-r-sm);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 140ms var(--al-ease);
+  }
+  .prg-stats-btn:hover {
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    border-color: var(--al-ink);
+  }
+  .prg-stats-btn i { font-size: 14px; }
 
   .prg-ex-week {
     display: inline-flex; align-items: center; gap: 8px;
@@ -1005,6 +1028,12 @@
   <!-- ==================== VOLUME ANALYTICS DRAWER (Phase 3) ==================== -->
   {% include 'pages/allenamenti/_volume_drawer.html' %}
 
+  <!-- ==================== EXERCISE STATS DRAWER (Step 3 only) ==================== -->
+  {% include 'pages/allenamenti/_exercise_stats_drawer.html' %}
+
+  <!-- ==================== PER-EXERCISE STATS DRAWER ==================== -->
+  {% include 'pages/allenamenti/_exercise_stats_drawer.html' %}
+
   <!-- ==================== CUSTOM EXERCISE DRAWER (used inside Step 2) ==================== -->
   <div class="wb-drawer-backdrop" :class="{'is-open': customExerciseOpen}" @click="closeCustomExerciseDrawer()"></div>
   <div class="wb-drawer-right" :class="{'is-open': customExerciseOpen}">
@@ -1184,51 +1213,19 @@
       </template>
     </div>
 
-    <!-- Volume analysis card (per-week) -->
-    <div class="prg-card">
-      <div class="prg-card-head">
+    <!-- Volume analysis trigger (per-week drawer, same panel as builder) -->
+    <div class="prg-card prg-volume-trigger">
+      <div class="prg-card-head" style="margin-bottom: 0;">
         <div>
           <p class="al-eyebrow" style="margin-bottom: 2px;">Analisi volume</p>
-          <h3 class="prg-card-title">
-            Volume serie S<span x-text="progUi.activeWeek"></span>
-          </h3>
+          <h3 class="prg-card-title" style="margin-bottom: 4px;">Volume serie per settimana</h3>
+          <p class="al-small" style="color: var(--al-ink-faint); max-width: 56ch;">
+            Apri il pannello per confrontare il volume per gruppo muscolare con grafici istogramma e linea, filtrare per settimana e analizzare la progressione.
+          </p>
         </div>
-        <div class="prg-controls">
-          <!-- Chart type selector -->
-          <div class="prg-segctl" role="tablist" aria-label="Tipo grafico">
-            <button type="button" :class="{'is-active': progUi.chartType === 'histogram'}" @click="setProgChartType('histogram')" title="Istogramma" aria-label="Istogramma">
-              <i class="ph ph-chart-bar"></i>
-            </button>
-            <button type="button" :class="{'is-active': progUi.chartType === 'line'}" @click="setProgChartType('line')" title="Linea" aria-label="Linea">
-              <i class="ph ph-chart-line"></i>
-            </button>
-          </div>
-          <!-- Secondary muscle dropdown -->
-          <select class="va-secondary-select" x-model="progUi.secondaryMode" @change="setProgSecondaryMode(progUi.secondaryMode)">
-            <option value="total">Volume totale</option>
-            <option value="primary">Volume muscolo primario</option>
-            <option value="secondary">Volume muscolo secondario</option>
-          </select>
-        </div>
-      </div>
-      <div class="prg-chart-wrap">
-        <canvas x-init="mountProgChart($el)"></canvas>
-      </div>
-      <!-- Muscle group filter -->
-      <div class="va-filter-row" style="margin-top: 12px;">
-        <div class="flex justify-between items-center">
-          <span class="va-filter-label">Gruppi muscolari</span>
-          <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllProgGroups()">Tutti</button>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <template x-for="g in progComputedGroups" :key="g.slug">
-            <button type="button" class="va-chip"
-                    :class="{ 'is-active': progGroupsSelected.includes(g.slug) }"
-                    :style="progGroupsSelected.includes(g.slug) ? 'background:' + groupColor(g) + '; color: var(--al-parchment); border-color:' + groupColor(g) + ';' : ''"
-                    @click="toggleProgGroup(g.slug)"
-                    x-text="g.name"></button>
-          </template>
-        </div>
+        <button type="button" class="al-btn al-btn-bronze al-btn-sm" @click="openProgressionVolumeAnalytics()">
+          <i class="ph ph-chart-bar"></i> Apri analisi volume
+        </button>
       </div>
     </div>
 
@@ -1265,10 +1262,16 @@
                       <span class="prg-base-chip"><span class="key">Rec</span> <span x-text="ex.recovery_seconds + 's'"></span></span>
                     </div>
                   </div>
-                  <button type="button" @click="openProgressionDrawer(ex)" class="prg-add-btn" :class="{ 'is-edit': rulesForExercise(ex).length }">
-                    <i class="ph" :class="rulesForExercise(ex).length ? 'ph-pencil-simple' : 'ph-plus'"></i>
-                    <span x-text="rulesForExercise(ex).length ? 'Modifica' : 'Aggiungi'"></span>
-                  </button>
+                  <div class="prg-ex-actions">
+                    <button type="button" @click="openProgressionDrawer(ex)" class="prg-add-btn" :class="{ 'is-edit': rulesForExercise(ex).length }">
+                      <i class="ph" :class="rulesForExercise(ex).length ? 'ph-pencil-simple' : 'ph-plus'"></i>
+                      <span x-text="rulesForExercise(ex).length ? 'Modifica' : 'Aggiungi'"></span>
+                    </button>
+                    <button type="button" @click="openExerciseStats(ex)" class="prg-stats-btn" title="Statistiche per settimana">
+                      <i class="ph ph-chart-line-up"></i>
+                      <span>Statistiche</span>
+                    </button>
+                  </div>
                 </div>
 
                 <span class="prg-ex-week">
@@ -1305,6 +1308,8 @@
     </div>
 
     <!-- ====================== PROGRESSION DRAWER (REDESIGN) ====================== -->
+    <template x-teleport="body">
+    <div>
     <div class="wiz-drawer-backdrop" :class="{open: progUi.drawerOpen}" @click="closeProgressionDrawer()"></div>
     <div class="wiz-drawer" :class="{open: progUi.drawerOpen}">
 
@@ -1765,6 +1770,8 @@
         </button>
       </div>
     </div>
+    </div>
+    </template>
   </section>
 
   <!-- Toast -->

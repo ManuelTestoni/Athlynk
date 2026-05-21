@@ -1,0 +1,118 @@
+{% comment %}
+Per-exercise stats drawer · scoped to workoutWizard Alpine component.
+Renders a single-exercise line plot of Volume / Carico / Intensità across
+selected weeks of the progression block.
+
+Wrapped in <template x-teleport="body"> so position:fixed inside is
+anchored to the viewport, not any transformed ancestor of .al-canvas.
+{% endcomment %}
+<template x-teleport="body">
+<div>
+  <!-- Backdrop -->
+  <div class="va-backdrop"
+       :class="{ 'is-open': exStats.open }"
+       @click="closeExerciseStats()"
+       x-cloak></div>
+
+  <!-- Drawer -->
+  <aside class="va-drawer"
+         :class="{ 'is-open': exStats.open }"
+         x-cloak
+         role="dialog"
+         aria-label="Statistiche esercizio">
+
+    <header class="va-header">
+      <div>
+        <p class="al-eyebrow mb-1">Statistiche esercizio</p>
+        <h3 x-text="exStats.ex ? exStats.ex.exercise_name : ''"></h3>
+        <p>Andamento per settimana · Volume · Carico · Intensità</p>
+      </div>
+      <button type="button"
+              class="al-btn-icon al-btn-ghost"
+              @click.stop="closeExerciseStats()"
+              aria-label="Chiudi"
+              title="Chiudi">
+        <i class="ph ph-x"></i>
+      </button>
+    </header>
+
+    <div class="va-body">
+
+      <!-- Metric switcher -->
+      <div class="va-segctl" role="tablist" aria-label="Metrica">
+        <button type="button" :class="{ 'is-active': exStats.metric === 'volume' }" @click="setExStatsMetric('volume')">
+          <i class="ph ph-stack"></i> Volume
+        </button>
+        <button type="button" :class="{ 'is-active': exStats.metric === 'load' }" @click="setExStatsMetric('load')">
+          <i class="ph ph-barbell"></i> Carico
+        </button>
+        <button type="button" :class="{ 'is-active': exStats.metric === 'intensity' }" @click="setExStatsMetric('intensity')">
+          <i class="ph ph-fire"></i> Intensità
+        </button>
+      </div>
+
+      <!-- Empty state -->
+      <template x-if="!exStats.ex || weekNumbers().length === 0">
+        <div class="va-chart-empty">
+          <i class="ph ph-chart-line" style="font-size: 32px; opacity: 0.4;"></i>
+          <p class="mt-2">Nessun dato disponibile per questo esercizio.</p>
+        </div>
+      </template>
+
+      <template x-if="exStats.ex && weekNumbers().length > 0">
+        <div class="flex flex-col gap-4">
+
+          <!-- Week filter -->
+          <div class="va-filter-row">
+            <div class="flex justify-between items-center">
+              <span class="va-filter-label">Settimane</span>
+              <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllExStatsWeeks()">Tutte</button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="w in weekNumbers()" :key="w">
+                <button type="button" class="va-chip va-chip-week"
+                        :class="{ 'is-active': exStats.weeksSelected.includes(w) }"
+                        @click="toggleExStatsWeek(w)">
+                  <span x-text="'S' + w"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Chart frame -->
+          <div class="va-chart-frame">
+            <div class="va-chart-canvas-wrap">
+              <canvas x-init="mountExStatsCanvas($el)"></canvas>
+            </div>
+            <div class="va-legend">
+              <span class="va-legend-item">
+                <span class="va-legend-swatch" :style="'background:' + exStatsColor()"></span>
+                <span x-text="exStatsMetricLabel() + ' (' + exStatsUnit() + ')'"></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Per-week values list -->
+          <div class="va-diff-card">
+            <h4>
+              <i class="ph ph-list-numbers"></i>
+              Valori per settimana
+              <span class="ml-2" style="text-transform: none; letter-spacing: 0; font-weight: 500;"
+                    x-text="exStatsMetricLabel()"></span>
+            </h4>
+            <div class="va-diff-list">
+              <template x-for="w in exStats.weeksSelected" :key="w">
+                <div class="va-diff-row">
+                  <span class="label">S<span x-text="w"></span></span>
+                  <span class="delta delta--flat" x-text="exStatsValueLabel(w)"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+      </template>
+    </div>
+  </aside>
+</div>
+</template>

@@ -32,6 +32,16 @@ document.addEventListener('alpine:init', () => {
     _volumeOpen: false,
     _volumeRefreshTimer: null,
 
+    /* Per-exercise stats drawer */
+    exStats: {
+      open: false,
+      ex: null,
+      metric: 'volume',           // 'volume' | 'load' | 'intensity'
+      weeksSelected: [],
+    },
+    _exStatsChart: null,
+    _exStatsCanvas: null,
+
     /* Custom exercise drawer */
     customExerciseOpen: false,
     customExercise: {
@@ -217,7 +227,18 @@ document.addEventListener('alpine:init', () => {
       // Re-render progression chart when relevant state changes.
       this.$watch('step', (v) => { if (v === 3) setTimeout(() => this._refreshProgChart(), 250); });
       this.$watch('progUi.activeWeek', () => this._refreshProgChart());
-      this.$watch('progression.rules', () => this._refreshProgChart());
+      this.$watch('progression.rules', () => {
+        this._refreshProgChart();
+        if (this.exStats.open) this.renderExStatsChart();
+      });
+      this.$watch('progression.computed', () => {
+        if (this.exStats.open) this.renderExStatsChart();
+      });
+
+      // Close per-exercise stats drawer on Esc.
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && this.exStats.open) this.closeExerciseStats();
+      });
     },
 
     _materializeDays(srvDays) {
@@ -548,27 +569,37 @@ document.addEventListener('alpine:init', () => {
     },
 
     /* ---- Volume Analytics Drawer ---- */
-    _buildVolumePayload() {
-      const muscleByName = {};
-      (this.muscleGroups || []).forEach(m => { muscleByName[m.name.toLowerCase()] = m; });
+    _muscleByName() {
+      const m = {};
+      (this.muscleGroups || []).forEach(g => { m[g.name.toLowerCase()] = g; });
+      return m;
+    },
 
+    _resolvedExerciseMuscles(ex) {
+      const muscleByName = this._muscleByName();
+      let primary = ex.primary_muscles_data || [];
+      let secondary = ex.secondary_muscles_data || [];
+      if (!primary.length && ex.primary_muscle) {
+        const m = muscleByName[ex.primary_muscle.toLowerCase()];
+        if (m) primary = [m];
+      }
+      if (!primary.length && ex.target_muscle_group) {
+        const m = muscleByName[ex.target_muscle_group.toLowerCase()];
+        if (m) primary = [m];
+      }
+      if (!secondary.length && ex.secondary_muscle) {
+        const m = muscleByName[ex.secondary_muscle.toLowerCase()];
+        if (m) secondary = [m];
+      }
+      return { primary, secondary };
+    },
+
+    /* Builder volume payload: single week, base sets only. */
+    _buildVolumePayload() {
       const days = (this.plan?.days || []).map(d => ({
         name: d.name,
         exercises: (d.exercises || []).map(ex => {
-          let primary = ex.primary_muscles_data || [];
-          let secondary = ex.secondary_muscles_data || [];
-          if (!primary.length && ex.primary_muscle) {
-            const m = muscleByName[ex.primary_muscle.toLowerCase()];
-            if (m) primary = [m];
-          }
-          if (!primary.length && ex.target_muscle_group) {
-            const m = muscleByName[ex.target_muscle_group.toLowerCase()];
-            if (m) primary = [m];
-          }
-          if (!secondary.length && ex.secondary_muscle) {
-            const m = muscleByName[ex.secondary_muscle.toLowerCase()];
-            if (m) secondary = [m];
-          }
+          const { primary, secondary } = this._resolvedExerciseMuscles(ex);
           return {
             sets: parseInt(ex.sets, 10) || 0,
             reps: ex.reps || '',
@@ -581,8 +612,46 @@ document.addEventListener('alpine:init', () => {
 
       return {
         planKind: this.plan.plan_kind || 'WEEKLY',
-        durationWeeks: parseInt(this.plan.duration_weeks, 10) || 1,
+        durationWeeks: 1,  // builder always shows the single working week
         days,
+      };
+    },
+
+    /* Progression volume payload: full duration, per-week sets from computed cells. */
+    _buildProgressionVolumePayload() {
+      const computed = this.progression?.computed || {};
+      const dur = Math.max(1, parseInt(this.plan.duration_weeks, 10) || 1);
+
+      const days = (this.plan?.days || []).map(d => ({
+        name: d.name,
+        exercises: (d.exercises || []).map(ex => {
+          const { primary, secondary } = this._resolvedExerciseMuscles(ex);
+          const baseSets = parseInt(ex.sets, 10) || 0;
+          const exComputed = ex.pk ? (computed[String(ex.pk)] || {}) : {};
+          const weekly_overrides = {};
+          for (let w = 1; w <= dur; w++) {
+            const cell = exComputed[String(w)] || {};
+            const sets = (cell.set_count != null) ? parseInt(cell.set_count, 10) : baseSets;
+            weekly_overrides[w] = { sets, reps: cell.rep_range || ex.reps || '' };
+          }
+          return {
+            sets: baseSets,
+            reps: ex.reps || '',
+            primary_muscles: primary,
+            secondary_muscles: secondary,
+            primary_muscle_text: ex.primary_muscle || ex.target_muscle_group || '',
+            weekly_overrides,
+          };
+        }),
+      }));
+
+      return {
+        planKind: this.plan.plan_kind || 'PROGRAM',
+        durationWeeks: dur,
+        days,
+        progressionMode: true,
+        hideRadar: true,
+        defaultWeek: this.progUi.activeWeek || 1,
       };
     },
 
@@ -591,11 +660,19 @@ document.addEventListener('alpine:init', () => {
       window.AthlynkVolume.open(this._buildVolumePayload());
     },
 
+    openProgressionVolumeAnalytics() {
+      this._volumeOpen = true;
+      window.AthlynkVolume.open(this._buildProgressionVolumePayload());
+    },
+
     _refreshVolumeIfOpen() {
       if (!this._volumeOpen) return;
       if (this._volumeRefreshTimer) clearTimeout(this._volumeRefreshTimer);
+      const payload = (this.step === 3)
+        ? this._buildProgressionVolumePayload()
+        : this._buildVolumePayload();
       this._volumeRefreshTimer = setTimeout(() => {
-        window.AthlynkVolume.refresh(this._buildVolumePayload());
+        window.AthlynkVolume.refresh(payload);
       }, 250);
     },
 
@@ -1087,6 +1164,187 @@ document.addEventListener('alpine:init', () => {
       if (this.step === 3 && this._progCanvas) {
         this.renderProgChart();
       }
+    },
+
+    /* ---- Per-exercise stats drawer (Volume / Carico / Intensità) ---- */
+    openExerciseStats(ex) {
+      this.exStats.ex = ex;
+      this.exStats.metric = 'volume';
+      this.exStats.weeksSelected = this.weekNumbers();
+      this.exStats.open = true;
+      window.panelLock && window.panelLock.acquire();
+      this.$nextTick(() => {
+        setTimeout(() => this.renderExStatsChart(), 360);
+      });
+    },
+
+    closeExerciseStats() {
+      if (this.exStats.open) window.panelLock && window.panelLock.release();
+      this.exStats.open = false;
+      if (this._exStatsChart) {
+        try { this._exStatsChart.destroy(); } catch (_) { /* ignore */ }
+        this._exStatsChart = null;
+      }
+    },
+
+    setExStatsMetric(m) {
+      if (this.exStats.metric === m) return;
+      this.exStats.metric = m;
+      this.renderExStatsChart();
+    },
+
+    toggleExStatsWeek(w) {
+      const i = this.exStats.weeksSelected.indexOf(w);
+      if (i >= 0) this.exStats.weeksSelected.splice(i, 1);
+      else this.exStats.weeksSelected.push(w);
+      this.exStats.weeksSelected.sort((a, b) => a - b);
+      this.renderExStatsChart();
+    },
+
+    selectAllExStatsWeeks() {
+      this.exStats.weeksSelected = this.weekNumbers();
+      this.renderExStatsChart();
+    },
+
+    mountExStatsCanvas(el) {
+      this._exStatsCanvas = el;
+      if (this.exStats.open) {
+        setTimeout(() => this.renderExStatsChart(), 360);
+      }
+    },
+
+    exStatsColor() {
+      return ({
+        volume: '#1c4a52',
+        load: '#8a3a3a',
+        intensity: '#a6802b',
+      })[this.exStats.metric] || '#8a6a3a';
+    },
+
+    exStatsMetricLabel() {
+      return ({
+        volume: 'Volume',
+        load: 'Carico',
+        intensity: 'Intensità',
+      })[this.exStats.metric] || '';
+    },
+
+    exStatsUnit() {
+      const ex = this.exStats.ex;
+      if (this.exStats.metric === 'volume') return 'rip';
+      if (this.exStats.metric === 'intensity') return 'RPE';
+      // load
+      const unit = ex?.load_unit || 'KG';
+      if (unit === 'PERCENT_1RM') return '% 1RM';
+      if (unit === 'BODYWEIGHT') return 'BW';
+      return 'kg';
+    },
+
+    exStatsValue(week) {
+      const ex = this.exStats.ex;
+      if (!ex) return null;
+      const cell = (ex.pk && this.progression.computed?.[String(ex.pk)]?.[String(week)]) || {};
+      if (this.exStats.metric === 'volume') {
+        const sets = parseInt(cell.set_count ?? ex.sets, 10) || 0;
+        const reps = this._parseReps(cell.rep_range ?? ex.reps);
+        return sets * reps;
+      }
+      if (this.exStats.metric === 'load') {
+        const lv = (cell.load_value !== undefined && cell.load_value !== null) ? cell.load_value : ex.load_value;
+        if (lv === null || lv === undefined || lv === '') return null;
+        const n = parseFloat(lv);
+        return isNaN(n) ? null : n;
+      }
+      if (this.exStats.metric === 'intensity') {
+        const rpe = (cell.rpe !== undefined && cell.rpe !== null) ? cell.rpe : ex.rpe;
+        if (rpe === null || rpe === undefined || rpe === '') return null;
+        const n = parseFloat(rpe);
+        return isNaN(n) ? null : n;
+      }
+      return null;
+    },
+
+    exStatsValueLabel(week) {
+      const v = this.exStatsValue(week);
+      if (v === null || v === undefined) return '—';
+      const unit = this.exStatsUnit();
+      const digits = this.exStats.metric === 'load' ? 1 : (this.exStats.metric === 'intensity' ? 1 : 0);
+      return `${(+v).toFixed(digits)} ${unit}`;
+    },
+
+    renderExStatsChart() {
+      if (!this._exStatsCanvas || typeof Chart === 'undefined') return;
+      if (this._exStatsChart) {
+        try { this._exStatsChart.destroy(); } catch (_) { /* ignore */ }
+        this._exStatsChart = null;
+      }
+      const weeks = (this.exStats.weeksSelected || []).slice().sort((a, b) => a - b);
+      if (!weeks.length) return;
+
+      // Reset inline sizing so Chart.js manages canvas pixel dims.
+      this._exStatsCanvas.removeAttribute('width');
+      this._exStatsCanvas.removeAttribute('height');
+      this._exStatsCanvas.style.width = '';
+      this._exStatsCanvas.style.height = '';
+
+      const color = this.exStatsColor();
+      const labels = weeks.map(w => 'S' + w);
+      const data = weeks.map(w => this.exStatsValue(w));
+      const unit = this.exStatsUnit();
+      const digits = this.exStats.metric === 'load' ? 1 : (this.exStats.metric === 'intensity' ? 1 : 0);
+
+      const ctx = this._exStatsCanvas.getContext('2d');
+      this._exStatsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: this.exStatsMetricLabel(),
+            data,
+            borderColor: color,
+            backgroundColor: color + '22',
+            pointBackgroundColor: color,
+            pointBorderColor: '#f4efe4',
+            pointBorderWidth: 1.5,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            borderWidth: 2.5,
+            tension: 0.32,
+            fill: true,
+            spanGaps: true,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(20,17,13,0.92)',
+              titleColor: '#f4efe4',
+              bodyColor: '#f4efe4',
+              padding: 10,
+              cornerRadius: 6,
+              callbacks: {
+                label: (c) => {
+                  const v = c.parsed?.y;
+                  if (v === null || v === undefined) return '—';
+                  return `${(+v).toFixed(digits)} ${unit}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
+            y: {
+              beginAtZero: this.exStats.metric !== 'intensity',
+              grid: { color: 'rgba(91,85,74,0.12)' },
+              ticks: { color: '#5b554a', font: { size: 11 } },
+            },
+          },
+        },
+      });
     },
 
     // ---- Save / autosave ----
@@ -1742,11 +2000,17 @@ document.addEventListener('alpine:init', () => {
     saveDraftRule() {
       if (!this.canSaveDraftRule()) return;
       const r = this.draftRule;
-      if (r.id != null) {
-        // edit: replace in array
-        this.progression.rules = this.progression.rules.map(x =>
-          (x.id === r.id || x._local_id === r._local_id) ? { ...r } : x
-        );
+      // Identity match: prefer server pk; fall back to client _local_id only when
+      // BOTH sides carry one. Without the truthy guards, two server-loaded rules
+      // would compare `undefined === undefined` and the map() would overwrite
+      // every sibling with the edited draft.
+      const isSame = (x) => {
+        if (r.id != null && x.id != null) return x.id === r.id;
+        if (r._local_id && x._local_id) return x._local_id === r._local_id;
+        return false;
+      };
+      if (this.progression.rules.some(isSame)) {
+        this.progression.rules = this.progression.rules.map(x => isSame(x) ? { ...r } : x);
       } else {
         this.progression.rules = [...this.progression.rules, { ...r }];
       }
@@ -1764,11 +2028,12 @@ document.addEventListener('alpine:init', () => {
 
     removeRule(r) {
       if (!confirm('Rimuovere questa progressione? I valori delle settimane saranno ricalcolati.')) return;
-      this.progression.rules = this.progression.rules.filter(x =>
-        !(x.id === r.id && x._local_id === r._local_id) &&
-        !(r.id != null && x.id === r.id) &&
-        !(r._local_id && x._local_id === r._local_id)
-      );
+      const isSame = (x) => {
+        if (r.id != null && x.id != null) return x.id === r.id;
+        if (r._local_id && x._local_id) return x._local_id === r._local_id;
+        return false;
+      };
+      this.progression.rules = this.progression.rules.filter(x => !isSame(x));
       this.markDirty();
     },
   }));
