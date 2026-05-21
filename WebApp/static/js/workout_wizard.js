@@ -70,9 +70,11 @@ document.addEventListener('alpine:init', () => {
       draftRule: null,
       previewComputed: {},
       previewTimer: null,
-      chartMetric: 'volume', // volume | tonnage | intensity
-      chartType: 'histogram', // histogram | line
+      chartType: 'histogram', // histogram | line (removed metric selector)
+      secondaryMode: 'total', // total | primary | secondary
     },
+    progComputedGroups: [],
+    progGroupsSelected: [],
     _progChart: null,
     _progCanvas: null,
     draftRule: null,
@@ -186,6 +188,15 @@ document.addEventListener('alpine:init', () => {
 
       // Load filters + library on step 2
       this.loadFilters();
+
+      // Initialize progression volume visualization
+      this.$nextTick(() => {
+        this._computeProgVolume();
+        // Watch for week changes to update volume visualization
+        this.$watch('progUi.activeWeek', () => { this._computeProgVolume(); this._refreshProgChart(); });
+        // Watch for progression changes to update volume
+        this.$watch('progression.rules.length', () => { this._computeProgVolume(); this._refreshProgChart(); });
+      });
       this.loadMuscleGroups();
       this.loadSportsCatalog();
       this.loadFoldersCatalog();
@@ -873,7 +884,93 @@ document.addEventListener('alpine:init', () => {
     setProgChartType(t) {
       if (this.progUi.chartType === t) return;
       this.progUi.chartType = t;
-      this.renderProgChart();
+      this._refreshProgChart();
+    },
+
+    setProgSecondaryMode(mode) {
+      if (this.progUi.secondaryMode === mode) return;
+      this.progUi.secondaryMode = mode;
+      this._computeProgVolume();
+      this._refreshProgChart();
+    },
+
+    toggleProgGroup(slug) {
+      const i = this.progGroupsSelected.indexOf(slug);
+      if (i >= 0) this.progGroupsSelected.splice(i, 1);
+      else this.progGroupsSelected.push(slug);
+      this._refreshProgChart();
+    },
+
+    selectAllProgGroups() {
+      this.progGroupsSelected = this.progComputedGroups.map(g => g.slug);
+      this._refreshProgChart();
+    },
+
+    groupColor(g) {
+      const MG_PALETTE = {
+        'mg-chest': '#8a3a3a',
+        'mg-back': '#1c4a52',
+        'mg-shoulders': '#a78554',
+        'mg-quads': '#2a6a72',
+        'mg-hams': '#5a8a3a',
+        'mg-glutes': '#8a6a3a',
+        'mg-calves': '#c8a774',
+        'mg-biceps': '#4a6b3a',
+        'mg-triceps': '#a6802b',
+        'mg-abs': '#5b554a',
+        'mg-forearms': '#8a8270',
+        'mg-other': '#c4b89c',
+      };
+      return MG_PALETTE[g.color_token] || '#8a6a3a';
+    },
+
+    _computeProgVolume() {
+      // Compute volume per muscle group for the selected week
+      const week = this.progUi.activeWeek;
+      const groups = new Map(); // slug -> {slug, name, color_token, volume}
+
+      this.plan.days.forEach(day => {
+        (day.exercises || []).forEach(ex => {
+          const primaries = ex.primary_muscles || [];
+          const secondaries = ex.secondary_muscles || [];
+          const baseSets = parseInt(ex.sets, 10) || 0;
+
+          const weekOv = ex.weekly_overrides?.[week];
+          const sets = (weekOv?.sets != null ? parseInt(weekOv.sets, 10) : baseSets) || 0;
+
+          primaries.forEach(m => {
+            if (!groups.has(m.slug)) {
+              groups.set(m.slug, { slug: m.slug, name: m.name, color_token: m.color_token || 'mg-other', primary: 0, secondary: 0 });
+            }
+            groups.get(m.slug).primary += sets;
+          });
+
+          secondaries.forEach(m => {
+            if (!groups.has(m.slug)) {
+              groups.set(m.slug, { slug: m.slug, name: m.name, color_token: m.color_token || 'mg-other', primary: 0, secondary: 0 });
+            }
+            groups.get(m.slug).secondary += sets * 0.5;
+          });
+        });
+      });
+
+      // Convert to array and compute final volume based on mode
+      this.progComputedGroups = Array.from(groups.values()).map(g => ({
+        slug: g.slug,
+        name: g.name,
+        color_token: g.color_token,
+        volume: this.progUi.secondaryMode === 'primary' ? g.primary
+               : this.progUi.secondaryMode === 'secondary' ? g.secondary
+               : g.primary + g.secondary,
+      })).sort((a, b) => b.volume - a.volume);
+
+      if (this.progGroupsSelected.length === 0) {
+        this.progGroupsSelected = this.progComputedGroups.map(g => g.slug);
+      } else {
+        // Keep only selected groups that still exist
+        const slugs = this.progComputedGroups.map(g => g.slug);
+        this.progGroupsSelected = this.progGroupsSelected.filter(s => slugs.includes(s));
+      }
     },
 
     mountProgChart(el) {
@@ -896,20 +993,29 @@ document.addEventListener('alpine:init', () => {
       if (!this._progCanvas || typeof Chart === 'undefined') return;
       this._destroyProgChart();
 
-      const all = this.weekStatsAll();
-      const key = this.progUi.chartMetric === 'tonnage' ? 'tonnage'
-                : this.progUi.chartMetric === 'intensity' ? 'avg_rpe'
-                : 'volume';
-      const labels = all.map(s => 'S' + s.week);
-      const data = all.map(s => Number(s[key]) || 0);
+      // Show volume per muscle group for selected week
+      const filtered = this.progComputedGroups.filter(g => this.progGroupsSelected.includes(g.slug));
+      if (filtered.length === 0) return;
 
-      const metricLabel = this.progUi.chartMetric === 'tonnage' ? 'Carico (kg)'
-                       : this.progUi.chartMetric === 'intensity' ? 'RPE medio'
-                       : 'Volume (set×rep)';
+      const labels = filtered.map(g => g.name);
+      const data = filtered.map(g => g.volume);
 
       const ctx = this._progCanvas.getContext('2d');
-      const bronze = '#8a6a3a';
-      const ink = '#14110d';
+      const MG_PALETTE = {
+        'mg-chest': '#8a3a3a',
+        'mg-back': '#1c4a52',
+        'mg-shoulders': '#a78554',
+        'mg-quads': '#2a6a72',
+        'mg-hams': '#5a8a3a',
+        'mg-glutes': '#8a6a3a',
+        'mg-calves': '#c8a774',
+        'mg-biceps': '#4a6b3a',
+        'mg-triceps': '#a6802b',
+        'mg-abs': '#5b554a',
+        'mg-forearms': '#8a8270',
+        'mg-other': '#c4b89c',
+      };
+      const colors = filtered.map(g => MG_PALETTE[g.color_token] || '#8a6a3a');
 
       const baseOpts = {
         responsive: true,
@@ -924,16 +1030,12 @@ document.addEventListener('alpine:init', () => {
             padding: 10,
             cornerRadius: 6,
             callbacks: {
-              label: (c) => {
-                const v = c.parsed?.y ?? c.parsed ?? 0;
-                const suffix = key === 'tonnage' ? ' kg' : key === 'avg_rpe' ? '' : '';
-                return `${metricLabel}: ${(+v).toFixed(key === 'avg_rpe' ? 1 : 0)}${suffix}`;
-              },
+              label: (c) => `${(+c.parsed.y).toFixed(0)} serie`,
             },
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11, weight: '600' } } },
+          x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
           y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.10)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
         },
       };
@@ -944,14 +1046,14 @@ document.addEventListener('alpine:init', () => {
           data: {
             labels,
             datasets: [{
-              label: metricLabel,
+              label: 'Serie',
               data,
-              backgroundColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze + 'cc'),
-              borderColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze),
+              backgroundColor: colors.map(c => c + 'cc'),
+              borderColor: colors,
               borderWidth: 1,
               borderRadius: 6,
               borderSkipped: false,
-              maxBarThickness: 44,
+              maxBarThickness: 32,
             }],
           },
           options: baseOpts,
@@ -962,19 +1064,18 @@ document.addEventListener('alpine:init', () => {
           data: {
             labels,
             datasets: [{
-              label: metricLabel,
+              label: 'Serie',
               data,
-              borderColor: bronze,
+              borderColor: '#8a6a3a',
               backgroundColor: 'rgba(138,106,58,0.10)',
-              pointBackgroundColor: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? ink : bronze),
+              pointBackgroundColor: colors,
               pointBorderColor: '#f4efe4',
               pointBorderWidth: 1.5,
-              pointRadius: data.map((_, i) => i === (this.progUi.activeWeek - 1) ? 7 : 5),
-              pointHoverRadius: 8,
+              pointRadius: 5,
+              pointHoverRadius: 7,
               borderWidth: 2.5,
               tension: 0.32,
               fill: true,
-              spanGaps: true,
             }],
           },
           options: baseOpts,

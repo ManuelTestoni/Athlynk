@@ -1184,29 +1184,17 @@
       </template>
     </div>
 
-    <!-- Chart card -->
+    <!-- Volume analysis card (per-week) -->
     <div class="prg-card">
       <div class="prg-card-head">
         <div>
-          <p class="al-eyebrow" style="margin-bottom: 2px;">Andamento</p>
+          <p class="al-eyebrow" style="margin-bottom: 2px;">Analisi volume</p>
           <h3 class="prg-card-title">
-            <span x-show="progUi.chartMetric === 'volume'">Volume per settimana</span>
-            <span x-show="progUi.chartMetric === 'tonnage'">Carico per settimana</span>
-            <span x-show="progUi.chartMetric === 'intensity'">Intensità per settimana</span>
+            Volume serie S<span x-text="progUi.activeWeek"></span>
           </h3>
         </div>
         <div class="prg-controls">
-          <div class="prg-segctl" role="tablist" aria-label="Metrica">
-            <button type="button" :class="{'is-active': progUi.chartMetric === 'volume'}" @click="setProgMetric('volume')">
-              <i class="ph ph-stack"></i> Volume
-            </button>
-            <button type="button" :class="{'is-active': progUi.chartMetric === 'tonnage'}" @click="setProgMetric('tonnage')">
-              <i class="ph ph-barbell"></i> Carico
-            </button>
-            <button type="button" :class="{'is-active': progUi.chartMetric === 'intensity'}" @click="setProgMetric('intensity')">
-              <i class="ph ph-flame"></i> Intensità
-            </button>
-          </div>
+          <!-- Chart type selector -->
           <div class="prg-segctl" role="tablist" aria-label="Tipo grafico">
             <button type="button" :class="{'is-active': progUi.chartType === 'histogram'}" @click="setProgChartType('histogram')" title="Istogramma" aria-label="Istogramma">
               <i class="ph ph-chart-bar"></i>
@@ -1215,10 +1203,32 @@
               <i class="ph ph-chart-line"></i>
             </button>
           </div>
+          <!-- Secondary muscle dropdown -->
+          <select class="va-secondary-select" x-model="progUi.secondaryMode" @change="setProgSecondaryMode(progUi.secondaryMode)">
+            <option value="total">Volume totale</option>
+            <option value="primary">Volume muscolo primario</option>
+            <option value="secondary">Volume muscolo secondario</option>
+          </select>
         </div>
       </div>
       <div class="prg-chart-wrap">
         <canvas x-init="mountProgChart($el)"></canvas>
+      </div>
+      <!-- Muscle group filter -->
+      <div class="va-filter-row" style="margin-top: 12px;">
+        <div class="flex justify-between items-center">
+          <span class="va-filter-label">Gruppi muscolari</span>
+          <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllProgGroups()">Tutti</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="g in progComputedGroups" :key="g.slug">
+            <button type="button" class="va-chip"
+                    :class="{ 'is-active': progGroupsSelected.includes(g.slug) }"
+                    :style="progGroupsSelected.includes(g.slug) ? 'background:' + groupColor(g) + '; color: var(--al-parchment); border-color:' + groupColor(g) + ';' : ''"
+                    @click="toggleProgGroup(g.slug)"
+                    x-text="g.name"></button>
+          </template>
+        </div>
       </div>
     </div>
 
