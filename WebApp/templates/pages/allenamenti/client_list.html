@@ -1,112 +1,500 @@
 {% extends 'base.html' %}
 
-{% block title %}I miei allenamenti{% endblock %}
+{% block title %}Il mio allenamento{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ pickDay: null }">
+<style>
+  /* === Mio allenamento — editorial hero + austere history === */
+  .ma-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    background:
+      radial-gradient(circle at 88% -10%, rgba(138,106,58,0.18) 0%, transparent 55%),
+      radial-gradient(circle at -5% 110%, rgba(28,74,82,0.14) 0%, transparent 50%),
+      linear-gradient(155deg, var(--al-ink) 0%, #1d1812 60%, #2a2317 100%);
+    color: var(--al-parchment);
+    padding: 2.25rem 2rem 2rem;
+    margin-bottom: 2.5rem;
+  }
+  .ma-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  .ma-hero::after {
+    content: 'ACTIVE';
+    position: absolute;
+    top: 1.25rem; right: -3.5rem;
+    transform: rotate(35deg);
+    font-family: var(--al-font-mono);
+    font-size: 8rem; font-weight: 900;
+    color: rgba(244,239,228,0.025);
+    letter-spacing: -.03em;
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  .ma-hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: center;
+  }
+  @media (max-width: 768px) { .ma-hero-grid { grid-template-columns: 1fr; gap: 1.75rem; } }
+
+  .ma-eyebrow {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-family: var(--al-font-mono);
+    font-size: .68rem; font-weight: 700;
+    letter-spacing: .26em; text-transform: uppercase;
+    color: var(--al-bronze);
+    margin-bottom: .85rem;
+  }
+  .ma-eyebrow::before {
+    content: ''; width: 28px; height: 1px;
+    background: var(--al-bronze);
+  }
+
+  .ma-title {
+    font-family: var(--al-font-display);
+    font-size: clamp(2rem, 4vw, 2.85rem);
+    line-height: 1.05; letter-spacing: -.018em;
+    color: var(--al-parchment);
+    margin: 0 0 .5rem;
+  }
+  .ma-title em {
+    font-style: italic; color: var(--al-bronze);
+    font-weight: 400;
+  }
+
+  .ma-meta {
+    display: flex; flex-wrap: wrap; gap: .45rem;
+    margin: 1.25rem 0 1.5rem;
+  }
+  .ma-meta-chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .32rem .7rem;
+    background: rgba(244,239,228,0.05);
+    border: 1px solid rgba(244,239,228,0.12);
+    border-radius: 999px;
+    font-size: .72rem; font-weight: 500;
+    color: rgba(244,239,228,0.82);
+    letter-spacing: .02em;
+  }
+  .ma-meta-chip i { font-size: .9rem; color: var(--al-bronze); }
+
+  .ma-desc {
+    color: rgba(244,239,228,0.62);
+    font-style: italic;
+    max-width: 50ch;
+    margin-bottom: 1.5rem;
+    line-height: 1.55;
+  }
+
+  .ma-coach {
+    display: inline-flex; align-items: center; gap: .6rem;
+    padding: .5rem .8rem;
+    background: rgba(244,239,228,0.04);
+    border: 1px solid rgba(244,239,228,0.08);
+    border-radius: var(--al-r-sm);
+    margin-bottom: 1.5rem;
+  }
+  .ma-coach-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--al-bronze); color: var(--al-ink);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .8rem;
+  }
+  .ma-coach-name { font-size: .82rem; color: var(--al-parchment); }
+  .ma-coach-label { font-size: .65rem; color: rgba(244,239,228,0.55); display: block; letter-spacing: .06em; text-transform: uppercase; }
+
+  .ma-cta {
+    display: inline-flex; align-items: center; gap: .65rem;
+    padding: .85rem 1.4rem;
+    background: var(--al-bronze);
+    color: var(--al-ink);
+    border: none; cursor: pointer;
+    font-weight: 700; font-size: .92rem;
+    letter-spacing: .02em;
+    border-radius: var(--al-r-sm);
+    text-decoration: none;
+    transition: all .2s var(--al-ease);
+    box-shadow: 0 14px 30px -14px rgba(138,106,58,0.7);
+  }
+  .ma-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -14px rgba(138,106,58,0.8); }
+  .ma-cta i { font-size: 1.1rem; }
+
+  /* Right side — progress dial / numerals */
+  .ma-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem 1.5rem;
+    padding-left: 2.5rem;
+    border-left: 1px solid rgba(244,239,228,0.1);
+  }
+  @media (max-width: 768px) { .ma-stats { padding-left: 0; border-left: none; border-top: 1px solid rgba(244,239,228,0.1); padding-top: 1.5rem; } }
+
+  .ma-stat-num {
+    font-family: var(--al-font-display);
+    font-size: 3rem;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--al-parchment);
+    letter-spacing: -.02em;
+  }
+  .ma-stat-num small {
+    font-family: var(--al-font);
+    font-size: .8rem;
+    font-weight: 500;
+    color: rgba(244,239,228,0.55);
+    margin-left: .25rem;
+    letter-spacing: 0;
+  }
+  .ma-stat-label {
+    font-family: var(--al-font-mono);
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: rgba(244,239,228,0.55);
+    margin-top: .35rem;
+  }
+
+  .ma-progress-bar {
+    grid-column: span 2;
+    height: 6px;
+    background: rgba(244,239,228,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .ma-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--al-bronze) 0%, #d4af37 100%);
+    border-radius: 3px;
+    transition: width .6s var(--al-ease);
+  }
+  .ma-progress-label {
+    grid-column: span 2;
+    display: flex; justify-content: space-between;
+    font-size: .72rem; color: rgba(244,239,228,0.7);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* === History / Library === */
+  .ma-history-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 1.25rem;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .ma-history-head h2 {
+    font-family: var(--al-font-display);
+    font-size: 1.65rem; letter-spacing: -.01em;
+    color: var(--al-ink); margin: 0;
+  }
+  .ma-history-head h2 em { font-style: italic; color: var(--al-bronze); }
+
+  .ma-history-toggle {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .55rem 1rem;
+    background: white;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    font-size: .78rem; font-weight: 600;
+    color: var(--al-ink-soft);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .ma-history-toggle:hover { border-color: var(--al-bronze); color: var(--al-bronze); }
+  .ma-history-toggle i { transition: transform .2s; }
+  .ma-history-toggle.is-open i { transform: rotate(180deg); }
+
+  .ma-history-list {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md);
+    background: white;
+    overflow: hidden;
+  }
+  .ma-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.1fr) minmax(0, 1.4fr) 110px;
+    gap: 1rem;
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+    align-items: center;
+    transition: background .15s;
+  }
+  .ma-row:last-child { border-bottom: none; }
+  .ma-row:hover { background: var(--al-stone); }
+  @media (max-width: 768px) {
+    .ma-row { grid-template-columns: 1fr; gap: .65rem; padding: 1rem 1.1rem; }
+  }
+
+  .ma-row-id {
+    display: flex; align-items: flex-start; gap: .85rem; min-width: 0;
+  }
+  .ma-row-marker {
+    width: 36px; height: 36px;
+    flex-shrink: 0;
+    background: var(--al-stone);
+    border-radius: var(--al-r-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--al-bronze); font-size: 1.05rem;
+  }
+  .ma-row-marker.is-program { background: rgba(28,74,82,0.1); color: var(--al-aegean); }
+  .ma-row-title {
+    font-weight: 600; font-size: .95rem; color: var(--al-ink);
+    line-height: 1.25; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ma-row-sub {
+    font-size: .72rem; color: var(--al-ink-mute);
+    margin-top: .15rem;
+    display: flex; align-items: center; gap: .5rem;
+    flex-wrap: wrap;
+  }
+  .ma-row-sub i { font-size: .85rem; color: var(--al-ink-faint); }
+
+  .ma-row-status {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .22rem .55rem;
+    border-radius: 3px;
+    font-size: .68rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    width: fit-content;
+  }
+  .ma-row-status.is-active { background: #d1fae5; color: #065f46; }
+  .ma-row-status.is-completed { background: #e5e7eb; color: #374151; }
+  .ma-row-status.is-pending { background: #e0e7ff; color: #3730a3; }
+
+  .ma-row-dates {
+    font-family: var(--al-font-mono);
+    font-size: .76rem;
+    color: var(--al-ink-soft);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .ma-row-dates .ma-dates-arrow { color: var(--al-bronze); margin: 0 .35rem; }
+  .ma-row-dates .ma-dates-label {
+    font-family: var(--al-font-mono);
+    font-size: .6rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--al-ink-faint);
+    display: block; margin-bottom: .1rem;
+  }
+
+  .ma-row-meta-detail {
+    display: flex; flex-direction: column;
+    align-items: flex-end;
+    gap: .25rem;
+    font-size: .72rem;
+    color: var(--al-ink-mute);
+  }
+  @media (max-width: 768px) { .ma-row-meta-detail { align-items: flex-start; } }
+  .ma-row-progress {
+    width: 100%; max-width: 110px;
+    height: 4px; background: var(--al-stone);
+    border-radius: 2px; overflow: hidden;
+  }
+  .ma-row-progress-fill { height: 100%; background: var(--al-bronze); border-radius: 2px; }
+
+  .ma-empty-hero {
+    text-align: center;
+    padding: 3.5rem 2rem;
+    border: 1px dashed var(--al-rule);
+    border-radius: var(--al-r-md);
+    background: var(--al-parchment);
+    color: var(--al-ink-mute);
+  }
+  .ma-empty-hero h2 {
+    font-family: var(--al-font-display);
+    font-size: 1.75rem; color: var(--al-ink);
+    margin: .85rem 0 .5rem;
+  }
+  .ma-empty-hero i { font-size: 2.5rem; color: var(--al-bronze); }
+
+  [x-cloak] { display: none !important; }
+</style>
+
+<div class="max-w-7xl mx-auto" x-data="{ pickDay: null, showHistory: false }">
 
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-    <div>
-      <p class="al-eyebrow mb-3">I miei &middot; Allenamenti</p>
-      <h1 class="al-h-1">Programma di <span class="al-display-i">allenamento</span></h1>
-      <p class="al-body mt-2">Schede assegnate da {{ coach.first_name }} {{ coach.last_name }}.</p>
-      <div class="al-rule-bronze mt-5"></div>
-    </div>
+  <div class="mb-6">
+    <p class="al-eyebrow mb-3">I miei &middot; Allenamenti</p>
+    <h1 class="al-h-1">Il mio <span class="al-display-i">allenamento</span></h1>
+    <p class="al-body mt-2">Programma assegnato da {{ coach.first_name }} {{ coach.last_name }}.</p>
+    <div class="al-rule-bronze mt-5"></div>
   </div>
 
-  {% if assignments %}
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-    {% for assignment in assignments %}
-    {% with plan=assignment.workout_plan %}
-    <div class="al-card flex flex-col justify-between">
-      <div>
-        <div class="flex justify-between items-start mb-3">
-          <span class="al-badge al-badge-aegean">{{ plan.goal|default:"Generale" }}</span>
-          <div class="flex items-center gap-2">
-            {% if assignment.status == 'ACTIVE' %}
-              {% if assignment.start_date and assignment.start_date > today %}
-              <span class="al-badge" style="background: #e0e7ff; color: #3730a3;"><i class="ph ph-clock"></i> In arrivo</span>
-              {% else %}
-              <span class="al-badge" style="background: #d1fae5; color: #065f46;"><i class="ph ph-play-circle"></i> Attiva</span>
-              {% endif %}
-            {% elif assignment.status == 'COMPLETED' %}
-              <span class="al-badge" style="background: #e5e7eb; color: #374151;"><i class="ph ph-check-circle"></i> Completata</span>
-            {% endif %}
+  {% if current_assignment %}
+    {% with a=current_assignment plan=current_assignment.workout_plan %}
+    <!-- ============== HERO · Scheda attiva ============== -->
+    <section class="ma-hero">
+      <div class="ma-hero-grid">
+
+        <!-- LEFT: identity + CTA -->
+        <div>
+          <span class="ma-eyebrow">Scheda attiva</span>
+          <h2 class="ma-title">{{ plan.title }}{% if plan.goal %} <em>· {{ plan.goal|lower }}</em>{% endif %}</h2>
+
+          <div class="ma-meta">
+            <span class="ma-meta-chip">
+              <i class="{% if plan.plan_kind == 'PROGRAM' %}ph ph-chart-line-up{% else %}ph ph-calendar-blank{% endif %}"></i>
+              {% if plan.plan_kind == 'PROGRAM' %}Programmazione{% else %}Settimanale{% endif %}
+            </span>
+            {% if plan.sport %}<span class="ma-meta-chip"><i class="ph ph-trophy"></i>{{ plan.sport.name }}</span>{% endif %}
+            {% if plan.level %}<span class="ma-meta-chip"><i class="ph ph-barbell"></i>{{ plan.level }}</span>{% endif %}
+            {% if plan.frequency_per_week %}<span class="ma-meta-chip"><i class="ph ph-calendar"></i>{{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+            {% if plan.duration_weeks %}<span class="ma-meta-chip"><i class="ph ph-hourglass"></i>{{ plan.duration_weeks }} sett.</span>{% endif %}
           </div>
-        </div>
 
-        <h3 class="al-h-2 mb-2">{{ plan.title }}</h3>
-        <div class="flex flex-wrap gap-2 mb-3">
-          {% if plan.level %}<span class="al-tag">{{ plan.level }}</span>{% endif %}
-          {% if plan.frequency_per_week %}<span class="al-tag"><i class="ph ph-calendar"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
-        </div>
-        <p class="al-body line-clamp-2 mb-4">{{ plan.description|default:"Nessuna descrizione." }}</p>
+          {% if plan.description %}
+          <p class="ma-desc">{{ plan.description }}</p>
+          {% endif %}
 
-        <p class="al-small mb-2" style="color: var(--al-ink-faint);">
-          <i class="ph ph-calendar-blank"></i>
-          {% if assignment.start_date %}{{ assignment.start_date|date:"d M Y" }}{% else %}—{% endif %}
-          →
-          {% if assignment.end_date %}{{ assignment.end_date|date:"d M Y" }}{% else %}<em>In corso</em>{% endif %}
-        </p>
-
-        <!-- Progress bar -->
-        {% if assignment.completed_session_count is not None %}
-        <div class="mb-3">
-          <div class="flex justify-between al-small mb-1">
-            <span style="color: var(--al-ink-faint);">Progresso</span>
-            <span><strong>{{ assignment.completed_session_count }}</strong> / {{ assignment.expected_session_count }}</span>
+          <div class="ma-coach">
+            <div class="ma-coach-avatar">{{ a.coach.first_name|slice:":1" }}{{ a.coach.last_name|slice:":1" }}</div>
+            <div>
+              <span class="ma-coach-label">Coach</span>
+              <span class="ma-coach-name">{{ a.coach.first_name }} {{ a.coach.last_name }}</span>
+            </div>
           </div>
-          <div style="background: var(--al-stone); height: 8px; border-radius: 4px;">
-            <div style="background: var(--al-bronze); height: 8px; border-radius: 4px; width: {{ assignment.progress_pct }}%;"></div>
-          </div>
-        </div>
-        {% endif %}
-      </div>
 
-      <div class="pt-3 border-t" style="border-color: var(--al-rule-faint);">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze);">
-            {{ assignment.coach.first_name|slice:":1" }}{{ assignment.coach.last_name|slice:":1" }}
-          </div>
-          <span class="text-[13px] font-medium">{{ assignment.coach.first_name }} {{ assignment.coach.last_name }}</span>
-        </div>
-
-        <div class="flex gap-2">
-          <a href="{% url 'client_assignment_detail' assignment.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center">
-            <i class="ph ph-eye"></i> Dettagli
-          </a>
-          {% if assignment.status == 'ACTIVE' %}
-            {% if assignment.next_day_id %}
-            <a href="{% url 'client_session_active' assignment.id assignment.next_day_id %}"
-               class="al-btn al-btn-bronze al-btn-sm flex-1 justify-center">
-              <i class="ph ph-play"></i> Sessione
+          <div class="flex flex-wrap gap-3">
+            {% if a.next_day_id %}
+            <a href="{% url 'client_session_active' a.id a.next_day_id %}" class="ma-cta">
+              <i class="ph ph-play-circle"></i> Inizia sessione
             </a>
             {% else %}
-            <button @click='pickDay = { aid: {{ assignment.id }}, title: "{{ assignment.workout_plan.title|escapejs }}", days: {{ assignment.days_json|safe }} }'
-                    class="al-btn al-btn-bronze al-btn-sm flex-1 justify-center">
-              <i class="ph ph-play"></i> Sessione
+            <button @click='pickDay = { aid: {{ a.id }}, title: "{{ plan.title|escapejs }}", days: {{ a.days_json|safe }} }' class="ma-cta">
+              <i class="ph ph-play-circle"></i> Inizia sessione
             </button>
             {% endif %}
-          {% else %}
-            <button disabled class="al-btn al-btn-ghost al-btn-sm flex-1 justify-center opacity-50 cursor-not-allowed">
-              <i class="ph ph-play"></i> Sessione
-            </button>
-          {% endif %}
+            <a href="{% url 'client_assignment_detail' a.id %}"
+               style="display: inline-flex; align-items: center; gap: .55rem; padding: .85rem 1.2rem; background: rgba(244,239,228,0.06); border: 1px solid rgba(244,239,228,0.18); border-radius: var(--al-r-sm); color: var(--al-parchment); text-decoration: none; font-size: .88rem; font-weight: 600; transition: all .15s;"
+               onmouseover="this.style.background='rgba(244,239,228,0.12)'"
+               onmouseout="this.style.background='rgba(244,239,228,0.06)'">
+              <i class="ph ph-eye"></i> Dettagli
+            </a>
+          </div>
         </div>
+
+        <!-- RIGHT: progress numerals -->
+        <div class="ma-stats">
+          {% if a.expected_session_count %}
+          <div>
+            <p class="ma-stat-num">{{ a.completed_session_count }}<small>/ {{ a.expected_session_count }}</small></p>
+            <p class="ma-stat-label">Sessioni</p>
+          </div>
+          <div>
+            <p class="ma-stat-num">{{ a.progress_pct }}<small>%</small></p>
+            <p class="ma-stat-label">Progresso</p>
+          </div>
+          <div class="ma-progress-bar"><div class="ma-progress-fill" style="width: {{ a.progress_pct }}%;"></div></div>
+          {% endif %}
+          <div class="ma-progress-label">
+            <span>{% if a.start_date %}{{ a.start_date|date:"d M Y" }}{% else %}—{% endif %}</span>
+            <span>→ {% if a.end_date %}{{ a.end_date|date:"d M Y" }}{% else %}In corso{% endif %}</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+    {% endwith %}
+  {% else %}
+    <div class="ma-empty-hero">
+      <i class="ph ph-medal"></i>
+      <h2>Nessuna scheda attiva</h2>
+      <p>Il tuo coach ti assegnerà presto una scheda. Nel frattempo, riposo strutturato.</p>
+    </div>
+  {% endif %}
+
+  <!-- ============== STORICO / LIBRARY ============== -->
+  {% if past_assignments %}
+  <section style="margin-top: 3rem;">
+    <div class="ma-history-head">
+      <div>
+        <p class="al-eyebrow" style="margin-bottom: .5rem;">Storico</p>
+        <h2>Tutte le <em>schede</em></h2>
+      </div>
+      <button type="button"
+              class="ma-history-toggle"
+              :class="{ 'is-open': showHistory }"
+              @click="showHistory = !showHistory">
+        <span x-text="showHistory ? 'Nascondi storico' : 'Mostra storico ({{ past_assignments|length }})'"></span>
+        <i class="ph ph-caret-down"></i>
+      </button>
+    </div>
+
+    <div x-show="showHistory" x-cloak x-collapse>
+      <div class="ma-history-list">
+        {% for a in past_assignments %}
+        {% with plan=a.workout_plan %}
+        <article class="ma-row">
+
+          <!-- Identity -->
+          <div class="ma-row-id">
+            <div class="ma-row-marker {% if plan.plan_kind == 'PROGRAM' %}is-program{% endif %}">
+              <i class="{% if plan.plan_kind == 'PROGRAM' %}ph ph-chart-line-up{% else %}ph ph-calendar-blank{% endif %}"></i>
+            </div>
+            <div style="min-width: 0; flex: 1;">
+              <h3 class="ma-row-title">{{ plan.title }}</h3>
+              <div class="ma-row-sub">
+                <span>{% if plan.plan_kind == 'PROGRAM' %}Programmazione{% else %}Settimanale{% endif %}</span>
+                {% if plan.sport %}<span>·</span><span>{{ plan.sport.name }}</span>{% endif %}
+                {% if plan.goal %}<span>·</span><span>{{ plan.goal }}</span>{% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div>
+            {% if a.status == 'ACTIVE' %}
+              {% if a.start_date and a.start_date > today %}
+                <span class="ma-row-status is-pending"><i class="ph ph-clock"></i> In arrivo</span>
+              {% else %}
+                <span class="ma-row-status is-active"><i class="ph ph-play-circle"></i> Attiva</span>
+              {% endif %}
+            {% elif a.status == 'COMPLETED' %}
+              <span class="ma-row-status is-completed"><i class="ph ph-check-circle"></i> Completata</span>
+            {% else %}
+              <span class="ma-row-status is-completed">{{ a.status|title }}</span>
+            {% endif %}
+            <p class="ma-row-sub" style="margin-top: .4rem;">
+              {% if plan.frequency_per_week %}<i class="ph ph-calendar"></i> {{ plan.frequency_per_week }} gg/sett{% endif %}
+              {% if plan.duration_weeks %} · {{ plan.duration_weeks }} sett.{% endif %}
+            </p>
+          </div>
+
+          <!-- Dates -->
+          <div class="ma-row-dates">
+            <span class="ma-dates-label">Assegnata</span>
+            {% if a.start_date %}{{ a.start_date|date:"d M Y" }}{% else %}—{% endif %}
+            <span class="ma-dates-arrow">→</span>
+            {% if a.end_date %}{{ a.end_date|date:"d M Y" }}{% else %}<em>—</em>{% endif %}
+          </div>
+
+          <!-- Progress / meta -->
+          <div class="ma-row-meta-detail">
+            {% if a.expected_session_count %}
+              <span><strong>{{ a.completed_session_count }}</strong> / {{ a.expected_session_count }} sess.</span>
+              <div class="ma-row-progress"><div class="ma-row-progress-fill" style="width: {{ a.progress_pct }}%;"></div></div>
+            {% else %}
+              <span>—</span>
+            {% endif %}
+          </div>
+
+        </article>
+        {% endwith %}
+        {% endfor %}
       </div>
     </div>
-    {% endwith %}
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="al-card al-card-warm">
-    <div class="al-empty">
-      <i class="ph ph-folder-open al-empty-icon"></i>
-      <h3>Nessun allenamento assegnato</h3>
-      <p>Il tuo coach ti assegnerà presto una scheda.</p>
-    </div>
-  </div>
+  </section>
   {% endif %}
 
   <!-- Day picker modal -->

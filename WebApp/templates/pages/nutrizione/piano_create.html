@@ -6,6 +6,7 @@
 <script>
 window._mealsData = {{ meals_json|safe }};
 window._clients = {{ clients_json|safe }};
+window._initialFolderId = {{ initial_folder_id|default:"null" }};
 </script>
 
 <div class="max-w-5xl mx-auto"
@@ -98,7 +99,7 @@ window._clients = {{ clients_json|safe }};
 
         <div class="space-y-4">
         <template x-for="(meal, mIndex) in meals" :key="mIndex">
-          <div class="al-card al-card-warm al-card-flush overflow-hidden">
+          <div class="al-card al-card-warm al-card-flush">
             <!-- Meal header -->
             <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--al-rule);">
               <div class="flex items-center gap-3 flex-1">
@@ -142,10 +143,19 @@ window._clients = {{ clients_json|safe }};
 
             <!-- Add food to meal -->
             <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);" x-data="{
-              q: '', results: [], searching: false, show: false,
+              q: '', results: [], searching: false, show: false, top: '0px', left: '0px', width: '0px',
+              updatePos() {
+                const el = this.$refs.searchBar;
+                if (!el) return;
+                const r = el.getBoundingClientRect();
+                this.top = (r.bottom + 6) + 'px';
+                this.left = r.left + 'px';
+                this.width = r.width + 'px';
+              },
               async search() {
-                if (this.q.length < 2) { this.results = []; return; }
+                if (this.q.length < 2) { this.results = []; this.show = false; return; }
                 this.searching = true;
+                this.updatePos();
                 const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(this.q));
                 const d = await r.json();
                 this.results = d.results; this.searching = false; this.show = true;
@@ -155,17 +165,16 @@ window._clients = {{ clients_json|safe }};
                 this.q = ''; this.results = []; this.show = false;
               }
             }">
-              <div class="relative">
-                <div class="al-search" style="border-style: dashed;">
-                  <i class="ph ph-magnifying-glass"></i>
-                  <input type="text" x-model="q" @input.debounce.300ms="search()"
-                         placeholder="Cerca alimento da aggiungere…" class="al-input">
-                  <span x-show="searching" class="al-tag">…</span>
-                </div>
+              <div x-ref="searchBar" class="al-search" style="border-style: dashed;">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" x-model="q" @input.debounce.300ms="search()"
+                       placeholder="Cerca alimento da aggiungere…" class="al-input">
+                <span x-show="searching" class="al-tag">…</span>
+              </div>
+              <template x-teleport="body">
                 <div x-show="show && results.length > 0"
                      @click.outside="show = false"
-                     class="absolute left-0 right-0 top-full mt-2 al-popover z-20 max-h-60 overflow-y-auto"
-                     style="background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md); box-shadow: var(--al-shadow-2);">
+                     :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '240px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
                   <template x-for="food in results" :key="food.id">
                     <button type="button" @click="pick(food)"
                             class="w-full text-left px-4 py-3"
@@ -183,7 +192,7 @@ window._clients = {{ clients_json|safe }};
                     </button>
                   </template>
                 </div>
-              </div>
+              </template>
             </div>
 
             <!-- Meal macro bar -->
@@ -313,6 +322,7 @@ function planBuilder() {
     carb_target_g: {{ plan.carb_target_g|default:"''" }},
     fat_target_g: {{ plan.fat_target_g|default:"''" }},
     meals: [],
+    folder_id: {% if plan %}{{ plan.folder_id|default:"null" }}{% else %}(window._initialFolderId || null){% endif %},
     saving: false,
     errorMsg: '',
 
@@ -404,6 +414,7 @@ function planBuilder() {
           protein_target_g: this.protein_target_g || null,
           carb_target_g: this.carb_target_g || null,
           fat_target_g: this.fat_target_g || null,
+          folder_id: this.folder_id,
           meals: this.meals,
         })
       });

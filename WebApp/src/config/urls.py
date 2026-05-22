@@ -28,6 +28,7 @@ from . import views_auth
 from . import views_client
 from . import views_settings
 from . import views_nutrition
+from . import views_nutrition_taxonomy
 from . import views_anamnesi
 from . import views_chat
 from . import views_notifications
@@ -87,6 +88,9 @@ urlpatterns = [
     path('api/nutrizione/import/conferma/', views_nutrition.api_diet_import_confirm, name='api_diet_import_confirm'),
     path('api/nutrizione/piani/<int:plan_id>/assegna/', views_nutrition.api_piano_assign, name='nutrizione_piano_assign'),
     path('api/nutrizione/piani/<int:plan_id>/elimina/', views_nutrition.nutrizione_piano_delete_view, name='nutrizione_piano_delete'),
+    path('api/nutrizione/cartelle/', views_nutrition_taxonomy.api_nutrition_folders, name='api_nutrition_folders'),
+    path('api/nutrizione/cartelle/<int:folder_id>/', views_nutrition_taxonomy.api_nutrition_folder_detail, name='api_nutrition_folder_detail'),
+    path('api/nutrizione/piani/<int:plan_id>/cartella/', views_nutrition_taxonomy.api_nutrition_plan_folder, name='api_nutrition_plan_folder'),
     path('nutrizione/anamnesi/', views_anamnesi.anamnesi_view, name='nutrizione_anamnesi'),
     path('nutrizione/anamnesi/crea/<int:client_id>/', views_anamnesi.anamnesi_create_view, name='nutrizione_anamnesi_crea'),
     path('nutrizione/anamnesi/<int:anamnesis_id>/', views_anamnesi.anamnesi_detail_view, name='nutrizione_anamnesi_detail'),
@@ -128,6 +132,7 @@ urlpatterns = [
     path('api/allenamenti/<int:plan_id>/save/', views_workouts.api_plan_save, name='api_plan_save'),
     path('api/allenamenti/<int:plan_id>/finalize/', views_workouts.api_plan_finalize, name='api_plan_finalize'),
     path('api/allenamenti/<int:plan_id>/elimina/', views_workouts.api_plan_delete, name='api_plan_delete'),
+    path('api/allenamenti/<int:plan_id>/duplica/', views_workouts.api_plan_duplicate, name='api_plan_duplicate'),
     path('api/allenamenti/<int:plan_id>/progression/preview/', views_progression.api_progression_preview, name='api_progression_preview'),
     path('api/allenamenti/<int:plan_id>/progression/week/<int:week_number>/special/', views_progression.api_progression_special_week, name='api_progression_special_week'),
     path('api/allenamenti/<int:plan_id>/progression/day/<int:day_id>/grid/', views_progression.api_progression_day_grid, name='api_progression_day_grid'),

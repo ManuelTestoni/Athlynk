@@ -1,235 +1,766 @@
 {% extends 'base.html' %}
 
+{% block title %}Il mio specialista{% endblock %}
+
 {% block content %}
-<div class="w-full max-w-4xl mx-auto">
+<style>
+  /* ============================================================
+     Il mio specialista — editorial portrait, Greek-luxury
+     ============================================================ */
 
-    <!-- Hero coach card -->
-    <section class="bg-white border border-rule rounded-3xl shadow-sm overflow-hidden mb-6">
-        <div class="h-40 bg-gradient-to-br from-ink to-ink-soft relative">
-            <div class="absolute inset-0 bg-gradient-to-t from-ink to-transparent"></div>
-            <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                <div class="flex items-end gap-4">
-                    <div class="w-20 h-20 rounded-al-sm border-4 border-white shadow-xl bg-marble-warm flex items-center justify-center text-2xl font-bold text-ink-soft overflow-hidden shrink-0">
-                        {% if coach.profile_image %}
-                        <img src="{{ coach.profile_image.url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
-                        {% elif coach.profile_image_url %}
-                        <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}" class="w-full h-full object-cover">
-                        {% else %}
-                        {{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}
-                        {% endif %}
-                    </div>
-                    <div>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white/90 text-ink text-[10px] font-bold uppercase tracking-wider">Il tuo specialista</span>
-                        <h1 class="mt-1.5 text-2xl font-bold text-white">{{ coach_name }}</h1>
-                        <p class="text-sm text-ink-line">{{ coach.specialization|default:"Specialista del fitness" }}</p>
-                    </div>
-                </div>
-                {% if coach.city %}
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-al-sm bg-white/20 text-white text-xs font-medium backdrop-blur-sm">
-                    <i class="ph ph-map-pin"></i> {{ coach.city }}
-                </span>
-                {% endif %}
-            </div>
-        </div>
+  .mc-shell { max-width: 1180px; margin: 0 auto; }
 
-        <!-- Stats -->
-        <div class="grid grid-cols-2 divide-x divide-rule border-t border-rule">
-            <div class="p-5 text-center">
-                <p class="text-2xl font-bold text-ink">{{ total_checks }}</p>
-                <p class="text-xs text-ink-mute uppercase tracking-wider mt-0.5">I tuoi check</p>
-            </div>
-            <div class="p-5 text-center">
-                <p class="text-2xl font-bold text-ink">{{ relationship.start_date|date:"M Y" }}</p>
-                <p class="text-xs text-ink-mute uppercase tracking-wider mt-0.5">Inizio percorso</p>
-            </div>
-        </div>
-    </section>
+  /* --- Page eyebrow / monogram --- */
+  .mc-monogram {
+    display: flex; align-items: center; gap: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .mc-monogram-rule {
+    flex: 1; height: 1px; background: var(--al-rule);
+    position: relative; overflow: visible;
+  }
+  .mc-monogram-rule::after {
+    content: ''; position: absolute; right: 0; top: -2px;
+    width: 5px; height: 5px; background: var(--al-bronze); border-radius: 50%;
+  }
+  .mc-monogram-tag {
+    font-family: var(--al-font-mono);
+    font-size: .68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .28em;
+    color: var(--al-bronze);
+  }
 
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+  /* --- Hero portrait card --- */
+  .mc-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 0;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    overflow: hidden;
+    margin-bottom: 1.75rem;
+  }
+  @media (max-width: 880px) { .mc-hero { grid-template-columns: 1fr; } }
 
-        <!-- Left: profilo + piani + social + video -->
-        <div class="space-y-5">
+  .mc-portrait {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(212,175,55,0.18) 0%, transparent 60%),
+      linear-gradient(155deg, #1d1812 0%, var(--al-ink) 70%);
+    display: flex; align-items: flex-end; justify-content: center;
+    overflow: hidden;
+  }
+  .mc-portrait::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  .mc-portrait img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center top;
+    position: relative; z-index: 1;
+  }
+  .mc-portrait-initials {
+    position: relative; z-index: 1;
+    font-family: var(--al-font-display);
+    font-size: 7rem;
+    font-weight: 400;
+    color: var(--al-parchment);
+    letter-spacing: -.03em;
+    line-height: 1;
+    padding-bottom: 2rem;
+  }
+  .mc-portrait-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, transparent 0%, rgba(20,17,13,0.78) 100%);
+    z-index: 2;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: .75rem;
+  }
+  .mc-portrait-frame {
+    position: absolute; inset: 12px;
+    border: 1px solid rgba(244,239,228,0.12);
+    pointer-events: none; z-index: 3;
+  }
+  .mc-portrait-frame::before,
+  .mc-portrait-frame::after {
+    content: ''; position: absolute;
+    width: 22px; height: 22px;
+    border: 1px solid var(--al-bronze);
+  }
+  .mc-portrait-frame::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .mc-portrait-frame::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
 
-            <!-- Bio -->
-            {% if coach.bio %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-3">Chi è {{ coach.first_name }}</h2>
-                <p class="text-sm text-ink-soft leading-7">{{ coach.bio }}</p>
-            </div>
-            {% endif %}
+  .mc-portrait-city {
+    font-family: var(--al-font-mono);
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .18em;
+    color: rgba(244,239,228,0.85);
+    display: inline-flex; align-items: center; gap: .35rem;
+  }
+  .mc-portrait-city i { color: var(--al-bronze); }
 
-            <!-- Specializzazione & certificazioni -->
-            {% if coach.specialization or coach.certifications %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6 space-y-4">
-                {% if coach.specialization %}
-                <div>
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-2">Specializzazione</h2>
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
-                        {{ coach.specialization }}
-                    </span>
-                </div>
-                {% endif %}
-                {% if coach.certifications %}
-                <div>
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-2">Certificazioni</h2>
-                    <div class="flex flex-wrap gap-2">
-                        {% for cert in coach.certifications.split %}
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-marble text-ink-soft">{{ cert }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
+  /* --- Hero info side --- */
+  .mc-info {
+    padding: 2.25rem 2.25rem 2rem;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(138,106,58,0.05) 0%, transparent 50%),
+      var(--al-parchment);
+  }
+  .mc-info-tag {
+    font-family: var(--al-font-mono);
+    font-size: .65rem; font-weight: 700;
+    color: var(--al-bronze);
+    letter-spacing: .26em; text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: inline-flex; align-items: center; gap: .6rem;
+  }
+  .mc-info-tag::before {
+    content: '';
+    width: 32px; height: 1px; background: var(--al-bronze);
+  }
 
-            <!-- Social links -->
-            {% if social_links %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Seguimi sui social</h2>
-                <div class="flex flex-wrap gap-3">
-                    {% for icon, color, url in social_links %}
-                    <a href="{{ url }}" target="_blank" rel="noopener"
-                       class="flex items-center gap-2 px-4 py-2 rounded-al-sm bg-marble border border-rule text-ink-soft text-sm font-medium hover:bg-marble transition-colors">
-                        <i class="ph {{ icon }} text-lg {{ color }}"></i>
-                        <span>{{ url|cut:"https://"|cut:"http://"|truncatechars:20 }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+  .mc-name {
+    font-family: var(--al-font-display);
+    font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+    font-weight: 400;
+    line-height: 0.98;
+    letter-spacing: -.022em;
+    color: var(--al-ink);
+    margin: 0;
+  }
+  .mc-name .mc-name-given { display: block; }
+  .mc-name .mc-name-family { display: block; font-style: italic; color: var(--al-bronze); }
 
-            <!-- Video professionali -->
-            {% if video_urls %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Video</h2>
-                <div class="space-y-3">
-                    {% for vurl in video_urls %}
-                    <div class="rounded-al-sm overflow-hidden bg-ink aspect-video">
-                        <iframe src="{{ vurl }}" class="w-full h-full" frameborder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowfullscreen loading="lazy"></iframe>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+  .mc-specialty {
+    margin-top: 1rem;
+    display: inline-flex; align-items: center; gap: .55rem;
+    padding: .4rem .85rem;
+    background: var(--al-stone);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    font-size: .82rem; font-weight: 500;
+    color: var(--al-ink-soft);
+    letter-spacing: .01em;
+  }
+  .mc-specialty i { color: var(--al-bronze); font-size: 1rem; }
 
-            <!-- Piani disponibili -->
-            {% if active_plans %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-                <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-4">Piani &amp; Prezzi</h2>
-                <div class="space-y-3">
-                    {% for plan in active_plans %}
-                    <div class="border border-rule rounded-al-sm p-4 flex items-start justify-between gap-4
-                        {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}ring-2 ring-accent/30 border-accent/30 bg-accent/5{% endif %}">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="font-semibold text-ink text-sm">{{ plan.name }}</h3>
-                                {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent text-white uppercase tracking-wider">
-                                    <i class="ph-bold ph-check"></i> Attivo
-                                </span>
-                                {% endif %}
-                            </div>
-                            {% if plan.description %}
-                            <p class="text-xs text-ink-mute mt-1 leading-relaxed">{{ plan.description }}</p>
-                            {% endif %}
-                            {% if plan.duration_days %}
-                            <p class="text-xs text-ink-mute mt-1.5"><i class="ph ph-clock"></i> {{ plan.duration_days }} giorni</p>
-                            {% endif %}
-                        </div>
-                        <div class="shrink-0 text-right">
-                            <p class="text-xl font-bold text-ink">€{{ plan.price }}</p>
-                            {% if plan.billing_interval %}
-                            <p class="text-xs text-ink-mute">/ {{ plan.billing_interval }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+  /* --- Numerals --- */
+  .mc-numerals {
+    margin-top: 1.75rem;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--al-rule-faint);
+    padding-top: 1.5rem;
+  }
+  .mc-numeral {
+    text-align: left;
+    padding: 0 1rem 0 0;
+    border-right: 1px solid var(--al-rule-faint);
+  }
+  .mc-numeral:nth-child(2) { padding-left: 1.25rem; }
+  .mc-numeral:nth-child(3) { padding-left: 1.25rem; border-right: none; }
 
-        </div>
+  .mc-numeral-value {
+    font-family: var(--al-font-display);
+    font-size: 2.4rem; line-height: 1;
+    letter-spacing: -.02em;
+    color: var(--al-ink);
+    font-weight: 400;
+  }
+  .mc-numeral-value small {
+    font-family: var(--al-font);
+    font-size: .85rem; font-weight: 500;
+    color: var(--al-ink-mute); margin-left: .25rem;
+    letter-spacing: 0;
+  }
+  .mc-numeral-label {
+    font-family: var(--al-font-mono);
+    font-size: .62rem; text-transform: uppercase;
+    letter-spacing: .14em; color: var(--al-ink-faint);
+    margin-top: .45rem;
+  }
 
-        <!-- Right: sidebar -->
-        <aside class="space-y-4 lg:sticky lg:top-6">
+  .mc-meander-strip {
+    margin: 1.75rem 0 0;
+    height: 14px;
+  }
 
-            <!-- Il tuo piano attivo -->
-            {% if my_subscription %}
-            <div class="bg-white border border-rule rounded-al-sm shadow-sm p-5">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-ink-mute mb-3">Il tuo abbonamento</h3>
-                <div class="space-y-2.5 text-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="text-ink-mute">Piano</span>
-                        <span class="font-semibold text-ink">{{ my_subscription.subscription_plan.name }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-ink-mute">Stato</span>
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Attivo
-                        </span>
-                    </div>
-                    {% if my_subscription.end_date %}
-                    <div class="flex items-center justify-between">
-                        <span class="text-ink-mute">Scadenza</span>
-                        <span class="font-semibold text-ink">{{ my_subscription.end_date|date:"d M Y" }}</span>
-                    </div>
-                    {% endif %}
-                    <div class="flex items-center justify-between">
-                        <span class="text-ink-mute">Prezzo</span>
-                        <span class="font-semibold text-ink">€{{ my_subscription.subscription_plan.price }}</span>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+  /* --- Body grid --- */
+  .mc-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1.75rem;
+    align-items: start;
+  }
+  @media (max-width: 1024px) { .mc-body { grid-template-columns: 1fr; } }
 
-            <!-- Chat CTA -->
-            <a href="{% url 'chat_list' %}"
-               class="flex items-center gap-3 px-4 py-3 bg-ink text-white rounded-al-sm hover:bg-ink transition-colors shadow-sm">
-                <i class="ph ph-chat-circle-dots text-xl shrink-0"></i>
-                <div>
-                    <p class="text-sm font-semibold">Scrivi a {{ coach.first_name }}</p>
-                    <p class="text-xs text-ink-mute">Apri la chat</p>
-                </div>
-            </a>
+  /* --- Section card (Athlynk-tone) --- */
+  .mc-section {
+    background: white;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md);
+    padding: 1.6rem 1.75rem;
+    position: relative;
+  }
+  .mc-section + .mc-section { margin-top: 1.25rem; }
+  .mc-section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 1.1rem;
+    gap: .75rem;
+  }
+  .mc-section-eyebrow {
+    font-family: var(--al-font-mono);
+    font-size: .65rem; font-weight: 700;
+    color: var(--al-bronze);
+    text-transform: uppercase; letter-spacing: .22em;
+  }
+  .mc-section-rule {
+    flex: 1; height: 1px; background: var(--al-rule-faint);
+    margin-left: 1rem; align-self: center;
+  }
+  .mc-section-title {
+    font-family: var(--al-font-display);
+    font-size: 1.5rem; letter-spacing: -.01em;
+    color: var(--al-ink); margin: 0 0 .35rem;
+  }
+  .mc-section-title em { font-style: italic; color: var(--al-bronze); font-weight: 400; }
 
-            <!-- Disconnect -->
-            <div x-data="{ confirmLeave: false }">
-                <button @click="confirmLeave = true"
-                        class="w-full flex items-center gap-3 px-4 py-3 bg-white border border-red-200 text-red-600 rounded-al-sm hover:bg-red-50 transition-colors text-sm font-medium">
-                    <i class="ph ph-user-minus text-xl shrink-0"></i>
-                    <span>Rimuoviti da {{ coach.first_name }}</span>
-                </button>
+  .mc-bio {
+    font-size: .98rem; line-height: 1.75;
+    color: var(--al-ink-soft);
+    columns: 1; column-gap: 2rem;
+    text-align: left;
+  }
+  .mc-bio::first-letter {
+    font-family: var(--al-font-display);
+    font-size: 3.2rem; line-height: 1;
+    float: left; padding-right: .55rem; padding-top: .25rem;
+    color: var(--al-bronze); font-weight: 400;
+  }
 
-                <div x-show="confirmLeave" x-transition.opacity
-                     x-effect="window.panelLock && (confirmLeave ? window.panelLock.acquire() : window.panelLock.release())"
-                     class="fixed inset-0 z-50 flex items-center justify-center p-4" x-cloak>
-                    <div x-show="confirmLeave" x-transition @click.outside="confirmLeave = false"
-                         class="bg-white rounded-al-sm shadow-xl w-full max-w-sm p-6">
-                        <div class="w-12 h-12 rounded-al-sm bg-red-50 text-red-600 flex items-center justify-center text-2xl mx-auto mb-4">
-                            <i class="ph ph-warning"></i>
-                        </div>
-                        <h3 class="text-base font-bold text-ink text-center mb-2">Confermi di uscire?</h3>
-                        <p class="text-sm text-ink-mute text-center mb-6">Perderai l'accesso ai contenuti di <strong>{{ coach.first_name }} {{ coach.last_name }}</strong>. Potrai sempre trovare un nuovo specialista.</p>
-                        <div class="flex gap-3">
-                            <button @click="confirmLeave = false"
-                                    class="flex-1 px-4 py-2.5 rounded-al-sm border border-rule text-ink-soft text-sm font-medium hover:bg-marble transition-colors">
-                                Annulla
-                            </button>
-                            <form method="post" action="{% url 'client_disconnect_coach' relationship.id %}" class="flex-1">
-                                {% csrf_token %}
-                                <button type="submit"
-                                        class="w-full px-4 py-2.5 rounded-al-sm bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors">
-                                    Sì, esci
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  /* --- Tag rows --- */
+  .mc-tags { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .mc-tag {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .4rem .75rem;
+    background: var(--al-stone);
+    border: 1px solid var(--al-rule-faint);
+    border-radius: 999px;
+    font-size: .78rem; font-weight: 500;
+    color: var(--al-ink-soft);
+    letter-spacing: .01em;
+  }
+  .mc-tag i { color: var(--al-bronze); font-size: .9rem; }
+  .mc-tag.is-spec {
+    background: rgba(28,74,82,0.08);
+    border-color: rgba(28,74,82,0.18);
+    color: var(--al-aegean);
+  }
+  .mc-tag.is-spec i { color: var(--al-aegean); }
 
-        </aside>
+  /* --- Social grid --- */
+  .mc-social-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: .55rem;
+  }
+  .mc-social {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .65rem .8rem;
+    background: var(--al-stone);
+    border: 1px solid transparent;
+    border-radius: var(--al-r-sm);
+    color: var(--al-ink-soft);
+    text-decoration: none;
+    font-size: .82rem; font-weight: 500;
+    transition: all .18s var(--al-ease);
+  }
+  .mc-social:hover {
+    background: white;
+    border-color: var(--al-bronze);
+    color: var(--al-ink);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px -8px rgba(138,106,58,0.4);
+  }
+  .mc-social i { font-size: 1.25rem; }
+  .mc-social span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* --- Videos --- */
+  .mc-videos { display: flex; flex-direction: column; gap: 1rem; }
+  .mc-video-frame {
+    border-radius: var(--al-r-sm);
+    overflow: hidden;
+    background: var(--al-ink);
+    aspect-ratio: 16/9;
+    border: 1px solid var(--al-rule-faint);
+  }
+  .mc-video-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  /* --- Plans --- */
+  .mc-plans { display: flex; flex-direction: column; gap: .8rem; }
+  .mc-plan {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    background: white;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md);
+    align-items: center;
+    transition: border-color .15s;
+  }
+  .mc-plan:hover { border-color: var(--al-rule); }
+  .mc-plan.is-mine {
+    background:
+      linear-gradient(135deg, rgba(212,175,55,0.05) 0%, transparent 50%),
+      white;
+    border-color: var(--al-bronze);
+    box-shadow: 0 0 0 1px rgba(138,106,58,0.15);
+  }
+  .mc-plan.is-mine::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--al-bronze);
+  }
+  .mc-plan-name {
+    font-weight: 600; font-size: 1rem; color: var(--al-ink);
+    margin: 0; display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
+  }
+  .mc-plan-active {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: 2px 7px;
+    background: var(--al-bronze); color: white;
+    border-radius: 3px;
+    font-family: var(--al-font-mono);
+    font-size: .6rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+  .mc-plan-desc { font-size: .82rem; color: var(--al-ink-mute); margin: .35rem 0 0; line-height: 1.5; }
+  .mc-plan-meta { font-size: .72rem; color: var(--al-ink-faint); margin-top: .45rem; display: inline-flex; align-items: center; gap: .35rem; }
+  .mc-plan-meta i { color: var(--al-bronze); }
+  .mc-plan-price {
+    text-align: right; min-width: 80px;
+    font-family: var(--al-font-display);
+    font-size: 1.65rem; line-height: 1;
+    color: var(--al-ink);
+    letter-spacing: -.01em;
+  }
+  .mc-plan-price small {
+    display: block;
+    font-family: var(--al-font);
+    font-size: .7rem; color: var(--al-ink-mute);
+    margin-top: .25rem;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  /* --- Sidebar --- */
+  .mc-side { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 84px; }
+
+  .mc-subscription {
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    border-radius: var(--al-r-md);
+    padding: 1.4rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .mc-subscription::after {
+    content: ''; position: absolute;
+    right: -30px; bottom: -30px;
+    width: 140px; height: 140px;
+    border: 1px solid rgba(212,175,55,0.18);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .mc-subscription::before {
+    content: ''; position: absolute;
+    right: -60px; bottom: -60px;
+    width: 220px; height: 220px;
+    border: 1px solid rgba(212,175,55,0.1);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .mc-sub-eyebrow {
+    font-family: var(--al-font-mono);
+    font-size: .62rem; font-weight: 700;
+    color: var(--al-bronze);
+    letter-spacing: .22em; text-transform: uppercase;
+    margin-bottom: .85rem;
+  }
+  .mc-sub-name {
+    font-family: var(--al-font-display);
+    font-size: 1.25rem; line-height: 1.15;
+    margin: 0 0 1rem;
+    color: var(--al-parchment);
+    position: relative; z-index: 1;
+  }
+  .mc-sub-rows {
+    display: flex; flex-direction: column; gap: .55rem;
+    font-size: .82rem;
+    position: relative; z-index: 1;
+  }
+  .mc-sub-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: .55rem;
+    border-bottom: 1px dashed rgba(244,239,228,0.12);
+  }
+  .mc-sub-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .mc-sub-label {
+    color: rgba(244,239,228,0.55);
+    font-family: var(--al-font-mono);
+    font-size: .65rem;
+    text-transform: uppercase; letter-spacing: .12em;
+  }
+  .mc-sub-value { font-weight: 600; color: var(--al-parchment); font-variant-numeric: tabular-nums; }
+  .mc-sub-status {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .72rem; font-weight: 700;
+    color: #6ee7b7;
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+  .mc-sub-status::before {
+    content: ''; width: 6px; height: 6px;
+    background: #10b981; border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.18);
+  }
+
+  .mc-chat-cta {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.2rem;
+    background: white;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    color: var(--al-ink);
+    text-decoration: none;
+    transition: all .2s var(--al-ease);
+    position: relative;
+    overflow: hidden;
+  }
+  .mc-chat-cta::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 50%, rgba(138,106,58,0.06) 100%);
+    pointer-events: none; opacity: 0;
+    transition: opacity .2s;
+  }
+  .mc-chat-cta:hover {
+    border-color: var(--al-bronze);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -16px rgba(138,106,58,0.4);
+  }
+  .mc-chat-cta:hover::after { opacity: 1; }
+  .mc-chat-icon {
+    width: 44px; height: 44px;
+    background: var(--al-bronze);
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+  }
+  .mc-chat-title { font-weight: 600; font-size: .95rem; margin: 0; color: var(--al-ink); }
+  .mc-chat-sub { font-size: .72rem; color: var(--al-ink-mute); margin-top: .1rem; }
+
+  .mc-disconnect {
+    width: 100%;
+    display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+    padding: .85rem 1.1rem;
+    background: white;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    color: var(--al-ink-mute);
+    font-size: .82rem; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .mc-disconnect:hover {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+  .mc-disconnect i { font-size: 1rem; }
+
+  /* --- Modal --- */
+  .mc-modal-icon {
+    width: 56px; height: 56px;
+    background: #fef2f2;
+    color: #b91c1c;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.65rem;
+    margin: 0 auto 1rem;
+  }
+
+  /* --- Empty bio / fallback --- */
+  .mc-bio-empty {
+    color: var(--al-ink-mute);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem 0;
+  }
+
+  [x-cloak] { display: none !important; }
+</style>
+
+<div class="mc-shell">
+
+  <!-- Page eyebrow -->
+  <div class="mc-monogram">
+    <span class="mc-monogram-tag">I miei · Specialista</span>
+    <span class="mc-monogram-rule"></span>
+  </div>
+
+  <!-- ============== HERO ============== -->
+  <section class="mc-hero">
+    <div class="mc-portrait">
+      {% if coach.profile_image %}
+        <img src="{{ coach.profile_image.url }}" alt="{{ coach_name }}">
+      {% elif coach.profile_image_url %}
+        <img src="{{ coach.profile_image_url }}" alt="{{ coach_name }}">
+      {% else %}
+        <div class="mc-portrait-initials">{{ coach.first_name|slice:":1" }}{{ coach.last_name|slice:":1" }}</div>
+      {% endif %}
+      <div class="mc-portrait-frame"></div>
+      {% if coach.city %}
+      <div class="mc-portrait-overlay">
+        <span class="mc-portrait-city"><i class="ph ph-map-pin"></i>{{ coach.city }}</span>
+      </div>
+      {% endif %}
     </div>
+
+    <div class="mc-info">
+      <div>
+        <span class="mc-info-tag">Il tuo specialista</span>
+        <h1 class="mc-name">
+          {% if coach.first_name %}<span class="mc-name-given">{{ coach.first_name }}</span>{% endif %}
+          {% if coach.last_name %}<span class="mc-name-family">{{ coach.last_name }}</span>{% endif %}
+        </h1>
+        {% if coach.specialization %}
+        <span class="mc-specialty"><i class="ph ph-medal"></i>{{ coach.specialization }}</span>
+        {% endif %}
+      </div>
+
+      <div>
+        <div class="mc-numerals">
+          <div class="mc-numeral">
+            <p class="mc-numeral-value">{{ total_checks }}</p>
+            <p class="mc-numeral-label">Check svolti</p>
+          </div>
+          <div class="mc-numeral">
+            <p class="mc-numeral-value">{{ relationship.created_at|date:"M" }}<small>{{ relationship.created_at|date:"Y" }}</small></p>
+            <p class="mc-numeral-label">Inizio percorso</p>
+          </div>
+          <div class="mc-numeral">
+            <p class="mc-numeral-value">
+              {% if my_subscription %}<i class="ph ph-check-circle" style="color: var(--al-bronze); font-size: 2rem;"></i>{% else %}<span style="color: var(--al-ink-faint);">—</span>{% endif %}
+            </p>
+            <p class="mc-numeral-label">{% if my_subscription %}Abbonato{% else %}Nessun piano{% endif %}</p>
+          </div>
+        </div>
+
+        <div class="al-meander al-meander-bronze mc-meander-strip"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== BODY ============== -->
+  <div class="mc-body">
+
+    <!-- =============== LEFT ================ -->
+    <div>
+
+      <!-- Bio -->
+      <section class="mc-section">
+        <div class="mc-section-head">
+          <p class="mc-section-eyebrow">Profilo</p>
+          <span class="mc-section-rule"></span>
+        </div>
+        <h2 class="mc-section-title">Chi è <em>{{ coach.first_name }}</em></h2>
+        {% if coach.bio %}
+        <p class="mc-bio">{{ coach.bio }}</p>
+        {% else %}
+        <p class="mc-bio-empty">{{ coach.first_name }} non ha ancora pubblicato una biografia.</p>
+        {% endif %}
+      </section>
+
+      <!-- Specializzazione & certificazioni -->
+      {% if coach.specialization or coach.certifications %}
+      <section class="mc-section">
+        <div class="mc-section-head">
+          <p class="mc-section-eyebrow">Competenze</p>
+          <span class="mc-section-rule"></span>
+        </div>
+        <h2 class="mc-section-title">Specializzazione &amp; <em>certificazioni</em></h2>
+
+        {% if coach.specialization %}
+        <div style="margin-bottom: 1rem;">
+          <p style="font-family: var(--al-font-mono); font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--al-ink-faint); margin-bottom: .55rem;">Specializzazione</p>
+          <span class="mc-tag is-spec"><i class="ph ph-target"></i>{{ coach.specialization }}</span>
+        </div>
+        {% endif %}
+
+        {% if coach.certifications %}
+        <div>
+          <p style="font-family: var(--al-font-mono); font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--al-ink-faint); margin-bottom: .55rem;">Certificazioni</p>
+          <div class="mc-tags">
+            {% for cert in coach.certifications.split %}
+            <span class="mc-tag"><i class="ph ph-seal-check"></i>{{ cert }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <!-- Social -->
+      {% if social_links %}
+      <section class="mc-section">
+        <div class="mc-section-head">
+          <p class="mc-section-eyebrow">Presenza</p>
+          <span class="mc-section-rule"></span>
+        </div>
+        <h2 class="mc-section-title">Seguilo sui <em>social</em></h2>
+        <div class="mc-social-grid">
+          {% for icon, color, url in social_links %}
+          <a href="{{ url }}" target="_blank" rel="noopener" class="mc-social">
+            <i class="ph {{ icon }}"></i>
+            <span>{{ url|cut:"https://"|cut:"http://"|cut:"www."|truncatechars:24 }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Video -->
+      {% if video_urls %}
+      <section class="mc-section">
+        <div class="mc-section-head">
+          <p class="mc-section-eyebrow">Showreel</p>
+          <span class="mc-section-rule"></span>
+        </div>
+        <h2 class="mc-section-title">Video <em>professionali</em></h2>
+        <div class="mc-videos">
+          {% for vurl in video_urls %}
+          <div class="mc-video-frame">
+            <iframe src="{{ vurl }}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen loading="lazy"></iframe>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Piani -->
+      {% if active_plans %}
+      <section class="mc-section">
+        <div class="mc-section-head">
+          <p class="mc-section-eyebrow">Listino</p>
+          <span class="mc-section-rule"></span>
+        </div>
+        <h2 class="mc-section-title">Piani &amp; <em>prezzi</em></h2>
+        <div class="mc-plans">
+          {% for plan in active_plans %}
+          <div class="mc-plan {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}is-mine{% endif %}">
+            <div>
+              <h3 class="mc-plan-name">
+                {{ plan.name }}
+                {% if my_subscription and my_subscription.subscription_plan.id == plan.id %}
+                <span class="mc-plan-active"><i class="ph-bold ph-check"></i> Attivo</span>
+                {% endif %}
+              </h3>
+              {% if plan.description %}<p class="mc-plan-desc">{{ plan.description }}</p>{% endif %}
+              {% if plan.duration_days %}<p class="mc-plan-meta"><i class="ph ph-clock"></i>{{ plan.duration_days }} giorni</p>{% endif %}
+            </div>
+            <div class="mc-plan-price">
+              €{{ plan.price }}
+              {% if plan.billing_interval %}<small>/ {{ plan.billing_interval }}</small>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+    </div>
+
+    <!-- =============== SIDEBAR ================ -->
+    <aside class="mc-side">
+
+      {% if my_subscription %}
+      <div class="mc-subscription">
+        <p class="mc-sub-eyebrow">Il tuo abbonamento</p>
+        <h3 class="mc-sub-name">{{ my_subscription.subscription_plan.name }}</h3>
+        <div class="mc-sub-rows">
+          <div class="mc-sub-row">
+            <span class="mc-sub-label">Stato</span>
+            <span class="mc-sub-status">Attivo</span>
+          </div>
+          {% if my_subscription.end_date %}
+          <div class="mc-sub-row">
+            <span class="mc-sub-label">Scadenza</span>
+            <span class="mc-sub-value">{{ my_subscription.end_date|date:"d M Y" }}</span>
+          </div>
+          {% endif %}
+          <div class="mc-sub-row">
+            <span class="mc-sub-label">Prezzo</span>
+            <span class="mc-sub-value">€{{ my_subscription.subscription_plan.price }}</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <a href="{% url 'chat_list' %}" class="mc-chat-cta">
+        <div class="mc-chat-icon"><i class="ph ph-chat-circle-dots"></i></div>
+        <div style="min-width: 0;">
+          <p class="mc-chat-title">Scrivi a {{ coach.first_name }}</p>
+          <p class="mc-chat-sub">Apri la chat con il tuo specialista</p>
+        </div>
+      </a>
+
+      <div x-data="{ confirmLeave: false }">
+        <button @click="confirmLeave = true" class="mc-disconnect" type="button">
+          <i class="ph ph-user-minus"></i>
+          <span>Termina collaborazione</span>
+        </button>
+
+        <div x-show="confirmLeave" x-transition.opacity
+             x-effect="window.panelLock && (confirmLeave ? window.panelLock.acquire() : window.panelLock.release())"
+             class="al-modal-backdrop" x-cloak>
+          <div x-show="confirmLeave" x-transition @click.outside="confirmLeave = false"
+               class="al-modal-panel" style="max-width: 420px;">
+            <div class="mc-modal-icon"><i class="ph ph-warning"></i></div>
+            <h3 class="al-h-3" style="text-align: center; margin-bottom: .5rem;">Confermi di uscire?</h3>
+            <p class="al-body" style="text-align: center; color: var(--al-ink-mute); margin-bottom: 1.5rem; font-size: .9rem;">
+              Perderai l'accesso ai contenuti di
+              <strong style="color: var(--al-ink);">{{ coach.first_name }} {{ coach.last_name }}</strong>.
+              Potrai sempre trovare un nuovo specialista.
+            </p>
+            <div class="flex gap-3">
+              <button @click="confirmLeave = false" type="button" class="al-btn al-btn-ghost" style="flex: 1; justify-content: center;">
+                Annulla
+              </button>
+              <form method="post" action="{% url 'client_disconnect_coach' relationship.id %}" style="flex: 1;">
+                {% csrf_token %}
+                <button type="submit" class="al-btn al-btn-danger" style="width: 100%; justify-content: center;">
+                  Sì, esci
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
 </div>
 {% endblock %}

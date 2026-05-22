@@ -1,231 +1,300 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Piani Alimentari{% endblock %}
 
 {% block content %}
-<script>window._coachClients = {{ clients_json|safe }};</script>
+<script>
+  window.NUTRITION_LIBRARY_INIT = {
+    plans: {{ plans_json|safe }},
+    folders: {{ folders_json|safe }},
+    clients: {{ clients_json|safe }},
+    urls: {
+      folders: "{% url 'api_nutrition_folders' %}",
+      folderDetail: "/api/nutrizione/cartelle/__ID__/",
+      planFolder: "/api/nutrizione/piani/__ID__/cartella/",
+      planCreate: "{% url 'nutrizione_piano_create' %}",
+      planEdit: "/nutrizione/piani/__ID__/modifica/",
+      planDetail: "/nutrizione/piani/__ID__/",
+      planAssign: "/api/nutrizione/piani/__ID__/assegna/",
+      planDelete: "/api/nutrizione/piani/__ID__/elimina/",
+      importExcel: "{% url 'nutrizione_import' %}",
+    },
+    csrf: "{{ csrf_token }}",
+  };
+  function nutCsrfToken() {
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || window.NUTRITION_LIBRARY_INIT.csrf || '';
+  }
+</script>
 
 <div class="max-w-7xl mx-auto"
-     x-data="{
-       assignModal: false,
-       assignPlanId: null,
-       assignPlanName: '',
-       clientSearch: '',
-       selectedClient: null,
-       startDate: '',
-       endDate: '',
-       assignNotes: '',
-       saving: false,
-       deleteModal: false,
-       deletePlanId: null,
-       get filteredClients() {
-         const q = this.clientSearch.toLowerCase();
-         return window._coachClients.filter(c => !q || c.name.toLowerCase().includes(q));
-       },
-       openAssign(id, name) {
-         this.assignPlanId = id; this.assignPlanName = name;
-         this.clientSearch = ''; this.selectedClient = null;
-         this.startDate = ''; this.endDate = ''; this.assignNotes = '';
-         this.assignModal = true;
-       },
-       async submitAssign() {
-         if (!this.selectedClient) return;
-         this.saving = true;
-         const res = await fetch('/api/nutrizione/piani/' + this.assignPlanId + '/assegna/', {
-           method: 'POST',
-           headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-           body: JSON.stringify({
-             client_id: this.selectedClient.id,
-             start_date: this.startDate || null,
-             end_date: this.endDate || null,
-             notes: this.assignNotes,
-           })
-         });
-         this.saving = false;
-         if (res.ok) { this.assignModal = false; window.location.reload(); }
-       },
-       async confirmDelete() {
-         const res = await fetch('/api/nutrizione/piani/' + this.deletePlanId + '/elimina/', {
-           method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}
-         });
-         if (res.ok) { this.deleteModal = false; window.location.reload(); }
-       }
-     }">
+     x-data="nutritionLibrary()"
+     x-init="init()"
+     @keydown.escape.window="assignModal=false; deleteModal=false; deleteFolderOpen=false">
 
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+  <!-- =================== HEADER =================== -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-7 gap-4">
     <div>
       <p class="al-eyebrow mb-3">Studio &middot; Nutrizione</p>
       <h1 class="al-h-1">Piani <span class="al-display-i">alimentari</span></h1>
-      <p class="al-body mt-2">Gestisci i tuoi protocolli e assegnali agli atleti.</p>
+      <p class="al-body mt-2">Organizza i protocolli in cartelle e assegnali agli atleti.</p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
-    <div class="flex items-center gap-2">
-      <a href="{% url 'nutrizione_import' %}" class="al-btn al-btn-ghost">
+    <div class="flex gap-3 items-center">
+      <a :href="urls.importExcel" class="al-btn al-btn-ghost">
         <i class="ph ph-sparkle text-sm"></i>
         <span>Importa da Excel</span>
       </a>
-      <a href="{% url 'nutrizione_piano_create' %}" class="al-btn">
+      <a :href="newPlanUrl()" class="al-btn al-btn-bronze">
         <i class="ph ph-plus text-sm"></i>
-        <span>Nuovo Piano</span>
+        <span>Nuovo piano</span>
       </a>
     </div>
   </div>
 
-  {% if plans_data %}
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-    {% for pd in plans_data %}
-    {% with plan=pd.plan %}
-    <div class="al-card al-card-flush al-reveal flex flex-col" style="--d:{{ forloop.counter0|add:0 }}0ms;">
-      <!-- Bronze accent line -->
-      <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
+  <!-- =================== 2-COL SHELL =================== -->
+  <div class="wb-shell">
 
-      <div class="p-5 flex-1">
-        <div class="flex items-start justify-between gap-2 mb-3">
-          <div class="min-w-0">
-            {% if plan.plan_type %}
-            <span class="al-tag">{{ plan.plan_type }}</span>
-            {% endif %}
-            <h3 class="al-h-2 mt-2">{{ plan.title }}</h3>
-          </div>
-          <div class="flex items-center gap-1 shrink-0" @click.stop>
-            <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="p-1.5 text-ink-line hover:text-bronze transition-colors" title="Modifica">
-              <i class="ph ph-pencil text-base"></i>
-            </a>
-            <button @click="deletePlanId={{ plan.id }}; deleteModal=true" type="button"
-                    class="p-1.5 text-ink-line hover:text-danger transition-colors" title="Elimina" style="color: var(--al-ink-line);"
-                    onmouseover="this.style.color='var(--al-danger)'" onmouseout="this.style.color='var(--al-ink-line)'">
-              <i class="ph ph-trash text-base"></i>
-            </button>
-          </div>
-        </div>
-
-        {% if plan.description %}
-        <p class="al-body line-clamp-2 mb-4">{{ plan.description }}</p>
-        {% endif %}
-
-        <!-- Macros -->
-        <div class="grid grid-cols-4 gap-2 mt-4">
-          <div class="text-center py-2 px-1" style="background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
-            <p class="al-tag" style="font-size:9px;">kcal</p>
-            <p class="font-mono font-medium text-ink mt-1">{{ pd.computed_kcal }}</p>
-          </div>
-          <div class="text-center py-2 px-1" style="background: var(--al-info-bg); border: 1px solid rgba(28,74,82,0.18); border-radius: var(--al-r-sm);">
-            <p class="al-tag" style="font-size:9px; color: var(--al-aegean);">Pro</p>
-            <p class="font-mono font-medium mt-1" style="color: var(--al-aegean);">{{ pd.computed_prot }}g</p>
-          </div>
-          <div class="text-center py-2 px-1" style="background: var(--al-warn-bg); border: 1px solid rgba(166,128,43,0.22); border-radius: var(--al-r-sm);">
-            <p class="al-tag" style="font-size:9px; color: var(--al-warn);">Carb</p>
-            <p class="font-mono font-medium mt-1" style="color: var(--al-warn);">{{ pd.computed_carb }}g</p>
-          </div>
-          <div class="text-center py-2 px-1" style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.22); border-radius: var(--al-r-sm);">
-            <p class="al-tag" style="font-size:9px; color: var(--al-danger);">Fat</p>
-            <p class="font-mono font-medium mt-1" style="color: var(--al-danger);">{{ pd.computed_fat }}g</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--al-rule);">
-        <div class="flex items-center gap-3 al-tag">
-          <span class="flex items-center gap-1"><i class="ph ph-users text-xs"></i>{{ pd.assigned_count }}</span>
-          <span class="flex items-center gap-1"><i class="ph ph-clock text-xs"></i>{{ plan.updated_at|date:"d M" }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <a href="{% url 'nutrizione_piano_detail' plan.id %}" class="al-link al-link-quiet text-[11px] uppercase tracking-widest">
-            Dettaglio <i class="ph ph-arrow-right text-xs"></i>
-          </a>
-          <button @click="openAssign({{ plan.id }}, '{{ plan.title|escapejs }}')" type="button" class="al-btn al-btn-sm al-btn-bronze">
-            <i class="ph ph-user-plus text-xs"></i>
-            <span>Assegna</span>
-          </button>
-        </div>
-      </div>
-    </div>
-    {% endwith %}
-    {% endfor %}
-
-    <a href="{% url 'nutrizione_piano_create' %}"
-       class="al-card flex flex-col items-center justify-center min-h-[220px] text-center transition-all hover:border-bronze"
-       style="border-style: dashed; background: var(--al-parchment);">
-      <div class="w-12 h-12 flex items-center justify-center mb-3" style="background: var(--al-marble); border: 1px solid var(--al-rule);">
-        <i class="ph ph-plus text-xl text-ink-line"></i>
-      </div>
-      <h3 class="al-h-3">Nuovo Piano</h3>
-      <p class="al-tag mt-1">Crea da zero</p>
-    </a>
-  </div>
-
-  {% else %}
-  <div class="al-card al-card-warm">
-    <div class="al-empty" style="padding: 80px 32px;">
-      <i class="ph ph-leaf al-empty-icon"></i>
-      <h3>Nessun piano creato</h3>
-      <p>Crea il tuo primo piano alimentare e assegnalo agli atleti.</p>
-      <a href="{% url 'nutrizione_piano_create' %}" class="al-btn al-btn-bronze">
-        <i class="ph ph-plus"></i>
-        <span>Crea piano</span>
-      </a>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Assign Modal -->
-  <div x-show="assignModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" @click="assignModal=false"></div>
-    <div class="al-modal-panel relative" style="max-width: 480px;">
-      <div class="al-modal-head">
-        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Nutrizione</p>
-        <h3 class="al-h-2">Assegna piano</h3>
-        <p class="al-small mt-1" x-text="'Piano: ' + assignPlanName"></p>
-      </div>
-
-      <div class="al-modal-body space-y-4">
-        <div>
-          <label class="al-label">Atleta</label>
-          <input type="text" x-model="clientSearch" placeholder="Cerca atleta..." class="al-input">
-          <div class="mt-2 max-h-40 overflow-y-auto border" style="border-color: var(--al-rule); background: var(--al-parchment);">
-            <template x-for="c in filteredClients" :key="c.id">
-              <button type="button" @click="selectedClient=c; clientSearch=c.name"
-                      class="w-full text-left px-4 py-2.5 text-[13px] transition-colors"
-                      :class="selectedClient?.id===c.id ? 'bg-marble-warm font-medium text-bronze' : 'text-ink-soft hover:bg-marble'"
-                      x-text="c.name"></button>
-            </template>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="al-label">Inizio</label>
-            <input type="date" x-model="startDate" class="al-input">
-          </div>
-          <div>
-            <label class="al-label">Fine</label>
-            <input type="date" x-model="endDate" class="al-input">
-          </div>
-        </div>
-
-        <div>
-          <label class="al-label">Note (opzionale)</label>
-          <textarea x-model="assignNotes" rows="2" class="al-textarea"></textarea>
-        </div>
-      </div>
-
-      <div class="al-modal-foot">
-        <button @click="assignModal=false" type="button" class="al-btn al-btn-ghost">Annulla</button>
-        <button @click="submitAssign()" :disabled="!selectedClient || saving" type="button" class="al-btn al-btn-bronze">
-          <span x-show="!saving">Assegna</span>
-          <span x-show="saving">Salvo...</span>
+    <!-- ---------- SIDEBAR ---------- -->
+    <aside class="wb-sidebar">
+      <div class="wb-sidebar-header">
+        <h3>Cartelle</h3>
+        <button type="button"
+                class="al-btn-icon al-btn-ghost"
+                title="Nuova cartella"
+                @click="startCreateFolder()">
+          <i class="ph ph-plus"></i>
         </button>
       </div>
-    </div>
+
+      <div class="wb-folder-list">
+        <!-- All -->
+        <div class="wb-folder-item"
+             :class="{ 'is-active': selectedFolderId === 'all' }"
+             @click="selectedFolderId = 'all'">
+          <i class="ph ph-stack"></i>
+          <span>Tutti</span>
+          <span class="wb-folder-count" x-text="plans.length"></span>
+        </div>
+
+        <!-- Unfiled -->
+        <div class="wb-folder-item"
+             :class="{ 'is-active': selectedFolderId === 'unfiled', 'is-drop-target': dropTargetId === 'unfiled' }"
+             @click="selectedFolderId = 'unfiled'"
+             @dragover.prevent="dropTargetId = 'unfiled'"
+             @dragleave="dropTargetId = null"
+             @drop.prevent="dropPlanOnFolder(null)">
+          <i class="ph ph-folder-dashed"></i>
+          <span>Senza cartella</span>
+          <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
+        </div>
+
+        <!-- User folders -->
+        <template x-for="folder in folders" :key="folder.id">
+          <div class="wb-folder-item"
+               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id }"
+               @click="selectFolder(folder.id)"
+               @dragover.prevent="dropTargetId = folder.id"
+               @dragleave="dropTargetId = null"
+               @drop.prevent="dropPlanOnFolder(folder.id)">
+            <span class="wb-folder-label-dot"
+                  :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
+                  :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
+
+            <span x-show="editingFolderId !== folder.id" x-text="folder.title"
+                  @dblclick.stop="startEditFolder(folder)"></span>
+
+            <input x-show="editingFolderId === folder.id"
+                   x-ref="folderEditInput"
+                   class="wb-folder-inline-input"
+                   x-model="folderEditDraft"
+                   @blur="finishEditFolder(folder)"
+                   @keydown.enter.prevent="finishEditFolder(folder)"
+                   @keydown.escape.prevent="cancelEditFolder()"
+                   @click.stop>
+
+            <span class="wb-folder-count" x-show="editingFolderId !== folder.id" x-text="folder.plan_count"></span>
+
+            <button type="button"
+                    class="wb-folder-menu-btn"
+                    @click.stop="openFolderMenu(folder)"
+                    title="Opzioni cartella"
+                    x-show="editingFolderId !== folder.id">
+              <i class="ph ph-dots-three-vertical"></i>
+            </button>
+          </div>
+        </template>
+
+        <!-- Inline create -->
+        <div class="wb-folder-item" x-show="creatingFolder">
+          <i class="ph ph-folder-plus"></i>
+          <input x-ref="folderCreateInput"
+                 class="wb-folder-inline-input"
+                 x-model="folderCreateDraft"
+                 placeholder="Nome cartella…"
+                 @blur="finishCreateFolder()"
+                 @keydown.enter.prevent="finishCreateFolder()"
+                 @keydown.escape.prevent="cancelCreateFolder()">
+        </div>
+      </div>
+
+      <!-- Color picker popover -->
+      <template x-if="menuFolder">
+        <div class="wb-fade-in mt-3 p-3 rounded"
+             style="border: 1px solid var(--al-rule); background: var(--al-parchment);">
+          <p class="al-eyebrow mb-2">Etichetta colorata</p>
+          <input type="text" x-model="menuFolder.label_text"
+                 @change="patchFolderLabel(menuFolder)"
+                 placeholder="Es. Cut estivo"
+                 class="al-input mb-2"
+                 style="font-size: 12px; padding: 5px 8px;">
+          <div class="flex flex-wrap gap-1 mb-3">
+            <template x-for="c in availableLabelColors" :key="c">
+              <button type="button"
+                      class="wb-folder-label-dot"
+                      :class="'wb-folder-label-dot--' + c"
+                      :style="menuFolder.label_color === c ? 'outline: 2px solid var(--al-bronze); outline-offset: 2px;' : ''"
+                      :title="c"
+                      style="width: 18px; height: 18px;"
+                      @click="setFolderColor(menuFolder, c)"></button>
+            </template>
+            <button type="button" class="wb-folder-label-dot"
+                    style="width: 18px; height: 18px; background: transparent; border: 1px dashed var(--al-rule-strong);"
+                    @click="setFolderColor(menuFolder, '')"
+                    title="Senza colore"></button>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="al-btn al-btn-ghost al-btn-sm flex-1"
+                    @click="confirmDeleteFolder(menuFolder)">
+              <i class="ph ph-trash"></i> Elimina
+            </button>
+            <button type="button" class="al-btn al-btn-bronze al-btn-sm flex-1"
+                    @click="menuFolder = null">Chiudi</button>
+          </div>
+        </div>
+      </template>
+    </aside>
+
+    <!-- ---------- WORKSPACE ---------- -->
+    <main>
+      <!-- Filter bar -->
+      <div class="flex items-center gap-3 mb-5 flex-wrap">
+        <div class="al-search flex-1 min-w-[220px]">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" class="al-input" placeholder="Cerca piano…" x-model="search">
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <template x-if="visiblePlans().length === 0">
+        <div class="al-card al-card-warm">
+          <div class="al-empty">
+            <i class="ph ph-leaf al-empty-icon"></i>
+            <h3 x-text="emptyTitle()"></h3>
+            <p x-text="emptyDescription()"></p>
+            <a :href="newPlanUrl()" class="al-btn al-btn-bronze">
+              <i class="ph ph-plus"></i><span>Crea piano</span>
+            </a>
+          </div>
+        </div>
+      </template>
+
+      <!-- Cards grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <template x-for="plan in visiblePlans()" :key="plan.id">
+          <div class="al-card al-card-flush al-reveal flex flex-col"
+               draggable="true"
+               @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
+               @dragend="draggedPlanId = null; dropTargetId = null">
+            <!-- Bronze accent line -->
+            <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
+
+            <div class="p-5 flex-1">
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <div class="min-w-0">
+                  <template x-if="plan.plan_type">
+                    <span class="al-tag" x-text="plan.plan_type"></span>
+                  </template>
+                  <h3 class="al-h-2 mt-2" x-text="plan.title"></h3>
+                </div>
+                <div class="flex items-center gap-1 shrink-0" @click.stop>
+                  <a :href="urls.planEdit.replace('__ID__', plan.id)"
+                     class="p-1.5 text-ink-line hover:text-bronze transition-colors" title="Modifica">
+                    <i class="ph ph-pencil text-base"></i>
+                  </a>
+                  <button @click="openDelete(plan.id)" type="button"
+                          class="p-1.5 transition-colors" title="Elimina"
+                          style="color: var(--al-ink-line);"
+                          onmouseover="this.style.color='var(--al-danger)'"
+                          onmouseout="this.style.color='var(--al-ink-line)'">
+                    <i class="ph ph-trash text-base"></i>
+                  </button>
+                </div>
+              </div>
+
+              <p class="al-body line-clamp-2 mb-4" x-show="plan.description" x-text="plan.description"></p>
+
+              <!-- Macros -->
+              <div class="grid grid-cols-4 gap-2 mt-4">
+                <div class="text-center py-2 px-1"
+                     style="background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                  <p class="al-tag" style="font-size:9px;">kcal</p>
+                  <p class="font-mono font-medium text-ink mt-1" x-text="plan.kcal"></p>
+                </div>
+                <div class="text-center py-2 px-1"
+                     style="background: var(--al-info-bg); border: 1px solid rgba(28,74,82,0.18); border-radius: var(--al-r-sm);">
+                  <p class="al-tag" style="font-size:9px; color: var(--al-aegean);">Pro</p>
+                  <p class="font-mono font-medium mt-1" style="color: var(--al-aegean);" x-text="plan.prot + 'g'"></p>
+                </div>
+                <div class="text-center py-2 px-1"
+                     style="background: var(--al-warn-bg); border: 1px solid rgba(166,128,43,0.22); border-radius: var(--al-r-sm);">
+                  <p class="al-tag" style="font-size:9px; color: var(--al-warn);">Carb</p>
+                  <p class="font-mono font-medium mt-1" style="color: var(--al-warn);" x-text="plan.carb + 'g'"></p>
+                </div>
+                <div class="text-center py-2 px-1"
+                     style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.22); border-radius: var(--al-r-sm);">
+                  <p class="al-tag" style="font-size:9px; color: var(--al-danger);">Fat</p>
+                  <p class="font-mono font-medium mt-1" style="color: var(--al-danger);" x-text="plan.fat + 'g'"></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--al-rule);">
+              <div class="flex items-center gap-3 al-tag">
+                <span class="flex items-center gap-1">
+                  <i class="ph ph-users text-xs"></i><span x-text="plan.assigned_count"></span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <i class="ph ph-clock text-xs"></i><span x-text="relativeTime(plan.updated_at)"></span>
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <a :href="urls.planDetail.replace('__ID__', plan.id)"
+                   class="al-link al-link-quiet text-[11px] uppercase tracking-widest">
+                  Dettaglio <i class="ph ph-arrow-right text-xs"></i>
+                </a>
+                <button @click="openAssign(plan.id, plan.title)" type="button" class="al-btn al-btn-sm al-btn-bronze">
+                  <i class="ph ph-user-plus text-xs"></i>
+                  <span>Assegna</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </main>
   </div>
 
-  <!-- Delete confirm -->
+  <!-- =================== ASSIGN MODAL (shared editorial) =================== -->
+  {% include 'pages/nutrizione/_assign_modal.html' %}
+
+  <!-- =================== DELETE PLAN CONFIRM =================== -->
   <div x-show="deleteModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="deleteModal=false"></div>
     <div class="al-modal-panel text-center" style="max-width: 380px;">
       <div class="al-modal-body" style="padding-top: 32px;">
-        <div class="w-12 h-12 flex items-center justify-center mx-auto mb-4" style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.25);">
+        <div class="w-12 h-12 flex items-center justify-center mx-auto mb-4"
+             style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.25);">
           <i class="ph ph-trash text-xl" style="color: var(--al-danger);"></i>
         </div>
         <h3 class="al-h-3">Elimina piano?</h3>
@@ -237,5 +306,377 @@
       </div>
     </div>
   </div>
+
+  <!-- =================== DELETE FOLDER MODAL =================== -->
+  <template x-teleport="body">
+  <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
+      <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <h2 class="al-h-4">Elimina cartella</h2>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="deleteFolderOpen = false">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="al-modal-body">
+        <template x-if="folderToDelete && folderToDelete.plan_count === 0">
+          <p class="al-body">Elimino la cartella «<span x-text="folderToDelete.title"></span>»?</p>
+        </template>
+        <template x-if="folderToDelete && folderToDelete.plan_count > 0">
+          <div>
+            <p class="al-body mb-3">
+              La cartella «<span x-text="folderToDelete.title"></span>» contiene
+              <strong x-text="folderToDelete.plan_count"></strong> piani.
+              Scegli come procedere:
+            </p>
+            <div class="space-y-2">
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                <input type="radio" value="move_to_unfiled" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small">Sposta in <strong>Senza cartella</strong></span>
+              </label>
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                <input type="radio" value="move_to" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small flex-1">
+                  Sposta in un'altra cartella:
+                  <select x-model="deleteFolderTarget" class="al-select mt-1"
+                          style="font-size: 12px; padding: 4px 6px;" @click.stop>
+                    <option value="">— Scegli —</option>
+                    <template x-for="f in folders.filter(x => x.id !== folderToDelete?.id)" :key="f.id">
+                      <option :value="f.id" x-text="f.title"></option>
+                    </template>
+                  </select>
+                </span>
+              </label>
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer"
+                     style="border: 1px solid var(--al-rule); background: rgba(138,58,58,0.05);">
+                <input type="radio" value="delete_plans" x-model="deleteFolderAction" class="mt-1">
+                <span class="al-small">
+                  <strong style="color: var(--al-danger);">Elimina anche i piani</strong> (irreversibile)
+                </span>
+              </label>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="al-modal-foot">
+        <button type="button" class="al-btn al-btn-ghost" @click="deleteFolderOpen = false">Annulla</button>
+        <button type="button" class="al-btn"
+                :class="deleteFolderAction === 'delete_plans' ? 'al-btn-danger' : 'al-btn-bronze'"
+                :disabled="folderToDelete && folderToDelete.plan_count > 0 && deleteFolderAction === 'move_to' && !deleteFolderTarget"
+                @click="executeFolderDelete()">
+          Conferma
+        </button>
+      </div>
+    </div>
+  </div>
+  </template>
 </div>
+
+<script>
+function nutritionLibrary() {
+  return {
+    /* === state === */
+    plans: window.NUTRITION_LIBRARY_INIT.plans || [],
+    folders: window.NUTRITION_LIBRARY_INIT.folders || [],
+    clientsAll: window.NUTRITION_LIBRARY_INIT.clients || [],
+    urls: window.NUTRITION_LIBRARY_INIT.urls,
+    search: '',
+    selectedFolderId: 'all',
+    availableLabelColors: ['bronze','aegean','amber','emerald','rose','violet','slate','sand','crimson','teal'],
+
+    /* drag */
+    draggedPlanId: null,
+    dropTargetId: null,
+
+    /* folder edit */
+    editingFolderId: null,
+    folderEditDraft: '',
+    creatingFolder: false,
+    folderCreateDraft: '',
+    menuFolder: null,
+
+    /* assign modal */
+    assignModal: false,
+    assignPlanId: null,
+    assignPlanName: '',
+    clientSearch: '',
+    selectedClient: null,
+    startDate: '',
+    endDate: '',
+    assignNotes: '',
+    saving: false,
+    successFlash: false,
+
+    /* delete plan */
+    deleteModal: false,
+    deletePlanId: null,
+
+    /* delete folder */
+    deleteFolderOpen: false,
+    folderToDelete: null,
+    deleteFolderAction: 'move_to_unfiled',
+    deleteFolderTarget: '',
+
+    init() {},
+
+    /* === selectors === */
+    selectFolder(id) { this.selectedFolderId = id; },
+    plansInFolder() {
+      if (this.selectedFolderId === 'all') return this.plans;
+      if (this.selectedFolderId === 'unfiled') return this.plans.filter(p => !p.folder_id);
+      return this.plans.filter(p => p.folder_id === this.selectedFolderId);
+    },
+    visiblePlans() {
+      const q = (this.search || '').toLowerCase().trim();
+      return this.plansInFolder().filter(p => {
+        if (q && !p.title.toLowerCase().includes(q)) return false;
+        return true;
+      });
+    },
+    emptyTitle() {
+      if (this.selectedFolderId === 'all' && !this.search) return 'Nessun piano creato';
+      return 'Nessun risultato';
+    },
+    emptyDescription() {
+      if (this.selectedFolderId === 'all' && !this.search) {
+        return 'Crea il tuo primo piano alimentare e assegnalo agli atleti.';
+      }
+      return 'Nessun piano corrisponde ai filtri attivi.';
+    },
+    newPlanUrl() {
+      const fid = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
+      return fid ? (this.urls.planCreate + '?folder_id=' + fid) : this.urls.planCreate;
+    },
+    filteredClients() {
+      const q = this.clientSearch.toLowerCase();
+      const plan = this.plans.find(p => p.id === this.assignPlanId);
+      const blocked = new Set(plan ? (plan.assigned_client_ids || []) : []);
+      return this.clientsAll
+        .filter(c => !blocked.has(c.id))
+        .filter(c => !q || c.name.toLowerCase().includes(q));
+    },
+
+    /* === folders === */
+    startCreateFolder() {
+      this.creatingFolder = true;
+      this.folderCreateDraft = '';
+      this.$nextTick(() => this.$refs.folderCreateInput?.focus());
+    },
+    cancelCreateFolder() {
+      this.creatingFolder = false;
+      this.folderCreateDraft = '';
+    },
+    async finishCreateFolder() {
+      const title = (this.folderCreateDraft || '').trim();
+      if (!title) { this.cancelCreateFolder(); return; }
+      try {
+        const res = await fetch(this.urls.folders, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ title }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Errore'); return; }
+        this.folders.push(data);
+        this.selectedFolderId = data.id;
+      } catch (e) {
+        alert('Errore di rete.');
+      }
+      this.cancelCreateFolder();
+    },
+
+    startEditFolder(folder) {
+      this.editingFolderId = folder.id;
+      this.folderEditDraft = folder.title;
+      this.$nextTick(() => this.$refs.folderEditInput?.focus());
+    },
+    cancelEditFolder() {
+      this.editingFolderId = null;
+      this.folderEditDraft = '';
+    },
+    async finishEditFolder(folder) {
+      const newTitle = (this.folderEditDraft || '').trim();
+      if (!newTitle || newTitle === folder.title) { this.cancelEditFolder(); return; }
+      try {
+        const res = await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ title: newTitle }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error); this.cancelEditFolder(); return; }
+        folder.title = data.title;
+      } catch (e) { alert('Errore di rete.'); }
+      this.cancelEditFolder();
+    },
+
+    openFolderMenu(folder) {
+      this.menuFolder = this.menuFolder === folder ? null : folder;
+    },
+    async patchFolderLabel(folder) {
+      try {
+        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ label_text: folder.label_text || '' }),
+        });
+      } catch (e) { /* swallow */ }
+    },
+    async setFolderColor(folder, color) {
+      folder.label_color = color;
+      try {
+        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ label_color: color }),
+        });
+      } catch (e) { /* swallow */ }
+    },
+    confirmDeleteFolder(folder) {
+      this.folderToDelete = folder;
+      this.deleteFolderOpen = true;
+      this.deleteFolderAction = 'move_to_unfiled';
+      this.deleteFolderTarget = '';
+      this.menuFolder = null;
+    },
+    async executeFolderDelete() {
+      if (!this.folderToDelete) return;
+      let url = this.urls.folderDetail.replace('__ID__', this.folderToDelete.id);
+      const params = new URLSearchParams();
+      params.set('action', this.deleteFolderAction);
+      if (this.deleteFolderAction === 'move_to' && this.deleteFolderTarget) {
+        params.set('target_folder_id', this.deleteFolderTarget);
+      }
+      url += '?' + params.toString();
+      try {
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': nutCsrfToken() },
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Errore');
+          return;
+        }
+        const deletedId = this.folderToDelete.id;
+        if (this.deleteFolderAction === 'delete_plans') {
+          this.plans = this.plans.filter(p => p.folder_id !== deletedId);
+        } else if (this.deleteFolderAction === 'move_to_unfiled') {
+          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = null; });
+        } else {
+          const tid = parseInt(this.deleteFolderTarget, 10);
+          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = tid; });
+          const tgt = this.folders.find(f => f.id === tid);
+          if (tgt) tgt.plan_count = this.plans.filter(p => p.folder_id === tid).length;
+        }
+        this.folders = this.folders.filter(f => f.id !== deletedId);
+        if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
+      } catch (e) { alert('Errore di rete.'); }
+      this.deleteFolderOpen = false;
+      this.folderToDelete = null;
+    },
+
+    /* === drag & drop === */
+    async dropPlanOnFolder(folderId) {
+      this.dropTargetId = null;
+      const pid = this.draggedPlanId;
+      this.draggedPlanId = null;
+      if (!pid) return;
+      const plan = this.plans.find(p => p.id === pid);
+      if (!plan) return;
+      const previousFolderId = plan.folder_id;
+      if (previousFolderId === folderId) return;
+      plan.folder_id = folderId;
+      try {
+        const res = await fetch(this.urls.planFolder.replace('__ID__', pid), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ folder_id: folderId }),
+        });
+        if (!res.ok) throw new Error('save');
+        if (previousFolderId) {
+          const f = this.folders.find(f => f.id === previousFolderId);
+          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
+        }
+        if (folderId) {
+          const f = this.folders.find(f => f.id === folderId);
+          if (f) f.plan_count += 1;
+        }
+      } catch (e) { plan.folder_id = previousFolderId; alert('Errore di rete.'); }
+    },
+
+    /* === assign === */
+    openAssign(id, name) {
+      this.assignPlanId = id;
+      this.assignPlanName = name;
+      this.clientSearch = ''; this.selectedClient = null;
+      this.startDate = ''; this.endDate = ''; this.assignNotes = '';
+      this.successFlash = false;
+      this.assignModal = true;
+    },
+    async submitAssign() {
+      if (!this.selectedClient) return;
+      this.saving = true;
+      const res = await fetch(this.urls.planAssign.replace('__ID__', this.assignPlanId), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken()},
+        body: JSON.stringify({
+          client_id: this.selectedClient.id,
+          start_date: this.startDate || null,
+          end_date: this.endDate || null,
+          notes: this.assignNotes,
+        })
+      });
+      this.saving = false;
+      if (res.ok) {
+        const plan = this.plans.find(p => p.id === this.assignPlanId);
+        if (plan) {
+          plan.assigned_count += 1;
+          if (!plan.assigned_client_ids) plan.assigned_client_ids = [];
+          if (!plan.assigned_client_ids.includes(this.selectedClient.id)) {
+            plan.assigned_client_ids.push(this.selectedClient.id);
+          }
+        }
+        this.successFlash = true;
+        setTimeout(() => {
+          this.assignModal = false;
+          this.successFlash = false;
+        }, 700);
+      } else {
+        alert('Errore durante l\'assegnazione.');
+      }
+    },
+
+    /* === delete plan === */
+    openDelete(id) { this.deletePlanId = id; this.deleteModal = true; },
+    async confirmDelete() {
+      const res = await fetch(this.urls.planDelete.replace('__ID__', this.deletePlanId), {
+        method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}
+      });
+      if (res.ok) {
+        const deletedId = this.deletePlanId;
+        const plan = this.plans.find(p => p.id === deletedId);
+        if (plan && plan.folder_id) {
+          const f = this.folders.find(f => f.id === plan.folder_id);
+          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
+        }
+        this.plans = this.plans.filter(p => p.id !== deletedId);
+        this.deleteModal = false;
+      }
+    },
+
+    /* === utils === */
+    relativeTime(iso) {
+      if (!iso) return '';
+      const date = new Date(iso);
+      const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diff < 60) return 'adesso';
+      if (diff < 3600) return Math.floor(diff/60) + ' min fa';
+      if (diff < 86400) return Math.floor(diff/3600) + ' h fa';
+      if (diff < 604800) return Math.floor(diff/86400) + ' g fa';
+      return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+    },
+  };
+}
+</script>
 {% endblock %}

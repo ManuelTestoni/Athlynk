@@ -1,0 +1,518 @@
+{% comment %}
+  Shared assignment modal for nutrition plans.
+  Requires host Alpine state:
+    assignModal, clientSearch, selectedClient,
+    startDate, endDate, assignNotes, saving, successFlash
+    filteredClients() : ()=>[{id,name}], submitAssign() : ()=>Promise
+
+  Optional context vars:
+    plan_title  (string)  — header subtitle. Falls back to `plan.title` if available.
+    plan_label  (string)  — eyebrow text. Default: "Nuovo abbinamento".
+{% endcomment %}
+
+<template x-teleport="body">
+<div x-show="assignModal" x-cloak
+     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     @keydown.escape.window="assignModal=false">
+  <div class="al-modal-backdrop" @click="assignModal=false"></div>
+
+  <div class="al-modal-panel nz-modal relative" style="max-width: min(820px, calc(100vw - 32px));">
+
+    <!-- Decorative bronze laurel ribbon -->
+    <span class="nz-ribbon" aria-hidden="true"></span>
+
+    <!-- Header -->
+    <div class="nz-head">
+      <div>
+        <p class="al-eyebrow" style="color: var(--al-bronze);">
+          {{ plan_label|default:"Assegnazione · Nutrizione" }}
+        </p>
+        <h2 class="al-h-2 mt-1">
+          Affida il piano <span class="al-display-i">a un atleta</span>
+        </h2>
+        <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+          Protocollo · <span x-text="assignPlanName || 'piano selezionato'"></span>
+        </p>
+      </div>
+      <button type="button" class="al-btn-icon al-btn-ghost" @click="assignModal=false" title="Chiudi">
+        <i class="ph ph-x"></i>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="nz-body">
+
+      <!-- LEFT: athlete pick -->
+      <section class="nz-pane nz-pane--athletes">
+        <header class="nz-pane-head">
+          <span class="nz-pane-no">01</span>
+          <div>
+            <p class="al-eyebrow">Step 01</p>
+            <h3 class="nz-pane-title">L'atleta</h3>
+          </div>
+        </header>
+
+        <div class="nz-search">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" x-model="clientSearch"
+                 placeholder="Cerca per nome…"
+                 class="nz-search-input">
+        </div>
+
+        <div class="nz-athlete-list">
+          <template x-for="c in filteredClients()" :key="c.id">
+            <button type="button"
+                    class="nz-athlete"
+                    :class="{ 'is-selected': selectedClient?.id === c.id }"
+                    @click="selectedClient = c">
+              <span class="nz-athlete-avatar"
+                    x-text="c.name.split(' ').filter(Boolean).slice(0,2).map(n => n[0]?.toUpperCase()).join('') || '?'"></span>
+              <span class="nz-athlete-name" x-text="c.name"></span>
+              <span class="nz-athlete-mark" aria-hidden="true">
+                <i class="ph ph-check"></i>
+              </span>
+            </button>
+          </template>
+
+          <div class="nz-athlete-empty"
+               x-show="filteredClients().length === 0">
+            <i class="ph ph-user-circle-minus"></i>
+            <p>Nessun atleta disponibile.</p>
+            <p class="al-small" style="color: var(--al-ink-mute);">
+              I clienti già attivi su questo piano non vengono mostrati.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: schedule + notes -->
+      <section class="nz-pane nz-pane--schedule">
+        <header class="nz-pane-head">
+          <span class="nz-pane-no">02</span>
+          <div>
+            <p class="al-eyebrow">Step 02</p>
+            <h3 class="nz-pane-title">Durata</h3>
+          </div>
+        </header>
+
+        <div class="nz-fields">
+          <label class="nz-field">
+            <span class="al-eyebrow">Inizio</span>
+            <span class="nz-date-wrap">
+              <i class="ph ph-calendar-plus"></i>
+              <input type="date" x-model="startDate" class="nz-date">
+            </span>
+          </label>
+          <label class="nz-field">
+            <span class="al-eyebrow">Fine</span>
+            <span class="nz-date-wrap">
+              <i class="ph ph-calendar-check"></i>
+              <input type="date" x-model="endDate" class="nz-date">
+            </span>
+          </label>
+        </div>
+
+        <label class="nz-field nz-field--notes">
+          <span class="al-eyebrow">Annotazioni</span>
+          <textarea x-model="assignNotes" rows="3"
+                    placeholder="Indicazioni per l'atleta — opzionale"
+                    class="nz-textarea"></textarea>
+        </label>
+
+        <!-- Recap -->
+        <div class="nz-recap" :class="{ 'is-ready': selectedClient }">
+          <div class="nz-recap-left">
+            <p class="al-eyebrow">Riepilogo</p>
+            <p class="nz-recap-line" x-show="!selectedClient" style="color: var(--al-ink-mute); font-style: italic;">
+              Seleziona un atleta dal pannello a sinistra
+            </p>
+            <p class="nz-recap-line" x-show="selectedClient">
+              A <strong x-text="selectedClient?.name"></strong>
+              <span x-show="startDate">dal <strong x-text="startDate"></strong></span>
+              <span x-show="endDate">al <strong x-text="endDate"></strong></span>
+            </p>
+          </div>
+          <i class="ph ph-arrow-right nz-recap-arrow" aria-hidden="true"></i>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <div class="nz-foot">
+      <button @click="assignModal=false" type="button" class="al-btn al-btn-ghost">
+        Annulla
+      </button>
+      <button @click="submitAssign()"
+              type="button"
+              class="al-btn al-btn-bronze nz-confirm"
+              :disabled="!selectedClient || saving">
+        <span x-show="!saving && !successFlash" class="inline-flex items-center gap-2">
+          <i class="ph ph-handshake"></i> Conferma assegnazione
+        </span>
+        <span x-show="saving" class="inline-flex items-center gap-2">
+          <i class="ph ph-circle-notch nz-spin"></i> Salvataggio…
+        </span>
+        <span x-show="successFlash" class="inline-flex items-center gap-2" style="color: var(--al-parchment);">
+          <i class="ph ph-check-circle"></i> Fatto
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+</template>
+
+<style>
+/* ========================================================
+   Nutrition Assign Modal (nz-*) — editorial 2-pane
+   ======================================================== */
+.nz-modal {
+  padding: 0 !important;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(138,106,58,.05), transparent 55%),
+    var(--al-parchment);
+}
+
+.nz-ribbon {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg,
+    var(--al-bronze) 0%,
+    rgba(138,106,58,0.4) 35%,
+    transparent 65%);
+}
+
+/* Head */
+.nz-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--al-rule);
+}
+.nz-head > div { min-width: 0; }
+.nz-head h2 { line-height: 1.2; }
+@media (max-width: 520px) {
+  .nz-head { padding: 22px 22px 16px; }
+}
+
+/* Body grid */
+.nz-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+}
+@media (max-width: 720px) {
+  .nz-body { grid-template-columns: 1fr; }
+}
+
+.nz-pane { padding: 26px 30px 22px; min-width: 0; }
+@media (max-width: 520px) {
+  .nz-pane { padding: 22px 22px 18px; }
+}
+.nz-pane--athletes {
+  background:
+    linear-gradient(180deg, var(--al-marble-warm), var(--al-parchment));
+  border-right: 1px solid var(--al-rule);
+}
+@media (max-width: 720px) {
+  .nz-pane--athletes { border-right: none; border-bottom: 1px solid var(--al-rule); }
+}
+
+.nz-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.nz-pane-no {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: 1px solid var(--al-bronze);
+  color: var(--al-bronze);
+  font-family: var(--al-display);
+  font-size: 13px;
+  border-radius: 999px;
+  background: var(--al-parchment);
+}
+.nz-pane-title {
+  font-family: var(--al-display);
+  font-size: 18px;
+  color: var(--al-ink);
+  letter-spacing: -0.005em;
+}
+
+/* Search */
+.nz-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.nz-search i {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--al-ink-mute);
+  font-size: 14px;
+}
+.nz-search-input {
+  width: 100%;
+  padding: 10px 12px 10px 34px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  font-size: 13px;
+  color: var(--al-ink);
+  font-family: inherit;
+  transition: border-color .2s, box-shadow .2s;
+}
+.nz-search-input:focus {
+  outline: none;
+  border-color: var(--al-bronze);
+  box-shadow: 0 0 0 3px rgba(138,106,58,0.12);
+}
+
+/* Athlete list */
+.nz-athlete-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px 6px 2px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--al-rule-strong) transparent;
+}
+.nz-athlete-list::-webkit-scrollbar { width: 6px; }
+.nz-athlete-list::-webkit-scrollbar-thumb { background: var(--al-rule-strong); border-radius: 3px; }
+
+.nz-athlete {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule-faint);
+  border-radius: var(--al-r-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: all .15s ease;
+  min-width: 0;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+.nz-athlete:hover {
+  border-color: var(--al-bronze-soft, var(--al-bronze));
+  background: var(--al-marble-warm);
+}
+.nz-athlete.is-selected {
+  border-color: var(--al-bronze);
+  background:
+    linear-gradient(90deg, rgba(138,106,58,0.10), transparent 60%),
+    var(--al-parchment);
+  box-shadow: inset 3px 0 0 0 var(--al-bronze);
+  padding-left: 17px;
+}
+.nz-athlete-avatar {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--al-marble-warm), var(--al-marble));
+  border: 1px solid var(--al-rule);
+  border-radius: 999px;
+  font-family: var(--al-display);
+  font-size: 11px;
+  color: var(--al-bronze);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.nz-athlete.is-selected .nz-athlete-avatar {
+  background: var(--al-bronze);
+  color: var(--al-parchment);
+  border-color: var(--al-bronze);
+}
+.nz-athlete-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--al-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.3;
+}
+.nz-athlete-mark {
+  width: 20px; height: 20px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: transparent;
+  color: transparent;
+  transition: all .2s;
+  border: 1px solid var(--al-rule-faint);
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+}
+.nz-athlete.is-selected .nz-athlete-mark {
+  background: var(--al-bronze);
+  color: var(--al-parchment);
+  border-color: var(--al-bronze);
+}
+
+.nz-athlete-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--al-ink-soft);
+  border: 1px dashed var(--al-rule-strong);
+  border-radius: var(--al-r-sm);
+  background: var(--al-marble);
+}
+.nz-athlete-empty i {
+  font-size: 28px;
+  color: var(--al-bronze);
+  opacity: .55;
+  display: block;
+  margin-bottom: 6px;
+}
+.nz-athlete-empty p {
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Fields */
+.nz-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.nz-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nz-field--notes { margin-bottom: 16px; }
+
+.nz-date-wrap {
+  position: relative;
+  display: flex;
+}
+.nz-date-wrap i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--al-bronze);
+  font-size: 14px;
+  pointer-events: none;
+}
+.nz-date {
+  width: 100%;
+  padding: 10px 12px 10px 34px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--al-ink);
+  transition: border-color .2s, box-shadow .2s;
+}
+.nz-date:focus {
+  outline: none;
+  border-color: var(--al-bronze);
+  box-shadow: 0 0 0 3px rgba(138,106,58,0.12);
+}
+
+.nz-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--al-ink);
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+  transition: border-color .2s, box-shadow .2s;
+}
+.nz-textarea:focus {
+  outline: none;
+  border-color: var(--al-bronze);
+  box-shadow: 0 0 0 3px rgba(138,106,58,0.12);
+}
+
+/* Recap */
+.nz-recap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 6px;
+  padding: 14px 16px;
+  border: 1px dashed var(--al-rule-strong);
+  border-radius: var(--al-r-sm);
+  background:
+    linear-gradient(180deg, var(--al-marble-warm), transparent);
+  transition: border-color .25s, background .25s;
+  min-width: 0;
+}
+.nz-recap-left { min-width: 0; flex: 1; }
+.nz-recap-line { word-break: break-word; }
+.nz-recap.is-ready {
+  border-style: solid;
+  border-color: var(--al-bronze);
+  background:
+    linear-gradient(180deg, rgba(138,106,58,0.08), transparent);
+}
+.nz-recap-line {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--al-ink-soft);
+}
+.nz-recap-line strong { color: var(--al-ink); font-weight: 500; }
+.nz-recap-arrow {
+  font-size: 18px;
+  color: var(--al-bronze);
+  opacity: .4;
+  transition: opacity .25s, transform .25s;
+}
+.nz-recap.is-ready .nz-recap-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* Foot */
+.nz-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px 32px 22px;
+  border-top: 1px solid var(--al-rule);
+  background: var(--al-marble-warm);
+}
+@media (max-width: 520px) {
+  .nz-foot { padding: 16px 22px 20px; }
+  .nz-foot > * { flex: 1; justify-content: center; }
+}
+.nz-confirm {
+  min-width: 220px;
+  justify-content: center;
+}
+.nz-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@keyframes nzSpin { to { transform: rotate(360deg); } }
+.nz-spin {
+  display: inline-block;
+  animation: nzSpin .9s linear infinite;
+}
+</style>

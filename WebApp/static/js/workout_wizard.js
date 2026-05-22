@@ -64,6 +64,8 @@ document.addEventListener('alpine:init', () => {
     selectedClientIds: [],
     assignWeeks: null,
     finalizing: false,
+    overwriteConfirmed: false,
+    recapDaysOpen: {},
 
     errors: { step1: '', step2: '', assign: '', finalize: '' },
     toast: '',
@@ -1684,9 +1686,20 @@ document.addEventListener('alpine:init', () => {
         this.errors.assign = 'Seleziona almeno un cliente.';
         return;
       }
-      const weeks = this.assignWeeks || this.plan.duration_weeks;
+      // For WEEKLY plans the coach picks how many weeks the athlete follows the plan.
+      // For PROGRAM plans the duration is fixed by the progression.
+      const weeks = (this.plan.plan_kind === 'PROGRAM')
+        ? (this.plan.duration_weeks || 0)
+        : (this.assignWeeks || 0);
       if (!weeks || weeks < 1) {
-        this.errors.assign = 'Durata scheda mancante.';
+        this.errors.assign = (this.plan.plan_kind === 'PROGRAM')
+          ? 'Durata progressione non valida.'
+          : 'Seleziona per quante settimane far seguire la scheda.';
+        return;
+      }
+      const conflicts = this.conflictingClients();
+      if (conflicts.length > 0 && !this.overwriteConfirmed) {
+        this.errors.assign = 'Conferma la sovrascrittura delle schede attive.';
         return;
       }
       // Ensure latest state on server
@@ -1695,6 +1708,7 @@ document.addEventListener('alpine:init', () => {
         action: 'assign',
         client_ids: this.selectedClientIds,
         weeks: weeks,
+        overwrite: conflicts.length > 0 && this.overwriteConfirmed,
       });
       if (d) {
         this._showToast('Scheda assegnata!');
@@ -1709,6 +1723,90 @@ document.addEventListener('alpine:init', () => {
         this._showToast('Salvata come template');
         setTimeout(() => { window.location.href = d.redirect_url || this.urls.list; }, 1200);
       }
+    },
+
+    async doDuplicate() {
+      if (!this.plan.id) return;
+      this.finalizing = true;
+      try {
+        const url = (this.urls.duplicate || '/api/allenamenti/__ID__/duplica/').replace('__ID__', this.plan.id);
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          this._showToast(d.error || 'Errore duplicazione.');
+          return;
+        }
+        this._showToast('Scheda duplicata!');
+        setTimeout(() => {
+          window.location.href = d.redirect_url || (this.urls.list);
+        }, 900);
+      } catch (e) {
+        this._showToast('Errore di rete.');
+      } finally {
+        this.finalizing = false;
+      }
+    },
+
+    // ---- Step 4 recap helpers ----
+    folderName() {
+      const fid = this.plan?.folder_id;
+      if (!fid) return '';
+      const f = (this.foldersCatalog || []).find(x => x.id === fid);
+      return f ? f.name : '';
+    },
+
+    toggleRecapDay(id) {
+      this.recapDaysOpen = { ...this.recapDaysOpen, [id]: !this.recapDaysOpen[id] };
+    },
+    allRecapDaysOpen() {
+      const days = this.plan?.days || [];
+      if (days.length === 0) return false;
+      return days.every(d => !!this.recapDaysOpen[d.local_id]);
+    },
+    toggleAllRecapDays() {
+      const open = !this.allRecapDaysOpen();
+      const next = {};
+      (this.plan?.days || []).forEach(d => { next[d.local_id] = open; });
+      this.recapDaysOpen = next;
+    },
+
+    formatRecovery(secs) {
+      const s = parseInt(secs) || 0;
+      if (s >= 60) {
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return r ? `${m}′${r}″` : `${m}′`;
+      }
+      return `${s}″`;
+    },
+    executionLabel(t) {
+      return ({
+        REPETITION: 'Ripetizioni',
+        TIME: 'A tempo',
+        AMRAP: 'AMRAP',
+        EMOM: 'EMOM',
+        ISOMETRIC: 'Isometrico',
+      })[t] || t;
+    },
+
+    visibleClients() {
+      // Selected clients always visible. Otherwise top 5 of current results.
+      const list = this.clientsList || [];
+      const selected = list.filter(c => this.selectedClientIds.includes(c.id));
+      const others = list.filter(c => !this.selectedClientIds.includes(c.id));
+      const top = others.slice(0, Math.max(0, 5 - selected.length));
+      return [...selected, ...top];
+    },
+    clientInitials(name) {
+      return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?';
+    },
+    conflictingClients() {
+      return (this.clientsList || []).filter(c =>
+        this.selectedClientIds.includes(c.id) && c.active_assignment
+      );
     },
 
     _showToast(msg) {

@@ -119,6 +119,13 @@
                         <i class="ph ph-pencil-simple"></i>
                     </a>
                     {% endif %}
+                    <button type="button"
+                            class="al-btn-icon al-btn-ghost"
+                            title="Duplica scheda"
+                            data-plan-id="{{ plan.id }}"
+                            onclick="duplicatePlan({{ plan.id }}, this)">
+                        <i class="ph ph-copy"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -137,4 +144,38 @@
         {% endfor %}
     </div>
 </div>
+
+<script>
+  function _getCsrfToken() {
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+  }
+  async function duplicatePlan(planId, btn) {
+    if (!planId) return;
+    let iconEl = null;
+    if (btn) {
+      btn.disabled = true;
+      iconEl = btn.querySelector('i');
+      if (iconEl) iconEl.className = 'ph ph-spinner-gap ph-spin';
+    }
+    try {
+      const r = await fetch(`/api/allenamenti/${planId}/duplica/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': _getCsrfToken(), 'Content-Type': 'application/json' },
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        alert(d.error || 'Errore duplicazione.');
+        return;
+      }
+      window.location.href = d.redirect_url || window.location.href;
+    } catch (e) {
+      alert('Errore di rete.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        if (iconEl) iconEl.className = 'ph ph-copy';
+      }
+    }
+  }
+</script>
 {% endblock %}

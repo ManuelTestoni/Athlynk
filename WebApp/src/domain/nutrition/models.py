@@ -42,6 +42,26 @@ class Food(models.Model):
         return self.nome_alimento
 
 
+class NutritionFolder(models.Model):
+    coach = models.ForeignKey(
+        'accounts.CoachProfile', on_delete=models.CASCADE,
+        related_name='nutrition_folders',
+    )
+    title = models.CharField(max_length=120)
+    label_text = models.CharField(max_length=40, blank=True, default='')
+    label_color = models.CharField(max_length=20, blank=True, default='')
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'title']
+        unique_together = [('coach', 'title')]
+
+    def __str__(self):
+        return f"{self.title} ({self.coach_id})"
+
+
 class NutritionPlan(models.Model):
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='nutrition_plans')
     title = models.CharField(max_length=200)
@@ -55,6 +75,10 @@ class NutritionPlan(models.Model):
     meals_per_day = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=50) # Es: DRAFT, PUBLISHED
     is_template = models.BooleanField(default=False)
+    folder = models.ForeignKey(
+        NutritionFolder, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='plans',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

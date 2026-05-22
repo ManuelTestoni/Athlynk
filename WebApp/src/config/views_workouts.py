@@ -74,7 +74,10 @@ def allenamenti_list_view(request):
 
         assignments = list(WorkoutAssignment.objects.filter(
             client=client,
-        ).select_related('workout_plan', 'coach', 'client').prefetch_related(
+        ).select_related(
+            'workout_plan', 'workout_plan__sport', 'workout_plan__folder',
+            'coach', 'client',
+        ).prefetch_related(
             'workout_plan__days'
         ).order_by('-start_date', '-created_at'))
 
@@ -101,8 +104,14 @@ def allenamenti_list_view(request):
         if filter_status:
             assignments = [a for a in assignments if a.status == filter_status]
 
+        # Hero = most recent ACTIVE assignment (already sorted by -start_date).
+        current_assignment = next((a for a in assignments if a.status == 'ACTIVE'), None)
+        past_assignments = [a for a in assignments if a is not current_assignment]
+
         return render(request, 'pages/allenamenti/client_list.html', {
             'assignments': assignments,
+            'current_assignment': current_assignment,
+            'past_assignments': past_assignments,
             'query': query,
             'filter_status': filter_status,
             'is_client': True,
@@ -781,6 +790,7 @@ def api_plan_finalize(request, plan_id):
             weeks = plan.duration_weeks or 0
         if weeks < 1:
             return JsonResponse({'error': 'Durata scheda non valida.'}, status=400)
+        overwrite = bool(data.get('overwrite'))
         start_date = date.today()
         end_date = start_date + timedelta(weeks=weeks)
 
@@ -794,6 +804,15 @@ def api_plan_finalize(request, plan_id):
             return JsonResponse({'error': 'Nessun atleta valido trovato.'}, status=400)
 
         with transaction.atomic():
+            if overwrite:
+                WorkoutAssignment.objects.filter(
+                    client__in=clients,
+                    coach=coach,
+                    status='ACTIVE',
+                ).exclude(workout_plan=plan).update(
+                    status='COMPLETED',
+                    end_date=start_date,
+                )
             for client in clients:
                 WorkoutAssignment.objects.create(
                     workout_plan=plan,
@@ -843,6 +862,138 @@ def api_plan_delete(request, plan_id):
 
 
 # ---------------------------------------------------------------------------
+# Duplicate plan
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+def api_plan_duplicate(request, plan_id):
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+
+    source = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
+
+    with transaction.atomic():
+        new_plan = WorkoutPlan.objects.create(
+            coach=coach,
+            title=f"{source.title} (copia)",
+            description=source.description,
+            level=source.level,
+            goal=source.goal,
+            is_template=False,
+            status='DRAFT',
+            frequency_per_week=source.frequency_per_week,
+            duration_weeks=source.duration_weeks,
+            last_step=source.last_step,
+            folder=source.folder,
+            sport=source.sport,
+            plan_kind=source.plan_kind,
+        )
+
+        # Days + exercises
+        for src_day in source.days.all().prefetch_related('exercises'):
+            new_day = WorkoutDay.objects.create(
+                workout_plan=new_plan,
+                day_order=src_day.day_order,
+                day_name=src_day.day_name,
+                title=src_day.title,
+                focus_area=src_day.focus_area,
+                day_type=src_day.day_type,
+                notes=src_day.notes,
+            )
+            for src_ex in src_day.exercises.all():
+                WorkoutExercise.objects.create(
+                    workout_day=new_day,
+                    exercise=src_ex.exercise,
+                    order_index=src_ex.order_index,
+                    set_count=src_ex.set_count,
+                    rep_count=src_ex.rep_count,
+                    rep_range=src_ex.rep_range,
+                    rir=src_ex.rir,
+                    rpe=src_ex.rpe,
+                    rm_reference=src_ex.rm_reference,
+                    load_percentage=src_ex.load_percentage,
+                    recovery_seconds=src_ex.recovery_seconds,
+                    tempo=src_ex.tempo,
+                    execution_type=src_ex.execution_type,
+                    technique_notes=src_ex.technique_notes,
+                    superset_group_id=src_ex.superset_group_id,
+                    alternative_exercise=src_ex.alternative_exercise,
+                    load_value=src_ex.load_value,
+                    load_unit=src_ex.load_unit,
+                    starts_at_week=src_ex.starts_at_week,
+                    ends_at_week=src_ex.ends_at_week,
+                    inactive_weeks=list(src_ex.inactive_weeks or []),
+                )
+
+        # Progression metadata (week definitions + per-cell overrides).
+        for wdef in WeekDefinition.objects.filter(workout_plan=source):
+            WeekDefinition.objects.create(
+                workout_plan=new_plan,
+                week_number=wdef.week_number,
+                label=wdef.label,
+                week_type=wdef.week_type,
+                preset=wdef.preset,
+                notes=wdef.notes,
+            )
+
+        # Map old exercise pk → new exercise pk (same ordering by day/order).
+        src_ex_pks = list(
+            WorkoutExercise.objects.filter(workout_day__workout_plan=source)
+            .order_by('workout_day__day_order', 'order_index', 'id')
+            .values_list('id', flat=True)
+        )
+        new_ex_pks = list(
+            WorkoutExercise.objects.filter(workout_day__workout_plan=new_plan)
+            .order_by('workout_day__day_order', 'order_index', 'id')
+            .values_list('id', flat=True)
+        )
+        ex_map = dict(zip(src_ex_pks, new_ex_pks)) if len(src_ex_pks) == len(new_ex_pks) else {}
+
+        if ex_map:
+            for ov in WeeklyOverride.objects.filter(workout_exercise__workout_day__workout_plan=source):
+                new_ex_id = ex_map.get(ov.workout_exercise_id)
+                if not new_ex_id:
+                    continue
+                WeeklyOverride.objects.create(
+                    workout_exercise_id=new_ex_id,
+                    week_number=ov.week_number,
+                    metric=ov.metric,
+                    value_json=ov.value_json,
+                )
+            for wv in WeeklyValue.objects.filter(workout_exercise__workout_day__workout_plan=source):
+                new_ex_id = ex_map.get(wv.workout_exercise_id)
+                if not new_ex_id:
+                    continue
+                WeeklyValue.objects.create(
+                    workout_exercise_id=new_ex_id,
+                    week_number=wv.week_number,
+                    load_value=wv.load_value,
+                    load_unit=wv.load_unit,
+                    set_count=wv.set_count,
+                    rep_range=wv.rep_range,
+                    rpe=wv.rpe,
+                    rir=wv.rir,
+                    recovery_seconds=wv.recovery_seconds,
+                    tempo=wv.tempo,
+                    rom_stage=wv.rom_stage,
+                    variant_exercise=wv.variant_exercise,
+                    velocity_target=wv.velocity_target,
+                    notes=wv.notes,
+                    is_override=wv.is_override,
+                    is_deload=wv.is_deload,
+                )
+
+    return JsonResponse({
+        'status': 'ok',
+        'plan_id': new_plan.id,
+        'redirect_url': f'/allenamenti/wizard/{new_plan.id}/',
+    })
+
+
+# ---------------------------------------------------------------------------
 # Search APIs
 # ---------------------------------------------------------------------------
 
@@ -872,8 +1023,47 @@ def api_search_clients(request):
         except (ValueError, TypeError):
             pass
 
-    clients = qs.order_by('first_name', 'last_name')[:30]
-    data = [{'id': c.id, 'name': f"{c.first_name} {c.last_name}".strip()} for c in clients]
+    clients = list(qs.order_by('first_name', 'last_name')[:30])
+
+    # Look up each client's currently active assignment (different plan than the
+    # one being assigned) so the wizard can warn about overwrites.
+    active_map = {}
+    if clients:
+        client_ids = [c.id for c in clients]
+        active_qs = WorkoutAssignment.objects.filter(
+            client_id__in=client_ids,
+            coach=coach,
+            status='ACTIVE',
+        ).select_related('workout_plan').order_by('-start_date')
+        if exclude_plan_id:
+            try:
+                active_qs = active_qs.exclude(workout_plan_id=int(exclude_plan_id))
+            except (ValueError, TypeError):
+                pass
+        today = date.today()
+        for a in active_qs:
+            if a.client_id in active_map:
+                continue
+            weeks_remaining = 0
+            if a.end_date:
+                delta_days = (a.end_date - today).days
+                weeks_remaining = max(0, int(round(delta_days / 7)))
+            active_map[a.client_id] = {
+                'assignment_id': a.id,
+                'plan_id': a.workout_plan_id,
+                'plan_title': a.workout_plan.title,
+                'end_date': a.end_date.isoformat() if a.end_date else None,
+                'weeks_remaining': weeks_remaining,
+            }
+
+    data = [
+        {
+            'id': c.id,
+            'name': f"{c.first_name} {c.last_name}".strip(),
+            'active_assignment': active_map.get(c.id),
+        }
+        for c in clients
+    ]
     return JsonResponse(data, safe=False)
 
 

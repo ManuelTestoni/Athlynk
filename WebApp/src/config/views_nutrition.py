@@ -9,8 +9,9 @@ from config.session_utils import (
 )
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
+from django.db.models import Count
 from domain.nutrition.models import (
-    Food, NutritionPlan, Meal, MealItem, NutritionAssignment, DietDay,
+    Food, NutritionPlan, NutritionFolder, Meal, MealItem, NutritionAssignment, DietDay,
     Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
 )
 from domain.accounts.models import ClientProfile
@@ -82,32 +83,62 @@ def nutrizione_piani_view(request):
 
     plans = (
         coach.nutrition_plans
+        .select_related('folder')
         .prefetch_related('meals__items__food', 'assignments')
-        .order_by('-created_at')
+        .order_by('-updated_at')
     )
 
-    plans_data = []
+    active_assignments = (
+        NutritionAssignment.objects
+        .filter(coach=coach, status='ACTIVE')
+        .values_list('nutrition_plan_id', 'client_id')
+    )
+    assigned_map: dict = {}
+    for plan_id, client_id in active_assignments:
+        assigned_map.setdefault(plan_id, []).append(client_id)
+
+    plans_payload = []
     for plan in plans:
-        total_kcal = 0
-        total_prot = 0
-        total_carb = 0
-        total_fat = 0
+        total_kcal = total_prot = total_carb = total_fat = 0
         for meal in plan.meals.all():
             for item in meal.items.all():
                 total_kcal += item.kcal
                 total_prot += item.protein
                 total_carb += item.carbs
                 total_fat += item.fat
-
-        assigned_count = plan.assignments.count()
-        plans_data.append({
-            'plan': plan,
-            'computed_kcal': round(total_kcal),
-            'computed_prot': round(total_prot),
-            'computed_carb': round(total_carb),
-            'computed_fat': round(total_fat),
-            'assigned_count': assigned_count,
+        plans_payload.append({
+            'id': plan.id,
+            'title': plan.title,
+            'description': plan.description or '',
+            'plan_type': plan.plan_type or '',
+            'status': plan.status or '',
+            'is_template': plan.is_template,
+            'folder_id': plan.folder_id,
+            'kcal': round(total_kcal),
+            'prot': round(total_prot),
+            'carb': round(total_carb),
+            'fat': round(total_fat),
+            'assigned_count': plan.assignments.count(),
+            'assigned_client_ids': assigned_map.get(plan.id, []),
+            'updated_at': plan.updated_at.isoformat() if plan.updated_at else '',
         })
+
+    folders = list(
+        NutritionFolder.objects.filter(coach=coach)
+        .annotate(plan_count=Count('plans'))
+        .order_by('order', 'title')
+    )
+    folders_payload = [
+        {
+            'id': f.id,
+            'title': f.title,
+            'label_text': f.label_text or '',
+            'label_color': f.label_color or '',
+            'order': f.order,
+            'plan_count': f.plan_count,
+        }
+        for f in folders
+    ]
 
     clients = (
         ClientProfile.objects.filter(
@@ -121,7 +152,8 @@ def nutrizione_piani_view(request):
     ])
 
     return render(request, 'pages/nutrizione/piani_list.html', {
-        'plans_data': plans_data,
+        'plans_json': json.dumps(plans_payload),
+        'folders_json': json.dumps(folders_payload),
         'clients_json': clients_json,
     })
 
@@ -148,10 +180,19 @@ def nutrizione_piano_create_view(request):
         for c in clients
     ])
 
+    initial_folder_id = request.GET.get('folder_id')
+    try:
+        initial_folder_id = int(initial_folder_id) if initial_folder_id else None
+    except (TypeError, ValueError):
+        initial_folder_id = None
+    if initial_folder_id and not NutritionFolder.objects.filter(id=initial_folder_id, coach=coach).exists():
+        initial_folder_id = None
+
     return render(request, 'pages/nutrizione/piano_create.html', {
         'clients_json': clients_json,
         'plan': None,
         'meals_json': '[]',
+        'initial_folder_id': initial_folder_id,
     })
 
 
@@ -250,15 +291,22 @@ def nutrizione_piano_detail_view(request, plan_id):
         .order_by('-assigned_at')
     )
 
+    already_assigned_ids = set(
+        NutritionAssignment.objects
+        .filter(nutrition_plan=plan, status='ACTIVE')
+        .values_list('client_id', flat=True)
+    )
+
     clients = (
         ClientProfile.objects.filter(
             coaching_relationships_as_client__coach=coach,
             coaching_relationships_as_client__status='ACTIVE'
         ).select_related('user')
     )
+    assignable_clients = [c for c in clients if c.id not in already_assigned_ids]
     clients_json = json.dumps([
         {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
-        for c in clients
+        for c in assignable_clients
     ])
 
     return render(request, 'pages/nutrizione/piano_detail.html', {
@@ -271,6 +319,7 @@ def nutrizione_piano_detail_view(request, plan_id):
         'total_fiber': round(total_fiber),
         'assignments': assignments,
         'clients_json': clients_json,
+        'assignments_count': assignments.count(),
     })
 
 
@@ -433,6 +482,15 @@ def _handle_plan_save(request, coach, plan):
 
     meals_raw = data.get('meals', [])
 
+    folder_obj = None
+    if 'folder_id' in data:
+        fid = data.get('folder_id')
+        if fid not in (None, '', 0):
+            try:
+                folder_obj = NutritionFolder.objects.get(id=int(fid), coach=coach)
+            except (NutritionFolder.DoesNotExist, ValueError, TypeError):
+                folder_obj = None
+
     with transaction.atomic():
         if plan is None:
             plan = NutritionPlan.objects.create(
@@ -448,6 +506,7 @@ def _handle_plan_save(request, coach, plan):
                 meals_per_day=len(meals_raw) or None,
                 status='PUBLISHED',
                 is_template=data.get('is_template', False),
+                folder=folder_obj,
             )
         else:
             plan.title = title
@@ -460,6 +519,8 @@ def _handle_plan_save(request, coach, plan):
             plan.fat_target_g = data.get('fat_target_g') or None
             plan.meals_per_day = len(meals_raw) or None
             plan.is_template = data.get('is_template', False)
+            if 'folder_id' in data:
+                plan.folder = folder_obj
             plan.save()
             plan.meals.all().delete()
 

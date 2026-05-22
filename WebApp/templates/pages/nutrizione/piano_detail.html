@@ -1,232 +1,836 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ plan.title }} · Piano alimentare{% endblock %}
 
 {% block content %}
-<script>window._detailClients = {{ clients_json|safe }};</script>
+<script>
+  window._detailClients = {{ clients_json|safe }};
+</script>
 
-<div class="w-full max-w-4xl mx-auto space-y-6"
-     x-data="{
-       assignModal: false,
-       clientSearch: '',
-       selectedClient: null,
-       startDate: '', endDate: '', assignNotes: '',
-       saving: false,
-       get filteredClients() {
-         const q = this.clientSearch.toLowerCase();
-         return window._detailClients.filter(c => !q || c.name.toLowerCase().includes(q));
-       },
-       async submitAssign() {
-         if (!this.selectedClient) return;
-         this.saving = true;
-         const res = await fetch('/api/nutrizione/piani/{{ plan.id }}/assegna/', {
-           method: 'POST',
-           headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-           body: JSON.stringify({
-             client_id: this.selectedClient.id,
-             start_date: this.startDate || null,
-             end_date: this.endDate || null,
-             notes: this.assignNotes,
-           })
-         });
-         this.saving = false;
-         if (res.ok) { this.assignModal = false; window.location.reload(); }
-       }
-     }">
+<div class="max-w-6xl mx-auto"
+     x-data="planDetail()"
+     x-init="init()">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <a href="{% url 'nutrizione_piani' %}"
-         class="p-2 rounded-al-sm border border-rule hover:bg-marble transition-colors text-ink-soft">
-        <i class="ph ph-arrow-left text-lg"></i>
-      </a>
+  <!-- =================== BREADCRUMB =================== -->
+  <nav class="al-tag flex items-center gap-2 mb-6">
+    <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-quiet flex items-center gap-1">
+      <i class="ph ph-bowl-food text-xs"></i><span>Piani alimentari</span>
+    </a>
+    <i class="ph ph-caret-right text-[9px]"></i>
+    <span class="text-ink" style="color: var(--al-ink);">Dettaglio</span>
+  </nav>
+
+  <!-- =================== HERO =================== -->
+  <header class="pd-hero al-reveal" style="--d:0ms;">
+    <div class="pd-hero-grid">
+      <!-- Left: identity -->
       <div>
-        {% if plan.plan_type %}
-        <span class="text-[10px] font-bold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</span>
+        <p class="al-eyebrow mb-3">
+          Studio &middot; Nutrizione
+          {% if plan.plan_type %}<span style="opacity:.5;">·</span> {{ plan.plan_type }}{% endif %}
+        </p>
+        <h1 class="al-h-1">
+          {{ plan.title }}
+        </h1>
+        {% if plan.nutrition_goal %}
+          <p class="al-body mt-3" style="max-width: 52ch;">
+            <span class="al-display-i" style="color: var(--al-bronze);">Obiettivo · </span>{{ plan.nutrition_goal }}
+          </p>
         {% endif %}
-        <h1 class="text-2xl font-bold text-ink">{{ plan.title }}</h1>
-      </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <button @click="assignModal = true"
-              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-al-sm bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors shadow-sm">
-        <i class="ph ph-user-plus"></i> Assegna
-      </button>
-      <a href="{% url 'nutrizione_piano_edit' plan.id %}"
-         class="inline-flex items-center gap-2 px-4 py-2.5 rounded-al-sm border border-rule bg-white text-ink-soft text-sm font-semibold hover:bg-marble transition-colors shadow-sm">
-        <i class="ph ph-pencil"></i> Modifica
-      </a>
-    </div>
-  </div>
+        <div class="al-rule-bronze mt-5"></div>
 
-  <!-- Macro summary -->
-  <div class="bg-white border border-rule rounded-al-sm shadow-sm p-6">
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-      <div class="sm:col-span-1">
-        <p class="text-3xl font-bold text-ink">{{ total_kcal }}</p>
-        <p class="text-xs text-ink-mute uppercase tracking-wider mt-0.5">kcal / giorno</p>
-      </div>
-      <div class="p-3 bg-blue-50 rounded-al-sm">
-        <p class="text-xl font-bold text-blue-700">{{ total_prot }}g</p>
-        <p class="text-xs text-blue-400 uppercase tracking-wider">Proteine</p>
-      </div>
-      <div class="p-3 bg-amber-50 rounded-al-sm">
-        <p class="text-xl font-bold text-amber-700">{{ total_carb }}g</p>
-        <p class="text-xs text-amber-400 uppercase tracking-wider">Carboidrati</p>
-      </div>
-      <div class="p-3 bg-rose-50 rounded-al-sm">
-        <p class="text-xl font-bold text-rose-700">{{ total_fat }}g</p>
-        <p class="text-xs text-rose-400 uppercase tracking-wider">Grassi</p>
-      </div>
-      <div class="p-3 bg-green-50 rounded-al-sm">
-        <p class="text-xl font-bold text-green-700">{{ total_fiber }}g</p>
-        <p class="text-xs text-green-400 uppercase tracking-wider">Fibre</p>
-      </div>
-    </div>
-
-    {% if plan.description %}
-    <p class="text-sm text-ink-mute mt-4 pt-4 border-t border-rule">{{ plan.description }}</p>
-    {% endif %}
-
-    <div class="flex items-center gap-3 mt-3 text-xs text-ink-mute">
-      <span><i class="ph ph-clock mr-1"></i>Aggiornato {{ plan.updated_at|date:"d M Y" }}</span>
-      {% if plan.nutrition_goal %}<span>·</span><span><i class="ph ph-target mr-1"></i>{{ plan.nutrition_goal }}</span>{% endif %}
-      {% if plan.is_template %}<span>·</span><span class="text-accent"><i class="ph ph-bookmark mr-1"></i>Modello</span>{% endif %}
-    </div>
-  </div>
-
-  <!-- Meals -->
-  {% for md in meals_detail %}
-  <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
-    <div class="flex items-center justify-between px-5 py-4 bg-marble border-b border-rule">
-      <div class="flex items-center gap-3">
-        <div class="w-7 h-7 rounded-lg bg-accent/10 text-accent flex items-center justify-center text-xs font-bold">
-          {{ forloop.counter }}
+        <div class="pd-meta-strip mt-4">
+          <span class="pd-meta-item">
+            <i class="ph ph-bowl-steam"></i>
+            <strong>{{ meals_detail|length }}</strong> pasti
+          </span>
+          <span class="pd-meta-divider"></span>
+          <span class="pd-meta-item">
+            <i class="ph ph-users-three"></i>
+            <strong>{{ assignments_count }}</strong> atleti
+          </span>
+          <span class="pd-meta-divider"></span>
+          <span class="pd-meta-item">
+            <i class="ph ph-clock-clockwise"></i>
+            Aggiornato {{ plan.updated_at|date:"d M Y" }}
+          </span>
+          {% if plan.is_template %}
+            <span class="pd-meta-divider"></span>
+            <span class="al-badge al-badge-bronze">
+              <i class="ph ph-bookmark-simple"></i> Modello
+            </span>
+          {% endif %}
         </div>
-        <h3 class="font-bold text-ink">{{ md.meal.name }}</h3>
-        {% if md.meal.time_of_day %}
-        <span class="text-xs text-ink-mute"><i class="ph ph-clock mr-0.5"></i>{{ md.meal.time_of_day }}</span>
+
+        {% if plan.description %}
+          <p class="pd-description mt-5">{{ plan.description }}</p>
         {% endif %}
       </div>
-      <span class="text-sm font-bold text-ink-soft">{{ md.kcal }} kcal</span>
+
+      <!-- Right: actions -->
+      <div class="pd-actions">
+        <button @click="openAssign()" type="button" class="al-btn al-btn-bronze pd-btn-primary">
+          <i class="ph ph-user-plus"></i>
+          <span>Assegna ad atleta</span>
+        </button>
+        <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-btn al-btn-ghost">
+          <i class="ph ph-pencil-line"></i>
+          <span>Modifica piano</span>
+        </a>
+      </div>
     </div>
 
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-[10px] font-semibold uppercase tracking-wider text-ink-mute border-b border-rule">
-          <th class="text-left px-5 py-2">Alimento</th>
-          <th class="text-right px-3 py-2">Qtà (g)</th>
-          <th class="text-right px-3 py-2">Kcal</th>
-          <th class="text-right px-3 py-2 text-blue-400">Prot</th>
-          <th class="text-right px-3 py-2 text-amber-500">Carb</th>
-          <th class="text-right px-3 py-2 text-rose-400">Fat</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-rule">
-        {% for item in md.items %}
-        <tr class="hover:bg-marble transition-colors">
-          <td class="px-5 py-3">
-            <p class="font-medium text-ink-soft">{{ item.food.name }}</p>
-            {% if item.food.category %}<p class="text-xs text-ink-mute">{{ item.food.category }}</p>{% endif %}
-          </td>
-          <td class="px-3 py-3 text-right text-ink-soft">{{ item.quantity_g|floatformat:0 }}</td>
-          <td class="px-3 py-3 text-right font-semibold text-ink-soft">{{ item.kcal }}</td>
-          <td class="px-3 py-3 text-right text-blue-600">{{ item.protein }}g</td>
-          <td class="px-3 py-3 text-right text-amber-600">{{ item.carbs }}g</td>
-          <td class="px-3 py-3 text-right text-rose-500">{{ item.fat }}g</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="px-5 py-4 text-sm text-ink-mute text-center">Nessun alimento</td></tr>
+    <!-- Decorative laurel corner -->
+    <div class="pd-hero-corner" aria-hidden="true">
+      <span class="pd-mono">N°{{ plan.id|stringformat:"03d" }}</span>
+    </div>
+  </header>
+
+  <!-- =================== MACRO DASHBOARD =================== -->
+  <section class="pd-dashboard al-reveal" style="--d:80ms;">
+    <!-- Left: kcal dial -->
+    <div class="pd-kcal">
+      <p class="al-eyebrow" style="color: var(--al-bronze);">Energia totale</p>
+      <div class="pd-kcal-numeric">
+        <span class="pd-kcal-value">{{ total_kcal }}</span>
+        <span class="pd-kcal-unit">kcal / giorno</span>
+      </div>
+      {% if plan.daily_kcal %}
+        <p class="al-small pd-kcal-target">
+          Target: <strong>{{ plan.daily_kcal }}</strong> kcal
+        </p>
+      {% endif %}
+    </div>
+
+    <!-- Right: macro stack -->
+    <div class="pd-macro-stack">
+      <!-- Bars -->
+      <div class="pd-bar"
+           :style="`--p-prot: ${pctProt}%; --p-carb: ${pctCarb}%; --p-fat: ${pctFat}%`">
+        <span class="pd-bar-seg pd-bar-prot" :style="`width: var(--p-prot)`" :title="`Proteine ${pctProt}%`"></span>
+        <span class="pd-bar-seg pd-bar-carb" :style="`width: var(--p-carb)`" :title="`Carb ${pctCarb}%`"></span>
+        <span class="pd-bar-seg pd-bar-fat"  :style="`width: var(--p-fat)`"  :title="`Grassi ${pctFat}%`"></span>
+      </div>
+
+      <div class="pd-macro-row">
+        <div class="pd-macro pd-macro--prot">
+          <span class="pd-macro-dot"></span>
+          <div>
+            <p class="pd-macro-name">Proteine</p>
+            <p class="pd-macro-val">{{ total_prot }}<span>g</span></p>
+          </div>
+          <span class="pd-macro-pct" x-text="pctProt + '%'"></span>
+        </div>
+        <div class="pd-macro pd-macro--carb">
+          <span class="pd-macro-dot"></span>
+          <div>
+            <p class="pd-macro-name">Carboidrati</p>
+            <p class="pd-macro-val">{{ total_carb }}<span>g</span></p>
+          </div>
+          <span class="pd-macro-pct" x-text="pctCarb + '%'"></span>
+        </div>
+        <div class="pd-macro pd-macro--fat">
+          <span class="pd-macro-dot"></span>
+          <div>
+            <p class="pd-macro-name">Grassi</p>
+            <p class="pd-macro-val">{{ total_fat }}<span>g</span></p>
+          </div>
+          <span class="pd-macro-pct" x-text="pctFat + '%'"></span>
+        </div>
+        <div class="pd-macro pd-macro--fiber">
+          <span class="pd-macro-dot"></span>
+          <div>
+            <p class="pd-macro-name">Fibre</p>
+            <p class="pd-macro-val">{{ total_fiber }}<span>g</span></p>
+          </div>
+          <span class="pd-macro-pct" style="opacity:.4;">—</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== COURSE (MEALS) =================== -->
+  <section class="mt-10">
+    <div class="flex items-end justify-between mb-5">
+      <div>
+        <p class="al-eyebrow">Distribuzione giornaliera</p>
+        <h2 class="al-h-2 mt-1">I <span class="al-display-i">pasti</span></h2>
+      </div>
+      <span class="al-small" style="color: var(--al-ink-mute);">
+        {{ meals_detail|length }} pasto{{ meals_detail|length|pluralize:"i" }}
+      </span>
+    </div>
+
+    {% if meals_detail %}
+      <div class="pd-meal-list">
+        {% for md in meals_detail %}
+          <article class="pd-meal al-reveal" style="--d:{{ forloop.counter0|add:1 }}20ms;">
+            <!-- Ordinal -->
+            <div class="pd-meal-ordinal">
+              <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
+              <span class="pd-meal-stem" aria-hidden="true"></span>
+            </div>
+
+            <div class="pd-meal-body">
+              <header class="pd-meal-head">
+                <div class="min-w-0">
+                  <p class="al-eyebrow" style="color: var(--al-bronze);">Pasto {{ forloop.counter }}</p>
+                  <h3 class="al-h-3 mt-1">{{ md.meal.name }}</h3>
+                  {% if md.meal.time_of_day %}
+                    <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                      <i class="ph ph-clock"></i> {{ md.meal.time_of_day }}
+                    </p>
+                  {% endif %}
+                </div>
+                <div class="pd-meal-totals">
+                  <div>
+                    <p class="al-eyebrow">kcal</p>
+                    <p class="pd-meal-num">{{ md.kcal }}</p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-aegean);">P</p>
+                    <p class="pd-meal-num" style="color: var(--al-aegean);">{{ md.prot }}<span>g</span></p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-warn);">C</p>
+                    <p class="pd-meal-num" style="color: var(--al-warn);">{{ md.carb }}<span>g</span></p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-danger);">G</p>
+                    <p class="pd-meal-num" style="color: var(--al-danger);">{{ md.fat }}<span>g</span></p>
+                  </div>
+                </div>
+              </header>
+
+              {% if md.meal.notes %}
+                <p class="pd-meal-notes">
+                  <i class="ph ph-sticky-note"></i> {{ md.meal.notes }}
+                </p>
+              {% endif %}
+
+              <!-- Items -->
+              <ul class="pd-items">
+                {% for item in md.items %}
+                  <li class="pd-item">
+                    <span class="pd-item-bullet">·</span>
+                    <div class="pd-item-info">
+                      <p class="pd-item-name">
+                        {{ item.food.nome_alimento }}
+                      </p>
+                      {% if item.food.categoria_alimento %}
+                        <p class="pd-item-meta">{{ item.food.categoria_alimento }}</p>
+                      {% endif %}
+                    </div>
+                    <span class="pd-item-qty">
+                      <strong>{{ item.quantity_g|floatformat:0 }}</strong><em>g</em>
+                    </span>
+                    <span class="pd-item-kcal">{{ item.kcal }} kcal</span>
+                    <span class="pd-item-macros">
+                      <span style="color: var(--al-aegean);">P {{ item.protein }}</span>
+                      <span style="color: var(--al-warn);">C {{ item.carbs }}</span>
+                      <span style="color: var(--al-danger);">G {{ item.fat }}</span>
+                    </span>
+                  </li>
+                {% empty %}
+                  <li class="pd-item-empty">
+                    <i class="ph ph-leaf"></i> Nessun alimento — <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-link">aggiungine</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </article>
         {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr class="border-t border-rule bg-marble font-bold text-xs text-ink-soft">
-          <td class="px-5 py-2">Totale pasto</td>
-          <td class="px-3 py-2 text-right">—</td>
-          <td class="px-3 py-2 text-right">{{ md.kcal }}</td>
-          <td class="px-3 py-2 text-right text-blue-600">{{ md.prot }}g</td>
-          <td class="px-3 py-2 text-right text-amber-600">{{ md.carb }}g</td>
-          <td class="px-3 py-2 text-right text-rose-500">{{ md.fat }}g</td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-  {% empty %}
-  <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center text-ink-mute">
-    Nessun pasto aggiunto. <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="text-accent underline">Modifica piano</a> per aggiungerne.
-  </div>
-  {% endfor %}
+      </div>
+    {% else %}
+      <div class="al-card al-card-warm">
+        <div class="al-empty" style="padding: 80px 32px;">
+          <i class="ph ph-bowl-steam al-empty-icon"></i>
+          <h3>Nessun pasto nel piano</h3>
+          <p>Aggiungi pasti e alimenti per completare il protocollo.</p>
+          <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-pencil-line"></i><span>Modifica piano</span>
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </section>
 
-  <!-- Assigned clients -->
+  <!-- =================== ASSIGNMENTS =================== -->
   {% if assignments %}
-  <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-rule">
-      <h2 class="font-bold text-ink">Atleti con questo piano</h2>
-    </div>
-    <div class="divide-y divide-rule">
-      {% for a in assignments %}
-      <div class="flex items-center justify-between px-5 py-3">
+    <section class="mt-12 al-reveal" style="--d:200ms;">
+      <div class="flex items-end justify-between mb-5">
         <div>
-          <p class="text-sm font-medium text-ink-soft">{{ a.client.first_name }} {{ a.client.last_name }}</p>
-          <p class="text-xs text-ink-mute">Assegnato {{ a.assigned_at|date:"d M Y" }}{% if a.end_date %} · scade {{ a.end_date|date:"d M Y" }}{% endif %}</p>
+          <p class="al-eyebrow">Distribuzione</p>
+          <h2 class="al-h-2 mt-1">Atleti <span class="al-display-i">in carico</span></h2>
         </div>
-        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-          {% if a.status == 'ACTIVE' %}bg-emerald-50 text-emerald-700{% else %}bg-marble text-ink-mute{% endif %}">
-          {{ a.status }}
-        </span>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Assign Modal -->
-  <div x-show="assignModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" @click="assignModal=false"></div>
-    <div class="relative bg-white rounded-al-sm shadow-2xl w-full max-w-md p-6 z-10">
-      <h3 class="font-bold text-ink text-lg mb-1">Assegna piano</h3>
-      <p class="text-sm text-ink-mute mb-5">{{ plan.title }}</p>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-ink-soft mb-1.5">Atleta</label>
-          <input type="text" x-model="clientSearch" placeholder="Cerca atleta..."
-                 class="w-full px-3 py-2 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none">
-          <div class="mt-1 max-h-36 overflow-y-auto rounded-al-sm border border-rule bg-white divide-y divide-rule">
-            <template x-for="c in filteredClients" :key="c.id">
-              <button type="button" @click="selectedClient=c; clientSearch=c.name"
-                      class="w-full text-left px-3 py-2 text-sm hover:bg-marble transition-colors"
-                      :class="selectedClient?.id===c.id ? 'bg-accent/10 font-semibold text-accent' : 'text-ink-soft'"
-                      x-text="c.name"></button>
-            </template>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-ink-soft mb-1.5">Inizio</label>
-            <input type="date" x-model="startDate"
-                   class="w-full px-3 py-2 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-ink-soft mb-1.5">Fine</label>
-            <input type="date" x-model="endDate"
-                   class="w-full px-3 py-2 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none">
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-ink-soft mb-1.5">Note (opzionale)</label>
-          <textarea x-model="assignNotes" rows="2"
-                    class="w-full px-3 py-2 border border-rule rounded-al-sm text-sm bg-marble focus:ring-2 focus:ring-accent focus:outline-none resize-none"></textarea>
-        </div>
-      </div>
-      <div class="flex gap-3 mt-6">
-        <button @click="assignModal=false"
-                class="flex-1 px-4 py-2.5 rounded-al-sm border border-rule text-sm font-semibold text-ink-soft hover:bg-marble">Annulla</button>
-        <button @click="submitAssign()" :disabled="!selectedClient || saving"
-                class="flex-1 px-4 py-2.5 rounded-al-sm bg-accent text-white text-sm font-semibold hover:bg-accent/90 disabled:opacity-50">
-          <span x-show="!saving">Assegna</span><span x-show="saving">Salvo...</span>
+        <button @click="openAssign()" type="button" class="al-btn al-btn-ghost al-btn-sm">
+          <i class="ph ph-plus"></i> Aggiungi
         </button>
       </div>
-    </div>
-  </div>
 
+      <div class="pd-assigns">
+        {% for a in assignments %}
+          <div class="pd-assign">
+            <span class="pd-assign-avatar">
+              {{ a.client.first_name|first|default:"?" }}{{ a.client.last_name|first|default:"" }}
+            </span>
+            <div class="pd-assign-info">
+              <p class="pd-assign-name">{{ a.client.first_name }} {{ a.client.last_name }}</p>
+              <p class="pd-assign-meta">
+                Assegnato il {{ a.assigned_at|date:"d M Y" }}
+                {% if a.end_date %} · scade {{ a.end_date|date:"d M Y" }}{% endif %}
+              </p>
+            </div>
+            <span class="al-badge {% if a.status == 'ACTIVE' %}al-badge-success{% else %}al-badge-ink{% endif %}">
+              <span class="dot"></span>{{ a.status }}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <!-- =================== ASSIGN MODAL (shared markup) =================== -->
+  {% include 'pages/nutrizione/_assign_modal.html' with plan=plan %}
 </div>
+
+<style>
+/* ========================================================
+   Plan Detail (pd-*) — editorial Athlynk treatment
+   ======================================================== */
+
+/* Hero */
+.pd-hero {
+  position: relative;
+  padding: 38px 44px 44px;
+  border: 1px solid var(--al-rule);
+  background:
+    radial-gradient(110% 80% at 0% 0%, rgba(138,106,58,.06) 0%, transparent 55%),
+    linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble-warm) 100%);
+  border-radius: var(--al-r-md);
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  .pd-hero { padding: 28px 22px 32px; }
+}
+.pd-hero::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--al-bronze) 0%, transparent 60%);
+}
+
+.pd-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 32px;
+  align-items: end;
+  padding-right: 70px;
+}
+@media (max-width: 880px) {
+  .pd-hero-grid { padding-right: 0; }
+}
+@media (max-width: 720px) {
+  .pd-hero-grid { grid-template-columns: 1fr; gap: 22px; }
+}
+.pd-hero-grid h1 { line-height: 1.05; }
+
+.pd-meta-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--al-s-3);
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+}
+.pd-meta-item { display: inline-flex; align-items: center; gap: 6px; }
+.pd-meta-item i { font-size: 13px; color: var(--al-bronze); }
+.pd-meta-item strong {
+  font-family: var(--al-display);
+  font-weight: 500;
+  color: var(--al-ink);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.pd-meta-divider {
+  width: 1px; height: 12px;
+  background: var(--al-rule-strong);
+  opacity: .5;
+}
+
+.pd-description {
+  font-style: italic;
+  color: var(--al-ink-soft);
+  border-left: 2px solid var(--al-bronze);
+  padding-left: 14px;
+  max-width: 60ch;
+  line-height: 1.6;
+}
+
+.pd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 220px;
+}
+.pd-btn-primary {
+  box-shadow: 0 8px 22px -10px rgba(138,106,58,0.5);
+}
+@media (max-width: 720px) {
+  .pd-actions { flex-direction: row; min-width: 0; }
+  .pd-actions > * { flex: 1; justify-content: center; }
+}
+
+.pd-hero-corner {
+  position: absolute;
+  top: 18px; right: 28px;
+  opacity: .35;
+  pointer-events: none;
+}
+@media (max-width: 880px) { .pd-hero-corner { display: none; } }
+.pd-mono {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--al-ink-mute);
+  text-transform: uppercase;
+}
+
+/* Dashboard */
+.pd-dashboard {
+  margin-top: var(--al-s-6);
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 0;
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-md);
+  overflow: hidden;
+  background: var(--al-parchment);
+}
+@media (max-width: 880px) {
+  .pd-dashboard { grid-template-columns: 1fr; }
+}
+
+.pd-kcal {
+  padding: 32px 36px 30px;
+  border-right: 1px solid var(--al-rule);
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(138,106,58,.07), transparent 60%),
+    var(--al-marble-warm);
+}
+@media (max-width: 880px) {
+  .pd-kcal { border-right: none; border-bottom: 1px solid var(--al-rule); }
+}
+.pd-kcal-numeric {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+}
+.pd-kcal-value {
+  font-family: var(--al-display);
+  font-weight: 400;
+  font-size: clamp(48px, 6vw, 68px);
+  line-height: 1;
+  color: var(--al-ink);
+  letter-spacing: -0.02em;
+}
+.pd-kcal-unit {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+}
+.pd-kcal-target {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--al-rule-strong);
+  color: var(--al-ink-mute);
+}
+.pd-kcal-target strong { color: var(--al-bronze); font-weight: 500; }
+
+.pd-macro-stack { padding: 32px 36px 30px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+@media (max-width: 640px) {
+  .pd-kcal, .pd-macro-stack { padding: 26px 22px; }
+}
+
+.pd-bar {
+  width: 100%;
+  height: 10px;
+  display: flex;
+  background: var(--al-marble);
+  border: 1px solid var(--al-rule);
+  overflow: hidden;
+  border-radius: 999px;
+}
+.pd-bar-seg { display: block; height: 100%; transition: width .4s ease; }
+.pd-bar-prot { background: linear-gradient(180deg, #2d6c7a, var(--al-aegean)); }
+.pd-bar-carb { background: linear-gradient(180deg, #c69a3a, var(--al-warn)); }
+.pd-bar-fat  { background: linear-gradient(180deg, #a04c4c, var(--al-danger)); }
+
+.pd-macro-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .pd-macro-row { grid-template-columns: repeat(2, 1fr); }
+}
+.pd-macro {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--al-marble-warm);
+  border: 1px solid var(--al-rule-faint);
+  border-radius: var(--al-r-sm);
+  position: relative;
+  min-width: 0;
+}
+.pd-macro > div { min-width: 0; }
+.pd-macro-dot {
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--al-ink-line);
+}
+.pd-macro--prot  .pd-macro-dot { background: var(--al-aegean); }
+.pd-macro--carb  .pd-macro-dot { background: var(--al-warn); }
+.pd-macro--fat   .pd-macro-dot { background: var(--al-danger); }
+.pd-macro--fiber .pd-macro-dot { background: var(--al-success, #4a6b3a); }
+.pd-macro-name {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+}
+.pd-macro-val {
+  font-family: var(--al-display);
+  font-size: 22px;
+  line-height: 1.05;
+  color: var(--al-ink);
+}
+.pd-macro-val span {
+  font-size: 12px;
+  color: var(--al-ink-mute);
+  margin-left: 2px;
+}
+.pd-macro-pct {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--al-bronze);
+  letter-spacing: 0.04em;
+}
+
+/* Meals */
+.pd-meal-list { display: flex; flex-direction: column; gap: 18px; }
+
+.pd-meal {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-md);
+  background: var(--al-parchment);
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  .pd-meal { grid-template-columns: 52px minmax(0, 1fr); }
+}
+
+.pd-meal-ordinal {
+  background:
+    linear-gradient(180deg, var(--al-marble-warm), var(--al-marble));
+  border-right: 1px solid var(--al-rule);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 22px;
+  gap: 8px;
+}
+.pd-meal-ordinal .pd-mono {
+  font-size: 14px;
+  color: var(--al-bronze);
+  letter-spacing: 0.08em;
+}
+.pd-meal-stem {
+  flex: 1;
+  width: 1px;
+  background: linear-gradient(180deg, var(--al-bronze) 0%, transparent 100%);
+  opacity: .5;
+}
+
+.pd-meal-body { padding: 24px 28px 22px; min-width: 0; }
+@media (max-width: 640px) {
+  .pd-meal-body { padding: 20px 18px 18px; }
+}
+
+.pd-meal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--al-rule-faint);
+  flex-wrap: wrap;
+}
+.pd-meal-head > .min-w-0 { min-width: 0; flex: 1; }
+.pd-meal-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(46px, auto));
+  gap: 20px;
+  align-items: end;
+  flex-shrink: 0;
+}
+@media (max-width: 520px) {
+  .pd-meal-totals { gap: 14px; grid-template-columns: repeat(4, minmax(38px, auto)); }
+}
+.pd-meal-totals p:first-child {
+  margin-bottom: 2px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.pd-meal-num {
+  font-family: var(--al-display);
+  font-size: 19px;
+  color: var(--al-ink);
+  line-height: 1;
+}
+.pd-meal-num span {
+  font-size: 11px;
+  color: var(--al-ink-mute);
+  margin-left: 1px;
+}
+
+.pd-meal-notes {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--al-bronze);
+  background: var(--al-marble-warm);
+  color: var(--al-ink-soft);
+  font-size: 12px;
+  font-style: italic;
+  border-radius: 2px;
+}
+
+.pd-items {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pd-item {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 64px 78px minmax(0, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 11px 4px;
+  border-bottom: 1px dashed var(--al-rule-faint);
+  font-size: 13px;
+}
+.pd-item:last-child { border-bottom: none; }
+@media (max-width: 900px) {
+  .pd-item {
+    grid-template-columns: 14px minmax(0, 1fr) 64px 78px;
+    grid-template-areas:
+      "b name qty kcal"
+      ". macros macros macros";
+    gap: 6px 14px;
+  }
+  .pd-item-bullet { grid-area: b; }
+  .pd-item-info { grid-area: name; }
+  .pd-item-qty { grid-area: qty; }
+  .pd-item-kcal { grid-area: kcal; text-align: right; }
+  .pd-item-macros { grid-area: macros; }
+}
+@media (max-width: 480px) {
+  .pd-item {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "b name qty"
+      ". meta kcal"
+      ". macros macros";
+  }
+}
+.pd-item-bullet {
+  color: var(--al-bronze);
+  font-size: 18px;
+  font-family: var(--al-display);
+  line-height: 1;
+}
+.pd-item-info { min-width: 0; }
+.pd-item-name {
+  font-weight: 500;
+  color: var(--al-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pd-item-meta {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+  margin-top: 2px;
+}
+.pd-item-qty {
+  font-family: var(--al-display);
+  color: var(--al-ink);
+  text-align: right;
+}
+.pd-item-qty strong { font-size: 16px; font-weight: 400; }
+.pd-item-qty em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--al-ink-mute);
+  margin-left: 2px;
+}
+.pd-item-kcal {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--al-ink-soft);
+}
+.pd-item-macros {
+  display: inline-flex;
+  gap: 14px;
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  justify-content: flex-end;
+}
+
+.pd-item-empty {
+  padding: 18px 0;
+  text-align: center;
+  font-style: italic;
+  color: var(--al-ink-mute);
+  font-size: 13px;
+}
+
+/* Assigns */
+.pd-assigns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.pd-assign {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  background: var(--al-parchment);
+  transition: border-color .2s, transform .2s;
+  min-width: 0;
+}
+.pd-assign-info { min-width: 0; }
+.pd-assign-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-assign-meta { overflow: hidden; text-overflow: ellipsis; }
+.pd-assign:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); }
+.pd-assign-avatar {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--al-marble-warm), var(--al-marble));
+  border: 1px solid var(--al-rule);
+  border-radius: 999px;
+  font-family: var(--al-display);
+  font-size: 14px;
+  color: var(--al-bronze);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pd-assign-name { font-weight: 500; color: var(--al-ink); font-size: 14px; }
+.pd-assign-meta {
+  margin-top: 2px;
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--al-ink-mute);
+  text-transform: uppercase;
+}
+</style>
+
+<script>
+function planDetail() {
+  return {
+    /* assign modal state (shared with _assign_modal.html) */
+    assignModal: false,
+    assignPlanName: '{{ plan.title|escapejs }}',
+    clientSearch: '',
+    selectedClient: null,
+    startDate: '',
+    endDate: '',
+    assignNotes: '',
+    saving: false,
+    successFlash: false,
+    blockedIds: new Set(),
+
+    /* macros */
+    totalKcal: {{ total_kcal }},
+    totalProt: {{ total_prot }},
+    totalCarb: {{ total_carb }},
+    totalFat:  {{ total_fat }},
+    pctProt: 0, pctCarb: 0, pctFat: 0,
+
+    init() {
+      const totalFromMacros =
+        (this.totalProt * 4) + (this.totalCarb * 4) + (this.totalFat * 9);
+      const base = totalFromMacros || this.totalKcal || 1;
+      this.pctProt = Math.round((this.totalProt * 4) / base * 100);
+      this.pctCarb = Math.round((this.totalCarb * 4) / base * 100);
+      this.pctFat  = Math.round((this.totalFat  * 9) / base * 100);
+    },
+
+    filteredClients() {
+      const q = (this.clientSearch || '').toLowerCase();
+      return window._detailClients.filter(c =>
+        !this.blockedIds.has(c.id) &&
+        (!q || c.name.toLowerCase().includes(q))
+      );
+    },
+
+    openAssign() {
+      this.clientSearch = ''; this.selectedClient = null;
+      this.startDate = ''; this.endDate = ''; this.assignNotes = '';
+      this.successFlash = false;
+      this.assignModal = true;
+    },
+
+    async submitAssign() {
+      if (!this.selectedClient) return;
+      this.saving = true;
+      const res = await fetch('/api/nutrizione/piani/{{ plan.id }}/assegna/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+        body: JSON.stringify({
+          client_id: this.selectedClient.id,
+          start_date: this.startDate || null,
+          end_date: this.endDate || null,
+          notes: this.assignNotes,
+        })
+      });
+      this.saving = false;
+      if (res.ok) {
+        this.successFlash = true;
+        setTimeout(() => window.location.reload(), 700);
+      } else {
+        alert('Errore durante l\'assegnazione.');
+      }
+    },
+  };
+}
+</script>
 {% endblock %}
