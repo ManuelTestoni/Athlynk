@@ -36,4 +36,4 @@ to this project, you (Contributor) agree to the following terms:
    Submitting a pull request, patch, or any contribution to this
    repository constitutes your acceptance of this agreement.
 
-Owner contact: manueltestoni03@gmail.com - lucabalice13@gmail.com
+Owner contact: manueltestoni03@gmail.com - luca.balice13@gmail.com
