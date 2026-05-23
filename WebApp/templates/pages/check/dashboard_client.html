@@ -51,6 +51,27 @@
     </div>
     {% endif %}
 
+    <!-- Banner check assegnati -->
+    {% if pending_instances %}
+    <div class="al-card mb-6" style="border-left: 3px solid var(--al-bronze);">
+        <div class="flex items-start gap-4">
+            <div class="al-avatar al-avatar-md al-avatar-sq" style="background: var(--al-bronze); color: white;">
+                <i class="ph-fill ph-bell-ringing"></i>
+            </div>
+            <div class="flex-1">
+                <p class="al-eyebrow" style="color: var(--al-bronze);">Check assegnati dal coach</p>
+                <h3 class="al-h-3 mt-1">
+                    {% if pending_instances|length == 1 %}1 check da compilare{% else %}{{ pending_instances|length }} check da compilare{% endif %}
+                </h3>
+                <p class="al-body mt-1" style="color: var(--al-ink-mute);">Rispondi alle domande del tuo coach entro la scadenza.</p>
+            </div>
+            <a href="{% url 'client_assigned_checks' %}" class="al-btn al-btn-bronze shrink-0">
+                <i class="ph ph-clipboard-text text-sm"></i><span>Compila</span>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Lista check -->
     {% if page_obj.object_list %}
     <div class="al-card al-card-flush overflow-hidden">

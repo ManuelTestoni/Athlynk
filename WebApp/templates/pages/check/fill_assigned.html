@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% block title %}Compila Check – {{ assignment.template.title }}{% endblock %}
+
+{% block content %}
+<style>
+[x-cloak] { display: none !important; }
+.fck-step-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--al-r-sm);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    border: none; cursor: pointer; white-space: nowrap;
+    transition: all 140ms var(--al-ease);
+}
+.fck-step-pill:hover { transform: translateY(-1px); }
+.fck-step-pill.is-active { background: var(--al-ink); color: var(--al-parchment); }
+.fck-step-pill.is-done   { background: var(--al-bronze); color: white; }
+.fck-step-pill.is-todo   { background: var(--al-marble); color: var(--al-ink-mute); }
+.fck-q-card { background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); padding: 16px 18px; margin-bottom: 12px; }
+.fck-required { color: #c0392b; font-size: 11px; font-weight: 700; margin-left: 4px; }
+</style>
+
+<form id="fck-form" method="POST" action="{% url 'fill_assigned_check' instance.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="answers_json" id="fck-answers-json">
+</form>
+
+<div class="max-w-3xl mx-auto pb-16" x-data="fillCheck()" x-cloak>
+
+    <!-- Back -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'client_assigned_checks' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-arrow-left text-xs"></i><span>I miei check</span>
+        </a>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-6">
+        <p class="al-eyebrow mb-2">Check · Compilazione</p>
+        <h1 class="al-h-1">{{ assignment.template.title|default:"Check" }}</h1>
+        <p class="al-body mt-1" style="color: var(--al-ink-mute);">
+            Assegnato da <strong class="text-ink">{{ coach.first_name }} {{ coach.last_name }}</strong>
+        </p>
+        <div class="al-rule-bronze mt-4"></div>
+    </div>
+
+    <!-- Scadenza alert -->
+    <div class="al-toast mb-6" style="background:rgba(138,106,58,.08);color:var(--al-bronze);border-left-color:var(--al-bronze);">
+        <i class="ph ph-clock shrink-0"></i>
+        <span>Compila entro <strong>{{ instance.expires_at|date:"d M Y" }} alle {{ instance.expires_at|date:"H:i" }}</strong></span>
+    </div>
+
+    {% if instance.assignment.notes %}
+    <div class="al-toast mb-6" style="background:var(--al-marble);color:var(--al-ink-mute);border-left-color:var(--al-ink-mute);">
+        <i class="ph ph-quotes text-bronze shrink-0"></i>
+        <span>{{ instance.assignment.notes }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Validation errors -->
+    <template x-if="submitErrors.length > 0">
+        <div class="al-toast is-danger mb-6">
+            <div>
+                <p class="font-semibold mb-1">Compila i campi obbligatori:</p>
+                <template x-for="e in submitErrors" :key="e">
+                    <p class="al-tag" x-text="'• ' + e"></p>
+                </template>
+            </div>
+        </div>
+    </template>
+    {% if errors %}
+    <div class="al-toast is-danger mb-6">
+        <div>
+            <p class="font-semibold mb-1">Correggi prima di inviare:</p>
+            {% for e in errors %}<p class="al-tag">• {{ e }}</p>{% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Step pills -->
+    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background:rgba(244,239,228,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--al-rule);">
+        <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
+            <template x-for="s in visibleSteps" :key="s.id">
+                <button @click="goTo(s.id)" type="button"
+                        :class="step === s.id ? 'fck-step-pill is-active' : (step > s.id ? 'fck-step-pill is-done' : 'fck-step-pill is-todo')">
+                    <i :class="'ph ' + (step > s.id ? 'ph-check-circle' : s.icon)"></i>
+                    <span x-text="s.label"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Questions per step -->
+    <template x-for="s in visibleSteps" :key="s.id">
+        <div x-show="step === s.id" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="mb-5">
+                <h2 class="al-h-2" x-text="s.label"></h2>
+                <template x-if="stepHasRequired(s.id)">
+                    <p class="al-tag mt-1"><span class="fck-required">*</span> Indica campi obbligatori</p>
+                </template>
+            </div>
+
+            <template x-if="stepQuestions(s.id).length === 0">
+                <div class="al-empty my-6">
+                    <i :class="'ph ' + s.icon + ' al-empty-icon'"></i>
+                    <h3>Nessuna domanda</h3>
+                    <p>Nessuna domanda per questa sezione.</p>
+                </div>
+            </template>
+
+            <template x-for="q in stepQuestions(s.id)" :key="q.id">
+                <div class="fck-q-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
+                        <template x-if="q.required">
+                            <span class="fck-required">*</span>
+                        </template>
+                        <template x-if="q.unit">
+                            <span class="al-tag" style="font-size:10px;" x-text="q.unit"></span>
+                        </template>
+                    </div>
+
+                    <template x-if="q.type === 'metrica'">
+                        <div class="flex items-center gap-2">
+                            <input type="number" step="0.1" min="0" class="al-input" style="max-width:180px;"
+                                   :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
+                            <span class="al-badge" style="background:var(--al-marble);color:var(--al-ink-mute);text-transform:none;letter-spacing:0;font-size:12px;" x-text="q.unit"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'range'">
+                        <div class="flex items-center gap-3">
+                            <input type="number" step="1" :min="q.rangeMin" :max="q.rangeMax" class="al-input" style="max-width:180px;"
+                                   :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
+                            <span class="al-tag" x-text="q.rangeMin + ' – ' + q.rangeMax"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'media'">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="al-tag text-xs" x-text="q.minLabel"></span>
+                                <span class="font-mono font-semibold text-sm" style="color:var(--al-bronze);" x-text="(answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)) + ' / ' + q.max"></span>
+                                <span class="al-tag text-xs" x-text="q.maxLabel"></span>
+                            </div>
+                            <input type="range" :min="q.min" :max="q.max" step="1" class="w-full cursor-pointer" style="accent-color:var(--al-bronze);"
+                                   :value="answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)"
+                                   @input="answers[q.id] = +$event.target.value">
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'aperta'">
+                        <textarea :placeholder="q.placeholder || ''" rows="3" class="al-textarea"
+                                  :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value"></textarea>
+                    </template>
+
+                    <template x-if="q.type === 'si_no'">
+                        <div class="flex gap-6">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" :name="'q_'+q.id" value="si" style="accent-color:var(--al-bronze);"
+                                       :checked="answers[q.id]==='si'" @change="answers[q.id]='si'">
+                                <span class="text-sm font-medium text-ink">Sì</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" :name="'q_'+q.id" value="no" style="accent-color:var(--al-bronze);"
+                                       :checked="answers[q.id]==='no'" @change="answers[q.id]='no'">
+                                <span class="text-sm font-medium text-ink">No</span>
+                            </label>
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'radio'">
+                        <div class="space-y-2">
+                            <template x-for="opt in (q.options||[])" :key="opt">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" :name="'q_'+q.id" :value="opt" style="accent-color:var(--al-bronze);"
+                                           :checked="answers[q.id]===opt" @change="answers[q.id]=opt">
+                                    <span class="text-sm text-ink" x-text="opt"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'elenco'">
+                        <select class="al-select" @change="answers[q.id]=$event.target.value">
+                            <option value="">Seleziona...</option>
+                            <template x-for="opt in (q.options||[])" :key="opt">
+                                <option :value="opt" :selected="answers[q.id]===opt" x-text="opt"></option>
+                            </template>
+                        </select>
+                    </template>
+
+                    <template x-if="q.type === 'tempo'">
+                        <input type="time" class="al-input" style="max-width:160px;"
+                               :value="answers[q.id]??''" @input="answers[q.id]=$event.target.value">
+                    </template>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <!-- Navigation -->
+    <div class="flex items-center justify-between mt-8 pt-6" style="border-top:1px solid var(--al-rule);">
+        <button @click="prev()" x-show="step > 1" type="button" class="al-btn al-btn-ghost">
+            <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
+        </button>
+        <div x-show="step === 1"></div>
+
+        <span class="al-tag font-mono text-xs">
+            <span x-text="step"></span> / <span x-text="visibleSteps.length"></span>
+        </span>
+
+        <button @click="nextStep()" x-show="step < visibleSteps.length" type="button" class="al-btn al-btn-bronze">
+            <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
+        </button>
+        <button @click="submitForm()" x-show="step === visibleSteps.length" type="button" class="al-btn al-btn-bronze">
+            <i class="ph ph-paper-plane-tilt text-sm"></i><span>Invia al Coach</span>
+        </button>
+    </div>
+
+</div>
+
+<script>
+const FCK_QUESTIONS = {{ questions_config_json|safe }};
+const FCK_PREFILL  = {% if prefill_json %}{{ prefill_json|safe }}{% else %}{}{% endif %};
+
+const STEP_DEFS = [
+    { id: 1, label: 'Misurazioni', icon: 'ph-ruler' },
+    { id: 2, label: 'Benessere',   icon: 'ph-smiley' },
+    { id: 3, label: 'Note',        icon: 'ph-note-pencil' },
+];
+
+function fillCheck() {
+    // Build initial answers from prefill
+    const initAnswers = Object.assign({ benessere_umore: 3, benessere_dieta: 3, benessere_workout: 3 }, FCK_PREFILL);
+    // Init media defaults
+    FCK_QUESTIONS.forEach(q => {
+        if (q.type === 'media' && initAnswers[q.id] === undefined) {
+            initAnswers[q.id] = Math.round((+q.min + +q.max) / 2);
+        }
+    });
+
+    // Determine which steps have questions
+    const usedSteps = new Set(FCK_QUESTIONS.map(q => q.step));
+    const visibleSteps = STEP_DEFS.filter(s => usedSteps.has(s.id));
+    if (visibleSteps.length === 0) visibleSteps.push(STEP_DEFS[0]);
+
+    return {
+        step: visibleSteps[0]?.id || 1,
+        visibleSteps,
+        answers: initAnswers,
+        submitErrors: [],
+
+        stepQuestions(s) { return FCK_QUESTIONS.filter(q => q.step === s); },
+        stepHasRequired(s) { return FCK_QUESTIONS.some(q => q.step === s && q.required); },
+
+        goTo(s) { this.step = s; window.scrollTo({ top: 0, behavior: 'smooth' }); },
+        prev() {
+            const idx = this.visibleSteps.findIndex(s => s.id === this.step);
+            if (idx > 0) this.goTo(this.visibleSteps[idx - 1].id);
+        },
+        nextStep() {
+            const idx = this.visibleSteps.findIndex(s => s.id === this.step);
+            if (idx < this.visibleSteps.length - 1) this.goTo(this.visibleSteps[idx + 1].id);
+        },
+
+        submitForm() {
+            this.submitErrors = [];
+            // Validate all required questions across all steps
+            FCK_QUESTIONS.forEach(q => {
+                if (q.required) {
+                    const val = this.answers[q.id];
+                    if (val === undefined || val === null || String(val).trim() === '') {
+                        this.submitErrors.push(`«${q.label}» è obbligatoria`);
+                    }
+                }
+            });
+            if (this.submitErrors.length > 0) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+            document.getElementById('fck-answers-json').value = JSON.stringify(this.answers);
+            document.getElementById('fck-form').submit();
+        },
+    };
+}
+</script>
+{% endblock %}

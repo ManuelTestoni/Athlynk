@@ -188,6 +188,10 @@ urlpatterns = [
     path('api/check/<int:response_id>/revisiona/', views_check.api_check_review, name='check_review_api'),
     path('check/trova-coach/<int:coach_id>/', views_client.coach_detail_view, name='check_coach_detail'),
     path('check/trova-coach/<int:coach_id>/connetti/', views_client.connect_coach_view, name='check_connect_coach'),
+    path('check/i-miei-check/', views_check.client_assigned_checks_view, name='client_assigned_checks'),
+    path('check/assegnato/<int:instance_id>/compila/', views_check.fill_assigned_check_view, name='fill_assigned_check'),
+    path('api/check/assegna/', views_check.api_check_assign, name='check_assign_api'),
+    path('api/check/assegnazione/<int:assignment_id>/ics/', views_check.api_check_assignment_ics, name='check_assignment_ics'),
     
     # Impostazioni
     path('impostazioni/', views_settings.impostazioni_view, name='impostazioni_dashboard'),

@@ -9,6 +9,7 @@ class QuestionnaireTemplate(models.Model):
     phase = models.CharField(max_length=100, null=True, blank=True)
     objective = models.CharField(max_length=200, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    questions_config = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -35,6 +36,58 @@ class QuestionnaireResponse(models.Model):
 
     def __str__(self):
         return f"Response to {self.questionnaire_template} by {self.client}"
+
+class AssignedCheck(models.Model):
+    RECURRENCE_CHOICES = [
+        ('once',        'Una volta sola'),
+        ('weekly',      'Giorno della settimana'),
+        ('monthly',     'Giorno del mese'),
+        ('end_program', 'Fine programma'),
+    ]
+    WEEKDAY_CHOICES = [
+        (0, 'Lunedì'), (1, 'Martedì'), (2, 'Mercoledì'),
+        (3, 'Giovedì'), (4, 'Venerdì'), (5, 'Sabato'), (6, 'Domenica'),
+    ]
+
+    template       = models.ForeignKey(QuestionnaireTemplate, on_delete=models.SET_NULL, null=True, related_name='assignments')
+    snapshot_config = models.JSONField(null=True, blank=True)  # snapshot of questions at assignment time
+    client         = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='assigned_checks')
+    coach          = models.ForeignKey('accounts.CoachProfile',  on_delete=models.CASCADE, related_name='sent_checks')
+    recurrence_type = models.CharField(max_length=20, choices=RECURRENCE_CHOICES, default='once')
+    weekly_day     = models.IntegerField(null=True, blank=True)   # 0=Mon … 6=Sun
+    monthly_day    = models.IntegerField(null=True, blank=True)   # 1-31
+    duration_hours = models.IntegerField(default=72)              # how long each instance stays open
+    notes          = models.TextField(blank=True)
+    is_active      = models.BooleanField(default=True)
+    assigned_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-assigned_at']
+
+    def __str__(self):
+        return f"Check «{self.template}» → {self.client}"
+
+
+class AssignedCheckInstance(models.Model):
+    STATUS_CHOICES = [
+        ('pending',   'Da compilare'),
+        ('completed', 'Completato'),
+        ('expired',   'Scaduto'),
+    ]
+    assignment  = models.ForeignKey(AssignedCheck, on_delete=models.CASCADE, related_name='instances')
+    due_date    = models.DateField()
+    expires_at  = models.DateTimeField()
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    response    = models.ForeignKey(QuestionnaireResponse, on_delete=models.SET_NULL, null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-due_date']
+
+    def __str__(self):
+        return f"Istanza {self.due_date} [{self.status}]"
+
 
 class ProgressPhoto(models.Model):
     client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='progress_photos')

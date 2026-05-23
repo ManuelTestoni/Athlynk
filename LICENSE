@@ -1,21 +1,36 @@
-MIT License
+Copyright (c) 2026 Athlynk. All rights reserved.
 
-Copyright (c) 2026 318215
+PROPRIETARY SOFTWARE LICENSE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the Software),
+including the project known as "Athlynk", are the exclusive
+property of Manuel Testoni & Luca Balice (proprietari).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+PERMITTED USES
+- You may view and read the source code solely for the purpose of
+  contributing to the project via pull requests or issues.
+- Approved contributors may clone this repository locally to
+  develop and submit contributions subject to a signed
+  Contributor License Agreement (CLA).
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+RESTRICTIONS
+- You may NOT copy, modify, merge, publish, distribute, sublicense,
+  or sell copies of the Software or any substantial portion of it.
+- You may NOT use the Software or any part of it for commercial
+  purposes without prior written permission from the Owner.
+- You may NOT reverse engineer, decompile, or create derivative
+  works based on the Software without explicit written consent.
+- You may NOT remove or alter any copyright, trademark, or other
+  proprietary notices.
+
+CONTRIBUTIONS
+All contributions submitted to this project (pull requests, patches,
+suggestions) become the property of the Owner upon acceptance,
+as detailed in the Contributor License Agreement (CLA).
+
+NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+THE OWNER SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE
+USE OR INABILITY TO USE THE SOFTWARE.
+
+For licensing inquiries: [TUA EMAIL]

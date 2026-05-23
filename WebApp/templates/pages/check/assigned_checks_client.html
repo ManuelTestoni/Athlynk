@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}I miei check da compilare{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <!-- Back -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-arrow-left text-xs"></i><span>I miei check</span>
+        </a>
+    </nav>
+
+    <div class="mb-8">
+        <p class="al-eyebrow mb-3">Atleta · Check</p>
+        <h1 class="al-h-1">Check da <span class="al-display-i">compilare</span></h1>
+        <p class="al-body mt-2">Check assegnati dal tuo coach, da compilare entro la scadenza.</p>
+        <div class="al-rule-bronze mt-5"></div>
+    </div>
+
+    <!-- Pending -->
+    {% if pending %}
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); color: white;"><i class="ph-fill ph-bell-ringing"></i></div>
+            <div>
+                <p class="font-semibold text-ink">Da compilare</p>
+                <p class="al-tag">{{ pending|length }} check in attesa</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            {% for instance in pending %}
+            <div class="al-card" style="border-left: 3px solid var(--al-bronze);">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="al-badge al-badge-warn"><span class="dot"></span>Da compilare</span>
+                            {% if instance.assignment.recurrence_type == 'weekly' %}
+                            <span class="al-badge" style="font-size:10px;">
+                                <i class="ph ph-calendar-dots"></i> Settimanale
+                            </span>
+                            {% elif instance.assignment.recurrence_type == 'monthly' %}
+                            <span class="al-badge" style="font-size:10px;">
+                                <i class="ph ph-calendar-blank"></i> Mensile
+                            </span>
+                            {% elif instance.assignment.recurrence_type == 'end_program' %}
+                            <span class="al-badge" style="font-size:10px;">
+                                <i class="ph ph-flag-checkered"></i> Fine programma
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h3 class="al-h-3 mb-1">
+                            {% if instance.assignment.template %}{{ instance.assignment.template.title }}{% else %}Check{% endif %}
+                        </h3>
+                        <p class="al-body text-sm" style="color: var(--al-ink-mute);">
+                            Dal coach <strong class="text-ink">{{ instance.assignment.coach.first_name }} {{ instance.assignment.coach.last_name }}</strong>
+                        </p>
+                        {% if instance.assignment.notes %}
+                        <p class="al-small mt-2 p-3 rounded" style="background: var(--al-marble); color: var(--al-ink-mute);">
+                            <i class="ph ph-quotes text-bronze mr-1"></i>{{ instance.assignment.notes }}
+                        </p>
+                        {% endif %}
+                        <p class="al-tag mt-3">
+                            <i class="ph ph-clock text-xs"></i>
+                            Scade il <strong class="font-mono text-ink">{{ instance.expires_at|date:"d M Y" }}</strong>
+                            alle <strong class="font-mono text-ink">{{ instance.expires_at|date:"H:i" }}</strong>
+                        </p>
+                    </div>
+                    <a href="{% url 'fill_assigned_check' instance.id %}" class="al-btn al-btn-bronze shrink-0">
+                        <i class="ph ph-clipboard-text text-sm"></i>
+                        <span>Compila</span>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Completed -->
+    {% if completed %}
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: #2d7a4f; color: white;"><i class="ph-fill ph-check-circle"></i></div>
+            <div>
+                <p class="font-semibold text-ink">Compilati</p>
+                <p class="al-tag">{{ completed|length }} completati</p>
+            </div>
+        </div>
+
+        <div class="al-card al-card-flush overflow-hidden">
+            <table class="al-table">
+                <thead><tr><th>Check</th><th>Compilato</th><th class="text-right">&nbsp;</th></tr></thead>
+                <tbody>
+                    {% for instance in completed %}
+                    <tr>
+                        <td>
+                            <p class="font-medium text-ink">{% if instance.assignment.template %}{{ instance.assignment.template.title }}{% else %}Check{% endif %}</p>
+                            <p class="al-tag text-xs">{{ instance.assignment.coach.first_name }} {{ instance.assignment.coach.last_name }}</p>
+                        </td>
+                        <td><span class="font-mono text-sm">{{ instance.due_date|date:"d M Y" }}</span></td>
+                        <td class="text-right">
+                            {% if instance.response %}
+                            <a href="{% url 'check_detail' instance.response.id %}" class="al-btn al-btn-ghost al-btn-sm">
+                                <span>Vedi</span><i class="ph ph-arrow-right text-xs"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Expired -->
+    {% if expired %}
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-mute);"><i class="ph ph-clock-countdown"></i></div>
+            <div>
+                <p class="font-semibold" style="color: var(--al-ink-mute);">Scaduti</p>
+                <p class="al-tag">{{ expired|length }} non compilati in tempo</p>
+            </div>
+        </div>
+        <div class="al-card" style="opacity: 0.7;">
+            <div class="space-y-2">
+                {% for instance in expired %}
+                <div class="flex items-center justify-between py-1">
+                    <div>
+                        <p class="text-sm font-medium" style="color: var(--al-ink-mute);">{% if instance.assignment.template %}{{ instance.assignment.template.title }}{% else %}Check{% endif %}</p>
+                        <p class="al-tag text-xs">Scaduto il {{ instance.expires_at|date:"d M Y" }}</p>
+                    </div>
+                    <span class="al-badge" style="font-size:10px;">Scaduto</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not pending and not completed and not expired %}
+    <div class="al-empty" style="padding: 80px 32px;">
+        <i class="ph ph-clipboard-text al-empty-icon"></i>
+        <h3>Nessun check assegnato</h3>
+        <p>Quando il tuo coach ti assegnerà un check, lo troverai qui da compilare.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

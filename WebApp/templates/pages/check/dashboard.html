@@ -3,30 +3,104 @@
 {% block title %}Check Progressi{% endblock %}
 
 {% block content %}
-<script>window._coachClients = {{ coach_clients_json|safe }};</script>
+<script>
+window._coachClients   = {{ coach_clients_json|safe }};
+window._coachTemplates = {{ coach_templates_json|safe }};
+</script>
 
 <div class="max-w-7xl mx-auto" x-data="{
     results: [], query: '', tab: 'da_revisionare',
     page: 1, perPage: 10, numPages: 1, total: 0, loading: false,
-    showScheduleModal: false, showCompileModal: false,
-    compileClientId: null, compileClientName: '', compileFilter: '',
-    clients: window._coachClients || [],
-    clientFilter: '',
-    schedule: { client_id: null, client_name: '', date: '', start_time: '09:00', end_time: '10:00', notes: '' },
-    scheduleError: '', scheduleSuccess: false, scheduling: false,
-    get filteredClients() {
-        const q = this.clientFilter.toLowerCase();
-        return q ? this.clients.filter(c => (c.client__first_name+' '+c.client__last_name).toLowerCase().includes(q)) : this.clients;
-    },
+    showCompileModal: false, showAssignModal: false,
+    compileClientId: null, compileClientName: '', compileFilter: '', compileTitle: '', compileTitleError: false,
+    compileMode: '', compileStep: 0,
+    clients:   window._coachClients   || [],
+    templates: window._coachTemplates || [],
+
+    // Assign state
+    aStep: 1,
+    aClientId: null, aClientName: '', aClientFilter: '',
+    aTemplateId: null, aTemplateName: '',
+    aRecurrence: 'once',
+    aWeekday: 1,
+    aMonthday: 1,
+    aDuration: 72,
+    aNotes: '',
+    aError: '', aSuccess: false, aSending: false,
+
     get compileFilteredClients() {
         const q = this.compileFilter.toLowerCase();
-        return q ? this.clients.filter(c => (c.client__first_name+' '+c.client__last_name).toLowerCase().includes(q)) : this.clients;
+        const all = q ? this.clients.filter(c => (c.client__first_name+' '+c.client__last_name).toLowerCase().includes(q)) : this.clients;
+        return all.slice(0, 5);
     },
-    goToCompile() { if (this.compileClientId) window.location.href = '/check/crea/?client_id=' + this.compileClientId; },
-    selectClient(c) {
-        this.schedule.client_id = c.client__id;
-        this.schedule.client_name = c.client__first_name + ' ' + c.client__last_name;
-        this.clientFilter = '';
+    get aFilteredClients() {
+        const q = this.aClientFilter.toLowerCase();
+        const all = q ? this.clients.filter(c => (c.client__first_name+' '+c.client__last_name).toLowerCase().includes(q)) : this.clients;
+        return all.slice(0, 5);
+    },
+    openCompileModal() {
+        this.compileMode = ''; this.compileStep = 0;
+        this.compileClientId = null; this.compileClientName = ''; this.compileFilter = '';
+        this.compileTitle = ''; this.compileTitleError = false;
+        this.showCompileModal = true;
+    },
+    goToCompile() {
+        if (!this.compileTitle.trim()) { this.compileTitleError = true; return; }
+        if (this.compileMode === 'template') {
+            window.location.href = '/check/crea/?template_only=1&title=' + encodeURIComponent(this.compileTitle.trim());
+            return;
+        }
+        if (!this.compileClientId) return;
+        window.location.href = '/check/crea/?client_id=' + this.compileClientId + '&title=' + encodeURIComponent(this.compileTitle.trim());
+    },
+    openAssignModal() {
+        this.aStep=1; this.aClientId=null; this.aClientName=''; this.aClientFilter='';
+        this.aTemplateId=null; this.aTemplateName='';
+        this.aRecurrence='once'; this.aWeekday=1; this.aMonthday=1; this.aDuration=72;
+        this.aNotes=''; this.aError=''; this.aSuccess=false;
+        this.showAssignModal=true;
+    },
+    aSelectClient(c) {
+        this.aClientId = c.client__id;
+        this.aClientName = c.client__first_name + ' ' + c.client__last_name;
+        this.aClientFilter = '';
+    },
+    aSelectTemplate(t) { this.aTemplateId = t.id; this.aTemplateName = t.title; },
+    aNextStep() {
+        if (this.aStep === 1) {
+            if (!this.aClientId)   { this.aError = 'Seleziona un atleta.'; return; }
+            if (!this.aTemplateId) { this.aError = 'Seleziona un check.'; return; }
+        }
+        this.aError = '';
+        this.aStep++;
+    },
+    async aSubmit() {
+        this.aError = '';
+        if (this.aRecurrence === 'weekly'  && (this.aWeekday  === null || this.aWeekday  === '')) { this.aError = 'Scegli il giorno della settimana.'; return; }
+        if (this.aRecurrence === 'monthly' && (this.aMonthday === null || this.aMonthday === '')) { this.aError = 'Scegli il giorno del mese.'; return; }
+        this.aSending = true;
+        try {
+            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            const res = await fetch('/api/check/assegna/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({
+                    client_id: this.aClientId,
+                    template_id: this.aTemplateId,
+                    recurrence_type: this.aRecurrence,
+                    weekly_day: this.aRecurrence === 'weekly'  ? +this.aWeekday  : null,
+                    monthly_day: this.aRecurrence === 'monthly' ? +this.aMonthday : null,
+                    duration_hours: +this.aDuration,
+                    notes: this.aNotes,
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.aSuccess = true;
+                setTimeout(() => { this.showAssignModal = false; }, 2000);
+            } else { this.aError = data.error || 'Errore.'; }
+        } catch(e) { this.aError = 'Errore di rete.'; }
+        this.aSending = false;
     },
     async fetchChecks() {
         this.loading = true;
@@ -42,49 +116,11 @@
         if (this.tab === t) return;
         const wrap = document.getElementById('check-table-wrap');
         if (wrap) wrap.dataset.filterSwapping = '1';
-        setTimeout(() => {
-            this.tab = t;
-            this.page = 1;
-            this.fetchChecks();
-            if (wrap) wrap.dataset.filterSwapping = '0';
-        }, 220);
+        setTimeout(() => { this.tab = t; this.page = 1; this.fetchChecks(); if (wrap) wrap.dataset.filterSwapping = '0'; }, 220);
     },
     setPage(p) { if (p >= 1 && p <= this.numPages) { this.page = p; this.fetchChecks(); } },
     setPerPage(n) { this.perPage = parseInt(n); this.page = 1; this.fetchChecks(); },
-    get pageRange() {
-        const pages = [];
-        for(let i = 1; i <= Math.min(this.numPages, 7); i++) pages.push(i);
-        return pages;
-    },
-    async submitSchedule() {
-        this.scheduleError = '';
-        if (!this.schedule.client_id) { this.scheduleError = 'Seleziona un atleta.'; return; }
-        if (!this.schedule.date) { this.scheduleError = 'Inserisci una data.'; return; }
-        this.scheduling = true;
-        try {
-            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
-            const res = await fetch('/api/check/pianifica/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                body: JSON.stringify({
-                    client_id: this.schedule.client_id,
-                    start_datetime: this.schedule.date + 'T' + this.schedule.start_time + ':00',
-                    end_datetime: this.schedule.date + 'T' + this.schedule.end_time + ':00',
-                    notes: this.schedule.notes
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                this.scheduleSuccess = true;
-                setTimeout(() => {
-                    this.showScheduleModal = false;
-                    this.scheduleSuccess = false;
-                    this.schedule = { client_id: null, client_name: '', date: '', start_time: '09:00', end_time: '10:00', notes: '' };
-                }, 1800);
-            } else { this.scheduleError = data.error || 'Errore nella creazione.'; }
-        } catch(e) { this.scheduleError = 'Errore di rete.'; }
-        this.scheduling = false;
-    },
+    get pageRange() { const pages = []; for(let i=1;i<=Math.min(this.numPages,7);i++) pages.push(i); return pages; },
     async init() { await this.fetchChecks(); }
 }">
 
@@ -97,17 +133,17 @@
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div class="flex items-center gap-3">
-            <button @click="showCompileModal = true" type="button" class="al-btn al-btn-ghost">
+            <button @click="openCompileModal()" type="button" class="al-btn al-btn-ghost">
                 <i class="ph ph-clipboard-text text-sm"></i><span>Compila Check</span>
             </button>
-            <button @click="showScheduleModal = true" type="button" class="al-btn al-btn-bronze">
-                <i class="ph ph-calendar-plus text-sm"></i><span>Pianifica</span>
+            <button @click="openAssignModal()" type="button" class="al-btn al-btn-bronze">
+                <i class="ph ph-paper-plane-tilt text-sm"></i><span>Assegna Check</span>
             </button>
         </div>
     </div>
 
     <!-- KPI -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
         <div class="al-kpi al-reveal" style="--d:0ms;">
             <div class="al-kpi-label">Da Revisionare</div>
             <div class="al-kpi-num">{{ to_review_count }}</div>
@@ -119,9 +155,14 @@
             <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-check-circle text-bronze"></i><span>Completati</span></div>
         </div>
         <div class="al-kpi al-reveal" style="--d:120ms;">
-            <div class="al-kpi-label">Pianificati</div>
+            <div class="al-kpi-label">Da Compilare</div>
+            <div class="al-kpi-num">{{ pending_assignments_count }}</div>
+            <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-paper-plane-tilt text-bronze"></i><span>Assegnati</span></div>
+        </div>
+        <div class="al-kpi al-reveal" style="--d:180ms;">
+            <div class="al-kpi-label">Check Programmati</div>
             <div class="al-kpi-num">{{ upcoming_checks_count }}</div>
-            <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-calendar-check text-bronze"></i><span>Futuri</span></div>
+            <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-calendar-check text-bronze"></i><span>In agenda</span></div>
         </div>
     </div>
 
@@ -246,131 +287,283 @@
         </div>
     </div>
 
-    <!-- Modal Pianifica -->
-    <div x-show="showScheduleModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="al-modal-backdrop" @click="showScheduleModal = false"></div>
-        <div class="al-modal-panel relative" style="max-width: 480px;" @click.away="showScheduleModal = false">
+    <!-- Modal Assegna Check -->
+    <div x-show="showAssignModal" x-cloak style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="al-modal-backdrop" @click="showAssignModal = false"></div>
+        <div class="al-modal-panel relative" style="max-width:520px;max-height:90vh;overflow-y:auto;z-index:51;" @click.stop>
+
+            <!-- Step indicator -->
             <div class="al-modal-head flex items-start justify-between gap-4">
                 <div>
-                    <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Check</p>
-                    <h3 class="al-h-2">Pianifica Check</h3>
-                    <p class="al-small mt-1">Crea un appuntamento sull'agenda</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="al-eyebrow" style="color: var(--al-bronze);">Assegna Check</span>
+                        <span class="al-tag" x-text="aSuccess ? '✓ Inviato' : ('Passo ' + aStep + ' di 2')"></span>
+                    </div>
+                    <h3 class="al-h-2" x-text="aStep === 1 ? 'Atleta e Check' : 'Ricorrenza e Durata'"></h3>
                 </div>
-                <button @click="showScheduleModal = false" type="button" class="al-btn-icon al-btn al-btn-ghost shrink-0">
+                <button @click="showAssignModal = false" type="button" class="al-btn al-btn-ghost shrink-0" style="padding:6px;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
 
-            <div class="al-modal-body space-y-4">
-                <div x-show="scheduleSuccess" class="al-toast is-success">
-                    <i class="ph-fill ph-check-circle"></i>Check pianificato!
-                </div>
-                <div x-show="scheduleError" class="al-toast is-danger">
-                    <i class="ph-fill ph-warning-circle"></i><span x-text="scheduleError"></span>
-                </div>
+            <!-- Success -->
+            <div x-show="aSuccess" class="al-modal-body">
+                <div class="al-toast is-success"><i class="ph-fill ph-check-circle shrink-0"></i>Check assegnato! L'atleta riceverà una notifica via email.</div>
+            </div>
 
-                <div class="relative">
+            <!-- Step 1: Client + Template -->
+            <div x-show="!aSuccess && aStep === 1" class="al-modal-body space-y-4">
+                <div x-show="aError" class="al-toast is-danger"><i class="ph-fill ph-warning-circle shrink-0"></i><span x-text="aError"></span></div>
+
+                <div>
                     <label class="al-label">Atleta *</label>
-                    <template x-if="!schedule.client_id">
+                    <template x-if="!aClientId">
                         <div>
-                            <input type="text" x-model="clientFilter" placeholder="Cerca per nome..." class="al-input">
-                            <div x-show="filteredClients.length > 0 && clientFilter.length > 0"
-                                 class="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto"
-                                 style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); box-shadow: var(--al-shadow-3);">
-                                <template x-for="c in filteredClients" :key="c.client__id">
-                                    <button @click="selectClient(c)" type="button" class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-marble transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
+                            <input type="text" x-model="aClientFilter" placeholder="Cerca atleta..." class="al-input mb-2">
+                            <div class="max-h-40 overflow-y-auto" style="border:1px solid var(--al-rule);background:var(--al-parchment);">
+                                <template x-for="c in aFilteredClients" :key="c.client__id">
+                                    <button @click="aSelectClient(c)" type="button" class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-marble flex items-center gap-3" style="border-bottom:1px solid var(--al-rule-faint);">
+                                        <span class="al-avatar al-avatar-sm al-avatar-sq" x-text="c.client__first_name.charAt(0)+c.client__last_name.charAt(0)"></span>
                                         <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
                                     </button>
                                 </template>
+                                <template x-if="aFilteredClients.length === 0"><p class="px-4 py-3 al-tag text-center">Nessun atleta trovato</p></template>
                             </div>
-                            <template x-if="clients.length === 0"><span class="al-input-help">Nessun atleta attivo associato.</span></template>
                         </div>
                     </template>
-                    <template x-if="schedule.client_id">
-                        <div class="flex items-center gap-2 al-badge al-badge-success" style="font-family: var(--al-sans); padding: 8px 12px; letter-spacing: 0; text-transform: none; font-size: 13px;">
-                            <i class="ph-fill ph-check-circle"></i>
-                            <span x-text="schedule.client_name"></span>
-                            <button @click="schedule.client_id = null; schedule.client_name = ''" type="button" class="ml-auto hover:text-danger">Cambia</button>
+                    <template x-if="aClientId">
+                        <div class="flex items-center justify-between px-3 py-2.5 al-badge al-badge-success" style="font-family:var(--al-sans);letter-spacing:0;text-transform:none;font-size:13px;">
+                            <span x-text="aClientName"></span>
+                            <button @click="aClientId=null;aClientName=''" type="button" class="hover:text-danger text-xs">Cambia</button>
                         </div>
                     </template>
                 </div>
 
                 <div>
-                    <label class="al-label">Data *</label>
-                    <input type="date" x-model="schedule.date" class="al-input">
+                    <label class="al-label">Check da assegnare *</label>
+                    <template x-if="templates.length === 0">
+                        <div class="al-toast" style="background:var(--al-marble);color:var(--al-ink-mute);border-left-color:var(--al-ink-mute);">
+                            <i class="ph ph-info shrink-0"></i>
+                            <span>Nessun check disponibile. Crea prima un check tramite <strong>Compila Check</strong>.</span>
+                        </div>
+                    </template>
+                    <template x-if="templates.length > 0">
+                        <div class="max-h-40 overflow-y-auto" style="border:1px solid var(--al-rule);background:var(--al-parchment);">
+                            <template x-for="t in templates" :key="t.id">
+                                <button @click="aSelectTemplate(t)" type="button"
+                                        :class="aTemplateId === t.id ? 'bg-marble border-l-2' : ''"
+                                        class="w-full text-left px-4 py-3 text-[13px] hover:bg-marble flex items-center justify-between gap-3 transition-colors"
+                                        style="border-bottom:1px solid var(--al-rule-faint);border-left-color:var(--al-bronze);">
+                                    <span class="font-medium text-ink" x-text="t.title"></span>
+                                    <template x-if="aTemplateId === t.id">
+                                        <i class="ph-fill ph-check-circle text-bronze"></i>
+                                    </template>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Step 2: Recurrence + Duration -->
+            <div x-show="!aSuccess && aStep === 2" class="al-modal-body space-y-5">
+                <div x-show="aError" class="al-toast is-danger"><i class="ph-fill ph-warning-circle shrink-0"></i><span x-text="aError"></span></div>
+
+                <div>
+                    <label class="al-label">Ricorrenza</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button @click="aRecurrence='once'" type="button" :class="aRecurrence==='once' ? 'al-badge al-badge-aegean' : 'al-badge'" style="padding:10px 12px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;justify-content:flex-start;gap:8px;">
+                            <i class="ph ph-paper-plane-tilt"></i> Una volta sola
+                        </button>
+                        <button @click="aRecurrence='weekly'" type="button" :class="aRecurrence==='weekly' ? 'al-badge al-badge-aegean' : 'al-badge'" style="padding:10px 12px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;justify-content:flex-start;gap:8px;">
+                            <i class="ph ph-calendar-dots"></i> Ogni settimana
+                        </button>
+                        <button @click="aRecurrence='monthly'" type="button" :class="aRecurrence==='monthly' ? 'al-badge al-badge-aegean' : 'al-badge'" style="padding:10px 12px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;justify-content:flex-start;gap:8px;">
+                            <i class="ph ph-calendar-blank"></i> Ogni mese
+                        </button>
+                        <button @click="aRecurrence='end_program'" type="button" :class="aRecurrence==='end_program' ? 'al-badge al-badge-aegean' : 'al-badge'" style="padding:10px 12px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;justify-content:flex-start;gap:8px;">
+                            <i class="ph ph-flag-checkered"></i> Fine programma
+                        </button>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <template x-if="aRecurrence === 'weekly'">
                     <div>
-                        <label class="al-label">Inizio</label>
-                        <input type="time" x-model="schedule.start_time" class="al-input">
+                        <label class="al-label">Giorno della settimana</label>
+                        <select x-model="aWeekday" class="al-select">
+                            <option value="0">Lunedì</option>
+                            <option value="1">Martedì</option>
+                            <option value="2">Mercoledì</option>
+                            <option value="3">Giovedì</option>
+                            <option value="4">Venerdì</option>
+                            <option value="5">Sabato</option>
+                            <option value="6">Domenica</option>
+                        </select>
                     </div>
+                </template>
+
+                <template x-if="aRecurrence === 'monthly'">
                     <div>
-                        <label class="al-label">Fine</label>
-                        <input type="time" x-model="schedule.end_time" class="al-input">
+                        <label class="al-label">Giorno del mese</label>
+                        <input type="number" x-model="aMonthday" min="1" max="28" class="al-input" style="max-width:120px;">
+                        <p class="al-tag mt-1">Usa 1–28 per garantire la ricorrenza su tutti i mesi.</p>
                     </div>
+                </template>
+
+                <template x-if="aRecurrence === 'end_program'">
+                    <div class="al-toast" style="background:rgba(28,74,82,.08);color:var(--al-aegean);border-left-color:var(--al-aegean);">
+                        <i class="ph-fill ph-info shrink-0"></i>
+                        <span>Il check apparirà automaticamente quando il programma di allenamento o dieta dell'atleta sta per finire (entro 7 giorni).</span>
+                    </div>
+                </template>
+
+                <div>
+                    <label class="al-label">Durata disponibilità</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <template x-for="h in [{l:'24 ore',v:24},{l:'48 ore',v:48},{l:'3 giorni',v:72},{l:'1 settimana',v:168}]" :key="h.v">
+                            <button @click="aDuration=h.v" type="button"
+                                    :class="aDuration===h.v ? 'al-badge al-badge-aegean' : 'al-badge'"
+                                    style="text-transform:none;letter-spacing:0;font-size:12px;cursor:pointer;"
+                                    x-text="h.l"></button>
+                        </template>
+                    </div>
+                    <p class="al-tag mt-2">L'atleta ha <span class="font-mono font-semibold" x-text="aDuration + ' ore'"></span> per compilare il check dopo che appare.</p>
+                </div>
+
+                <div>
+                    <label class="al-label">Aggiungi al calendario</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <a :href="'/api/check/assegnazione/' + (window._lastAssignmentId || 0) + '/ics/'" class="al-btn al-btn-ghost al-btn-sm" style="font-size:12px;">
+                            <i class="ph ph-apple-logo text-sm"></i> Apple Calendar (.ics)
+                        </a>
+                    </div>
+                    <p class="al-tag mt-1">Disponibile dopo l'assegnazione.</p>
                 </div>
 
                 <div>
                     <label class="al-label">Note per l'atleta</label>
-                    <textarea x-model="schedule.notes" rows="2" placeholder="Es. Porta tutte le misurazioni..." class="al-textarea"></textarea>
+                    <textarea x-model="aNotes" rows="2" placeholder="Es. Compila a digiuno al mattino..." class="al-textarea"></textarea>
                 </div>
             </div>
 
-            <div class="al-modal-foot">
-                <button @click="showScheduleModal = false" type="button" class="al-btn al-btn-ghost">Annulla</button>
-                <button @click="submitSchedule()" :disabled="scheduling || scheduleSuccess" type="button" class="al-btn al-btn-bronze">
-                    <i class="ph ph-calendar-check text-xs"></i>
-                    <span x-text="scheduling ? 'Creo...' : 'Pianifica'"></span>
+            <div x-show="!aSuccess" class="al-modal-foot">
+                <button @click="aStep > 1 ? aStep-- : (showAssignModal = false)" type="button" class="al-btn al-btn-ghost">
+                    <span x-text="aStep > 1 ? 'Indietro' : 'Annulla'"></span>
+                </button>
+                <button x-show="aStep === 1" @click="aNextStep()" type="button" class="al-btn al-btn-bronze">
+                    Avanti <i class="ph ph-arrow-right text-xs"></i>
+                </button>
+                <button x-show="aStep === 2" @click="aSubmit()" :disabled="aSending" type="button" class="al-btn al-btn-bronze">
+                    <i class="ph ph-paper-plane-tilt text-xs"></i>
+                    <span x-text="aSending ? 'Invio...' : 'Assegna Check'"></span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Modal Compila -->
-    <div x-show="showCompileModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div x-show="showCompileModal" x-cloak>
         <div class="al-modal-backdrop" @click="showCompileModal = false"></div>
-        <div class="al-modal-panel relative" style="max-width: 460px;" @click.outside="showCompileModal = false">
+        <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;max-width:480px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
+
             <div class="al-modal-head flex items-start justify-between gap-4">
                 <div>
                     <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Check</p>
-                    <h3 class="al-h-2">Compila per Atleta</h3>
-                    <p class="al-small mt-1">Compila il check di persona</p>
+                    <h3 class="al-h-2" x-text="compileStep === 0 ? 'Cosa vuoi fare?' : (compileMode === 'template' ? 'Crea Template' : 'Compila per Atleta')"></h3>
+                    <p class="al-small mt-1" style="color: var(--al-ink-mute);" x-text="compileStep === 0 ? 'Scegli il tipo di operazione' : 'Configura e procedi al builder'"></p>
                 </div>
-                <button @click="showCompileModal = false" type="button" class="al-btn-icon al-btn al-btn-ghost shrink-0">
+                <button @click="showCompileModal = false" type="button" class="al-btn al-btn-ghost shrink-0" style="padding:6px;">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <div class="al-modal-body space-y-3">
-                <div>
-                    <label class="al-label">Atleta *</label>
-                    <input type="text" x-model="compileFilter" placeholder="Cerca atleta..." class="al-input mb-2">
-                    <template x-if="!compileClientId">
-                        <div class="max-h-48 overflow-y-auto" style="border: 1px solid var(--al-rule); background: var(--al-parchment);">
-                            <template x-for="c in compileFilteredClients" :key="c.client__id">
-                                <button @click="compileClientId = c.client__id; compileClientName = c.client__first_name + ' ' + c.client__last_name; compileFilter = ''" type="button"
-                                        class="w-full text-left px-4 py-2.5 text-[13px] text-ink-soft hover:bg-marble transition-colors flex items-center gap-3" style="border-bottom: 1px solid var(--al-rule-faint);">
-                                    <span class="al-avatar al-avatar-sm al-avatar-sq" x-text="c.client__first_name.charAt(0) + c.client__last_name.charAt(0)"></span>
-                                    <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
-                                </button>
-                            </template>
-                            <template x-if="compileFilteredClients.length === 0">
-                                <p class="px-4 py-3 al-tag text-center">Nessun atleta trovato</p>
-                            </template>
+
+            <!-- Step 0: Choice -->
+            <div x-show="compileStep === 0" class="al-modal-body">
+                <div class="grid grid-cols-1 gap-3">
+                    <button @click="compileMode='athlete'; compileStep=1" type="button"
+                            class="flex items-start gap-4 p-4 rounded text-left transition-all"
+                            style="border: 2px solid var(--al-rule); background: var(--al-parchment);"
+                            onmouseover="this.style.borderColor='var(--al-bronze)';this.style.background='var(--al-marble)'"
+                            onmouseout="this.style.borderColor='var(--al-rule)';this.style.background='var(--al-parchment)'">
+                        <div class="al-avatar al-avatar-sm al-avatar-sq shrink-0" style="background: var(--al-bronze); color: white; margin-top: 2px;">
+                            <i class="ph-fill ph-clipboard-text"></i>
                         </div>
-                    </template>
-                    <template x-if="compileClientId">
-                        <div class="flex items-center justify-between px-4 py-3 al-badge al-badge-success" style="font-family: var(--al-sans); letter-spacing: 0; text-transform: none; font-size: 13px;">
-                            <span x-text="compileClientName"></span>
-                            <button @click="compileClientId = null; compileClientName = ''" type="button" class="hover:text-danger">Cambia</button>
+                        <div>
+                            <p class="font-semibold text-ink text-sm">Compila per Atleta</p>
+                            <p class="al-tag mt-0.5">Compila un check in tempo reale per un atleta specifico. I dati vengono salvati nel suo profilo.</p>
                         </div>
-                    </template>
+                    </button>
+                    <button @click="compileMode='template'; compileStep=1" type="button"
+                            class="flex items-start gap-4 p-4 rounded text-left transition-all"
+                            style="border: 2px solid var(--al-rule); background: var(--al-parchment);"
+                            onmouseover="this.style.borderColor='var(--al-bronze)';this.style.background='var(--al-marble)'"
+                            onmouseout="this.style.borderColor='var(--al-rule)';this.style.background='var(--al-parchment)'">
+                        <div class="al-avatar al-avatar-sm al-avatar-sq shrink-0" style="background: var(--al-ink); color: var(--al-parchment); margin-top: 2px;">
+                            <i class="ph-fill ph-copy"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-ink text-sm">Crea Template</p>
+                            <p class="al-tag mt-0.5">Crea un check riutilizzabile da assegnare in seguito a uno o più atleti senza compilarlo subito.</p>
+                        </div>
+                    </button>
                 </div>
             </div>
+
+            <!-- Step 1: Form -->
+            <div x-show="compileStep === 1" class="al-modal-body space-y-4">
+
+                <!-- Athlete selector (only in athlete mode) -->
+                <template x-if="compileMode === 'athlete'">
+                    <div>
+                        <label class="al-label">Atleta *</label>
+                        <template x-if="!compileClientId">
+                            <div>
+                                <input type="text" x-model="compileFilter" placeholder="Cerca atleta..." class="al-input mb-2">
+                                <div style="border:1px solid var(--al-rule);background:var(--al-parchment);">
+                                    <template x-for="c in compileFilteredClients" :key="c.client__id">
+                                        <button @click="compileClientId = c.client__id; compileClientName = c.client__first_name + ' ' + c.client__last_name; compileFilter = ''" type="button"
+                                                class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-marble flex items-center gap-3 transition-colors" style="border-bottom:1px solid var(--al-rule-faint);">
+                                            <span class="al-avatar al-avatar-sm al-avatar-sq" x-text="c.client__first_name.charAt(0)+c.client__last_name.charAt(0)"></span>
+                                            <span x-text="c.client__first_name + ' ' + c.client__last_name"></span>
+                                        </button>
+                                    </template>
+                                    <template x-if="compileFilteredClients.length === 0">
+                                        <p class="px-4 py-3 al-tag text-center">Nessun atleta trovato</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="compileClientId">
+                            <div class="flex items-center justify-between px-3 py-2.5 al-badge al-badge-success" style="font-family:var(--al-sans);letter-spacing:0;text-transform:none;font-size:13px;">
+                                <span x-text="compileClientName"></span>
+                                <button @click="compileClientId=null;compileClientName=''" type="button" class="hover:text-danger text-xs">Cambia</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Title -->
+                <div>
+                    <label class="al-label" x-text="compileMode === 'template' ? 'Nome del Template *' : 'Titolo del Check *'"></label>
+                    <input type="text" x-model="compileTitle" @input="compileTitleError = false"
+                           :placeholder="compileMode === 'template' ? 'Es. Check Settimanale Standard, Check Iniziale...' : 'Es. Check Settimanale, Check Mese 3...'"
+                           class="al-input" :class="compileTitleError ? 'is-error' : ''">
+                    <template x-if="compileTitleError">
+                        <span class="al-input-error">Il titolo è obbligatorio</span>
+                    </template>
+                    <p class="al-tag mt-1.5" x-text="compileMode === 'template' ? 'Il template sarà disponibile nella lista dei check da assegnare.' : 'Sarà il nome di questo check nel profilo del cliente.'"></p>
+                </div>
+            </div>
+
             <div class="al-modal-foot">
-                <button @click="showCompileModal = false" type="button" class="al-btn al-btn-ghost flex-1">Annulla</button>
-                <button @click="goToCompile()" :disabled="!compileClientId" type="button" class="al-btn al-btn-bronze flex-1">
-                    <i class="ph ph-clipboard-text text-xs"></i><span>Compila</span>
+                <button @click="compileStep === 0 ? (showCompileModal = false) : (compileStep = 0)" type="button" class="al-btn al-btn-ghost">
+                    <span x-text="compileStep === 0 ? 'Annulla' : 'Indietro'"></span>
+                </button>
+                <button x-show="compileStep === 1" @click="goToCompile()"
+                        :disabled="compileMode === 'athlete' && !compileClientId"
+                        type="button" class="al-btn al-btn-bronze">
+                    <i class="ph ph-arrow-right text-xs"></i>
+                    <span x-text="compileMode === 'template' ? 'Crea Template' : 'Compila Check'"></span>
                 </button>
             </div>
         </div>

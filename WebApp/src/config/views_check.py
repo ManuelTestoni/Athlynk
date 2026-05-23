@@ -1,15 +1,18 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db.models import Q
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils.dateparse import parse_datetime
+from django.core.mail import send_mail
+from django.conf import settings
 import os
 import json
+from datetime import timedelta
 
-from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto
+from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
@@ -79,6 +82,9 @@ def check_dashboard_view(request):
         if not relationship:
             return redirect('check_coach_directory')
 
+        # Lazy-generate any due assigned check instances
+        _generate_due_instances(client)
+
         page = max(1, int(request.GET.get('page', 1)))
         per_page = int(request.GET.get('per_page', 10))
         if per_page not in [10, 20]:
@@ -98,10 +104,22 @@ def check_dashboard_view(request):
             start_datetime__gte=timezone.now()
         ).order_by('start_datetime').first()
 
+        pending_instances = AssignedCheckInstance.objects.filter(
+            assignment__client=client, status='pending'
+        ).select_related('assignment__template', 'assignment__coach').order_by('expires_at')
+
+        # Mark expired instances
+        now = timezone.now()
+        expired_ids = [i.id for i in pending_instances if i.expires_at < now]
+        if expired_ids:
+            AssignedCheckInstance.objects.filter(id__in=expired_ids).update(status='expired')
+            pending_instances = pending_instances.exclude(id__in=expired_ids)
+
         context = {
             'page_obj': page_obj,
             'per_page': per_page,
             'upcoming_check': upcoming_check,
+            'pending_instances': list(pending_instances),
         }
         return render(request, 'pages/check/dashboard_client.html', context)
 
@@ -125,11 +143,24 @@ def check_dashboard_view(request):
         .values('client__id', 'client__first_name', 'client__last_name')
     )
 
+    coach_templates = list(
+        QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+        .exclude(questions_config=None)
+        .values('id', 'title')
+        .order_by('-updated_at')
+    )
+
+    pending_assignments_count = AssignedCheckInstance.objects.filter(
+        assignment__coach=coach, status='pending'
+    ).count()
+
     context = {
         'to_review_count': to_review_count,
         'reviewed_count': reviewed_count,
         'upcoming_checks_count': upcoming_checks_count,
+        'pending_assignments_count': pending_assignments_count,
         'coach_clients_json': json.dumps(coach_clients),
+        'coach_templates_json': json.dumps(coach_templates),
     }
     return render(request, 'pages/check/dashboard.html', context)
 
@@ -140,23 +171,29 @@ def check_create_view(request):
         return redirect('login')
 
     coach_filling_for_client = False
+    template_only = False
 
     if user.role == 'COACH':
-        # Coach fills check on behalf of a client (in-studio visit)
         coach = get_session_coach(request)
         if not coach:
             return redirect('login')
+        template_only = (
+            request.GET.get('template_only') == '1'
+            or request.POST.get('template_only') == '1'
+        )
         client_id = request.GET.get('client_id') or request.POST.get('client_id')
-        if not client_id:
+        if not client_id and not template_only:
             return redirect('check_dashboard')
-        try:
-            client = ClientProfile.objects.get(
-                id=client_id,
-                coaching_relationships_as_client__coach=coach,
-                coaching_relationships_as_client__status='ACTIVE',
-            )
-        except ClientProfile.DoesNotExist:
-            return redirect('check_dashboard')
+        client = None
+        if client_id:
+            try:
+                client = ClientProfile.objects.get(
+                    id=client_id,
+                    coaching_relationships_as_client__coach=coach,
+                    coaching_relationships_as_client__status='ACTIVE',
+                )
+            except ClientProfile.DoesNotExist:
+                return redirect('check_dashboard')
         coach_filling_for_client = True
     elif user.role == 'CLIENT':
         client = get_session_client(request)
@@ -168,13 +205,127 @@ def check_create_view(request):
         return redirect('check_dashboard')
 
     if request.method == 'GET':
+        if coach_filling_for_client:
+            check_title = request.GET.get('title', '').strip()
+            return render(request, 'pages/check/builder.html', {
+                'client': client,
+                'coach': coach,
+                'check_title': check_title,
+                'template_only': template_only,
+            })
         return render(request, 'pages/check/create.html', {
             'client': client,
             'coach': coach,
-            'coach_filling_for_client': coach_filling_for_client,
+            'coach_filling_for_client': False,
         })
 
     # ── POST ───────────────────────────────────────────────────────
+
+    # New wizard flow (coach builder)
+    if 'questions_config_json' in request.POST:
+        try:
+            questions_config = json.loads(request.POST.get('questions_config_json', '[]'))
+            raw_answers = json.loads(request.POST.get('answers_json', '{}'))
+        except json.JSONDecodeError:
+            return redirect('check_dashboard')
+
+        check_title = request.POST.get('check_title', '').strip() or 'Check'
+
+        def _parse_metric(val):
+            try:
+                v = float(val or 0)
+                return str(round(v, 1)) if v > 0 else ''
+            except (ValueError, TypeError):
+                return ''
+
+        try:
+            weight_kg = float(raw_answers.get('peso_corporeo') or 0) or None
+        except (ValueError, TypeError):
+            weight_kg = None
+
+        body_circumferences = {
+            'shoulders': _parse_metric(raw_answers.get('circ_spalle')),
+            'chest': _parse_metric(raw_answers.get('circ_petto')),
+            'waist': _parse_metric(raw_answers.get('circ_vita')),
+            'hips': _parse_metric(raw_answers.get('circ_fianchi')),
+            'thigh_right': _parse_metric(raw_answers.get('circ_coscia')),
+            'arm_right': _parse_metric(raw_answers.get('circ_braccio')),
+        }
+        skinfolds = {
+            'chest': _parse_metric(raw_answers.get('pl_petto')),
+            'abdomen': _parse_metric(raw_answers.get('pl_addome')),
+            'thigh': _parse_metric(raw_answers.get('pl_coscia')),
+            'tricep': _parse_metric(raw_answers.get('pl_tricipite')),
+        }
+
+        STRUCTURED_KEYS = {
+            'peso_corporeo', 'circ_spalle', 'circ_petto', 'circ_vita', 'circ_fianchi',
+            'circ_coscia', 'circ_braccio', 'pl_petto', 'pl_addome', 'pl_coscia',
+            'pl_tricipite', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
+            'benessere_umore', 'benessere_dieta', 'benessere_workout',
+        }
+        answers_json = {
+            'mood': raw_answers.get('benessere_umore', ''),
+            'diet_adherence': raw_answers.get('benessere_dieta', ''),
+            'workout_adherence': raw_answers.get('benessere_workout', ''),
+        }
+        for k, v in raw_answers.items():
+            if k not in STRUCTURED_KEYS:
+                answers_json[k] = v
+
+        template, _ = QuestionnaireTemplate.objects.update_or_create(
+            coach=coach,
+            title=check_title,
+            defaults={
+                'questionnaire_type': 'custom_check',
+                'is_active': True,
+                'questions_config': questions_config,
+            }
+        )
+
+        if template_only or not client:
+            return redirect('check_dashboard')
+
+        response = QuestionnaireResponse.objects.create(
+            questionnaire_template=template,
+            client=client,
+            coach=coach,
+            submitted_at=timezone.now(),
+            status='COMPLETED',
+            weight_kg=weight_kg,
+            body_circumferences=body_circumferences,
+            skinfolds=skinfolds,
+            answers_json=answers_json,
+            injuries=raw_answers.get('note_infortuni', ''),
+            limitations=raw_answers.get('note_limitazioni', ''),
+            notes=raw_answers.get('note_messaggio', ''),
+        )
+
+        for key, photo_type in [('photo_front', 'Front'), ('photo_side', 'Side'), ('photo_back', 'Back')]:
+            file = request.FILES.get(key)
+            if file and is_image(file):
+                webp_file = to_webp(file)
+                save_path = f'progress_photos/{client.id}/{photo_type.lower()}_{int(timezone.now().timestamp())}.webp'
+                saved_path = default_storage.save(save_path, webp_file)
+                ProgressPhoto.objects.create(
+                    client=client,
+                    coach=coach,
+                    questionnaire_response=response,
+                    file_url=default_storage.url(saved_path),
+                    photo_type=photo_type,
+                    captured_at=timezone.now(),
+                )
+
+        Notification.objects.create(
+            target_user=client.user,
+            notification_type='CHECK_SUBMITTED',
+            title='Check compilato',
+            body=f'Il tuo coach ha compilato un check "{check_title}" per te.',
+            link_url='/check/',
+        )
+        return redirect('clienti_detail', client_id=client.id)
+
+    # Legacy client-facing flow (client fills own form)
     errors = {}
 
     def parse_float_field(val, field_name, label):
@@ -223,7 +374,7 @@ def check_create_view(request):
         return render(request, 'pages/check/create.html', {
             'client': client,
             'coach': coach,
-            'coach_filling_for_client': coach_filling_for_client,
+            'coach_filling_for_client': False,
             'errors': errors,
             'post_data': request.POST,
         })
@@ -276,16 +427,6 @@ def check_create_view(request):
             photo_type=photo_type,
             captured_at=timezone.now(),
         )
-
-    if coach_filling_for_client:
-        Notification.objects.create(
-            target_user=client.user,
-            notification_type='CHECK_SUBMITTED',
-            title='Check compilato',
-            body='Il tuo coach ha compilato un check per te.',
-            link_url='/check/',
-        )
-        return redirect('clienti_detail', client_id=client.id)
 
     Notification.objects.create(
         target_user=coach.user,
@@ -665,3 +806,396 @@ def api_check_review(request, response_id):
         return JsonResponse({'error': 'Check non trovato'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ── Assigned checks helpers ────────────────────────────────────────
+
+WEEKDAY_ABBR = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+
+
+def _create_instance(assignment, due_date):
+    expires = timezone.now() + timedelta(hours=assignment.duration_hours)
+    instance = AssignedCheckInstance.objects.create(
+        assignment=assignment,
+        due_date=due_date,
+        expires_at=expires,
+        status='pending',
+        notified_at=timezone.now(),
+    )
+    _notify_client_new_instance(instance)
+    return instance
+
+
+def _generate_due_instances(client):
+    today = timezone.localdate()
+    for assignment in AssignedCheck.objects.filter(client=client, is_active=True):
+        if assignment.recurrence_type == 'once':
+            if not assignment.instances.exists():
+                _create_instance(assignment, today)
+
+        elif assignment.recurrence_type == 'weekly' and assignment.weekly_day is not None:
+            if today.weekday() == assignment.weekly_day:
+                week_monday = today - timedelta(days=today.weekday())
+                if not assignment.instances.filter(due_date__gte=week_monday, due_date__lte=week_monday + timedelta(days=6)).exists():
+                    _create_instance(assignment, today)
+
+        elif assignment.recurrence_type == 'monthly' and assignment.monthly_day is not None:
+            if today.day == assignment.monthly_day:
+                if not assignment.instances.filter(due_date__year=today.year, due_date__month=today.month).exists():
+                    _create_instance(assignment, today)
+
+        elif assignment.recurrence_type == 'end_program':
+            # Check if any workout or nutrition plan ends within the next 7 days
+            try:
+                from domain.workouts.models import WorkoutAssignment
+                expiring = WorkoutAssignment.objects.filter(
+                    client=client,
+                    end_date__gte=today,
+                    end_date__lte=today + timedelta(days=7),
+                ).exists()
+            except Exception:
+                expiring = False
+            if not expiring:
+                try:
+                    from domain.nutrition.models import NutritionAssignment
+                    expiring = NutritionAssignment.objects.filter(
+                        client=client,
+                        end_date__gte=today,
+                        end_date__lte=today + timedelta(days=7),
+                    ).exists()
+                except Exception:
+                    expiring = False
+            if expiring and not assignment.instances.filter(due_date__gte=today - timedelta(days=7)).exists():
+                _create_instance(assignment, today)
+
+
+def _notify_client_new_instance(instance):
+    assignment = instance.assignment
+    client = assignment.client
+    coach = assignment.coach
+    title = assignment.template.title if assignment.template else 'Check'
+    send_mail(
+        subject=f'Nuovo check da compilare: {title}',
+        message=(
+            f'Ciao {client.first_name},\n\n'
+            f'Il tuo coach {coach.first_name} {coach.last_name} ti ha inviato un check da compilare: «{title}».\n\n'
+            f'Hai tempo fino al {instance.expires_at.strftime("%d/%m/%Y alle %H:%M")} per compilarlo.\n\n'
+            f'Accedi alla piattaforma: https://athlynk.it/check/i-miei-check/\n\n'
+            f'Saluti,\nAthlynk'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[client.user.email],
+        fail_silently=True,
+    )
+
+
+def _notify_coach_check_completed(instance):
+    assignment = instance.assignment
+    coach = assignment.coach
+    client = assignment.client
+    title = assignment.template.title if assignment.template else 'Check'
+    send_mail(
+        subject=f'{client.first_name} {client.last_name} ha compilato il check: {title}',
+        message=(
+            f'Ciao {coach.first_name},\n\n'
+            f'{client.first_name} {client.last_name} ha compilato il check «{title}».\n\n'
+            f'Accedi alla piattaforma per revisionarlo: https://athlynk.it/check/\n\n'
+            f'Saluti,\nAthlynk'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[coach.user.email],
+        fail_silently=True,
+    )
+
+
+def _build_ics(assignment):
+    title = assignment.template.title if assignment.template else 'Check'
+    uid = f'assigned-check-{assignment.id}@athlynk.it'
+    now_str = timezone.now().strftime('%Y%m%dT%H%M%SZ')
+    start_date = assignment.assigned_at.strftime('%Y%m%d')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Athlynk//Athlynk//IT',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        f'UID:{uid}',
+        f'DTSTAMP:{now_str}',
+        f'DTSTART;VALUE=DATE:{start_date}',
+        f'DTEND;VALUE=DATE:{start_date}',
+        f'SUMMARY:Check – {title}',
+        f'DESCRIPTION:{assignment.notes or "Check periodico Athlynk"}',
+    ]
+    if assignment.recurrence_type == 'weekly' and assignment.weekly_day is not None:
+        byday = WEEKDAY_ABBR[assignment.weekly_day]
+        lines.append(f'RRULE:FREQ=WEEKLY;BYDAY={byday}')
+    elif assignment.recurrence_type == 'monthly' and assignment.monthly_day is not None:
+        lines.append(f'RRULE:FREQ=MONTHLY;BYMONTHDAY={assignment.monthly_day}')
+    lines += ['END:VEVENT', 'END:VCALENDAR']
+    return '\r\n'.join(lines)
+
+
+# ── Assigned check views ───────────────────────────────────────────
+
+def client_assigned_checks_view(request):
+    user = get_session_user(request)
+    if not user or user.role != 'CLIENT':
+        return redirect('login')
+
+    client = get_session_client(request)
+    _generate_due_instances(client)
+
+    now = timezone.now()
+    instances = AssignedCheckInstance.objects.filter(
+        assignment__client=client
+    ).select_related('assignment__template', 'assignment__coach').order_by('-due_date')
+
+    # Auto-expire
+    to_expire = [i.id for i in instances if i.status == 'pending' and i.expires_at < now]
+    if to_expire:
+        AssignedCheckInstance.objects.filter(id__in=to_expire).update(status='expired')
+
+    pending   = [i for i in instances if i.status == 'pending' and i.expires_at >= now]
+    completed = [i for i in instances if i.status == 'completed']
+    expired   = [i for i in instances if i.status == 'expired' or (i.status == 'pending' and i.expires_at < now)]
+
+    return render(request, 'pages/check/assigned_checks_client.html', {
+        'pending': pending,
+        'completed': completed,
+        'expired': expired,
+    })
+
+
+def fill_assigned_check_view(request, instance_id):
+    user = get_session_user(request)
+    if not user or user.role != 'CLIENT':
+        return redirect('login')
+
+    client = get_session_client(request)
+    try:
+        instance = AssignedCheckInstance.objects.select_related(
+            'assignment__template', 'assignment__coach'
+        ).get(id=instance_id, assignment__client=client)
+    except AssignedCheckInstance.DoesNotExist:
+        return redirect('client_assigned_checks')
+
+    if instance.status == 'completed':
+        return redirect('client_assigned_checks')
+    if instance.status == 'pending' and timezone.now() > instance.expires_at:
+        instance.status = 'expired'
+        instance.save(update_fields=['status'])
+        return redirect('client_assigned_checks')
+
+    assignment = instance.assignment
+    questions_config = assignment.snapshot_config or []
+    coach = assignment.coach
+
+    if request.method == 'GET':
+        return render(request, 'pages/check/fill_assigned.html', {
+            'instance': instance,
+            'assignment': assignment,
+            'questions_config_json': json.dumps(questions_config),
+            'coach': coach,
+            'errors': [],
+        })
+
+    # POST
+    try:
+        raw_answers = json.loads(request.POST.get('answers_json', '{}'))
+    except json.JSONDecodeError:
+        raw_answers = {}
+
+    # Validate required questions
+    errors = []
+    for q in questions_config:
+        if q.get('required'):
+            val = raw_answers.get(q['id'])
+            if val is None or str(val).strip() == '':
+                errors.append(f'«{q["label"]}» è obbligatoria.')
+
+    if errors:
+        return render(request, 'pages/check/fill_assigned.html', {
+            'instance': instance,
+            'assignment': assignment,
+            'questions_config_json': json.dumps(questions_config),
+            'coach': coach,
+            'errors': errors,
+            'prefill_json': json.dumps(raw_answers),
+        })
+
+    def _pm(val):
+        try:
+            v = float(val or 0)
+            return str(round(v, 1)) if v > 0 else ''
+        except (ValueError, TypeError):
+            return ''
+
+    try:
+        weight_kg = float(raw_answers.get('peso_corporeo') or 0) or None
+    except (ValueError, TypeError):
+        weight_kg = None
+
+    body_circumferences = {
+        'shoulders': _pm(raw_answers.get('circ_spalle')),
+        'chest':     _pm(raw_answers.get('circ_petto')),
+        'waist':     _pm(raw_answers.get('circ_vita')),
+        'hips':      _pm(raw_answers.get('circ_fianchi')),
+        'thigh_right': _pm(raw_answers.get('circ_coscia')),
+        'arm_right': _pm(raw_answers.get('circ_braccio')),
+    }
+    skinfolds = {
+        'chest':   _pm(raw_answers.get('pl_petto')),
+        'abdomen': _pm(raw_answers.get('pl_addome')),
+        'thigh':   _pm(raw_answers.get('pl_coscia')),
+        'tricep':  _pm(raw_answers.get('pl_tricipite')),
+    }
+    STRUCTURED = {
+        'peso_corporeo', 'circ_spalle', 'circ_petto', 'circ_vita', 'circ_fianchi',
+        'circ_coscia', 'circ_braccio', 'pl_petto', 'pl_addome', 'pl_coscia',
+        'pl_tricipite', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
+        'benessere_umore', 'benessere_dieta', 'benessere_workout',
+    }
+    answers_json = {
+        'mood': raw_answers.get('benessere_umore', ''),
+        'diet_adherence': raw_answers.get('benessere_dieta', ''),
+        'workout_adherence': raw_answers.get('benessere_workout', ''),
+    }
+    for k, v in raw_answers.items():
+        if k not in STRUCTURED:
+            answers_json[k] = v
+
+    template = assignment.template
+    response_obj = QuestionnaireResponse.objects.create(
+        questionnaire_template=template,
+        client=client,
+        coach=coach,
+        submitted_at=timezone.now(),
+        status='COMPLETED',
+        weight_kg=weight_kg,
+        body_circumferences=body_circumferences,
+        skinfolds=skinfolds,
+        answers_json=answers_json,
+        injuries=raw_answers.get('note_infortuni', ''),
+        limitations=raw_answers.get('note_limitazioni', ''),
+        notes=raw_answers.get('note_messaggio', ''),
+    )
+
+    instance.status = 'completed'
+    instance.response = response_obj
+    instance.save(update_fields=['status', 'response'])
+
+    _notify_coach_check_completed(instance)
+
+    Notification.objects.create(
+        target_user=coach.user,
+        notification_type='CHECK_SUBMITTED',
+        title=f'{client.first_name} ha compilato il check',
+        body=f'{client.first_name} {client.last_name} ha compilato «{template.title if template else "Check"}».',
+        link_url=f'/check/{response_obj.id}/',
+    )
+
+    return redirect('client_assigned_checks')
+
+
+# ── API: assign check ──────────────────────────────────────────────
+
+def api_check_assign(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthenticated'}, status=401)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        client_id     = data.get('client_id')
+        template_id   = data.get('template_id')
+        recurrence    = data.get('recurrence_type', 'once')
+        weekly_day    = data.get('weekly_day')
+        monthly_day   = data.get('monthly_day')
+        duration_hrs  = max(1, int(data.get('duration_hours', 72)))
+        notes         = data.get('notes', '').strip()
+
+        if not client_id or not template_id:
+            return JsonResponse({'error': 'Seleziona un atleta e un check.'}, status=400)
+
+        client = ClientProfile.objects.get(
+            id=client_id,
+            coaching_relationships_as_client__coach=coach,
+            coaching_relationships_as_client__status='ACTIVE',
+        )
+        template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach)
+
+        assignment = AssignedCheck.objects.create(
+            template=template,
+            snapshot_config=template.questions_config,
+            client=client,
+            coach=coach,
+            recurrence_type=recurrence,
+            weekly_day=weekly_day if recurrence == 'weekly' else None,
+            monthly_day=monthly_day if recurrence == 'monthly' else None,
+            duration_hours=duration_hrs,
+            notes=notes,
+        )
+
+        # If "once" → create the single instance immediately
+        if recurrence == 'once':
+            _create_instance(assignment, timezone.localdate())
+        else:
+            # Just send the assignment notification email (instances generated lazily)
+            send_mail(
+                subject=f'Check ricorrente assegnato: {template.title}',
+                message=(
+                    f'Ciao {client.first_name},\n\n'
+                    f'Il tuo coach {coach.first_name} {coach.last_name} ti ha assegnato un check periodico: «{template.title}».\n\n'
+                    f'Troverai il check nella sezione "I miei check da compilare" quando sarà il momento.\n\n'
+                    f'Saluti,\nAthlynk'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[client.user.email],
+                fail_silently=True,
+            )
+
+        Notification.objects.create(
+            target_user=client.user,
+            notification_type='CHECK_SUBMITTED',
+            title='Nuovo check da compilare',
+            body=f'Il tuo coach ti ha assegnato il check «{template.title}».',
+            link_url='/check/i-miei-check/',
+        )
+
+        return JsonResponse({'success': True, 'assignment_id': assignment.id})
+
+    except ClientProfile.DoesNotExist:
+        return JsonResponse({'error': 'Atleta non trovato o non associato.'}, status=404)
+    except QuestionnaireTemplate.DoesNotExist:
+        return JsonResponse({'error': 'Template non trovato.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def api_check_assignment_ics(request, assignment_id):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+
+    coach = get_session_coach(request)
+    client = get_session_client(request) if user.role == 'CLIENT' else None
+
+    try:
+        if coach:
+            assignment = AssignedCheck.objects.get(id=assignment_id, coach=coach)
+        else:
+            assignment = AssignedCheck.objects.get(id=assignment_id, client=client)
+    except AssignedCheck.DoesNotExist:
+        return JsonResponse({'error': 'Non trovato'}, status=404)
+
+    ics = _build_ics(assignment)
+    resp = HttpResponse(ics, content_type='text/calendar; charset=utf-8')
+    resp['Content-Disposition'] = f'attachment; filename="check_{assignment_id}.ics"'
+    return resp
