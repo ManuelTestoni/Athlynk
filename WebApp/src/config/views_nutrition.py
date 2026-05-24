@@ -21,6 +21,21 @@ from domain.accounts.models import ClientProfile
 from config.services.email import send_nutrition_assigned
 
 
+WEEKDAY_MAP = {
+    'LUN': 'MONDAY', 'MAR': 'TUESDAY', 'MER': 'WEDNESDAY',
+    'GIO': 'THURSDAY', 'VEN': 'FRIDAY', 'SAB': 'SATURDAY', 'DOM': 'SUNDAY',
+    'MONDAY': 'MONDAY', 'TUESDAY': 'TUESDAY', 'WEDNESDAY': 'WEDNESDAY',
+    'THURSDAY': 'THURSDAY', 'FRIDAY': 'FRIDAY', 'SATURDAY': 'SATURDAY', 'SUNDAY': 'SUNDAY',
+}
+WEEKDAY_ORDER = {'MONDAY': 0, 'TUESDAY': 1, 'WEDNESDAY': 2, 'THURSDAY': 3, 'FRIDAY': 4, 'SATURDAY': 5, 'SUNDAY': 6}
+
+
+def _normalize_weekday(code):
+    if not code:
+        return None
+    return WEEKDAY_MAP.get(str(code).upper())
+
+
 def _get_active_relationship(client):
     return CoachingRelationship.objects.filter(client=client, status='ACTIVE').select_related('coach').first()
 
@@ -191,11 +206,21 @@ def nutrizione_piano_create_view(request):
     if initial_folder_id and not NutritionFolder.objects.filter(id=initial_folder_id, coach=coach).exists():
         initial_folder_id = None
 
+    kind = (request.GET.get('kind') or 'DAILY').upper()
+    if kind not in ('DAILY', 'WEEKLY'):
+        kind = 'DAILY'
+
+    folders = NutritionFolder.objects.filter(coach=coach).order_by('order', 'id').values('id', 'title')
+    folders_json = json.dumps(list(folders))
+
     return render(request, 'pages/nutrizione/piano_create.html', {
         'clients_json': clients_json,
         'plan': None,
         'meals_json': '[]',
         'initial_folder_id': initial_folder_id,
+        'plan_kind': kind,
+        'folders_json': folders_json,
+        'supplements_json': '{"items": [], "notes": ""}',
     })
 
 
@@ -223,10 +248,15 @@ def nutrizione_piano_edit_view(request, plan_id):
         for c in clients
     ])
 
+    REVERSE_WEEKDAY = {'MONDAY': 'LUN', 'TUESDAY': 'MAR', 'WEDNESDAY': 'MER',
+                       'THURSDAY': 'GIO', 'FRIDAY': 'VEN', 'SATURDAY': 'SAB', 'SUNDAY': 'DOM'}
+
     meals_data = []
-    for meal in plan.meals.prefetch_related('items__food').all():
+    for meal in plan.meals.select_related('day').prefetch_related('items__food').all():
         items_data = []
         for item in meal.items.all():
+            if not item.food:
+                continue
             items_data.append({
                 'food_id': item.food_id,
                 'food_name': item.food.nome_alimento,
@@ -237,17 +267,40 @@ def nutrizione_piano_edit_view(request, plan_id):
                 'fat_per_100g': item.food.lipidi_g,
                 'notes': item.notes or '',
             })
+        day_code = REVERSE_WEEKDAY.get(meal.day.day_of_week) if meal.day else None
         meals_data.append({
             'name': meal.name,
             'time_of_day': meal.time_of_day or '',
             'notes': meal.notes or '',
+            'day_of_week': day_code,
             'items': items_data,
         })
+
+    folders = NutritionFolder.objects.filter(coach=coach).order_by('order', 'id').values('id', 'title')
+    folders_json = json.dumps(list(folders))
+
+    plan_kind = getattr(plan, 'plan_kind', None) or 'DAILY'
+
+    supplements_data = {'items': [], 'notes': ''}
+    sheet = plan.supplement_sheet
+    if sheet:
+        supplements_data['notes'] = sheet.notes or ''
+        for it in sheet.items.select_related('supplement').order_by('order'):
+            supplements_data['items'].append({
+                'supplement_id': it.supplement_id,
+                'supplement_name': it.supplement.name,
+                'dose': it.dose,
+                'timing': it.timing or '',
+                'notes': it.notes or '',
+            })
 
     return render(request, 'pages/nutrizione/piano_create.html', {
         'clients_json': clients_json,
         'plan': plan,
         'meals_json': json.dumps(meals_data),
+        'plan_kind': plan_kind,
+        'folders_json': folders_json,
+        'supplements_json': json.dumps(supplements_data),
     })
 
 
@@ -337,6 +390,354 @@ def nutrizione_piano_delete_view(request, plan_id):
     plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
     plan.delete()
     return JsonResponse({'ok': True})
+
+
+# ─── API: Wizard CRUD (Sezione 9.3) ──────────────────────────────────────────────
+
+def _require_coach_json(request):
+    user = get_session_user(request)
+    if not user:
+        return None, JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach:
+        return None, JsonResponse({'error': 'Non autorizzato'}, status=403)
+    return coach, None
+
+
+def _meal_json(meal):
+    return {
+        'id': meal.id,
+        'name': meal.name,
+        'order': meal.order,
+        'time_of_day': meal.time_of_day or '',
+        'notes': meal.notes or '',
+        'day_of_week': meal.day.day_of_week if meal.day_id else None,
+    }
+
+
+def _item_json(item):
+    food = item.food
+    return {
+        'id': item.id,
+        'meal_id': item.meal_id,
+        'food_id': item.food_id,
+        'food_name': food.nome_alimento if food else (item.raw_name or ''),
+        'quantity_g': item.quantity_g,
+        'kcal_per_100g': food.energia_kcal if food else 0,
+        'protein_per_100g': food.proteine_g if food else 0,
+        'carb_per_100g': food.carboidrati_g if food else 0,
+        'fat_per_100g': food.lipidi_g if food else 0,
+        'notes': item.notes or '',
+    }
+
+
+@require_http_methods(["PATCH"])
+def api_plan_patch(request, plan_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    if 'plan_kind' in data:
+        incoming = (data.get('plan_kind') or '').upper()
+        if incoming and incoming != plan.plan_kind:
+            return JsonResponse({'error': 'plan_kind non modificabile'}, status=400)
+
+    editable = {
+        'title': str, 'description': str, 'plan_type': str, 'nutrition_goal': str,
+        'status': str, 'daily_kcal': int, 'protein_target_g': int,
+        'carb_target_g': int, 'fat_target_g': int, 'is_template': bool,
+    }
+    for field, cast in editable.items():
+        if field not in data:
+            continue
+        value = data[field]
+        if value in ('', None) and cast in (int,):
+            setattr(plan, field, None)
+        else:
+            try:
+                setattr(plan, field, cast(value) if cast is not bool else bool(value))
+            except (TypeError, ValueError):
+                return JsonResponse({'error': f'{field} non valido'}, status=400)
+
+    if 'folder_id' in data:
+        fid = data.get('folder_id')
+        if fid in (None, '', 0):
+            plan.folder = None
+        else:
+            try:
+                plan.folder = NutritionFolder.objects.get(id=int(fid), coach=coach)
+            except (NutritionFolder.DoesNotExist, ValueError, TypeError):
+                plan.folder = None
+
+    plan.save()
+    return JsonResponse({
+        'ok': True, 'id': plan.id, 'plan_kind': plan.plan_kind,
+        'status': plan.status, 'is_template': plan.is_template,
+    })
+
+
+@require_http_methods(["POST"])
+def api_plan_meal_create(request, plan_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    name = (data.get('name') or '').strip() or 'Pasto'
+    time_of_day = (data.get('time_of_day') or '').strip() or None
+    notes = (data.get('notes') or '').strip() or None
+
+    day_obj = None
+    if plan.plan_kind == 'WEEKLY':
+        day_code = _normalize_weekday(data.get('day_of_week'))
+        if not day_code:
+            return JsonResponse({'error': 'day_of_week obbligatorio per piani settimanali'}, status=400)
+        day_obj, _ = DietDay.objects.get_or_create(
+            plan=plan, day_of_week=day_code,
+            defaults={'order': WEEKDAY_ORDER.get(day_code, 0)},
+        )
+
+    next_order = (plan.meals.filter(day=day_obj).count()
+                  if plan.plan_kind == 'WEEKLY'
+                  else plan.meals.count())
+
+    meal = Meal.objects.create(
+        plan=plan, day=day_obj, name=name, order=next_order,
+        time_of_day=time_of_day, notes=notes,
+    )
+    return JsonResponse(_meal_json(meal), status=201)
+
+
+@require_http_methods(["PATCH", "DELETE"])
+def api_meal_detail(request, meal_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    meal = get_object_or_404(Meal, id=meal_id, plan__coach=coach)
+
+    if request.method == 'DELETE':
+        meal.delete()
+        return JsonResponse({'ok': True})
+
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    if 'name' in data:
+        meal.name = (data.get('name') or '').strip() or meal.name
+    if 'time_of_day' in data:
+        meal.time_of_day = (data.get('time_of_day') or '').strip() or None
+    if 'notes' in data:
+        meal.notes = (data.get('notes') or '').strip() or None
+    if 'order' in data:
+        try:
+            meal.order = int(data.get('order'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'order non valido'}, status=400)
+
+    meal.save()
+    return JsonResponse(_meal_json(meal))
+
+
+@require_http_methods(["POST"])
+def api_meal_item_create(request, meal_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    meal = get_object_or_404(Meal, id=meal_id, plan__coach=coach)
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    food_id = data.get('food_id')
+    qty = data.get('quantity_g')
+    if not food_id or not qty:
+        return JsonResponse({'error': 'food_id e quantity_g obbligatori'}, status=400)
+    try:
+        food = Food.objects.get(id=int(food_id))
+    except (Food.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'Alimento non trovato'}, status=404)
+
+    item = MealItem.objects.create(
+        meal=meal, food=food,
+        quantity_g=float(qty),
+        notes=(data.get('notes') or '').strip() or None,
+    )
+    return JsonResponse(_item_json(item), status=201)
+
+
+@require_http_methods(["PATCH", "DELETE"])
+def api_meal_item_detail(request, item_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    item = get_object_or_404(MealItem, id=item_id, meal__plan__coach=coach)
+
+    if request.method == 'DELETE':
+        item.delete()
+        return JsonResponse({'ok': True})
+
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    if 'quantity_g' in data:
+        try:
+            item.quantity_g = float(data.get('quantity_g'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'quantity_g non valido'}, status=400)
+    if 'notes' in data:
+        item.notes = (data.get('notes') or '').strip() or None
+
+    item.save()
+    return JsonResponse(_item_json(item))
+
+
+@require_http_methods(["POST"])
+def api_plan_copy_day(request, plan_id, dest_day, src_day):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+    if plan.plan_kind != 'WEEKLY':
+        return JsonResponse({'error': 'Solo piani settimanali'}, status=400)
+
+    src_code = _normalize_weekday(src_day)
+    dest_code = _normalize_weekday(dest_day)
+    if not src_code or not dest_code or src_code == dest_code:
+        return JsonResponse({'error': 'Giorni non validi'}, status=400)
+
+    try:
+        body = json.loads(request.body or '{}')
+    except ValueError:
+        body = {}
+    mode = (body.get('mode') or 'append').lower()
+    if mode not in ('append', 'replace'):
+        return JsonResponse({'error': 'mode deve essere append o replace'}, status=400)
+
+    try:
+        src_day_obj = plan.days.get(day_of_week=src_code)
+    except DietDay.DoesNotExist:
+        return JsonResponse({'error': 'Giorno sorgente vuoto'}, status=404)
+
+    dest_day_obj, _ = DietDay.objects.get_or_create(
+        plan=plan, day_of_week=dest_code,
+        defaults={'order': WEEKDAY_ORDER.get(dest_code, 0)},
+    )
+
+    with transaction.atomic():
+        if mode == 'replace':
+            Meal.objects.filter(plan=plan, day=dest_day_obj).delete()
+            offset = 0
+        else:
+            offset = Meal.objects.filter(plan=plan, day=dest_day_obj).count()
+
+        created_meals = []
+        src_meals = src_day_obj.meals.prefetch_related('items').order_by('order')
+        for i, src_meal in enumerate(src_meals):
+            new_meal = Meal.objects.create(
+                plan=plan, day=dest_day_obj,
+                name=src_meal.name,
+                order=offset + i,
+                time_of_day=src_meal.time_of_day,
+                notes=src_meal.notes,
+            )
+            for src_item in src_meal.items.all():
+                MealItem.objects.create(
+                    meal=new_meal,
+                    food=src_item.food,
+                    quantity_g=src_item.quantity_g,
+                    notes=src_item.notes,
+                )
+            created_meals.append(_meal_json(new_meal))
+
+    return JsonResponse({'ok': True, 'meals': created_meals}, status=201)
+
+
+@require_http_methods(["PUT"])
+def api_plan_supplements(request, plan_id):
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    items_raw = data.get('items') or []
+    notes = data.get('notes') or ''
+
+    with transaction.atomic():
+        if not items_raw:
+            sheet = plan.supplement_sheet
+            if sheet and not sheet.assignments.exists():
+                plan.supplement_sheet = None
+                plan.save(update_fields=['supplement_sheet'])
+                sheet.delete()
+            elif sheet:
+                plan.supplement_sheet = None
+                plan.save(update_fields=['supplement_sheet'])
+            return JsonResponse({'ok': True, 'sheet': None})
+
+        sheet = plan.supplement_sheet
+        if sheet is None:
+            sheet = SupplementSheet.objects.create(
+                coach=coach,
+                title=f'Integrazione · {plan.title}'[:200],
+                notes=notes,
+            )
+            plan.supplement_sheet = sheet
+            plan.save(update_fields=['supplement_sheet'])
+        else:
+            sheet.notes = notes
+            sheet.save(update_fields=['notes', 'updated_at'])
+            sheet.items.all().delete()
+
+        for order, raw in enumerate(items_raw):
+            sup_id = raw.get('supplement_id')
+            if not sup_id:
+                continue
+            try:
+                supplement = Supplement.objects.get(id=int(sup_id))
+            except (Supplement.DoesNotExist, ValueError, TypeError):
+                continue
+            SupplementSheetItem.objects.create(
+                sheet=sheet,
+                supplement=supplement,
+                dose=(raw.get('dose') or '').strip(),
+                timing=(raw.get('timing') or '').strip() or None,
+                notes=(raw.get('notes') or '').strip() or None,
+                order=order,
+            )
+
+    return JsonResponse({
+        'ok': True,
+        'sheet': {
+            'id': sheet.id, 'title': sheet.title, 'notes': sheet.notes or '',
+            'items': [
+                {
+                    'id': it.id, 'supplement_id': it.supplement_id,
+                    'supplement_name': it.supplement.name,
+                    'dose': it.dose, 'timing': it.timing or '',
+                    'notes': it.notes or '', 'order': it.order,
+                }
+                for it in sheet.items.select_related('supplement').order_by('order')
+            ],
+        },
+    })
 
 
 # ─── API ────────────────────────────────────────────────────────────────────────
@@ -494,13 +895,25 @@ def _handle_plan_save(request, coach, plan):
             except (NutritionFolder.DoesNotExist, ValueError, TypeError):
                 folder_obj = None
 
+    incoming_kind = (data.get('plan_kind') or '').upper()
+    if incoming_kind and incoming_kind not in ('DAILY', 'WEEKLY'):
+        return JsonResponse({'error': 'plan_kind non valido'}, status=400)
+
+    if plan is not None and incoming_kind and incoming_kind != plan.plan_kind:
+        return JsonResponse(
+            {'error': 'plan_kind non modificabile dopo la creazione'},
+            status=400,
+        )
+
     with transaction.atomic():
         if plan is None:
+            plan_kind = incoming_kind or 'DAILY'
             plan = NutritionPlan.objects.create(
                 coach=coach,
                 title=title,
                 description=data.get('description', ''),
                 plan_type=data.get('plan_type', ''),
+                plan_kind=plan_kind,
                 nutrition_goal=data.get('nutrition_goal', ''),
                 daily_kcal=data.get('daily_kcal') or None,
                 protein_target_g=data.get('protein_target_g') or None,
@@ -527,9 +940,28 @@ def _handle_plan_save(request, coach, plan):
             plan.save()
             plan.meals.all().delete()
 
+        is_weekly = plan.plan_kind == 'WEEKLY'
+        day_cache = {}
+        if is_weekly:
+            day_cache = {d.day_of_week: d for d in plan.days.all()}
+
         for order, meal_data in enumerate(meals_raw):
+            day_obj = None
+            if is_weekly:
+                day_code = _normalize_weekday(meal_data.get('day_of_week'))
+                if day_code:
+                    day_obj = day_cache.get(day_code)
+                    if day_obj is None:
+                        day_obj = DietDay.objects.create(
+                            plan=plan,
+                            day_of_week=day_code,
+                            order=WEEKDAY_ORDER.get(day_code, 0),
+                        )
+                        day_cache[day_code] = day_obj
+
             meal = Meal.objects.create(
                 plan=plan,
+                day=day_obj,
                 name=meal_data.get('name', f'Pasto {order + 1}'),
                 order=order,
                 time_of_day=meal_data.get('time_of_day', '') or None,
@@ -551,7 +983,13 @@ def _handle_plan_save(request, coach, plan):
                     notes=item_data.get('notes', '') or None,
                 )
 
-    return JsonResponse({'ok': True, 'plan_id': plan.id})
+        if is_weekly:
+            used_days = {m.day_id for m in plan.meals.all() if m.day_id}
+            plan.days.exclude(id__in=used_days).delete()
+        else:
+            plan.days.all().delete()
+
+    return JsonResponse({'ok': True, 'plan_id': plan.id, 'plan_kind': plan.plan_kind})
 
 
 # ─── Supplement views ────────────────────────────────────────────────────────────
@@ -925,6 +1363,9 @@ def api_diet_import_confirm(request):
     if not days_data:
         return JsonResponse({'error': 'Nessun giorno nella dieta'}, status=400)
 
+    valid_days = [d for d in days_data if d.get('day_of_week') in _VALID_DAYS]
+    inferred_kind = 'WEEKLY' if len(valid_days) > 1 else 'DAILY'
+
     # Persistenza atomica
     try:
         with transaction.atomic():
@@ -932,6 +1373,7 @@ def api_diet_import_confirm(request):
                 coach=coach,
                 title=plan_title,
                 description=diet_json.get('extraction_notes') or None,
+                plan_kind=inferred_kind,
                 status='DRAFT',
                 is_template=False,
             )

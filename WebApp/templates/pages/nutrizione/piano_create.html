@@ -1,433 +1,1187 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Nuovo Piano Alimentare{% endblock %}
+{% block title %}{% if plan %}Modifica piano{% else %}Nuovo piano{% endif %} · Nutrizione{% endblock %}
 
 {% block content %}
 <script>
-window._mealsData = {{ meals_json|safe }};
-window._clients = {{ clients_json|safe }};
-window._initialFolderId = {{ initial_folder_id|default:"null" }};
+window.NUTRITION_WIZARD_INIT = {
+  plan: {% if plan %}{
+    id: {{ plan.id }},
+    title: "{{ plan.title|escapejs }}",
+    description: "{{ plan.description|escapejs|default:'' }}",
+    plan_type: "{{ plan.plan_type|escapejs|default:'' }}",
+    nutrition_goal: "{{ plan.nutrition_goal|escapejs|default:'' }}",
+    is_template: {{ plan.is_template|yesno:"true,false" }},
+    daily_kcal: {{ plan.daily_kcal|default:"null" }},
+    protein_target_g: {{ plan.protein_target_g|default:"null" }},
+    carb_target_g: {{ plan.carb_target_g|default:"null" }},
+    fat_target_g: {{ plan.fat_target_g|default:"null" }},
+    folder_id: {{ plan.folder_id|default:"null" }}
+  }{% else %}null{% endif %},
+  planKind: "{{ plan_kind }}",
+  meals: {{ meals_json|safe }},
+  clients: {{ clients_json|safe }},
+  folders: {{ folders_json|safe }},
+  supplements: {{ supplements_json|safe }},
+  initialFolderId: {{ initial_folder_id|default:"null" }},
+  csrf: "{{ csrf_token }}",
+  urls: {
+    create: "{% url 'nutrizione_piano_create' %}",
+    editPattern: "/nutrizione/piani/__ID__/modifica/",
+    foodSearch: "{% url 'nutrizione_food_search' %}",
+    supplementSearch: "{% url 'nutrizione_supplement_search' %}",
+    assignPattern: "/api/nutrizione/piani/__ID__/assegna/",
+    detailPattern: "/nutrizione/piani/__ID__/",
+    piani: "{% url 'nutrizione_piani' %}",
+    supplementsPattern: "/api/nutrizione/piani/__ID__/integratori/",
+  },
+};
 </script>
+<script src="{% static 'js/nutrition_wizard_builder_daily.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'js/nutrition_wizard_builder_weekly.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'js/nutrition_wizard_charts.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'js/nutrition_wizard.js' %}?v={{ ASSET_VERSION }}"></script>
 
-<div class="max-w-5xl mx-auto"
-     x-data="planBuilder()"
+<div class="max-w-6xl mx-auto"
+     x-data="nutritionWizard()"
      x-init="init()"
-     @add-food.window="addFoodToMeal($event.detail.mealIndex, $event.detail.food)">
+     @keydown.escape.window="assignModal=false"
+     @pick-supplement.window="applySupplementPick($event.detail.suppKey, $event.detail.supplement)">
 
-    <!-- Breadcrumb -->
-    <nav class="al-tag flex items-center gap-2 mb-6">
-        <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-bowl-food text-xs"></i><span>Piani Alimentari</span>
-        </a>
-        <i class="ph ph-caret-right text-[9px]"></i>
-        <span class="text-ink">{% if plan %}Modifica{% else %}Nuovo{% endif %}</span>
-    </nav>
+  <!-- =================== BREADCRUMB =================== -->
+  <nav class="al-tag flex items-center gap-2 mb-5">
+    <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-quiet flex items-center gap-1">
+      <i class="ph ph-bowl-food text-xs"></i><span>Piani alimentari</span>
+    </a>
+    <i class="ph ph-caret-right text-[9px]"></i>
+    <span class="text-ink"
+          x-text="planId ? 'Modifica' : ('Nuovo ' + (planKind === 'WEEKLY' ? 'settimanale' : 'giornaliero'))"></span>
+  </nav>
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-        <div>
-            <p class="al-eyebrow mb-3">Studio &middot; Nutrizione</p>
-            <h1 class="al-h-1">{% if plan %}Modifica piano{% else %}Nuovo <span class="al-display-i">piano alimentare</span>{% endif %}</h1>
-            <p class="al-body mt-2">Aggiungi pasti e alimenti, i macro vengono calcolati in tempo reale.</p>
-            <div class="al-rule-bronze mt-5"></div>
-        </div>
-        <button @click="savePlan()" :disabled="saving" class="al-btn al-btn-bronze" :class="{ 'is-loading': saving }">
-            <i class="ph ph-floppy-disk text-sm"></i>
-            <span x-show="!saving">Salva Piano</span>
-            <span x-show="saving">Salvataggio…</span>
-        </button>
+  <!-- =================== HEADER =================== -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-7 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">Studio &middot; Nutrizione</p>
+      <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="al-h-1" x-text="planId ? 'Modifica piano' : 'Nuovo piano alimentare'"></h1>
+        <span class="al-tag font-mono"
+              style="background: var(--al-marble-warm); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze); padding: 4px 10px;">
+          <i class="ph" :class="planKind === 'WEEKLY' ? 'ph-calendar' : 'ph-sun'"></i>
+          <span x-text="planKind === 'WEEKLY' ? 'Settimanale' : 'Giornaliero'"></span>
+        </span>
+      </div>
+      <p class="al-body mt-2">Compila ogni passaggio. Le modifiche vengono salvate quando avanzi.</p>
+      <div class="al-rule-bronze mt-5"></div>
     </div>
+    <div class="flex gap-2 items-center shrink-0">
+      <button type="button" @click="saveDraft()" :disabled="saving"
+              class="al-btn al-btn-ghost"
+              :class="{ 'is-loading': saving }"
+              x-show="step !== 'riepilogo'">
+        <i class="ph ph-floppy-disk text-sm"></i>
+        <span>Salva bozza</span>
+      </button>
+      <button type="button" @click="goNext()" :disabled="saving"
+              class="al-btn al-btn-bronze"
+              x-show="step !== 'riepilogo'">
+        <span x-text="nextLabel()"></span>
+        <i class="ph ph-arrow-right text-sm"></i>
+      </button>
+    </div>
+  </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-
-    <!-- Left: form + meals -->
-    <div class="space-y-6">
-
-      <!-- Sezione 1 -->
-      <div class="al-card">
-        <div class="flex items-center gap-3 mb-6">
-          <i class="ph ph-info text-bronze text-xl"></i>
-          <div>
-            <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
-            <h2 class="al-h-3">Informazioni Piano</h2>
-          </div>
+  <!-- =================== STEP STRIP =================== -->
+  <div class="al-card al-card-flush mb-7" style="padding: 18px 24px;">
+    <div class="flex items-center justify-between gap-2 overflow-x-auto">
+      <template x-for="(s, idx) in stepDefs" :key="s.id">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <button type="button"
+                  @click="jumpTo(s.id)"
+                  :disabled="!canJump(s.id)"
+                  class="flex items-center gap-2.5 min-w-0"
+                  :style="canJump(s.id) ? 'cursor: pointer;' : 'cursor: not-allowed; opacity: 0.55;'">
+            <span class="flex items-center justify-center font-mono shrink-0 transition-all"
+                  :style="stepBadgeStyle(s.id)">
+              <template x-if="stepState(s.id) === 'completed'">
+                <i class="ph-bold ph-check text-xs"></i>
+              </template>
+              <template x-if="stepState(s.id) !== 'completed'">
+                <span x-text="idx + 1" style="font-size: 11px; font-weight: 700;"></span>
+              </template>
+            </span>
+            <div class="min-w-0 hidden sm:block">
+              <p class="al-tag" style="font-size: 9px;" x-text="s.eyebrow"></p>
+              <p class="text-[13px] font-medium truncate"
+                 :style="stepState(s.id) === 'future' ? 'color: var(--al-ink-line);' : 'color: var(--al-ink);'"
+                 x-text="s.label"></p>
+            </div>
+          </button>
+          <template x-if="idx < stepDefs.length - 1">
+            <div class="flex-1 transition-all" style="height: 1px;"
+                 :style="(stepState(stepDefs[idx + 1].id) !== 'future' || stepState(s.id) === 'completed') ? 'background: var(--al-bronze); opacity: 0.55;' : 'background: var(--al-rule);'"></div>
+          </template>
         </div>
+      </template>
+    </div>
+  </div>
 
-        <div class="space-y-5">
-          <div>
-            <label class="al-label">Titolo *</label>
-            <input type="text" x-model="title" placeholder="Es. Definizione 1800kcal" class="al-input">
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+  <!-- ============================================================== -->
+  <!-- STEP 1 — INFO                                                   -->
+  <!-- ============================================================== -->
+  <div x-show="step === 'info'" x-cloak>
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+      <div class="space-y-6">
+        <div class="al-card">
+          <div class="flex items-center gap-3 mb-6">
+            <i class="ph ph-info text-bronze text-xl"></i>
             <div>
-              <label class="al-label">Tipologia</label>
-              <select x-model="plan_type" class="al-select">
-                <option value="">Seleziona…</option>
-                <option>Ipocalorica</option>
-                <option>Normocalorica</option>
-                <option>Ipercalorica</option>
-                <option>Chetogenica</option>
-                <option>Vegana</option>
-                <option>Vegetariana</option>
+              <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+              <h2 class="al-h-3">Informazioni piano</h2>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <div>
+              <label class="al-label">Titolo *</label>
+              <input type="text" x-model="title" placeholder="Es. Definizione 1800 kcal" class="al-input">
+              <p class="al-tag mt-1" x-show="errors.title" style="color: var(--al-danger);" x-text="errors.title"></p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="al-label">Tipologia</label>
+                <select x-model="plan_type" class="al-select">
+                  <option value="">Seleziona…</option>
+                  <option>Ipocalorica</option>
+                  <option>Normocalorica</option>
+                  <option>Ipercalorica</option>
+                  <option>Chetogenica</option>
+                  <option>Vegana</option>
+                  <option>Vegetariana</option>
+                </select>
+              </div>
+              <div>
+                <label class="al-label">Obiettivo</label>
+                <input type="text" x-model="nutrition_goal" placeholder="Es. Perdita di peso" class="al-input">
+              </div>
+            </div>
+
+            <div>
+              <label class="al-label">Descrizione</label>
+              <textarea x-model="description" rows="3"
+                        placeholder="Note, contesto, indicazioni operative…"
+                        class="al-textarea"></textarea>
+            </div>
+
+            <div>
+              <label class="al-label">Cartella</label>
+              <select x-model="folder_id" class="al-select">
+                <option :value="null">Senza cartella</option>
+                <template x-for="f in folders" :key="f.id">
+                  <option :value="f.id" x-text="f.title"></option>
+                </template>
               </select>
             </div>
+
+            <label class="flex items-center gap-2 cursor-pointer pt-1">
+              <input type="checkbox" x-model="is_template" class="w-4 h-4 cursor-pointer"
+                     style="accent-color: var(--al-bronze);">
+              <span class="al-body">Salva come modello riutilizzabile</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="al-card">
+          <p class="al-eyebrow mb-4" style="color: var(--al-ink-mute);">Target personalizzato (opzionale)</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label class="al-label">Obiettivo</label>
-              <input type="text" x-model="nutrition_goal" placeholder="Es. Perdita di peso" class="al-input">
+              <label class="al-label">Kcal</label>
+              <input type="number" x-model.number="daily_kcal" placeholder="—" class="al-input text-center font-mono">
+            </div>
+            <div>
+              <label class="al-label">Prot (g)</label>
+              <input type="number" x-model.number="protein_target_g" placeholder="—" class="al-input text-center font-mono">
+            </div>
+            <div>
+              <label class="al-label">Carb (g)</label>
+              <input type="number" x-model.number="carb_target_g" placeholder="—" class="al-input text-center font-mono">
+            </div>
+            <div>
+              <label class="al-label">Fat (g)</label>
+              <input type="number" x-model.number="fat_target_g" placeholder="—" class="al-input text-center font-mono">
             </div>
           </div>
-          <div>
-            <label class="al-label">Descrizione</label>
-            <textarea x-model="description" rows="2" placeholder="Note e descrizione del piano…" class="al-textarea"></textarea>
-          </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" x-model="is_template" class="w-4 h-4 cursor-pointer" style="accent-color: var(--al-bronze);">
-            <span class="al-body">Salva come modello riutilizzabile</span>
-          </label>
+          <p class="al-tag mt-3" style="color: var(--al-ink-mute);">
+            I target alimentano la barra di confronto nel builder e nel riepilogo.
+          </p>
         </div>
       </div>
 
-      <!-- Sezione 2 — Meals -->
-      <div class="al-card">
-        <div class="flex items-center gap-3 mb-6">
-          <i class="ph ph-fork-knife text-bronze text-xl"></i>
-          <div>
-            <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
-            <h2 class="al-h-3">Pasti</h2>
+      <aside class="space-y-4 lg:sticky lg:top-6">
+        <div class="al-card al-card-warm">
+          <p class="al-eyebrow mb-2">Tipo selezionato</p>
+          <div class="flex items-center gap-2.5">
+            <i class="ph text-2xl" style="color: var(--al-bronze);"
+               :class="planKind === 'WEEKLY' ? 'ph-calendar' : 'ph-sun'"></i>
+            <div>
+              <p class="al-h-4" x-text="planKind === 'WEEKLY' ? 'Settimanale' : 'Giornaliero'"></p>
+              <p class="al-tag" x-text="planKind === 'WEEKLY' ? '7 giorni · media calcolata' : 'Un giorno · somma pasti'"></p>
+            </div>
           </div>
+          <p class="al-small mt-4" style="color: var(--al-ink-mute);">
+            Il tipo non può cambiare dopo la creazione. Annulla e ricomincia se necessario.
+          </p>
         </div>
 
-        <div class="space-y-4">
-        <template x-for="(meal, mIndex) in meals" :key="mIndex">
-          <div class="al-card al-card-warm al-card-flush">
-            <!-- Meal header -->
-            <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--al-rule);">
-              <div class="flex items-center gap-3 flex-1">
-                <div class="w-7 h-7 flex items-center justify-center text-xs font-bold"
-                     style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
-                     x-text="mIndex + 1"></div>
-                <input type="text" x-model="meal.name" placeholder="Nome pasto (es. Colazione)"
-                       class="flex-1 bg-transparent text-sm font-bold text-ink focus:outline-none placeholder-ink-mute"
-                       style="border: none; padding: 0;">
-                <input type="time" x-model="meal.time_of_day"
-                       class="text-xs text-ink-mute bg-transparent w-24"
-                       style="border: none; padding: 0;">
+        <div class="al-card">
+          <p class="al-eyebrow mb-3">Prossimi passi</p>
+          <ol class="space-y-2 al-small" style="color: var(--al-ink-soft);">
+            <li class="flex gap-2"><span class="font-mono text-bronze">02</span><span>Builder pasti e alimenti</span></li>
+            <li class="flex gap-2"><span class="font-mono text-bronze">03</span><span>Integrazione</span></li>
+            <li class="flex gap-2"><span class="font-mono text-bronze">04</span><span>Riepilogo e assegnazione</span></li>
+          </ol>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- STEP 2 — BUILDER                                                -->
+  <!-- ============================================================== -->
+  <div x-show="step === 'builder'" x-cloak
+       @add-food.window="addFoodToMeal($event.detail.mealKey, $event.detail.food)">
+
+    <!-- WEEKLY: sticky day tabs -->
+    <template x-if="planKind === 'WEEKLY'">
+      <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
+           style="padding: 12px 16px; background: rgba(244,239,228,0.95); backdrop-filter: saturate(140%) blur(8px);">
+        <div class="flex items-center gap-1 overflow-x-auto">
+          <template x-for="d in weekDays" :key="d.code">
+            <button type="button" @click="activeDay = d.code"
+                    class="text-left px-3 py-2 transition-all shrink-0"
+                    :style="activeDay === d.code
+                      ? 'background: var(--al-marble-warm); border-bottom: 2px solid var(--al-bronze); border-radius: var(--al-r-sm) var(--al-r-sm) 0 0;'
+                      : 'border-bottom: 2px solid transparent;'">
+              <p class="text-[13px] font-medium"
+                 :style="activeDay === d.code ? 'color: var(--al-ink);' : 'color: var(--al-ink-mute);'"
+                 x-text="d.label"></p>
+              <p class="font-mono" style="font-size: 10px; color: var(--al-ink-line);"
+                 x-text="dayKcal(d.code) > 0 ? dayKcal(d.code) + ' kcal' : '—'"></p>
+            </button>
+          </template>
+          <button type="button" @click="activeDay = 'AVG'"
+                  :disabled="!hasAnyDay()"
+                  class="ml-2 text-left px-3 py-2 transition-all shrink-0"
+                  :style="activeDay === 'AVG'
+                    ? 'background: var(--al-marble-warm); border-bottom: 2px solid var(--al-bronze); border-radius: var(--al-r-sm) var(--al-r-sm) 0 0;'
+                    : 'border-bottom: 2px solid transparent;'"
+                  :class="!hasAnyDay() ? 'opacity-40 cursor-not-allowed' : ''">
+            <p class="text-[13px] font-medium flex items-center gap-1.5"
+               :style="activeDay === 'AVG' ? 'color: var(--al-ink);' : 'color: var(--al-ink-mute);'">
+              <i class="ph ph-chart-line text-xs"></i><span>Media</span>
+            </p>
+            <p class="font-mono" style="font-size: 10px; color: var(--al-ink-line);"
+               x-text="hasAnyDay() ? avgKcal() + ' kcal' : '—'"></p>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+
+      <!-- Builder column -->
+      <div class="space-y-4">
+
+        <!-- WEEKLY Media view -->
+        <template x-if="planKind === 'WEEKLY' && activeDay === 'AVG'">
+          <div class="al-card">
+            <div class="flex items-center gap-3 mb-5">
+              <i class="ph ph-chart-line text-bronze text-xl"></i>
+              <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Riepilogo</p>
+                <h2 class="al-h-3">Media settimanale</h2>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="al-tag font-mono" x-text="mealKcal(meal) + ' kcal'"></span>
-                <button type="button" @click="removeMeal(mIndex)" class="al-btn al-btn-icon al-btn-ghost">
-                  <i class="ph ph-trash text-sm"></i>
-                </button>
+              <span class="al-tag ml-auto" x-text="'su ' + filledDaysCount() + ' giorni compilati'"></span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div class="text-center py-4 px-2"
+                   style="background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                <p class="al-tag" style="font-size: 9px;">kcal medi</p>
+                <p class="font-mono font-medium text-ink mt-1" style="font-size: 22px;" x-text="avgKcal()"></p>
+              </div>
+              <div class="text-center py-4 px-2"
+                   style="background: var(--al-info-bg); border: 1px solid rgba(28,74,82,0.18); border-radius: var(--al-r-sm);">
+                <p class="al-tag" style="font-size: 9px; color: var(--al-aegean);">Prot</p>
+                <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-aegean);" x-text="avgMacro('protein') + 'g'"></p>
+              </div>
+              <div class="text-center py-4 px-2"
+                   style="background: var(--al-warn-bg); border: 1px solid rgba(166,128,43,0.22); border-radius: var(--al-r-sm);">
+                <p class="al-tag" style="font-size: 9px; color: var(--al-warn);">Carb</p>
+                <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-warn);" x-text="avgMacro('carb') + 'g'"></p>
+              </div>
+              <div class="text-center py-4 px-2"
+                   style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.22); border-radius: var(--al-r-sm);">
+                <p class="al-tag" style="font-size: 9px; color: var(--al-danger);">Fat</p>
+                <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-danger);" x-text="avgMacro('fat') + 'g'"></p>
               </div>
             </div>
 
-            <!-- Items list -->
+            <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Dettaglio per giorno</p>
             <div class="divide-y" style="--tw-divide-color: var(--al-rule);">
-              <template x-for="(item, iIndex) in meal.items" :key="iIndex">
-                <div class="flex items-center gap-3 px-5 py-3" style="border-bottom: 1px solid var(--al-rule);">
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-ink" x-text="item.food_name"></p>
-                    <p class="text-xs text-ink-mute mt-0.5" x-text="computedMacros(item)"></p>
-                  </div>
-                  <div class="flex items-center gap-2 shrink-0">
-                    <input type="number" x-model="item.quantity_g" min="1" max="9999"
-                           class="al-input text-center" style="width: 78px; padding: 6px 10px;" placeholder="g">
-                    <span class="al-tag">g</span>
-                    <button type="button" @click="removeItem(mIndex, iIndex)" class="al-btn al-btn-icon al-btn-ghost">
-                      <i class="ph ph-x text-xs"></i>
-                    </button>
-                  </div>
-                </div>
-              </template>
-            </div>
-
-            <!-- Add food to meal -->
-            <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);" x-data="{
-              q: '', results: [], searching: false, show: false, top: '0px', left: '0px', width: '0px',
-              updatePos() {
-                const el = this.$refs.searchBar;
-                if (!el) return;
-                const r = el.getBoundingClientRect();
-                this.top = (r.bottom + 6) + 'px';
-                this.left = r.left + 'px';
-                this.width = r.width + 'px';
-              },
-              async search() {
-                if (this.q.length < 2) { this.results = []; this.show = false; return; }
-                this.searching = true;
-                this.updatePos();
-                const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(this.q));
-                const d = await r.json();
-                this.results = d.results; this.searching = false; this.show = true;
-              },
-              pick(food) {
-                window.dispatchEvent(new CustomEvent('add-food', {detail: {mealIndex: mIndex, food: food}}));
-                this.q = ''; this.results = []; this.show = false;
-              }
-            }">
-              <div x-ref="searchBar" class="al-search" style="border-style: dashed;">
-                <i class="ph ph-magnifying-glass"></i>
-                <input type="text" x-model="q" @input.debounce.300ms="search()"
-                       placeholder="Cerca alimento da aggiungere…" class="al-input">
-                <span x-show="searching" class="al-tag">…</span>
-              </div>
-              <template x-teleport="body">
-                <div x-show="show && results.length > 0"
-                     @click.outside="show = false"
-                     :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '240px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
-                  <template x-for="food in results" :key="food.id">
-                    <button type="button" @click="pick(food)"
-                            class="w-full text-left px-4 py-3"
-                            style="border-bottom: 1px solid var(--al-rule); background: transparent;">
-                      <div class="flex items-center justify-between gap-3">
-                        <div>
-                          <p class="text-sm font-medium text-ink" x-text="food.name"></p>
-                          <p class="al-tag" x-text="food.category"></p>
-                        </div>
-                        <div class="text-right shrink-0">
-                          <p class="text-xs font-bold text-ink font-mono" x-text="food.kcal + ' kcal'"></p>
-                          <p class="al-tag font-mono" x-text="'P ' + food.protein + ' · C ' + food.carb + ' · F ' + food.fat"></p>
-                        </div>
-                      </div>
-                    </button>
+              <template x-for="d in weekDays" :key="d.code">
+                <div class="flex items-center gap-3 py-3" style="border-bottom: 1px solid var(--al-rule);">
+                  <span class="font-mono w-10 text-sm" style="color: var(--al-ink-soft);" x-text="d.label"></span>
+                  <template x-if="dayMealCount(d.code) > 0">
+                    <div class="flex-1 flex items-center gap-4 al-small" style="color: var(--al-ink-soft);">
+                      <span class="font-mono font-bold text-ink" x-text="dayKcal(d.code) + ' kcal'"></span>
+                      <span class="font-mono" x-text="'P ' + dayMacro(d.code, 'protein') + ' · C ' + dayMacro(d.code, 'carb') + ' · F ' + dayMacro(d.code, 'fat')"></span>
+                    </div>
                   </template>
+                  <template x-if="dayMealCount(d.code) === 0">
+                    <span class="flex-1 al-tag" style="color: var(--al-ink-line);">vuoto</span>
+                  </template>
+                  <button type="button" @click="activeDay = d.code"
+                          class="al-link al-link-bronze text-[11px] uppercase tracking-widest">
+                    <span>vai</span><i class="ph ph-arrow-up-right text-xs"></i>
+                  </button>
+                  <button type="button"
+                          @click="openDayReport(d.code)"
+                          :disabled="dayMealCount(d.code) === 0"
+                          :class="dayMealCount(d.code) === 0 ? 'opacity-40 cursor-not-allowed' : ''"
+                          class="al-link al-link-bronze text-[11px] uppercase tracking-widest ml-3"
+                          title="Vedi rapporto giornaliero">
+                    <i class="ph ph-chart-pie text-xs"></i><span>rapporto</span>
+                  </button>
                 </div>
               </template>
-            </div>
-
-            <!-- Meal macro bar -->
-            <div class="grid grid-cols-3 text-center text-xs" style="border-top: 1px solid var(--al-rule);">
-              <div class="py-3" style="border-right: 1px solid var(--al-rule);">
-                <span class="font-mono font-bold text-ink" x-text="mealMacro(meal, 'protein') + 'g'"></span>
-                <span class="al-tag ml-1">prot</span>
-              </div>
-              <div class="py-3" style="border-right: 1px solid var(--al-rule);">
-                <span class="font-mono font-bold text-ink" x-text="mealMacro(meal, 'carb') + 'g'"></span>
-                <span class="al-tag ml-1">carb</span>
-              </div>
-              <div class="py-3">
-                <span class="font-mono font-bold text-ink" x-text="mealMacro(meal, 'fat') + 'g'"></span>
-                <span class="al-tag ml-1">fat</span>
-              </div>
             </div>
           </div>
         </template>
 
-        <button type="button" @click="addMeal()" class="al-btn al-btn-ghost w-full"
-                style="border-style: dashed; padding: 18px;">
-          <i class="ph ph-plus text-lg"></i><span>Aggiungi pasto</span>
-        </button>
-        </div>
+        <!-- Weekly histogram (Media view) -->
+        <template x-if="planKind === 'WEEKLY' && activeDay === 'AVG'">
+          <div class="al-card">
+            <div class="flex items-center gap-3 mb-4 flex-wrap">
+              <i class="ph ph-chart-bar text-bronze text-xl"></i>
+              <div>
+                <p class="al-eyebrow" style="color: var(--al-ink-mute);">Andamento</p>
+                <h2 class="al-h-3">Calorie per giorno</h2>
+              </div>
+              <div class="ml-auto flex items-center gap-1.5 flex-wrap">
+                <span class="al-tag" style="font-size: 9px; color: var(--al-ink-mute);">aggiungi macro:</span>
+                <template x-for="opt in [{k:'protein',l:'Prot',c:'var(--al-aegean)'},
+                                          {k:'carb',l:'Carb',c:'var(--al-bronze)'},
+                                          {k:'fat',l:'Grassi',c:'var(--al-ink-mute)'}]" :key="opt.k">
+                  <button type="button" @click="toggleHisto(opt.k)"
+                          class="al-tag flex items-center gap-1.5 transition-all"
+                          :style="(histoShow[opt.k]
+                            ? 'background: ' + opt.c + '; color: var(--al-parchment); border-color: ' + opt.c + ';'
+                            : 'background: var(--al-parchment); color: var(--al-ink-mute); border: 1px solid var(--al-rule);') + ' padding: 4px 10px; cursor: pointer;'">
+                    <span :style="'width: 8px; height: 8px; border-radius: 2px; background: ' + (histoShow[opt.k] ? 'var(--al-parchment)' : opt.c)"></span>
+                    <span x-text="opt.l"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- Chart -->
+            <div x-data="{ hover: null }">
+              <div class="flex items-end gap-3 px-2"
+                   style="height: 220px; border-bottom: 1px solid var(--al-rule); padding-bottom: 4px;">
+                <template x-for="d in weekChartData()" :key="d.code">
+                  <div class="flex-1 flex flex-col items-center justify-end gap-1 relative"
+                       style="height: 100%; min-width: 32px;"
+                       @mouseenter="hover = d.code" @mouseleave="hover = null">
+
+                    <!-- Tooltip -->
+                    <template x-if="hover === d.code && d.kcal > 0">
+                      <div class="absolute z-10 px-3 py-2 pointer-events-none"
+                           style="bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-6px); background: var(--al-ink); color: var(--al-parchment); border-radius: var(--al-r-sm); box-shadow: var(--al-shadow-2); min-width: 130px; font-size: 10px; white-space: nowrap;">
+                        <p class="font-mono font-bold" style="font-size: 12px;" x-text="d.label"></p>
+                        <p class="font-mono mt-0.5" x-text="d.kcal + ' kcal'"></p>
+                        <p class="font-mono opacity-75" x-show="histoShow.protein" x-text="'P ' + d.protein + 'g (' + macroToKcal(d.protein,'protein') + ' kcal)'"></p>
+                        <p class="font-mono opacity-75" x-show="histoShow.carb"    x-text="'C ' + d.carb    + 'g (' + macroToKcal(d.carb,'carb')       + ' kcal)'"></p>
+                        <p class="font-mono opacity-75" x-show="histoShow.fat"     x-text="'F ' + d.fat     + 'g (' + macroToKcal(d.fat,'fat')         + ' kcal)'"></p>
+                      </div>
+                    </template>
+
+                    <!-- Bars row -->
+                    <div class="w-full flex items-end justify-center gap-[3px]" style="height: 100%;">
+                      <!-- kcal bar -->
+                      <div class="transition-all"
+                           :style="'flex: 1; max-width: 22px; height: ' + histoBarHeight(d.kcal, weekChartMaxAll(), 200) + 'px; background: linear-gradient(180deg, var(--al-bronze) 0%, var(--al-bronze-soft) 100%); border-radius: 3px 3px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '1') + ';'"></div>
+                      <!-- macro overlay bars -->
+                      <template x-if="histoShow.protein">
+                        <div class="transition-all"
+                             :style="'flex: 1; max-width: 14px; height: ' + histoBarHeight(macroToKcal(d.protein,'protein'), weekChartMaxAll(), 200) + 'px; background: var(--al-aegean); border-radius: 3px 3px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '0.85') + ';'"></div>
+                      </template>
+                      <template x-if="histoShow.carb">
+                        <div class="transition-all"
+                             :style="'flex: 1; max-width: 14px; height: ' + histoBarHeight(macroToKcal(d.carb,'carb'), weekChartMaxAll(), 200) + 'px; background: var(--al-warn); border-radius: 3px 3px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '0.85') + ';'"></div>
+                      </template>
+                      <template x-if="histoShow.fat">
+                        <div class="transition-all"
+                             :style="'flex: 1; max-width: 14px; height: ' + histoBarHeight(macroToKcal(d.fat,'fat'), weekChartMaxAll(), 200) + 'px; background: var(--al-danger); border-radius: 3px 3px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '0.85') + ';'"></div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Day labels -->
+              <div class="flex items-center gap-3 px-2 mt-2">
+                <template x-for="d in weekChartData()" :key="d.code">
+                  <div class="flex-1 text-center" style="min-width: 32px;">
+                    <p class="al-tag" style="font-size: 10px;" x-text="d.label"></p>
+                    <p class="font-mono" style="font-size: 10px; color: var(--al-ink-line);" x-text="d.kcal > 0 ? d.kcal : '—'"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <p class="al-tag mt-4 flex items-start gap-2" style="color: var(--al-ink-mute);">
+              <i class="ph ph-info text-xs mt-0.5"></i>
+              <span>Le barre macro mostrano il contributo calorico (g × fattore). Toggle per confrontare.</span>
+            </p>
+          </div>
+        </template>
+
+        <!-- Meal list (DAILY or single WEEKLY day) -->
+        <template x-if="planKind === 'DAILY' || (planKind === 'WEEKLY' && activeDay !== 'AVG')">
+          <div>
+            <!-- Day actions for WEEKLY -->
+            <template x-if="planKind === 'WEEKLY'">
+              <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div class="flex items-center gap-2">
+                  <span class="al-tag">Giorno corrente</span>
+                  <h3 class="al-h-4" x-text="weekDayLabel(activeDay)"></h3>
+                </div>
+                <div class="relative" x-data="{ menu: false }" @click.outside="menu = false">
+                  <button type="button" @click="menu = !menu" class="al-btn al-btn-ghost al-btn-sm"
+                          :disabled="!hasOtherDayWithMeals()">
+                    <i class="ph ph-copy text-sm"></i>
+                    <span>Duplica da…</span>
+                    <i class="ph ph-caret-down text-xs"></i>
+                  </button>
+                  <div x-show="menu" x-cloak
+                       class="absolute right-0 mt-2 z-30"
+                       style="background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md); box-shadow: var(--al-shadow-2); min-width: 200px;">
+                    <template x-for="d in weekDays.filter(x => x.code !== activeDay && dayMealCount(x.code) > 0)" :key="d.code">
+                      <button type="button" @click="duplicateFromDay(d.code); menu = false"
+                              class="w-full text-left px-4 py-2.5 al-small hover:bg-marble-warm"
+                              style="border-bottom: 1px solid var(--al-rule);">
+                        <span class="font-medium" x-text="d.label"></span>
+                        <span class="al-tag ml-2" x-text="'(' + dayMealCount(d.code) + ' pasti)'"></span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <template x-for="(meal, mIndex) in currentDayMeals()" :key="meal._key">
+                <div class="al-card al-card-warm al-card-flush">
+                  <!-- Header -->
+                  <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid var(--al-rule);">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0"
+                           style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
+                           x-text="mIndex + 1"></div>
+                      <input type="text" x-model="meal.name" placeholder="Nome pasto (es. Colazione)"
+                             class="flex-1 bg-transparent text-sm font-bold text-ink focus:outline-none placeholder-ink-mute"
+                             style="border: none; padding: 0;">
+                      <input type="time" x-model="meal.time_of_day"
+                             class="text-xs text-ink-mute bg-transparent w-24 shrink-0"
+                             style="border: none; padding: 0;">
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="al-tag font-mono" x-text="mealKcal(meal) + ' kcal'"></span>
+                      <button type="button" @click="removeMeal(meal._key)"
+                              class="al-btn al-btn-icon al-btn-ghost" title="Elimina pasto">
+                        <i class="ph ph-trash text-sm"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Items -->
+                  <div>
+                    <template x-for="(item, iIndex) in meal.items" :key="iIndex">
+                      <div class="flex items-center gap-3 px-5 py-3" style="border-bottom: 1px solid var(--al-rule);">
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-ink" x-text="item.food_name"></p>
+                          <p class="text-xs text-ink-mute mt-0.5" x-text="itemMacros(item)"></p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                          <input type="number" x-model.number="item.quantity_g" min="1" max="9999"
+                                 class="al-input text-center font-mono"
+                                 style="width: 78px; padding: 6px 10px;">
+                          <span class="al-tag">g</span>
+                          <button type="button" @click="meal.items.splice(iIndex, 1)"
+                                  class="al-btn al-btn-icon al-btn-ghost">
+                            <i class="ph ph-x text-xs"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- Food search -->
+                  <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);"
+                       x-data="foodPicker(meal._key)">
+                    <div x-ref="searchBar" class="al-search" style="border-style: dashed;">
+                      <i class="ph ph-magnifying-glass"></i>
+                      <input type="text" x-model="q" @input.debounce.300ms="search()"
+                             placeholder="Cerca alimento da aggiungere…" class="al-input">
+                      <span x-show="searching" class="al-tag">…</span>
+                    </div>
+                    <template x-teleport="body">
+                      <div x-show="show && results.length > 0" @click.outside="show = false"
+                           :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '260px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
+                        <template x-for="food in results" :key="food.id">
+                          <button type="button" @click="pick(food)"
+                                  class="w-full text-left px-4 py-3"
+                                  style="border-bottom: 1px solid var(--al-rule); background: transparent;">
+                            <div class="flex items-center justify-between gap-3">
+                              <div>
+                                <p class="text-sm font-medium text-ink" x-text="food.name"></p>
+                                <p class="al-tag" x-text="food.category"></p>
+                              </div>
+                              <div class="text-right shrink-0">
+                                <p class="text-xs font-bold text-ink font-mono" x-text="food.kcal + ' kcal'"></p>
+                                <p class="al-tag font-mono" x-text="'P ' + food.protein + ' · C ' + food.carb + ' · F ' + food.fat"></p>
+                              </div>
+                            </div>
+                          </button>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <button type="button" @click="addMeal()"
+                      class="al-btn al-btn-ghost w-full"
+                      style="border-style: dashed; padding: 18px;">
+                <i class="ph ph-plus text-lg"></i><span>Aggiungi pasto</span>
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
+      <!-- Side panel -->
+      <aside class="space-y-4 lg:sticky lg:top-6">
+        <div class="al-card">
+          <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);"
+             x-text="planKind === 'WEEKLY' && activeDay === 'AVG' ? 'Media settimanale' : 'Totali giornalieri'"></p>
+
+          <div class="text-center mb-5">
+            <p class="al-display font-mono"
+               style="font-size: 40px; line-height: 1.1; color: var(--al-ink);"
+               x-text="sidePanelKcal()"></p>
+            <p class="al-tag mt-1">kcal</p>
+            <template x-if="daily_kcal">
+              <p class="al-tag mt-1 font-mono"
+                 :style="kcalDeltaColor()"
+                 x-text="kcalDeltaLabel()"></p>
+            </template>
+          </div>
+
+          <div class="space-y-3">
+            <template x-for="row in [{k:'protein',c:'var(--al-aegean)',l:'Proteine',t:protein_target_g},
+                                      {k:'carb',c:'var(--al-bronze)',l:'Carboidrati',t:carb_target_g},
+                                      {k:'fat',c:'var(--al-ink-mute)',l:'Grassi',t:fat_target_g}]" :key="row.k">
+              <div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span :style="'width:10px;height:10px;border-radius:999px;background:' + row.c"></span>
+                    <span class="al-body" x-text="row.l"></span>
+                  </div>
+                  <span class="font-mono font-bold text-ink"
+                        x-text="sidePanelMacro(row.k) + (row.t ? ' / ' + row.t : '') + ' g'"></span>
+                </div>
+                <template x-if="row.t">
+                  <div class="mt-1.5 h-1.5 overflow-hidden"
+                       style="background: var(--al-marble); border-radius: 999px;">
+                    <div class="h-full transition-all"
+                         :style="'background:' + row.c + '; width:' + macroProgressPct(row.k, row.t) + '%'"></div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="al-card al-card-warm">
+          <p class="al-eyebrow mb-2">Target personalizzato</p>
+          <template x-if="!daily_kcal && !protein_target_g && !carb_target_g && !fat_target_g">
+            <p class="al-small" style="color: var(--al-ink-mute);">
+              Nessun target impostato. Modifica in <button type="button" @click="jumpTo('info')"
+              class="al-link al-link-bronze">Informazioni</button>.
+            </p>
+          </template>
+          <template x-if="daily_kcal || protein_target_g || carb_target_g || fat_target_g">
+            <div class="grid grid-cols-4 gap-2 text-center">
+              <div><p class="al-tag" style="font-size: 9px;">kcal</p><p class="font-mono text-ink text-sm mt-0.5" x-text="daily_kcal || '—'"></p></div>
+              <div><p class="al-tag" style="font-size: 9px;">Pro</p><p class="font-mono text-ink text-sm mt-0.5" x-text="protein_target_g || '—'"></p></div>
+              <div><p class="al-tag" style="font-size: 9px;">Carb</p><p class="font-mono text-ink text-sm mt-0.5" x-text="carb_target_g || '—'"></p></div>
+              <div><p class="al-tag" style="font-size: 9px;">Fat</p><p class="font-mono text-ink text-sm mt-0.5" x-text="fat_target_g || '—'"></p></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="al-card text-center">
+          <p class="al-display font-mono" style="font-size: 28px; color: var(--al-ink);" x-text="sidePanelMealCount()"></p>
+          <p class="al-tag mt-1" x-text="planKind === 'WEEKLY' && activeDay === 'AVG' ? 'pasti / giorno (media)' : 'pasti totali'"></p>
+        </div>
+      </aside>
     </div>
 
-    <!-- Right: totali -->
-    <aside class="space-y-5 lg:sticky lg:top-6">
-
-      <!-- Totali macro calcolati -->
-      <div class="al-card">
-        <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Totali giornalieri</p>
-        <div class="text-center mb-5">
-          <p class="al-display font-mono" style="font-size: 40px; line-height: 1.1; color: var(--al-ink);" x-text="totalKcal()"></p>
-          <p class="al-tag mt-1">kcal / giorno</p>
-        </div>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span style="width:10px;height:10px;border-radius:999px;background:var(--al-aegean);"></span>
-              <span class="al-body">Proteine</span>
-            </div>
-            <span class="font-mono font-bold text-ink" x-text="totalMacro('protein') + ' g'"></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span style="width:10px;height:10px;border-radius:999px;background:var(--al-bronze);"></span>
-              <span class="al-body">Carboidrati</span>
-            </div>
-            <span class="font-mono font-bold text-ink" x-text="totalMacro('carb') + ' g'"></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span style="width:10px;height:10px;border-radius:999px;background:var(--al-ink-mute);"></span>
-              <span class="al-body">Grassi</span>
-            </div>
-            <span class="font-mono font-bold text-ink" x-text="totalMacro('fat') + ' g'"></span>
-          </div>
-        </div>
-
-        <!-- Macro bar -->
-        <div class="mt-5 h-2 overflow-hidden flex"
-             style="background: var(--al-marble); border-radius: 999px;"
-             x-show="totalKcal() > 0">
-          <div style="background: var(--al-aegean);" class="h-full transition-all" :style="'width:' + macroPct('protein') + '%'"></div>
-          <div style="background: var(--al-bronze);" class="h-full transition-all" :style="'width:' + macroPct('carb') + '%'"></div>
-          <div style="background: var(--al-ink-mute);" class="h-full transition-all" :style="'width:' + macroPct('fat') + '%'"></div>
-        </div>
-        <div class="flex justify-between al-tag mt-2 font-mono" x-show="totalKcal() > 0">
-          <span x-text="macroPct('protein') + '% P'"></span>
-          <span x-text="macroPct('carb') + '% C'"></span>
-          <span x-text="macroPct('fat') + '% F'"></span>
-        </div>
-      </div>
-
-      <!-- Target macro (opzionale) -->
-      <div class="al-card">
-        <p class="al-eyebrow mb-4" style="color: var(--al-ink-mute);">Target personalizzato</p>
-        <div class="space-y-3">
-          <div>
-            <label class="al-label">Kcal target</label>
-            <input type="number" x-model="daily_kcal" placeholder="—" class="al-input">
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="al-label" style="font-size:10px;">Prot</label>
-              <input type="number" x-model="protein_target_g" placeholder="—" class="al-input text-center">
-            </div>
-            <div>
-              <label class="al-label" style="font-size:10px;">Carb</label>
-              <input type="number" x-model="carb_target_g" placeholder="—" class="al-input text-center">
-            </div>
-            <div>
-              <label class="al-label" style="font-size:10px;">Fat</label>
-              <input type="number" x-model="fat_target_g" placeholder="—" class="al-input text-center">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pasti count -->
-      <div class="al-card al-card-warm text-center">
-        <p class="al-display font-mono" style="font-size: 28px; color: var(--al-ink);" x-text="meals.length"></p>
-        <p class="al-tag mt-1">Pasti totali</p>
-      </div>
-
-      <!-- Error -->
-      <div x-show="errorMsg" class="al-toast is-danger" x-text="errorMsg"></div>
-    </aside>
-
+    <!-- Step nav footer -->
+    <div class="flex items-center justify-between mt-7 pt-5 gap-3"
+         style="border-top: 1px solid var(--al-rule);">
+      <button type="button" @click="goBack()" class="al-btn al-btn-ghost">
+        <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
+      </button>
+      <button type="button" @click="goNext()" :disabled="saving" class="al-btn al-btn-bronze">
+        <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
+      </button>
+    </div>
   </div>
+
+  <!-- ============================================================== -->
+  <!-- STEP 3 — INTEGRATORI                                            -->
+  <!-- ============================================================== -->
+  <div x-show="step === 'integratori'" x-cloak>
+    <div class="al-card mb-6">
+      <div class="flex items-center gap-3 mb-6">
+        <i class="ph ph-pill text-bronze text-xl"></i>
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+          <h2 class="al-h-3">Integrazione</h2>
+        </div>
+        <button type="button" @click="addSupplement()" class="al-btn al-btn-ghost al-btn-sm ml-auto">
+          <i class="ph ph-plus"></i><span>Aggiungi integratore</span>
+        </button>
+      </div>
+
+      <template x-if="supplements.length === 0">
+        <div class="al-empty" style="padding: 36px 20px;">
+          <i class="ph ph-pill al-empty-icon"></i>
+          <h3 class="al-h-4">Nessun integratore</h3>
+          <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+            Aggiungi gli integratori del protocollo o salta questo passaggio.
+          </p>
+        </div>
+      </template>
+
+      <div class="space-y-3">
+        <template x-for="(supp, idx) in supplements" :key="supp._key">
+          <div class="al-card al-card-warm al-card-flush" style="padding: 16px 18px;">
+            <div class="flex items-start gap-3">
+              <span class="font-mono shrink-0 mt-1"
+                    style="color: var(--al-ink-line); font-size: 12px;"
+                    x-text="String(idx + 1).padStart(2, '0')"></span>
+
+              <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-3">
+                <div x-data="supplementPicker(supp._key, supp.supplement_name)">
+                  <label class="al-label">Integratore</label>
+                  <div x-ref="searchBar" class="al-search" style="margin-top: 4px;"
+                       :style="supp.supplement_id ? 'background: var(--al-marble-warm); border-color: var(--al-bronze-soft);' : ''">
+                    <i class="ph" :class="supp.supplement_id ? 'ph-check-circle' : 'ph-magnifying-glass'"
+                       :style="supp.supplement_id ? 'color: var(--al-bronze);' : ''"></i>
+                    <input type="text" x-model="q" @input.debounce.300ms="search()"
+                           placeholder="Cerca integratore…"
+                           class="al-input"
+                           :style="supp.supplement_id ? 'font-weight: 600; color: var(--al-ink);' : ''">
+                    <button type="button"
+                            x-show="supp.supplement_id"
+                            @click="supp.supplement_id = null; supp.supplement_name = ''; q = ''; results = []; show = false; $nextTick(() => $refs.searchBar.querySelector('input').focus())"
+                            class="al-btn al-btn-icon al-btn-ghost"
+                            style="padding: 2px; margin-right: -4px;" title="Cambia integratore">
+                      <i class="ph ph-x text-xs"></i>
+                    </button>
+                  </div>
+                  <p class="al-tag mt-1" x-show="supp.supplement_id" style="color: var(--al-bronze); font-size: 9px;">
+                    <i class="ph ph-link text-[10px]"></i>
+                    <span>Collegato</span>
+                  </p>
+                  <template x-teleport="body">
+                    <div x-show="show && results.length > 0" @click.outside="show = false"
+                         :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '240px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
+                      <template x-for="s in results" :key="s.id">
+                        <button type="button" @click="pick(s)"
+                                class="w-full text-left px-4 py-2.5"
+                                style="border-bottom: 1px solid var(--al-rule); background: transparent;">
+                          <p class="text-sm font-medium text-ink" x-text="s.name"></p>
+                          <p class="al-tag" x-text="s.category"></p>
+                        </button>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+
+                <div>
+                  <label class="al-label">Dose</label>
+                  <input type="text" x-model="supp.dose" placeholder="Es. 5 g" class="al-input">
+                </div>
+
+                <div>
+                  <label class="al-label">Timing</label>
+                  <input type="text" x-model="supp.timing" placeholder="Es. post-workout" class="al-input">
+                </div>
+              </div>
+
+              <button type="button" @click="removeSupplement(supp._key)"
+                      class="al-btn al-btn-icon al-btn-ghost shrink-0 mt-5"
+                      title="Rimuovi">
+                <i class="ph ph-x text-sm"></i>
+              </button>
+            </div>
+
+            <div class="mt-3">
+              <input type="text" x-model="supp.notes" placeholder="Note (opzionale)…" class="al-input">
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="mt-6">
+        <label class="al-label">Note generali integrazione</label>
+        <textarea x-model="supplementNotes" rows="3" class="al-textarea"
+                  placeholder="Istruzioni complessive, ciclizzazioni, contesto…"></textarea>
+      </div>
+
+      <p class="al-tag mt-4 flex items-start gap-2" style="color: var(--al-ink-mute);">
+        <i class="ph ph-info text-xs mt-0.5"></i>
+        <span>La lista crea una scheda integratori collegata al piano in fase di salvataggio.</span>
+      </p>
+    </div>
+
+    <div class="flex items-center justify-between mt-7 pt-5 gap-3"
+         style="border-top: 1px solid var(--al-rule);">
+      <button type="button" @click="goBack()" class="al-btn al-btn-ghost">
+        <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
+      </button>
+      <div class="flex gap-2">
+        <button type="button" @click="skipIntegratori()" class="al-btn al-btn-ghost">
+          <span>Salta</span>
+        </button>
+        <button type="button" @click="goNext()" class="al-btn al-btn-bronze">
+          <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- STEP 4 — RIEPILOGO                                              -->
+  <!-- ============================================================== -->
+  <div x-show="step === 'riepilogo'" x-cloak>
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+
+      <!-- Preview -->
+      <div class="space-y-5">
+        <div class="al-card">
+          <div class="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <p class="al-eyebrow" style="color: var(--al-ink-mute);">04 · Riepilogo</p>
+              <h2 class="al-h-2 mt-1" x-text="title || '—'"></h2>
+              <div class="flex items-center gap-2 mt-3 flex-wrap">
+                <span class="al-tag font-mono"
+                      style="background: var(--al-marble-warm); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze); padding: 3px 9px;">
+                  <i class="ph" :class="planKind === 'WEEKLY' ? 'ph-calendar' : 'ph-sun'"></i>
+                  <span x-text="planKind === 'WEEKLY' ? 'Settimanale' : 'Giornaliero'"></span>
+                </span>
+                <span class="al-tag" x-show="plan_type" x-text="plan_type"></span>
+                <span class="al-tag" x-show="nutrition_goal" x-text="nutrition_goal"></span>
+                <span class="al-tag" x-show="is_template"
+                      style="background: var(--al-info-bg); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.18);">
+                  <i class="ph ph-bookmark text-xs"></i><span>Template</span>
+                </span>
+              </div>
+              <p class="al-body mt-3" x-show="description" x-text="description"></p>
+            </div>
+          </div>
+
+          <!-- Macros tiles -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <template x-for="t in [{k:'kcal',l:'kcal',v:riepilogoKcal(),tgt:daily_kcal,c:''},
+                                    {k:'protein',l:'Prot (g)',v:riepilogoMacro('protein'),tgt:protein_target_g,c:'var(--al-aegean)'},
+                                    {k:'carb',l:'Carb (g)',v:riepilogoMacro('carb'),tgt:carb_target_g,c:'var(--al-warn)'},
+                                    {k:'fat',l:'Fat (g)',v:riepilogoMacro('fat'),tgt:fat_target_g,c:'var(--al-danger)'}]" :key="t.k">
+              <div class="text-center py-4 px-2"
+                   style="background: var(--al-marble); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                <p class="al-tag" style="font-size: 9px;" :style="t.c ? 'color:' + t.c : ''" x-text="t.l"></p>
+                <p class="font-mono font-medium mt-1" style="font-size: 22px;" :style="t.c ? 'color:' + t.c : 'color: var(--al-ink);'" x-text="t.v"></p>
+                <template x-if="t.tgt">
+                  <p class="al-tag font-mono mt-1" :style="deltaColorFor(t.v, t.tgt)" x-text="deltaLabel(t.v, t.tgt)"></p>
+                </template>
+              </div>
+            </template>
+          </div>
+
+          <!-- Macro pie chart (DAILY) -->
+          <template x-if="planKind === 'DAILY'">
+            <div class="mt-6" x-data="{ hover: null }">
+              <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">
+                <i class="ph ph-chart-pie text-bronze"></i>
+                <span>Ripartizione macro</span>
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-6 items-center">
+                <div class="relative mx-auto" style="width: 200px; height: 200px;">
+                  <svg viewBox="0 0 200 200" width="200" height="200">
+                    <template x-for="seg in dailyPieSegments()" :key="seg.key">
+                      <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 56)"
+                            :fill="seg.color"
+                            :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                            @mouseenter="hover = seg.key"
+                            @mouseleave="hover = null"
+                            style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                    </template>
+                    <template x-if="pieKcalTotal(dailyPieSegments()) === 0">
+                      <circle cx="100" cy="100" r="90" fill="none" stroke="var(--al-rule)" stroke-width="2" stroke-dasharray="4 6"></circle>
+                    </template>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <template x-if="!hover">
+                      <div class="text-center">
+                        <p class="font-mono" style="font-size: 26px; color: var(--al-ink); line-height: 1;" x-text="pieKcalTotal(dailyPieSegments()) || '—'"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;">kcal da macro</p>
+                      </div>
+                    </template>
+                    <template x-if="hover">
+                      <div class="text-center">
+                        <p class="font-mono font-bold" style="font-size: 22px; line-height: 1;"
+                           :style="'color: ' + (dailyPieSegments().find(s => s.key === hover) || {}).color"
+                           x-text="pctLabel((dailyPieSegments().find(s => s.key === hover) || {}).pct || 0)"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;"
+                           x-text="(dailyPieSegments().find(s => s.key === hover) || {}).label"></p>
+                        <p class="font-mono al-small mt-0.5" style="font-size: 11px; color: var(--al-ink-soft);"
+                           x-text="((dailyPieSegments().find(s => s.key === hover) || {}).grams || 0) + 'g · ' + ((dailyPieSegments().find(s => s.key === hover) || {}).kcal || 0) + ' kcal'"></p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="space-y-2.5">
+                  <template x-for="seg in dailyPieSegments()" :key="seg.key">
+                    <div class="flex items-center gap-3 py-2 px-3 transition-all"
+                         @mouseenter="hover = seg.key" @mouseleave="hover = null"
+                         :style="(hover === seg.key ? 'background: var(--al-marble-warm); ' : '') + 'border-radius: var(--al-r-sm); cursor: pointer;'">
+                      <span class="shrink-0" :style="'width: 12px; height: 12px; background: ' + seg.color + '; border-radius: 3px;'"></span>
+                      <div class="flex-1 min-w-0">
+                        <p class="al-body font-medium" x-text="seg.label"></p>
+                        <p class="al-tag font-mono" x-text="seg.grams + ' g · ' + seg.kcal + ' kcal'"></p>
+                      </div>
+                      <span class="font-mono font-bold text-ink" style="font-size: 18px;" x-text="pctLabel(seg.pct)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Macro pie chart (WEEKLY single day in riepilogo) -->
+          <template x-if="planKind === 'WEEKLY' && recapDay !== 'AVG' && dayMealCount(recapDay) > 0">
+            <div class="mt-6" x-data="{ hover: null }">
+              <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">
+                <i class="ph ph-chart-pie text-bronze"></i>
+                <span x-text="'Ripartizione macro · ' + weekDayLabel(recapDay)"></span>
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-6 items-center">
+                <div class="relative mx-auto" style="width: 200px; height: 200px;">
+                  <svg viewBox="0 0 200 200" width="200" height="200">
+                    <template x-for="seg in weeklyDayPieSegments(recapDay)" :key="seg.key">
+                      <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 56)"
+                            :fill="seg.color"
+                            :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                            @mouseenter="hover = seg.key"
+                            @mouseleave="hover = null"
+                            style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                    </template>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <template x-if="!hover">
+                      <div class="text-center">
+                        <p class="font-mono" style="font-size: 26px; color: var(--al-ink); line-height: 1;" x-text="dayKcal(recapDay)"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;">kcal totali</p>
+                      </div>
+                    </template>
+                    <template x-if="hover">
+                      <div class="text-center">
+                        <p class="font-mono font-bold" style="font-size: 22px; line-height: 1;"
+                           :style="'color: ' + (weeklyDayPieSegments(recapDay).find(s => s.key === hover) || {}).color"
+                           x-text="pctLabel((weeklyDayPieSegments(recapDay).find(s => s.key === hover) || {}).pct || 0)"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;"
+                           x-text="(weeklyDayPieSegments(recapDay).find(s => s.key === hover) || {}).label"></p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <div class="space-y-2.5">
+                  <template x-for="seg in weeklyDayPieSegments(recapDay)" :key="seg.key">
+                    <div class="flex items-center gap-3 py-2 px-3 transition-all"
+                         @mouseenter="hover = seg.key" @mouseleave="hover = null"
+                         :style="(hover === seg.key ? 'background: var(--al-marble-warm); ' : '') + 'border-radius: var(--al-r-sm); cursor: pointer;'">
+                      <span class="shrink-0" :style="'width: 12px; height: 12px; background: ' + seg.color + '; border-radius: 3px;'"></span>
+                      <div class="flex-1 min-w-0">
+                        <p class="al-body font-medium" x-text="seg.label"></p>
+                        <p class="al-tag font-mono" x-text="seg.grams + ' g · ' + seg.kcal + ' kcal'"></p>
+                      </div>
+                      <span class="font-mono font-bold text-ink" style="font-size: 18px;" x-text="pctLabel(seg.pct)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Pasti preview -->
+        <div class="al-card">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="ph ph-fork-knife text-bronze text-lg"></i>
+            <h3 class="al-h-4">Pasti</h3>
+          </div>
+
+          <!-- WEEKLY tabs -->
+          <template x-if="planKind === 'WEEKLY'">
+            <div class="flex items-center gap-1 flex-wrap mb-4 pb-3" style="border-bottom: 1px solid var(--al-rule);">
+              <button type="button" @click="recapDay = 'AVG'"
+                      class="al-tag transition-all"
+                      :style="recapDay === 'AVG' ? 'background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze); padding: 4px 10px;' : 'padding: 4px 10px; cursor: pointer;'">
+                <i class="ph ph-chart-line text-xs"></i><span class="ml-1">Media</span>
+              </button>
+              <template x-for="d in weekDays" :key="d.code">
+                <button type="button" @click="recapDay = d.code"
+                        :disabled="dayMealCount(d.code) === 0"
+                        :class="dayMealCount(d.code) === 0 ? 'opacity-40 cursor-not-allowed' : ''"
+                        class="al-tag transition-all"
+                        :style="recapDay === d.code ? 'background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze); padding: 4px 10px;' : 'padding: 4px 10px; cursor: pointer;'"
+                        x-text="d.label"></button>
+              </template>
+            </div>
+          </template>
+
+          <!-- WEEKLY Media summary -->
+          <template x-if="planKind === 'WEEKLY' && recapDay === 'AVG'">
+            <div class="al-small" style="color: var(--al-ink-mute);">
+              <p>Media su <strong x-text="filledDaysCount()"></strong> giorni compilati.
+                 Apri un giorno per il dettaglio dei pasti.</p>
+            </div>
+          </template>
+
+          <!-- Meal accordion -->
+          <template x-if="planKind === 'DAILY' || (planKind === 'WEEKLY' && recapDay !== 'AVG')">
+            <div class="space-y-2">
+              <template x-for="meal in recapMeals()" :key="meal._key">
+                <div x-data="{ open: false }"
+                     class="al-card al-card-flush al-card-warm">
+                  <button type="button" @click="open = !open"
+                          class="w-full flex items-center gap-3 px-4 py-3 text-left">
+                    <i class="ph transition-transform"
+                       :class="open ? 'ph-caret-down' : 'ph-caret-right'"></i>
+                    <span class="font-medium text-ink flex-1" x-text="meal.name || 'Pasto'"></span>
+                    <span class="al-tag font-mono" x-text="meal.time_of_day || '—'"></span>
+                    <span class="al-tag font-mono" x-text="mealKcal(meal) + ' kcal'"></span>
+                  </button>
+                  <div x-show="open" x-cloak class="px-4 pb-3" style="border-top: 1px solid var(--al-rule);">
+                    <template x-if="meal.items.length === 0">
+                      <p class="al-tag py-2">Nessun alimento.</p>
+                    </template>
+                    <template x-for="(item, ii) in meal.items" :key="ii">
+                      <div class="flex items-center gap-3 py-2"
+                           :style="ii < meal.items.length - 1 ? 'border-bottom: 1px dashed var(--al-rule);' : ''">
+                        <span class="font-mono text-xs shrink-0" style="color: var(--al-ink-line); width: 64px;"
+                              x-text="item.quantity_g + ' g'"></span>
+                        <span class="al-body flex-1" x-text="item.food_name"></span>
+                        <span class="al-tag font-mono" x-text="itemMacros(item)"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <template x-if="recapMeals().length === 0">
+                <p class="al-tag" style="color: var(--al-ink-line);">Nessun pasto.</p>
+              </template>
+            </div>
+          </template>
+        </div>
+
+        <!-- Integratori preview -->
+        <div class="al-card">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="ph ph-pill text-bronze text-lg"></i>
+            <h3 class="al-h-4">Integrazione</h3>
+          </div>
+          <template x-if="supplements.length === 0">
+            <p class="al-tag" style="color: var(--al-ink-line);">Nessun integratore.</p>
+          </template>
+          <ul class="space-y-2">
+            <template x-for="s in supplements" :key="s._key">
+              <li class="flex items-center gap-3 py-2" style="border-bottom: 1px dashed var(--al-rule);">
+                <i class="ph ph-circle-fill text-bronze" style="font-size: 6px;"></i>
+                <span class="font-medium text-ink" x-text="s.supplement_name || '(senza nome)'"></span>
+                <span class="al-tag" x-show="s.dose" x-text="s.dose"></span>
+                <span class="al-tag" x-show="s.timing" x-text="'· ' + s.timing"></span>
+                <span class="al-tag flex-1 truncate" style="color: var(--al-ink-mute);" x-show="s.notes" x-text="s.notes"></span>
+              </li>
+            </template>
+          </ul>
+          <p class="al-small mt-3" x-show="supplementNotes" style="color: var(--al-ink-soft);"
+             x-text="supplementNotes"></p>
+        </div>
+      </div>
+
+      <!-- Action panel -->
+      <aside class="space-y-4 lg:sticky lg:top-6">
+        <div class="al-card">
+          <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Azioni</p>
+
+          <button type="button" @click="finalize('draft')" :disabled="saving"
+                  class="al-btn al-btn-ghost w-full justify-center mb-2">
+            <i class="ph ph-floppy-disk text-sm"></i>
+            <span>Salva bozza</span>
+          </button>
+
+          <button type="button" @click="finalize('template')" :disabled="saving"
+                  class="al-btn al-btn-ghost w-full justify-center mb-2">
+            <i class="ph ph-bookmark text-sm"></i>
+            <span>Salva come template</span>
+          </button>
+
+          <button type="button" @click="openAssign()" :disabled="saving || !canAssign()"
+                  class="al-btn al-btn-bronze w-full justify-center">
+            <i class="ph ph-user-plus text-sm"></i>
+            <span>Assegna ad atleti</span>
+          </button>
+
+          <p class="al-tag mt-3" x-show="!canAssign()" style="color: var(--al-ink-mute);">
+            Compila titolo e almeno un pasto con un alimento.
+          </p>
+        </div>
+
+        <div class="al-card al-card-warm">
+          <p class="al-eyebrow mb-2">Validazione</p>
+          <ul class="space-y-1.5 al-small">
+            <li class="flex items-center gap-2">
+              <i class="ph" :class="title ? 'ph-check-circle text-bronze' : 'ph-circle text-ink-line'"></i>
+              <span>Titolo presente</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <i class="ph" :class="hasAnyMealWithItem() ? 'ph-check-circle text-bronze' : 'ph-circle text-ink-line'"></i>
+              <span x-text="planKind === 'WEEKLY' ? 'Almeno un giorno con pasto' : 'Almeno un pasto con alimento'"></span>
+            </li>
+          </ul>
+        </div>
+
+        <button type="button" @click="goBack()" class="al-btn al-btn-ghost w-full justify-center">
+          <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
+        </button>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Day report modal (WEEKLY): pie + numbers -->
+  <div x-show="dayReportOpen" x-cloak
+       @keydown.escape.window="closeDayReport()"
+       class="fixed inset-0 z-40 flex items-center justify-center p-4"
+       style="background: rgba(28, 28, 28, 0.55); backdrop-filter: blur(3px);"
+       @click.self="closeDayReport()">
+    <div x-show="dayReportOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="al-card w-full max-w-2xl"
+         style="background: var(--al-parchment); max-height: 90vh; overflow-y: auto;"
+         x-data="{ hover: null }">
+
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Rapporto giornaliero</p>
+          <h2 class="al-h-2 mt-1" x-text="dayReportCode ? ('Giorno · ' + weekDayLabel(dayReportCode)) : ''"></h2>
+          <p class="al-small mt-1" style="color: var(--al-ink-mute);"
+             x-text="dayReportCode ? (dayMealCount(dayReportCode) + ' pasti · ' + dayKcal(dayReportCode) + ' kcal') : ''"></p>
+        </div>
+        <button type="button" @click="closeDayReport()" class="al-btn al-btn-icon al-btn-ghost">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <template x-if="dayReportCode && dayMealCount(dayReportCode) > 0">
+        <div class="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-6 items-center">
+          <div class="relative mx-auto" style="width: 220px; height: 220px;">
+            <svg viewBox="0 0 200 200" width="220" height="220">
+              <template x-for="seg in weeklyDayPieSegments(dayReportCode)" :key="seg.key">
+                <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
+                      :fill="seg.color"
+                      :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                      @mouseenter="hover = seg.key"
+                      @mouseleave="hover = null"
+                      style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+              </template>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <template x-if="!hover">
+                <div class="text-center">
+                  <p class="font-mono" style="font-size: 30px; color: var(--al-ink); line-height: 1;" x-text="dayKcal(dayReportCode)"></p>
+                  <p class="al-tag mt-1" style="font-size: 9px;">kcal totali</p>
+                </div>
+              </template>
+              <template x-if="hover">
+                <div class="text-center">
+                  <p class="font-mono font-bold" style="font-size: 26px; line-height: 1;"
+                     :style="'color: ' + (weeklyDayPieSegments(dayReportCode).find(s => s.key === hover) || {}).color"
+                     x-text="pctLabel((weeklyDayPieSegments(dayReportCode).find(s => s.key === hover) || {}).pct || 0)"></p>
+                  <p class="al-tag mt-1" style="font-size: 9px;"
+                     x-text="(weeklyDayPieSegments(dayReportCode).find(s => s.key === hover) || {}).label"></p>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <template x-for="seg in weeklyDayPieSegments(dayReportCode)" :key="seg.key">
+              <div class="flex items-center gap-3 py-2 px-3 transition-all"
+                   @mouseenter="hover = seg.key" @mouseleave="hover = null"
+                   :style="(hover === seg.key ? 'background: var(--al-marble-warm); ' : '') + 'border-radius: var(--al-r-sm); cursor: pointer;'">
+                <span class="shrink-0" :style="'width: 14px; height: 14px; background: ' + seg.color + '; border-radius: 3px;'"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="al-body font-medium" x-text="seg.label"></p>
+                  <p class="al-tag font-mono" x-text="seg.grams + ' g · ' + seg.kcal + ' kcal'"></p>
+                </div>
+                <span class="font-mono font-bold text-ink" style="font-size: 20px;" x-text="pctLabel(seg.pct)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="dayReportCode && dayMealCount(dayReportCode) === 0">
+        <p class="al-empty">Nessun pasto in questo giorno.</p>
+      </template>
+
+      <div class="flex justify-end gap-2 mt-6 pt-4" style="border-top: 1px solid var(--al-rule);">
+        <button type="button" @click="closeDayReport()" class="al-btn al-btn-ghost">
+          <span>Chiudi</span>
+        </button>
+        <button type="button"
+                @click="activeDay = dayReportCode; closeDayReport()"
+                class="al-btn al-btn-bronze">
+          <i class="ph ph-arrow-up-right text-sm"></i>
+          <span>Apri giorno</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign modal (provides assignModal, assignPlanId, etc. via wizard state) -->
+  {% include 'pages/nutrizione/_assign_modal.html' %}
+
 </div>
 
-<script>
-function planBuilder() {
-  return {
-    title: '{{ plan.title|escapejs|default:"" }}',
-    description: '{{ plan.description|escapejs|default:"" }}',
-    plan_type: '{{ plan.plan_type|escapejs|default:"" }}',
-    nutrition_goal: '{{ plan.nutrition_goal|escapejs|default:"" }}',
-    is_template: {{ plan.is_template|yesno:"true,false"|default:"false" }},
-    daily_kcal: {{ plan.daily_kcal|default:"''" }},
-    protein_target_g: {{ plan.protein_target_g|default:"''" }},
-    carb_target_g: {{ plan.carb_target_g|default:"''" }},
-    fat_target_g: {{ plan.fat_target_g|default:"''" }},
-    meals: [],
-    folder_id: {% if plan %}{{ plan.folder_id|default:"null" }}{% else %}(window._initialFolderId || null){% endif %},
-    saving: false,
-    errorMsg: '',
-
-    init() {
-      const raw = window._mealsData || [];
-      this.meals = raw.map(m => ({
-        name: m.name,
-        time_of_day: m.time_of_day || '',
-        notes: m.notes || '',
-        items: (m.items || []).map(i => ({
-          food_id: i.food_id,
-          food_name: i.food_name,
-          quantity_g: i.quantity_g,
-          kcal_per_100g: i.kcal_per_100g,
-          protein_per_100g: i.protein_per_100g,
-          carb_per_100g: i.carb_per_100g,
-          fat_per_100g: i.fat_per_100g,
-        }))
-      }));
-    },
-
-    addFoodToMeal(mealIndex, food) {
-      this.meals[mealIndex].items.push({
-        food_id: food.id,
-        food_name: food.name,
-        quantity_g: 100,
-        kcal_per_100g: food.kcal,
-        protein_per_100g: food.protein,
-        carb_per_100g: food.carb,
-        fat_per_100g: food.fat,
-      });
-    },
-
-    addMeal() {
-      this.meals.push({ name: '', time_of_day: '', notes: '', items: [] });
-    },
-
-    removeMeal(i) { this.meals.splice(i, 1); },
-    removeItem(mi, ii) { this.meals[mi].items.splice(ii, 1); },
-
-    computedMacros(item) {
-      const q = parseFloat(item.quantity_g) || 0;
-      const k = Math.round(item.kcal_per_100g * q / 100);
-      const p = (item.protein_per_100g * q / 100).toFixed(1);
-      const c = (item.carb_per_100g * q / 100).toFixed(1);
-      const f = (item.fat_per_100g * q / 100).toFixed(1);
-      return k + ' kcal · P ' + p + 'g · C ' + c + 'g · F ' + f + 'g';
-    },
-
-    mealKcal(meal) {
-      return Math.round(meal.items.reduce((s, i) => s + (i.kcal_per_100g * (parseFloat(i.quantity_g) || 0) / 100), 0));
-    },
-
-    mealMacro(meal, key) {
-      const field = key + '_per_100g';
-      return Math.round(meal.items.reduce((s, i) => s + (i[field] * (parseFloat(i.quantity_g) || 0) / 100), 0));
-    },
-
-    totalKcal() {
-      return Math.round(this.meals.reduce((s, m) => s + this.mealKcal(m), 0));
-    },
-
-    totalMacro(key) {
-      return Math.round(this.meals.reduce((s, m) => s + this.mealMacro(m, key), 0));
-    },
-
-    macroPct(key) {
-      const total = this.totalKcal();
-      if (!total) return 0;
-      const kcalPerG = key === 'fat' ? 9 : 4;
-      return Math.round(this.totalMacro(key) * kcalPerG / total * 100);
-    },
-
-    async savePlan() {
-      if (!this.title.trim()) { this.errorMsg = 'Il titolo è obbligatorio.'; return; }
-      this.errorMsg = '';
-      this.saving = true;
-      const url = {% if plan %}'{% url "nutrizione_piano_edit" plan.id %}'{% else %}'{% url "nutrizione_piano_create" %}'{% endif %};
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: JSON.stringify({
-          title: this.title,
-          description: this.description,
-          plan_type: this.plan_type,
-          nutrition_goal: this.nutrition_goal,
-          is_template: this.is_template,
-          daily_kcal: this.daily_kcal || null,
-          protein_target_g: this.protein_target_g || null,
-          carb_target_g: this.carb_target_g || null,
-          fat_target_g: this.fat_target_g || null,
-          folder_id: this.folder_id,
-          meals: this.meals,
-        })
-      });
-      this.saving = false;
-      if (res.ok) {
-        const d = await res.json();
-        window.location.href = '/nutrizione/piani/' + d.plan_id + '/';
-      } else {
-        const d = await res.json().catch(() => ({}));
-        this.errorMsg = d.error || 'Errore durante il salvataggio.';
-      }
-    }
-  };
-}
-</script>
 {% endblock %}

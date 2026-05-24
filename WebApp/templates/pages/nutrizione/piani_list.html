@@ -20,18 +20,17 @@
       planDelete: "/api/nutrizione/piani/__ID__/elimina/",
       importExcel: "{% url 'nutrizione_import' %}",
       importPdf: "{% url 'nutrizione_import_pdf' %}",
+      anamnesi: "{% url 'nutrizione_anamnesi' %}",
     },
     csrf: "{{ csrf_token }}",
   };
-  function nutCsrfToken() {
-    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || window.NUTRITION_LIBRARY_INIT.csrf || '';
-  }
 </script>
+<script src="{% static 'js/nutrition_library.js' %}?v={{ ASSET_VERSION }}"></script>
 
 <div class="max-w-7xl mx-auto"
      x-data="nutritionLibrary()"
      x-init="init()"
-     @keydown.escape.window="assignModal=false; deleteModal=false; deleteFolderOpen=false">
+     @keydown.escape.window="assignModal=false; deleteModal=false; deleteFolderOpen=false; newPlanModal=false">
 
   <!-- =================== HEADER =================== -->
   <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-7 gap-4">
@@ -42,18 +41,14 @@
       <div class="al-rule-bronze mt-5"></div>
     </div>
     <div class="flex gap-3 items-center">
-      <a :href="urls.importExcel" class="al-btn al-btn-ghost">
-        <i class="ph ph-file-xls text-sm"></i>
-        <span>Importa da Excel</span>
+      <a :href="urls.anamnesi" class="al-btn al-btn-ghost">
+        <i class="ph ph-clipboard-text text-sm"></i>
+        <span>Prime Visite</span>
       </a>
-      <a :href="urls.importPdf" class="al-btn al-btn-ghost">
-        <i class="ph ph-file-pdf text-sm"></i>
-        <span>Importa da PDF</span>
-      </a>
-      <a :href="newPlanUrl()" class="al-btn al-btn-bronze">
+      <button type="button" @click="openNewPlanModal()" class="al-btn al-btn-bronze">
         <i class="ph ph-plus text-sm"></i>
         <span>Nuovo piano</span>
-      </a>
+      </button>
     </div>
   </div>
 
@@ -182,11 +177,27 @@
 
     <!-- ---------- WORKSPACE ---------- -->
     <main>
-      <!-- Filter bar -->
+      <!-- Toolbar: search + filter chips -->
       <div class="flex items-center gap-3 mb-5 flex-wrap">
         <div class="al-search flex-1 min-w-[220px]">
           <i class="ph ph-magnifying-glass"></i>
-          <input type="text" class="al-input" placeholder="Cerca piano…" x-model="search">
+          <input type="text" class="al-input" placeholder="Cerca piano…" x-model.debounce.150ms="search">
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <template x-for="chip in filterChips" :key="chip.id">
+            <button type="button"
+                    @click="activeFilter = chip.id"
+                    class="al-tag transition-all"
+                    :class="activeFilter === chip.id
+                      ? 'is-active'
+                      : 'hover:text-bronze'"
+                    :style="activeFilter === chip.id
+                      ? 'background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze); padding: 5px 11px; cursor: pointer;'
+                      : 'background: var(--al-marble); color: var(--al-ink-soft); border: 1px solid var(--al-rule); padding: 5px 11px; cursor: pointer;'">
+              <span x-text="chip.label"></span>
+              <span class="font-mono ml-1.5 opacity-70" style="font-size: 10px;" x-text="'(' + filterCounts[chip.id] + ')'"></span>
+            </button>
+          </template>
         </div>
       </div>
 
@@ -197,9 +208,9 @@
             <i class="ph ph-leaf al-empty-icon"></i>
             <h3 x-text="emptyTitle()"></h3>
             <p x-text="emptyDescription()"></p>
-            <a :href="newPlanUrl()" class="al-btn al-btn-bronze">
+            <button type="button" @click="openNewPlanModal()" class="al-btn al-btn-bronze">
               <i class="ph ph-plus"></i><span>Crea piano</span>
-            </a>
+            </button>
           </div>
         </div>
       </template>
@@ -375,313 +386,102 @@
     </div>
   </div>
   </template>
+
+  <!-- =================== NEW PLAN MODAL =================== -->
+  <template x-teleport="body">
+  <div x-show="newPlanModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="newPlanModal = false"></div>
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 620px; width: 100%;">
+      <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p class="al-eyebrow mb-1">Studio &middot; Nutrizione</p>
+          <h2 class="al-h-3">Nuovo piano alimentare</h2>
+          <div class="al-rule-bronze mt-3" style="width: 56px;"></div>
+        </div>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="newPlanModal = false" aria-label="Chiudi">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="al-modal-body" style="padding-top: 18px;">
+        <p class="al-label mb-3" style="letter-spacing: 0.14em;">Scegli il tipo di piano</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- DAILY card -->
+          <button type="button"
+                  @click="selectKind('DAILY')"
+                  class="text-left p-5 transition-all"
+                  :style="newPlanKind === 'DAILY'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
+                  onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
+                  onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
+                  :data-sel="newPlanKind === 'DAILY' ? '1' : ''">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 flex items-center justify-center"
+                   style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm, 10px);">
+                <i class="ph ph-sun text-xl" style="color: var(--al-bronze);"></i>
+              </div>
+              <i class="ph-fill ph-check-circle text-xl" x-show="newPlanKind === 'DAILY'" style="color: var(--al-bronze);"></i>
+            </div>
+            <h4 class="al-h-4">Giornaliero</h4>
+            <p class="al-small mt-1.5" style="color: var(--al-ink-mute);">Un solo giorno con la somma dei pasti. Ideale per un protocollo standard.</p>
+          </button>
+
+          <!-- WEEKLY card -->
+          <button type="button"
+                  @click="selectKind('WEEKLY')"
+                  class="text-left p-5 transition-all"
+                  :style="newPlanKind === 'WEEKLY'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
+                  onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
+                  onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
+                  :data-sel="newPlanKind === 'WEEKLY' ? '1' : ''">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 flex items-center justify-center"
+                   style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm, 10px);">
+                <i class="ph ph-calendar text-xl" style="color: var(--al-bronze);"></i>
+              </div>
+              <i class="ph-fill ph-check-circle text-xl" x-show="newPlanKind === 'WEEKLY'" style="color: var(--al-bronze);"></i>
+            </div>
+            <h4 class="al-h-4">Settimanale</h4>
+            <p class="al-small mt-1.5" style="color: var(--al-ink-mute);">Sette giorni con kcal differenti, media settimanale calcolata in automatico.</p>
+          </button>
+        </div>
+
+        <!-- Divider -->
+        <div class="flex items-center gap-3 my-5">
+          <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
+          <span class="al-tag" style="font-size: 10px;">oppure importa da file</span>
+          <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 justify-center">
+          <a :href="urls.importExcel" class="al-btn al-btn-ghost al-btn-sm">
+            <i class="ph ph-file-xls text-sm"></i>
+            <span>Excel</span>
+          </a>
+          <a :href="urls.importPdf" class="al-btn al-btn-ghost al-btn-sm">
+            <i class="ph ph-file-pdf text-sm"></i>
+            <span>PDF</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="al-modal-foot">
+        <button type="button" class="al-btn al-btn-ghost" @click="newPlanModal = false">Annulla</button>
+        <button type="button" class="al-btn al-btn-bronze"
+                :disabled="!newPlanKind"
+                :style="!newPlanKind ? 'opacity: 0.45; cursor: not-allowed;' : ''"
+                @click="continueNewPlan()">
+          <span>Continua</span>
+          <i class="ph ph-arrow-right text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  </template>
 </div>
 
-<script>
-function nutritionLibrary() {
-  return {
-    /* === state === */
-    plans: window.NUTRITION_LIBRARY_INIT.plans || [],
-    folders: window.NUTRITION_LIBRARY_INIT.folders || [],
-    clientsAll: window.NUTRITION_LIBRARY_INIT.clients || [],
-    urls: window.NUTRITION_LIBRARY_INIT.urls,
-    search: '',
-    selectedFolderId: 'all',
-    availableLabelColors: ['bronze','aegean','amber','emerald','rose','violet','slate','sand','crimson','teal'],
-
-    /* drag */
-    draggedPlanId: null,
-    dropTargetId: null,
-
-    /* folder edit */
-    editingFolderId: null,
-    folderEditDraft: '',
-    creatingFolder: false,
-    folderCreateDraft: '',
-    menuFolder: null,
-
-    /* assign modal */
-    assignModal: false,
-    assignPlanId: null,
-    assignPlanName: '',
-    clientSearch: '',
-    selectedClient: null,
-    startDate: '',
-    endDate: '',
-    assignNotes: '',
-    saving: false,
-    successFlash: false,
-
-    /* delete plan */
-    deleteModal: false,
-    deletePlanId: null,
-
-    /* delete folder */
-    deleteFolderOpen: false,
-    folderToDelete: null,
-    deleteFolderAction: 'move_to_unfiled',
-    deleteFolderTarget: '',
-
-    init() {},
-
-    /* === selectors === */
-    selectFolder(id) { this.selectedFolderId = id; },
-    plansInFolder() {
-      if (this.selectedFolderId === 'all') return this.plans;
-      if (this.selectedFolderId === 'unfiled') return this.plans.filter(p => !p.folder_id);
-      return this.plans.filter(p => p.folder_id === this.selectedFolderId);
-    },
-    visiblePlans() {
-      const q = (this.search || '').toLowerCase().trim();
-      return this.plansInFolder().filter(p => {
-        if (q && !p.title.toLowerCase().includes(q)) return false;
-        return true;
-      });
-    },
-    emptyTitle() {
-      if (this.selectedFolderId === 'all' && !this.search) return 'Nessun piano creato';
-      return 'Nessun risultato';
-    },
-    emptyDescription() {
-      if (this.selectedFolderId === 'all' && !this.search) {
-        return 'Crea il tuo primo piano alimentare e assegnalo agli atleti.';
-      }
-      return 'Nessun piano corrisponde ai filtri attivi.';
-    },
-    newPlanUrl() {
-      const fid = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
-      return fid ? (this.urls.planCreate + '?folder_id=' + fid) : this.urls.planCreate;
-    },
-    filteredClients() {
-      const q = this.clientSearch.toLowerCase();
-      const plan = this.plans.find(p => p.id === this.assignPlanId);
-      const blocked = new Set(plan ? (plan.assigned_client_ids || []) : []);
-      return this.clientsAll
-        .filter(c => !blocked.has(c.id))
-        .filter(c => !q || c.name.toLowerCase().includes(q));
-    },
-
-    /* === folders === */
-    startCreateFolder() {
-      this.creatingFolder = true;
-      this.folderCreateDraft = '';
-      this.$nextTick(() => this.$refs.folderCreateInput?.focus());
-    },
-    cancelCreateFolder() {
-      this.creatingFolder = false;
-      this.folderCreateDraft = '';
-    },
-    async finishCreateFolder() {
-      const title = (this.folderCreateDraft || '').trim();
-      if (!title) { this.cancelCreateFolder(); return; }
-      try {
-        const res = await fetch(this.urls.folders, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
-          body: JSON.stringify({ title }),
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Errore'); return; }
-        this.folders.push(data);
-        this.selectedFolderId = data.id;
-      } catch (e) {
-        alert('Errore di rete.');
-      }
-      this.cancelCreateFolder();
-    },
-
-    startEditFolder(folder) {
-      this.editingFolderId = folder.id;
-      this.folderEditDraft = folder.title;
-      this.$nextTick(() => this.$refs.folderEditInput?.focus());
-    },
-    cancelEditFolder() {
-      this.editingFolderId = null;
-      this.folderEditDraft = '';
-    },
-    async finishEditFolder(folder) {
-      const newTitle = (this.folderEditDraft || '').trim();
-      if (!newTitle || newTitle === folder.title) { this.cancelEditFolder(); return; }
-      try {
-        const res = await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
-          body: JSON.stringify({ title: newTitle }),
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error); this.cancelEditFolder(); return; }
-        folder.title = data.title;
-      } catch (e) { alert('Errore di rete.'); }
-      this.cancelEditFolder();
-    },
-
-    openFolderMenu(folder) {
-      this.menuFolder = this.menuFolder === folder ? null : folder;
-    },
-    async patchFolderLabel(folder) {
-      try {
-        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
-          body: JSON.stringify({ label_text: folder.label_text || '' }),
-        });
-      } catch (e) { /* swallow */ }
-    },
-    async setFolderColor(folder, color) {
-      folder.label_color = color;
-      try {
-        await fetch(this.urls.folderDetail.replace('__ID__', folder.id), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
-          body: JSON.stringify({ label_color: color }),
-        });
-      } catch (e) { /* swallow */ }
-    },
-    confirmDeleteFolder(folder) {
-      this.folderToDelete = folder;
-      this.deleteFolderOpen = true;
-      this.deleteFolderAction = 'move_to_unfiled';
-      this.deleteFolderTarget = '';
-      this.menuFolder = null;
-    },
-    async executeFolderDelete() {
-      if (!this.folderToDelete) return;
-      let url = this.urls.folderDetail.replace('__ID__', this.folderToDelete.id);
-      const params = new URLSearchParams();
-      params.set('action', this.deleteFolderAction);
-      if (this.deleteFolderAction === 'move_to' && this.deleteFolderTarget) {
-        params.set('target_folder_id', this.deleteFolderTarget);
-      }
-      url += '?' + params.toString();
-      try {
-        const res = await fetch(url, {
-          method: 'DELETE',
-          headers: { 'X-CSRFToken': nutCsrfToken() },
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          alert(data.error || 'Errore');
-          return;
-        }
-        const deletedId = this.folderToDelete.id;
-        if (this.deleteFolderAction === 'delete_plans') {
-          this.plans = this.plans.filter(p => p.folder_id !== deletedId);
-        } else if (this.deleteFolderAction === 'move_to_unfiled') {
-          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = null; });
-        } else {
-          const tid = parseInt(this.deleteFolderTarget, 10);
-          this.plans.forEach(p => { if (p.folder_id === deletedId) p.folder_id = tid; });
-          const tgt = this.folders.find(f => f.id === tid);
-          if (tgt) tgt.plan_count = this.plans.filter(p => p.folder_id === tid).length;
-        }
-        this.folders = this.folders.filter(f => f.id !== deletedId);
-        if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
-      } catch (e) { alert('Errore di rete.'); }
-      this.deleteFolderOpen = false;
-      this.folderToDelete = null;
-    },
-
-    /* === drag & drop === */
-    async dropPlanOnFolder(folderId) {
-      this.dropTargetId = null;
-      const pid = this.draggedPlanId;
-      this.draggedPlanId = null;
-      if (!pid) return;
-      const plan = this.plans.find(p => p.id === pid);
-      if (!plan) return;
-      const previousFolderId = plan.folder_id;
-      if (previousFolderId === folderId) return;
-      plan.folder_id = folderId;
-      try {
-        const res = await fetch(this.urls.planFolder.replace('__ID__', pid), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
-          body: JSON.stringify({ folder_id: folderId }),
-        });
-        if (!res.ok) throw new Error('save');
-        if (previousFolderId) {
-          const f = this.folders.find(f => f.id === previousFolderId);
-          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
-        }
-        if (folderId) {
-          const f = this.folders.find(f => f.id === folderId);
-          if (f) f.plan_count += 1;
-        }
-      } catch (e) { plan.folder_id = previousFolderId; alert('Errore di rete.'); }
-    },
-
-    /* === assign === */
-    openAssign(id, name) {
-      this.assignPlanId = id;
-      this.assignPlanName = name;
-      this.clientSearch = ''; this.selectedClient = null;
-      this.startDate = ''; this.endDate = ''; this.assignNotes = '';
-      this.successFlash = false;
-      this.assignModal = true;
-    },
-    async submitAssign() {
-      if (!this.selectedClient) return;
-      this.saving = true;
-      const res = await fetch(this.urls.planAssign.replace('__ID__', this.assignPlanId), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken()},
-        body: JSON.stringify({
-          client_id: this.selectedClient.id,
-          start_date: this.startDate || null,
-          end_date: this.endDate || null,
-          notes: this.assignNotes,
-        })
-      });
-      this.saving = false;
-      if (res.ok) {
-        const plan = this.plans.find(p => p.id === this.assignPlanId);
-        if (plan) {
-          plan.assigned_count += 1;
-          if (!plan.assigned_client_ids) plan.assigned_client_ids = [];
-          if (!plan.assigned_client_ids.includes(this.selectedClient.id)) {
-            plan.assigned_client_ids.push(this.selectedClient.id);
-          }
-        }
-        this.successFlash = true;
-        setTimeout(() => {
-          this.assignModal = false;
-          this.successFlash = false;
-        }, 700);
-      } else {
-        alert('Errore durante l\'assegnazione.');
-      }
-    },
-
-    /* === delete plan === */
-    openDelete(id) { this.deletePlanId = id; this.deleteModal = true; },
-    async confirmDelete() {
-      const res = await fetch(this.urls.planDelete.replace('__ID__', this.deletePlanId), {
-        method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}
-      });
-      if (res.ok) {
-        const deletedId = this.deletePlanId;
-        const plan = this.plans.find(p => p.id === deletedId);
-        if (plan && plan.folder_id) {
-          const f = this.folders.find(f => f.id === plan.folder_id);
-          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
-        }
-        this.plans = this.plans.filter(p => p.id !== deletedId);
-        this.deleteModal = false;
-      }
-    },
-
-    /* === utils === */
-    relativeTime(iso) {
-      if (!iso) return '';
-      const date = new Date(iso);
-      const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-      if (diff < 60) return 'adesso';
-      if (diff < 3600) return Math.floor(diff/60) + ' min fa';
-      if (diff < 86400) return Math.floor(diff/3600) + ' h fa';
-      if (diff < 604800) return Math.floor(diff/86400) + ' g fa';
-      return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-    },
-  };
-}
-</script>
 {% endblock %}

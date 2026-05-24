@@ -158,26 +158,12 @@
                 {% endif %}
 
                 {% if can_manage_nutrition %}
-                <div x-data="{ expanded: {% if s == 'nutrizione' %}true{% else %}false{% endif %} }">
-                    <button @click="expanded = !expanded"
-                            type="button"
-                            class="al-nav-link w-full {% if s == 'nutrizione' %}is-active{% endif %}"
-                            style="justify-content: space-between;">
-                        <span class="flex items-center gap-3">
-                            <i class="ph ph-leaf"></i>
-                            <span>Nutrizione</span>
-                        </span>
-                        <span class="flex items-center gap-2">
-                            {% if sidebar_notifications.nutrizione %}<span class="w-1.5 h-1.5 rounded-full" style="background:#c8a774;"></span>{% endif %}
-                            <i class="ph ph-caret-down text-xs transition-transform" :class="expanded ? 'rotate-180' : ''" style="font-size:11px;"></i>
-                        </span>
-                    </button>
-                    <div x-show="expanded" x-collapse class="pl-12 pr-3 py-1 space-y-0.5" x-cloak>
-                        <a href="{% url 'nutrizione_piani' %}"     class="block py-1.5 text-[13px] text-parchment/55 hover:text-parchment hover:translate-x-1 transition-all">Piani Alimentari</a>
-                        <a href="{% url 'nutrizione_anamnesi' %}"  class="block py-1.5 text-[13px] text-parchment/55 hover:text-parchment hover:translate-x-1 transition-all">Prime Visite</a>
-                        <a href="{% url 'nutrizione_integratori' %}" class="block py-1.5 text-[13px] text-parchment/55 hover:text-parchment hover:translate-x-1 transition-all">Integratori</a>
-                    </div>
-                </div>
+                <a href="{% url 'nutrizione_piani' %}"
+                   class="al-nav-link {% if s == 'nutrizione' %}is-active{% endif %}">
+                    <i class="ph ph-leaf"></i>
+                    <span>Nutrizione</span>
+                    {% if sidebar_notifications.nutrizione %}<span class="al-nav-dot"></span>{% endif %}
+                </a>
                 {% endif %}
 
                 <a href="{% url 'agenda_dashboard' %}"

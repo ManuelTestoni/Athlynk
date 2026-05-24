@@ -63,10 +63,16 @@ class NutritionFolder(models.Model):
 
 
 class NutritionPlan(models.Model):
+    PLAN_KIND_CHOICES = [
+        ('DAILY', 'Giornaliero'),
+        ('WEEKLY', 'Settimanale'),
+    ]
+
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='nutrition_plans')
     title = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
     plan_type = models.CharField(max_length=100, null=True, blank=True)
+    plan_kind = models.CharField(max_length=10, choices=PLAN_KIND_CHOICES, default='DAILY')
     nutrition_goal = models.CharField(max_length=200, null=True, blank=True)
     daily_kcal = models.IntegerField(null=True, blank=True)
     protein_target_g = models.IntegerField(null=True, blank=True)
@@ -78,6 +84,10 @@ class NutritionPlan(models.Model):
     folder = models.ForeignKey(
         NutritionFolder, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='plans',
+    )
+    supplement_sheet = models.OneToOneField(
+        'SupplementSheet', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='nutrition_plan',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
