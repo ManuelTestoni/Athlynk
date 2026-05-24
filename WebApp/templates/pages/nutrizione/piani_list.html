@@ -19,6 +19,7 @@
       planAssign: "/api/nutrizione/piani/__ID__/assegna/",
       planDelete: "/api/nutrizione/piani/__ID__/elimina/",
       importExcel: "{% url 'nutrizione_import' %}",
+      importPdf: "{% url 'nutrizione_import_pdf' %}",
     },
     csrf: "{{ csrf_token }}",
   };
@@ -42,8 +43,12 @@
     </div>
     <div class="flex gap-3 items-center">
       <a :href="urls.importExcel" class="al-btn al-btn-ghost">
-        <i class="ph ph-sparkle text-sm"></i>
+        <i class="ph ph-file-xls text-sm"></i>
         <span>Importa da Excel</span>
+      </a>
+      <a :href="urls.importPdf" class="al-btn al-btn-ghost">
+        <i class="ph ph-file-pdf text-sm"></i>
+        <span>Importa da PDF</span>
       </a>
       <a :href="newPlanUrl()" class="al-btn al-btn-bronze">
         <i class="ph ph-plus text-sm"></i>

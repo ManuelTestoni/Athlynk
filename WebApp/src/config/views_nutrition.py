@@ -1,8 +1,11 @@
 import json
+import threading
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from django.core.cache import cache
 
 from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
@@ -1015,3 +1018,159 @@ def api_diet_import_confirm(request):
         'plan_id': plan.id,
         'assignment_id': assignment_id,
     })
+
+
+# ─── Import Dieta da PDF (AI, async con polling) ────────────────────────────────
+
+_MAX_PDF_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
+_PDF_JOB_TTL = 600                        # 10 min
+_PDF_JOB_PREFIX = 'pdf_import:'
+
+
+def _pdf_job_key(job_id: str) -> str:
+    return f'{_PDF_JOB_PREFIX}{job_id}'
+
+
+def _set_job(job_id: str, payload: dict) -> None:
+    cache.set(_pdf_job_key(job_id), payload, _PDF_JOB_TTL)
+
+
+def _get_job(job_id: str) -> dict | None:
+    return cache.get(_pdf_job_key(job_id))
+
+
+def nutrizione_import_pdf_view(request):
+    """Pagina SPA Alpine per l'import dieta da PDF."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return redirect('dashboard')
+    return render(request, 'pages/nutrizione/import_diet_pdf.html', {})
+
+
+def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
+                 client_data: dict | None) -> None:
+    """Worker eseguito in background thread. Aggiorna lo stato via cache."""
+    from domain.nutrition.pdf_importer import run_pdf_pipeline
+    from domain.nutrition.pdf_ingestion import PdfParseError
+    from domain.nutrition.pdf_extractor import AIExtractionError
+
+    def progress(phase: str, percent: int) -> None:
+        existing = _get_job(job_id) or {}
+        existing.update({
+            'status': 'running',
+            'phase': phase,
+            'percent': percent,
+        })
+        _set_job(job_id, existing)
+
+    try:
+        extracted, confidence = run_pdf_pipeline(file_bytes, plan_title, progress_cb=progress)
+    except PdfParseError as e:
+        msg = str(e)
+        code = 'pdf_no_content' if 'non sembra contenere' in msg.lower() else 'pdf_invalid'
+        _set_job(job_id, {'status': 'error', 'error_code': code, 'detail': msg})
+        return
+    except AIExtractionError as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'document_summary': extracted.get('document_summary'),
+        'client': client_data,
+        'plan_title': plan_title or extracted.get('diet_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _set_job(job_id, {
+        'status': 'done',
+        'phase': 'finalize',
+        'percent': 100,
+        'result': result,
+    })
+
+
+@require_http_methods(['POST'])
+def api_diet_import_pdf(request):
+    """Avvia il job di import PDF e ritorna job_id (async)."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'File mancante'}, status=422)
+    if uploaded.size > _MAX_PDF_UPLOAD_SIZE:
+        return JsonResponse({'error': 'pdf_invalid', 'detail': 'File troppo grande (max 20MB)'}, status=422)
+    name_lower = (uploaded.name or '').lower()
+    if not name_lower.endswith('.pdf'):
+        return JsonResponse({'error': 'pdf_invalid', 'detail': 'Formato file non supportato (solo .pdf)'}, status=422)
+
+    plan_title = (request.POST.get('plan_title') or '').strip()[:200]
+    client_id = request.POST.get('client_id') or ''
+
+    client_data = None
+    if client_id:
+        try:
+            client = ClientProfile.objects.get(id=int(client_id))
+            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
+            if not rel:
+                return JsonResponse({'error': 'Atleta non associato'}, status=403)
+            client_data = {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
+        except (ValueError, ClientProfile.DoesNotExist):
+            return JsonResponse({'error': 'Atleta non valido'}, status=422)
+
+    file_bytes = uploaded.read()
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, {'status': 'queued', 'phase': 'analyze', 'percent': 0})
+
+    # TODO Fase 2: sostituire threading con Celery per multi-worker.
+    thread = threading.Thread(
+        target=_run_pdf_job,
+        args=(job_id, file_bytes, plan_title, client_data),
+        daemon=True,
+    )
+    thread.start()
+
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
+
+
+@require_http_methods(['GET'])
+def api_diet_import_pdf_status(request):
+    """Polling endpoint: ritorna stato + (se done) risultato dell'estrazione."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    job_id = request.GET.get('job_id') or ''
+    if not job_id:
+        return JsonResponse({'error': 'job_not_found', 'detail': 'job_id mancante'}, status=400)
+    job = _get_job(job_id)
+    if not job:
+        return JsonResponse({'error': 'job_not_found', 'detail': 'Job scaduto o inesistente'}, status=404)
+
+    # Esposizione campi flat per il frontend
+    payload = {
+        'job_id': job_id,
+        'status': job.get('status'),
+        'phase': job.get('phase'),
+        'percent': job.get('percent', 0),
+    }
+    if job.get('status') == 'done':
+        payload['result'] = job.get('result')
+    elif job.get('status') == 'error':
+        payload['error_code'] = job.get('error_code')
+        payload['detail'] = job.get('detail')
+    return JsonResponse(payload)

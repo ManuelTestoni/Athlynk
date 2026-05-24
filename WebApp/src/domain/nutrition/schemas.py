@@ -33,6 +33,8 @@ class FoodEntry(BaseModel):
     protein_g: Optional[float] = None
     carbs_g: Optional[float] = None
     fat_g: Optional[float] = None
+    source_page: Optional[int] = None
+    source_chunk: Optional[str] = None
 
 
 class MealEntry(BaseModel):

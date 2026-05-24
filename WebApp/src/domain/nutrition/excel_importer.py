@@ -12,14 +12,12 @@ import json
 import re
 from typing import Any
 
-from decouple import config
 from openpyxl import load_workbook
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import ValidationError
 
-from chiron.router import pick_model
 from domain.nutrition.food_match import best_match
+from domain.nutrition.llm_client import build_extraction_llm
 from domain.nutrition.schemas import DietExtraction, ConfidenceSummary
 
 
@@ -135,15 +133,7 @@ def extract_diet_with_ai(grid_text: str, plan_title: str = '') -> dict:
 
     Riusa la stessa config di Chiron (OLLAMA_API_KEY/OLLAMA_BASE_URL).
     """
-    llm = ChatOpenAI(
-        model=pick_model("extraction"),
-        temperature=0.1,
-        api_key=config("OLLAMA_API_KEY"),
-        base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
-        max_tokens=4000,
-        timeout=30,
-        model_kwargs={"response_format": {"type": "json_object"}},
-    )
+    llm = build_extraction_llm()
 
     user_msg = (
         f"Titolo piano (suggerito dal nutrizionista): {plan_title or 'non specificato'}\n\n"
@@ -198,6 +188,14 @@ def normalize_and_match(raw_json: dict) -> dict:
                     food['food_id'] = best['id']
                     food['matched_name'] = best['name']
                     food['candidates'] = others
+                    # Macro per 100g del food matchato: il frontend li userà come
+                    # fallback quando l'AI non ha estratto calories/protein/carb/fat.
+                    food['db_macros'] = {
+                        'kcal': best.get('kcal'),
+                        'protein': best.get('protein'),
+                        'carb': best.get('carb'),
+                        'fat': best.get('fat'),
+                    }
                     # Se l'AI già marcava uncertain, conserviamo il flag
                     food['uncertain'] = food.get('uncertain', False)
                 else:
