@@ -81,6 +81,7 @@ class NutritionPlan(models.Model):
     meals_per_day = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=50) # Es: DRAFT, PUBLISHED
     is_template = models.BooleanField(default=False)
+    include_substitutions_in_avg = models.BooleanField(default=False)
     folder = models.ForeignKey(
         NutritionFolder, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='plans',
@@ -175,6 +176,41 @@ class MealItem(models.Model):
     def __str__(self):
         label = self.food.nome_alimento if self.food else (self.raw_name or '???')
         return f"{self.quantity_g}g {label}"
+
+
+class MealItemSubstitution(models.Model):
+    MODE_CHOICES = [
+        ('ISOKCAL', 'Isocalorica'),
+        ('ISOPROT', 'Isoproteica'),
+        ('ISOCARB', 'Isoglucidica'),
+    ]
+    item = models.ForeignKey(MealItem, on_delete=models.CASCADE, related_name='substitutions')
+    food = models.ForeignKey(Food, on_delete=models.CASCADE)
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES)
+    quantity_g = models.FloatField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    @property
+    def kcal(self):
+        return round(self.food.energia_kcal * self.quantity_g / 100, 1)
+
+    @property
+    def protein(self):
+        return round(self.food.proteine_g * self.quantity_g / 100, 1)
+
+    @property
+    def carbs(self):
+        return round(self.food.carboidrati_g * self.quantity_g / 100, 1)
+
+    @property
+    def fat(self):
+        return round(self.food.lipidi_g * self.quantity_g / 100, 1)
+
+    def __str__(self):
+        return f"[{self.mode}] {self.quantity_g}g {self.food.nome_alimento}"
 
 
 class Supplement(models.Model):

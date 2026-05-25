@@ -12,11 +12,61 @@ from config.session_utils import (
 )
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
-from django.db.models import Count
+from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper
 from domain.nutrition.models import (
-    Food, NutritionPlan, NutritionFolder, Meal, MealItem, NutritionAssignment, DietDay,
+    Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
+    NutritionAssignment, DietDay,
     Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
 )
+
+
+NUTRITION_HISTORY_PAGE_SIZE = 5
+
+
+def _bulk_plan_macros(plan_ids):
+    """Single DB query → {plan_id: {kcal, prot, carb, fat}}.
+
+    Sums all meal items across the plan (matches existing list-view semantics
+    for both DAILY and WEEKLY; substitution averaging belongs to detail view).
+    """
+    if not plan_ids:
+        return {}
+    rows = (
+        MealItem.objects
+        .filter(meal__plan_id__in=list(plan_ids), food__isnull=False)
+        .values('meal__plan_id')
+        .annotate(
+            kcal=Sum(ExpressionWrapper(F('food__energia_kcal') * F('quantity_g') / 100.0, output_field=FloatField())),
+            prot=Sum(ExpressionWrapper(F('food__proteine_g')   * F('quantity_g') / 100.0, output_field=FloatField())),
+            carb=Sum(ExpressionWrapper(F('food__carboidrati_g')* F('quantity_g') / 100.0, output_field=FloatField())),
+            fat=Sum(ExpressionWrapper(F('food__lipidi_g')      * F('quantity_g') / 100.0, output_field=FloatField())),
+        )
+    )
+    out = {}
+    for r in rows:
+        out[r['meal__plan_id']] = {
+            'kcal': round(r['kcal'] or 0),
+            'prot': round(r['prot'] or 0),
+            'carb': round(r['carb'] or 0),
+            'fat':  round(r['fat']  or 0),
+        }
+    return out
+
+
+def _serialize_history_assignment(a, macros):
+    plan = a.nutrition_plan
+    m = macros.get(plan.id, {'kcal': 0, 'prot': 0, 'carb': 0, 'fat': 0})
+    return {
+        'id': a.id,
+        'plan_title': plan.title,
+        'plan_type': plan.plan_type or '',
+        'plan_kind': plan.plan_kind,
+        'status': a.status,
+        'assigned_at': a.assigned_at.strftime('%d %b %Y') if a.assigned_at else '',
+        'start_date': a.start_date.strftime('%d %b %Y') if a.start_date else '',
+        'end_date':   a.end_date.strftime('%d %b %Y')   if a.end_date else '',
+        'kcal': m['kcal'], 'prot': m['prot'], 'carb': m['carb'], 'fat': m['fat'],
+    }
 from domain.accounts.models import ClientProfile
 from config.services.email import send_nutrition_assigned
 
@@ -57,29 +107,41 @@ def nutrizione_piani_view(request):
         if not ClientAnamnesis.objects.filter(client=client).exists():
             return render(request, 'pages/nutrizione/no_prima_visita.html', {})
 
-        assignments = (
+        active_assignment = (
             NutritionAssignment.objects
             .select_related('nutrition_plan', 'coach')
-            .prefetch_related('nutrition_plan__meals__items__food')
+            .filter(client=client, coach=rel.coach, status='ACTIVE')
+            .order_by('-created_at')
+            .first()
+        )
+
+        past_qs = (
+            NutritionAssignment.objects
+            .select_related('nutrition_plan')
             .filter(client=client, coach=rel.coach)
+            .exclude(status='ACTIVE')
             .order_by('-created_at')
         )
-        assignments_data = []
-        for a in assignments:
-            kcal = prot = carb = fat = 0
-            for meal in a.nutrition_plan.meals.all():
-                for item in meal.items.all():
-                    kcal += item.kcal
-                    prot += item.protein
-                    carb += item.carbs
-                    fat += item.fat
-            assignments_data.append({
-                'assignment': a,
-                'kcal': round(kcal),
-                'prot': round(prot),
-                'carb': round(carb),
-                'fat': round(fat),
-            })
+        past_total = past_qs.count()
+        past_first = list(past_qs[:NUTRITION_HISTORY_PAGE_SIZE])
+
+        plan_ids = set()
+        if active_assignment:
+            plan_ids.add(active_assignment.nutrition_plan_id)
+        plan_ids.update(a.nutrition_plan_id for a in past_first)
+        macros = _bulk_plan_macros(plan_ids)
+
+        active_data = None
+        if active_assignment:
+            m = macros.get(active_assignment.nutrition_plan_id, {'kcal': 0, 'prot': 0, 'carb': 0, 'fat': 0})
+            active_data = {
+                'assignment': active_assignment,
+                'plan': active_assignment.nutrition_plan,
+                'kcal': m['kcal'], 'prot': m['prot'], 'carb': m['carb'], 'fat': m['fat'],
+            }
+
+        past_data = [_serialize_history_assignment(a, macros) for a in past_first]
+
         supp_assignment = (
             SupplementAssignment.objects
             .filter(client=client, coach=rel.coach, status='ACTIVE')
@@ -90,7 +152,12 @@ def nutrizione_piani_view(request):
         )
 
         return render(request, 'pages/nutrizione/client_piani.html', {
-            'assignments_data': assignments_data,
+            'active_data': active_data,
+            'past_data_json': json.dumps(past_data),
+            'past_total': past_total,
+            'past_initial_count': len(past_data),
+            'past_has_more': past_total > len(past_data),
+            'history_page_size': NUTRITION_HISTORY_PAGE_SIZE,
             'coach': rel.coach,
             'supp_assignment': supp_assignment,
         })
@@ -252,11 +319,29 @@ def nutrizione_piano_edit_view(request, plan_id):
                        'THURSDAY': 'GIO', 'FRIDAY': 'VEN', 'SATURDAY': 'SAB', 'SUNDAY': 'DOM'}
 
     meals_data = []
-    for meal in plan.meals.select_related('day').prefetch_related('items__food').all():
+    meals_qs = (
+        plan.meals
+        .select_related('day')
+        .prefetch_related('items__food', 'items__substitutions__food')
+        .all()
+    )
+    for meal in meals_qs:
         items_data = []
         for item in meal.items.all():
             if not item.food:
                 continue
+            subs_data = []
+            for sub in item.substitutions.all():
+                subs_data.append({
+                    'food_id': sub.food_id,
+                    'food_name': sub.food.nome_alimento,
+                    'mode': sub.mode,
+                    'quantity_g': sub.quantity_g,
+                    'kcal_per_100g': sub.food.energia_kcal,
+                    'protein_per_100g': sub.food.proteine_g,
+                    'carb_per_100g': sub.food.carboidrati_g,
+                    'fat_per_100g': sub.food.lipidi_g,
+                })
             items_data.append({
                 'food_id': item.food_id,
                 'food_name': item.food.nome_alimento,
@@ -266,6 +351,7 @@ def nutrizione_piano_edit_view(request, plan_id):
                 'carb_per_100g': item.food.carboidrati_g,
                 'fat_per_100g': item.food.lipidi_g,
                 'notes': item.notes or '',
+                'substitutions': subs_data,
             })
         day_code = REVERSE_WEEKDAY.get(meal.day.day_of_week) if meal.day else None
         meals_data.append({
@@ -313,18 +399,28 @@ def nutrizione_piano_detail_view(request, plan_id):
         return redirect('dashboard')
 
     plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
-    meals = plan.meals.prefetch_related('items__food').all()
+    meals = plan.meals.prefetch_related('items__food', 'items__substitutions__food').all()
 
+    include_subs = bool(plan.include_substitutions_in_avg)
     total_kcal = total_prot = total_carb = total_fat = total_fiber = 0
     meals_detail = []
     for meal in meals:
         m_kcal = m_prot = m_carb = m_fat = 0
         items = []
         for item in meal.items.all():
-            m_kcal += item.kcal
-            m_prot += item.protein
-            m_carb += item.carbs
-            m_fat += item.fat
+            subs = list(item.substitutions.all())
+            n = 1 + len(subs)
+            if include_subs and subs:
+                i_kcal = (item.kcal + sum(s.kcal for s in subs)) / n
+                i_prot = (item.protein + sum(s.protein for s in subs)) / n
+                i_carb = (item.carbs + sum(s.carbs for s in subs)) / n
+                i_fat = (item.fat + sum(s.fat for s in subs)) / n
+            else:
+                i_kcal, i_prot, i_carb, i_fat = item.kcal, item.protein, item.carbs, item.fat
+            m_kcal += i_kcal
+            m_prot += i_prot
+            m_carb += i_carb
+            m_fat += i_fat
             items.append(item)
         total_kcal += m_kcal
         total_prot += m_prot
@@ -836,18 +932,27 @@ def nutrizione_client_detail_view(request, assignment_id):
 
     assignment = get_object_or_404(NutritionAssignment, id=assignment_id, client=client)
     plan = assignment.nutrition_plan
-    meals = plan.meals.prefetch_related('items__food').all()
+    meals = plan.meals.prefetch_related('items__food', 'items__substitutions__food').all()
 
+    include_subs = bool(plan.include_substitutions_in_avg)
     total_kcal = total_prot = total_carb = total_fat = 0
     meals_detail = []
     for meal in meals:
         m_kcal = m_prot = m_carb = m_fat = 0
         items = list(meal.items.all())
         for item in items:
-            m_kcal += item.kcal
-            m_prot += item.protein
-            m_carb += item.carbs
-            m_fat += item.fat
+            subs = list(item.substitutions.all())
+            n = 1 + len(subs)
+            if include_subs and subs:
+                m_kcal += (item.kcal + sum(s.kcal for s in subs)) / n
+                m_prot += (item.protein + sum(s.protein for s in subs)) / n
+                m_carb += (item.carbs + sum(s.carbs for s in subs)) / n
+                m_fat += (item.fat + sum(s.fat for s in subs)) / n
+            else:
+                m_kcal += item.kcal
+                m_prot += item.protein
+                m_carb += item.carbs
+                m_fat += item.fat
         total_kcal += m_kcal
         total_prot += m_prot
         total_carb += m_carb
@@ -869,6 +974,7 @@ def nutrizione_client_detail_view(request, assignment_id):
         'total_prot': round(total_prot),
         'total_carb': round(total_carb),
         'total_fat': round(total_fat),
+        'include_subs': include_subs,
     })
 
 
@@ -899,6 +1005,24 @@ def _handle_plan_save(request, coach, plan):
     if incoming_kind and incoming_kind not in ('DAILY', 'WEEKLY'):
         return JsonResponse({'error': 'plan_kind non valido'}, status=400)
 
+    macro_labels = {
+        'daily_kcal': 'Kcal',
+        'protein_target_g': 'Proteine',
+        'carb_target_g': 'Carboidrati',
+        'fat_target_g': 'Grassi',
+    }
+    for field, label in macro_labels.items():
+        raw = data.get(field)
+        if raw in (None, '', 0):
+            continue
+        try:
+            val = int(raw)
+        except (TypeError, ValueError):
+            return JsonResponse({'error': f'{label}: valore non valido'}, status=400)
+        if val < 0:
+            return JsonResponse({'error': f'{label}: il valore non può essere negativo'}, status=400)
+        data[field] = val
+
     if plan is not None and incoming_kind and incoming_kind != plan.plan_kind:
         return JsonResponse(
             {'error': 'plan_kind non modificabile dopo la creazione'},
@@ -922,6 +1046,7 @@ def _handle_plan_save(request, coach, plan):
                 meals_per_day=len(meals_raw) or None,
                 status='PUBLISHED',
                 is_template=data.get('is_template', False),
+                include_substitutions_in_avg=bool(data.get('include_substitutions_in_avg', False)),
                 folder=folder_obj,
             )
         else:
@@ -935,6 +1060,8 @@ def _handle_plan_save(request, coach, plan):
             plan.fat_target_g = data.get('fat_target_g') or None
             plan.meals_per_day = len(meals_raw) or None
             plan.is_template = data.get('is_template', False)
+            if 'include_substitutions_in_avg' in data:
+                plan.include_substitutions_in_avg = bool(data.get('include_substitutions_in_avg'))
             if 'folder_id' in data:
                 plan.folder = folder_obj
             plan.save()
@@ -976,12 +1103,29 @@ def _handle_plan_save(request, coach, plan):
                     food = Food.objects.get(id=food_id)
                 except Food.DoesNotExist:
                     continue
-                MealItem.objects.create(
+                item = MealItem.objects.create(
                     meal=meal,
                     food=food,
                     quantity_g=float(qty),
                     notes=item_data.get('notes', '') or None,
                 )
+                for s_order, sub_data in enumerate(item_data.get('substitutions') or []):
+                    s_food_id = sub_data.get('food_id')
+                    s_qty = sub_data.get('quantity_g', 0)
+                    s_mode = (sub_data.get('mode') or '').upper()
+                    if not s_food_id or not s_qty or s_mode not in ('ISOKCAL', 'ISOPROT', 'ISOCARB'):
+                        continue
+                    try:
+                        s_food = Food.objects.get(id=s_food_id)
+                    except Food.DoesNotExist:
+                        continue
+                    MealItemSubstitution.objects.create(
+                        item=item,
+                        food=s_food,
+                        mode=s_mode,
+                        quantity_g=float(s_qty),
+                        order=s_order,
+                    )
 
         if is_weekly:
             used_days = {m.day_id for m in plan.meals.all() if m.day_id}
@@ -1616,3 +1760,42 @@ def api_diet_import_pdf_status(request):
         payload['error_code'] = job.get('error_code')
         payload['detail'] = job.get('detail')
     return JsonResponse(payload)
+
+
+
+@require_http_methods(['GET'])
+def api_client_nutrition_history(request):
+    """Paginated past nutrition assignments for the logged-in client."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    rel = _get_active_relationship(client)
+    if not rel:
+        return JsonResponse({'error': 'no_coach'}, status=404)
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+        limit = min(20, max(1, int(request.GET.get('limit', NUTRITION_HISTORY_PAGE_SIZE))))
+    except (TypeError, ValueError):
+        offset, limit = 0, NUTRITION_HISTORY_PAGE_SIZE
+
+    qs = (
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .filter(client=client, coach=rel.coach)
+        .exclude(status='ACTIVE')
+        .order_by('-created_at')
+    )
+    total = qs.count()
+    page = list(qs[offset:offset + limit])
+    macros = _bulk_plan_macros({a.nutrition_plan_id for a in page})
+    items = [_serialize_history_assignment(a, macros) for a in page]
+    return JsonResponse({
+        'items': items,
+        'total': total,
+        'offset': offset,
+        'limit': limit,
+        'has_more': (offset + limit) < total,
+    })

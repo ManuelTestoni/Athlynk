@@ -217,6 +217,12 @@
                     <div class="pd-item-info">
                       <p class="pd-item-name">
                         {{ item.food.nome_alimento }}
+                        {% if item.substitutions.all %}
+                          <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                            <i class="ph ph-swap" style="font-size: 9px;"></i>
+                            {{ item.substitutions.all|length }} alt
+                          </span>
+                        {% endif %}
                       </p>
                       {% if item.food.categoria_alimento %}
                         <p class="pd-item-meta">{{ item.food.categoria_alimento }}</p>
@@ -232,6 +238,18 @@
                       <span style="color: var(--al-danger);">G {{ item.fat }}</span>
                     </span>
                   </li>
+                  {% for sub in item.substitutions.all %}
+                    <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+                      <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment); background: {% if sub.mode == 'ISOKCAL' %}var(--al-bronze){% elif sub.mode == 'ISOPROT' %}var(--al-aegean){% else %}var(--al-warn){% endif %};">
+                        {% if sub.mode == 'ISOKCAL' %}iso-kcal{% elif sub.mode == 'ISOPROT' %}iso-prot{% else %}iso-carb{% endif %}
+                      </span>
+                      <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sub.food.nome_alimento }}</span>
+                      <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);">{{ sub.quantity_g|floatformat:0 }}g</span>
+                      <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;">
+                        {{ sub.kcal }} kcal · P {{ sub.protein }} · C {{ sub.carbs }} · F {{ sub.fat }}
+                      </span>
+                    </li>
+                  {% endfor %}
                 {% empty %}
                   <li class="pd-item-empty">
                     <i class="ph ph-leaf"></i> Nessun alimento — <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-link">aggiungine</a>

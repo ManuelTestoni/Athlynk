@@ -23,7 +23,8 @@ function nutritionWizard() {
     time_of_day: m.time_of_day || '',
     notes: m.notes || '',
     day_of_week: m.day_of_week || null,
-    items: (m.items || []).map(it => ({
+    items: (m.items || []).map((it, j) => ({
+      _key: 'i' + Date.now() + '_' + i + '_' + j,
       food_id: it.food_id,
       food_name: it.food_name,
       quantity_g: it.quantity_g,
@@ -32,6 +33,18 @@ function nutritionWizard() {
       carb_per_100g: it.carb_per_100g,
       fat_per_100g: it.fat_per_100g,
       notes: it.notes || '',
+      subsOpen: false,
+      addSubMode: null,
+      substitutions: (it.substitutions || []).map(s => ({
+        food_id: s.food_id,
+        food_name: s.food_name,
+        mode: s.mode,
+        quantity_g: s.quantity_g,
+        kcal_per_100g: s.kcal_per_100g,
+        protein_per_100g: s.protein_per_100g,
+        carb_per_100g: s.carb_per_100g,
+        fat_per_100g: s.fat_per_100g,
+      })),
     })),
   }));
 
@@ -52,7 +65,10 @@ function nutritionWizard() {
     protein_target_g: plan ? plan.protein_target_g : null,
     carb_target_g: plan ? plan.carb_target_g : null,
     fat_target_g: plan ? plan.fat_target_g : null,
+    /* volatile: drives g/kg + kcal/kg calculator in builder sidebar, never persisted */
+    calc_weight_kg: null,
     folder_id: plan ? plan.folder_id : INIT.initialFolderId,
+    include_substitutions_in_avg: plan ? !!plan.include_substitutions_in_avg : false,
 
     /* === Step 2 state === */
     meals: seedMeals,
@@ -108,6 +124,9 @@ function nutritionWizard() {
     init() {
       const params = new URLSearchParams(window.location.search);
       const requestedStep = params.get('step');
+      /* Track whether the plan started this session (no prior persistence) so
+         "Esci senza salvare" knows whether to delete vs. restore.            */
+      this._createdInSession = !this.planId;
       if (this.planId) {
         this.completedSteps.info = true;
         this.completedSteps.builder = this.hasAnyMealWithItem();
@@ -116,7 +135,47 @@ function nutritionWizard() {
         } else {
           this.step = 'builder';
         }
+        /* Snapshot the loaded state so exit-without-saving can restore it. */
+        this._originalSnapshot = this._snapshotState();
+      } else {
+        this._originalSnapshot = null;
       }
+    },
+
+    _snapshotState() {
+      return {
+        title: this.title,
+        description: this.description,
+        plan_type: this.plan_type,
+        nutrition_goal: this.nutrition_goal,
+        is_template: this.is_template,
+        daily_kcal: this.daily_kcal,
+        protein_target_g: this.protein_target_g,
+        carb_target_g: this.carb_target_g,
+        fat_target_g: this.fat_target_g,
+        folder_id: this.folder_id,
+        include_substitutions_in_avg: this.include_substitutions_in_avg,
+        meals: JSON.parse(JSON.stringify(this.meals)),
+        supplements: JSON.parse(JSON.stringify(this.supplements)),
+        supplementNotes: this.supplementNotes,
+      };
+    },
+
+    _restoreSnapshot(s) {
+      this.title = s.title;
+      this.description = s.description;
+      this.plan_type = s.plan_type;
+      this.nutrition_goal = s.nutrition_goal;
+      this.is_template = s.is_template;
+      this.daily_kcal = s.daily_kcal;
+      this.protein_target_g = s.protein_target_g;
+      this.carb_target_g = s.carb_target_g;
+      this.fat_target_g = s.fat_target_g;
+      this.folder_id = s.folder_id;
+      this.include_substitutions_in_avg = s.include_substitutions_in_avg;
+      this.meals = JSON.parse(JSON.stringify(s.meals));
+      this.supplements = JSON.parse(JSON.stringify(s.supplements));
+      this.supplementNotes = s.supplementNotes;
     },
 
     /* === step navigation === */
@@ -214,17 +273,33 @@ function nutritionWizard() {
 
     /* === persistence === */
     async exitWithoutSaving() {
-      const msg = this.planId
-        ? 'Uscire senza salvare? Il piano in bozza verrà eliminato.'
-        : 'Uscire senza salvare? Le modifiche non saranno conservate.';
+      /* Two distinct cases:
+           - Plan created in THIS session (no prior persistence): delete it.
+           - Plan loaded from a previous session: restore the snapshot taken
+             at init, undoing every change persisted via Avanti / Salva bozza
+             during this edit session. The original draft survives untouched.   */
+      const createdNow = this._createdInSession;
+      const msg = createdNow
+        ? 'Uscire senza salvare? Il piano appena creato verrà eliminato.'
+        : 'Annullare le modifiche di questa sessione? Verrà ripristinata l\'ultima versione salvata.';
       if (!confirm(msg)) return;
-      if (this.planId) {
-        try {
-          await fetch(INIT.urls.deletePattern.replace('__ID__', this.planId), {
-            method: 'POST',
-            headers: { 'X-CSRFToken': window.nutCsrfToken() },
-          });
-        } catch (e) { /* still navigate away */ }
+
+      this.saving = true;
+      try {
+        if (createdNow) {
+          if (this.planId) {
+            await fetch(INIT.urls.deletePattern.replace('__ID__', this.planId), {
+              method: 'POST',
+              headers: { 'X-CSRFToken': window.nutCsrfToken() },
+            });
+          }
+        } else if (this.planId && this._originalSnapshot) {
+          this._restoreSnapshot(this._originalSnapshot);
+          await this.persist();
+          await this.persistSupplements();
+        }
+      } catch (e) {
+        /* swallow — user explicitly chose to leave; navigate regardless */
       }
       window.location.href = INIT.urls.piani;
     },
@@ -253,6 +328,7 @@ function nutritionWizard() {
         carb_target_g: this.carb_target_g || null,
         fat_target_g: this.fat_target_g || null,
         folder_id: this.folder_id || null,
+        include_substitutions_in_avg: !!this.include_substitutions_in_avg,
         meals: this.serializedMeals(),
       };
       try {
@@ -287,6 +363,11 @@ function nutritionWizard() {
           food_id: it.food_id,
           quantity_g: it.quantity_g,
           notes: it.notes || '',
+          substitutions: (it.substitutions || []).map(s => ({
+            food_id: s.food_id,
+            mode: s.mode,
+            quantity_g: s.quantity_g,
+          })),
         })),
       }));
     },
@@ -336,6 +417,7 @@ function nutritionWizard() {
       const m = this.meals.find(x => x._key === mealKey);
       if (!m) return;
       m.items.push({
+        _key: 'i' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         food_id: food.id,
         food_name: food.name,
         quantity_g: 100,
@@ -344,7 +426,81 @@ function nutritionWizard() {
         carb_per_100g: food.carb,
         fat_per_100g: food.fat,
         notes: '',
+        subsOpen: false,
+        addSubMode: null,
+        substitutions: [],
       });
+    },
+
+    /* === substitution CRUD === */
+    roundTo5(g) {
+      const v = Math.round((parseFloat(g) || 0) / 5) * 5;
+      return Math.max(5, v);
+    },
+    /* Returns null when the chosen mode cannot apply (e.g. iso-prot on a 0g-protein food). */
+    computeSubGrams(item, food, mode) {
+      const q = parseFloat(item.quantity_g) || 0;
+      if (mode === 'ISOKCAL') {
+        const target = item.kcal_per_100g * q / 100;
+        if (!food.kcal) return null;
+        return this.roundTo5(target / food.kcal * 100);
+      }
+      if (mode === 'ISOPROT') {
+        const target = item.protein_per_100g * q / 100;
+        if (!food.protein) return null;
+        return this.roundTo5(target / food.protein * 100);
+      }
+      if (mode === 'ISOCARB') {
+        const target = item.carb_per_100g * q / 100;
+        if (!food.carb) return null;
+        return this.roundTo5(target / food.carb * 100);
+      }
+      return null;
+    },
+    addSubstitutionToItem(mealKey, itemKey, mode, food) {
+      const m = this.meals.find(x => x._key === mealKey);
+      if (!m) return;
+      const it = m.items.find(x => x._key === itemKey);
+      if (!it) return;
+      const grams = this.computeSubGrams(it, food, mode);
+      if (grams === null) {
+        this.tryFallbackToast('Sostituzione non applicabile: macro target a zero.');
+        return;
+      }
+      it.substitutions.push({
+        food_id: food.id,
+        food_name: food.name,
+        mode,
+        quantity_g: grams,
+        kcal_per_100g: food.kcal,
+        protein_per_100g: food.protein,
+        carb_per_100g: food.carb,
+        fat_per_100g: food.fat,
+      });
+      it.subsOpen = true;
+      it.addSubMode = null;
+    },
+    removeSubstitution(item, idx) {
+      if (idx >= 0 && idx < item.substitutions.length) item.substitutions.splice(idx, 1);
+    },
+    subMacros(sub) {
+      const q = parseFloat(sub.quantity_g) || 0;
+      const k = Math.round(sub.kcal_per_100g * q / 100);
+      const p = (sub.protein_per_100g * q / 100).toFixed(1);
+      const c = (sub.carb_per_100g * q / 100).toFixed(1);
+      const f = (sub.fat_per_100g * q / 100).toFixed(1);
+      return k + ' kcal · P ' + p + ' · C ' + c + ' · F ' + f;
+    },
+    subModeLabel(mode) {
+      return mode === 'ISOKCAL' ? 'iso-kcal'
+        : mode === 'ISOPROT' ? 'iso-prot'
+        : mode === 'ISOCARB' ? 'iso-carb' : mode;
+    },
+    subModeColor(mode) {
+      if (mode === 'ISOKCAL') return 'var(--al-bronze)';
+      if (mode === 'ISOPROT') return 'var(--al-aegean)';
+      if (mode === 'ISOCARB') return 'var(--al-warn)';
+      return 'var(--al-ink-mute)';
     },
     currentDayMeals() {
       if (this.planKind === 'DAILY') return this.meals;
@@ -602,6 +758,42 @@ function supplementPicker(suppKey, initialName) {
   };
 }
 
+/* Substitution food picker — same UX as foodPicker, but bubbles the chosen food
+   plus the substitution mode so the wizard can compute grams server-side rules. */
+function substitutionPicker(mealKey, itemKey, mode) {
+  return {
+    q: '', results: [], searching: false, show: false,
+    top: '0px', left: '0px', width: '0px',
+    updatePos() {
+      const el = this.$refs.searchBar;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      this.top = (r.bottom + 6) + 'px';
+      this.left = r.left + 'px';
+      this.width = r.width + 'px';
+    },
+    async search() {
+      if (this.q.length < 2) { this.results = []; this.show = false; return; }
+      this.searching = true;
+      this.updatePos();
+      try {
+        const r = await fetch(window.NUTRITION_WIZARD_INIT.urls.foodSearch + '?q=' + encodeURIComponent(this.q));
+        const d = await r.json();
+        this.results = d.results || [];
+      } catch (e) { this.results = []; }
+      this.searching = false;
+      this.show = true;
+    },
+    pick(food) {
+      window.dispatchEvent(new CustomEvent('add-sub', {
+        detail: { mealKey, itemKey, mode, food },
+      }));
+      this.q = ''; this.results = []; this.show = false;
+    },
+  };
+}
+
 window.nutritionWizard = nutritionWizard;
 window.foodPicker = foodPicker;
 window.supplementPicker = supplementPicker;
+window.substitutionPicker = substitutionPicker;

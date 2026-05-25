@@ -17,7 +17,8 @@ window.NUTRITION_WIZARD_INIT = {
     protein_target_g: {{ plan.protein_target_g|default:"null" }},
     carb_target_g: {{ plan.carb_target_g|default:"null" }},
     fat_target_g: {{ plan.fat_target_g|default:"null" }},
-    folder_id: {{ plan.folder_id|default:"null" }}
+    folder_id: {{ plan.folder_id|default:"null" }},
+    include_substitutions_in_avg: {{ plan.include_substitutions_in_avg|yesno:"true,false" }}
   }{% else %}null{% endif %},
   planKind: "{{ plan_kind }}",
   meals: {{ meals_json|safe }},
@@ -200,31 +201,6 @@ window.NUTRITION_WIZARD_INIT = {
             </label>
           </div>
         </div>
-
-        <div class="al-card">
-          <p class="al-eyebrow mb-4" style="color: var(--al-ink-mute);">Target personalizzato (opzionale)</p>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label class="al-label">Kcal</label>
-              <input type="number" x-model.number="daily_kcal" placeholder="—" class="al-input text-center font-mono">
-            </div>
-            <div>
-              <label class="al-label">Prot (g)</label>
-              <input type="number" x-model.number="protein_target_g" placeholder="—" class="al-input text-center font-mono">
-            </div>
-            <div>
-              <label class="al-label">Carb (g)</label>
-              <input type="number" x-model.number="carb_target_g" placeholder="—" class="al-input text-center font-mono">
-            </div>
-            <div>
-              <label class="al-label">Fat (g)</label>
-              <input type="number" x-model.number="fat_target_g" placeholder="—" class="al-input text-center font-mono">
-            </div>
-          </div>
-          <p class="al-tag mt-3" style="color: var(--al-ink-mute);">
-            I target alimentano la barra di confronto nel builder e nel riepilogo.
-          </p>
-        </div>
       </div>
 
       <aside class="space-y-4 lg:sticky lg:top-6">
@@ -259,7 +235,8 @@ window.NUTRITION_WIZARD_INIT = {
   <!-- STEP 2 — BUILDER                                                -->
   <!-- ============================================================== -->
   <div x-show="step === 'builder'" x-cloak
-       @add-food.window="addFoodToMeal($event.detail.mealKey, $event.detail.food)">
+       @add-food.window="addFoodToMeal($event.detail.mealKey, $event.detail.food)"
+       @add-sub.window="addSubstitutionToItem($event.detail.mealKey, $event.detail.itemKey, $event.detail.mode, $event.detail.food)">
 
     <!-- WEEKLY: sticky day tabs -->
     <template x-if="planKind === 'WEEKLY'">
@@ -533,21 +510,148 @@ window.NUTRITION_WIZARD_INIT = {
 
                   <!-- Items -->
                   <div>
-                    <template x-for="(item, iIndex) in meal.items" :key="iIndex">
-                      <div class="flex items-center gap-3 px-5 py-3" style="border-bottom: 1px solid var(--al-rule);">
-                        <div class="flex-1 min-w-0">
-                          <p class="text-sm font-medium text-ink" x-text="item.food_name"></p>
-                          <p class="text-xs text-ink-mute mt-0.5" x-text="itemMacros(item)"></p>
-                        </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                          <input type="number" x-model.number="item.quantity_g" min="1" max="9999"
-                                 class="al-input text-center font-mono"
-                                 style="width: 78px; padding: 6px 10px;">
-                          <span class="al-tag">g</span>
-                          <button type="button" @click="meal.items.splice(iIndex, 1)"
-                                  class="al-btn al-btn-icon al-btn-ghost">
-                            <i class="ph ph-x text-xs"></i>
+                    <template x-for="(item, iIndex) in meal.items" :key="item._key">
+                      <div style="border-bottom: 1px solid var(--al-rule);">
+                        <!-- Primary row -->
+                        <div class="flex items-center gap-3 px-5 py-3">
+                          <button type="button"
+                                  @click="item.subsOpen = !item.subsOpen"
+                                  class="al-btn al-btn-icon al-btn-ghost shrink-0"
+                                  style="width: 22px; height: 22px;"
+                                  :title="item.subsOpen ? 'Chiudi sostituzioni' : 'Apri sostituzioni'">
+                            <i class="ph text-[11px]"
+                               :class="item.subsOpen ? 'ph-caret-down' : 'ph-caret-right'"
+                               :style="(item.substitutions && item.substitutions.length > 0) ? 'color: var(--al-bronze);' : 'color: var(--al-ink-line);'"></i>
                           </button>
+                          <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                              <p class="text-sm font-medium text-ink" x-text="item.food_name"></p>
+                              <template x-if="item.substitutions && item.substitutions.length > 0">
+                                <span class="al-tag font-mono"
+                                      style="background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); padding: 1px 7px; font-size: 9px;"
+                                      :title="'Sostituzioni: ' + item.substitutions.length">
+                                  <i class="ph ph-swap text-[9px]"></i>
+                                  <span x-text="item.substitutions.length + ' alt'"></span>
+                                </span>
+                              </template>
+                            </div>
+                            <p class="text-xs text-ink-mute mt-0.5" x-text="itemMacros(item)"></p>
+                          </div>
+                          <div class="flex items-center gap-2 shrink-0">
+                            <input type="number" x-model.number="item.quantity_g" min="1" max="9999"
+                                   class="al-input text-center font-mono"
+                                   style="width: 78px; padding: 6px 10px;">
+                            <span class="al-tag">g</span>
+                            <button type="button" @click="meal.items.splice(iIndex, 1)"
+                                    class="al-btn al-btn-icon al-btn-ghost">
+                              <i class="ph ph-x text-xs"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Substitutions panel -->
+                        <div x-show="item.subsOpen" x-cloak
+                             class="px-5 pb-4 pt-1"
+                             style="background: var(--al-marble); border-top: 1px dashed var(--al-rule);">
+                          <div class="flex items-center gap-2 mb-2">
+                            <i class="ph ph-swap text-bronze text-sm"></i>
+                            <p class="al-eyebrow" style="font-size: 9px;">Sostituzioni</p>
+                            <span class="al-tag ml-auto" style="font-size: 9px; color: var(--al-ink-mute);"
+                                  x-show="item.substitutions.length === 0">Nessuna · scegli un metodo per aggiungerne una</span>
+                          </div>
+
+                          <!-- Existing subs list -->
+                          <div class="space-y-1.5 mb-3" x-show="item.substitutions.length > 0">
+                            <template x-for="(sub, sIdx) in item.substitutions" :key="sIdx">
+                              <div class="flex items-center gap-2 py-2 px-3"
+                                   style="background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                                <span class="al-tag font-mono shrink-0"
+                                      style="padding: 2px 7px; font-size: 9px;"
+                                      :style="'background: ' + subModeColor(sub.mode) + '; color: var(--al-parchment); border: 1px solid ' + subModeColor(sub.mode) + ';'"
+                                      x-text="subModeLabel(sub.mode)"></span>
+                                <div class="flex-1 min-w-0">
+                                  <p class="text-sm font-medium text-ink truncate" x-text="sub.food_name"></p>
+                                  <p class="text-xs text-ink-mute mt-0.5" x-text="subMacros(sub)"></p>
+                                </div>
+                                <input type="number" x-model.number="sub.quantity_g" min="1" max="9999"
+                                       class="al-input text-center font-mono shrink-0"
+                                       style="width: 70px; padding: 4px 8px;"
+                                       title="Modifica la grammatura proposta">
+                                <span class="al-tag shrink-0">g</span>
+                                <button type="button" @click="removeSubstitution(item, sIdx)"
+                                        class="al-btn al-btn-icon al-btn-ghost shrink-0"
+                                        title="Rimuovi sostituzione">
+                                  <i class="ph ph-trash text-xs"></i>
+                                </button>
+                              </div>
+                            </template>
+                          </div>
+
+                          <!-- Mode picker / search bar -->
+                          <template x-if="!item.addSubMode">
+                            <div class="flex items-center gap-2 flex-wrap">
+                              <span class="al-tag" style="font-size: 9px; color: var(--al-ink-mute);">Aggiungi:</span>
+                              <button type="button" @click="item.addSubMode = 'ISOKCAL'"
+                                      class="al-tag transition-all"
+                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze);">
+                                <i class="ph ph-flame text-[10px]"></i>
+                                <span>iso-kcal</span>
+                              </button>
+                              <button type="button" @click="item.addSubMode = 'ISOPROT'"
+                                      class="al-tag transition-all"
+                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(28,74,82,0.3); color: var(--al-aegean);">
+                                <i class="ph ph-barbell text-[10px]"></i>
+                                <span>iso-prot</span>
+                              </button>
+                              <button type="button" @click="item.addSubMode = 'ISOCARB'"
+                                      class="al-tag transition-all"
+                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(166,128,43,0.35); color: var(--al-warn);">
+                                <i class="ph ph-grains text-[10px]"></i>
+                                <span>iso-carb</span>
+                              </button>
+                            </div>
+                          </template>
+
+                          <template x-if="item.addSubMode">
+                            <div x-data="substitutionPicker(meal._key, item._key, item.addSubMode)"
+                                 class="flex items-center gap-2">
+                              <div x-ref="searchBar" class="al-search flex-1"
+                                   :style="'border-style: dashed; border-color: ' + subModeColor(item.addSubMode) + ';'">
+                                <i class="ph ph-magnifying-glass"
+                                   :style="'color: ' + subModeColor(item.addSubMode) + ';'"></i>
+                                <input type="text" x-model="q" @input.debounce.300ms="search()"
+                                       :placeholder="'Cerca sostituto (' + subModeLabel(item.addSubMode) + ')…'"
+                                       class="al-input">
+                                <span x-show="searching" class="al-tag">…</span>
+                              </div>
+                              <button type="button" @click="item.addSubMode = null"
+                                      class="al-btn al-btn-icon al-btn-ghost"
+                                      title="Annulla">
+                                <i class="ph ph-x text-xs"></i>
+                              </button>
+                              <template x-teleport="body">
+                                <div x-show="show && results.length > 0" @click.outside="show = false"
+                                     :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '260px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
+                                  <template x-for="food in results" :key="food.id">
+                                    <button type="button" @click="pick(food)"
+                                            class="w-full text-left px-4 py-3"
+                                            style="border-bottom: 1px solid var(--al-rule); background: transparent;">
+                                      <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                          <p class="text-sm font-medium text-ink" x-text="food.name"></p>
+                                          <p class="al-tag" x-text="food.category"></p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                          <p class="text-xs font-bold text-ink font-mono" x-text="food.kcal + ' kcal'"></p>
+                                          <p class="al-tag font-mono" x-text="'P ' + food.protein + ' · C ' + food.carb + ' · F ' + food.fat"></p>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  </template>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
                         </div>
                       </div>
                     </template>
@@ -603,55 +707,56 @@ window.NUTRITION_WIZARD_INIT = {
           <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);"
              x-text="planKind === 'WEEKLY' && activeDay === 'AVG' ? 'Media settimanale' : 'Totali giornalieri'"></p>
 
-          <div class="text-center mb-5">
-            <p class="al-display font-mono"
-               style="font-size: 40px; line-height: 1.1; color: var(--al-ink);"
-               x-text="sidePanelKcal()"></p>
-            <p class="al-tag mt-1">kcal</p>
-            <template x-if="daily_kcal">
-              <p class="al-tag mt-1 font-mono"
-                 :style="kcalDeltaColor()"
-                 x-text="kcalDeltaLabel()"></p>
-            </template>
-          </div>
-
-          <!-- Macro donut (responds to active view: DAILY / WEEKLY day / WEEKLY AVG) -->
+          <!-- Macro donut replaces the big kcal counter -->
           <div class="mb-5" x-data="{ pieHover: null }">
-            <div class="relative mx-auto" style="width: 180px; height: 180px;">
-              <svg viewBox="0 0 200 200" width="180" height="180" style="display: block;">
+            <div class="relative mx-auto" style="width: 200px; height: 200px;">
+              <svg viewBox="0 0 200 200" width="200" height="200" style="display: block;">
                 <template x-for="seg in sidePanelPieSegments()" :key="seg.key">
-                  <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 58)"
-                        :fill="seg.color"
-                        :style="pieHover && pieHover !== seg.key ? 'opacity: 0.32; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                  <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
+                        :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s, transform .25s var(--al-ease-spr); transform-origin: 100px 100px; transform-box: fill-box;' + (pieHover && pieHover !== seg.key ? ' opacity: 0.28;' : '') + (pieHover === seg.key ? ' transform: scale(1.035);' : '')"
                         @mouseenter="pieHover = seg.key"
-                        @mouseleave="pieHover = null"
-                        style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                        @mouseleave="pieHover = null"></path>
                 </template>
                 <template x-if="pieKcalTotal(sidePanelPieSegments()) === 0">
-                  <circle cx="100" cy="100" r="90" fill="none" stroke="var(--al-rule)" stroke-width="2" stroke-dasharray="4 6"></circle>
+                  <g>
+                    <circle cx="100" cy="100" r="92" fill="none" stroke="var(--al-rule)" stroke-width="1.5" stroke-dasharray="3 6"></circle>
+                    <circle cx="100" cy="100" r="58" fill="none" stroke="var(--al-rule-faint)" stroke-width="1" stroke-dasharray="2 5"></circle>
+                  </g>
                 </template>
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <template x-if="!pieHover">
                   <div class="text-center">
-                    <p class="font-mono" style="font-size: 22px; color: var(--al-ink); line-height: 1;" x-text="pieKcalTotal(sidePanelPieSegments()) || '—'"></p>
-                    <p class="al-tag mt-1" style="font-size: 8px;">kcal da macro</p>
+                    <p class="al-display font-mono"
+                       style="font-size: 34px; line-height: 1; color: var(--al-ink); letter-spacing: -0.01em;"
+                       x-text="sidePanelKcal()"></p>
+                    <p class="al-tag mt-1" style="font-size: 9px;">kcal</p>
+                    <template x-if="daily_kcal">
+                      <p class="al-tag font-mono mt-0.5"
+                         style="font-size: 9px;"
+                         :style="kcalDeltaColor()"
+                         x-text="kcalDeltaLabel()"></p>
+                    </template>
                   </div>
                 </template>
                 <template x-if="pieHover">
                   <div class="text-center px-2">
-                    <p class="font-mono font-bold" style="font-size: 20px; line-height: 1;"
+                    <p class="al-display font-mono font-bold"
+                       style="font-size: 30px; line-height: 1; letter-spacing: -0.01em;"
                        :style="'color: ' + (sidePanelPieSegments().find(s => s.key === pieHover) || {}).color"
                        x-text="pctLabel((sidePanelPieSegments().find(s => s.key === pieHover) || {}).pct || 0)"></p>
-                    <p class="al-tag mt-1" style="font-size: 8px;"
+                    <p class="al-tag mt-1" style="font-size: 9px;"
                        x-text="(sidePanelPieSegments().find(s => s.key === pieHover) || {}).label"></p>
-                    <p class="font-mono al-small mt-0.5" style="font-size: 10px; color: var(--al-ink-soft);"
+                    <p class="font-mono mt-0.5" style="font-size: 11px; color: var(--al-ink-soft);"
                        x-text="((sidePanelPieSegments().find(s => s.key === pieHover) || {}).grams || 0) + 'g · ' + ((sidePanelPieSegments().find(s => s.key === pieHover) || {}).kcal || 0) + ' kcal'"></p>
                   </div>
                 </template>
               </div>
             </div>
-            <p class="al-tag text-center mt-2" style="color: var(--al-ink-line); font-size: 9px;">passa sul grafico</p>
+            <p class="al-tag text-center mt-3" style="color: var(--al-ink-line); font-size: 9px; letter-spacing: 0.15em;">
+              <i class="ph ph-cursor text-[10px]"></i>
+              <span>passa sulle fette</span>
+            </p>
           </div>
 
           <div class="space-y-3">
@@ -679,20 +784,104 @@ window.NUTRITION_WIZARD_INIT = {
           </div>
         </div>
 
+        <!-- Editable custom target -->
         <div class="al-card al-card-warm">
-          <p class="al-eyebrow mb-2">Target personalizzato</p>
-          <template x-if="!daily_kcal && !protein_target_g && !carb_target_g && !fat_target_g">
-            <p class="al-small" style="color: var(--al-ink-mute);">
-              Nessun target impostato. Modifica in <button type="button" @click="jumpTo('info')"
-              class="al-link al-link-bronze">Informazioni</button>.
+          <div class="flex items-center justify-between mb-3">
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Target personalizzato</p>
+            <button type="button" @click="daily_kcal = null; protein_target_g = null; carb_target_g = null; fat_target_g = null"
+                    x-show="daily_kcal || protein_target_g || carb_target_g || fat_target_g"
+                    class="al-link al-link-quiet"
+                    style="font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;"
+                    title="Azzera tutti i target">
+              <i class="ph ph-eraser text-[10px]"></i><span>azzera</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-1.5">
+            <div>
+              <p class="al-tag text-center" style="font-size: 9px;">kcal</p>
+              <input type="number" min="0" step="1" x-model.number="daily_kcal"
+                     @input="if (daily_kcal !== null && daily_kcal !== '' && daily_kcal < 0) daily_kcal = 0"
+                     placeholder="—" class="al-input text-center font-mono"
+                     style="padding: 6px 4px; font-size: 13px; margin-top: 4px;">
+            </div>
+            <div>
+              <p class="al-tag text-center" style="font-size: 9px; color: var(--al-aegean);">Pro</p>
+              <input type="number" min="0" step="1" x-model.number="protein_target_g"
+                     @input="if (protein_target_g !== null && protein_target_g !== '' && protein_target_g < 0) protein_target_g = 0"
+                     placeholder="—" class="al-input text-center font-mono"
+                     style="padding: 6px 4px; font-size: 13px; margin-top: 4px;">
+            </div>
+            <div>
+              <p class="al-tag text-center" style="font-size: 9px; color: var(--al-warn);">Carb</p>
+              <input type="number" min="0" step="1" x-model.number="carb_target_g"
+                     @input="if (carb_target_g !== null && carb_target_g !== '' && carb_target_g < 0) carb_target_g = 0"
+                     placeholder="—" class="al-input text-center font-mono"
+                     style="padding: 6px 4px; font-size: 13px; margin-top: 4px;">
+            </div>
+            <div>
+              <p class="al-tag text-center" style="font-size: 9px; color: var(--al-danger);">Fat</p>
+              <input type="number" min="0" step="1" x-model.number="fat_target_g"
+                     @input="if (fat_target_g !== null && fat_target_g !== '' && fat_target_g < 0) fat_target_g = 0"
+                     placeholder="—" class="al-input text-center font-mono"
+                     style="padding: 6px 4px; font-size: 13px; margin-top: 4px;">
+            </div>
+          </div>
+          <p class="al-tag mt-2.5" style="color: var(--al-ink-line); font-size: 9px; line-height: 1.5;">
+            Modifiche aggiornano in tempo reale grafici e barre di confronto.
+          </p>
+        </div>
+
+        <!-- Volatile g/kg calculator -->
+        <div class="al-card" style="border: 1px dashed var(--al-bronze-soft); background: linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble-warm) 100%);">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="ph ph-scales text-bronze text-base"></i>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Calcolatore g/kg</p>
+            <span class="al-tag ml-auto" style="font-size: 8px; letter-spacing: 0.14em; color: var(--al-ink-line);">volatile</span>
+          </div>
+
+          <label class="al-label flex items-center justify-between" style="margin-bottom: 4px;">
+            <span>Peso paziente</span>
+            <span class="font-mono" style="color: var(--al-ink-line); font-size: 10px;">kg</span>
+          </label>
+          <input type="number" min="0" step="0.1" x-model.number="calc_weight_kg"
+                 @input="if (calc_weight_kg !== null && calc_weight_kg !== '' && calc_weight_kg < 0) calc_weight_kg = 0"
+                 placeholder="es. 72" class="al-input text-center font-mono"
+                 style="font-size: 15px; letter-spacing: 0.02em;">
+
+          <template x-if="!calc_weight_kg || calc_weight_kg <= 0">
+            <p class="al-small mt-3 text-center" style="color: var(--al-ink-line); font-style: italic;">
+              Inserisci il peso per vedere g/kg e kcal/kg.
             </p>
           </template>
-          <template x-if="daily_kcal || protein_target_g || carb_target_g || fat_target_g">
-            <div class="grid grid-cols-4 gap-2 text-center">
-              <div><p class="al-tag" style="font-size: 9px;">kcal</p><p class="font-mono text-ink text-sm mt-0.5" x-text="daily_kcal || '—'"></p></div>
-              <div><p class="al-tag" style="font-size: 9px;">Pro</p><p class="font-mono text-ink text-sm mt-0.5" x-text="protein_target_g || '—'"></p></div>
-              <div><p class="al-tag" style="font-size: 9px;">Carb</p><p class="font-mono text-ink text-sm mt-0.5" x-text="carb_target_g || '—'"></p></div>
-              <div><p class="al-tag" style="font-size: 9px;">Fat</p><p class="font-mono text-ink text-sm mt-0.5" x-text="fat_target_g || '—'"></p></div>
+
+          <template x-if="calc_weight_kg && calc_weight_kg > 0">
+            <div class="mt-3 space-y-1.5">
+              <template x-for="r in [
+                  {l:'kcal/kg', v:daily_kcal,         c:'var(--al-bronze)',  u:''},
+                  {l:'Prot',    v:protein_target_g,   c:'var(--al-aegean)',  u:'g/kg'},
+                  {l:'Carb',    v:carb_target_g,      c:'var(--al-warn)',    u:'g/kg'},
+                  {l:'Fat',     v:fat_target_g,       c:'var(--al-danger)',  u:'g/kg'}
+                ]" :key="r.l">
+                <div class="flex items-center justify-between gap-2"
+                     style="padding: 7px 10px; background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span :style="'width:6px;height:6px;border-radius:999px;background:' + r.c + '; flex-shrink:0;'"></span>
+                    <span class="al-body" style="font-size: 12px;" x-text="r.l"></span>
+                  </div>
+                  <template x-if="r.v">
+                    <div class="flex items-baseline gap-1">
+                      <span class="font-mono font-bold"
+                            :style="'color:' + r.c + '; font-size: 14px;'"
+                            x-text="(r.v / calc_weight_kg).toFixed(r.u ? 2 : 1)"></span>
+                      <span class="font-mono" style="font-size: 9px; color: var(--al-ink-line); letter-spacing: 0.08em;"
+                            x-text="r.u || 'kcal/kg'"></span>
+                    </div>
+                  </template>
+                  <template x-if="!r.v">
+                    <span class="font-mono" style="font-size: 11px; color: var(--al-ink-line);">target —</span>
+                  </template>
+                </div>
+              </template>
             </div>
           </template>
         </div>
@@ -900,11 +1089,9 @@ window.NUTRITION_WIZARD_INIT = {
                   <svg viewBox="0 0 200 200" width="200" height="200">
                     <template x-for="seg in dailyPieSegments()" :key="seg.key">
                       <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 56)"
-                            :fill="seg.color"
-                            :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                            :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s;' + (hover && hover !== seg.key ? ' opacity: 0.35;' : '')"
                             @mouseenter="hover = seg.key"
-                            @mouseleave="hover = null"
-                            style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                            @mouseleave="hover = null"></path>
                     </template>
                     <template x-if="pieKcalTotal(dailyPieSegments()) === 0">
                       <circle cx="100" cy="100" r="90" fill="none" stroke="var(--al-rule)" stroke-width="2" stroke-dasharray="4 6"></circle>
@@ -961,11 +1148,9 @@ window.NUTRITION_WIZARD_INIT = {
                   <svg viewBox="0 0 200 200" width="200" height="200">
                     <template x-for="seg in weeklyDayPieSegments(recapDay)" :key="seg.key">
                       <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 56)"
-                            :fill="seg.color"
-                            :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                            :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s;' + (hover && hover !== seg.key ? ' opacity: 0.35;' : '')"
                             @mouseenter="hover = seg.key"
-                            @mouseleave="hover = null"
-                            style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                            @mouseleave="hover = null"></path>
                     </template>
                   </svg>
                   <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -1058,12 +1243,36 @@ window.NUTRITION_WIZARD_INIT = {
                       <p class="al-tag py-2">Nessun alimento.</p>
                     </template>
                     <template x-for="(item, ii) in meal.items" :key="ii">
-                      <div class="flex items-center gap-3 py-2"
-                           :style="ii < meal.items.length - 1 ? 'border-bottom: 1px dashed var(--al-rule);' : ''">
-                        <span class="font-mono text-xs shrink-0" style="color: var(--al-ink-line); width: 64px;"
-                              x-text="item.quantity_g + ' g'"></span>
-                        <span class="al-body flex-1" x-text="item.food_name"></span>
-                        <span class="al-tag font-mono" x-text="itemMacros(item)"></span>
+                      <div :style="ii < meal.items.length - 1 ? 'border-bottom: 1px dashed var(--al-rule);' : ''">
+                        <div class="flex items-center gap-3 py-2">
+                          <span class="font-mono text-xs shrink-0" style="color: var(--al-ink-line); width: 64px;"
+                                x-text="item.quantity_g + ' g'"></span>
+                          <span class="al-body flex-1" x-text="item.food_name"></span>
+                          <template x-if="item.substitutions && item.substitutions.length > 0">
+                            <span class="al-tag font-mono shrink-0"
+                                  style="background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); padding: 1px 6px; font-size: 9px;">
+                              <i class="ph ph-swap text-[9px]"></i>
+                              <span x-text="item.substitutions.length"></span>
+                            </span>
+                          </template>
+                          <span class="al-tag font-mono" x-text="itemMacros(item)"></span>
+                        </div>
+                        <template x-if="item.substitutions && item.substitutions.length > 0">
+                          <div class="pl-[76px] pr-2 pb-2 space-y-1">
+                            <template x-for="(sub, si) in item.substitutions" :key="si">
+                              <div class="flex items-center gap-2 al-small" style="color: var(--al-ink-soft);">
+                                <span class="al-tag font-mono shrink-0"
+                                      style="padding: 1px 6px; font-size: 8px;"
+                                      :style="'background: ' + subModeColor(sub.mode) + '; color: var(--al-parchment); border: 1px solid ' + subModeColor(sub.mode) + ';'"
+                                      x-text="subModeLabel(sub.mode)"></span>
+                                <span class="font-mono text-xs shrink-0" style="color: var(--al-ink-line); width: 48px;"
+                                      x-text="sub.quantity_g + ' g'"></span>
+                                <span class="flex-1 truncate" x-text="sub.food_name"></span>
+                                <span class="al-tag font-mono" x-text="subMacros(sub)"></span>
+                              </div>
+                            </template>
+                          </div>
+                        </template>
                       </div>
                     </template>
                   </div>
@@ -1103,6 +1312,31 @@ window.NUTRITION_WIZARD_INIT = {
 
       <!-- Action panel -->
       <aside class="space-y-4 lg:sticky lg:top-6">
+        <!-- Substitutions calculation toggle -->
+        <div class="al-card al-card-warm">
+          <div class="flex items-start gap-3">
+            <i class="ph ph-swap text-bronze text-lg mt-0.5"></i>
+            <div class="flex-1 min-w-0">
+              <p class="al-eyebrow" style="font-size: 9px;">Calcolo medie</p>
+              <p class="text-sm font-medium text-ink mt-0.5">Includi sostituzioni</p>
+              <p class="al-tag mt-1" style="color: var(--al-ink-mute); font-size: 9px;">
+                Quando attivo, gli alimenti con sostituzioni contribuiscono come media tra
+                alimento principale e tutte le alternative.
+              </p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+              <input type="checkbox" x-model="include_substitutions_in_avg" class="sr-only peer">
+              <div class="w-10 h-5 rounded-full transition-colors"
+                   :style="include_substitutions_in_avg
+                     ? 'background: var(--al-bronze);'
+                     : 'background: var(--al-rule);'"></div>
+              <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform"
+                   style="background: var(--al-parchment); box-shadow: 0 1px 2px rgba(0,0,0,0.2);"
+                   :style="include_substitutions_in_avg ? 'transform: translateX(20px);' : ''"></div>
+            </label>
+          </div>
+        </div>
+
         <div class="al-card">
           <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Azioni</p>
 
@@ -1182,11 +1416,9 @@ window.NUTRITION_WIZARD_INIT = {
             <svg viewBox="0 0 200 200" width="220" height="220">
               <template x-for="seg in weeklyDayPieSegments(dayReportCode)" :key="seg.key">
                 <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
-                      :fill="seg.color"
-                      :style="hover && hover !== seg.key ? 'opacity: 0.35; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                      :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s;' + (hover && hover !== seg.key ? ' opacity: 0.35;' : '')"
                       @mouseenter="hover = seg.key"
-                      @mouseleave="hover = null"
-                      style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                      @mouseleave="hover = null"></path>
               </template>
             </svg>
             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">

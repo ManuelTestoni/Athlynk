@@ -37,6 +37,66 @@ def _distinct_values(field_name):
     )
 
 
+WORKOUT_HISTORY_PAGE_SIZE = 5
+
+
+def _enrich_client_assignment(a, client, today):
+    """Hero assignment: compute days_json, expected/completed/progress, next_day_id."""
+    plan = a.workout_plan
+    ordered_days = sorted(plan.days.all(), key=lambda d: d.day_order)
+    freq = plan.frequency_per_week or len(ordered_days) or 0
+    start = a.start_date or a.created_at.date()
+    end = a.end_date or today
+    if start <= today:
+        weeks = max(1, ((min(end, today) - start).days // 7) + 1)
+    else:
+        weeks = 0
+    a.expected_session_count = weeks * freq
+    a.completed_session_count = getattr(a, '_completed', 0)
+    a.progress_pct = min(100, round((a.completed_session_count / a.expected_session_count) * 100)) if a.expected_session_count else 0
+    days_with_ex = [d for d in ordered_days if list(d.exercises.all())]
+    a.days_json = json.dumps([{'id': d.id, 'order': d.day_order, 'name': d.day_name or f'Giorno {d.day_order}'} for d in days_with_ex])
+    if not days_with_ex or a.completed_session_count == 0:
+        a.next_day_id = None
+    else:
+        a.next_day_id = days_with_ex[a.completed_session_count % len(days_with_ex)].id
+
+
+def _enrich_client_history_row(a, today):
+    """History row: lightweight expected/completed/progress (no days prefetch)."""
+    plan = a.workout_plan
+    freq = plan.frequency_per_week or 0
+    start = a.start_date or a.created_at.date()
+    end = a.end_date or today
+    if start <= today and freq:
+        weeks = max(1, ((min(end, today) - start).days // 7) + 1)
+        a.expected_session_count = weeks * freq
+    else:
+        a.expected_session_count = 0
+    a.completed_session_count = getattr(a, '_completed', 0)
+    a.progress_pct = min(100, round((a.completed_session_count / a.expected_session_count) * 100)) if a.expected_session_count else 0
+
+
+def _serialize_history_row(a):
+    plan = a.workout_plan
+    return {
+        'id': a.id,
+        'plan_title': plan.title,
+        'plan_kind': plan.plan_kind,
+        'goal': plan.goal or '',
+        'level': plan.level or '',
+        'sport_name': plan.sport.name if plan.sport_id else '',
+        'frequency_per_week': plan.frequency_per_week or 0,
+        'duration_weeks': plan.duration_weeks or 0,
+        'status': a.status,
+        'start_date': a.start_date.strftime('%d %b %Y') if a.start_date else '',
+        'end_date':   a.end_date.strftime('%d %b %Y')   if a.end_date else '',
+        'expected_session_count': a.expected_session_count,
+        'completed_session_count': a.completed_session_count,
+        'progress_pct': a.progress_pct,
+    }
+
+
 def serialize_exercise_card(ex):
     return {
         'id': ex.id,
@@ -72,48 +132,45 @@ def allenamenti_list_view(request):
         if not relationship:
             return redirect('check_coach_directory')
 
-        assignments = list(WorkoutAssignment.objects.filter(
-            client=client,
-        ).select_related(
-            'workout_plan', 'workout_plan__sport', 'workout_plan__folder',
-            'coach', 'client',
-        ).prefetch_related(
-            'workout_plan__days'
-        ).order_by('-start_date', '-created_at'))
-
         today = date.today()
-        for a in assignments:
-            freq = a.workout_plan.frequency_per_week or a.workout_plan.days.count() or 0
-            start = a.start_date or a.created_at.date()
-            end = a.end_date or today
-            weeks = max(1, ((min(end, today) - start).days // 7) + 1) if start <= today else 0
-            a.expected_session_count = weeks * freq
-            a.completed_session_count = a.sessions.filter(client=client, completed=True).count()
-            a.progress_pct = min(100, round((a.completed_session_count / a.expected_session_count) * 100)) if a.expected_session_count else 0
-            ordered_days = list(a.workout_plan.days.all().order_by('day_order'))
-            days_with_ex = [d for d in ordered_days if d.exercises.exists()]
-            days_list = [{'id': d.id, 'order': d.day_order, 'name': d.day_name or f'Giorno {d.day_order}'} for d in ordered_days if d.exercises.exists()]
-            a.days_json = json.dumps(days_list)
-            if not days_with_ex or a.completed_session_count == 0:
-                a.next_day_id = None
-            else:
-                a.next_day_id = days_with_ex[a.completed_session_count % len(days_with_ex)].id
 
-        if query:
-            assignments = [a for a in assignments if query.lower() in a.workout_plan.title.lower()]
-        if filter_status:
-            assignments = [a for a in assignments if a.status == filter_status]
+        # Hero: latest ACTIVE assignment (single object, full prefetch).
+        current_assignment = (
+            WorkoutAssignment.objects
+            .filter(client=client, status='ACTIVE')
+            .select_related('workout_plan', 'workout_plan__sport', 'workout_plan__folder', 'coach', 'client')
+            .prefetch_related('workout_plan__days__exercises')
+            .annotate(_completed=Count('sessions', filter=Q(sessions__client=client, sessions__completed=True), distinct=True))
+            .order_by('-start_date', '-created_at')
+            .first()
+        )
+        if current_assignment is not None:
+            _enrich_client_assignment(current_assignment, client, today)
 
-        # Hero = most recent ACTIVE assignment (already sorted by -start_date).
-        current_assignment = next((a for a in assignments if a.status == 'ACTIVE'), None)
-        past_assignments = [a for a in assignments if a is not current_assignment]
+        # History: paginated table (first WORKOUT_HISTORY_PAGE_SIZE rows).
+        past_qs = (
+            WorkoutAssignment.objects
+            .filter(client=client)
+            .select_related('workout_plan', 'workout_plan__sport')
+            .annotate(_completed=Count('sessions', filter=Q(sessions__client=client, sessions__completed=True), distinct=True))
+            .order_by('-start_date', '-created_at')
+        )
+        if current_assignment is not None:
+            past_qs = past_qs.exclude(id=current_assignment.id)
+
+        past_total = past_qs.count()
+        past_first = list(past_qs[:WORKOUT_HISTORY_PAGE_SIZE])
+        for a in past_first:
+            _enrich_client_history_row(a, today)
+        past_data = [_serialize_history_row(a) for a in past_first]
 
         return render(request, 'pages/allenamenti/client_list.html', {
-            'assignments': assignments,
             'current_assignment': current_assignment,
-            'past_assignments': past_assignments,
-            'query': query,
-            'filter_status': filter_status,
+            'past_data_json': json.dumps(past_data),
+            'past_total': past_total,
+            'past_initial_count': len(past_first),
+            'past_has_more': past_total > len(past_first),
+            'history_page_size': WORKOUT_HISTORY_PAGE_SIZE,
             'is_client': True,
             'client': client,
             'coach': relationship.coach,
@@ -1147,3 +1204,50 @@ def allenamenti_edit_view(request, assignment_id):
     except WorkoutAssignment.DoesNotExist:
         return redirect('allenamenti_list')
     return redirect('allenamenti_wizard_resume', plan_id=a.workout_plan.id)
+
+
+def api_client_workout_history(request):
+    """Paginated past workout assignments for the logged-in client."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+        limit = min(20, max(1, int(request.GET.get('limit', WORKOUT_HISTORY_PAGE_SIZE))))
+    except (TypeError, ValueError):
+        offset, limit = 0, WORKOUT_HISTORY_PAGE_SIZE
+
+    current = (
+        WorkoutAssignment.objects
+        .filter(client=client, status='ACTIVE')
+        .order_by('-start_date', '-created_at')
+        .values_list('id', flat=True)
+        .first()
+    )
+    qs = (
+        WorkoutAssignment.objects
+        .filter(client=client)
+        .select_related('workout_plan', 'workout_plan__sport')
+        .annotate(_completed=Count('sessions', filter=Q(sessions__client=client, sessions__completed=True), distinct=True))
+        .order_by('-start_date', '-created_at')
+    )
+    if current is not None:
+        qs = qs.exclude(id=current)
+    total = qs.count()
+    today = date.today()
+    page = list(qs[offset:offset + limit])
+    for a in page:
+        _enrich_client_history_row(a, today)
+    items = [_serialize_history_row(a) for a in page]
+    return JsonResponse({
+        'items': items,
+        'total': total,
+        'offset': offset,
+        'limit': limit,
+        'has_more': (offset + limit) < total,
+    })

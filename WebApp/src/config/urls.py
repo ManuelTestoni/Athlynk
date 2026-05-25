@@ -84,6 +84,7 @@ urlpatterns = [
     path('nutrizione/piani/<int:plan_id>/', views_nutrition.nutrizione_piano_detail_view, name='nutrizione_piano_detail'),
     path('nutrizione/piani/<int:plan_id>/modifica/', views_nutrition.nutrizione_piano_edit_view, name='nutrizione_piano_edit'),
     path('nutrizione/dettaglio/<int:assignment_id>/', views_nutrition.nutrizione_client_detail_view, name='nutrizione_client_detail'),
+    path('api/nutrizione/cliente/storico/', views_nutrition.api_client_nutrition_history, name='api_client_nutrition_history'),
     path('api/nutrizione/alimenti/', views_nutrition.api_food_search, name='nutrizione_food_search'),
     path('api/nutrizione/import/excel/', views_nutrition.api_diet_import_excel, name='api_diet_import_excel'),
     path('api/nutrizione/import/pdf/', views_nutrition.api_diet_import_pdf, name='api_diet_import_pdf'),
@@ -121,6 +122,7 @@ urlpatterns = [
     path('allenamenti/assegnazione/<int:assignment_id>/volume/', views_session.client_assignment_volume_view, name='client_assignment_volume'),
     path('allenamenti/assegnazione/<int:assignment_id>/sessione/<int:day_id>/', views_session.client_session_active_view, name='client_session_active'),
     path('api/allenamenti/assegnazione/<int:assignment_id>/sessioni/', views_session.api_assignment_sessions_list, name='api_assignment_sessions_list'),
+    path('api/allenamenti/cliente/storico/', views_workouts.api_client_workout_history, name='api_client_workout_history'),
     path('clienti/<int:client_id>/progressi/', views_session.coach_client_progressi_view, name='coach_client_progressi'),
     path('allenamenti/<int:plan_id>/', views_workouts.allenamenti_plan_detail_view, name='allenamenti_plan_detail'),
     # Session APIs

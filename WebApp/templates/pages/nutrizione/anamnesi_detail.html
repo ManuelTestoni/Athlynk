@@ -1,165 +1,619 @@
 {% extends 'base.html' %}
 
+{% block title %}Prima Visita · {{ anamnesis.client.first_name }} {{ anamnesis.client.last_name }}{% endblock %}
+
 {% block content %}
-<div class="w-full max-w-3xl mx-auto space-y-6">
+<style>
+  /* ---- anamnesi dossier (scoped) ---- */
+  .av-page { max-width: 1120px; margin: 0 auto; }
 
-    <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <a href="{% url 'nutrizione_anamnesi' %}"
-               class="p-2 rounded-al-sm border border-rule hover:bg-marble transition-colors text-ink-soft">
-                <i class="ph ph-arrow-left text-lg"></i>
-            </a>
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute">Prima Visita</p>
-                <h1 class="text-2xl font-bold text-ink">
-                    {{ anamnesis.client.first_name }} {{ anamnesis.client.last_name }}
-                </h1>
-            </div>
+  .av-hero {
+    position: relative;
+    padding: 38px 44px 30px;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    overflow: hidden;
+  }
+  .av-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 90% 60% at 110% -10%, rgba(138, 106, 58, 0.10), transparent 55%),
+      radial-gradient(ellipse 70% 50% at -10% 110%, rgba(28, 74, 82, 0.08), transparent 60%);
+    pointer-events: none;
+  }
+  .av-hero-meander {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 10px;
+  }
+  .av-hero-inner { position: relative; z-index: 1; }
+
+  .av-dossier-id {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--al-bronze);
+    padding: 5px 10px;
+    border: 1px solid var(--al-bronze-soft);
+    background: rgba(255,255,255,0.55);
+  }
+  .av-dossier-id .dot {
+    width: 5px; height: 5px;
+    background: var(--al-bronze);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(138,106,58,0.15);
+  }
+
+  .av-name {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 500;
+    font-size: clamp(38px, 5.6vw, 64px);
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+    color: var(--al-ink);
+    margin: 14px 0 6px;
+  }
+  .av-name em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--al-bronze);
+  }
+
+  .av-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 22px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08));
+  }
+  .av-meta-row .item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .av-meta-row .item .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--al-ink-mute);
+  }
+  .av-meta-row .item .val {
+    font-family: 'Bodoni Moda', serif;
+    font-size: 18px;
+    color: var(--al-ink);
+    letter-spacing: -0.005em;
+  }
+  .av-meta-divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--al-rule);
+    opacity: 0.5;
+  }
+
+  /* ---- vitals strip ---- */
+  .av-vitals {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--al-rule);
+    background: #fff;
+  }
+  .av-vital {
+    padding: 22px 24px;
+    position: relative;
+    border-right: 1px solid var(--al-rule);
+  }
+  .av-vital:last-child { border-right: none; }
+  .av-vital .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--al-ink-mute);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .av-vital .lbl i { color: var(--al-bronze); font-size: 13px; }
+  .av-vital .num {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 500;
+    font-size: 38px;
+    color: var(--al-ink);
+    line-height: 1;
+    margin-top: 10px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .av-vital .num small {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--al-ink-mute);
+    letter-spacing: 0.08em;
+    font-weight: 400;
+  }
+  .av-vital .num.empty {
+    color: var(--al-ink-line);
+    font-size: 28px;
+  }
+  .av-vital::after {
+    content: '';
+    position: absolute;
+    left: 24px; bottom: 14px;
+    width: 18px; height: 1px;
+    background: var(--al-bronze);
+    opacity: 0.5;
+  }
+  @media (max-width: 720px) {
+    .av-vitals { grid-template-columns: repeat(2, 1fr); }
+    .av-vital:nth-child(2) { border-right: none; }
+    .av-vital:nth-child(1), .av-vital:nth-child(2) { border-bottom: 1px solid var(--al-rule); }
+  }
+
+  /* ---- dossier sections ---- */
+  .av-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 880px) { .av-grid { grid-template-columns: 1fr; } }
+  .av-grid .span-2 { grid-column: 1 / -1; }
+
+  .av-section {
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    padding: 28px 32px 30px;
+    position: relative;
+  }
+  .av-section + .av-section { margin-top: 0; }
+
+  .av-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .av-section-head .label {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .av-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--al-bronze);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .av-eyebrow .ord {
+    font-size: 9px;
+    color: var(--al-ink-mute);
+    letter-spacing: 0.16em;
+  }
+  .av-h {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 1.1;
+    color: var(--al-ink);
+    letter-spacing: -0.005em;
+  }
+  .av-section-rule {
+    height: 1px;
+    width: 28px;
+    background: var(--al-bronze);
+    margin-bottom: 22px;
+  }
+  .av-section-icon {
+    width: 38px; height: 38px;
+    border: 1px solid var(--al-bronze-soft);
+    background: rgba(244,239,228,0.6);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--al-bronze);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .av-field { padding: 14px 0; border-bottom: 1px dashed var(--al-rule); }
+  .av-field:last-child { border-bottom: none; }
+  .av-field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--al-ink-mute);
+    margin-bottom: 6px;
+  }
+  .av-field-value {
+    color: var(--al-ink);
+    font-size: 15px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .av-field-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--al-marble-warm);
+    border: 1px solid var(--al-rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--al-ink);
+    letter-spacing: 0.05em;
+  }
+
+  /* coach private notes */
+  .av-private {
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    border: 1px solid var(--al-ink);
+    padding: 32px 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .av-private::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 100% 0%, rgba(138,106,58,0.18), transparent 60%);
+    pointer-events: none;
+  }
+  .av-private-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 10px;
+    border: 1px solid rgba(138,106,58,0.5);
+    color: var(--al-bronze-light);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .av-private h2 {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 1.1;
+    margin: 14px 0 6px;
+    color: var(--al-parchment);
+  }
+  .av-private p {
+    color: rgba(244,239,228,0.84);
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(244,239,228,0.18);
+  }
+
+  .av-toolbar {
+    display: flex; flex-wrap: wrap;
+    align-items: center; justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .av-toolbar-left {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .av-back {
+    width: 38px; height: 38px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--al-rule);
+    background: #fff;
+    color: var(--al-ink-soft);
+    transition: all .2s var(--al-ease-out);
+  }
+  .av-back:hover {
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    border-color: var(--al-ink);
+  }
+  .av-toolbar-right { display: flex; gap: 10px; }
+
+  .av-empty-section {
+    background: rgba(244,239,228,0.55);
+    border: 1px dashed var(--al-rule);
+    padding: 22px;
+    text-align: center;
+    color: var(--al-ink-mute);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  @media print {
+    .av-toolbar, .av-back { display: none !important; }
+    .av-hero, .av-section, .av-vitals, .av-private { break-inside: avoid; }
+    body { background: #fff; }
+  }
+</style>
+
+<div class="av-page">
+
+  {# ────── TOOLBAR ────── #}
+  <div class="av-toolbar">
+    <div class="av-toolbar-left">
+      {% if is_coach %}
+      <a href="{% url 'nutrizione_anamnesi' %}" class="av-back" title="Torna alle prime visite">
+        <i class="ph ph-arrow-left text-lg"></i>
+      </a>
+      {% else %}
+      <a href="{% url 'nutrizione_piani' %}" class="av-back" title="Torna alla nutrizione">
+        <i class="ph ph-arrow-left text-lg"></i>
+      </a>
+      {% endif %}
+      <div>
+        <p class="al-eyebrow" style="color: var(--al-bronze);">Studio &middot; Nutrizione</p>
+        <p class="al-tag mt-1" style="color: var(--al-ink-mute);">Dettaglio prima visita</p>
+      </div>
+    </div>
+    <div class="av-toolbar-right">
+      <button type="button" onclick="window.print()" class="al-btn al-btn-ghost">
+        <i class="ph ph-printer text-sm"></i><span>Stampa</span>
+      </button>
+      {% if is_coach %}
+      <a href="{% url 'nutrizione_anamnesi_crea' anamnesis.client.id %}" class="al-btn al-btn-bronze">
+        <i class="ph ph-plus text-sm"></i><span>Nuova visita</span>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ────── HERO ────── #}
+  <section class="av-hero">
+    <div class="av-hero-inner">
+      <div class="av-dossier-id">
+        <span class="dot"></span>
+        <span>DOSSIER · N° {{ anamnesis.id|stringformat:"06d" }}</span>
+      </div>
+
+      <h1 class="av-name">
+        {{ anamnesis.client.first_name }} <em>{{ anamnesis.client.last_name }}</em>
+      </h1>
+
+      <p class="al-tag" style="color: var(--al-ink-mute); letter-spacing: 0.18em;">
+        {% if is_coach %}Anamnesi clinica · paziente in carico{% else %}La tua anamnesi clinica · registrata dal coach{% endif %}
+      </p>
+
+      <div class="av-meta-row">
+        <div class="item">
+          <span class="lbl">Data visita</span>
+          <span class="val">{{ anamnesis.anamnesis_date|date:"d M Y" }}</span>
         </div>
-        {% if is_coach %}
-        <a href="{% url 'nutrizione_anamnesi_crea' anamnesis.client.id %}"
-           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-al-sm border border-rule bg-white text-ink-soft text-sm font-semibold hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-plus"></i> Nuova visita
-        </a>
+        {% if anamnesis.coach %}
+        <span class="av-meta-divider"></span>
+        <div class="item">
+          <span class="lbl">{% if is_coach %}Compilata da{% else %}Coach{% endif %}</span>
+          <span class="val">{{ anamnesis.coach.first_name }} {{ anamnesis.coach.last_name }}</span>
+        </div>
         {% endif %}
-    </div>
-
-    <!-- Meta -->
-    <div class="bg-white border border-rule rounded-al-sm p-5 shadow-sm">
-        <div class="flex flex-wrap items-center gap-5 text-sm">
-            <div class="flex items-center gap-2 text-ink-soft">
-                <i class="ph ph-calendar-blank text-accent"></i>
-                <span>Data: <strong>{{ anamnesis.anamnesis_date|date:"d M Y" }}</strong></span>
-            </div>
-            {% if anamnesis.coach %}
-            <div class="flex items-center gap-2 text-ink-soft">
-                <i class="ph ph-user-circle text-accent"></i>
-                <span>Compilata da: <strong>{{ anamnesis.coach.first_name }} {{ anamnesis.coach.last_name }}</strong></span>
-            </div>
-            {% endif %}
-            {% if anamnesis.age or anamnesis.weight_kg or anamnesis.height_cm %}
-            <div class="flex items-center gap-4 text-ink-soft">
-                {% if anamnesis.age %}<span>Età: <strong>{{ anamnesis.age }} anni</strong></span>{% endif %}
-                {% if anamnesis.weight_kg %}<span>Peso: <strong>{{ anamnesis.weight_kg }} kg</strong></span>{% endif %}
-                {% if anamnesis.height_cm %}<span>Altezza: <strong>{{ anamnesis.height_cm }} cm</strong></span>{% endif %}
-            </div>
-            {% endif %}
+        <span class="av-meta-divider"></span>
+        <div class="item">
+          <span class="lbl">Aggiornamento</span>
+          <span class="val">{{ anamnesis.updated_at|date:"d M Y · H:i" }}</span>
         </div>
+      </div>
     </div>
+    <div class="av-hero-meander al-meander al-meander-bronze"></div>
+  </section>
 
-    {% macro section_title title %}
-    <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-4">{{ title }}</h2>
-    {% endmacro %}
+  {# ────── VITALS ────── #}
+  <section class="av-vitals" style="margin-top: 20px;">
+    <div class="av-vital">
+      <span class="lbl"><i class="ph ph-cake"></i>Età</span>
+      {% if anamnesis.age %}
+        <p class="num">{{ anamnesis.age }}<small>anni</small></p>
+      {% else %}
+        <p class="num empty">—</p>
+      {% endif %}
+    </div>
+    <div class="av-vital">
+      <span class="lbl"><i class="ph ph-scales"></i>Peso</span>
+      {% if anamnesis.weight_kg %}
+        <p class="num">{{ anamnesis.weight_kg|floatformat:"-1" }}<small>kg</small></p>
+      {% else %}
+        <p class="num empty">—</p>
+      {% endif %}
+    </div>
+    <div class="av-vital">
+      <span class="lbl"><i class="ph ph-ruler"></i>Altezza</span>
+      {% if anamnesis.height_cm %}
+        <p class="num">{{ anamnesis.height_cm|floatformat:"-0" }}<small>cm</small></p>
+      {% else %}
+        <p class="num empty">—</p>
+      {% endif %}
+    </div>
+    <div class="av-vital" x-data="{
+        h: {{ anamnesis.height_cm|default:'null' }},
+        w: {{ anamnesis.weight_kg|default:'null' }},
+        get bmi() {
+          if (!this.h || !this.w) return null;
+          const m = this.h / 100;
+          return (this.w / (m*m)).toFixed(1);
+        },
+        get cat() {
+          const v = parseFloat(this.bmi);
+          if (!v) return '';
+          if (v < 18.5) return 'sottopeso';
+          if (v < 25) return 'normopeso';
+          if (v < 30) return 'sovrappeso';
+          return 'obesità';
+        }
+      }">
+      <span class="lbl"><i class="ph ph-target"></i>BMI</span>
+      <template x-if="bmi">
+        <p class="num"><span x-text="bmi"></span><small x-text="cat"></small></p>
+      </template>
+      <template x-if="!bmi">
+        <p class="num empty">—</p>
+      </template>
+    </div>
+  </section>
 
-    {% with fields_salute=True %}
+  {# ────── DOSSIER GRID ────── #}
+  <div class="av-grid" style="margin-top: 20px;">
 
-    <!-- Salute -->
+    {# ── 01 · Salute ── #}
     {% if anamnesis.medical_history or anamnesis.medications or anamnesis.injuries or anamnesis.allergies or anamnesis.intolerances %}
-    <div class="bg-white border border-rule rounded-al-sm p-6 shadow-sm">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-4">Stato di salute</h2>
-        <dl class="space-y-4 text-sm">
-            {% if anamnesis.medical_history %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Anamnesi medica</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.medical_history }}</dd>
-            </div>
-            {% endif %}
-            {% if anamnesis.medications %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Farmaci</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.medications }}</dd>
-            </div>
-            {% endif %}
-            {% if anamnesis.injuries %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Infortuni / Limitazioni</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.injuries }}</dd>
-            </div>
-            {% endif %}
-            {% if anamnesis.allergies %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Allergie</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.allergies }}</dd>
-            </div>
-            {% endif %}
-            {% if anamnesis.intolerances %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Intolleranze</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.intolerances }}</dd>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
+    <section class="av-section">
+      <div class="av-section-head">
+        <div class="label">
+          <span class="av-eyebrow"><span class="ord">01</span> · Sezione</span>
+          <h2 class="av-h">Stato di salute</h2>
+        </div>
+        <div class="av-section-icon"><i class="ph ph-heartbeat"></i></div>
+      </div>
+      <div class="av-section-rule"></div>
+
+      {% if anamnesis.medical_history %}
+      <div class="av-field">
+        <p class="av-field-label">Anamnesi medica</p>
+        <p class="av-field-value">{{ anamnesis.medical_history }}</p>
+      </div>
+      {% endif %}
+      {% if anamnesis.medications %}
+      <div class="av-field">
+        <p class="av-field-label">Farmaci in uso</p>
+        <p class="av-field-value">{{ anamnesis.medications }}</p>
+      </div>
+      {% endif %}
+      {% if anamnesis.injuries %}
+      <div class="av-field">
+        <p class="av-field-label">Infortuni · Limitazioni</p>
+        <p class="av-field-value">{{ anamnesis.injuries }}</p>
+      </div>
+      {% endif %}
+      {% if anamnesis.allergies %}
+      <div class="av-field">
+        <p class="av-field-label">Allergie</p>
+        <p class="av-field-value">{{ anamnesis.allergies }}</p>
+      </div>
+      {% endif %}
+      {% if anamnesis.intolerances %}
+      <div class="av-field">
+        <p class="av-field-label">Intolleranze</p>
+        <p class="av-field-value">{{ anamnesis.intolerances }}</p>
+      </div>
+      {% endif %}
+    </section>
     {% endif %}
 
-    <!-- Stile di vita -->
+    {# ── 02 · Stile di vita ── #}
     {% if anamnesis.sleep_quality or anamnesis.stress_level or anamnesis.lifestyle_notes %}
-    <div class="bg-white border border-rule rounded-al-sm p-6 shadow-sm">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-4">Stile di vita</h2>
-        <dl class="space-y-4 text-sm">
-            {% if anamnesis.sleep_quality or anamnesis.stress_level %}
-            <div class="grid grid-cols-2 gap-4">
-                {% if anamnesis.sleep_quality %}
-                <div>
-                    <dt class="font-semibold text-ink-soft mb-0.5">Qualità sonno</dt>
-                    <dd class="text-ink-soft">{{ anamnesis.sleep_quality }}</dd>
-                </div>
-                {% endif %}
-                {% if anamnesis.stress_level %}
-                <div>
-                    <dt class="font-semibold text-ink-soft mb-0.5">Livello stress</dt>
-                    <dd class="text-ink-soft">{{ anamnesis.stress_level }}</dd>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-            {% if anamnesis.lifestyle_notes %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Note</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.lifestyle_notes }}</dd>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
+    <section class="av-section">
+      <div class="av-section-head">
+        <div class="label">
+          <span class="av-eyebrow"><span class="ord">02</span> · Sezione</span>
+          <h2 class="av-h">Stile di vita</h2>
+        </div>
+        <div class="av-section-icon"><i class="ph ph-moon-stars"></i></div>
+      </div>
+      <div class="av-section-rule"></div>
+
+      {% if anamnesis.sleep_quality %}
+      <div class="av-field">
+        <p class="av-field-label">Qualità del sonno</p>
+        <p class="av-field-value"><span class="av-field-chip">{{ anamnesis.sleep_quality }}</span></p>
+      </div>
+      {% endif %}
+      {% if anamnesis.stress_level %}
+      <div class="av-field">
+        <p class="av-field-label">Livello di stress</p>
+        <p class="av-field-value"><span class="av-field-chip">{{ anamnesis.stress_level }}</span></p>
+      </div>
+      {% endif %}
+      {% if anamnesis.lifestyle_notes %}
+      <div class="av-field">
+        <p class="av-field-label">Note</p>
+        <p class="av-field-value">{{ anamnesis.lifestyle_notes }}</p>
+      </div>
+      {% endif %}
+    </section>
     {% endif %}
 
-    <!-- Alimentazione -->
+    {# ── 03 · Alimentazione ── #}
     {% if anamnesis.food_habits or anamnesis.weight_history %}
-    <div class="bg-white border border-rule rounded-al-sm p-6 shadow-sm">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-4">Alimentazione</h2>
-        <dl class="space-y-4 text-sm">
-            {% if anamnesis.food_habits %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Abitudini alimentari</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.food_habits }}</dd>
-            </div>
-            {% endif %}
-            {% if anamnesis.weight_history %}
-            <div>
-                <dt class="font-semibold text-ink-soft mb-0.5">Storico peso</dt>
-                <dd class="text-ink-soft leading-relaxed">{{ anamnesis.weight_history }}</dd>
-            </div>
-            {% endif %}
-        </dl>
-    </div>
+    <section class="av-section">
+      <div class="av-section-head">
+        <div class="label">
+          <span class="av-eyebrow"><span class="ord">03</span> · Sezione</span>
+          <h2 class="av-h">Alimentazione</h2>
+        </div>
+        <div class="av-section-icon"><i class="ph ph-bowl-food"></i></div>
+      </div>
+      <div class="av-section-rule"></div>
+
+      {% if anamnesis.food_habits %}
+      <div class="av-field">
+        <p class="av-field-label">Abitudini alimentari</p>
+        <p class="av-field-value">{{ anamnesis.food_habits }}</p>
+      </div>
+      {% endif %}
+      {% if anamnesis.weight_history %}
+      <div class="av-field">
+        <p class="av-field-label">Storico peso</p>
+        <p class="av-field-value">{{ anamnesis.weight_history }}</p>
+      </div>
+      {% endif %}
+    </section>
     {% endif %}
 
-    <!-- Obiettivi -->
+    {# ── 04 · Obiettivo ── #}
     {% if anamnesis.path_goal %}
-    <div class="bg-white border border-rule rounded-al-sm p-6 shadow-sm">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-4">Obiettivo percorso</h2>
-        <p class="text-sm text-ink-soft leading-relaxed">{{ anamnesis.path_goal }}</p>
-    </div>
+    <section class="av-section">
+      <div class="av-section-head">
+        <div class="label">
+          <span class="av-eyebrow"><span class="ord">04</span> · Sezione</span>
+          <h2 class="av-h">Obiettivo del percorso</h2>
+        </div>
+        <div class="av-section-icon"><i class="ph ph-flag-banner"></i></div>
+      </div>
+      <div class="av-section-rule"></div>
+      <p class="av-field-value">{{ anamnesis.path_goal }}</p>
+    </section>
     {% endif %}
 
-    <!-- Note professionali (coach only) -->
-    {% if is_coach and anamnesis.professional_notes %}
-    <div class="bg-ink text-white rounded-al-sm p-6 shadow-sm">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-ink-mute mb-3">Note professionali (private)</h2>
-        <p class="text-sm text-ink-line leading-relaxed">{{ anamnesis.professional_notes }}</p>
+    {# ── empty-state ── #}
+    {% if not anamnesis.medical_history and not anamnesis.medications and not anamnesis.injuries and not anamnesis.allergies and not anamnesis.intolerances and not anamnesis.sleep_quality and not anamnesis.stress_level and not anamnesis.lifestyle_notes and not anamnesis.food_habits and not anamnesis.weight_history and not anamnesis.path_goal %}
+    <div class="span-2">
+      <div class="av-empty-section">
+        Nessun dato anamnestico registrato — solo dati antropometrici disponibili
+      </div>
     </div>
     {% endif %}
+  </div>
 
-    {% endwith %}
+  {# ────── COACH PRIVATE NOTES ────── #}
+  {% if is_coach and anamnesis.professional_notes %}
+  <section class="av-private" style="margin-top: 24px;">
+    <div style="position: relative; z-index: 1;">
+      <span class="av-private-tag">
+        <i class="ph ph-lock-key text-xs"></i>
+        Riservato · Coach
+      </span>
+      <h2>Note professionali</h2>
+      <p>{{ anamnesis.professional_notes }}</p>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ────── FOOTER STAMP ────── #}
+  <div style="margin-top: 28px; padding: 18px 4px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--al-rule);">
+    <p class="al-tag font-mono" style="color: var(--al-ink-mute); letter-spacing: 0.18em;">
+      ATHLYNK · ANAMNESI · {{ anamnesis.anamnesis_date|date:"Y" }}
+    </p>
+    <p class="al-tag font-mono" style="color: var(--al-ink-mute);">
+      ID {{ anamnesis.id|stringformat:"06d" }}
+    </p>
+  </div>
+
 </div>
 {% endblock %}

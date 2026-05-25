@@ -321,7 +321,13 @@
   [x-cloak] { display: none !important; }
 </style>
 
-<div class="max-w-7xl mx-auto" x-data="{ pickDay: null, showHistory: false }">
+<div class="max-w-7xl mx-auto" x-data="workoutClient({
+       initial: {{ past_data_json|safe }},
+       hasMore: {{ past_has_more|yesno:'true,false' }},
+       total: {{ past_total }},
+       initialCount: {{ past_initial_count }},
+       pageSize: {{ history_page_size }},
+     })">
 
   <!-- Header -->
   <div class="mb-6">
@@ -414,9 +420,8 @@
     </div>
   {% endif %}
 
-  <!-- ============== STORICO / LIBRARY ============== -->
-  {% if past_assignments %}
-  <section style="margin-top: 3rem;">
+  <!-- ============== STORICO / LIBRARY (lazy) ============== -->
+  <section style="margin-top: 3rem;" x-show="total > 0" x-cloak>
     <div class="ma-history-head">
       <div>
         <p class="al-eyebrow" style="margin-bottom: .5rem;">Storico</p>
@@ -425,77 +430,89 @@
       <button type="button"
               class="ma-history-toggle"
               :class="{ 'is-open': showHistory }"
-              @click="showHistory = !showHistory">
-        <span x-text="showHistory ? 'Nascondi storico' : 'Mostra storico ({{ past_assignments|length }})'"></span>
+              @click="toggleHistory()">
+        <span x-text="showHistory ? 'Nascondi storico' : ('Mostra storico (' + total + ')')"></span>
         <i class="ph ph-caret-down"></i>
       </button>
     </div>
 
     <div x-show="showHistory" x-cloak x-collapse>
       <div class="ma-history-list">
-        {% for a in past_assignments %}
-        {% with plan=a.workout_plan %}
-        <article class="ma-row">
+        <template x-for="a in rows" :key="a.id">
+          <article class="ma-row">
 
-          <!-- Identity -->
-          <div class="ma-row-id">
-            <div class="ma-row-marker {% if plan.plan_kind == 'PROGRAM' %}is-program{% endif %}">
-              <i class="{% if plan.plan_kind == 'PROGRAM' %}ph ph-chart-line-up{% else %}ph ph-calendar-blank{% endif %}"></i>
-            </div>
-            <div style="min-width: 0; flex: 1;">
-              <h3 class="ma-row-title">{{ plan.title }}</h3>
-              <div class="ma-row-sub">
-                <span>{% if plan.plan_kind == 'PROGRAM' %}Programmazione{% else %}Settimanale{% endif %}</span>
-                {% if plan.sport %}<span>·</span><span>{{ plan.sport.name }}</span>{% endif %}
-                {% if plan.goal %}<span>·</span><span>{{ plan.goal }}</span>{% endif %}
+            <!-- Identity -->
+            <div class="ma-row-id">
+              <div class="ma-row-marker" :class="a.plan_kind === 'PROGRAM' ? 'is-program' : ''">
+                <i class="ph" :class="a.plan_kind === 'PROGRAM' ? 'ph-chart-line-up' : 'ph-calendar-blank'"></i>
+              </div>
+              <div style="min-width: 0; flex: 1;">
+                <h3 class="ma-row-title" x-text="a.plan_title"></h3>
+                <div class="ma-row-sub">
+                  <span x-text="a.plan_kind === 'PROGRAM' ? 'Programmazione' : 'Settimanale'"></span>
+                  <template x-if="a.sport_name"><span>·</span></template>
+                  <template x-if="a.sport_name"><span x-text="a.sport_name"></span></template>
+                  <template x-if="a.goal"><span>·</span></template>
+                  <template x-if="a.goal"><span x-text="a.goal"></span></template>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Status -->
-          <div>
-            {% if a.status == 'ACTIVE' %}
-              {% if a.start_date and a.start_date > today %}
-                <span class="ma-row-status is-pending"><i class="ph ph-clock"></i> In arrivo</span>
-              {% else %}
-                <span class="ma-row-status is-active"><i class="ph ph-play-circle"></i> Attiva</span>
-              {% endif %}
-            {% elif a.status == 'COMPLETED' %}
-              <span class="ma-row-status is-completed"><i class="ph ph-check-circle"></i> Completata</span>
-            {% else %}
-              <span class="ma-row-status is-completed">{{ a.status|title }}</span>
-            {% endif %}
-            <p class="ma-row-sub" style="margin-top: .4rem;">
-              {% if plan.frequency_per_week %}<i class="ph ph-calendar"></i> {{ plan.frequency_per_week }} gg/sett{% endif %}
-              {% if plan.duration_weeks %} · {{ plan.duration_weeks }} sett.{% endif %}
-            </p>
-          </div>
+            <!-- Status -->
+            <div>
+              <span class="ma-row-status"
+                    :class="a.status === 'COMPLETED' ? 'is-completed'
+                          : (a.status === 'ACTIVE' ? 'is-active' : 'is-completed')">
+                <i class="ph"
+                   :class="a.status === 'COMPLETED' ? 'ph-check-circle'
+                         : (a.status === 'ACTIVE' ? 'ph-play-circle' : 'ph-archive')"></i>
+                <span x-text="a.status === 'COMPLETED' ? 'Completata'
+                            : (a.status === 'ACTIVE' ? 'Attiva' : a.status)"></span>
+              </span>
+              <p class="ma-row-sub" style="margin-top: .4rem;">
+                <template x-if="a.frequency_per_week">
+                  <span><i class="ph ph-calendar"></i> <span x-text="a.frequency_per_week + ' gg/sett'"></span></span>
+                </template>
+                <template x-if="a.duration_weeks">
+                  <span x-text="' · ' + a.duration_weeks + ' sett.'"></span>
+                </template>
+              </p>
+            </div>
 
-          <!-- Dates -->
-          <div class="ma-row-dates">
-            <span class="ma-dates-label">Assegnata</span>
-            {% if a.start_date %}{{ a.start_date|date:"d M Y" }}{% else %}—{% endif %}
-            <span class="ma-dates-arrow">→</span>
-            {% if a.end_date %}{{ a.end_date|date:"d M Y" }}{% else %}<em>—</em>{% endif %}
-          </div>
+            <!-- Dates -->
+            <div class="ma-row-dates">
+              <span class="ma-dates-label">Assegnata</span>
+              <span x-text="a.start_date || '—'"></span>
+              <span class="ma-dates-arrow">→</span>
+              <span x-text="a.end_date || '—'"></span>
+            </div>
 
-          <!-- Progress / meta -->
-          <div class="ma-row-meta-detail">
-            {% if a.expected_session_count %}
-              <span><strong>{{ a.completed_session_count }}</strong> / {{ a.expected_session_count }} sess.</span>
-              <div class="ma-row-progress"><div class="ma-row-progress-fill" style="width: {{ a.progress_pct }}%;"></div></div>
-            {% else %}
-              <span>—</span>
-            {% endif %}
-          </div>
+            <!-- Progress -->
+            <div class="ma-row-meta-detail">
+              <template x-if="a.expected_session_count">
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; width: 100%;">
+                  <span><strong x-text="a.completed_session_count"></strong> / <span x-text="a.expected_session_count"></span> sess.</span>
+                  <div class="ma-row-progress" style="width: 100%; max-width: 110px;"><div class="ma-row-progress-fill" :style="`width: ${a.progress_pct}%;`"></div></div>
+                </div>
+              </template>
+              <template x-if="!a.expected_session_count"><span>—</span></template>
+            </div>
 
-        </article>
-        {% endwith %}
-        {% endfor %}
+          </article>
+        </template>
+      </div>
+
+      <div x-show="hasMore" style="display: flex; justify-content: center; padding: 1rem 0;">
+        <button type="button" :disabled="loading" @click="loadMore()"
+                style="display: inline-flex; align-items: center; gap: .5rem; padding: .6rem 1.2rem; background: white; border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); font-size: .78rem; font-weight: 600; color: var(--al-ink-soft); cursor: pointer; transition: all .15s;"
+                onmouseover="this.style.borderColor='var(--al-bronze)'; this.style.color='var(--al-bronze)';"
+                onmouseout="this.style.borderColor='var(--al-rule)'; this.style.color='var(--al-ink-soft)';">
+          <i class="ph" :class="loading ? 'ph-spinner-gap animate-spin' : 'ph-arrow-down'"></i>
+          <span x-text="loading ? 'Caricamento…' : ('Carica altre ' + pageSize)"></span>
+        </button>
       </div>
     </div>
   </section>
-  {% endif %}
 
   <!-- Day picker modal -->
   <div x-show="pickDay" x-cloak class="al-modal-backdrop" @click.self="pickDay = null">
@@ -526,4 +543,38 @@
     </div>
   </div>
 </div>
+
+<script>
+function workoutClient(seed) {
+  return {
+    rows: seed.initial,
+    total: seed.total,
+    initialCount: seed.initialCount,
+    pageSize: seed.pageSize,
+    hasMore: seed.hasMore,
+    showHistory: false,
+    loading: false,
+    pickDay: null,
+    toggleHistory() { this.showHistory = !this.showHistory; },
+    async loadMore() {
+      if (this.loading || !this.hasMore) return;
+      this.loading = true;
+      try {
+        const offset = this.rows.length;
+        const r = await fetch(`{% url 'api_client_workout_history' %}?offset=${offset}&limit=${this.pageSize}`);
+        if (!r.ok) throw new Error('fetch failed');
+        const d = await r.json();
+        this.rows = [...this.rows, ...(d.items || [])];
+        this.hasMore = !!d.has_more;
+        this.total = d.total ?? this.total;
+      } catch (e) {
+        alert('Errore nel caricamento dello storico.');
+      } finally {
+        this.loading = false;
+      }
+    },
+  };
+}
+window.workoutClient = workoutClient;
+</script>
 {% endblock %}

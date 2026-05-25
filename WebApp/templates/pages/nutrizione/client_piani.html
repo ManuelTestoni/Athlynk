@@ -1,147 +1,647 @@
 {% extends 'base.html' %}
 
+{% block title %}La mia nutrizione{% endblock %}
+
 {% block content %}
-<div class="flex-1 w-full max-w-7xl mx-auto space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-ink tracking-tight">Nutrizione</h1>
-            <p class="text-sm text-ink-mute mt-1">Piani assegnati da {{ coach.first_name }} {{ coach.last_name }}.</p>
-        </div>
-        <a href="{% url 'chat_list' %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-al-sm border border-rule bg-white text-ink-soft text-sm font-semibold hover:bg-marble transition-colors shadow-sm">
-            <i class="ph ph-chat-circle-dots mr-2"></i> Chatta col coach
-        </a>
-    </div>
+<style>
+  /* === Nutrizione cliente — editorial hero + austere storico === */
+  .nu-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    background:
+      radial-gradient(circle at 92% -10%, rgba(138,106,58,0.22) 0%, transparent 55%),
+      radial-gradient(circle at -8% 115%, rgba(28,74,82,0.18) 0%, transparent 50%),
+      linear-gradient(160deg, var(--al-ink) 0%, #1b1610 60%, #2a2317 100%);
+    color: var(--al-parchment);
+    padding: 2.25rem 2rem 2rem;
+    margin-bottom: 2.5rem;
+  }
+  .nu-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  .nu-hero::after {
+    content: 'NUTRITION';
+    position: absolute;
+    top: 1.1rem; right: -3.5rem;
+    transform: rotate(35deg);
+    font-family: var(--al-display);
+    font-size: 7.5rem; font-weight: 900;
+    color: rgba(244,239,228,0.025);
+    letter-spacing: -.03em;
+    pointer-events: none;
+    line-height: 1;
+  }
 
-    {% if assignments_data %}
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {% for ad in assignments_data %}
-        {% with assignment=ad.assignment plan=ad.assignment.nutrition_plan %}
-        <article class="bg-white border border-rule rounded-al-sm p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-            <div class="flex items-start justify-between gap-3 mb-3">
-                <div>
-                    {% if plan.plan_type %}
-                    <p class="text-xs font-semibold uppercase tracking-wider text-ink-mute">{{ plan.plan_type }}</p>
-                    {% endif %}
-                    <h3 class="text-lg font-bold text-ink mt-0.5">{{ plan.title }}</h3>
-                </div>
-                <span class="inline-flex items-center shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium
-                  {% if assignment.status == 'ACTIVE' %}bg-emerald-50 text-emerald-700{% else %}bg-marble text-ink-mute{% endif %}">
-                    {{ assignment.status }}
-                </span>
-            </div>
+  .nu-hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: stretch;
+  }
+  @media (max-width: 820px) { .nu-hero-grid { grid-template-columns: 1fr; gap: 1.75rem; } }
 
-            {% if plan.description %}
-            <p class="text-sm text-ink-mute line-clamp-2 mb-3">{{ plan.description }}</p>
-            {% endif %}
+  .nu-eyebrow {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-family: var(--al-mono);
+    font-size: .68rem; font-weight: 700;
+    letter-spacing: .26em; text-transform: uppercase;
+    color: var(--al-bronze);
+    margin-bottom: .85rem;
+  }
+  .nu-eyebrow::before { content: ''; width: 28px; height: 1px; background: var(--al-bronze); }
 
-            <div class="mt-auto grid grid-cols-4 gap-2 text-center">
-                <div class="rounded-al-sm bg-marble border border-rule p-2.5">
-                    <p class="text-[10px] text-ink-mute uppercase font-semibold">Kcal</p>
-                    <p class="font-bold text-ink text-sm">{{ ad.kcal }}</p>
-                </div>
-                <div class="rounded-al-sm bg-blue-50 border border-blue-100 p-2.5">
-                    <p class="text-[10px] text-blue-400 uppercase font-semibold">Prot</p>
-                    <p class="font-bold text-blue-700 text-sm">{{ ad.prot }}g</p>
-                </div>
-                <div class="rounded-al-sm bg-amber-50 border border-amber-100 p-2.5">
-                    <p class="text-[10px] text-amber-500 uppercase font-semibold">Carb</p>
-                    <p class="font-bold text-amber-700 text-sm">{{ ad.carb }}g</p>
-                </div>
-                <div class="rounded-al-sm bg-rose-50 border border-rose-100 p-2.5">
-                    <p class="text-[10px] text-rose-400 uppercase font-semibold">Fat</p>
-                    <p class="font-bold text-rose-700 text-sm">{{ ad.fat }}g</p>
-                </div>
-            </div>
+  .nu-title {
+    font-family: var(--al-display);
+    font-size: clamp(2rem, 4vw, 2.85rem);
+    line-height: 1.05; letter-spacing: -.018em;
+    color: var(--al-parchment);
+    margin: 0 0 .65rem;
+  }
+  .nu-title em { font-style: italic; color: var(--al-bronze); font-weight: 400; }
 
-            <div class="mt-4 pt-4 border-t border-rule">
-                <a href="{% url 'nutrizione_client_detail' assignment.id %}"
-                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-al-sm bg-ink text-white text-sm font-semibold hover:bg-ink transition-colors">
-                    <i class="ph ph-eye"></i> Vedi dettaglio
-                </a>
-            </div>
-        </article>
-        {% endwith %}
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-marble text-ink-mute flex items-center justify-center mx-auto mb-4">
-            <i class="ph ph-apple-logo text-3xl"></i>
-        </div>
-        <h3 class="text-lg font-bold text-ink">Nessun piano nutrizionale attivo</h3>
-        <p class="text-sm text-ink-mute mt-2">Quando il tuo coach pubblicherà un piano, comparirà qui.</p>
-        <a href="{% url 'chat_list' %}" class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-al-sm bg-ink text-white text-sm font-semibold hover:bg-ink transition-colors shadow-sm">
-            <i class="ph ph-chat-circle-dots"></i> Scrivi al coach
-        </a>
-    </div>
-    {% endif %}
+  .nu-meta {
+    display: flex; flex-wrap: wrap; gap: .45rem;
+    margin: 1.1rem 0 1.4rem;
+  }
+  .nu-meta-chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .32rem .7rem;
+    background: rgba(244,239,228,0.05);
+    border: 1px solid rgba(244,239,228,0.12);
+    border-radius: 999px;
+    font-size: .72rem; font-weight: 500;
+    color: rgba(244,239,228,0.82);
+    letter-spacing: .02em;
+  }
+  .nu-meta-chip i { font-size: .9rem; color: var(--al-bronze); }
 
-  <!-- Supplement sheet section -->
-  <div class="space-y-4">
-    <div>
-      <h2 class="text-xl font-bold text-ink tracking-tight">Scheda Integrazione</h2>
-      <p class="text-sm text-ink-mute mt-1">Protocollo integratori assegnato dal tuo coach.</p>
-    </div>
+  .nu-desc {
+    color: rgba(244,239,228,0.62);
+    font-style: italic;
+    max-width: 52ch;
+    margin-bottom: 1.35rem;
+    line-height: 1.55;
+  }
 
-    {% if supp_assignment %}
-    {% with sheet=supp_assignment.sheet %}
-    <div class="bg-white border border-rule rounded-al-sm shadow-sm overflow-hidden">
-      <div class="px-5 py-4 border-b border-rule bg-marble flex items-center justify-between">
-        <div>
-          <h3 class="text-base font-bold text-ink">{{ sheet.title }}</h3>
-          {% if sheet.notes %}
-          <p class="text-xs text-ink-mute mt-0.5">{{ sheet.notes }}</p>
-          {% endif %}
-        </div>
-        <span class="text-xs text-ink-mute">dal {{ supp_assignment.assigned_at|date:"d M Y" }}</span>
-      </div>
-      {% with items=sheet.items.all %}
-      {% if items %}
-      <div class="divide-y divide-rule">
-        {% for item in items %}
-        <div class="px-5 py-3 flex items-center justify-between gap-4">
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-ink-soft">{{ item.supplement.name }}</p>
-            <p class="text-xs text-ink-mute">{{ item.supplement.category }}</p>
-          </div>
-          <div class="flex items-center gap-4 text-right shrink-0">
-            {% if item.dose %}
-            <div>
-              <p class="text-xs text-ink-mute uppercase font-semibold">Dose</p>
-              <p class="text-sm font-bold text-ink-soft">{{ item.dose }} {{ item.supplement.unit }}</p>
-            </div>
-            {% endif %}
-            {% if item.timing %}
-            <div>
-              <p class="text-xs text-ink-mute uppercase font-semibold">Quando</p>
-              <p class="text-sm text-ink-soft">{{ item.timing }}</p>
-            </div>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% if supp_assignment.notes %}
-      <div class="px-5 py-3 border-t border-rule bg-marble">
-        <p class="text-xs text-ink-mute"><span class="font-semibold">Note del coach:</span> {{ supp_assignment.notes }}</p>
-      </div>
-      {% endif %}
-      {% else %}
-      <div class="px-5 py-8 text-center text-sm text-ink-mute">Nessun integratore in questa scheda.</div>
-      {% endif %}
-      {% endwith %}
-    </div>
-    {% endwith %}
-    {% else %}
-    <div class="bg-white border border-dashed border-rule-strong rounded-al-sm p-10 text-center">
-      <div class="w-14 h-14 rounded-full bg-marble flex items-center justify-center mx-auto mb-3">
-        <i class="ph ph-pill text-3xl text-ink-mute"></i>
-      </div>
-      <h3 class="text-base font-bold text-ink">Nessuna scheda integratori</h3>
-      <p class="text-sm text-ink-mute mt-1">Quando il tuo coach assegnerà una scheda, comparirà qui.</p>
-    </div>
-    {% endif %}
+  .nu-coach {
+    display: inline-flex; align-items: center; gap: .6rem;
+    padding: .5rem .8rem;
+    background: rgba(244,239,228,0.04);
+    border: 1px solid rgba(244,239,228,0.08);
+    border-radius: var(--al-r-sm);
+    margin-bottom: 1.5rem;
+  }
+  .nu-coach-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--al-bronze); color: var(--al-ink);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .8rem;
+  }
+  .nu-coach-name { font-size: .82rem; color: var(--al-parchment); }
+  .nu-coach-label { font-size: .65rem; color: rgba(244,239,228,0.55); display: block; letter-spacing: .06em; text-transform: uppercase; }
+
+  .nu-cta-row { display: flex; flex-wrap: wrap; gap: .75rem; }
+  .nu-cta {
+    display: inline-flex; align-items: center; gap: .65rem;
+    padding: .85rem 1.4rem;
+    background: var(--al-bronze);
+    color: var(--al-ink);
+    border: none; cursor: pointer;
+    font-weight: 700; font-size: .92rem;
+    letter-spacing: .02em;
+    border-radius: var(--al-r-sm);
+    text-decoration: none;
+    transition: all .2s var(--al-ease);
+    box-shadow: 0 14px 30px -14px rgba(138,106,58,0.7);
+  }
+  .nu-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -14px rgba(138,106,58,0.8); }
+  .nu-cta i { font-size: 1.1rem; }
+  .nu-cta-ghost {
+    display: inline-flex; align-items: center; gap: .55rem;
+    padding: .85rem 1.2rem;
+    background: rgba(244,239,228,0.06);
+    border: 1px solid rgba(244,239,228,0.18);
+    border-radius: var(--al-r-sm);
+    color: var(--al-parchment);
+    text-decoration: none;
+    font-size: .88rem; font-weight: 600;
+    transition: background .15s;
+  }
+  .nu-cta-ghost:hover { background: rgba(244,239,228,0.12); }
+
+  /* Right side — macro block */
+  .nu-macros {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding-left: 2.25rem;
+    border-left: 1px solid rgba(244,239,228,0.1);
+    align-content: center;
+  }
+  @media (max-width: 820px) {
+    .nu-macros { padding-left: 0; border-left: none; border-top: 1px solid rgba(244,239,228,0.1); padding-top: 1.5rem; }
+  }
+  .nu-kcal-block {
+    display: flex; align-items: baseline; gap: .5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed rgba(244,239,228,0.1);
+  }
+  .nu-kcal-num {
+    font-family: var(--al-display);
+    font-size: 3.5rem; font-weight: 400; line-height: 1;
+    color: var(--al-parchment);
+    letter-spacing: -.02em;
+  }
+  .nu-kcal-unit {
+    font-family: var(--al-mono);
+    font-size: .7rem;
+    text-transform: uppercase; letter-spacing: .16em;
+    color: rgba(244,239,228,0.55);
+  }
+  .nu-macro-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .85rem;
+  }
+  .nu-macro-cell {
+    display: flex; flex-direction: column; gap: .2rem;
+  }
+  .nu-macro-label {
+    font-family: var(--al-mono);
+    font-size: .6rem; text-transform: uppercase; letter-spacing: .15em;
+    color: rgba(244,239,228,0.55);
+  }
+  .nu-macro-val {
+    font-family: var(--al-display);
+    font-size: 1.6rem; line-height: 1;
+    color: var(--al-parchment);
+  }
+  .nu-macro-val small {
+    font-family: var(--al-sans);
+    font-size: .65rem; font-weight: 500;
+    color: rgba(244,239,228,0.55);
+    margin-left: .2rem; letter-spacing: 0;
+  }
+  .nu-macro-bar {
+    height: 3px; border-radius: 2px; margin-top: .35rem;
+    background: rgba(244,239,228,0.08);
+    overflow: hidden;
+  }
+  .nu-macro-bar-fill { height: 100%; border-radius: 2px; }
+  .nu-bar-prot { background: linear-gradient(90deg, #5b8db4, #a7c4dc); }
+  .nu-bar-carb { background: linear-gradient(90deg, #c9962e, #e0c075); }
+  .nu-bar-fat  { background: linear-gradient(90deg, #b85b5b, #d99a9a); }
+
+  /* === Storico === */
+  .nu-history-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 1.25rem;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .nu-history-head h2 {
+    font-family: var(--al-display);
+    font-size: 1.65rem; letter-spacing: -.01em;
+    color: var(--al-ink); margin: 0;
+  }
+  .nu-history-head h2 em { font-style: italic; color: var(--al-bronze); }
+
+  .nu-history-toggle {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .55rem 1rem;
+    background: white;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    font-size: .78rem; font-weight: 600;
+    color: var(--al-ink-soft);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .nu-history-toggle:hover { border-color: var(--al-bronze); color: var(--al-bronze); }
+  .nu-history-toggle i { transition: transform .2s; }
+  .nu-history-toggle.is-open i { transform: rotate(180deg); }
+
+  .nu-history-list {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md);
+    background: white;
+    overflow: hidden;
+  }
+  .nu-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2.1fr) 130px minmax(0, 1.3fr) minmax(0, 1.4fr);
+    gap: 1rem;
+    padding: 1.05rem 1.4rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+    align-items: center;
+    transition: background .15s;
+  }
+  .nu-row:last-child { border-bottom: none; }
+  .nu-row:hover { background: var(--al-stone); }
+  @media (max-width: 820px) {
+    .nu-row { grid-template-columns: 1fr; gap: .55rem; padding: .95rem 1.05rem; }
+  }
+
+  .nu-row-id { display: flex; align-items: flex-start; gap: .85rem; min-width: 0; }
+  .nu-row-marker {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: var(--al-stone);
+    border-radius: var(--al-r-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--al-bronze); font-size: 1.05rem;
+  }
+  .nu-row-marker.is-weekly { background: rgba(28,74,82,0.1); color: var(--al-aegean); }
+  .nu-row-title {
+    font-weight: 600; font-size: .95rem; color: var(--al-ink);
+    line-height: 1.25; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nu-row-sub {
+    font-size: .72rem; color: var(--al-ink-mute);
+    margin-top: .15rem;
+    display: flex; align-items: center; gap: .45rem;
+    flex-wrap: wrap;
+  }
+  .nu-row-sub i { font-size: .85rem; color: var(--al-ink-faint); }
+
+  .nu-row-status {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .22rem .55rem;
+    border-radius: 3px;
+    font-size: .68rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    width: fit-content;
+  }
+  .nu-row-status.is-completed { background: #e5e7eb; color: #374151; }
+  .nu-row-status.is-cancelled { background: #fde2e2; color: #7c2d12; }
+  .nu-row-status.is-other { background: #f3f0ea; color: var(--al-ink-mute); }
+
+  .nu-row-dates {
+    font-family: var(--al-mono);
+    font-size: .76rem;
+    color: var(--al-ink-soft);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .nu-row-dates .nu-dates-arrow { color: var(--al-bronze); margin: 0 .35rem; }
+  .nu-row-dates .nu-dates-label {
+    font-family: var(--al-mono);
+    font-size: .6rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--al-ink-faint);
+    display: block; margin-bottom: .1rem;
+  }
+
+  .nu-row-macros {
+    display: flex; gap: .55rem; justify-content: flex-end; flex-wrap: wrap;
+  }
+  @media (max-width: 820px) { .nu-row-macros { justify-content: flex-start; } }
+  .nu-row-macro {
+    display: inline-flex; align-items: baseline; gap: .25rem;
+    padding: .22rem .55rem;
+    border-radius: var(--al-r-xs);
+    background: var(--al-marble-warm);
+    border: 1px solid var(--al-rule-faint);
+    font-size: .72rem;
+    color: var(--al-ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .nu-row-macro strong { font-weight: 700; }
+  .nu-row-macro.is-kcal { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
+  .nu-row-macro.is-p { color: var(--al-aegean); border-color: rgba(28,74,82,0.18); background: rgba(28,74,82,0.06); }
+  .nu-row-macro.is-c { color: var(--al-warn); border-color: rgba(166,128,43,0.22); background: rgba(166,128,43,0.06); }
+  .nu-row-macro.is-f { color: var(--al-danger); border-color: rgba(138,58,58,0.22); background: rgba(138,58,58,0.06); }
+
+  .nu-history-more {
+    display: flex; justify-content: center; padding: 1rem 0;
+  }
+  .nu-load-more {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .6rem 1.2rem;
+    background: white;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    font-size: .78rem; font-weight: 600;
+    color: var(--al-ink-soft);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .nu-load-more:hover { border-color: var(--al-bronze); color: var(--al-bronze); }
+  .nu-load-more[disabled] { opacity: .55; cursor: wait; }
+
+  .nu-empty-hero {
+    text-align: center;
+    padding: 3.5rem 2rem;
+    border: 1px dashed var(--al-rule);
+    border-radius: var(--al-r-md);
+    background: var(--al-parchment);
+    color: var(--al-ink-mute);
+  }
+  .nu-empty-hero h2 {
+    font-family: var(--al-display);
+    font-size: 1.75rem; color: var(--al-ink);
+    margin: .85rem 0 .5rem;
+  }
+  .nu-empty-hero i { font-size: 2.5rem; color: var(--al-bronze); }
+
+  /* === Supplements card === */
+  .nu-supp {
+    margin-top: 3rem;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    background: white;
+    overflow: hidden;
+  }
+  .nu-supp-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 1.1rem 1.4rem;
+    background: var(--al-marble-warm);
+    border-bottom: 1px solid var(--al-rule);
+  }
+  .nu-supp-head h3 {
+    font-family: var(--al-display);
+    font-size: 1.3rem; color: var(--al-ink); margin: 0;
+  }
+  .nu-supp-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: .85rem 1.4rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+    align-items: center;
+  }
+  .nu-supp-row:last-child { border-bottom: none; }
+  @media (max-width: 720px) { .nu-supp-row { grid-template-columns: 1fr; gap: .35rem; } }
+
+  [x-cloak] { display: none !important; }
+</style>
+
+<div class="max-w-7xl mx-auto"
+     x-data="nutritionClient({
+       initial: {{ past_data_json|safe }},
+       hasMore: {{ past_has_more|yesno:'true,false' }},
+       total: {{ past_total }},
+       initialCount: {{ past_initial_count }},
+       pageSize: {{ history_page_size }},
+     })">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <p class="al-eyebrow mb-3">I miei &middot; Nutrizione</p>
+    <h1 class="al-h-1">La mia <span class="al-display-i">nutrizione</span></h1>
+    <p class="al-body mt-2">Protocollo alimentare assegnato da {{ coach.first_name }} {{ coach.last_name }}.</p>
+    <div class="al-rule-bronze mt-5"></div>
   </div>
 
+  {% if active_data %}
+    {% with a=active_data.assignment plan=active_data.plan %}
+    <!-- ============== HERO · Piano attivo ============== -->
+    <section class="nu-hero">
+      <div class="nu-hero-grid">
+
+        <!-- LEFT: identity + CTA -->
+        <div>
+          <span class="nu-eyebrow">Piano attivo</span>
+          <h2 class="nu-title">{{ plan.title }}{% if plan.nutrition_goal %} <em>· {{ plan.nutrition_goal|lower }}</em>{% endif %}</h2>
+
+          <div class="nu-meta">
+            <span class="nu-meta-chip">
+              <i class="{% if plan.plan_kind == 'WEEKLY' %}ph ph-calendar{% else %}ph ph-sun{% endif %}"></i>
+              {% if plan.plan_kind == 'WEEKLY' %}Settimanale{% else %}Giornaliero{% endif %}
+            </span>
+            {% if plan.plan_type %}<span class="nu-meta-chip"><i class="ph ph-leaf"></i>{{ plan.plan_type }}</span>{% endif %}
+            {% if plan.meals_per_day %}<span class="nu-meta-chip"><i class="ph ph-fork-knife"></i>{{ plan.meals_per_day }} pasti</span>{% endif %}
+            {% if a.start_date %}<span class="nu-meta-chip"><i class="ph ph-calendar-blank"></i>dal {{ a.start_date|date:"d M Y" }}</span>{% endif %}
+          </div>
+
+          {% if plan.description %}
+          <p class="nu-desc">{{ plan.description }}</p>
+          {% endif %}
+
+          <div class="nu-coach">
+            <div class="nu-coach-avatar">{{ a.coach.first_name|slice:":1" }}{{ a.coach.last_name|slice:":1" }}</div>
+            <div>
+              <span class="nu-coach-label">Coach</span>
+              <span class="nu-coach-name">{{ a.coach.first_name }} {{ a.coach.last_name }}</span>
+            </div>
+          </div>
+
+          <div class="nu-cta-row">
+            <a href="{% url 'nutrizione_client_detail' a.id %}" class="nu-cta">
+              <i class="ph ph-book-open-text"></i> Apri piano completo
+            </a>
+            <a href="{% url 'chat_list' %}" class="nu-cta-ghost">
+              <i class="ph ph-chat-circle-dots"></i> Scrivi al coach
+            </a>
+          </div>
+        </div>
+
+        <!-- RIGHT: macro display -->
+        <div class="nu-macros">
+          <div class="nu-kcal-block">
+            <span class="nu-kcal-num">{{ active_data.kcal }}</span>
+            <span class="nu-kcal-unit">kcal / giorno</span>
+          </div>
+          <div class="nu-macro-row">
+            <div class="nu-macro-cell">
+              <span class="nu-macro-label">Proteine</span>
+              <span class="nu-macro-val">{{ active_data.prot }}<small>g</small></span>
+              <div class="nu-macro-bar"><div class="nu-macro-bar-fill nu-bar-prot" style="width: 100%;"></div></div>
+            </div>
+            <div class="nu-macro-cell">
+              <span class="nu-macro-label">Carboidrati</span>
+              <span class="nu-macro-val">{{ active_data.carb }}<small>g</small></span>
+              <div class="nu-macro-bar"><div class="nu-macro-bar-fill nu-bar-carb" style="width: 100%;"></div></div>
+            </div>
+            <div class="nu-macro-cell">
+              <span class="nu-macro-label">Grassi</span>
+              <span class="nu-macro-val">{{ active_data.fat }}<small>g</small></span>
+              <div class="nu-macro-bar"><div class="nu-macro-bar-fill nu-bar-fat" style="width: 100%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+    {% endwith %}
+  {% else %}
+    <div class="nu-empty-hero">
+      <i class="ph ph-bowl-food"></i>
+      <h2>Nessun piano alimentare attivo</h2>
+      <p>Quando il tuo coach pubblicherà un piano, comparirà qui.</p>
+      <a href="{% url 'chat_list' %}" class="nu-cta" style="margin-top: 1rem;">
+        <i class="ph ph-chat-circle-dots"></i> Scrivi al coach
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- ============== STORICO ============== -->
+  <section style="margin-top: 3rem;" x-show="total > 0" x-cloak>
+    <div class="nu-history-head">
+      <div>
+        <p class="al-eyebrow" style="margin-bottom: .5rem;">Storico</p>
+        <h2>Tutte le <em>diete</em></h2>
+      </div>
+      <button type="button"
+              class="nu-history-toggle"
+              :class="{ 'is-open': showHistory }"
+              @click="toggleHistory()">
+        <span x-text="showHistory ? 'Nascondi storico' : ('Mostra storico (' + total + ')')"></span>
+        <i class="ph ph-caret-down"></i>
+      </button>
+    </div>
+
+    <div x-show="showHistory" x-cloak x-collapse>
+      <div class="nu-history-list">
+        <template x-for="row in rows" :key="row.id">
+          <article class="nu-row">
+            <!-- Identity -->
+            <div class="nu-row-id">
+              <div class="nu-row-marker" :class="row.plan_kind === 'WEEKLY' ? 'is-weekly' : ''">
+                <i class="ph" :class="row.plan_kind === 'WEEKLY' ? 'ph-calendar' : 'ph-sun'"></i>
+              </div>
+              <div style="min-width: 0; flex: 1;">
+                <h3 class="nu-row-title" x-text="row.plan_title"></h3>
+                <div class="nu-row-sub">
+                  <span x-text="row.plan_kind === 'WEEKLY' ? 'Settimanale' : 'Giornaliero'"></span>
+                  <template x-if="row.plan_type"><span>·</span></template>
+                  <template x-if="row.plan_type"><span x-text="row.plan_type"></span></template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div>
+              <span class="nu-row-status"
+                    :class="row.status === 'COMPLETED' ? 'is-completed'
+                          : (row.status === 'CANCELLED' ? 'is-cancelled' : 'is-other')">
+                <i class="ph"
+                   :class="row.status === 'COMPLETED' ? 'ph-check-circle'
+                         : (row.status === 'CANCELLED' ? 'ph-x-circle' : 'ph-circle')"></i>
+                <span x-text="row.status === 'COMPLETED' ? 'Completata'
+                            : (row.status === 'CANCELLED' ? 'Annullata' : row.status)"></span>
+              </span>
+            </div>
+
+            <!-- Dates -->
+            <div class="nu-row-dates">
+              <span class="nu-dates-label">Assegnata</span>
+              <span x-text="row.start_date || row.assigned_at"></span>
+              <span class="nu-dates-arrow">→</span>
+              <span x-text="row.end_date || '—'"></span>
+            </div>
+
+            <!-- Macros snapshot -->
+            <div class="nu-row-macros">
+              <span class="nu-row-macro is-kcal"><strong x-text="row.kcal"></strong> kcal</span>
+              <span class="nu-row-macro is-p">P <strong x-text="row.prot + 'g'"></strong></span>
+              <span class="nu-row-macro is-c">C <strong x-text="row.carb + 'g'"></strong></span>
+              <span class="nu-row-macro is-f">F <strong x-text="row.fat + 'g'"></strong></span>
+            </div>
+          </article>
+        </template>
+      </div>
+
+      <div class="nu-history-more" x-show="hasMore">
+        <button type="button" class="nu-load-more" :disabled="loading" @click="loadMore()">
+          <i class="ph" :class="loading ? 'ph-spinner-gap animate-spin' : 'ph-arrow-down'"></i>
+          <span x-text="loading ? 'Caricamento…' : ('Carica altri ' + pageSize)"></span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== INTEGRATORI ============== -->
+  {% if supp_assignment %}
+    {% with sheet=supp_assignment.sheet %}
+    <section class="nu-supp">
+      <div class="nu-supp-head">
+        <div>
+          <p class="al-eyebrow" style="margin-bottom: .35rem;">Integrazione</p>
+          <h3>{{ sheet.title }}</h3>
+          {% if sheet.notes %}<p class="al-small mt-1" style="color: var(--al-ink-mute);">{{ sheet.notes }}</p>{% endif %}
+        </div>
+        <span class="al-tag" style="background: var(--al-marble); color: var(--al-ink-mute); padding: .35rem .65rem;">
+          dal {{ supp_assignment.assigned_at|date:"d M Y" }}
+        </span>
+      </div>
+
+      {% with items=sheet.items.all %}
+      {% if items %}
+        {% for item in items %}
+        <div class="nu-supp-row">
+          <div>
+            <p style="font-weight: 600; color: var(--al-ink);">{{ item.supplement.name }}</p>
+            {% if item.supplement.category %}<p class="al-small" style="color: var(--al-ink-mute); margin-top: .15rem;">{{ item.supplement.category }}</p>{% endif %}
+          </div>
+          <div>
+            {% if item.dose %}
+            <p class="al-small" style="color: var(--al-ink-faint); text-transform: uppercase; letter-spacing: .08em; font-size: .65rem;">Dose</p>
+            <p style="font-weight: 700; color: var(--al-ink-soft);">{{ item.dose }} {{ item.supplement.unit }}</p>
+            {% endif %}
+          </div>
+          <div>
+            {% if item.timing %}
+            <p class="al-small" style="color: var(--al-ink-faint); text-transform: uppercase; letter-spacing: .08em; font-size: .65rem;">Quando</p>
+            <p style="color: var(--al-ink-soft);">{{ item.timing }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="nu-supp-row" style="grid-template-columns: 1fr; color: var(--al-ink-mute); justify-items: center;">
+          Nessun integratore in questa scheda.
+        </div>
+      {% endif %}
+      {% if supp_assignment.notes %}
+      <div style="padding: .85rem 1.4rem; background: var(--al-marble); border-top: 1px solid var(--al-rule-faint);">
+        <p class="al-small"><span style="font-weight: 700;">Note del coach:</span> {{ supp_assignment.notes }}</p>
+      </div>
+      {% endif %}
+      {% endwith %}
+    </section>
+    {% endwith %}
+  {% endif %}
+
 </div>
+
+<script>
+function nutritionClient(seed) {
+  return {
+    rows: seed.initial,
+    total: seed.total,
+    initialCount: seed.initialCount,
+    pageSize: seed.pageSize,
+    hasMore: seed.hasMore,
+    showHistory: false,
+    loading: false,
+    toggleHistory() { this.showHistory = !this.showHistory; },
+    async loadMore() {
+      if (this.loading || !this.hasMore) return;
+      this.loading = true;
+      try {
+        const offset = this.rows.length;
+        const r = await fetch(`{% url 'api_client_nutrition_history' %}?offset=${offset}&limit=${this.pageSize}`);
+        if (!r.ok) throw new Error('fetch failed');
+        const d = await r.json();
+        this.rows = [...this.rows, ...(d.items || [])];
+        this.hasMore = !!d.has_more;
+        this.total = d.total ?? this.total;
+      } catch (e) {
+        alert('Errore nel caricamento dello storico.');
+      } finally {
+        this.loading = false;
+      }
+    },
+  };
+}
+window.nutritionClient = nutritionClient;
+</script>
 {% endblock %}

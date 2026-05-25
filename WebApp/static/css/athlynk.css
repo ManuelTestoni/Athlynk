@@ -28,6 +28,10 @@
   --al-bronze:    #8a6a3a;
   --al-bronze-s:  #a78554;
   --al-bronze-l:  #c8a774;
+  --al-bronze-soft: #a78554;
+
+  /* Marble alias */
+  --al-marble-warm: #e7dfcb;
 
   /* Semantic */
   --al-success:   #4a6b3a;
@@ -2025,10 +2029,12 @@ code, pre, kbd {
 }
 
 /* ---- Page-in (silk clip-path reveal) ----
-   IMPORTANT: end state must have `transform: none` so .al-canvas does not
-   permanently establish a containing block for `position: fixed` modals.
-   With `translateY(0)`, fixed-positioned panels were getting positioned
-   relative to .al-canvas (below the topbar) instead of the viewport. */
+   IMPORTANT: post-animation state must NOT include `transform`, `clip-path`,
+   `filter`, or other properties that establish a containing block for
+   `position: fixed` descendants. Both `transform: translateY(0)` and
+   `clip-path: inset(0)` trap fixed-positioned modals inside .al-canvas.
+   Use `animation-fill-mode: none` so post-animation styles revert to defaults
+   (transform: none, clip-path: none, opacity: 1). */
 @keyframes al-canvas-in {
   from {
     opacity: 0;
@@ -2042,7 +2048,7 @@ code, pre, kbd {
   }
 }
 body[data-al-page-ready="1"] .al-canvas {
-  animation: al-canvas-in var(--al-d-silk) var(--al-ease-silk) both;
+  animation: al-canvas-in var(--al-d-silk) var(--al-ease-silk) none;
 }
 
 @keyframes al-stagger-in {
