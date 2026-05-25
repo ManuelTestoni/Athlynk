@@ -83,6 +83,14 @@ function nutritionWizardChartsMixin() {
         this.dayMacro(code, 'fat'),
       );
     },
+    /* Pie segments for whatever the side panel / builder is currently showing */
+    sidePanelPieSegments() {
+      return this.macroPieSegments(
+        this.sidePanelMacro('protein'),
+        this.sidePanelMacro('carb'),
+        this.sidePanelMacro('fat'),
+      );
+    },
 
     pieKcalTotal(segments) {
       return segments.reduce((s, x) => s + x.kcal, 0);

@@ -213,6 +213,21 @@ function nutritionWizard() {
     },
 
     /* === persistence === */
+    async exitWithoutSaving() {
+      const msg = this.planId
+        ? 'Uscire senza salvare? Il piano in bozza verrà eliminato.'
+        : 'Uscire senza salvare? Le modifiche non saranno conservate.';
+      if (!confirm(msg)) return;
+      if (this.planId) {
+        try {
+          await fetch(INIT.urls.deletePattern.replace('__ID__', this.planId), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.nutCsrfToken() },
+          });
+        } catch (e) { /* still navigate away */ }
+      }
+      window.location.href = INIT.urls.piani;
+    },
     async saveDraft() {
       if (this.step === 'info' && !this.title.trim()) {
         this.errors = { title: 'Titolo obbligatorio.' };

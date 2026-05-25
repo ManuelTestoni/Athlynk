@@ -220,6 +220,7 @@
         <template x-for="plan in visiblePlans()" :key="plan.id">
           <div class="al-card al-card-flush al-reveal flex flex-col"
                draggable="true"
+               :style="draggedPlanId === plan.id ? 'cursor: grabbing;' : 'cursor: grab;'"
                @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
                @dragend="draggedPlanId = null; dropTargetId = null">
             <!-- Bronze accent line -->

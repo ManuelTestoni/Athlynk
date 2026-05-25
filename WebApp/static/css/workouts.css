@@ -210,8 +210,11 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   transition: transform 220ms var(--al-ease-emp),
               box-shadow 220ms var(--al-ease),
               border-color 160ms var(--al-ease);
-  cursor: pointer;
+  cursor: grab;
   animation: wb-card-in 360ms var(--al-ease-emp) backwards;
+}
+.wb-card[draggable="true"]:active {
+  cursor: grabbing;
 }
 @keyframes wb-card-in {
   from { opacity: 0; transform: translateY(8px); }

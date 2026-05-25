@@ -35,6 +35,7 @@ window.NUTRITION_WIZARD_INIT = {
     detailPattern: "/nutrizione/piani/__ID__/",
     piani: "{% url 'nutrizione_piani' %}",
     supplementsPattern: "/api/nutrizione/piani/__ID__/integratori/",
+    deletePattern: "/api/nutrizione/piani/__ID__/elimina/",
   },
 };
 </script>
@@ -75,6 +76,14 @@ window.NUTRITION_WIZARD_INIT = {
       <div class="al-rule-bronze mt-5"></div>
     </div>
     <div class="flex gap-2 items-center shrink-0">
+      <button type="button" @click="exitWithoutSaving()" :disabled="saving"
+              class="al-btn al-btn-ghost"
+              style="color: var(--al-danger); border-color: rgba(138,58,58,0.25);"
+              x-show="step !== 'riepilogo'"
+              title="Annulla e torna ai piani">
+        <i class="ph ph-x text-sm"></i>
+        <span>Esci senza salvare</span>
+      </button>
       <button type="button" @click="saveDraft()" :disabled="saving"
               class="al-btn al-btn-ghost"
               :class="{ 'is-loading': saving }"
@@ -370,10 +379,17 @@ window.NUTRITION_WIZARD_INIT = {
                 <h2 class="al-h-3">Calorie per giorno</h2>
               </div>
               <div class="ml-auto flex items-center gap-1.5 flex-wrap">
-                <span class="al-tag" style="font-size: 9px; color: var(--al-ink-mute);">aggiungi macro:</span>
+                <!-- Always-on Kcal legend (the main bronze bar) -->
+                <span class="al-tag flex items-center gap-1.5"
+                      style="background: linear-gradient(180deg, var(--al-bronze) 0%, var(--al-bronze-soft) 100%); color: var(--al-parchment); border: 1px solid var(--al-bronze); padding: 4px 10px;"
+                      title="Bin sempre visibile">
+                  <span style="width: 8px; height: 8px; border-radius: 2px; background: var(--al-parchment);"></span>
+                  <span>Kcal</span>
+                </span>
+                <span class="al-tag" style="font-size: 9px; color: var(--al-ink-mute);">+ macro:</span>
                 <template x-for="opt in [{k:'protein',l:'Prot',c:'var(--al-aegean)'},
-                                          {k:'carb',l:'Carb',c:'var(--al-bronze)'},
-                                          {k:'fat',l:'Grassi',c:'var(--al-ink-mute)'}]" :key="opt.k">
+                                          {k:'carb',l:'Carb',c:'var(--al-warn)'},
+                                          {k:'fat',l:'Grassi',c:'var(--al-danger)'}]" :key="opt.k">
                   <button type="button" @click="toggleHisto(opt.k)"
                           class="al-tag flex items-center gap-1.5 transition-all"
                           :style="(histoShow[opt.k]
@@ -387,7 +403,16 @@ window.NUTRITION_WIZARD_INIT = {
             </div>
 
             <!-- Chart -->
-            <div x-data="{ hover: null }">
+            <div x-data="{ hover: null }" class="relative">
+              <template x-if="!hasAnyMealWithItem()">
+                <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+                     style="background: linear-gradient(180deg, rgba(244,239,228,0.4) 0%, rgba(244,239,228,0.85) 100%);">
+                  <p class="al-tag" style="color: var(--al-ink-mute);">
+                    <i class="ph ph-chart-bar text-bronze"></i>
+                    <span>Aggiungi alimenti per popolare il grafico</span>
+                  </p>
+                </div>
+              </template>
               <div class="flex items-end gap-3 px-2"
                    style="height: 220px; border-bottom: 1px solid var(--al-rule); padding-bottom: 4px;">
                 <template x-for="d in weekChartData()" :key="d.code">
@@ -588,6 +613,45 @@ window.NUTRITION_WIZARD_INIT = {
                  :style="kcalDeltaColor()"
                  x-text="kcalDeltaLabel()"></p>
             </template>
+          </div>
+
+          <!-- Macro donut (responds to active view: DAILY / WEEKLY day / WEEKLY AVG) -->
+          <div class="mb-5" x-data="{ pieHover: null }">
+            <div class="relative mx-auto" style="width: 180px; height: 180px;">
+              <svg viewBox="0 0 200 200" width="180" height="180" style="display: block;">
+                <template x-for="seg in sidePanelPieSegments()" :key="seg.key">
+                  <path :d="donutPath(seg.start, seg.end, 100, 100, 90, 58)"
+                        :fill="seg.color"
+                        :style="pieHover && pieHover !== seg.key ? 'opacity: 0.32; transition: opacity .2s;' : 'transition: opacity .2s;'"
+                        @mouseenter="pieHover = seg.key"
+                        @mouseleave="pieHover = null"
+                        style="cursor: pointer; stroke: var(--al-parchment); stroke-width: 2;"></path>
+                </template>
+                <template x-if="pieKcalTotal(sidePanelPieSegments()) === 0">
+                  <circle cx="100" cy="100" r="90" fill="none" stroke="var(--al-rule)" stroke-width="2" stroke-dasharray="4 6"></circle>
+                </template>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <template x-if="!pieHover">
+                  <div class="text-center">
+                    <p class="font-mono" style="font-size: 22px; color: var(--al-ink); line-height: 1;" x-text="pieKcalTotal(sidePanelPieSegments()) || '—'"></p>
+                    <p class="al-tag mt-1" style="font-size: 8px;">kcal da macro</p>
+                  </div>
+                </template>
+                <template x-if="pieHover">
+                  <div class="text-center px-2">
+                    <p class="font-mono font-bold" style="font-size: 20px; line-height: 1;"
+                       :style="'color: ' + (sidePanelPieSegments().find(s => s.key === pieHover) || {}).color"
+                       x-text="pctLabel((sidePanelPieSegments().find(s => s.key === pieHover) || {}).pct || 0)"></p>
+                    <p class="al-tag mt-1" style="font-size: 8px;"
+                       x-text="(sidePanelPieSegments().find(s => s.key === pieHover) || {}).label"></p>
+                    <p class="font-mono al-small mt-0.5" style="font-size: 10px; color: var(--al-ink-soft);"
+                       x-text="((sidePanelPieSegments().find(s => s.key === pieHover) || {}).grams || 0) + 'g · ' + ((sidePanelPieSegments().find(s => s.key === pieHover) || {}).kcal || 0) + ' kcal'"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <p class="al-tag text-center mt-2" style="color: var(--al-ink-line); font-size: 9px;">passa sul grafico</p>
           </div>
 
           <div class="space-y-3">
