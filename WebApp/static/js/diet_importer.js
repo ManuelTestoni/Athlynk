@@ -82,6 +82,17 @@
       pollTimer: null,
       jobId: null,
       pollProgressPercent: 0,
+      // ─── Phase gating (async mode) ──────────────────────────────
+      // `targetPhase` = ultima fase dichiarata dal backend.
+      // `displayedPhase` = fase mostrata in UI, gated dal dwell minimo.
+      // Il backend completa analyze/classify quasi istantaneamente; il gate
+      // tiene la UI sui primi step finché non è trascorso `cfg.minPhaseMs[i]`,
+      // così l'attesa AI viene percepita distribuita sull'intera pipeline.
+      targetPhase: 0,
+      displayedPhase: 0,
+      phaseEnteredAt: [],
+      gateTimer: null,
+      pendingResult: null,
 
       // Step 3
       diet: { days: [], supplements: [] },
@@ -268,11 +279,26 @@
           const data = await r.json();
           this.pollProgressPercent = data.percent || 0;
           if (data.phase && this.cfg.phaseMap && this.cfg.phaseMap[data.phase] != null) {
-            this.phase = this.cfg.phaseMap[data.phase];
+            const next = this.cfg.phaseMap[data.phase];
+            // Se il gate è attivo (minPhaseMs configurato), aggiorna SOLO il target;
+            // displayedPhase avanza con tickPhaseGate rispettando i dwell minimi.
+            if (this.cfg.minPhaseMs) {
+              if (next > this.targetPhase) this.targetPhase = next;
+            } else {
+              this.phase = next;
+            }
           }
           if (data.status === 'done') {
-            this.stopPolling(); this.stopLoadingAnim();
-            this.applyExtractionResult(data.result || {});
+            this.stopPolling();
+            if (this.cfg.minPhaseMs) {
+              // Trattieni il risultato: lo applichiamo solo quando il gate
+              // raggiunge l'ultima fase, così l'utente vede tutti gli step.
+              this.targetPhase = this.steps.length - 1;
+              this.pendingResult = data.result || {};
+            } else {
+              this.stopLoadingAnim();
+              this.applyExtractionResult(data.result || {});
+            }
           } else if (data.status === 'error') {
             this.stopPolling(); this.stopLoadingAnim();
             this.errorMsg = this.translateError({ error: data.error_code, detail: data.detail });
@@ -281,6 +307,32 @@
         } catch (e) {
           // soft fail: continua a polleggiare
           console.warn('poll error', e);
+        }
+      },
+
+      tickPhaseGate() {
+        const mins = this.cfg.minPhaseMs || [];
+        if (!mins.length) return;
+        const now = Date.now();
+        while (this.displayedPhase < this.targetPhase) {
+          const min = mins[this.displayedPhase] || 0;
+          const enteredAt = this.phaseEnteredAt[this.displayedPhase] || now;
+          if (now - enteredAt < min) break;
+          this.displayedPhase++;
+          this.phaseEnteredAt[this.displayedPhase] = now;
+        }
+        this.phase = this.displayedPhase;
+        // Drain finale: gate raggiunto + risultato in attesa → applica
+        if (this.pendingResult
+            && this.displayedPhase >= this.steps.length - 1) {
+          const lastMin = mins[this.displayedPhase] || 0;
+          const enteredAt = this.phaseEnteredAt[this.displayedPhase] || now;
+          if (now - enteredAt >= lastMin) {
+            const result = this.pendingResult;
+            this.pendingResult = null;
+            this.stopLoadingAnim();
+            this.applyExtractionResult(result);
+          }
         }
       },
 
@@ -308,13 +360,22 @@
 
       startLoadingAnim() {
         this.phase = 0;
+        this.targetPhase = 0;
+        this.displayedPhase = 0;
+        this.phaseEnteredAt = [Date.now()];
+        this.pendingResult = null;
+        this.pollProgressPercent = 0;
         let i = 0;
         this.motivationalMsg = this.motivationalMessages[0];
-        // Avanzamento automatico fasi solo in modalità sync (in async lo guida il backend)
+        // Sync: phaseTimer fa avanzare le fasi a passo fisso (legacy)
         if (!this.cfg.async) {
           this.phaseTimer = setInterval(() => {
             if (this.phase < this.steps.length - 1) this.phase++;
           }, 1500);
+        }
+        // Async con gate dwell: tick a 250ms gestisce displayedPhase
+        if (this.cfg.async && this.cfg.minPhaseMs) {
+          this.gateTimer = setInterval(() => this.tickPhaseGate(), 250);
         }
         this.motivationalTimer = setInterval(() => {
           i = (i + 1) % this.motivationalMessages.length;
@@ -323,8 +384,9 @@
       },
 
       stopLoadingAnim() {
-        if (this.phaseTimer) clearInterval(this.phaseTimer);
-        if (this.motivationalTimer) clearInterval(this.motivationalTimer);
+        if (this.phaseTimer) { clearInterval(this.phaseTimer); this.phaseTimer = null; }
+        if (this.gateTimer) { clearInterval(this.gateTimer); this.gateTimer = null; }
+        if (this.motivationalTimer) { clearInterval(this.motivationalTimer); this.motivationalTimer = null; }
         this.phase = this.steps.length;
       },
 
@@ -569,9 +631,14 @@
       reset() {
         if (!confirm('Vuoi davvero ricominciare? Le modifiche andranno perse.')) return;
         this.stopPolling();
+        this.stopLoadingAnim();
         this.currentStep = 1;
         this.file = null;
         this.jobId = null;
+        this.pendingResult = null;
+        this.targetPhase = 0;
+        this.displayedPhase = 0;
+        this.phaseEnteredAt = [];
         this.diet = { days: [], supplements: [] };
         this.confidence = { fields_total: 0, fields_uncertain: 0, ratio: 0 };
         this.documentSummary = null;

@@ -115,7 +115,7 @@ SCHEMA OUTPUT (parziale, sarà unito ad altri chunk):
 def extract_chunk(chunk: Chunk, llm=None) -> dict:
     """Chiama l'LLM su un singolo chunk. Ritorna dict (mai eccezione: errori → {})."""
     if llm is None:
-        llm = build_extraction_llm(max_tokens=2000, timeout=30)
+        llm = build_extraction_llm(max_tokens=4000, timeout=45)
 
     user_msg = (
         f"Metadata chunk:\n"
@@ -154,28 +154,109 @@ def extract_chunk(chunk: Chunk, llm=None) -> dict:
     return raw
 
 
+RETRY_EMPTY_RELEVANCE_THRESHOLD = 0.5
+RETRY_SYSTEM_SUFFIX = (
+    "\n\nRETRY ESAUSTIVO: la passata precedente non ha estratto alimenti da "
+    "questo chunk nonostante sia rilevante. Sii MASSIMAMENTE esaustivo: scorri "
+    "il testo riga per riga, estrai OGNI alimento, quantità o pasto presente. "
+    "Non saltare elementi perché ripetitivi. Se il chunk contiene anche solo "
+    "un'intestazione di giorno/pasto, emetti la struttura corrispondente."
+)
+
+
 def extract_all_chunks(chunks: list[Chunk], progress_cb=None) -> tuple[list[dict], list[str]]:
     """Itera su tutti i chunk, ritorna (parts, notes). Solleva AIExtractionError
     solo se TUTTI i chunk falliscono.
+
+    Due passate:
+      1. Prima passata standard
+      2. Retry mirato sui chunk ad alta rilevanza che hanno restituito 0 giorni
+         (probabile truncation o "laziness" LLM)
     """
-    llm = build_extraction_llm(max_tokens=2000, timeout=30)
+    llm = build_extraction_llm(max_tokens=4000, timeout=45)
     parts: list[dict] = []
     notes: list[str] = []
     n = len(chunks) or 1
     failed = 0
+    # Track per chunk_id se la prima passata ha prodotto qualcosa
+    empty_high_relevance: list[Chunk] = []
+
     for i, chunk in enumerate(chunks):
         result = extract_chunk(chunk, llm=llm)
         parts.append(result)
         extra_note = result.get('extraction_notes')
         if extra_note:
             notes.append(extra_note)
-        if not (result.get('days') or []):
+        produced_days = bool(result.get('days') or [])
+        produced_supps = bool(result.get('supplements') or [])
+        if not produced_days:
             failed += 1
+        if (not produced_days and not produced_supps
+                and chunk.relevance_score >= RETRY_EMPTY_RELEVANCE_THRESHOLD):
+            empty_high_relevance.append(chunk)
         if progress_cb:
             try:
-                progress_cb(i + 1, n)
+                # prima passata occupa l'80% del progress; il 20% restante è retry
+                progress_cb(i + 1, n + max(1, len(empty_high_relevance)))
             except Exception:
                 pass
+
+    # Passata 2 — retry chunk ad alta rilevanza rimasti vuoti
+    if empty_high_relevance:
+        retry_llm = build_extraction_llm(max_tokens=4000, timeout=60)
+        for j, chunk in enumerate(empty_high_relevance):
+            retry_result = _extract_chunk_with_suffix(chunk, retry_llm, RETRY_SYSTEM_SUFFIX)
+            if retry_result.get('days') or retry_result.get('supplements'):
+                parts.append(retry_result)
+                notes.append(f'retry chunk {chunk.chunk_id}: recuperato')
+            elif retry_result.get('extraction_notes'):
+                notes.append(retry_result['extraction_notes'])
+            if progress_cb:
+                try:
+                    progress_cb(n + j + 1, n + len(empty_high_relevance))
+                except Exception:
+                    pass
+
     if chunks and failed == len(chunks):
-        raise AIExtractionError("Nessun chunk ha prodotto contenuto utile.")
+        # Considera anche eventuali recuperi dal retry
+        if not any((p.get('days') or p.get('supplements')) for p in parts):
+            raise AIExtractionError("Nessun chunk ha prodotto contenuto utile.")
     return parts, notes
+
+
+def _extract_chunk_with_suffix(chunk: Chunk, llm, suffix: str) -> dict:
+    """Variante di extract_chunk con suffisso al system prompt (per retry)."""
+    user_msg = (
+        f"Metadata chunk:\n"
+        f"- page_number: {chunk.page_number}\n"
+        f"- chunk_id: {chunk.chunk_id}\n"
+        f"- page_type: {chunk.page_type}\n"
+        f"- relevance_score: {chunk.relevance_score}\n\n"
+        f"Testo del chunk:\n{chunk.text}\n\n"
+        f"Restituisci SOLO JSON conforme allo schema."
+    )
+    try:
+        resp = llm.invoke([
+            SystemMessage(content=CHUNK_SYSTEM_PROMPT + suffix),
+            HumanMessage(content=user_msg),
+        ])
+    except Exception as e:
+        return {'days': [], 'extraction_notes': f'retry chunk {chunk.chunk_id} LLM error: {e}'}
+
+    content = resp.content if isinstance(resp.content, str) else str(resp.content)
+    try:
+        raw = json.loads(content)
+    except json.JSONDecodeError:
+        return {'days': [], 'extraction_notes': f'retry chunk {chunk.chunk_id} JSON invalido'}
+
+    for day in raw.get('days') or []:
+        for meal in day.get('meals') or []:
+            for food in meal.get('foods') or []:
+                food.setdefault('source_page', chunk.page_number)
+                food.setdefault('source_chunk', chunk.chunk_id)
+                for sub in food.get('substitutions') or []:
+                    sub.setdefault('source_page', chunk.page_number)
+                    sub.setdefault('source_chunk', chunk.chunk_id)
+    for supp in raw.get('supplements') or []:
+        supp.setdefault('source_page', chunk.page_number)
+    return raw

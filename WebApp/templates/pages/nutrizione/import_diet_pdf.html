@@ -136,7 +136,9 @@
         </template>
       </div>
 
-      <div x-show="pollProgressPercent > 0" class="mt-6">
+      <!-- Barra progress: visibile solo durante l'estrazione AI (step 3=extract)
+           per evitare salti durante le fasi gated iniziali. -->
+      <div x-show="phase === 3 && pollProgressPercent > 0" class="mt-6">
         <div class="w-full bg-stone/40 rounded-full h-2 overflow-hidden">
           <div class="bg-aegean h-2 transition-all"
                :style="'width:' + pollProgressPercent + '%;'"></div>

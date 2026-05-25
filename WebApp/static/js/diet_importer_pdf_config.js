@@ -37,6 +37,11 @@ function dietImporterPdf() {
       extract: 3,
       finalize: 4,
     },
+    // Dwell minimo per fase (ms). Il backend completa analyze+classify in <1s
+    // ma vogliamo che la UI mostri ogni step come "in lavorazione" per il
+    // tempo indicato: l'attesa per l'AI si percepisce distribuita sull'intera
+    // pipeline, non concentrata sull'ultimo step.
+    minPhaseMs: [10000, 10000, 3000, 4000, 1500],
     copy: {
       formatError: 'Formato non supportato (solo .pdf)',
       tooLargeError: 'File troppo grande (max 20 MB)',

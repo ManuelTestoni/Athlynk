@@ -281,10 +281,11 @@ def _retry_missing_days(chunks, missing: list[str]) -> tuple[list[dict], list[st
     if not target_chunks:
         return [], [f'retry: nessun chunk menziona giorni mancanti ({",".join(missing)})']
 
-    llm = build_extraction_llm(max_tokens=2000, timeout=30)
+    llm = build_extraction_llm(max_tokens=4000, timeout=60)
     extra_instr = (
         f"\n\nFOCUS RETRY: estrai SOLO i seguenti giorni se presenti nel testo: "
-        f"{', '.join(missing)}. Ignora gli altri. Sii esaustivo: non saltare alcun pasto."
+        f"{', '.join(missing)}. Ignora gli altri. Sii MASSIMAMENTE esaustivo: "
+        f"non saltare alcun pasto né alcun alimento; scorri il testo riga per riga."
     )
     out_parts: list[dict] = []
     notes: list[str] = []

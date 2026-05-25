@@ -8,9 +8,15 @@ from domain.nutrition.pdf_ingestion import PdfPage
 from domain.nutrition.pdf_page_classifier import PageMeta
 
 
-# Max char per chunk: bilanciamento tra contesto utile e token spesi
-MAX_CHUNK_CHARS = 2500
-MAX_CHUNKS_PER_DOC = 25
+# Max char per chunk: bilanciamento tra contesto utile e token spesi.
+# Ridotto da 2500 a 1800: chunk più piccoli → meno truncation della risposta LLM
+# e meno "laziness" su elenchi lunghi (l'LLM tende a saltare item se la
+# finestra di output è ampia).
+MAX_CHUNK_CHARS = 1800
+# Overlap fra chunk consecutivi della stessa pagina: evita di tagliare un pasto
+# a metà fra due chunk (es. header "Pranzo" finisce nel chunk N e foods nel N+1).
+CHUNK_OVERLAP_CHARS = 400
+MAX_CHUNKS_PER_DOC = 30
 
 
 @dataclass
@@ -50,6 +56,24 @@ def _split_text(text: str, max_chars: int) -> list[str]:
     return chunks
 
 
+def _apply_overlap(parts: list[str], overlap: int) -> list[str]:
+    """Prepende a ogni chunk N>0 la coda del chunk N-1 (max `overlap` char).
+    Mantiene su un boundary di whitespace per non spezzare parole.
+    """
+    if overlap <= 0 or len(parts) <= 1:
+        return parts
+    out: list[str] = [parts[0]]
+    for i in range(1, len(parts)):
+        prev = parts[i - 1]
+        tail = prev[-overlap:] if len(prev) > overlap else prev
+        # taglia al primo whitespace per non spezzare token
+        ws = tail.find(' ')
+        if ws > 0:
+            tail = tail[ws + 1:]
+        out.append(tail + '\n\n' + parts[i])
+    return out
+
+
 def chunk_pages(pages_with_meta: list[tuple[PdfPage, PageMeta]]) -> list[Chunk]:
     out: list[Chunk] = []
     for page, meta in pages_with_meta:
@@ -57,6 +81,7 @@ def chunk_pages(pages_with_meta: list[tuple[PdfPage, PageMeta]]) -> list[Chunk]:
         if not text or not text.strip():
             continue
         parts = _split_text(text, MAX_CHUNK_CHARS)
+        parts = _apply_overlap(parts, CHUNK_OVERLAP_CHARS)
         for i, part in enumerate(parts):
             chunk_id = f"p{page.page_number}-c{i + 1}"
             out.append(Chunk(
