@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from domain.nutrition.food_match import best_match
 from domain.nutrition.llm_client import build_extraction_llm
+from domain.nutrition.models import Supplement
 from domain.nutrition.schemas import DietExtraction, ConfidenceSummary
 
 
@@ -45,6 +46,13 @@ REGOLE:
          cucchiaio/cucch → tbsp, cucchiaino → tsp
 - Se trovi una struttura a tabella con giorni come colonne e pasti come righe (o viceversa),
   gestiscila correttamente trasposta
+- ALTERNATIVE: se un alimento è marcato come alternativa di un altro ("alternativa",
+  "in alternativa", "oppure", "sostituibile con", "/"), inseriscilo nell'array
+  "substitutions" dell'alimento PRINCIPALE — NON come food separato.
+  Modalità: "iso-kcal"/"isocalorica"→ISOKCAL, "iso-prot"/"isoproteica"→ISOPROT,
+  "iso-carb"/"isoglucidica"→ISOCARB. Default ISOKCAL.
+- INTEGRATORI: se trovi righe/sezioni con "integratore"/"integratori"/"supplementi",
+  estrai gli item nell'array TOP-LEVEL "supplements" con name/dose/timing/notes.
 - Includi nel JSON il campo "extraction_notes" con eventuali warning sull'estrazione
 
 SCHEMA OUTPUT richiesto:
@@ -66,11 +74,30 @@ SCHEMA OUTPUT richiesto:
               "carbs_g": float | null,
               "fat_g": float | null,
               "uncertain": bool,
-              "notes": string | null
+              "notes": string | null,
+              "substitutions": [
+                {
+                  "name": string,
+                  "quantity": float | null,
+                  "unit": "g"|"ml"|"portion"|"tbsp"|"tsp",
+                  "mode": "ISOKCAL"|"ISOPROT"|"ISOCARB",
+                  "uncertain": bool,
+                  "notes": string | null
+                }
+              ]
             }
           ]
         }
       ]
+    }
+  ],
+  "supplements": [
+    {
+      "name": string,
+      "dose": string | null,
+      "timing": string | null,
+      "notes": string | null,
+      "uncertain": bool
     }
   ],
   "total_calories_daily": float | null,
@@ -174,40 +201,93 @@ def normalize_and_match(raw_json: dict) -> dict:
 
     out = validated.model_dump()
 
+    def _match_food_into(entry: dict) -> None:
+        name = (entry.get('name') or '').strip()
+        if not name:
+            entry['uncertain'] = True
+            entry['candidates'] = []
+            return
+        best, others, _ = best_match(name, threshold=0.5)
+        if best:
+            entry['food_id'] = best['id']
+            entry['matched_name'] = best['name']
+            entry['candidates'] = others
+            entry['db_macros'] = {
+                'kcal': best.get('kcal'),
+                'protein': best.get('protein'),
+                'carb': best.get('carb'),
+                'fat': best.get('fat'),
+            }
+            entry['uncertain'] = entry.get('uncertain', False)
+        else:
+            entry['food_id'] = None
+            entry['candidates'] = others
+            entry['uncertain'] = True
+
     for day in out.get('days', []):
         for meal in day.get('meals', []):
             for food in meal.get('foods', []):
-                name = (food.get('name') or '').strip()
-                if not name:
-                    food['uncertain'] = True
-                    food['candidates'] = []
-                    continue
+                _match_food_into(food)
+                for sub in food.get('substitutions', []) or []:
+                    _match_food_into(sub)
 
-                best, others, uncertain = best_match(name, threshold=0.5)
-                if best:
-                    food['food_id'] = best['id']
-                    food['matched_name'] = best['name']
-                    food['candidates'] = others
-                    # Macro per 100g del food matchato: il frontend li userà come
-                    # fallback quando l'AI non ha estratto calories/protein/carb/fat.
-                    food['db_macros'] = {
-                        'kcal': best.get('kcal'),
-                        'protein': best.get('protein'),
-                        'carb': best.get('carb'),
-                        'fat': best.get('fat'),
-                    }
-                    # Se l'AI già marcava uncertain, conserviamo il flag
-                    food['uncertain'] = food.get('uncertain', False)
-                else:
-                    food['food_id'] = None
-                    food['candidates'] = others  # top-N proposti
-                    food['uncertain'] = True
+    # Dedup integratori per nome normalizzato, mergendo timing/notes
+    def _merge_str(a: str | None, b: str | None) -> str | None:
+        a = (a or '').strip(); b = (b or '').strip()
+        if not b:
+            return a or None
+        if not a:
+            return b
+        if b.lower() in a.lower():
+            return a
+        if a.lower() in b.lower():
+            return b
+        return f"{a} · {b}"
+
+    raw_supps = out.get('supplements') or []
+    dedup_map: dict[str, dict] = {}
+    order: list[str] = []
+    for s in raw_supps:
+        nkey = re.sub(r'\s+', ' ', (s.get('name') or '').strip().lower())
+        if not nkey:
+            continue
+        if nkey in dedup_map:
+            cur = dedup_map[nkey]
+            cur['timing'] = _merge_str(cur.get('timing'), s.get('timing'))
+            cur['notes'] = _merge_str(cur.get('notes'), s.get('notes'))
+            if not cur.get('dose') and s.get('dose'):
+                cur['dose'] = s.get('dose')
+            continue
+        dedup_map[nkey] = dict(s)
+        order.append(nkey)
+    out['supplements'] = [dedup_map[k] for k in order]
+
+    # Match integratori contro Supplement DB (lookup leggero per nome)
+    for supp in out.get('supplements', []) or []:
+        sname = (supp.get('name') or '').strip()
+        supp['candidates'] = []
+        supp['supplement_id'] = None
+        if not sname:
+            supp['uncertain'] = True
+            continue
+        cands = list(Supplement.objects.filter(name__icontains=sname)[:5])
+        if cands:
+            top = cands[0]
+            supp['supplement_id'] = top.id
+            supp['matched_name'] = top.name
+            supp['candidates'] = [
+                {'id': s.id, 'name': s.name, 'category': s.category or '', 'unit': s.unit}
+                for s in cands[1:]
+            ]
+            supp['uncertain'] = supp.get('uncertain', False)
+        else:
+            supp['uncertain'] = True
 
     return out
 
 
 def compute_confidence(normalized: dict) -> ConfidenceSummary:
-    """Conta totale food e quanti uncertain."""
+    """Conta totale food/sub/supp e quanti uncertain."""
     total = 0
     uncertain = 0
     for day in normalized.get('days', []):
@@ -216,6 +296,14 @@ def compute_confidence(normalized: dict) -> ConfidenceSummary:
                 total += 1
                 if food.get('uncertain'):
                     uncertain += 1
+                for sub in food.get('substitutions', []) or []:
+                    total += 1
+                    if sub.get('uncertain'):
+                        uncertain += 1
+    for supp in normalized.get('supplements', []) or []:
+        total += 1
+        if supp.get('uncertain'):
+            uncertain += 1
     ratio = (uncertain / total) if total else 0.0
     return ConfidenceSummary(
         fields_total=total,

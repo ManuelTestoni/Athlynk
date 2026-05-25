@@ -1560,7 +1560,7 @@ def api_diet_import_confirm(request):
                             qty_g = float(qty) if qty is not None else 0.0
                         except (TypeError, ValueError):
                             qty_g = 0.0
-                        MealItem.objects.create(
+                        meal_item = MealItem.objects.create(
                             meal=meal_obj,
                             food=food_obj,
                             quantity_g=qty_g,
@@ -1568,6 +1568,57 @@ def api_diet_import_confirm(request):
                             uncertain=bool(food.get('uncertain')) or food_obj is None,
                             raw_name=raw_name if not food_obj else None,
                         )
+                        # Persisti sostituzioni: solo quelle con food_id matchato
+                        for sub_idx, sub in enumerate(food.get('substitutions') or []):
+                            sub_food_id = sub.get('food_id')
+                            if not sub_food_id:
+                                continue
+                            try:
+                                sub_food = Food.objects.get(id=int(sub_food_id))
+                            except (ValueError, Food.DoesNotExist):
+                                continue
+                            try:
+                                sub_qty = float(sub.get('quantity') or 0.0)
+                            except (TypeError, ValueError):
+                                sub_qty = 0.0
+                            if sub_qty <= 0:
+                                # fallback: stessa grammatura dell'item principale
+                                sub_qty = qty_g
+                            mode = sub.get('mode') or 'ISOKCAL'
+                            if mode not in ('ISOKCAL', 'ISOPROT', 'ISOCARB'):
+                                mode = 'ISOKCAL'
+                            MealItemSubstitution.objects.create(
+                                item=meal_item,
+                                food=sub_food,
+                                mode=mode,
+                                quantity_g=sub_qty,
+                                order=sub_idx,
+                            )
+
+            # Persisti integratori in una SupplementSheet collegata
+            supplements_in = diet_json.get('supplements') or []
+            valid_supps = [s for s in supplements_in if s.get('supplement_id')]
+            if valid_supps:
+                sheet = SupplementSheet.objects.create(
+                    coach=coach,
+                    title=f'Integrazione · {plan.title}'[:200],
+                    notes=None,
+                )
+                plan.supplement_sheet = sheet
+                plan.save(update_fields=['supplement_sheet'])
+                for s_idx, s_in in enumerate(valid_supps):
+                    try:
+                        sup_obj = Supplement.objects.get(id=int(s_in.get('supplement_id')))
+                    except (Supplement.DoesNotExist, ValueError, TypeError):
+                        continue
+                    SupplementSheetItem.objects.create(
+                        sheet=sheet,
+                        supplement=sup_obj,
+                        dose=(s_in.get('dose') or '').strip()[:100],
+                        timing=(s_in.get('timing') or '').strip() or None,
+                        notes=(s_in.get('notes') or '').strip() or None,
+                        order=s_idx,
+                    )
 
             assignment_id = None
             if assign_now and client:

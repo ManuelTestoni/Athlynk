@@ -18,6 +18,23 @@ MealType = Literal[
 
 Unit = Literal['g', 'ml', 'portion', 'tbsp', 'tsp']
 
+SubstitutionMode = Literal['ISOKCAL', 'ISOPROT', 'ISOCARB']
+
+
+class SubstitutionEntry(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    name: str
+    quantity: Optional[float] = None
+    unit: Unit = 'g'
+    mode: SubstitutionMode = 'ISOKCAL'
+    food_id: Optional[int] = None
+    candidates: list[dict] = Field(default_factory=list)
+    uncertain: bool = False
+    notes: Optional[str] = None
+    source_page: Optional[int] = None
+    source_chunk: Optional[str] = None
+
 
 class FoodEntry(BaseModel):
     model_config = ConfigDict(extra='ignore')
@@ -35,6 +52,7 @@ class FoodEntry(BaseModel):
     fat_g: Optional[float] = None
     source_page: Optional[int] = None
     source_chunk: Optional[str] = None
+    substitutions: list[SubstitutionEntry] = Field(default_factory=list)
 
 
 class MealEntry(BaseModel):
@@ -51,12 +69,26 @@ class DayEntry(BaseModel):
     meals: list[MealEntry] = Field(default_factory=list)
 
 
+class SupplementEntry(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    name: str
+    dose: Optional[str] = None
+    timing: Optional[str] = None
+    notes: Optional[str] = None
+    uncertain: bool = False
+    supplement_id: Optional[int] = None
+    candidates: list[dict] = Field(default_factory=list)
+    source_page: Optional[int] = None
+
+
 class DietExtraction(BaseModel):
     """Output normalizzato dell'estrazione AI + match Food."""
     model_config = ConfigDict(extra='ignore')
 
     diet_name: Optional[str] = None
     days: list[DayEntry] = Field(default_factory=list)
+    supplements: list[SupplementEntry] = Field(default_factory=list)
     extraction_notes: Optional[str] = None
     total_calories_daily: Optional[float] = None
     notes: Optional[str] = None

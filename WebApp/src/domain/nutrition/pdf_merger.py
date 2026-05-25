@@ -57,6 +57,29 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
                         if food.get('uncertain') and not existing.get('uncertain'):
                             existing['uncertain'] = True
                         continue
+                    subs_norm = []
+                    seen_sub_keys: set[str] = set()
+                    for sub in (food.get('substitutions') or []):
+                        sub_name = (sub.get('name') or '').strip()
+                        if not sub_name:
+                            continue
+                        sub_key = _norm_name(sub_name)
+                        if sub_key in seen_sub_keys:
+                            continue
+                        seen_sub_keys.add(sub_key)
+                        mode = sub.get('mode') or 'ISOKCAL'
+                        if mode not in ('ISOKCAL', 'ISOPROT', 'ISOCARB'):
+                            mode = 'ISOKCAL'
+                        subs_norm.append({
+                            'name': sub_name,
+                            'quantity': sub.get('quantity'),
+                            'unit': sub.get('unit') or 'g',
+                            'mode': mode,
+                            'uncertain': bool(sub.get('uncertain', False)),
+                            'notes': sub.get('notes'),
+                            'source_page': sub.get('source_page'),
+                            'source_chunk': sub.get('source_chunk'),
+                        })
                     food_norm = {
                         'name': name,
                         'quantity': food.get('quantity'),
@@ -69,6 +92,7 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
                         'notes': food.get('notes'),
                         'source_page': food.get('source_page'),
                         'source_chunk': food.get('source_chunk'),
+                        'substitutions': subs_norm,
                     }
                     meal_bucket['_foods_by_name'][key] = food_norm
                     meal_bucket['foods'].append(food_norm)
@@ -88,6 +112,50 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
             meals_out.append(m)
         days_out.append({'day_of_week': dow, 'meals': meals_out})
 
+    # Supplements: merge across chunks; dedup per nome normalizzato
+    # mergendo timing/notes/dose se diversi (es. integratore preso più volte).
+    def _merge_field(existing: str | None, new: str | None) -> str | None:
+        e = (existing or '').strip()
+        n = (new or '').strip()
+        if not n:
+            return e or None
+        if not e:
+            return n
+        if n.lower() in e.lower():
+            return e
+        if e.lower() in n.lower():
+            return n
+        return f"{e} · {n}"
+
+    supplements_map: dict[str, dict] = {}
+    supplements_order: list[str] = []
+    for part in parts or []:
+        for supp in (part.get('supplements') or []):
+            sname = (supp.get('name') or '').strip()
+            if not sname:
+                continue
+            skey = _norm_name(sname)
+            if skey in supplements_map:
+                cur = supplements_map[skey]
+                cur['timing'] = _merge_field(cur.get('timing'), supp.get('timing'))
+                cur['notes'] = _merge_field(cur.get('notes'), supp.get('notes'))
+                # dose: tieni la prima non vuota
+                if not cur.get('dose') and supp.get('dose'):
+                    cur['dose'] = supp.get('dose')
+                if supp.get('uncertain'):
+                    cur['uncertain'] = cur.get('uncertain') or True
+                continue
+            supplements_map[skey] = {
+                'name': sname,
+                'dose': supp.get('dose'),
+                'timing': supp.get('timing'),
+                'notes': supp.get('notes'),
+                'uncertain': bool(supp.get('uncertain', False)),
+                'source_page': supp.get('source_page'),
+            }
+            supplements_order.append(skey)
+    supplements_out = [supplements_map[k] for k in supplements_order]
+
     # Notes
     notes_collected: list[str] = []
     for part in parts or []:
@@ -101,6 +169,7 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
     out = {
         'diet_name': diet_name or None,
         'days': days_out,
+        'supplements': supplements_out,
         'extraction_notes': notes_str,
         'total_calories_daily': None,
         'notes': None,

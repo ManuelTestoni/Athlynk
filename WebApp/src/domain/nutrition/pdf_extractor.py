@@ -27,14 +27,41 @@ REGOLE:
 - Normalizza le unità in: g, ml, portion, tbsp, tsp
 - Estrai solo informazioni chiaramente legate a una dieta o a un pasto
 - Ignora sezioni puramente descrittive, decorative o amministrative
-- Dizionario sinonimi italiani:
-  lun/lunedì → MONDAY, mar/martedì → TUESDAY, mer/mercoledì → WEDNESDAY,
-  gio/giovedì → THURSDAY, ven/venerdì → FRIDAY, sab/sabato → SATURDAY, dom/domenica → SUNDAY,
-  colazione → BREAKFAST, spuntino mattina/merenda mattina → MORNING_SNACK,
-  pranzo → LUNCH, merenda/spuntino pomeriggio → AFTERNOON_SNACK, cena → DINNER,
-  gr/grammi → g, ml → ml, pz/porzione → portion, cucch/cucchiaio → tbsp, cucchiaino → tsp,
-  kcal/calorie → calories, prot/proteine → protein_g, carb/CHO → carbs_g, fat/grassi → fat_g
-- Se il blocco non contiene dati nutrizionali utili, restituisci {"days": []}
+- Dizionario sinonimi italiani (estesi e abbreviati, case-insensitive):
+  Giorni estesi: lunedì→MONDAY, martedì→TUESDAY, mercoledì→WEDNESDAY,
+                 giovedì→THURSDAY, venerdì→FRIDAY, sabato→SATURDAY, domenica→SUNDAY
+  Giorni abbreviati (anche con punto): lun/lun.→MONDAY, mar/mar.→TUESDAY,
+                 mer/mer.→WEDNESDAY, gio/gio.→THURSDAY, ven/ven.→FRIDAY,
+                 sab/sab.→SATURDAY, dom/dom.→SUNDAY
+  Giorni numerici: "giorno 1"/"1° giorno"→MONDAY, "giorno 2"→TUESDAY, ecc.
+  Pasti: colazione→BREAKFAST, spuntino mattina/merenda mattina→MORNING_SNACK,
+         pranzo→LUNCH, merenda/spuntino pomeriggio→AFTERNOON_SNACK, cena→DINNER
+  Unità: gr/grammi→g, ml→ml, pz/porzione→portion, cucch/cucchiaio→tbsp, cucchiaino→tsp
+  Nutrienti: kcal/calorie→calories, prot/proteine→protein_g, carb/CHO→carbs_g, fat/grassi/lipidi→fat_g
+
+ALTERNATIVE / SOSTITUZIONI:
+- Se un alimento è marcato come alternativa di un altro (testo: "alternativa", "in alternativa",
+  "oppure", "o", "sostituibile con", "in sostituzione", elenco con bullet "alt:", "/" tra due cibi),
+  inseriscilo come elemento dell'array "substitutions" dell'alimento PRINCIPALE — NON come food a sé.
+- Per ogni alternativa cerca di intuire la modalità: "iso-kcal"/"isocalorica"→ISOKCAL,
+  "iso-prot"/"isoproteica"→ISOPROT, "iso-carb"/"isoglucidica"→ISOCARB. Default ISOKCAL.
+
+INTEGRATORI / SUPPLEMENTI:
+- Se trovi sezioni con "integratore", "integratori", "supplementi", "integrazione",
+  estrai gli item nell'array TOP-LEVEL "supplements" (NON dentro foods/meals).
+- Per ogni integratore estrai: name, dose (es. "5 g", "1 cpr"), timing (es. "post-workout",
+  "a colazione"), notes (opzionale).
+
+RILEVAMENTO GIORNI — CRITICO:
+- Estrai TUTTI i giorni esplicitamente menzionati nel chunk, ANCHE se il contenuto
+  sembra ripetuto o vuoto. Non saltare un giorno solo perché il chunk è breve.
+- Riconosci anche varianti: "Lun", "Lun.", "LUN", "lunedì", "LUNEDÌ", "Giorno 1",
+  "1° giorno", "DAY 1" → MONDAY (e analoghi per gli altri).
+- Se vedi un'intestazione tipo "Lun / Mar / Mer" senza contenuto sottostante,
+  emetti comunque i giorni con meals=[] (servono come segnale di copertura).
+- Non inventare giorni non presenti nel testo.
+
+- Se il blocco non contiene dati nutrizionali utili, restituisci {"days": [], "supplements": []}
 
 SCHEMA OUTPUT (parziale, sarà unito ad altri chunk):
 {
@@ -54,11 +81,30 @@ SCHEMA OUTPUT (parziale, sarà unito ad altri chunk):
               "carbs_g": float|null,
               "fat_g": float|null,
               "uncertain": bool,
-              "notes": string|null
+              "notes": string|null,
+              "substitutions": [
+                {
+                  "name": "string",
+                  "quantity": float|null,
+                  "unit": "g"|"ml"|"portion"|"tbsp"|"tsp",
+                  "mode": "ISOKCAL"|"ISOPROT"|"ISOCARB",
+                  "uncertain": bool,
+                  "notes": string|null
+                }
+              ]
             }
           ]
         }
       ]
+    }
+  ],
+  "supplements": [
+    {
+      "name": "string",
+      "dose": string|null,
+      "timing": string|null,
+      "notes": string|null,
+      "uncertain": bool
     }
   ],
   "extraction_notes": string|null
@@ -100,6 +146,11 @@ def extract_chunk(chunk: Chunk, llm=None) -> dict:
             for food in meal.get('foods') or []:
                 food.setdefault('source_page', chunk.page_number)
                 food.setdefault('source_chunk', chunk.chunk_id)
+                for sub in food.get('substitutions') or []:
+                    sub.setdefault('source_page', chunk.page_number)
+                    sub.setdefault('source_chunk', chunk.chunk_id)
+    for supp in raw.get('supplements') or []:
+        supp.setdefault('source_page', chunk.page_number)
     return raw
 
 

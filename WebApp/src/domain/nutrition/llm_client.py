@@ -17,10 +17,14 @@ def build_extraction_llm(max_tokens: int = 4000, timeout: int = 30) -> ChatOpenA
     """
     return ChatOpenAI(
         model=pick_model("extraction"),
-        temperature=0.1,
+        temperature=0.0,        # deterministic: stesso PDF → stesso output
         api_key=config("OLLAMA_API_KEY"),
         base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
         max_tokens=max_tokens,
         timeout=timeout,
-        model_kwargs={"response_format": {"type": "json_object"}},
+        model_kwargs={
+            "response_format": {"type": "json_object"},
+            "top_p": 1.0,
+            "seed": 42,
+        },
     )

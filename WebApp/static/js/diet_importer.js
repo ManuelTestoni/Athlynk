@@ -39,13 +39,25 @@
     minPerceivedMs: 4500,
   };
 
+  // ─── Day registry (per chart mixin condiviso) ─────────────────────
+  const WEEK_DAYS = [
+    { code: 'MONDAY',    label: 'Lun' },
+    { code: 'TUESDAY',   label: 'Mar' },
+    { code: 'WEDNESDAY', label: 'Mer' },
+    { code: 'THURSDAY',  label: 'Gio' },
+    { code: 'FRIDAY',    label: 'Ven' },
+    { code: 'SATURDAY',  label: 'Sab' },
+    { code: 'SUNDAY',    label: 'Dom' },
+  ];
+
   // ─── Factory ───────────────────────────────────────────────────────
   function createDietImporter(userConfig) {
     const config = Object.assign({}, EXCEL_DEFAULTS, userConfig || {});
     // Garantisci copy completo anche se override parziale
     config.copy = Object.assign({}, EXCEL_DEFAULTS.copy, (userConfig && userConfig.copy) || {});
 
-    return {
+    const base = {
+      weekDays: WEEK_DAYS,
       // ─── Config (esposto al template per copy + flags) ────────────
       cfg: config,
 
@@ -72,7 +84,7 @@
       pollProgressPercent: 0,
 
       // Step 3
-      diet: { days: [] },
+      diet: { days: [], supplements: [] },
       confidence: { fields_total: 0, fields_uncertain: 0, ratio: 0 },
       documentSummary: null,
       activeDay: null,
@@ -318,30 +330,59 @@
 
       // ─── Step 3: revisione ────────────────────
       hydrateDiet(raw) {
+        const hydrateFood = (f) => ({
+          name: f.name || '',
+          quantity: f.quantity ?? 0,
+          unit: f.unit || 'g',
+          food_id: f.food_id || null,
+          uncertain: !!f.uncertain,
+          notes: f.notes || null,
+          calories: f.calories,
+          protein_g: f.protein_g,
+          carbs_g: f.carbs_g,
+          fat_g: f.fat_g,
+          source_page: f.source_page ?? null,
+          source_chunk: f.source_chunk ?? null,
+          db_macros: f.db_macros || null,
+          matched_name: f.matched_name || null,
+          _candidates: f.candidates || [],
+          _foodCache: null,
+          subsOpen: false,
+          addSubMode: null,
+          substitutions: (f.substitutions || []).map(s => ({
+            name: s.name || '',
+            quantity: s.quantity ?? 0,
+            unit: s.unit || 'g',
+            mode: s.mode || 'ISOKCAL',
+            food_id: s.food_id || null,
+            uncertain: !!s.uncertain,
+            notes: s.notes || null,
+            source_page: s.source_page ?? null,
+            db_macros: s.db_macros || null,
+            matched_name: s.matched_name || null,
+            _candidates: s.candidates || [],
+            _foodCache: null,
+          })),
+        });
         const days = (raw.days || []).map(d => ({
           ...d,
           meals: (d.meals || []).map(m => ({
             ...m,
-            foods: (m.foods || []).map(f => ({
-              name: f.name || '',
-              quantity: f.quantity ?? 0,
-              unit: f.unit || 'g',
-              food_id: f.food_id || null,
-              uncertain: !!f.uncertain,
-              notes: f.notes || null,
-              calories: f.calories,
-              protein_g: f.protein_g,
-              carbs_g: f.carbs_g,
-              fat_g: f.fat_g,
-              source_page: f.source_page ?? null,
-              source_chunk: f.source_chunk ?? null,
-              db_macros: f.db_macros || null,
-              _candidates: f.candidates || [],
-              _foodCache: null,
-            })),
+            foods: (m.foods || []).map(hydrateFood),
           })),
         }));
-        return { ...raw, days };
+        const supplements = (raw.supplements || []).map(s => ({
+          name: s.name || '',
+          dose: s.dose || '',
+          timing: s.timing || '',
+          notes: s.notes || '',
+          uncertain: !!s.uncertain,
+          supplement_id: s.supplement_id || null,
+          source_page: s.source_page ?? null,
+          matched_name: s.matched_name || null,
+          _candidates: s.candidates || [],
+        }));
+        return { ...raw, days, supplements };
       },
 
       DAY_LABELS: {
@@ -376,6 +417,10 @@
         food.food_id = candidate.id;
         food.name = candidate.name;
         food._foodCache = candidate;
+        food.db_macros = {
+          kcal: candidate.kcal, protein: candidate.protein,
+          carb: candidate.carb, fat: candidate.fat,
+        };
         food._candidates = [];
         food.uncertain = false;
       },
@@ -386,6 +431,9 @@
           food_id: null, uncertain: true,
           source_page: null, source_chunk: null,
           _candidates: [], _foodCache: null,
+          db_macros: null,
+          subsOpen: false, addSubMode: null,
+          substitutions: [],
         });
       },
 
@@ -393,12 +441,82 @@
         day.meals[meal_idx].foods.splice(food_idx, 1);
       },
 
+      // ─── Sostituzioni ────────────────────────
+      async searchSubInline(sub, query) {
+        if (!query || query.length < 2) return;
+        try {
+          const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(query));
+          if (r.ok) {
+            const data = await r.json();
+            sub._candidates = data.results || [];
+          }
+        } catch (e) { console.error(e); }
+      },
+      pickSub(sub, candidate) {
+        sub.food_id = candidate.id;
+        sub.name = candidate.name;
+        sub._foodCache = candidate;
+        sub.db_macros = {
+          kcal: candidate.kcal, protein: candidate.protein,
+          carb: candidate.carb, fat: candidate.fat,
+        };
+        sub._candidates = [];
+        sub.uncertain = false;
+      },
+      addSubstitution(food, mode) {
+        food.substitutions.push({
+          name: '', quantity: food.quantity || 100, unit: food.unit || 'g',
+          mode: mode || 'ISOKCAL',
+          food_id: null, uncertain: true,
+          notes: null, source_page: null,
+          db_macros: null,
+          _candidates: [], _foodCache: null,
+        });
+        food.subsOpen = true;
+      },
+      removeSubstitution(food, sub_idx) {
+        food.substitutions.splice(sub_idx, 1);
+      },
+      SUB_MODE_LABELS: { ISOKCAL: 'iso-kcal', ISOPROT: 'iso-prot', ISOCARB: 'iso-carb' },
+      SUB_MODE_COLORS: { ISOKCAL: 'var(--al-bronze)', ISOPROT: 'var(--al-aegean)', ISOCARB: 'var(--al-warn)' },
+      subModeLabel(m) { return this.SUB_MODE_LABELS[m] || m; },
+      subModeColor(m) { return this.SUB_MODE_COLORS[m] || 'var(--al-ink-mute)'; },
+
+      // ─── Integratori ─────────────────────────
+      async searchSupplementInline(supp, query) {
+        if (!query || query.length < 2) return;
+        try {
+          const r = await fetch('/api/nutrizione/integratori/?q=' + encodeURIComponent(query));
+          if (r.ok) {
+            const data = await r.json();
+            supp._candidates = data.results || [];
+          }
+        } catch (e) { console.error(e); }
+      },
+      pickSupplement(supp, candidate) {
+        supp.supplement_id = candidate.id;
+        supp.name = candidate.name;
+        supp._candidates = [];
+        supp.uncertain = false;
+      },
+      addSupplement() {
+        if (!this.diet.supplements) this.diet.supplements = [];
+        this.diet.supplements.push({
+          name: '', dose: '', timing: '', notes: '',
+          uncertain: true, supplement_id: null,
+          source_page: null, _candidates: [],
+        });
+      },
+      removeSupplement(idx) {
+        this.diet.supplements.splice(idx, 1);
+      },
+
       macro(food, key) {
         const qty = parseFloat(food.quantity) || 0;
         // Priorità sorgenti macro:
         //   1. _foodCache: utente ha selezionato un candidato dal DB → DB authoritative
-        //   2. Valori AI: l'estrattore ha popolato calories/protein_g/carbs_g/fat_g
-        //   3. db_macros: backend ha auto-matchato l'alimento nel DB → fallback DB
+        //   2. db_macros: backend ha auto-matchato l'alimento nel DB → DB authoritative
+        //   3. Valori AI: fallback se nessun match DB
         const unitFactor = (food.unit === 'g' || food.unit === 'ml') ? 1 : 100;
         const computeFromPer100 = (per100) => {
           if (per100[key] == null) return null;
@@ -409,13 +527,13 @@
           const v = computeFromPer100({ kcal: c.kcal, protein: c.protein, carb: c.carb, fat: c.fat });
           if (v != null) return v;
         }
-        const aiKey = { kcal: 'calories', protein: 'protein_g', carb: 'carbs_g', fat: 'fat_g' }[key];
-        if (aiKey && food[aiKey] != null) {
-          return Math.round(food[aiKey]);
-        }
         if (food.db_macros) {
           const v = computeFromPer100(food.db_macros);
           if (v != null) return v;
+        }
+        const aiKey = { kcal: 'calories', protein: 'protein_g', carb: 'carbs_g', fat: 'fat_g' }[key];
+        if (aiKey && food[aiKey] != null) {
+          return Math.round(food[aiKey]);
         }
         return '—';
       },
@@ -435,6 +553,14 @@
         const n = this.diet.days.length || 1;
         return Math.round(total / n);
       },
+      mealKcal(meal) {
+        let total = 0;
+        for (const food of meal.foods || []) {
+          const v = this.macro(food, 'kcal');
+          if (typeof v === 'number') total += v;
+        }
+        return total;
+      },
       get avgKcal() { return this.macroSum('kcal'); },
       get avgProt() { return this.macroSum('protein'); },
       get avgCarb() { return this.macroSum('carb'); },
@@ -446,7 +572,7 @@
         this.currentStep = 1;
         this.file = null;
         this.jobId = null;
-        this.diet = { days: [] };
+        this.diet = { days: [], supplements: [] };
         this.confidence = { fields_total: 0, fields_uncertain: 0, ratio: 0 };
         this.documentSummary = null;
       },
@@ -473,8 +599,25 @@
                   food_id: f.food_id,
                   uncertain: f.uncertain,
                   notes: f.notes,
+                  substitutions: (f.substitutions || []).map(s => ({
+                    name: s.name,
+                    quantity: s.quantity,
+                    unit: s.unit,
+                    mode: s.mode || 'ISOKCAL',
+                    food_id: s.food_id,
+                    uncertain: s.uncertain,
+                    notes: s.notes,
+                  })),
                 })),
               })),
+            })),
+            supplements: (this.diet.supplements || []).map(s => ({
+              name: s.name,
+              dose: s.dose || null,
+              timing: s.timing || null,
+              notes: s.notes || null,
+              supplement_id: s.supplement_id,
+              uncertain: s.uncertain,
             })),
           },
         };
@@ -505,7 +648,69 @@
         if (this.toastTimer) clearTimeout(this.toastTimer);
         this.toastTimer = setTimeout(() => { this.toast = ''; }, 3000);
       },
+
+      // ─── Chart adapters (per nutrition_wizard_charts mixin) ─────────
+      _findDay(code) {
+        return (this.diet.days || []).find(d => d.day_of_week === code) || null;
+      },
+      _foodMacro(food, key) {
+        const v = this.macro(food, key);
+        return typeof v === 'number' ? v : 0;
+      },
+      dayKcal(code) {
+        const day = this._findDay(code);
+        if (!day) return 0;
+        let total = 0;
+        for (const meal of day.meals || []) {
+          for (const f of meal.foods || []) total += this._foodMacro(f, 'kcal');
+        }
+        return Math.round(total);
+      },
+      dayMacro(code, key) {
+        const day = this._findDay(code);
+        if (!day) return 0;
+        let total = 0;
+        for (const meal of day.meals || []) {
+          for (const f of meal.foods || []) total += this._foodMacro(f, key);
+        }
+        return Math.round(total);
+      },
+      dayMealCount(code) {
+        const day = this._findDay(code);
+        return day ? (day.meals || []).length : 0;
+      },
+      hasAnyDay() { return (this.diet.days || []).some(d => (d.meals || []).length > 0); },
+      hasAnyMealWithItem() {
+        for (const d of this.diet.days || []) {
+          for (const m of d.meals || []) {
+            if ((m.foods || []).length) return true;
+          }
+        }
+        return false;
+      },
+      filledDaysCount() {
+        return (this.diet.days || []).filter(d => (d.meals || []).some(m => (m.foods || []).length)).length;
+      },
+      totalMacro(key) {
+        // media giornaliera per piano settimanale (≥2 giorni); somma per giornaliero
+        const days = this.diet.days || [];
+        if (!days.length) return 0;
+        let sum = 0;
+        for (const d of days) sum += this.dayMacro(d.day_of_week, key);
+        return days.length > 1 ? Math.round(sum / days.length) : Math.round(sum);
+      },
+      sidePanelMacro(key) { return this.totalMacro(key); },
+      weekDayLabel(code) {
+        const d = (this.weekDays || []).find(x => x.code === code);
+        return d ? d.label : code;
+      },
     };
+
+    // Mix-in grafici (donut + histogram). Disponibile solo se script caricato.
+    if (typeof window.nutritionWizardChartsMixin === 'function') {
+      Object.assign(base, window.nutritionWizardChartsMixin());
+    }
+    return base;
   }
 
   // Wrapper retro-compatibile per il template Excel esistente

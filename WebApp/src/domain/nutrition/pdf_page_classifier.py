@@ -17,13 +17,18 @@ POSITIVE_KEYWORDS = {
     # pasti
     'colazione', 'pranzo', 'cena', 'spuntino', 'merenda',
     'breakfast', 'lunch', 'dinner', 'snack',
-    # giorni
+    # giorni (italiani estesi)
     'lunedì', 'lunedi', 'martedì', 'martedi', 'mercoledì', 'mercoledi',
     'giovedì', 'giovedi', 'venerdì', 'venerdi', 'sabato', 'domenica',
+    # giorni (italiani abbreviati)
+    'lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom',
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
     # nutrienti / unità
     'kcal', 'calorie', 'proteine', 'carboidrati', 'grassi', 'lipidi',
     'grammi', 'porzione', 'quantità', 'quantita',
+    # alternative / integratori
+    'alternativa', 'alternative', 'oppure', 'sostituibile', 'sostituire',
+    'integratore', 'integratori', 'integrazione', 'supplementi', 'supplemento',
 }
 
 # Keyword negative — pagine quasi sicuramente irrilevanti.
@@ -114,13 +119,20 @@ def classify_pages(pages: list[PdfPage]) -> list[PageMeta]:
 
 
 def select_relevant(pages: list[PdfPage], metas: list[PageMeta],
-                    min_score: float = 0.15) -> list[tuple[PdfPage, PageMeta]]:
-    """Filtra pagine candidate per estrazione AI."""
+                    min_score: float = 0.08) -> list[tuple[PdfPage, PageMeta]]:
+    """Filtra pagine candidate per estrazione AI.
+
+    min_score volutamente basso: meglio includere pagine borderline (potenziali
+    continuazioni di tabella settimanale) che perdere giorni.
+    """
     out: list[tuple[PdfPage, PageMeta]] = []
     for p, m in zip(pages, metas):
         if m.page_type == 'decorative_or_irrelevant':
             continue
-        if m.relevance_score < min_score and m.page_type != 'likely_diet_page':
+        # Includi instruction_page e unknown sopra soglia bassa
+        if m.relevance_score < min_score and m.page_type not in (
+            'likely_diet_page', 'likely_instruction_page'
+        ):
             continue
         out.append((p, m))
     return out

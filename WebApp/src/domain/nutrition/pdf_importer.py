@@ -101,6 +101,18 @@ def run_pdf_pipeline(file_bytes: bytes, plan_title: str = '',
 
     parts, llm_notes = extract_all_chunks(chunks, progress_cb=_chunk_progress)
 
+    # Step 6b — retry mirato sui giorni mancanti.
+    # Se la prima passata ha rilevato < 7 giorni ma il documento sembra
+    # contenere riferimenti settimanali completi, rilancia l'estrazione sui
+    # chunk che menzionano i giorni mancanti con un prompt più rigido.
+    detected_days = _collect_detected_days(parts)
+    expected = _expected_days_from_pages(relevant)
+    missing = sorted(expected - detected_days)
+    if missing:
+        retry_parts, retry_notes = _retry_missing_days(chunks, missing)
+        parts.extend(retry_parts)
+        llm_notes.extend(retry_notes)
+
     # Step 7 — merge
     _emit(progress_cb, PHASE_FINALIZE, 88)
     document_summary = {
@@ -156,3 +168,154 @@ def _reattach_source_meta(merged: dict, normalized: dict) -> None:
                     food['source_page'] = src['source_page']
                 if not food.get('source_chunk') and src.get('source_chunk'):
                     food['source_chunk'] = src['source_chunk']
+                # Riassocia source meta per substitutions per nome
+                src_subs = {(s.get('name') or '').strip().lower(): s
+                            for s in (src.get('substitutions') or [])}
+                for sub in food.get('substitutions', []) or []:
+                    s_src = src_subs.get((sub.get('name') or '').strip().lower())
+                    if not s_src:
+                        continue
+                    if sub.get('source_page') is None and s_src.get('source_page') is not None:
+                        sub['source_page'] = s_src['source_page']
+                    if not sub.get('source_chunk') and s_src.get('source_chunk'):
+                        sub['source_chunk'] = s_src['source_chunk']
+
+    # Source meta per integratori
+    supp_src_map = {(s.get('name') or '').strip().lower(): s
+                    for s in (merged.get('supplements') or [])}
+    for supp in normalized.get('supplements', []) or []:
+        s_src = supp_src_map.get((supp.get('name') or '').strip().lower())
+        if s_src and supp.get('source_page') is None and s_src.get('source_page') is not None:
+            supp['source_page'] = s_src['source_page']
+
+
+# ─── Day detection robustness helpers ──────────────────────────────────────────
+
+_DAY_TOKEN_MAP = {
+    # estesi
+    'lunedì': 'MONDAY', 'lunedi': 'MONDAY',
+    'martedì': 'TUESDAY', 'martedi': 'TUESDAY',
+    'mercoledì': 'WEDNESDAY', 'mercoledi': 'WEDNESDAY',
+    'giovedì': 'THURSDAY', 'giovedi': 'THURSDAY',
+    'venerdì': 'FRIDAY', 'venerdi': 'FRIDAY',
+    'sabato': 'SATURDAY', 'domenica': 'SUNDAY',
+    # abbreviati
+    'lun': 'MONDAY', 'mar': 'TUESDAY', 'mer': 'WEDNESDAY',
+    'gio': 'THURSDAY', 'ven': 'FRIDAY', 'sab': 'SATURDAY', 'dom': 'SUNDAY',
+    # inglese
+    'monday': 'MONDAY', 'tuesday': 'TUESDAY', 'wednesday': 'WEDNESDAY',
+    'thursday': 'THURSDAY', 'friday': 'FRIDAY', 'saturday': 'SATURDAY', 'sunday': 'SUNDAY',
+}
+
+
+def _collect_detected_days(parts: list[dict]) -> set[str]:
+    found: set[str] = set()
+    for part in parts or []:
+        for day in (part.get('days') or []):
+            dow = day.get('day_of_week')
+            if dow in _DAY_TOKEN_MAP.values():
+                found.add(dow)
+    return found
+
+
+def _expected_days_from_pages(relevant) -> set[str]:
+    """Scansiona il testo grezzo delle pagine rilevanti per giorni menzionati."""
+    import re as _re
+    expected: set[str] = set()
+    pattern = _re.compile(
+        r'\b(' + '|'.join(_re.escape(k) for k in _DAY_TOKEN_MAP) + r')\b\.?',
+        flags=_re.IGNORECASE,
+    )
+    for page, _meta in relevant or []:
+        text = (page.combined_text or '').lower()
+        for m in pattern.findall(text):
+            tok = m.lower().rstrip('.')
+            if tok in _DAY_TOKEN_MAP:
+                expected.add(_DAY_TOKEN_MAP[tok])
+    # Anche pattern "giorno N"
+    gpat = _re.compile(r'giorno\s*([1-7])', flags=_re.IGNORECASE)
+    map_num = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+    for page, _meta in relevant or []:
+        for n in gpat.findall((page.combined_text or '').lower()):
+            try:
+                expected.add(map_num[int(n) - 1])
+            except (ValueError, IndexError):
+                pass
+    return expected
+
+
+def _retry_missing_days(chunks, missing: list[str]) -> tuple[list[dict], list[str]]:
+    """Rilancia estrazione su chunk che menzionano i giorni mancanti.
+
+    Prompt rinforzato: estrai SOLO i giorni richiesti. Riduce drift su pasti
+    già coperti e massimizza recupero giorni saltati.
+    """
+    from langchain_core.messages import SystemMessage, HumanMessage
+    from domain.nutrition.llm_client import build_extraction_llm
+    from domain.nutrition.pdf_extractor import CHUNK_SYSTEM_PROMPT
+    import json as _json
+
+    if not chunks or not missing:
+        return [], []
+
+    # Mappa codice → token cercabili
+    code_to_tokens = {
+        'MONDAY': ['lunedì', 'lunedi', 'lun', 'monday'],
+        'TUESDAY': ['martedì', 'martedi', 'mar', 'tuesday'],
+        'WEDNESDAY': ['mercoledì', 'mercoledi', 'mer', 'wednesday'],
+        'THURSDAY': ['giovedì', 'giovedi', 'gio', 'thursday'],
+        'FRIDAY': ['venerdì', 'venerdi', 'ven', 'friday'],
+        'SATURDAY': ['sabato', 'sab', 'saturday'],
+        'SUNDAY': ['domenica', 'dom', 'sunday'],
+    }
+    tokens_needed = []
+    for code in missing:
+        tokens_needed.extend(code_to_tokens.get(code, []))
+
+    # Seleziona chunk che menzionano almeno uno dei giorni mancanti
+    target_chunks = []
+    for ch in chunks:
+        txt = (ch.text or '').lower()
+        if any(tok in txt for tok in tokens_needed):
+            target_chunks.append(ch)
+    if not target_chunks:
+        return [], [f'retry: nessun chunk menziona giorni mancanti ({",".join(missing)})']
+
+    llm = build_extraction_llm(max_tokens=2000, timeout=30)
+    extra_instr = (
+        f"\n\nFOCUS RETRY: estrai SOLO i seguenti giorni se presenti nel testo: "
+        f"{', '.join(missing)}. Ignora gli altri. Sii esaustivo: non saltare alcun pasto."
+    )
+    out_parts: list[dict] = []
+    notes: list[str] = []
+    for ch in target_chunks:
+        user_msg = (
+            f"Metadata chunk:\n"
+            f"- page_number: {ch.page_number}\n"
+            f"- chunk_id: {ch.chunk_id}\n\n"
+            f"Testo del chunk:\n{ch.text}\n\n"
+            f"Restituisci SOLO JSON conforme allo schema."
+        )
+        try:
+            resp = llm.invoke([
+                SystemMessage(content=CHUNK_SYSTEM_PROMPT + extra_instr),
+                HumanMessage(content=user_msg),
+            ])
+            content = resp.content if isinstance(resp.content, str) else str(resp.content)
+            raw = _json.loads(content)
+        except Exception as e:
+            notes.append(f'retry chunk {ch.chunk_id}: {e}')
+            continue
+        # filtra solo giorni mancanti
+        raw['days'] = [d for d in (raw.get('days') or [])
+                       if d.get('day_of_week') in missing]
+        for d in raw['days']:
+            for meal in d.get('meals') or []:
+                for f in meal.get('foods') or []:
+                    f.setdefault('source_page', ch.page_number)
+                    f.setdefault('source_chunk', ch.chunk_id)
+        if raw.get('days'):
+            out_parts.append(raw)
+    if not out_parts:
+        notes.append(f'retry: nessun giorno recuperato per {",".join(missing)}')
+    return out_parts, notes
