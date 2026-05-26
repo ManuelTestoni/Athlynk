@@ -42,6 +42,35 @@
                 <i class="ph ph-magnifying-glass"></i>
                 <input type="text" x-model="q" placeholder="Cerca scheda..." class="al-input">
             </div>
+            <div class="relative" x-data="{ importOpen: false }">
+              <button type="button" @click="importOpen = !importOpen" @click.away="importOpen = false"
+                      class="al-btn al-btn-ghost">
+                <i class="ph ph-upload-simple text-sm"></i>
+                <span>Importa</span>
+                <i class="ph ph-caret-down text-xs"></i>
+              </button>
+              <div x-show="importOpen" x-transition x-cloak
+                   class="absolute right-0 mt-2 w-56 al-card al-card-flush z-30"
+                   style="background: var(--al-parchment); border: 1px solid var(--al-rule); box-shadow: var(--al-shadow-2);">
+                <a href="{% url 'allenamenti_import' %}"
+                   class="flex items-center gap-3 px-4 py-3 hover:bg-marble-warm"
+                   style="border-bottom: 1px solid var(--al-rule);">
+                  <i class="ph ph-file-xls text-aegean text-lg"></i>
+                  <div>
+                    <p class="font-medium text-sm">Da Excel</p>
+                    <p class="al-tag" style="font-size: 9px;">.xlsx / .xls</p>
+                  </div>
+                </a>
+                <a href="{% url 'allenamenti_import_pdf' %}"
+                   class="flex items-center gap-3 px-4 py-3 hover:bg-marble-warm">
+                  <i class="ph ph-file-pdf text-bronze text-lg"></i>
+                  <div>
+                    <p class="font-medium text-sm">Da PDF</p>
+                    <p class="al-tag" style="font-size: 9px;">scansioni + OCR</p>
+                  </div>
+                </a>
+              </div>
+            </div>
             <a href="{% url 'allenamenti_wizard' %}" class="al-btn al-btn-bronze">
                 <i class="ph ph-plus text-sm"></i>
                 <span>Nuova scheda</span>

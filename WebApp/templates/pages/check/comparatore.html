@@ -113,6 +113,29 @@
         </div>
     </div>
 
+    <!-- CTA Genera confronto -->
+    <div x-show="selected.length === 2" x-cloak x-transition.opacity
+         class="al-card mb-6"
+         style="background: linear-gradient(180deg, var(--al-marble-w) 0%, var(--al-parchment) 100%); border-color: var(--al-bronze);">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start gap-4">
+                <div class="hidden sm:flex items-center justify-center" style="width:46px;height:46px;background:var(--al-bronze);border-radius:var(--al-r-pill);box-shadow:var(--al-shadow-glow-bronze);">
+                    <i class="ph-bold ph-sliders-horizontal text-parchment text-xl" style="color:var(--al-parchment);"></i>
+                </div>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-bronze);">Prossimo passo</p>
+                    <h3 class="al-h-3 mt-1">Genera il <span class="al-display-i">confronto</span></h3>
+                    <p class="al-body mt-1" style="color: var(--al-ink-mute);">Slider interattivo prima/dopo, con esportazione in alta qualità.</p>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button type="button" @click="openComparison()" class="al-btn al-btn-bronze">
+                    <i class="ph-bold ph-arrows-horizontal text-sm"></i><span>Apri comparatore</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Galleria -->
     <div class="al-card">
         <div class="flex items-center justify-between mb-5">
@@ -151,7 +174,236 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Modal Comparatore -->
+    <div x-show="modal.open" x-cloak
+         class="al-modal-backdrop"
+         style="background: rgba(20,17,13,0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);"
+         @click.self="closeComparison()"
+         @keydown.escape.window="closeComparison()">
+        <div class="al-modal-panel al-modal-xl" style="max-width: min(1080px, calc(100vw - 24px));">
+            <!-- Head -->
+            <div class="al-modal-head flex items-center justify-between">
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-bronze);">Athlynk &middot; Comparatore</p>
+                    <h2 class="al-h-3 mt-1">
+                        <span x-show="modal.phase === 'loading'">Preparazione confronto</span>
+                        <span x-show="modal.phase === 'slider'">Prima &nbsp;<span class="al-display-i" style="color:var(--al-bronze);">&amp;</span>&nbsp; Dopo</span>
+                    </h2>
+                </div>
+                <button type="button" @click="closeComparison()" class="al-btn al-btn-icon" aria-label="Chiudi">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="al-modal-body" style="padding: var(--al-s-5);">
+
+                <!-- Phase: loading -->
+                <template x-if="modal.phase === 'loading'">
+                    <div class="cmp-loading">
+                        <div class="cmp-shimmer-frame">
+                            <div class="cmp-shimmer"></div>
+                            <div class="cmp-loading-rule"></div>
+                            <div class="cmp-loading-mark">
+                                <span class="al-display-i" style="font-family: var(--al-display); font-size: 28px; letter-spacing: 0.18em;">ATHLYNK</span>
+                            </div>
+                        </div>
+                        <p class="al-tag mt-5" style="color: var(--al-ink-mute); letter-spacing: 0.24em;">
+                            <span class="cmp-dot"></span> Caricamento immagini in alta risoluzione&hellip;
+                        </p>
+                    </div>
+                </template>
+
+                <!-- Phase: slider -->
+                <template x-if="modal.phase === 'slider'">
+                    <div>
+                        <!-- Slider stage -->
+                        <div class="cmp-stage"
+                             x-ref="stage"
+                             @mousemove="hoverMove($event)"
+                             @touchstart.passive="touchUpdate($event)"
+                             @touchmove.passive="touchUpdate($event)">
+                            <!-- Before (base) -->
+                            <img :src="selected[0] && selected[0].url" class="cmp-img cmp-img-before" draggable="false" alt="Prima">
+                            <!-- After (clipped) -->
+                            <div class="cmp-after-wrap" :style="`clip-path: inset(0 0 0 ${sliderPos}%);`">
+                                <img :src="selected[1] && selected[1].url" class="cmp-img cmp-img-after" draggable="false" alt="Dopo">
+                            </div>
+
+                            <!-- Side labels -->
+                            <span class="cmp-label cmp-label-l" x-text="selected[0] ? selected[0].date : ''"></span>
+                            <span class="cmp-label cmp-label-r" x-text="selected[1] ? selected[1].date : ''"></span>
+                            <span class="cmp-corner cmp-corner-l">Prima</span>
+                            <span class="cmp-corner cmp-corner-r">Dopo</span>
+
+                            <!-- Drag handle -->
+                            <div class="cmp-handle" :style="`left: ${sliderPos}%;`">
+                                <div class="cmp-handle-line"></div>
+                                <div class="cmp-handle-knob">
+                                    <i class="ph-bold ph-caret-left"></i>
+                                    <i class="ph-bold ph-caret-right"></i>
+                                </div>
+                            </div>
+
+                            <!-- Subtle in-stage watermark -->
+                            <div class="cmp-stage-watermark">ATHLYNK</div>
+                        </div>
+
+                        <!-- Position bar -->
+                        <div class="cmp-track-wrap mt-4">
+                            <div class="cmp-track">
+                                <div class="cmp-track-fill" :style="`width: ${sliderPos}%;`"></div>
+                            </div>
+                            <input type="range" min="0" max="100" step="0.1" x-model.number="sliderPos" class="cmp-range" aria-label="Posizione comparatore">
+                        </div>
+
+                        <!-- Meta + actions -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-5">
+                            <div class="flex items-center gap-3 text-ink-mute">
+                                <span class="al-tag font-mono"><span x-text="selected[0] && selected[0].photo_type"></span></span>
+                                <i class="ph ph-arrow-right text-xs"></i>
+                                <span class="al-tag font-mono"><span x-text="selected[1] && selected[1].photo_type"></span></span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="button" @click="sliderPos = 50" class="al-btn al-btn-ghost">
+                                    <i class="ph ph-arrows-in-line-horizontal text-sm"></i><span>Centra</span>
+                                </button>
+                                <button type="button" @click="exportComparison()" :disabled="exporting" class="al-btn al-btn-bronze">
+                                    <template x-if="!exporting">
+                                        <span class="flex items-center gap-2"><i class="ph-bold ph-download-simple text-sm"></i><span>Esporta confronto</span></span>
+                                    </template>
+                                    <template x-if="exporting">
+                                        <span class="flex items-center gap-2"><span class="cmp-spinner"></span><span>Generazione&hellip;</span></span>
+                                    </template>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+/* ---------- Comparatore: loading ---------- */
+.cmp-loading { display: flex; flex-direction: column; align-items: center; padding: var(--al-s-6) 0; }
+.cmp-shimmer-frame {
+    position: relative; width: 100%; max-width: 520px; aspect-ratio: 3/2;
+    background: var(--al-marble); border: 1px solid var(--al-rule-strong); border-radius: var(--al-r-md);
+    overflow: hidden;
+}
+.cmp-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(110deg,
+        transparent 0%,
+        rgba(244,239,228,0) 30%,
+        rgba(244,239,228,0.85) 50%,
+        rgba(244,239,228,0) 70%,
+        transparent 100%);
+    transform: translateX(-100%);
+    animation: cmp-shimmer 1.6s var(--al-ease) infinite;
+}
+@keyframes cmp-shimmer { to { transform: translateX(100%); } }
+.cmp-loading-rule {
+    position: absolute; left: 8%; right: 8%; top: 50%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--al-bronze), transparent);
+    opacity: 0.55;
+}
+.cmp-loading-mark {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--al-ink); opacity: 0.18; user-select: none; pointer-events: none;
+}
+.cmp-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 999px;
+    background: var(--al-bronze); margin-right: 8px; animation: cmp-pulse 1.2s ease-in-out infinite;
+}
+@keyframes cmp-pulse { 0%,100% { opacity: 0.35; transform: scale(0.9);} 50% { opacity: 1; transform: scale(1.15);} }
+
+/* ---------- Comparatore: stage ---------- */
+.cmp-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    max-height: 70vh;
+    margin: 0 auto;
+    background: var(--al-ink);
+    border-radius: var(--al-r-md);
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+    cursor: ew-resize;
+    box-shadow: var(--al-shadow-3);
+}
+@media (min-width: 768px) {
+    .cmp-stage { aspect-ratio: 4 / 5; max-height: 72vh; }
+}
+.cmp-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--al-ink); pointer-events: none; }
+.cmp-after-wrap { position: absolute; inset: 0; }
+.cmp-label {
+    position: absolute; bottom: 14px;
+    font-family: var(--al-mono); font-size: 10.5px; letter-spacing: 0.16em;
+    background: rgba(20,17,13,0.78); color: var(--al-parchment);
+    padding: 4px 10px; border-radius: var(--al-r-xs); pointer-events: none;
+}
+.cmp-label-l { left: 14px; }
+.cmp-label-r { right: 14px; }
+.cmp-corner {
+    position: absolute; top: 14px;
+    font-family: var(--al-display); font-style: italic;
+    font-size: 13px; letter-spacing: 0.06em;
+    color: var(--al-parchment); padding: 4px 10px;
+    background: rgba(20,17,13,0.45);
+    border-radius: var(--al-r-xs); pointer-events: none;
+}
+.cmp-corner-l { left: 14px; }
+.cmp-corner-r { right: 14px; }
+.cmp-stage-watermark {
+    position: absolute; right: 14px; bottom: 38px;
+    font-family: var(--al-display); letter-spacing: 0.32em;
+    font-size: 11px; color: var(--al-parchment); opacity: 0.42;
+    pointer-events: none;
+}
+
+/* Handle */
+.cmp-handle { position: absolute; top: 0; bottom: 0; width: 2px; transform: translateX(-1px); pointer-events: none; z-index: 4; }
+.cmp-handle-line {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(200,167,116,0.0) 0%, var(--al-bronze-l) 16%, var(--al-bronze-l) 84%, rgba(200,167,116,0.0) 100%);
+    box-shadow: 0 0 0 1px rgba(20,17,13,0.35), 0 0 14px rgba(200,167,116,0.45);
+}
+.cmp-handle-knob {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 46px; height: 46px; border-radius: 999px;
+    background: radial-gradient(circle at 30% 30%, var(--al-bronze-l), var(--al-bronze) 70%);
+    border: 1.5px solid var(--al-parchment);
+    box-shadow: 0 8px 22px rgba(20,17,13,0.45), inset 0 0 0 4px rgba(20,17,13,0.06);
+    display: flex; align-items: center; justify-content: center; gap: 1px;
+    color: var(--al-parchment);
+    font-size: 13px;
+}
+
+/* Track */
+.cmp-track-wrap { position: relative; height: 22px; }
+.cmp-track {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    height: 2px; background: var(--al-rule-strong); border-radius: 999px; overflow: hidden;
+}
+.cmp-track-fill { height: 100%; background: var(--al-bronze); transition: width 60ms linear; }
+.cmp-range {
+    position: absolute; inset: 0; width: 100%; opacity: 0; cursor: ew-resize; margin: 0;
+}
+
+.cmp-spinner {
+    width: 14px; height: 14px; border-radius: 999px;
+    border: 2px solid rgba(244,239,228,0.35);
+    border-top-color: var(--al-parchment);
+    animation: cmp-spin 0.7s linear infinite;
+    display: inline-block;
+}
+@keyframes cmp-spin { to { transform: rotate(360deg); } }
+</style>
 
 <script>
 const _photos = {{ photos_json|safe }};
@@ -160,6 +412,10 @@ function comparatore() {
     return {
         photos: _photos,
         selected: [],
+        modal: { open: false, phase: 'loading' },
+        sliderPos: 50,
+        exporting: false,
+        _loadedImgs: { before: null, after: null },
 
         toggle(photo) {
             if (this.isSelected(photo)) {
@@ -171,6 +427,230 @@ function comparatore() {
 
         isSelected(photo) {
             return this.selected.some(p => p.id === photo.id);
+        },
+
+        // ---------- Modal lifecycle ----------
+        async openComparison() {
+            if (this.selected.length !== 2) return;
+            this.modal.open = true;
+            this.modal.phase = 'loading';
+            this.sliderPos = 50;
+            document.body.style.overflow = 'hidden';
+            const minDelay = new Promise(r => setTimeout(r, 650));
+            try {
+                const [imgA, imgB] = await Promise.all([
+                    this._preload(this.selected[0].url),
+                    this._preload(this.selected[1].url),
+                ]);
+                this._loadedImgs.before = imgA;
+                this._loadedImgs.after = imgB;
+                await minDelay;
+                this.modal.phase = 'slider';
+            } catch (e) {
+                console.error('[comparatore] preload failed', e);
+                alert('Impossibile caricare le foto. Riprova.');
+                this.closeComparison();
+            }
+        },
+
+        closeComparison() {
+            this.modal.open = false;
+            this.modal.phase = 'loading';
+            document.body.style.overflow = '';
+        },
+
+        _preload(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = url;
+            });
+        },
+
+        // ---------- Pointer interaction ----------
+        hoverMove(ev) { this._updateFromEvent(ev); },
+        touchUpdate(ev) { this._updateFromEvent(ev); },
+        _updateFromEvent(ev) {
+            const stage = this.$refs.stage;
+            if (!stage) return;
+            const rect = stage.getBoundingClientRect();
+            const point = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+            const x = point.clientX - rect.left;
+            const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+            this.sliderPos = pct;
+        },
+
+        // ---------- Export (side-by-side, watermarked) ----------
+        async exportComparison() {
+            if (this.exporting) return;
+            this.exporting = true;
+            try {
+                const before = this._loadedImgs.before || await this._preload(this.selected[0].url);
+                const after  = this._loadedImgs.after  || await this._preload(this.selected[1].url);
+
+                // Composition: two panels side by side, fixed 3:4 each → 6:4 total.
+                const PANEL_W = 1200, PANEL_H = 1600;
+                const GUTTER = 0; // hairline divider via canvas stroke
+                const CANVAS_W = PANEL_W * 2 + GUTTER;
+                const CANVAS_H = PANEL_H;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = CANVAS_W;
+                canvas.height = CANVAS_H;
+                const ctx = canvas.getContext('2d');
+
+                // Parchment background (visible only on letterboxed edges).
+                ctx.fillStyle = '#14110d';
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+                // Helper: draw image with object-fit: cover semantics into a rect.
+                const drawCover = (img, dx, dy, dw, dh) => {
+                    const ir = img.naturalWidth / img.naturalHeight;
+                    const tr = dw / dh;
+                    let sx, sy, sw, sh;
+                    if (ir > tr) {
+                        sh = img.naturalHeight;
+                        sw = sh * tr;
+                        sx = (img.naturalWidth - sw) / 2;
+                        sy = 0;
+                    } else {
+                        sw = img.naturalWidth;
+                        sh = sw / tr;
+                        sx = 0;
+                        sy = (img.naturalHeight - sh) / 2;
+                    }
+                    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+                };
+
+                drawCover(before, 0, 0, PANEL_W, PANEL_H);
+                drawCover(after,  PANEL_W + GUTTER, 0, PANEL_W, PANEL_H);
+
+                // Centre divider — bronze hairline
+                ctx.fillStyle = 'rgba(200,167,116,0.85)';
+                ctx.fillRect(PANEL_W - 1, 0, 2, PANEL_H);
+
+                // ----- Per-panel labels -----
+                this._drawPanelLabels(ctx, 0, 0, PANEL_W, PANEL_H, 'PRIMA', this.selected[0].date, this.selected[0].photo_type);
+                this._drawPanelLabels(ctx, PANEL_W + GUTTER, 0, PANEL_W, PANEL_H, 'DOPO', this.selected[1].date, this.selected[1].photo_type);
+
+                // ----- Watermark (non-removable) -----
+                this._drawWatermark(ctx, CANVAS_W, CANVAS_H);
+
+                // Trigger download
+                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const dA = (this.selected[0].date || 'prima').replace(/[^\w-]/g, '_');
+                const dB = (this.selected[1].date || 'dopo').replace(/[^\w-]/g, '_');
+                a.href = url;
+                a.download = `athlynk_confronto_${dA}_vs_${dB}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+            } catch (err) {
+                console.error('[comparatore] export failed', err);
+                alert('Export non riuscito. Le foto potrebbero non essere accessibili (CORS).');
+            } finally {
+                this.exporting = false;
+            }
+        },
+
+        _drawPanelLabels(ctx, px, py, pw, ph, sideText, dateText, typeText) {
+            // top-left "PRIMA / DOPO" italic display
+            ctx.save();
+            ctx.fillStyle = 'rgba(20,17,13,0.55)';
+            ctx.fillRect(px + 28, py + 28, 180, 52);
+            ctx.fillStyle = '#f4efe4';
+            ctx.font = 'italic 30px "Bodoni Moda", Didot, Georgia, serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(sideText, px + 48, py + 28 + 26);
+
+            // bottom-left date (mono)
+            const dateStr = dateText || '';
+            ctx.font = '20px "JetBrains Mono", ui-monospace, Menlo, monospace';
+            const dW = ctx.measureText(dateStr).width + 24;
+            ctx.fillStyle = 'rgba(20,17,13,0.78)';
+            ctx.fillRect(px + 28, py + ph - 28 - 40, dW, 40);
+            ctx.fillStyle = '#f4efe4';
+            ctx.fillText(dateStr, px + 28 + 12, py + ph - 28 - 20);
+
+            // bottom-right photo type
+            if (typeText) {
+                ctx.font = '18px Inter, -apple-system, system-ui, sans-serif';
+                const tW = ctx.measureText(typeText).width + 24;
+                ctx.fillStyle = 'rgba(20,17,13,0.78)';
+                ctx.fillRect(px + pw - 28 - tW, py + ph - 28 - 40, tW, 40);
+                ctx.fillStyle = '#f4efe4';
+                ctx.fillText(typeText, px + pw - 28 - tW + 12, py + ph - 28 - 20);
+            }
+            ctx.restore();
+        },
+
+        _drawWatermark(ctx, W, H) {
+            ctx.save();
+
+            // 1) Diagonal tiled wordmark — low alpha, non-removable
+            ctx.save();
+            ctx.translate(W / 2, H / 2);
+            ctx.rotate(-Math.PI / 6);
+            ctx.translate(-W / 2, -H / 2);
+            ctx.font = 'italic 64px "Bodoni Moda", Didot, Georgia, serif';
+            ctx.fillStyle = 'rgba(244,239,228,0.06)';
+            ctx.textBaseline = 'middle';
+            const text = 'ATHLYNK · ATHLYNK · ATHLYNK · ';
+            const lineH = 220;
+            const textW = ctx.measureText(text).width;
+            for (let y = -H; y < H * 2; y += lineH) {
+                for (let x = -W; x < W * 2; x += textW) {
+                    ctx.fillText(text, x, y);
+                }
+            }
+            ctx.restore();
+
+            // 2) Centred discreet wordmark + rule
+            ctx.fillStyle = 'rgba(244,239,228,0.12)';
+            ctx.fillRect(W / 2 - 220, H / 2 - 1, 440, 2);
+            ctx.font = '600 30px "Bodoni Moda", Didot, Georgia, serif';
+            ctx.fillStyle = 'rgba(244,239,228,0.18)';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.fillText('A T H L Y N K', W / 2, H / 2 - 28);
+
+            // 3) Bottom strip — solid attribution (clearly readable)
+            const STRIP_H = 86;
+            const grad = ctx.createLinearGradient(0, H - STRIP_H, 0, H);
+            grad.addColorStop(0, 'rgba(20,17,13,0)');
+            grad.addColorStop(1, 'rgba(20,17,13,0.78)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, H - STRIP_H, W, STRIP_H);
+
+            // Wordmark left
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.font = '600 26px "Bodoni Moda", Didot, Georgia, serif';
+            ctx.fillStyle = '#f4efe4';
+            ctx.fillText('ATHLYNK', 40, H - STRIP_H / 2 + 2);
+
+            // Bronze hairline
+            ctx.fillStyle = '#c8a774';
+            ctx.fillRect(170, H - STRIP_H / 2 - 1, 28, 2);
+
+            // Tagline
+            ctx.font = 'italic 18px "Bodoni Moda", Didot, Georgia, serif';
+            ctx.fillStyle = 'rgba(244,239,228,0.82)';
+            ctx.fillText('Progress comparison', 210, H - STRIP_H / 2 + 2);
+
+            // Right: timestamp
+            ctx.textAlign = 'right';
+            ctx.font = '16px "JetBrains Mono", ui-monospace, Menlo, monospace';
+            ctx.fillStyle = 'rgba(244,239,228,0.72)';
+            const stamp = new Date().toISOString().slice(0, 10);
+            ctx.fillText(stamp, W - 40, H - STRIP_H / 2 + 2);
+
+            ctx.restore();
         }
     };
 }

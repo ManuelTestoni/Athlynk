@@ -344,6 +344,280 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-weight: 700;
 }
 
+/* Import-variant card: subtle diagonal accent + pill at top-right. */
+.wb-type-card--import {
+  background:
+    linear-gradient(135deg, rgba(244,239,228,0) 60%, rgba(138,90,43,0.06) 100%),
+    var(--al-parchment);
+  overflow: hidden;
+}
+.wb-type-card--import::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle at 100% 0%, rgba(138,90,43,0.10) 0%, transparent 60%);
+  pointer-events: none;
+}
+.wb-type-card--import .wb-type-card-icon {
+  background: var(--al-marble-warm);
+  font-size: 28px;
+}
+.wb-type-card--import.is-selected {
+  background:
+    linear-gradient(135deg, rgba(244,239,228,0) 50%, rgba(138,90,43,0.10) 100%),
+    var(--al-parchment);
+}
+.wb-type-card-pill {
+  position: absolute;
+  top: 14px; right: 14px;
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+/* Type-picker stage: cross-fade between create/import panes without layout
+   shifting (eliminates the "glitch" when switching tabs).
+   Both panes occupy the same grid cell; only one is visible at a time. */
+.wb-tp-stage {
+  display: grid;
+  grid-template-areas: "stack";
+  position: relative;
+}
+.wb-tp-pane {
+  grid-area: stack;
+  transition: opacity 200ms ease, transform 220ms var(--al-ease-emp);
+  will-change: opacity, transform;
+}
+.wb-tp-pane--inactive {
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  visibility: hidden;
+}
+.wb-tp-pane--active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+/* Plan-kind toggle (WEEKLY vs PROGRAM) on import upload form. */
+.wb-kind-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.wb-kind-toggle-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all 180ms var(--al-ease-emp);
+  position: relative;
+}
+.wb-kind-toggle-opt:hover {
+  border-color: var(--al-bronze-soft);
+  transform: translateY(-1px);
+}
+.wb-kind-toggle-opt.is-active {
+  border-color: var(--al-bronze);
+  background: var(--al-marble-warm);
+  box-shadow: 0 0 0 2px rgba(138,90,43,0.12);
+}
+.wb-kind-toggle-icon {
+  font-size: 22px;
+  color: var(--al-bronze);
+  flex-shrink: 0;
+}
+.wb-kind-toggle-body { flex: 1; min-width: 0; }
+.wb-kind-toggle-title {
+  font-family: var(--al-display);
+  font-size: 15px;
+  color: var(--al-ink);
+  margin: 0;
+}
+.wb-kind-toggle-desc {
+  font-size: 11px;
+  color: var(--al-ink-mute);
+  margin: 2px 0 0;
+}
+.wb-kind-toggle-check {
+  color: var(--al-bronze);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* --------- Workout import: exercise row layout ------------------- */
+.wb-ex-row {
+  border-bottom: 1px solid var(--al-rule);
+  padding: 14px 18px;
+  transition: background-color 200ms ease;
+}
+.wb-ex-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.wb-ex-search {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+.wb-ex-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  transition: all 180ms ease;
+}
+.wb-ex-search-input:focus-within {
+  border-color: var(--al-bronze);
+  box-shadow: 0 0 0 2px rgba(138,90,43,0.10);
+}
+.wb-ex-search-input > input[type=text] {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 14px;
+  min-width: 120px;
+}
+.wb-ex-db-tag {
+  background: var(--al-marble-warm);
+  color: var(--al-bronze);
+  border: 1px solid var(--al-bronze-soft);
+  padding: 1px 7px;
+  font-size: 9px;
+}
+.wb-ex-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  background: var(--al-parchment);
+  color: var(--al-bronze);
+  border: 1px dashed var(--al-bronze-soft);
+  border-radius: var(--al-r-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 160ms ease;
+}
+.wb-ex-create-btn:hover {
+  background: var(--al-marble-warm);
+  border-style: solid;
+}
+.wb-ex-create-btn i { font-size: 14px; }
+
+/* Teleported dropdown anchored via fixed position. z-index above modals. */
+.wb-ex-dropdown {
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule-strong);
+  border-radius: var(--al-r-sm);
+  box-shadow: var(--al-shadow-3);
+  overflow-y: auto;
+  animation: wb-dropdown-in 160ms var(--al-ease-emp);
+}
+@keyframes wb-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.wb-ex-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--al-rule);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.wb-ex-dropdown-item:hover { background: var(--al-marble-warm); }
+.wb-ex-dropdown-item:last-of-type { border-bottom: 0; }
+.wb-ex-dropdown-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(138,90,43,0.06) 0%, rgba(138,90,43,0.02) 100%);
+  border: 0;
+  border-top: 1px dashed var(--al-rule);
+  color: var(--al-bronze);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.wb-ex-dropdown-create:hover {
+  background: var(--al-marble-warm);
+}
+.wb-ex-dropdown-create i { font-size: 16px; }
+
+/* Parameter grid: labeled inputs (Serie, Reps, Carico, RPE, RIR, etc.) */
+.wb-ex-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  gap: 10px;
+}
+.wb-ex-param {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.wb-ex-param--reps  { grid-column: span 1; }
+.wb-ex-param--notes { grid-column: 1 / -1; }
+.wb-ex-param-label {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+  cursor: help;
+}
+.wb-ex-param-input {
+  padding: 6px 8px !important;
+  font-size: 13px !important;
+  width: 100%;
+}
+.wb-ex-param-input--text {
+  text-align: left !important;
+  font-family: var(--al-body) !important;
+}
+.wb-ex-matched-info {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--al-ink-soft);
+  padding: 6px 10px;
+  background: var(--al-marble);
+  border-radius: var(--al-r-sm);
+  border: 1px solid var(--al-rule);
+}
+.wb-ex-matched-info strong { color: var(--al-ink); }
+
 /* --------- Sport combobox --------------------------------------- */
 .wb-combobox { position: relative; }
 .wb-combobox-list {

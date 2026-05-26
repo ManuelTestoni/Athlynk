@@ -3,115 +3,321 @@
 {% block title %}Andamento{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto" x-data="progressCharts()" x-init="init()">
+<style>
+  /* ---------- Progress charts — local polish ---------- */
+  .pc-card{
+    position:relative;
+    overflow:hidden;
+    transition: transform .35s var(--al-ease), box-shadow .35s var(--al-ease);
+  }
+  .pc-card:hover{
+    transform: translateY(-2px);
+    box-shadow: var(--al-shadow-2);
+  }
+  .pc-card::after{
+    content:"";
+    position:absolute; inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(120% 60% at 100% 0%, rgba(138,106,58,0.06), transparent 60%),
+      radial-gradient(120% 60% at 0% 100%, rgba(28,74,82,0.04), transparent 55%);
+  }
+  .pc-card > *{ position:relative; z-index:1; }
 
-    <!-- Breadcrumb -->
-    <nav class="al-tag flex items-center gap-2 mb-6">
-        {% if is_coach_view %}
-        <a href="{% url 'check_client_history' target_client.id %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-clipboard-text text-xs"></i><span>Storico check</span>
-        </a>
-        {% else %}
-        <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-clipboard-text text-xs"></i><span>I miei check</span>
-        </a>
-        {% endif %}
-        <i class="ph ph-caret-right text-[9px]"></i>
-        <span class="text-ink">Andamento</span>
-    </nav>
+  .pc-num{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    color: var(--al-ink-mute);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .pc-num::before{
+    content:"";
+    width:18px; height:1px;
+    background: var(--al-bronze);
+  }
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-        <div>
-            <p class="al-eyebrow mb-3">{% if is_coach_view %}Studio &middot; Andamento{% else %}Atleta &middot; Andamento{% endif %}</p>
-            <h1 class="al-h-1">{% if is_coach_view %}{{ target_client.first_name }} <span class="al-display-i">{{ target_client.last_name }}</span>{% else %}Il mio <span class="al-display-i">andamento</span>{% endif %}</h1>
-            <p class="al-body mt-2"><span class="font-mono text-ink">{{ total_checks }}</span> check registrati.</p>
-            <div class="al-rule-bronze mt-5"></div>
-        </div>
-        {% if is_coach_view %}
-        <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
-            <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
-        </a>
-        {% else %}
-        <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
-            <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
-        </a>
-        {% endif %}
-    </div>
+  .pc-stat{
+    display:flex; align-items:baseline; gap:.5rem;
+    font-family: var(--al-display);
+    font-weight: 500;
+  }
+  .pc-stat-value{
+    font-size: 1.85rem;
+    line-height: 1;
+    color: var(--al-ink);
+    font-style: italic;
+  }
+  .pc-stat-unit{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing:.12em;
+    color: var(--al-ink-mute);
+    text-transform: uppercase;
+  }
+  .pc-delta{
+    font-family: var(--al-mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--al-r-pill);
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .pc-delta-up   { background: rgba(74,107,58,0.12);  color: var(--al-success); }
+  .pc-delta-down { background: rgba(28,74,82,0.10);   color: var(--al-aegean);  }
+  .pc-delta-flat { background: rgba(91,85,74,0.10);   color: var(--al-ink-mute); }
 
-    {% if total_checks < 2 %}
-    <div class="al-card al-card-warm">
-        <div class="al-empty" style="padding: 60px 32px;">
-            <i class="ph ph-chart-line al-empty-icon"></i>
-            <h3>Dati insufficienti</h3>
-            <p>Servono almeno 2 check per visualizzare i grafici di andamento.</p>
-        </div>
-    </div>
+  .pc-chart-wrap{
+    position: relative;
+    height: 240px;
+  }
+  @media (max-width: 1023px){
+    .pc-chart-wrap{ height: 280px; }
+  }
+
+  /* Skeleton shimmer */
+  .pc-skel{
+    position:absolute; inset:0;
+    display:flex; align-items:flex-end; gap:8px;
+    padding: 12px 4px 6px;
+    transition: opacity .45s var(--al-ease);
+  }
+  .pc-skel.is-hidden{ opacity:0; pointer-events:none; }
+  .pc-skel span{
+    flex:1;
+    background: linear-gradient(180deg,
+      rgba(138,106,58,0.10) 0%,
+      rgba(28,74,82,0.06) 100%);
+    border-radius: 2px;
+    transform-origin: bottom;
+    animation: pc-pulse 1.4s var(--al-ease) infinite;
+  }
+  .pc-skel span:nth-child(1){ animation-delay: 0s;    height: 38%; }
+  .pc-skel span:nth-child(2){ animation-delay: .08s; height: 62%; }
+  .pc-skel span:nth-child(3){ animation-delay: .16s; height: 48%; }
+  .pc-skel span:nth-child(4){ animation-delay: .24s; height: 78%; }
+  .pc-skel span:nth-child(5){ animation-delay: .32s; height: 56%; }
+  .pc-skel span:nth-child(6){ animation-delay: .40s; height: 88%; }
+  .pc-skel span:nth-child(7){ animation-delay: .48s; height: 70%; }
+  .pc-skel span:nth-child(8){ animation-delay: .56s; height: 94%; }
+  @keyframes pc-pulse{
+    0%, 100%{ opacity:.45; transform: scaleY(.96); }
+    50%     { opacity:.95; transform: scaleY(1.02); }
+  }
+
+  .pc-canvas{
+    opacity: 0;
+    transition: opacity .55s var(--al-ease);
+  }
+  .pc-canvas.is-ready{ opacity: 1; }
+
+  .pc-mini-select{
+    font-family: var(--al-mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    padding: 4px 26px 4px 10px;
+    border-radius: var(--al-r-pill);
+    border: 1px solid var(--al-rule);
+    background: var(--al-parchment);
+    color: var(--al-ink);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a6a3a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .pc-mini-select:focus{
+    outline:none;
+    border-color: var(--al-bronze);
+    box-shadow: var(--al-shadow-glow-bronze);
+  }
+
+  .pc-divider{
+    height:1px;
+    background: linear-gradient(90deg, transparent, var(--al-rule), transparent);
+    margin: 14px 0 16px;
+  }
+
+  /* Fade-in from below for whole grid items */
+  .pc-rise{
+    opacity: 0;
+    transform: translateY(14px);
+    animation: pc-rise .7s var(--al-ease) forwards;
+  }
+  @keyframes pc-rise{
+    to { opacity:1; transform: translateY(0); }
+  }
+  .pc-rise[data-d="1"]{ animation-delay: .08s; }
+  .pc-rise[data-d="2"]{ animation-delay: .18s; }
+  .pc-rise[data-d="3"]{ animation-delay: .28s; }
+</style>
+
+<div class="max-w-7xl mx-auto" x-data="progressCharts()" x-init="init()">
+
+  <!-- Breadcrumb -->
+  <nav class="al-tag flex items-center gap-2 mb-6">
+    {% if is_coach_view %}
+    <a href="{% url 'check_client_history' target_client.id %}" class="al-link al-link-quiet flex items-center gap-1">
+      <i class="ph ph-clipboard-text text-xs"></i><span>Storico check</span>
+    </a>
     {% else %}
+    <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+      <i class="ph ph-clipboard-text text-xs"></i><span>I miei check</span>
+    </a>
+    {% endif %}
+    <i class="ph ph-caret-right text-[9px]"></i>
+    <span class="text-ink">Andamento</span>
+  </nav>
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+    <div>
+      <p class="al-eyebrow mb-3">{% if is_coach_view %}Studio &middot; Andamento{% else %}Atleta &middot; Andamento{% endif %}</p>
+      <h1 class="al-h-1">{% if is_coach_view %}{{ target_client.first_name }} <span class="al-display-i">{{ target_client.last_name }}</span>{% else %}Il mio <span class="al-display-i">andamento</span>{% endif %}</h1>
+      <p class="al-body mt-2"><span class="font-mono text-ink">{{ total_checks }}</span> check registrati.</p>
+      <div class="al-rule-bronze mt-5"></div>
+    </div>
+    {% if is_coach_view %}
+    <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
+      <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
+    </a>
+    {% else %}
+    <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
+      <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
+    </a>
+    {% endif %}
+  </div>
+
+  {% if total_checks < 2 %}
+  <div class="al-card al-card-warm">
+    <div class="al-empty" style="padding: 60px 32px;">
+      <i class="ph ph-chart-line al-empty-icon"></i>
+      <h3>Dati insufficienti</h3>
+      <p>Servono almeno 2 check per visualizzare i grafici di andamento.</p>
+    </div>
+  </div>
+  {% else %}
+
+  <!-- Three charts — single row -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
     <!-- Peso -->
-    <div class="al-card mb-6">
-        <div class="flex items-center gap-3 mb-5">
-            <i class="ph ph-scales text-bronze text-xl"></i>
-            <div>
-                <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
-                <h2 class="al-h-3">Peso corporeo <span class="al-tag font-mono ml-1">kg</span></h2>
-            </div>
+    <div class="al-card pc-card pc-rise" data-d="1">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="pc-num">01 — Peso</p>
+          <div class="flex items-center gap-2 mt-1">
+            <i class="ph ph-scales text-bronze text-base"></i>
+            <h2 class="al-h-4" style="margin:0;">Peso corporeo</h2>
+          </div>
         </div>
-        <div class="h-64">
-            <canvas id="weightChart"></canvas>
+      </div>
+
+      <div class="mt-4">
+        <div class="pc-stat">
+          <span class="pc-stat-value" x-text="stats.weight.latest ?? '—'"></span>
+          <span class="pc-stat-unit">kg</span>
+          <span class="pc-delta" :class="deltaClass(stats.weight.delta)" x-show="stats.weight.delta !== null">
+            <i :class="deltaIcon(stats.weight.delta)"></i>
+            <span x-text="formatDelta(stats.weight.delta)"></span>
+          </span>
         </div>
+      </div>
+
+      <div class="pc-divider"></div>
+
+      <div class="pc-chart-wrap">
+        <div class="pc-skel" :class="charts.weight ? 'is-hidden' : ''">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <canvas id="weightChart" class="pc-canvas" :class="charts.weight ? 'is-ready' : ''"></canvas>
+      </div>
     </div>
 
     <!-- Circonferenze -->
-    <div class="al-card mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
-            <div class="flex items-center gap-3">
-                <i class="ph ph-ruler text-bronze text-xl"></i>
-                <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
-                    <h2 class="al-h-3">Circonferenze <span class="al-tag font-mono ml-1">cm</span></h2>
-                </div>
-            </div>
-            <select x-model="activeCirc" @change="updateCircChart()" class="al-select" style="max-width: 200px;">
-                <option value="shoulders">Spalle</option>
-                <option value="chest">Petto</option>
-                <option value="waist">Vita</option>
-                <option value="hips">Fianchi</option>
-                <option value="thigh_right">Coscia</option>
-                <option value="arm_right">Braccio</option>
-            </select>
+    <div class="al-card pc-card pc-rise" data-d="2">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="pc-num">02 — Circonferenze</p>
+          <div class="flex items-center gap-2 mt-1">
+            <i class="ph ph-ruler text-bronze text-base"></i>
+            <h2 class="al-h-4" style="margin:0;" x-text="CIRC_LABELS[activeCirc]"></h2>
+          </div>
         </div>
-        <div class="h-64">
-            <canvas id="circChart"></canvas>
+        <select x-model="activeCirc" @change="updateCircChart()" class="pc-mini-select">
+          <option value="shoulders">Spalle</option>
+          <option value="chest">Petto</option>
+          <option value="waist">Vita</option>
+          <option value="hips">Fianchi</option>
+          <option value="thigh_right">Coscia</option>
+          <option value="arm_right">Braccio</option>
+        </select>
+      </div>
+
+      <div class="mt-4">
+        <div class="pc-stat">
+          <span class="pc-stat-value" x-text="stats.circ.latest ?? '—'"></span>
+          <span class="pc-stat-unit">cm</span>
+          <span class="pc-delta" :class="deltaClass(stats.circ.delta, true)" x-show="stats.circ.delta !== null">
+            <i :class="deltaIcon(stats.circ.delta)"></i>
+            <span x-text="formatDelta(stats.circ.delta)"></span>
+          </span>
         </div>
-        <p class="al-tag mt-3 font-mono">Filtro attivo: <span class="text-ink" x-text="CIRC_LABELS[activeCirc]"></span></p>
+      </div>
+
+      <div class="pc-divider"></div>
+
+      <div class="pc-chart-wrap">
+        <div class="pc-skel" :class="charts.circ ? 'is-hidden' : ''">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <canvas id="circChart" class="pc-canvas" :class="charts.circ ? 'is-ready' : ''"></canvas>
+      </div>
     </div>
 
     <!-- Pliche -->
-    <div class="al-card mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
-            <div class="flex items-center gap-3">
-                <i class="ph ph-first-aid text-bronze text-xl"></i>
-                <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
-                    <h2 class="al-h-3">Pliche <span class="al-tag font-mono ml-1">mm</span></h2>
-                </div>
-            </div>
-            <select x-model="activeSkin" @change="updateSkinChart()" class="al-select" style="max-width: 200px;">
-                <option value="chest">Petto</option>
-                <option value="abdomen">Addome</option>
-                <option value="thigh">Coscia</option>
-                <option value="tricep">Tricipite</option>
-            </select>
+    <div class="al-card pc-card pc-rise" data-d="3">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="pc-num">03 — Pliche</p>
+          <div class="flex items-center gap-2 mt-1">
+            <i class="ph ph-first-aid text-bronze text-base"></i>
+            <h2 class="al-h-4" style="margin:0;" x-text="SKIN_LABELS[activeSkin]"></h2>
+          </div>
         </div>
-        <div class="h-64">
-            <canvas id="skinChart"></canvas>
+        <select x-model="activeSkin" @change="updateSkinChart()" class="pc-mini-select">
+          <option value="chest">Petto</option>
+          <option value="abdomen">Addome</option>
+          <option value="thigh">Coscia</option>
+          <option value="tricep">Tricipite</option>
+        </select>
+      </div>
+
+      <div class="mt-4">
+        <div class="pc-stat">
+          <span class="pc-stat-value" x-text="stats.skin.latest ?? '—'"></span>
+          <span class="pc-stat-unit">mm</span>
+          <span class="pc-delta" :class="deltaClass(stats.skin.delta, true)" x-show="stats.skin.delta !== null">
+            <i :class="deltaIcon(stats.skin.delta)"></i>
+            <span x-text="formatDelta(stats.skin.delta)"></span>
+          </span>
         </div>
-        <p class="al-tag mt-3 font-mono">Filtro attivo: <span class="text-ink" x-text="SKIN_LABELS[activeSkin]"></span></p>
+      </div>
+
+      <div class="pc-divider"></div>
+
+      <div class="pc-chart-wrap">
+        <div class="pc-skel" :class="charts.skin ? 'is-hidden' : ''">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <canvas id="skinChart" class="pc-canvas" :class="charts.skin ? 'is-ready' : ''"></canvas>
+      </div>
     </div>
 
-    {% endif %}
+  </div>
+
+  {% endif %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -119,162 +325,256 @@
 const _chartData = {{ chart_data_json|safe }};
 
 const CIRC_LABELS = {
-    shoulders: 'Spalle', chest: 'Petto', waist: 'Vita',
-    hips: 'Fianchi', thigh_right: 'Coscia', arm_right: 'Braccio'
+  shoulders: 'Spalle', chest: 'Petto', waist: 'Vita',
+  hips: 'Fianchi', thigh_right: 'Coscia', arm_right: 'Braccio'
 };
 const SKIN_LABELS = {
-    chest: 'Petto', abdomen: 'Addome', thigh: 'Coscia', tricep: 'Tricipite'
+  chest: 'Petto', abdomen: 'Addome', thigh: 'Coscia', tricep: 'Tricipite'
 };
 
 const AL_BRONZE  = '#8a6a3a';
 const AL_AEGEAN  = '#1c4a52';
 const AL_INK     = '#14110d';
-const AL_MUTED   = 'rgba(91,85,74,0.20)';
-const AL_GRID    = 'rgba(91,85,74,0.12)';
+const AL_GRID    = 'rgba(91,85,74,0.10)';
 const AL_LABEL   = '#5b554a';
 
-function baseOptions(yLabel) {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-            duration: 750,
-            easing: 'easeOutQuart'
-        },
-        transitions: {
-            active: { animation: { duration: 600, easing: 'easeOutQuart' } },
-            resize: { animation: { duration: 200 } }
-        },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: AL_INK,
-                titleColor: '#f4efe4',
-                bodyColor: '#f4efe4',
-                callbacks: {
-                    label: ctx => ` ${ctx.parsed.y !== null ? ctx.parsed.y : '—'} ${yLabel}`
-                }
-            }
-        },
-        scales: {
-            x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono, monospace', size: 11 }, color: AL_LABEL } },
-            y: { grid: { color: AL_GRID }, ticks: { font: { family: 'JetBrains Mono, monospace', size: 11 }, color: AL_LABEL } }
-        }
-    };
+function firstWithData(map, keys){
+  for (const k of keys){
+    const arr = map[k] || [];
+    if (arr.some(v => v !== null && v !== undefined)) return k;
+  }
+  return keys[0];
 }
 
-function progressCharts() {
-    return {
-        activeCirc: 'waist',
-        activeSkin: 'abdomen',
-        weightChart: null,
-        circChart: null,
-        skinChart: null,
-        CIRC_LABELS,
-        SKIN_LABELS,
+function lastNonNull(arr){
+  if (!arr) return null;
+  for (let i = arr.length - 1; i >= 0; i--){
+    if (arr[i] !== null && arr[i] !== undefined) return arr[i];
+  }
+  return null;
+}
+function firstNonNull(arr){
+  if (!arr) return null;
+  for (let i = 0; i < arr.length; i++){
+    if (arr[i] !== null && arr[i] !== undefined) return arr[i];
+  }
+  return null;
+}
 
-        init() {
-            if (!_chartData.labels || !_chartData.labels.length) return;
-            this.$nextTick(() => {
-                this.buildWeightChart();
-                this.buildCircChart();
-                this.buildSkinChart();
-            });
-        },
-
-        buildWeightChart() {
-            const ctx = document.getElementById('weightChart');
-            if (!ctx) return;
-            this.weightChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: _chartData.labels,
-                    datasets: [{
-                        label: 'Peso',
-                        data: _chartData.weight,
-                        borderColor: AL_BRONZE,
-                        backgroundColor: 'rgba(138,106,58,0.10)',
-                        fill: true,
-                        borderWidth: 2.5,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: AL_BRONZE,
-                        tension: 0.35,
-                        spanGaps: true,
-                    }]
-                },
-                options: baseOptions('kg')
-            });
-        },
-
-        buildCircChart() {
-            const ctx = document.getElementById('circChart');
-            if (!ctx) return;
-            this.circChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: _chartData.labels, datasets: this.circDatasets() },
-                options: baseOptions('cm')
-            });
-        },
-
-        buildSkinChart() {
-            const ctx = document.getElementById('skinChart');
-            if (!ctx) return;
-            this.skinChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: _chartData.labels, datasets: this.skinDatasets() },
-                options: baseOptions('mm')
-            });
-        },
-
-        circDatasets() {
-            return [{
-                label: CIRC_LABELS[this.activeCirc],
-                data: _chartData.circumferences[this.activeCirc] || [],
-                borderColor: AL_AEGEAN,
-                backgroundColor: 'rgba(28,74,82,0.10)',
-                fill: true,
-                borderWidth: 2.5,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: AL_AEGEAN,
-                tension: 0.35,
-                spanGaps: true,
-            }];
-        },
-
-        skinDatasets() {
-            return [{
-                label: SKIN_LABELS[this.activeSkin],
-                data: _chartData.skinfolds[this.activeSkin] || [],
-                borderColor: AL_BRONZE,
-                backgroundColor: 'rgba(138,106,58,0.10)',
-                fill: true,
-                borderWidth: 2.5,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: AL_BRONZE,
-                tension: 0.35,
-                spanGaps: true,
-            }];
-        },
-
-        updateCircChart() {
-            if (!this.circChart) return;
-            const ds = this.circDatasets()[0];
-            this.circChart.data.datasets[0].label = ds.label;
-            this.circChart.data.datasets[0].data = [...ds.data];
-            this.circChart.update('active');
-        },
-
-        updateSkinChart() {
-            if (!this.skinChart) return;
-            const ds = this.skinDatasets()[0];
-            this.skinChart.data.datasets[0].label = ds.label;
-            this.skinChart.data.datasets[0].data = [...ds.data];
-            this.skinChart.update('active');
+function baseOptions(yLabel, color){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 900,
+      easing: 'easeOutQuart',
+    },
+    transitions: {
+      active: { animation: { duration: 600, easing: 'easeOutQuart' } },
+      resize: { animation: { duration: 200 } }
+    },
+    layout: { padding: { top: 6, right: 6, bottom: 0, left: 0 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: AL_INK,
+        titleColor: '#f4efe4',
+        bodyColor: '#f4efe4',
+        borderColor: color,
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 6,
+        displayColors: false,
+        titleFont: { family: 'JetBrains Mono, monospace', size: 10, weight: '500' },
+        bodyFont:  { family: 'Inter, sans-serif', size: 12, weight: '600' },
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y !== null ? ctx.parsed.y : '—'} ${yLabel}`
         }
-    };
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { color: 'rgba(91,85,74,0.18)' },
+        ticks: {
+          font: { family: 'JetBrains Mono, monospace', size: 10 },
+          color: AL_LABEL,
+          maxRotation: 0,
+          autoSkipPadding: 16
+        }
+      },
+      y: {
+        grid: { color: AL_GRID, drawTicks: false },
+        border: { display: false },
+        ticks: {
+          font: { family: 'JetBrains Mono, monospace', size: 10 },
+          color: AL_LABEL,
+          padding: 6
+        }
+      }
+    }
+  };
+}
+
+function gradientFill(ctx, area, color){
+  if (!area) return color + '20';
+  const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+  g.addColorStop(0, color + '38');
+  g.addColorStop(1, color + '02');
+  return g;
+}
+
+function lineDataset(label, data, color){
+  return {
+    label,
+    data,
+    borderColor: color,
+    backgroundColor: ctx => {
+      const { chart } = ctx;
+      const { ctx: c, chartArea } = chart;
+      return gradientFill(c, chartArea, color);
+    },
+    fill: true,
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 6,
+    pointBackgroundColor: color,
+    pointBorderColor: '#f4efe4',
+    pointBorderWidth: 1.5,
+    tension: 0.38,
+    spanGaps: true,
+  };
+}
+
+function progressCharts(){
+  return {
+    activeCirc: 'waist',
+    activeSkin: 'abdomen',
+    charts: { weight: null, circ: null, skin: null },
+    stats: {
+      weight: { latest: null, delta: null },
+      circ:   { latest: null, delta: null },
+      skin:   { latest: null, delta: null },
+    },
+    CIRC_LABELS, SKIN_LABELS,
+
+    init(){
+      if (!_chartData.labels || _chartData.labels.length < 2) return;
+
+      this.activeCirc = firstWithData(_chartData.circumferences,
+        ['waist','chest','shoulders','hips','thigh_right','arm_right']);
+      this.activeSkin = firstWithData(_chartData.skinfolds,
+        ['abdomen','chest','thigh','tricep']);
+
+      this.recalcStats();
+
+      // Slight delay so skeleton is perceived, then animate in
+      setTimeout(() => {
+        this.$nextTick(() => {
+          this.buildWeightChart();
+          this.buildCircChart();
+          this.buildSkinChart();
+        });
+      }, 280);
+    },
+
+    recalcStats(){
+      const w = _chartData.weight;
+      this.stats.weight.latest = lastNonNull(w);
+      const wf = firstNonNull(w);
+      this.stats.weight.delta = (wf !== null && this.stats.weight.latest !== null)
+        ? +(this.stats.weight.latest - wf).toFixed(1) : null;
+
+      const c = _chartData.circumferences[this.activeCirc] || [];
+      this.stats.circ.latest = lastNonNull(c);
+      const cf = firstNonNull(c);
+      this.stats.circ.delta = (cf !== null && this.stats.circ.latest !== null)
+        ? +(this.stats.circ.latest - cf).toFixed(1) : null;
+
+      const s = _chartData.skinfolds[this.activeSkin] || [];
+      this.stats.skin.latest = lastNonNull(s);
+      const sf = firstNonNull(s);
+      this.stats.skin.delta = (sf !== null && this.stats.skin.latest !== null)
+        ? +(this.stats.skin.latest - sf).toFixed(1) : null;
+    },
+
+    deltaClass(d, invert=false){
+      if (d === null || d === 0) return 'pc-delta-flat';
+      const up = d > 0;
+      // For circ/pliche: down (negative) = success (aegean). For weight: neutral coloring.
+      if (invert) return up ? 'pc-delta-up' : 'pc-delta-down';
+      return up ? 'pc-delta-up' : 'pc-delta-down';
+    },
+    deltaIcon(d){
+      if (d === null || d === 0) return 'ph ph-minus';
+      return d > 0 ? 'ph ph-arrow-up' : 'ph ph-arrow-down';
+    },
+    formatDelta(d){
+      if (d === null) return '';
+      if (d === 0) return '0';
+      const sign = d > 0 ? '+' : '';
+      return `${sign}${d}`;
+    },
+
+    buildWeightChart(){
+      const el = document.getElementById('weightChart');
+      if (!el) return;
+      this.charts.weight = new Chart(el, {
+        type: 'line',
+        data: {
+          labels: _chartData.labels,
+          datasets: [ lineDataset('Peso', _chartData.weight, AL_BRONZE) ]
+        },
+        options: baseOptions('kg', AL_BRONZE)
+      });
+    },
+
+    buildCircChart(){
+      const el = document.getElementById('circChart');
+      if (!el) return;
+      this.charts.circ = new Chart(el, {
+        type: 'line',
+        data: {
+          labels: _chartData.labels,
+          datasets: [ lineDataset(CIRC_LABELS[this.activeCirc],
+            _chartData.circumferences[this.activeCirc] || [], AL_AEGEAN) ]
+        },
+        options: baseOptions('cm', AL_AEGEAN)
+      });
+    },
+
+    buildSkinChart(){
+      const el = document.getElementById('skinChart');
+      if (!el) return;
+      this.charts.skin = new Chart(el, {
+        type: 'line',
+        data: {
+          labels: _chartData.labels,
+          datasets: [ lineDataset(SKIN_LABELS[this.activeSkin],
+            _chartData.skinfolds[this.activeSkin] || [], AL_BRONZE) ]
+        },
+        options: baseOptions('mm', AL_BRONZE)
+      });
+    },
+
+    updateCircChart(){
+      this.recalcStats();
+      if (!this.charts.circ) return;
+      const data = _chartData.circumferences[this.activeCirc] || [];
+      this.charts.circ.data.datasets[0].label = CIRC_LABELS[this.activeCirc];
+      this.charts.circ.data.datasets[0].data = [...data];
+      this.charts.circ.update('active');
+    },
+
+    updateSkinChart(){
+      this.recalcStats();
+      if (!this.charts.skin) return;
+      const data = _chartData.skinfolds[this.activeSkin] || [];
+      this.charts.skin.data.datasets[0].label = SKIN_LABELS[this.activeSkin];
+      this.charts.skin.data.datasets[0].data = [...data];
+      this.charts.skin.update('active');
+    }
+  };
 }
 </script>
 {% endblock %}

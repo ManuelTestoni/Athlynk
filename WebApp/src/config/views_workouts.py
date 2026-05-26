@@ -1251,3 +1251,471 @@ def api_client_workout_history(request):
         'limit': limit,
         'has_more': (offset + limit) < total,
     })
+
+
+# ---------------------------------------------------------------------------
+# AI import — Excel (sync) + PDF (async, polling)
+# ---------------------------------------------------------------------------
+
+from django.views.decorators.http import require_http_methods
+
+from domain.shared.import_jobs import JobStore, serialize_status
+
+_MAX_WORKOUT_EXCEL_SIZE = 10 * 1024 * 1024   # 10 MB
+_MAX_WORKOUT_PDF_SIZE = 20 * 1024 * 1024     # 20 MB
+
+_WORKOUT_IMPORT_JOBS = JobStore(prefix='workout_import:', ttl=600)
+
+
+def allenamenti_import_view(request):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return redirect('dashboard')
+    return render(request, 'pages/allenamenti/import_workout.html', {})
+
+
+def allenamenti_import_pdf_view(request):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return redirect('dashboard')
+    return render(request, 'pages/allenamenti/import_workout_pdf.html', {})
+
+
+@require_http_methods(['POST'])
+def api_workout_import_excel(request):
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'File mancante'}, status=422)
+    if uploaded.size > _MAX_WORKOUT_EXCEL_SIZE:
+        return JsonResponse({'error': 'excel_invalid', 'detail': 'File troppo grande (max 10MB)'}, status=422)
+    name_lower = (uploaded.name or '').lower()
+    if not (name_lower.endswith('.xlsx') or name_lower.endswith('.xls')):
+        return JsonResponse({'error': 'excel_invalid', 'detail': 'Formato file non supportato (solo .xlsx/.xls)'}, status=422)
+
+    plan_title = (request.POST.get('plan_title') or '').strip()[:200]
+    client_id = request.POST.get('client_id') or ''
+    client_data = _resolve_import_client(coach, client_id)
+    if isinstance(client_data, JsonResponse):
+        return client_data
+
+    from domain.workouts.imports.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+
+    try:
+        file_bytes = uploaded.read()
+        extracted, confidence = run_import_pipeline(file_bytes, plan_title, coach=coach)
+    except ExcelParseError as e:
+        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
+    except AIExtractionError as e:
+        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
+    except Exception as e:
+        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
+
+    payload = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'client': client_data,
+        'plan_title': plan_title or extracted.get('plan_name') or '',
+    }
+    status = 206 if confidence.ratio >= 0.5 else 200
+    if status == 206:
+        payload['warning'] = 'high_uncertainty'
+    return JsonResponse(payload, status=status)
+
+
+def _resolve_import_client(coach, client_id):
+    """Validate client belongs to coach. Returns dict or JsonResponse on error."""
+    if not client_id:
+        return None
+    try:
+        client = ClientProfile.objects.get(
+            id=int(client_id),
+            coaching_relationships_as_client__coach=coach,
+            coaching_relationships_as_client__status='ACTIVE',
+        )
+    except (ValueError, ClientProfile.DoesNotExist):
+        return JsonResponse({'error': 'Atleta non valido o non associato'}, status=403)
+    return {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
+
+
+def _run_workout_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
+                         client_data, coach_id: int) -> None:
+    from domain.workouts.imports.pdf_importer import run_pdf_pipeline
+    from domain.shared.pdf.ingestion import PdfParseError
+    from domain.workouts.imports.pdf_extractor import AIExtractionError
+
+    from domain.accounts.models import CoachProfile
+    try:
+        coach_obj = CoachProfile.objects.get(id=coach_id)
+    except CoachProfile.DoesNotExist:
+        coach_obj = None
+
+    progress = _WORKOUT_IMPORT_JOBS.progress_cb(job_id)
+
+    try:
+        extracted, confidence = run_pdf_pipeline(
+            file_bytes, plan_title, progress_cb=progress, coach=coach_obj,
+        )
+    except PdfParseError as e:
+        msg = str(e)
+        code = 'pdf_no_content' if 'non sembra contenere' in msg.lower() else 'pdf_invalid'
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': code, 'detail': msg})
+        return
+    except AIExtractionError as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'document_summary': extracted.get('document_summary'),
+        'client': client_data,
+        'plan_title': plan_title or extracted.get('plan_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _WORKOUT_IMPORT_JOBS.set(job_id, {
+        'status': 'done', 'phase': 'finalize', 'percent': 100, 'result': result,
+    })
+
+
+@require_http_methods(['POST'])
+def api_workout_import_pdf(request):
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'File mancante'}, status=422)
+    if uploaded.size > _MAX_WORKOUT_PDF_SIZE:
+        return JsonResponse({'error': 'pdf_invalid', 'detail': 'File troppo grande (max 20MB)'}, status=422)
+    name_lower = (uploaded.name or '').lower()
+    if not name_lower.endswith('.pdf'):
+        return JsonResponse({'error': 'pdf_invalid', 'detail': 'Formato file non supportato (solo .pdf)'}, status=422)
+
+    plan_title = (request.POST.get('plan_title') or '').strip()[:200]
+    client_id = request.POST.get('client_id') or ''
+    client_data = _resolve_import_client(coach, client_id)
+    if isinstance(client_data, JsonResponse):
+        return client_data
+
+    file_bytes = uploaded.read()
+    job_id = _WORKOUT_IMPORT_JOBS.spawn(
+        target=_run_workout_pdf_job,
+        args=(file_bytes, plan_title, client_data, coach.id),
+        initial_phase='analyze',
+    )
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
+
+
+@require_http_methods(['GET'])
+def api_workout_import_pdf_status(request):
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    job_id = request.GET.get('job_id') or ''
+    if not job_id:
+        return JsonResponse({'error': 'job_not_found', 'detail': 'job_id mancante'}, status=400)
+    job = _WORKOUT_IMPORT_JOBS.get(job_id)
+    if not job:
+        return JsonResponse({'error': 'job_not_found', 'detail': 'Job scaduto o inesistente'}, status=404)
+    return JsonResponse(serialize_status(job_id, job))
+
+
+# Maps from AI extraction JSON to DB columns.
+_VALID_LOAD_UNIT_MAP = {
+    'kg': WorkoutExercise.LOAD_UNIT_KG,
+    'lb': WorkoutExercise.LOAD_UNIT_KG,           # converted below
+    'bw': WorkoutExercise.LOAD_UNIT_BODYWEIGHT,
+    'band': WorkoutExercise.LOAD_UNIT_BODYWEIGHT, # closest existing choice
+}
+
+_BLOCK_TYPE_NATIVE = {'straight', 'superset'}     # supported via superset_group_id alone
+
+
+def _coerce_load(ex_payload: dict) -> tuple[float | None, str | None]:
+    load = ex_payload.get('load')
+    unit = (ex_payload.get('load_unit') or '').lower() or None
+    load_type = (ex_payload.get('load_type') or '').lower() or None
+
+    if load_type == 'percentage_1rm':
+        try:
+            return float(load), WorkoutExercise.LOAD_UNIT_PERCENT
+        except (TypeError, ValueError):
+            return None, WorkoutExercise.LOAD_UNIT_PERCENT
+    if unit == 'lb' and load is not None:
+        try:
+            return round(float(load) * 0.4536, 2), WorkoutExercise.LOAD_UNIT_KG
+        except (TypeError, ValueError):
+            return None, WorkoutExercise.LOAD_UNIT_KG
+    if unit in ('bw', 'band'):
+        return None, WorkoutExercise.LOAD_UNIT_BODYWEIGHT
+    if load is None:
+        return None, None
+    try:
+        return float(load), WorkoutExercise.LOAD_UNIT_KG
+    except (TypeError, ValueError):
+        return None, None
+
+
+def _coerce_reps(ex_payload: dict) -> tuple[int | None, str | None]:
+    """Return (rep_count_int, rep_range_str). One of them is set; never both."""
+    reps = ex_payload.get('reps')
+    reps_type = (ex_payload.get('reps_type') or '').lower()
+    if reps is None:
+        return None, None
+    if isinstance(reps, int):
+        if reps_type == 'range':
+            return None, str(reps)
+        return reps, None
+    s = str(reps).strip()
+    if not s:
+        return None, None
+    if reps_type == 'fixed':
+        try:
+            return int(s), None
+        except ValueError:
+            return None, s[:50]
+    return None, s[:50]
+
+
+@require_http_methods(['POST'])
+def api_workout_import_confirm(request):
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Body JSON non valido'}, status=400)
+
+    workout_json = data.get('workout_json') or {}
+    plan_title = (data.get('plan_title') or workout_json.get('plan_name') or '').strip()[:200]
+    notes = (data.get('notes') or '') or None
+    assign_now = bool(data.get('assign_now', False))
+    client_id = data.get('client_id')
+
+    # Plan kind selector (WEEKLY single week vs PROGRAM multi-week).
+    plan_kind = (data.get('plan_kind') or 'WEEKLY').upper()
+    if plan_kind not in (WorkoutPlan.KIND_WEEKLY, WorkoutPlan.KIND_PROGRAM):
+        plan_kind = WorkoutPlan.KIND_WEEKLY
+    try:
+        duration_weeks = int(data.get('duration_weeks') or 1)
+    except (TypeError, ValueError):
+        duration_weeks = 1
+    duration_weeks = max(1, min(52, duration_weeks))
+    if plan_kind == WorkoutPlan.KIND_WEEKLY:
+        duration_weeks = 1
+
+    if not plan_title:
+        return JsonResponse({'error': 'Titolo scheda obbligatorio'}, status=400)
+
+    client = None
+    if client_id:
+        try:
+            client = ClientProfile.objects.get(
+                id=int(client_id),
+                coaching_relationships_as_client__coach=coach,
+                coaching_relationships_as_client__status='ACTIVE',
+            )
+        except (ValueError, ClientProfile.DoesNotExist):
+            return JsonResponse({'error': 'Atleta non associato'}, status=403)
+
+    sessions = workout_json.get('sessions') or []
+    if not sessions:
+        return JsonResponse({'error': 'Nessuna sessione nella scheda'}, status=400)
+
+    # Verify every exercise has a matched Exercise (uncertain rows must be resolved).
+    missing = []
+    for s_idx, sess in enumerate(sessions):
+        for b_idx, block in enumerate(sess.get('blocks') or []):
+            for e_idx, ex in enumerate(block.get('exercises') or []):
+                if not ex.get('matched_exercise_id'):
+                    missing.append({
+                        'session': s_idx, 'block': b_idx, 'exercise': e_idx,
+                        'raw_name': ex.get('raw_name') or '',
+                    })
+    if missing:
+        return JsonResponse({
+            'error': 'unmatched_exercises',
+            'detail': 'Risolvi tutti gli esercizi prima di salvare.',
+            'missing': missing,
+        }, status=400)
+
+    try:
+        with transaction.atomic():
+            goal_val = (workout_json.get('goal') or '').strip()[:200] or None
+            freq = workout_json.get('frequency_per_week')
+            try:
+                freq_int = int(freq) if freq else None
+            except (TypeError, ValueError):
+                freq_int = None
+
+            plan = WorkoutPlan.objects.create(
+                coach=coach,
+                title=plan_title,
+                description=(workout_json.get('notes') or '').strip() or None,
+                goal=goal_val,
+                frequency_per_week=freq_int,
+                duration_weeks=duration_weeks,
+                status=WorkoutPlan.STATUS_DRAFT,
+                plan_kind=plan_kind,
+                is_template=False,
+            )
+
+            superset_counter = 1
+            for s_idx, sess in enumerate(sessions):
+                day_name = (sess.get('day_label') or '').strip()[:100] or f'Giorno {s_idx+1}'
+                day_obj = WorkoutDay.objects.create(
+                    workout_plan=plan,
+                    day_order=s_idx + 1,
+                    day_name=day_name,
+                    day_type=(sess.get('session_type') or '').strip()[:100] or None,
+                    notes=(sess.get('notes') or '').strip() or None,
+                )
+                ex_order = 0
+                for block in sess.get('blocks') or []:
+                    btype = (block.get('block_type') or 'straight').lower()
+                    block_name = (block.get('block_name') or '').strip()
+                    is_grouped = btype in ('superset', 'circuit')
+                    group_id = superset_counter if is_grouped else None
+                    if is_grouped:
+                        superset_counter += 1
+                    block_tag = None
+                    if btype not in _BLOCK_TYPE_NATIVE:
+                        block_tag = f'[{btype.upper()}{":" + block_name if block_name else ""}] '
+
+                    for ex_payload in block.get('exercises') or []:
+                        try:
+                            exercise_obj = Exercise.objects.get(id=int(ex_payload['matched_exercise_id']))
+                        except (Exercise.DoesNotExist, ValueError, TypeError, KeyError):
+                            continue
+
+                        ex_order += 1
+                        rep_count, rep_range = _coerce_reps(ex_payload)
+                        load_val, load_unit = _coerce_load(ex_payload)
+                        rest = ex_payload.get('rest_seconds')
+                        try:
+                            rest_int = int(rest) if rest not in (None, '') else None
+                        except (TypeError, ValueError):
+                            rest_int = None
+                        rpe_raw = ex_payload.get('rpe')
+                        rir_raw = ex_payload.get('rir')
+                        try:
+                            rpe_int = int(round(float(rpe_raw))) if rpe_raw not in (None, '') else None
+                        except (TypeError, ValueError):
+                            rpe_int = None
+                        try:
+                            rir_int = int(rir_raw) if rir_raw not in (None, '') else None
+                        except (TypeError, ValueError):
+                            rir_int = None
+
+                        sets_raw = ex_payload.get('sets')
+                        try:
+                            sets_int = int(sets_raw) if sets_raw not in (None, '') else None
+                        except (TypeError, ValueError):
+                            sets_int = None
+
+                        tn_bits = []
+                        if block_tag:
+                            tn_bits.append(block_tag.strip())
+                        if ex_payload.get('notes'):
+                            tn_bits.append(str(ex_payload['notes']).strip())
+                        if ex_payload.get('rest_label') and rest_int is None:
+                            tn_bits.append(f"Recupero: {ex_payload['rest_label']}")
+                        if ex_payload.get('duration_seconds'):
+                            tn_bits.append(f"Durata: {ex_payload['duration_seconds']}s")
+                        if ex_payload.get('distance') and ex_payload.get('distance_unit'):
+                            tn_bits.append(f"Distanza: {ex_payload['distance']}{ex_payload['distance_unit']}")
+                        technique_notes = '\n'.join(tn_bits) or None
+
+                        WorkoutExercise.objects.create(
+                            workout_day=day_obj,
+                            exercise=exercise_obj,
+                            order_index=ex_order,
+                            set_count=sets_int,
+                            rep_count=rep_count,
+                            rep_range=rep_range,
+                            rir=rir_int,
+                            rpe=rpe_int,
+                            recovery_seconds=rest_int,
+                            tempo=(ex_payload.get('tempo') or '').strip()[:50] or None,
+                            load_value=load_val,
+                            load_unit=load_unit,
+                            technique_notes=technique_notes,
+                            superset_group_id=group_id,
+                        )
+
+            # Sync progression scaffolding (single-week WEEKLY plan).
+            progression_engine.sync_week_definitions(plan)
+            progression_engine.compute_weekly_values(plan)
+
+            assignment_id = None
+            if assign_now and client:
+                start_date = date.today()
+                weeks = plan.duration_weeks or 1
+                end_date = start_date + timedelta(weeks=weeks)
+                WorkoutAssignment.objects.filter(
+                    client=client, coach=coach, status='ACTIVE',
+                ).update(status='COMPLETED', end_date=start_date)
+                assignment = WorkoutAssignment.objects.create(
+                    workout_plan=plan,
+                    client=client,
+                    coach=coach,
+                    status='ACTIVE',
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                assignment_id = assignment.id
+                Notification.objects.create(
+                    target_user=client.user,
+                    notification_type='WORKOUT_ASSIGNED',
+                    title='Nuova scheda di allenamento',
+                    body=f'Ti è stata assegnata la scheda "{plan.title}".',
+                    link_url='/allenamenti/',
+                )
+                try:
+                    from django.conf import settings as _settings
+                    plan_url = f"{_settings.SITE_URL}/allenamenti/"
+                    send_workout_assigned(client, coach, plan, plan_url)
+                except Exception:
+                    pass
+                plan.status = WorkoutPlan.STATUS_ACTIVE
+                plan.save(update_fields=['status'])
+    except Exception as e:
+        return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
+
+    return JsonResponse({
+        'ok': True,
+        'plan_id': plan.id,
+        'assignment_id': assignment_id,
+        'redirect_url': f'/allenamenti/{plan.id}/',
+    })

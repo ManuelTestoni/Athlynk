@@ -1,0 +1,45 @@
+<div class="wb-kind-toggle">
+  <button type="button" class="wb-kind-toggle-opt"
+          :class="{ 'is-active': planKind === 'WEEKLY' }"
+          @click="planKind = 'WEEKLY'; durationWeeks = 1">
+    <i class="ph ph-calendar-blank wb-kind-toggle-icon"></i>
+    <div class="wb-kind-toggle-body">
+      <p class="wb-kind-toggle-title">Settimanale</p>
+      <p class="wb-kind-toggle-desc">Una sola settimana, senza progressione.</p>
+    </div>
+    <i class="ph ph-check-circle wb-kind-toggle-check"
+       x-show="planKind === 'WEEKLY'"></i>
+  </button>
+  <button type="button" class="wb-kind-toggle-opt"
+          :class="{ 'is-active': planKind === 'PROGRAM' }"
+          @click="planKind = 'PROGRAM'; if (durationWeeks < 2) durationWeeks = 4">
+    <i class="ph ph-stack wb-kind-toggle-icon"></i>
+    <div class="wb-kind-toggle-body">
+      <p class="wb-kind-toggle-title">Multi-settimana</p>
+      <p class="wb-kind-toggle-desc">Programmazione su più settimane.</p>
+    </div>
+    <i class="ph ph-check-circle wb-kind-toggle-check"
+       x-show="planKind === 'PROGRAM'"></i>
+  </button>
+</div>
+
+<div x-show="planKind === 'PROGRAM'" x-transition class="mt-3 flex items-center gap-3 flex-wrap">
+  <label class="al-tag" style="font-size: 10px;">Durata totale:</label>
+  <div class="flex items-center gap-1.5">
+    <button type="button" @click="durationWeeks = Math.max(2, durationWeeks - 1)"
+            class="al-btn al-btn-icon al-btn-ghost" title="-1 settimana">
+      <i class="ph ph-minus text-xs"></i>
+    </button>
+    <input type="number" min="2" max="52" step="1" x-model.number="durationWeeks"
+           class="al-input text-center font-mono" style="width: 78px; padding: 6px 10px;">
+    <button type="button" @click="durationWeeks = Math.min(52, durationWeeks + 1)"
+            class="al-btn al-btn-icon al-btn-ghost" title="+1 settimana">
+      <i class="ph ph-plus text-xs"></i>
+    </button>
+    <span class="al-tag font-mono" style="font-size: 10px;">settimane</span>
+  </div>
+  <p class="al-small" style="color: var(--al-ink-mute); flex-basis: 100%;">
+    <i class="ph ph-info text-bronze"></i>
+    Importeremo la stessa struttura base; potrai aggiungere progressioni nel builder.
+  </p>
+</div>

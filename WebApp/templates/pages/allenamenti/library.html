@@ -12,6 +12,8 @@
       folders: "{% url 'api_workout_folders' %}",
       folderDetail: "/api/allenamenti/cartelle/__ID__/",
       wizardNew: "{% url 'allenamenti_wizard' %}",
+      importExcel: "{% url 'allenamenti_import' %}",
+      importPdf: "{% url 'allenamenti_import_pdf' %}",
       wizardResume: "/allenamenti/wizard/__ID__/",
       planDetail: "/allenamenti/__ID__/",
       planSave: "{% url 'api_plan_save_new' %}",
@@ -262,52 +264,133 @@
        x-effect="window.panelLock && (typePickerOpen ? window.panelLock.acquire() : window.panelLock.release())"
        class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="closeTypePicker()"></div>
-    <div class="al-modal-panel wb-fade-in relative" style="max-width: 760px;">
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 820px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
         <div>
           <p class="al-eyebrow">Nuova scheda</p>
-          <h2 class="al-h-3">Che tipo di scheda vuoi creare?</h2>
+          <h2 class="al-h-3"
+              x-text="typePickerMode === 'create' ? 'Che tipo di scheda vuoi creare?' : 'Importa una scheda esistente'"></h2>
+          <p class="al-small mt-1" style="color: var(--al-ink-mute);"
+             x-text="typePickerMode === 'create' ? 'Parti da zero col builder.' : 'Carica un file: l\'AI ricostruisce sessioni, blocchi ed esercizi.'"></p>
         </div>
         <button type="button" class="al-btn-icon al-btn-ghost" @click="closeTypePicker()">
           <i class="ph ph-x"></i>
         </button>
       </div>
-      <div class="al-modal-body">
-        <div class="flex flex-col md:flex-row gap-4">
-          <button type="button" class="wb-type-card"
-                  :class="{ 'is-selected': typePickerChoice === 'PROGRAM' }"
-                  @click="typePickerChoice = 'PROGRAM'"
-                  @dblclick="confirmTypePicker()">
-            <span class="wb-type-card-icon"><i class="ph ph-stack"></i></span>
-            <h3 class="wb-type-card-title">Programmazione</h3>
-            <p class="wb-type-card-desc">Più settimane con regole di progressione. Ideale per cicli di forza, ipertrofia o periodizzazione.</p>
-            <ul class="wb-type-card-bullets">
-              <li>2–16 settimane</li>
-              <li>Regole di progressione</li>
-              <li>Comparazione volume</li>
-            </ul>
+
+      <!-- Mode tabs -->
+      <div class="px-6 -mt-2">
+        <div class="inline-flex p-1 gap-1"
+             style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: 999px;">
+          <button type="button" @click="switchTypePickerMode('create')"
+                  class="px-4 py-1.5 text-sm font-medium transition-all"
+                  :style="typePickerMode === 'create'
+                    ? 'background: var(--al-parchment); color: var(--al-ink); border-radius: 999px; box-shadow: var(--al-shadow-1);'
+                    : 'color: var(--al-ink-mute); border-radius: 999px;'">
+            <i class="ph ph-pencil-simple text-xs"></i>
+            <span class="ml-1">Crea da zero</span>
           </button>
-          <button type="button" class="wb-type-card"
-                  :class="{ 'is-selected': typePickerChoice === 'WEEKLY' }"
-                  @click="typePickerChoice = 'WEEKLY'"
-                  @dblclick="confirmTypePicker()">
-            <span class="wb-type-card-icon"><i class="ph ph-calendar-blank"></i></span>
-            <h3 class="wb-type-card-title">Scheda settimanale</h3>
-            <p class="wb-type-card-desc">Una settimana autonoma, pronta in pochi minuti. Ideale per check rapidi o sessioni standalone.</p>
-            <ul class="wb-type-card-bullets">
-              <li>1 settimana</li>
-              <li>Senza progressione</li>
-              <li>Ideale per check rapidi</li>
-            </ul>
+          <button type="button" @click="switchTypePickerMode('import')"
+                  class="px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5"
+                  :style="typePickerMode === 'import'
+                    ? 'background: var(--al-parchment); color: var(--al-ink); border-radius: 999px; box-shadow: var(--al-shadow-1);'
+                    : 'color: var(--al-ink-mute); border-radius: 999px;'">
+            <i class="ph ph-sparkle text-xs"></i>
+            <span>Importa con AI</span>
+            <span class="al-tag" style="background: var(--al-bronze); color: var(--al-parchment); padding: 1px 6px; font-size: 8px; letter-spacing: 0.1em;">NEW</span>
           </button>
         </div>
       </div>
+
+      <div class="al-modal-body wb-tp-stage">
+        <!-- ─── CREATE MODE ─── -->
+        <div class="wb-tp-pane" :class="typePickerMode === 'create' ? 'wb-tp-pane--active' : 'wb-tp-pane--inactive'"
+             :aria-hidden="typePickerMode !== 'create'">
+          <div class="flex flex-col md:flex-row gap-4">
+            <button type="button" class="wb-type-card"
+                    :class="{ 'is-selected': typePickerChoice === 'PROGRAM' }"
+                    @click="typePickerChoice = 'PROGRAM'"
+                    @dblclick="confirmTypePicker()">
+              <span class="wb-type-card-icon"><i class="ph ph-stack"></i></span>
+              <h3 class="wb-type-card-title">Programmazione</h3>
+              <p class="wb-type-card-desc">Più settimane con regole di progressione. Ideale per cicli di forza, ipertrofia o periodizzazione.</p>
+              <ul class="wb-type-card-bullets">
+                <li>2–16 settimane</li>
+                <li>Regole di progressione</li>
+                <li>Comparazione volume</li>
+              </ul>
+            </button>
+            <button type="button" class="wb-type-card"
+                    :class="{ 'is-selected': typePickerChoice === 'WEEKLY' }"
+                    @click="typePickerChoice = 'WEEKLY'"
+                    @dblclick="confirmTypePicker()">
+              <span class="wb-type-card-icon"><i class="ph ph-calendar-blank"></i></span>
+              <h3 class="wb-type-card-title">Scheda settimanale</h3>
+              <p class="wb-type-card-desc">Una settimana autonoma, pronta in pochi minuti. Ideale per check rapidi o sessioni standalone.</p>
+              <ul class="wb-type-card-bullets">
+                <li>1 settimana</li>
+                <li>Senza progressione</li>
+                <li>Ideale per check rapidi</li>
+              </ul>
+            </button>
+          </div>
+        </div>
+
+        <!-- ─── IMPORT MODE ─── -->
+        <div class="wb-tp-pane" :class="typePickerMode === 'import' ? 'wb-tp-pane--active' : 'wb-tp-pane--inactive'"
+             :aria-hidden="typePickerMode !== 'import'">
+          <div class="flex flex-col md:flex-row gap-4">
+            <button type="button" class="wb-type-card wb-type-card--import"
+                    :class="{ 'is-selected': typePickerChoice === 'IMPORT_EXCEL' }"
+                    @click="typePickerChoice = 'IMPORT_EXCEL'"
+                    @dblclick="confirmTypePicker()">
+              <span class="wb-type-card-icon" style="color: var(--al-aegean);">
+                <i class="ph ph-file-xls"></i>
+              </span>
+              <h3 class="wb-type-card-title">Da Excel</h3>
+              <p class="wb-type-card-desc">Carica un .xlsx/.xls del coach. L'AI riconosce sessioni, blocchi, esercizi e parametri.</p>
+              <ul class="wb-type-card-bullets">
+                <li>Max 10 MB</li>
+                <li>Sets, reps, carico, RPE, recupero</li>
+                <li>Match fuzzy nel DB esercizi</li>
+              </ul>
+              <span class="wb-type-card-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border-color: rgba(28,74,82,0.25);">
+                <i class="ph ph-lightning"></i> Veloce
+              </span>
+            </button>
+            <button type="button" class="wb-type-card wb-type-card--import"
+                    :class="{ 'is-selected': typePickerChoice === 'IMPORT_PDF' }"
+                    @click="typePickerChoice = 'IMPORT_PDF'"
+                    @dblclick="confirmTypePicker()">
+              <span class="wb-type-card-icon" style="color: var(--al-bronze);">
+                <i class="ph ph-file-pdf"></i>
+              </span>
+              <h3 class="wb-type-card-title">Da PDF</h3>
+              <p class="wb-type-card-desc">PDF con testo nativo o scansionato. OCR automatico, lettura pagina per pagina.</p>
+              <ul class="wb-type-card-bullets">
+                <li>Max 20 MB</li>
+                <li>OCR ita+eng su scansioni</li>
+                <li>Multi-pagina, tabelle, layout liberi</li>
+              </ul>
+              <span class="wb-type-card-pill" style="background: rgba(138,90,43,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
+                <i class="ph ph-scan"></i> OCR
+              </span>
+            </button>
+          </div>
+          <p class="al-small mt-4 text-center" style="color: var(--al-ink-mute);">
+            <i class="ph ph-info text-bronze"></i>
+            Dopo l'analisi potrai revisionare ogni esercizio prima di salvare.
+          </p>
+        </div>
+      </div>
+
       <div class="al-modal-foot">
         <button type="button" class="al-btn al-btn-ghost" @click="closeTypePicker()">Annulla</button>
         <button type="button" class="al-btn al-btn-bronze"
                 :disabled="!typePickerChoice"
                 @click="confirmTypePicker()">
-          Continua <i class="ph ph-arrow-right"></i>
+          <span x-text="typePickerMode === 'import' ? 'Carica file' : 'Continua'"></span>
+          <i class="ph" :class="typePickerMode === 'import' ? 'ph-upload-simple' : 'ph-arrow-right'"></i>
         </button>
       </div>
     </div>
@@ -408,6 +491,7 @@ function workoutLibrary() {
     /* type picker */
     typePickerOpen: false,
     typePickerChoice: null,
+    typePickerMode: 'create',  // 'create' | 'import'
 
     /* delete folder */
     deleteFolderOpen: false,
@@ -599,14 +683,29 @@ function workoutLibrary() {
     openTypePicker() {
       this.typePickerOpen = true;
       this.typePickerChoice = null;
+      this.typePickerMode = 'create';
     },
     closeTypePicker() {
       this.typePickerOpen = false;
       this.typePickerChoice = null;
     },
+    switchTypePickerMode(mode) {
+      if (this.typePickerMode === mode) return;
+      this.typePickerMode = mode;
+      this.typePickerChoice = null;
+    },
     confirmTypePicker() {
       if (!this.typePickerChoice) return;
       const folderId = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
+      // Import flows navigate to dedicated import wizards.
+      if (this.typePickerChoice === 'IMPORT_EXCEL') {
+        window.location.href = this.urls.importExcel;
+        return;
+      }
+      if (this.typePickerChoice === 'IMPORT_PDF') {
+        window.location.href = this.urls.importPdf;
+        return;
+      }
       const params = new URLSearchParams();
       params.set('kind', this.typePickerChoice);
       if (folderId) params.set('folder_id', folderId);

@@ -116,6 +116,12 @@ urlpatterns = [
     
     # Allenamenti
     path('allenamenti/', views_workouts.allenamenti_list_view, name='allenamenti_list'),
+    path('allenamenti/importa/', views_workouts.allenamenti_import_view, name='allenamenti_import'),
+    path('allenamenti/importa-pdf/', views_workouts.allenamenti_import_pdf_view, name='allenamenti_import_pdf'),
+    path('api/allenamenti/import/excel/', views_workouts.api_workout_import_excel, name='api_workout_import_excel'),
+    path('api/allenamenti/import/pdf/', views_workouts.api_workout_import_pdf, name='api_workout_import_pdf'),
+    path('api/allenamenti/import/pdf/status/', views_workouts.api_workout_import_pdf_status, name='api_workout_import_pdf_status'),
+    path('api/allenamenti/import/conferma/', views_workouts.api_workout_import_confirm, name='api_workout_import_confirm'),
     path('allenamenti/wizard/', views_workouts.allenamenti_wizard_view, name='allenamenti_wizard'),
     path('allenamenti/wizard/<int:plan_id>/', views_workouts.allenamenti_wizard_view, name='allenamenti_wizard_resume'),
     path('allenamenti/assegnazione/<int:assignment_id>/dettagli/', views_session.client_assignment_detail_view, name='client_assignment_detail'),
