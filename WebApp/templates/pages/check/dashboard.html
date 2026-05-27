@@ -9,8 +9,8 @@ window._coachTemplates = {{ coach_templates_json|safe }};
 </script>
 
 <div class="max-w-7xl mx-auto" x-data="{
-    results: [], query: '', tab: 'da_revisionare',
-    page: 1, perPage: 10, numPages: 1, total: 0, loading: false,
+    results: [], query: '', filterStatus: 'all',
+    total: 0, loading: false,
     showCompileModal: false, showAssignModal: false,
     clients:   window._coachClients   || [],
     templates: window._coachTemplates || [],
@@ -120,26 +120,23 @@ window._coachTemplates = {{ coach_templates_json|safe }};
         } catch(e) { this.aError = 'Errore di rete.'; }
         this.aSending = false;
     },
-    async fetchChecks() {
+    async fetchClients() {
         this.loading = true;
         try {
-            const params = new URLSearchParams({ q: this.query, tab: this.tab, page: this.page, per_page: this.perPage });
-            const res = await fetch('/api/check/cerca-cliente/?' + params);
+            const params = new URLSearchParams({ q: this.query, status: this.filterStatus });
+            const res = await fetch('/api/check/clienti-stato/?' + params);
             const data = await res.json();
-            this.results = data.results; this.numPages = data.num_pages; this.total = data.total;
+            this.results = data.results;
+            this.total = data.total;
         } catch(e) { console.error(e); }
         this.loading = false;
     },
-    setTab(t) {
-        if (this.tab === t) return;
-        const wrap = document.getElementById('check-table-wrap');
-        if (wrap) wrap.dataset.filterSwapping = '1';
-        setTimeout(() => { this.tab = t; this.page = 1; this.fetchChecks(); if (wrap) wrap.dataset.filterSwapping = '0'; }, 220);
+    setFilter(s) {
+        if (this.filterStatus === s) return;
+        this.filterStatus = s;
+        this.fetchClients();
     },
-    setPage(p) { if (p >= 1 && p <= this.numPages) { this.page = p; this.fetchChecks(); } },
-    setPerPage(n) { this.perPage = parseInt(n); this.page = 1; this.fetchChecks(); },
-    get pageRange() { const pages = []; for(let i=1;i<=Math.min(this.numPages,7);i++) pages.push(i); return pages; },
-    async init() { await this.fetchChecks(); }
+    async init() { await this.fetchClients(); }
 }">
 
     <!-- Header -->
@@ -147,7 +144,7 @@ window._coachTemplates = {{ coach_templates_json|safe }};
         <div>
             <p class="al-eyebrow mb-3">Studio &middot; Check</p>
             <h1 class="al-h-1">Check &amp; <span class="al-display-i">Progressi</span></h1>
-            <p class="al-body mt-2">Monitora i check dei tuoi atleti e pianifica le sessioni di verifica.</p>
+            <p class="al-body mt-2">Monitora i progressi degli atleti e analizza i loro check.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
@@ -189,41 +186,35 @@ window._coachTemplates = {{ coach_templates_json|safe }};
 
     <!-- Toolbar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-        <div class="al-filter" role="tablist" aria-label="Filtro check">
+        <div class="al-filter" role="tablist" aria-label="Filtro atleti">
             <button type="button" role="tab" class="al-filter-chip"
-                    :class="{ 'is-active': tab === 'da_revisionare' }"
-                    :aria-selected="tab === 'da_revisionare'"
-                    @click="setTab('da_revisionare')">
+                    :class="{ 'is-active': filterStatus === 'all' }"
+                    :aria-selected="filterStatus === 'all'"
+                    @click="setFilter('all')">
+                Tutti gli atleti
+            </button>
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': filterStatus === 'da_revisionare' }"
+                    :aria-selected="filterStatus === 'da_revisionare'"
+                    @click="setFilter('da_revisionare')">
                 Da Revisionare
             </button>
-            <button type="button" role="tab" class="al-filter-chip"
-                    :class="{ 'is-active': tab === 'tutti' }"
-                    :aria-selected="tab === 'tutti'"
-                    @click="setTab('tutti')">
-                Tutti
-            </button>
         </div>
-        <div class="flex items-center gap-3 w-full sm:w-auto">
-            <div class="al-search flex-1 sm:w-64">
-                <i class="ph ph-magnifying-glass"></i>
-                <input type="text" x-model="query" @input.debounce.350ms="page=1; fetchChecks()" placeholder="Cerca atleta..." class="al-input">
-            </div>
-            <select @change="setPerPage($event.target.value)" class="al-select" style="width: 80px;">
-                <option value="10" :selected="perPage === 10">10</option>
-                <option value="20" :selected="perPage === 20">20</option>
-            </select>
+        <div class="al-search sm:w-64">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" x-model="query" @input.debounce.350ms="fetchClients()" placeholder="Cerca atleta..." class="al-input">
         </div>
     </div>
 
-    <!-- Table -->
-    <div class="al-card al-card-flush al-filter-target" id="check-table-wrap" data-filter-swapping="0">
+    <!-- Clients Table -->
+    <div class="al-card al-card-flush">
         <div class="overflow-x-auto">
             <table class="al-table">
                 <thead>
                     <tr>
                         <th>Atleta</th>
-                        <th>Data Invio</th>
                         <th>Obiettivo</th>
+                        <th>Ultimo check</th>
                         <th>Peso</th>
                         <th>Stato</th>
                         <th class="text-right">&nbsp;</th>
@@ -237,18 +228,14 @@ window._coachTemplates = {{ coach_templates_json|safe }};
                     </template>
 
                     <template x-if="!loading && results.length > 0">
-                        <template x-for="r in results" :key="r.id">
+                        <template x-for="r in results" :key="r.client_id">
                             <tr>
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <div class="al-avatar al-avatar-sm al-avatar-sq" x-text="r.client_initials"></div>
-                                        <div>
-                                            <p class="font-medium text-ink" x-text="r.client_name"></p>
-                                            <a :href="'/check/cliente/' + r.client_id + '/'" class="al-link al-link-quiet text-[10px] uppercase tracking-widest">Storico →</a>
-                                        </div>
+                                        <p class="font-medium text-ink" x-text="r.client_name"></p>
                                     </div>
                                 </td>
-                                <td><span class="al-table-num" x-text="r.submitted_at"></span></td>
                                 <td>
                                     <template x-if="r.primary_goal">
                                         <span class="al-badge al-badge-aegean" x-text="r.primary_goal"></span>
@@ -256,20 +243,33 @@ window._coachTemplates = {{ coach_templates_json|safe }};
                                     <template x-if="!r.primary_goal"><span class="al-tag">—</span></template>
                                 </td>
                                 <td>
-                                    <template x-if="r.weight_kg"><span class="font-mono font-medium text-ink" x-text="r.weight_kg + ' kg'"></span></template>
-                                    <template x-if="!r.weight_kg"><span class="al-tag">—</span></template>
+                                    <template x-if="r.latest_check_at">
+                                        <span class="al-table-num" x-text="r.latest_check_at"></span>
+                                    </template>
+                                    <template x-if="!r.latest_check_at"><span class="al-tag">Nessun check</span></template>
                                 </td>
                                 <td>
-                                    <template x-if="r.status === 'REVIEWED'">
-                                        <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Revisionato</span>
+                                    <template x-if="r.latest_weight"><span class="font-mono font-medium text-ink" x-text="r.latest_weight + ' kg'"></span></template>
+                                    <template x-if="!r.latest_weight"><span class="al-tag">—</span></template>
+                                </td>
+                                <td>
+                                    <template x-if="r.status === 'da_revisionare'">
+                                        <span class="al-badge al-badge-warn">
+                                            <span class="dot"></span>
+                                            Da revisionare
+                                            <span class="font-mono ml-1 opacity-70" x-text="'(' + r.pending_count + ')'"></span>
+                                        </span>
                                     </template>
-                                    <template x-if="r.status !== 'REVIEWED'">
-                                        <span class="al-badge al-badge-warn"><span class="dot"></span>Da revisionare</span>
+                                    <template x-if="r.status === 'aggiornato'">
+                                        <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Aggiornato</span>
+                                    </template>
+                                    <template x-if="r.status === 'nessun_check'">
+                                        <span class="al-tag">Nessun check</span>
                                     </template>
                                 </td>
                                 <td class="text-right">
-                                    <a :href="'/check/' + r.id + '/'" class="al-btn al-btn-ghost al-btn-sm">
-                                        <span>Analizza</span>
+                                    <a :href="'/check/cliente/' + r.client_id + '/'" class="al-btn al-btn-ghost al-btn-sm">
+                                        <span>Analizza</span><i class="ph ph-arrow-right text-xs"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -279,9 +279,9 @@ window._coachTemplates = {{ coach_templates_json|safe }};
                     <template x-if="!loading && results.length === 0">
                         <tr><td colspan="6">
                             <div class="al-empty">
-                                <i class="ph ph-clipboard-text al-empty-icon"></i>
-                                <h3>Nessun check</h3>
-                                <p x-text="query ? 'Nessun risultato per la ricerca.' : 'Nessun check in questa sezione.'"></p>
+                                <i class="ph ph-users al-empty-icon"></i>
+                                <h3>Nessun atleta</h3>
+                                <p x-text="query ? 'Nessun risultato per la ricerca.' : (filterStatus === 'da_revisionare' ? 'Nessun check da revisionare.' : 'Nessun atleta associato.')"></p>
                             </div>
                         </td></tr>
                     </template>
@@ -289,22 +289,11 @@ window._coachTemplates = {{ coach_templates_json|safe }};
             </table>
         </div>
 
-        <!-- Pagination -->
-        <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color: var(--al-rule); background: var(--al-marble-warm);" x-show="!loading && total > 0">
+        <!-- Footer count -->
+        <div class="px-6 py-3 border-t flex items-center" style="border-color: var(--al-rule); background: var(--al-marble-warm);" x-show="!loading && total > 0">
             <span class="al-tag">
-                <span class="font-mono text-ink" x-text="results.length"></span> di <span class="font-mono text-ink" x-text="total"></span>
+                <span class="font-mono text-ink" x-text="total"></span> atleta/i
             </span>
-            <div class="al-pag">
-                <button @click="setPage(page - 1)" :disabled="page === 1" type="button">
-                    <i class="ph-bold ph-caret-left"></i>
-                </button>
-                <template x-for="p in pageRange" :key="p">
-                    <button @click="setPage(p)" type="button" :class="p === page ? 'is-active' : ''" x-text="p"></button>
-                </template>
-                <button @click="setPage(page + 1)" :disabled="page === numPages" type="button">
-                    <i class="ph-bold ph-caret-right"></i>
-                </button>
-            </div>
         </div>
     </div>
 

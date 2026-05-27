@@ -703,85 +703,152 @@ window.NUTRITION_WIZARD_INIT = {
 
       <!-- Side panel -->
       <aside class="space-y-4 lg:sticky lg:top-6">
-        <div class="al-card">
-          <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);"
-             x-text="planKind === 'WEEKLY' && activeDay === 'AVG' ? 'Media settimanale' : 'Totali giornalieri'"></p>
+        <div class="al-card" style="overflow: hidden;">
+          <!-- Header — click to flip between macro / micro -->
+          <button type="button" @click="toggleMicro()"
+                  class="w-full flex items-center justify-between mb-3 group"
+                  style="cursor: pointer; background: none; border: none; padding: 0;">
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);"
+               x-text="planKind === 'WEEKLY' && activeDay === 'AVG' ? 'Media settimanale' : 'Totali giornalieri'"></p>
+            <span class="al-tag flex items-center gap-1 transition-all"
+                  style="font-size: 9px; padding: 3px 8px; border-radius: 99px;"
+                  :style="microFlipped ? 'background: var(--al-info-bg); color: var(--al-aegean);' : 'opacity: 0.7;'">
+              <i class="ph transition-all" :class="microFlipped ? 'ph-chart-pie' : 'ph-test-tube'"></i>
+              <span x-text="microFlipped ? 'Macro' : 'Micro'"></span>
+            </span>
+          </button>
 
-          <!-- Macro donut replaces the big kcal counter -->
-          <div class="mb-5" x-data="{ pieHover: null }">
-            <div class="relative mx-auto" style="width: 200px; height: 200px;">
-              <svg viewBox="0 0 200 200" width="200" height="200" style="display: block;">
-                <template x-for="seg in sidePanelPieSegments()" :key="seg.key">
-                  <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
-                        :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s, transform .25s var(--al-ease-spr); transform-origin: 100px 100px; transform-box: fill-box;' + (pieHover && pieHover !== seg.key ? ' opacity: 0.28;' : '') + (pieHover === seg.key ? ' transform: scale(1.035);' : '')"
-                        @mouseenter="pieHover = seg.key"
-                        @mouseleave="pieHover = null"></path>
-                </template>
-                <template x-if="pieKcalTotal(sidePanelPieSegments()) === 0">
-                  <g>
-                    <circle cx="100" cy="100" r="92" fill="none" stroke="var(--al-rule)" stroke-width="1.5" stroke-dasharray="3 6"></circle>
-                    <circle cx="100" cy="100" r="58" fill="none" stroke="var(--al-rule-faint)" stroke-width="1" stroke-dasharray="2 5"></circle>
-                  </g>
-                </template>
-              </svg>
-              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <template x-if="!pieHover">
-                  <div class="text-center">
-                    <p class="al-display font-mono"
-                       style="font-size: 34px; line-height: 1; color: var(--al-ink); letter-spacing: -0.01em;"
-                       x-text="sidePanelKcal()"></p>
-                    <p class="al-tag mt-1" style="font-size: 9px;">kcal</p>
-                    <template x-if="daily_kcal">
-                      <p class="al-tag font-mono mt-0.5"
-                         style="font-size: 9px;"
-                         :style="kcalDeltaColor()"
-                         x-text="kcalDeltaLabel()"></p>
+          <!-- Flip container — scaleX to 0 at midpoint, swap content, scale back -->
+          <div :style="microFlipping
+                        ? 'transform: scaleX(0); transition: transform 0.16s ease-in;'
+                        : 'transform: scaleX(1); transition: transform 0.22s ease-out;'">
+
+            <!-- ── FRONT: macro donut + bars ── -->
+            <div x-show="!microFlipped">
+              <div class="mb-5" x-data="{ pieHover: null }">
+                <div class="relative mx-auto" style="width: 200px; height: 200px;">
+                  <svg viewBox="0 0 200 200" width="200" height="200" style="display: block;">
+                    <template x-for="seg in sidePanelPieSegments()" :key="seg.key">
+                      <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
+                            :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s, transform .25s var(--al-ease-spr); transform-origin: 100px 100px; transform-box: fill-box;' + (pieHover && pieHover !== seg.key ? ' opacity: 0.28;' : '') + (pieHover === seg.key ? ' transform: scale(1.035);' : '')"
+                            @mouseenter="pieHover = seg.key"
+                            @mouseleave="pieHover = null"></path>
+                    </template>
+                    <template x-if="pieKcalTotal(sidePanelPieSegments()) === 0">
+                      <g>
+                        <circle cx="100" cy="100" r="92" fill="none" stroke="var(--al-rule)" stroke-width="1.5" stroke-dasharray="3 6"></circle>
+                        <circle cx="100" cy="100" r="58" fill="none" stroke="var(--al-rule-faint)" stroke-width="1" stroke-dasharray="2 5"></circle>
+                      </g>
+                    </template>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <template x-if="!pieHover">
+                      <div class="text-center">
+                        <p class="al-display font-mono"
+                           style="font-size: 34px; line-height: 1; color: var(--al-ink); letter-spacing: -0.01em;"
+                           x-text="sidePanelKcal()"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;">kcal</p>
+                        <template x-if="daily_kcal">
+                          <p class="al-tag font-mono mt-0.5"
+                             style="font-size: 9px;"
+                             :style="kcalDeltaColor()"
+                             x-text="kcalDeltaLabel()"></p>
+                        </template>
+                      </div>
+                    </template>
+                    <template x-if="pieHover">
+                      <div class="text-center px-2">
+                        <p class="al-display font-mono font-bold"
+                           style="font-size: 30px; line-height: 1; letter-spacing: -0.01em;"
+                           :style="'color: ' + (sidePanelPieSegments().find(s => s.key === pieHover) || {}).color"
+                           x-text="pctLabel((sidePanelPieSegments().find(s => s.key === pieHover) || {}).pct || 0)"></p>
+                        <p class="al-tag mt-1" style="font-size: 9px;"
+                           x-text="(sidePanelPieSegments().find(s => s.key === pieHover) || {}).label"></p>
+                        <p class="font-mono mt-0.5" style="font-size: 11px; color: var(--al-ink-soft);"
+                           x-text="((sidePanelPieSegments().find(s => s.key === pieHover) || {}).grams || 0) + 'g · ' + ((sidePanelPieSegments().find(s => s.key === pieHover) || {}).kcal || 0) + ' kcal'"></p>
+                      </div>
                     </template>
                   </div>
-                </template>
-                <template x-if="pieHover">
-                  <div class="text-center px-2">
-                    <p class="al-display font-mono font-bold"
-                       style="font-size: 30px; line-height: 1; letter-spacing: -0.01em;"
-                       :style="'color: ' + (sidePanelPieSegments().find(s => s.key === pieHover) || {}).color"
-                       x-text="pctLabel((sidePanelPieSegments().find(s => s.key === pieHover) || {}).pct || 0)"></p>
-                    <p class="al-tag mt-1" style="font-size: 9px;"
-                       x-text="(sidePanelPieSegments().find(s => s.key === pieHover) || {}).label"></p>
-                    <p class="font-mono mt-0.5" style="font-size: 11px; color: var(--al-ink-soft);"
-                       x-text="((sidePanelPieSegments().find(s => s.key === pieHover) || {}).grams || 0) + 'g · ' + ((sidePanelPieSegments().find(s => s.key === pieHover) || {}).kcal || 0) + ' kcal'"></p>
+                </div>
+                <p class="al-tag text-center mt-3" style="color: var(--al-ink-line); font-size: 9px; letter-spacing: 0.15em;">
+                  <i class="ph ph-cursor text-[10px]"></i>
+                  <span>passa sulle fette</span>
+                </p>
+              </div>
+
+              <div class="space-y-3">
+                <template x-for="row in [
+                    {k:'protein',c:'var(--al-aegean)',  l:'Proteine',   t:protein_target_g, subs:[]},
+                    {k:'carb',   c:'var(--al-bronze)',  l:'Carboidrati',t:carb_target_g,
+                       subs:[{k:'sugars', l:'Zuccheri', u:'g'},
+                             {k:'fiber',  l:'Fibre',    u:'g'}]},
+                    {k:'fat',    c:'var(--al-ink-mute)',l:'Grassi',     t:fat_target_g,
+                       subs:[{k:'sat_fat',     l:'Saturi',     u:'g'},
+                             {k:'cholesterol', l:'Colesterolo',u:'mg'}]},
+                  ]" :key="row.k">
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span :style="'width:10px;height:10px;border-radius:999px;background:' + row.c"></span>
+                        <span class="al-body" x-text="row.l"></span>
+                      </div>
+                      <span class="font-mono font-bold text-ink"
+                            x-text="sidePanelMacro(row.k) + (row.t ? ' / ' + row.t : '') + ' g'"></span>
+                    </div>
+                    <template x-if="row.t">
+                      <div class="mt-1.5 h-1.5 overflow-hidden"
+                           style="background: var(--al-marble); border-radius: 999px;">
+                        <div class="h-full transition-all"
+                             :style="'background:' + row.c + '; width:' + macroProgressPct(row.k, row.t) + '%'"></div>
+                      </div>
+                    </template>
+                    <template x-if="row.subs.length">
+                      <div class="mt-1.5 pl-3.5 space-y-0.5"
+                           :style="'border-left: 1px dashed ' + row.c + '55;'">
+                        <template x-for="s in row.subs" :key="s.k">
+                          <div class="flex items-baseline justify-between">
+                            <span class="al-tag" style="font-size: 9px; color: var(--al-ink-soft); letter-spacing: 0.06em; text-transform: none;"
+                                  x-text="'↳ ' + s.l"></span>
+                            <span class="font-mono" style="font-size: 10px; color: var(--al-ink-mute);"
+                                  x-text="sidePanelMacro(s.k).toFixed(1) + ' ' + s.u"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
             </div>
-            <p class="al-tag text-center mt-3" style="color: var(--al-ink-line); font-size: 9px; letter-spacing: 0.15em;">
-              <i class="ph ph-cursor text-[10px]"></i>
-              <span>passa sulle fette</span>
-            </p>
-          </div>
+            <!-- ── END FRONT ── -->
 
-          <div class="space-y-3">
-            <template x-for="row in [{k:'protein',c:'var(--al-aegean)',l:'Proteine',t:protein_target_g},
-                                      {k:'carb',c:'var(--al-bronze)',l:'Carboidrati',t:carb_target_g},
-                                      {k:'fat',c:'var(--al-ink-mute)',l:'Grassi',t:fat_target_g}]" :key="row.k">
-              <div>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span :style="'width:10px;height:10px;border-radius:999px;background:' + row.c"></span>
-                    <span class="al-body" x-text="row.l"></span>
+            <!-- ── BACK: micronutrients grid ── -->
+            <div x-show="microFlipped">
+              <template x-for="grp in microDefs()" :key="grp.group">
+                <div class="mb-3">
+                  <p class="al-tag mb-1" style="font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;"
+                     :style="'color: ' + grp.color">
+                    <span x-text="grp.group"></span>
+                  </p>
+                  <div class="grid grid-cols-2 gap-x-2">
+                    <template x-for="m in grp.items" :key="m.key">
+                      <div class="flex items-baseline justify-between py-0.5"
+                           style="border-bottom: 1px solid var(--al-rule-faint);">
+                        <span class="al-tag" style="font-size: 9px; color: var(--al-ink-soft);" x-text="m.label"></span>
+                        <span class="font-mono" style="font-size: 10px; color: var(--al-ink);"
+                              x-text="(sidePanelMacro(m.key)).toFixed(1) + ' ' + m.unit"></span>
+                      </div>
+                    </template>
                   </div>
-                  <span class="font-mono font-bold text-ink"
-                        x-text="sidePanelMacro(row.k) + (row.t ? ' / ' + row.t : '') + ' g'"></span>
                 </div>
-                <template x-if="row.t">
-                  <div class="mt-1.5 h-1.5 overflow-hidden"
-                       style="background: var(--al-marble); border-radius: 999px;">
-                    <div class="h-full transition-all"
-                         :style="'background:' + row.c + '; width:' + macroProgressPct(row.k, row.t) + '%'"></div>
-                  </div>
-                </template>
-              </div>
-            </template>
-          </div>
+              </template>
+              <p class="al-tag text-center mt-2" style="color: var(--al-ink-line); font-size: 8px; letter-spacing: 0.12em;">
+                <i class="ph ph-info text-[9px]"></i>
+                <span>valori stimati · clic intestazione per tornare</span>
+              </p>
+            </div>
+            <!-- ── END BACK ── -->
+
+          </div><!-- end flip container -->
         </div>
 
         <!-- Editable custom target -->

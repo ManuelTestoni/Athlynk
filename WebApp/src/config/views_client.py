@@ -136,6 +136,11 @@ def coach_client_detail_view(request, client_id):
         QuestionnaireResponse.objects
         .filter(client=client, coach=coach)
         .select_related('questionnaire_template')
+        .defer('answers_json', 'body_circumferences', 'skinfolds',
+               'coach_feedback', 'coach_private_notes',
+               'questionnaire_template__questions_config',
+               'questionnaire_template__steps_config',
+               'questionnaire_template__report_config')
         .order_by('-created_at')
     )
     recent_checks = all_checks[:5]

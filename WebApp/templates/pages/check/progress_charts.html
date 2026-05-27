@@ -563,7 +563,7 @@ function progressCharts(){
       const data = _chartData.circumferences[this.activeCirc] || [];
       this.charts.circ.data.datasets[0].label = CIRC_LABELS[this.activeCirc];
       this.charts.circ.data.datasets[0].data = [...data];
-      this.charts.circ.update('active');
+      this.charts.circ.update();
     },
 
     updateSkinChart(){
@@ -572,7 +572,7 @@ function progressCharts(){
       const data = _chartData.skinfolds[this.activeSkin] || [];
       this.charts.skin.data.datasets[0].label = SKIN_LABELS[this.activeSkin];
       this.charts.skin.data.datasets[0].data = [...data];
-      this.charts.skin.update('active');
+      this.charts.skin.update();
     }
   };
 }

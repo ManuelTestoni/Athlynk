@@ -307,7 +307,11 @@ def api_custom_exercises(request):
         return err
 
     if request.method == 'GET':
-        qs = Exercise.objects.filter(is_custom=True, created_by=coach).order_by('name')
+        qs = (
+            Exercise.objects.filter(is_custom=True, created_by=coach)
+            .prefetch_related('sports', 'primary_muscles', 'secondary_muscles')
+            .order_by('name')
+        )
         return JsonResponse([_serialize_exercise_full(e) for e in qs], safe=False)
 
     if request.method == 'POST':

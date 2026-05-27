@@ -30,5 +30,11 @@ class ClientSubscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['subscription_plan', 'status']),
+        ]
+
     def __str__(self):
         return f"Subscription for {self.client}"

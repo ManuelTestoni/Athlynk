@@ -18,5 +18,12 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'start_datetime']),
+            models.Index(fields=['client', 'start_datetime']),
+            models.Index(fields=['status', 'start_datetime']),
+        ]
+
     def __str__(self):
         return f"{self.title} - {self.client}"

@@ -128,7 +128,7 @@
                   placeholder="Scrivi un messaggio..." class="al-textarea"
                   style="min-height: 40px; resize: none;"></textarea>
       </div>
-      <button type="submit" :disabled="sending" class="al-btn al-btn-icon shrink-0">
+      <button type="submit" :disabled="sending || (!text.trim() && !attachment)" class="al-btn al-btn-icon shrink-0">
         <i class="ph ph-paper-plane-right text-base"></i>
       </button>
     </form>

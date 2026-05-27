@@ -17,6 +17,12 @@ class CoachingRelationship(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'status']),
+            models.Index(fields=['client', 'status']),
+        ]
+
     def __str__(self):
         return f"{self.coach} - {self.client} ({self.status})"
 

@@ -81,8 +81,8 @@
         <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
             <template x-for="s in visibleSteps" :key="s.id">
                 <button @click="goTo(s.id)" type="button"
-                        :class="step === s.id ? 'fck-step-pill is-active' : (step > s.id ? 'fck-step-pill is-done' : 'fck-step-pill is-todo')">
-                    <i :class="'ph ' + (step > s.id ? 'ph-check-circle' : s.icon)"></i>
+                        :class="step === s.id ? 'fck-step-pill is-active' : (isStepDone(s.id) ? 'fck-step-pill is-done' : 'fck-step-pill is-todo')">
+                    <i :class="'ph ' + (isStepDone(s.id) ? 'ph-check-circle' : s.icon)"></i>
                     <span x-text="s.label"></span>
                 </button>
             </template>
@@ -200,19 +200,19 @@
 
     <!-- Navigation -->
     <div class="flex items-center justify-between mt-8 pt-6" style="border-top:1px solid var(--al-rule);">
-        <button @click="prev()" x-show="step > 1" type="button" class="al-btn al-btn-ghost">
+        <button @click="prev()" x-show="stepIdx() > 0" type="button" class="al-btn al-btn-ghost">
             <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
         </button>
-        <div x-show="step === 1"></div>
+        <div x-show="stepIdx() === 0"></div>
 
         <span class="al-tag font-mono text-xs">
-            <span x-text="step"></span> / <span x-text="visibleSteps.length"></span>
+            <span x-text="stepIdx() + 1"></span> / <span x-text="visibleSteps.length"></span>
         </span>
 
-        <button @click="nextStep()" x-show="step < visibleSteps.length" type="button" class="al-btn al-btn-bronze">
+        <button @click="nextStep()" x-show="stepIdx() < visibleSteps.length - 1" type="button" class="al-btn al-btn-bronze">
             <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
         </button>
-        <button @click="submitForm()" x-show="step === visibleSteps.length" type="button" class="al-btn al-btn-bronze">
+        <button @click="submitForm()" x-show="stepIdx() === visibleSteps.length - 1" type="button" class="al-btn al-btn-bronze">
             <i class="ph ph-paper-plane-tilt text-sm"></i><span>Invia al Coach</span>
         </button>
     </div>
@@ -221,17 +221,12 @@
 
 <script>
 const FCK_QUESTIONS = {{ questions_config_json|safe }};
-const FCK_PREFILL  = {% if prefill_json %}{{ prefill_json|safe }}{% else %}{}{% endif %};
-
-const STEP_DEFS = [
-    { id: 1, label: 'Misurazioni', icon: 'ph-ruler' },
-    { id: 2, label: 'Benessere',   icon: 'ph-smiley' },
-    { id: 3, label: 'Note',        icon: 'ph-note-pencil' },
-];
+const FCK_STEPS     = {{ steps_config_json|safe }};
+const FCK_PREFILL   = {% if prefill_json %}{{ prefill_json|safe }}{% else %}{}{% endif %};
 
 function fillCheck() {
     // Build initial answers from prefill
-    const initAnswers = Object.assign({ benessere_umore: 3, benessere_dieta: 3, benessere_workout: 3 }, FCK_PREFILL);
+    const initAnswers = Object.assign({}, FCK_PREFILL);
     // Init media defaults
     FCK_QUESTIONS.forEach(q => {
         if (q.type === 'media' && initAnswers[q.id] === undefined) {
@@ -239,33 +234,35 @@ function fillCheck() {
         }
     });
 
-    // Determine which steps have questions
-    const usedSteps = new Set(FCK_QUESTIONS.map(q => q.step));
-    const visibleSteps = STEP_DEFS.filter(s => usedSteps.has(s.id));
-    if (visibleSteps.length === 0) visibleSteps.push(STEP_DEFS[0]);
+    // Determine which steps actually have questions (uses step_id from questions)
+    const usedStepIds = new Set(FCK_QUESTIONS.map(q => q.step_id));
+    let visibleSteps = FCK_STEPS.filter(s => usedStepIds.has(s.id));
+    if (visibleSteps.length === 0 && FCK_STEPS.length > 0) visibleSteps = [FCK_STEPS[0]];
+    if (visibleSteps.length === 0) visibleSteps = [{ id: '__solo', label: 'Check', icon: 'ph-clipboard-text' }];
 
     return {
-        step: visibleSteps[0]?.id || 1,
+        step: visibleSteps[0].id,
         visibleSteps,
         answers: initAnswers,
         submitErrors: [],
 
-        stepQuestions(s) { return FCK_QUESTIONS.filter(q => q.step === s); },
-        stepHasRequired(s) { return FCK_QUESTIONS.some(q => q.step === s && q.required); },
+        stepQuestions(sid) { return FCK_QUESTIONS.filter(q => q.step_id === sid); },
+        stepHasRequired(sid) { return FCK_QUESTIONS.some(q => q.step_id === sid && q.required); },
+        stepIdx() { return this.visibleSteps.findIndex(s => s.id === this.step); },
+        isStepDone(sid) { return this.visibleSteps.findIndex(s => s.id === sid) < this.stepIdx(); },
 
-        goTo(s) { this.step = s; window.scrollTo({ top: 0, behavior: 'smooth' }); },
+        goTo(sid) { this.step = sid; window.scrollTo({ top: 0, behavior: 'smooth' }); },
         prev() {
-            const idx = this.visibleSteps.findIndex(s => s.id === this.step);
+            const idx = this.stepIdx();
             if (idx > 0) this.goTo(this.visibleSteps[idx - 1].id);
         },
         nextStep() {
-            const idx = this.visibleSteps.findIndex(s => s.id === this.step);
+            const idx = this.stepIdx();
             if (idx < this.visibleSteps.length - 1) this.goTo(this.visibleSteps[idx + 1].id);
         },
 
         submitForm() {
             this.submitErrors = [];
-            // Validate all required questions across all steps
             FCK_QUESTIONS.forEach(q => {
                 if (q.required) {
                     const val = this.answers[q.id];

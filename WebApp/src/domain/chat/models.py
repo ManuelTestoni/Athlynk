@@ -11,6 +11,9 @@ class Conversation(models.Model):
     class Meta:
         unique_together = [('coach', 'client')]
         ordering = ['-last_message_at', '-created_at']
+        indexes = [
+            models.Index(fields=['-last_message_at']),
+        ]
 
     def __str__(self):
         return f"Chat {self.coach} ↔ {self.client}"
@@ -36,6 +39,10 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['sent_at']
+        indexes = [
+            models.Index(fields=['conversation', '-sent_at']),
+            models.Index(fields=['conversation', 'read_at']),
+        ]
 
     def __str__(self):
         return f"Message #{self.id} from {self.sender_user_id} at {self.sent_at}"
@@ -64,6 +71,9 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['target_user', 'is_read', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Notif to {self.target_user_id}: {self.title}"

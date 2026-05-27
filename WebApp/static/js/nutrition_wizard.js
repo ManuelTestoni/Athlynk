@@ -32,6 +32,32 @@ function nutritionWizard() {
       protein_per_100g: it.protein_per_100g,
       carb_per_100g: it.carb_per_100g,
       fat_per_100g: it.fat_per_100g,
+      fiber_per_100g: it.fiber_per_100g || 0,
+      sat_fat_per_100g: it.sat_fat_per_100g || 0,
+      cholesterol_per_100g: it.cholesterol_per_100g || 0,
+      sugars_per_100g: it.sugars_per_100g || 0,
+      iron_per_100g: it.iron_per_100g || 0,
+      calcium_per_100g: it.calcium_per_100g || 0,
+      sodium_per_100g: it.sodium_per_100g || 0,
+      potassium_per_100g: it.potassium_per_100g || 0,
+      phosphorus_per_100g: it.phosphorus_per_100g || 0,
+      zinc_per_100g: it.zinc_per_100g || 0,
+      magnesium_per_100g: it.magnesium_per_100g || 0,
+      copper_per_100g: it.copper_per_100g || 0,
+      selenium_per_100g: it.selenium_per_100g || 0,
+      iodine_per_100g: it.iodine_per_100g || 0,
+      manganese_per_100g: it.manganese_per_100g || 0,
+      vit_b1_per_100g: it.vit_b1_per_100g || 0,
+      vit_b2_per_100g: it.vit_b2_per_100g || 0,
+      vit_c_per_100g: it.vit_c_per_100g || 0,
+      niacin_per_100g: it.niacin_per_100g || 0,
+      vit_b6_per_100g: it.vit_b6_per_100g || 0,
+      folate_per_100g: it.folate_per_100g || 0,
+      vit_b12_per_100g: it.vit_b12_per_100g || 0,
+      isoleucine_per_100g: it.isoleucine_per_100g || 0,
+      leucine_per_100g: it.leucine_per_100g || 0,
+      valine_per_100g: it.valine_per_100g || 0,
+      lactose_per_100g: it.lactose_per_100g || 0,
       notes: it.notes || '',
       subsOpen: false,
       addSubMode: null,
@@ -96,6 +122,10 @@ function nutritionWizard() {
 
     /* === Step 4 state === */
     recapDay: 'AVG',
+
+    /* === micro panel state === */
+    microFlipped: false,
+    microFlipping: false,
 
     /* === wizard control === */
     step: 'info',
@@ -425,6 +455,32 @@ function nutritionWizard() {
         protein_per_100g: food.protein,
         carb_per_100g: food.carb,
         fat_per_100g: food.fat,
+        fiber_per_100g: food.fiber || 0,
+        sat_fat_per_100g: food.sat_fat || 0,
+        cholesterol_per_100g: food.cholesterol || 0,
+        sugars_per_100g: food.sugars || 0,
+        iron_per_100g: food.iron || 0,
+        calcium_per_100g: food.calcium || 0,
+        sodium_per_100g: food.sodium || 0,
+        potassium_per_100g: food.potassium || 0,
+        phosphorus_per_100g: food.phosphorus || 0,
+        zinc_per_100g: food.zinc || 0,
+        magnesium_per_100g: food.magnesium || 0,
+        copper_per_100g: food.copper || 0,
+        selenium_per_100g: food.selenium || 0,
+        iodine_per_100g: food.iodine || 0,
+        manganese_per_100g: food.manganese || 0,
+        vit_b1_per_100g: food.vit_b1 || 0,
+        vit_b2_per_100g: food.vit_b2 || 0,
+        vit_c_per_100g: food.vit_c || 0,
+        niacin_per_100g: food.niacin || 0,
+        vit_b6_per_100g: food.vit_b6 || 0,
+        folate_per_100g: food.folate || 0,
+        vit_b12_per_100g: food.vit_b12 || 0,
+        isoleucine_per_100g: food.isoleucine || 0,
+        leucine_per_100g: food.leucine || 0,
+        valine_per_100g: food.valine || 0,
+        lactose_per_100g: food.lactose || 0,
         notes: '',
         subsOpen: false,
         addSubMode: null,
@@ -531,6 +587,55 @@ function nutritionWizard() {
       const t = parseFloat(target);
       if (!t) return 0;
       return Math.min(100, Math.round((v / t) * 100));
+    },
+
+    /* === micro panel === */
+    toggleMicro() {
+      if (this.microFlipping) return;
+      const self = this;
+      self.microFlipping = true;
+      setTimeout(() => {
+        self.microFlipped = !self.microFlipped;
+        setTimeout(() => { self.microFlipping = false; }, 50);
+      }, 160);
+    },
+    microVal(key) {
+      /* Returns the daily total (or avg) for any _per_100g nutrient key */
+      return parseFloat(this.sidePanelMacro(key).toFixed ? this.sidePanelMacro(key) : 0) || 0;
+    },
+    microDefs() {
+      return [
+        { group: 'Latticini', color: 'var(--al-bronze)', items: [
+          { key: 'lactose',    label: 'Lattosio',   unit: 'g'  },
+        ]},
+        { group: 'Minerali', color: 'var(--al-aegean)', items: [
+          { key: 'iron',       label: 'Ferro',      unit: 'mg' },
+          { key: 'calcium',    label: 'Calcio',     unit: 'mg' },
+          { key: 'sodium',     label: 'Sodio',      unit: 'mg' },
+          { key: 'potassium',  label: 'Potassio',   unit: 'mg' },
+          { key: 'phosphorus', label: 'Fosforo',    unit: 'mg' },
+          { key: 'zinc',       label: 'Zinco',      unit: 'mg' },
+          { key: 'magnesium',  label: 'Magnesio',   unit: 'mg' },
+          { key: 'copper',     label: 'Rame',       unit: 'mg' },
+          { key: 'selenium',   label: 'Selenio',    unit: 'μg' },
+          { key: 'iodine',     label: 'Iodio',      unit: 'μg' },
+          { key: 'manganese',  label: 'Manganese',  unit: 'mg' },
+        ]},
+        { group: 'Vitamine', color: 'var(--al-warn)', items: [
+          { key: 'vit_b1',    label: 'Vit. B1',    unit: 'mg' },
+          { key: 'vit_b2',    label: 'Vit. B2',    unit: 'mg' },
+          { key: 'vit_c',     label: 'Vit. C',     unit: 'mg' },
+          { key: 'niacin',    label: 'Niacina',    unit: 'mg' },
+          { key: 'vit_b6',    label: 'Vit. B6',    unit: 'mg' },
+          { key: 'folate',    label: 'Folati',     unit: 'μg' },
+          { key: 'vit_b12',   label: 'Vit. B12',   unit: 'μg' },
+        ]},
+        { group: 'Amminoacidi', color: 'var(--al-danger)', items: [
+          { key: 'isoleucine', label: 'Isoleucina', unit: 'mg' },
+          { key: 'leucine',    label: 'Leucina',    unit: 'mg' },
+          { key: 'valine',     label: 'Valina',     unit: 'mg' },
+        ]},
+      ];
     },
     kcalDeltaLabel() {
       const v = this.sidePanelKcal();

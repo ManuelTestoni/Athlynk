@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Count, OuterRef, Subquery
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.utils.dateparse import parse_datetime
@@ -41,6 +41,118 @@ SKINFOLD_LABELS = [
     ('thigh', 'Coscia'),
     ('tricep', 'Tricipite'),
 ]
+
+RESERVED_FIELD_MAP = {
+    'peso_corporeo':    ('weight_kg', None),
+    'circ_spalle':      ('body_circumferences', 'shoulders'),
+    'circ_petto':       ('body_circumferences', 'chest'),
+    'circ_vita':        ('body_circumferences', 'waist'),
+    'circ_fianchi':     ('body_circumferences', 'hips'),
+    'circ_coscia':      ('body_circumferences', 'thigh_right'),
+    'circ_braccio':     ('body_circumferences', 'arm_right'),
+    'pl_petto':         ('skinfolds', 'chest'),
+    'pl_addome':        ('skinfolds', 'abdomen'),
+    'pl_coscia':        ('skinfolds', 'thigh'),
+    'pl_tricipite':     ('skinfolds', 'tricep'),
+    'note_messaggio':   ('notes', None),
+    'note_infortuni':   ('injuries', None),
+    'note_limitazioni': ('limitations', None),
+}
+
+
+def _get_q_value(q_id, resp):
+    if not resp:
+        return None
+    if q_id in RESERVED_FIELD_MAP:
+        field, key = RESERVED_FIELD_MAP[q_id]
+        val = getattr(resp, field, None)
+        if key:
+            if not isinstance(val, dict):
+                return None
+            v = val.get(key)
+            return v if v not in ('', None) else None
+        return val if val not in ('', None) else None
+    aj = resp.answers_json or {}
+    v = aj.get(q_id)
+    return v if v not in ('', None) else None
+
+
+def _build_check_sections(template, response, prev_response, attachments_by_q):
+    if not template:
+        return []
+    questions = list(template.questions_config or [])
+    steps = list(template.steps_config or [])
+    if not steps:
+        steps = [{'id': '__solo', 'label': 'Check', 'icon': 'ph-clipboard-text'}]
+
+    fallback_sid = steps[0].get('id')
+    sections = []
+    for step in steps:
+        sid = step.get('id')
+        step_qs = [q for q in questions if (q.get('step_id') or fallback_sid) == sid]
+        rendered = []
+        for q in step_qs:
+            q_id = q.get('id')
+            q_type = q.get('type', 'aperta')
+
+            if q_type == 'allegato':
+                files = attachments_by_q.get(q_id, [])
+                if not files:
+                    continue
+                rendered.append({
+                    'id': q_id, 'type': 'allegato',
+                    'label': q.get('label', 'Allegato'),
+                    'files': files,
+                })
+                continue
+
+            val = _get_q_value(q_id, response)
+            if val in (None, ''):
+                continue
+
+            prev_val = _get_q_value(q_id, prev_response)
+            delta = None
+            if q_type in ('metrica', 'range', 'media'):
+                try:
+                    if prev_val not in (None, ''):
+                        delta = round(float(val) - float(prev_val), 1)
+                except (ValueError, TypeError):
+                    delta = None
+
+            rendered.append({
+                'id': q_id,
+                'type': q_type,
+                'label': q.get('label', q_id),
+                'unit': q.get('unit'),
+                'value': val,
+                'previous': prev_val,
+                'delta': delta,
+                'options': q.get('options'),
+                'min': q.get('min'),
+                'max': q.get('max'),
+                'min_label': q.get('minLabel'),
+                'max_label': q.get('maxLabel'),
+                'range_min': q.get('rangeMin'),
+                'range_max': q.get('rangeMax'),
+            })
+
+        if rendered:
+            sections.append({
+                'id': sid,
+                'label': step.get('label', 'Sezione'),
+                'icon': step.get('icon') or 'ph-list',
+                'questions': rendered,
+            })
+    return sections
+
+
+def _has_allegato_questions(template):
+    if not template:
+        return False
+    for q in (template.questions_config or []):
+        if q.get('type') == 'allegato':
+            return True
+    return False
 
 
 def _compute_deltas(current_response, prev_response):
@@ -91,9 +203,12 @@ def check_dashboard_view(request):
         if per_page not in [10, 20]:
             per_page = 10
 
-        responses_qs = QuestionnaireResponse.objects.filter(
-            client=client
-        ).order_by('-submitted_at')
+        responses_qs = (
+            QuestionnaireResponse.objects.filter(client=client)
+            .defer('answers_json', 'body_circumferences', 'skinfolds',
+                   'coach_feedback', 'coach_private_notes')
+            .order_by('-submitted_at')
+        )
 
         paginator = Paginator(responses_qs, per_page)
         page_obj = paginator.get_page(page)
@@ -272,7 +387,7 @@ def check_create_view(request):
             client=client,
             coach=coach,
             submitted_at=timezone.now(),
-            status='COMPLETED',
+            status='REVIEWED',  # coach compiled → already reviewed
             weight_kg=weight_kg,
             body_circumferences=body_circumferences,
             skinfolds=skinfolds,
@@ -434,7 +549,7 @@ def check_detail_view(request, response_id):
             return redirect('login')
         try:
             response = QuestionnaireResponse.objects.select_related(
-                'client', 'coach'
+                'client', 'coach', 'questionnaire_template'
             ).get(id=response_id, coach=coach)
         except QuestionnaireResponse.DoesNotExist:
             return redirect('check_dashboard')
@@ -443,7 +558,7 @@ def check_detail_view(request, response_id):
         client = get_session_client(request)
         try:
             response = QuestionnaireResponse.objects.select_related(
-                'client', 'coach'
+                'client', 'coach', 'questionnaire_template'
             ).get(id=response_id, client=client)
         except QuestionnaireResponse.DoesNotExist:
             return redirect('check_dashboard')
@@ -491,6 +606,36 @@ def check_detail_view(request, response_id):
     photos = list(response.photos.all())
     answers = response.answers_json or {}
 
+    attachments = list(response.attachments.all())
+    attachments_by_q = {}
+    for a in attachments:
+        attachments_by_q.setdefault(a.question_id, []).append(a)
+
+    template = response.questionnaire_template
+    sections = _build_check_sections(template, response, prev_response, attachments_by_q)
+
+    has_allegato_q = _has_allegato_questions(template)
+    has_any_attachments = any(attachments_by_q.values())
+    has_photos_tab = bool(photos) or has_any_attachments or has_allegato_q
+
+    is_coach_view = (user.role == 'COACH')
+    has_athlete_notes = bool(response.notes or response.injuries or response.limitations)
+    has_coach_feedback = bool(response.coach_feedback)
+    has_notes_tab = is_coach_view or has_athlete_notes or has_coach_feedback
+
+    available_tabs = []
+    for s in sections:
+        available_tabs.append({'id': 'sec_' + str(s['id']), 'label': s['label'], 'icon': s['icon']})
+    if has_photos_tab:
+        photo_count = len(photos)
+        for files in attachments_by_q.values():
+            photo_count += len(files)
+        available_tabs.append({'id': 'foto', 'label': 'Foto', 'icon': 'ph-camera', 'count': photo_count})
+    if has_notes_tab:
+        available_tabs.append({'id': 'note', 'label': 'Note & Feedback', 'icon': 'ph-notebook'})
+
+    default_tab = available_tabs[0]['id'] if available_tabs else 'note'
+
     context = {
         'response': response,
         'prev_response': prev_response,
@@ -500,6 +645,14 @@ def check_detail_view(request, response_id):
         'skinfold_rows': skinfold_rows,
         'photos': photos,
         'answers': answers,
+        'sections': sections,
+        'attachments_by_q': attachments_by_q,
+        'has_photos_tab': has_photos_tab,
+        'has_notes_tab': has_notes_tab,
+        'has_athlete_notes': has_athlete_notes,
+        'has_coach_feedback': has_coach_feedback,
+        'available_tabs': available_tabs,
+        'default_tab': default_tab,
     }
     return render(request, 'pages/check/detail.html', context)
 
@@ -526,18 +679,53 @@ def client_check_history_view(request, client_id):
     if per_page not in [10, 20]:
         per_page = 10
 
-    responses_qs = QuestionnaireResponse.objects.filter(
-        coach=coach, client=target_client
-    ).order_by('-submitted_at')
+    responses_qs = (
+        QuestionnaireResponse.objects.filter(coach=coach, client=target_client)
+        .defer('answers_json', 'body_circumferences', 'skinfolds',
+               'coach_feedback', 'coach_private_notes')
+        .order_by('-submitted_at')
+    )
 
     paginator = Paginator(responses_qs, per_page)
     page_obj = paginator.get_page(page)
+
+    # Build chart data inline (same logic as check_progress_charts_view)
+    all_responses = list(
+        QuestionnaireResponse.objects.filter(client=target_client)
+        .order_by('submitted_at')
+        .values('submitted_at', 'weight_kg', 'body_circumferences', 'skinfolds')
+    )
+    circ_keys = ['shoulders', 'chest', 'waist', 'hips', 'thigh_right', 'arm_right']
+    skin_keys = ['chest', 'abdomen', 'thigh', 'tricep']
+    chart_labels = []
+    chart_weight = []
+    chart_circ = {k: [] for k in circ_keys}
+    chart_skin = {k: [] for k in skin_keys}
+    for r in all_responses:
+        chart_labels.append(r['submitted_at'].strftime('%d/%m/%Y'))
+        chart_weight.append(float(r['weight_kg']) if r['weight_kg'] else None)
+        circ = r['body_circumferences'] or {}
+        for k in circ_keys:
+            v = circ.get(k)
+            chart_circ[k].append(float(v) if v else None)
+        skin = r['skinfolds'] or {}
+        for k in skin_keys:
+            v = skin.get(k)
+            chart_skin[k].append(float(v) if v else None)
+
+    chart_data = {
+        'labels': chart_labels,
+        'weight': chart_weight,
+        'circumferences': chart_circ,
+        'skinfolds': chart_skin,
+    }
 
     context = {
         'target_client': target_client,
         'page_obj': page_obj,
         'per_page': per_page,
         'total_checks': paginator.count,
+        'chart_data_json': json.dumps(chart_data),
     }
     return render(request, 'pages/check/client_history.html', context)
 
@@ -669,9 +857,13 @@ def api_check_search(request):
     if per_page not in [10, 20]:
         per_page = 10
 
-    responses_qs = QuestionnaireResponse.objects.filter(coach=coach).select_related(
-        'client'
-    ).order_by('-submitted_at')
+    responses_qs = (
+        QuestionnaireResponse.objects.filter(coach=coach)
+        .select_related('client')
+        .only('id', 'submitted_at', 'weight_kg', 'status',
+              'client__id', 'client__first_name', 'client__last_name', 'client__primary_goal')
+        .order_by('-submitted_at')
+    )
 
     if q:
         responses_qs = responses_qs.filter(
@@ -704,6 +896,78 @@ def api_check_search(request):
         'total': paginator.count,
         'per_page': per_page,
     })
+
+
+def api_coach_clients_check_status(request):
+    """Unique athletes for this coach with their latest check status."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthenticated'}, status=401)
+
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    q = request.GET.get('q', '').strip()
+    filter_status = request.GET.get('status', 'all')
+
+    relationships = CoachingRelationship.objects.filter(
+        coach=coach, status='ACTIVE'
+    ).select_related('client').order_by('client__first_name', 'client__last_name')
+
+    if q:
+        relationships = relationships.filter(
+            Q(client__first_name__icontains=q) | Q(client__last_name__icontains=q)
+        )
+
+    latest_sq = QuestionnaireResponse.objects.filter(
+        client=OuterRef('client_id'), coach=coach
+    ).order_by('-submitted_at')
+    relationships = relationships.annotate(
+        latest_submitted_at=Subquery(latest_sq.values('submitted_at')[:1]),
+        latest_weight_kg=Subquery(latest_sq.values('weight_kg')[:1]),
+        pending_count=Count(
+            'client__questionnaire_responses',
+            filter=Q(client__questionnaire_responses__coach=coach,
+                     client__questionnaire_responses__status='COMPLETED'),
+        ),
+    )
+
+    results = []
+    for rel in relationships:
+        client = rel.client
+        pending_count = rel.pending_count or 0
+        latest_submitted_at = rel.latest_submitted_at
+        latest_weight_kg = rel.latest_weight_kg
+
+        if pending_count > 0:
+            status_val = 'da_revisionare'
+        elif latest_submitted_at:
+            status_val = 'aggiornato'
+        else:
+            status_val = 'nessun_check'
+
+        if filter_status == 'da_revisionare' and status_val != 'da_revisionare':
+            continue
+
+        results.append({
+            'client_id': client.id,
+            'client_name': f"{client.first_name} {client.last_name}",
+            'client_initials': f"{client.first_name[:1]}{client.last_name[:1]}".upper(),
+            'primary_goal': client.primary_goal or '',
+            'pending_count': pending_count,
+            'status': status_val,
+            'latest_check_at': latest_submitted_at.strftime('%-d %b %Y') if latest_submitted_at else None,
+            'latest_weight': str(latest_weight_kg) if latest_weight_kg else None,
+        })
+
+    # da_revisionare first, then by latest check desc
+    results.sort(key=lambda x: (
+        0 if x['status'] == 'da_revisionare' else (1 if x['status'] == 'aggiornato' else 2),
+        -(0 if x['latest_check_at'] is None else 1),
+    ))
+
+    return JsonResponse({'results': results, 'total': len(results)})
 
 
 def api_check_schedule(request):
@@ -813,44 +1077,56 @@ def _create_instance(assignment, due_date):
 
 def _generate_due_instances(client):
     today = timezone.localdate()
-    for assignment in AssignedCheck.objects.filter(client=client, is_active=True):
+    assignments = list(
+        AssignedCheck.objects.filter(client=client, is_active=True)
+        .prefetch_related('instances')
+    )
+    if not assignments:
+        return
+
+    week_monday = today - timedelta(days=today.weekday())
+    week_sunday = week_monday + timedelta(days=6)
+    seven_days_ago = today - timedelta(days=7)
+    seven_days_ahead = today + timedelta(days=7)
+
+    needs_end_program_check = any(a.recurrence_type == 'end_program' for a in assignments)
+    expiring = False
+    if needs_end_program_check:
+        try:
+            from domain.workouts.models import WorkoutAssignment
+            expiring = WorkoutAssignment.objects.filter(
+                client=client, end_date__gte=today, end_date__lte=seven_days_ahead
+            ).exists()
+        except Exception:
+            expiring = False
+        if not expiring:
+            try:
+                from domain.nutrition.models import NutritionAssignment
+                expiring = NutritionAssignment.objects.filter(
+                    client=client, end_date__gte=today, end_date__lte=seven_days_ahead
+                ).exists()
+            except Exception:
+                expiring = False
+
+    for assignment in assignments:
+        instances = list(assignment.instances.all())
+
         if assignment.recurrence_type == 'once':
-            if not assignment.instances.exists():
+            if not instances:
                 _create_instance(assignment, today)
 
         elif assignment.recurrence_type == 'weekly' and assignment.weekly_day is not None:
             if today.weekday() == assignment.weekly_day:
-                week_monday = today - timedelta(days=today.weekday())
-                if not assignment.instances.filter(due_date__gte=week_monday, due_date__lte=week_monday + timedelta(days=6)).exists():
+                if not any(week_monday <= i.due_date <= week_sunday for i in instances):
                     _create_instance(assignment, today)
 
         elif assignment.recurrence_type == 'monthly' and assignment.monthly_day is not None:
             if today.day == assignment.monthly_day:
-                if not assignment.instances.filter(due_date__year=today.year, due_date__month=today.month).exists():
+                if not any(i.due_date.year == today.year and i.due_date.month == today.month for i in instances):
                     _create_instance(assignment, today)
 
         elif assignment.recurrence_type == 'end_program':
-            # Check if any workout or nutrition plan ends within the next 7 days
-            try:
-                from domain.workouts.models import WorkoutAssignment
-                expiring = WorkoutAssignment.objects.filter(
-                    client=client,
-                    end_date__gte=today,
-                    end_date__lte=today + timedelta(days=7),
-                ).exists()
-            except Exception:
-                expiring = False
-            if not expiring:
-                try:
-                    from domain.nutrition.models import NutritionAssignment
-                    expiring = NutritionAssignment.objects.filter(
-                        client=client,
-                        end_date__gte=today,
-                        end_date__lte=today + timedelta(days=7),
-                    ).exists()
-                except Exception:
-                    expiring = False
-            if expiring and not assignment.instances.filter(due_date__gte=today - timedelta(days=7)).exists():
+            if expiring and not any(i.due_date >= seven_days_ago for i in instances):
                 _create_instance(assignment, today)
 
 
@@ -974,6 +1250,7 @@ def fill_assigned_check_view(request, instance_id):
 
     assignment = instance.assignment
     questions_config = assignment.snapshot_config or []
+    steps_config = (assignment.template.steps_config or []) if assignment.template else []
     coach = assignment.coach
 
     if request.method == 'GET':
@@ -981,6 +1258,7 @@ def fill_assigned_check_view(request, instance_id):
             'instance': instance,
             'assignment': assignment,
             'questions_config_json': json.dumps(questions_config),
+            'steps_config_json': json.dumps(steps_config),
             'coach': coach,
             'errors': [],
         })
@@ -1004,6 +1282,7 @@ def fill_assigned_check_view(request, instance_id):
             'instance': instance,
             'assignment': assignment,
             'questions_config_json': json.dumps(questions_config),
+            'steps_config_json': json.dumps(steps_config),
             'coach': coach,
             'errors': errors,
             'prefill_json': json.dumps(raw_answers),
@@ -1223,7 +1502,10 @@ def check_templates_list_view(request):
 
     _ensure_preset_clones(coach)
 
-    all_templates = QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+    all_templates = (
+        QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+        .defer('report_config')
+    )
 
     presets_by_key = {t.preset_key: t for t in all_templates if t.preset_key}
     presets = [presets_by_key[k] for k in PRESET_ORDER if k in presets_by_key]

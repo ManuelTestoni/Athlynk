@@ -227,7 +227,13 @@ class WorkoutAssignment(models.Model):
     end_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', 'coach', 'status']),
+            models.Index(fields=['coach', '-created_at']),
+        ]
+
     def __str__(self):
         return f"Plan {self.workout_plan.title} for {self.client}"
 
@@ -243,6 +249,12 @@ class WorkoutLog(models.Model):
     coach_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', '-workout_date']),
+            models.Index(fields=['workout_assignment', '-workout_date']),
+        ]
 
     def __str__(self):
         return f"Log by {self.client} on {self.workout_date}"
@@ -264,6 +276,10 @@ class WorkoutSession(models.Model):
 
     class Meta:
         ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['client', '-started_at']),
+            models.Index(fields=['assignment', 'completed']),
+        ]
 
     def __str__(self):
         return f"Session {self.id} - {self.client} on {self.started_at}"

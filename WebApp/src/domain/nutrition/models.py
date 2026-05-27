@@ -278,5 +278,11 @@ class NutritionAssignment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', 'coach', 'status']),
+            models.Index(fields=['coach', '-assigned_at']),
+        ]
+
     def __str__(self):
         return f"Plan {self.nutrition_plan.title} for {self.client}"

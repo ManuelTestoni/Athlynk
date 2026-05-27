@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.db.models import Q, Max, Count
+from django.db.models import Q, Max, Count, OuterRef, Subquery
 import json
 
 from domain.chat.models import Conversation, Message, Notification
@@ -37,6 +37,37 @@ def _recipient_user_for_message(conversation, sender_user):
     return conversation.coach.user
 
 
+def _annotate_conversations(qs, user):
+    last_msg_qs = Message.objects.filter(conversation=OuterRef('pk')).order_by('-sent_at')
+    return qs.annotate(
+        last_msg_body=Subquery(last_msg_qs.values('body')[:1]),
+        last_msg_sent_at=Subquery(last_msg_qs.values('sent_at')[:1]),
+        last_msg_type=Subquery(last_msg_qs.values('message_type')[:1]),
+    )
+
+
+def _unread_counts(conversation_ids, user):
+    rows = (
+        Message.objects
+        .filter(conversation_id__in=conversation_ids, read_at__isnull=True)
+        .exclude(sender_user=user)
+        .values('conversation_id')
+        .annotate(c=Count('id'))
+        .values_list('conversation_id', 'c')
+    )
+    return dict(rows)
+
+
+def _last_message_view(conv):
+    if not conv.last_msg_sent_at:
+        return None
+    return {
+        'body': conv.last_msg_body or '',
+        'sent_at': conv.last_msg_sent_at,
+        'message_type': conv.last_msg_type or 'TEXT',
+    }
+
+
 def chat_list_view(request):
     user = get_session_user(request)
     if not user:
@@ -47,28 +78,30 @@ def chat_list_view(request):
         if not coach:
             return redirect('login')
 
-        # Auto-create conversations for all active clients (so coach can initiate)
-        active_rels = CoachingRelationship.objects.filter(coach=coach, status='ACTIVE').select_related('client')
-        for rel in active_rels:
-            Conversation.objects.get_or_create(coach=coach, client=rel.client)
+        active_rels = list(
+            CoachingRelationship.objects.filter(coach=coach, status='ACTIVE')
+            .select_related('client').only('id', 'client')
+        )
+        existing = set(Conversation.objects.filter(coach=coach).values_list('client_id', flat=True))
+        to_create = [Conversation(coach=coach, client=rel.client) for rel in active_rels if rel.client_id not in existing]
+        if to_create:
+            Conversation.objects.bulk_create(to_create, ignore_conflicts=True)
 
-        conversations = (
+        conversations = list(_annotate_conversations(
             Conversation.objects.filter(coach=coach)
             .select_related('client', 'client__user')
-            .order_by('-last_message_at', '-created_at')
-        )
+            .order_by('-last_message_at', '-created_at'),
+            user,
+        ))
+        unread_map = _unread_counts([c.id for c in conversations], user)
 
-        partners = []
-        for conv in conversations:
-            last_msg = conv.messages.order_by('-sent_at').first()
-            unread = conv.messages.filter(read_at__isnull=True).exclude(sender_user=user).count()
-            partners.append({
-                'conversation': conv,
-                'partner_name': f"{conv.client.first_name} {conv.client.last_name}".strip(),
-                'partner_avatar': '',
-                'last_message': last_msg,
-                'unread_count': unread,
-            })
+        partners = [{
+            'conversation': conv,
+            'partner_name': f"{conv.client.first_name} {conv.client.last_name}".strip(),
+            'partner_avatar': '',
+            'last_message': _last_message_view(conv),
+            'unread_count': unread_map.get(conv.id, 0),
+        } for conv in conversations]
 
         return render(request, 'pages/chat/list.html', {
             'partners': partners,
@@ -80,29 +113,31 @@ def chat_list_view(request):
         if not client:
             return redirect('login')
 
-        # Auto-create conversations for all active coach relationships
-        active_rels = CoachingRelationship.objects.filter(client=client, status='ACTIVE').select_related('coach')
-        for rel in active_rels:
-            Conversation.objects.get_or_create(coach=rel.coach, client=client)
+        active_rels = list(
+            CoachingRelationship.objects.filter(client=client, status='ACTIVE')
+            .select_related('coach').only('id', 'coach')
+        )
+        existing = set(Conversation.objects.filter(client=client).values_list('coach_id', flat=True))
+        to_create = [Conversation(coach=rel.coach, client=client) for rel in active_rels if rel.coach_id not in existing]
+        if to_create:
+            Conversation.objects.bulk_create(to_create, ignore_conflicts=True)
 
-        conversations = (
+        conversations = list(_annotate_conversations(
             Conversation.objects.filter(client=client)
             .select_related('coach', 'coach__user')
-            .order_by('-last_message_at', '-created_at')
-        )
+            .order_by('-last_message_at', '-created_at'),
+            user,
+        ))
+        unread_map = _unread_counts([c.id for c in conversations], user)
 
-        partners = []
-        for conv in conversations:
-            last_msg = conv.messages.order_by('-sent_at').first()
-            unread = conv.messages.filter(read_at__isnull=True).exclude(sender_user=user).count()
-            partners.append({
-                'conversation': conv,
-                'partner_name': f"{conv.coach.first_name} {conv.coach.last_name}".strip(),
-                'partner_avatar': conv.coach.profile_image_url or '',
-                'partner_role': conv.coach.professional_type,
-                'last_message': last_msg,
-                'unread_count': unread,
-            })
+        partners = [{
+            'conversation': conv,
+            'partner_name': f"{conv.coach.first_name} {conv.coach.last_name}".strip(),
+            'partner_avatar': conv.coach.profile_image_url or '',
+            'partner_role': conv.coach.professional_type,
+            'last_message': _last_message_view(conv),
+            'unread_count': unread_map.get(conv.id, 0),
+        } for conv in conversations]
 
         return render(request, 'pages/chat/list.html', {
             'partners': partners,

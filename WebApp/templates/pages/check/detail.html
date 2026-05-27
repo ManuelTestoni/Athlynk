@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto" x-data="{
-    activeTab: 'metriche',
+    activeTab: '{{ default_tab|escapejs }}',
     showImageModal: false,
     activeImage: '',
     coachFeedback: '{{ response.coach_feedback|default:''|escapejs }}',
@@ -76,6 +76,10 @@
                 <span><i class="ph ph-user text-ink-mute"></i> {{ response.client.first_name }} {{ response.client.last_name }}</span>
                 <span class="text-ink-line">·</span>
                 <span><i class="ph ph-calendar text-ink-mute"></i> {{ response.submitted_at|date:"d M Y, H:i" }}</span>
+                {% if response.questionnaire_template %}
+                <span class="text-ink-line">·</span>
+                <span><i class="ph ph-clipboard-text text-ink-mute"></i> {{ response.questionnaire_template.title }}</span>
+                {% endif %}
             </p>
             <div class="al-rule-bronze mt-5"></div>
             </div>
@@ -86,11 +90,13 @@
             <a href="{% url 'check_client_history' response.client.id %}" class="al-btn al-btn-ghost">
                 <i class="ph ph-clock-counter-clockwise"></i><span>Storico atleta</span>
             </a>
+            {% if has_notes_tab %}
             <button type="button" @click="activeTab = 'note'"
                     class="al-btn al-btn-bronze">
                 <i class="ph ph-check-circle text-sm"></i>
                 <span>{% if response.status == 'REVIEWED' %}Modifica feedback{% else %}Revisiona{% endif %}</span>
             </button>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -137,216 +143,149 @@
             </div>
             {% endif %}
 
-            <!-- Tab nav -->
+            <!-- Tab nav (dinamica) -->
+            {% if available_tabs %}
             <nav class="flex flex-col space-y-1">
-                <button type="button" @click="activeTab = 'metriche'"
-                        :class="{ 'is-active': activeTab === 'metriche' }"
+                {% for tab in available_tabs %}
+                <button type="button" @click="activeTab = '{{ tab.id|escapejs }}'"
+                        :class="{ 'is-active': activeTab === '{{ tab.id|escapejs }}' }"
                         class="al-vtab flex items-center px-4 py-3 text-left w-full"
                         style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
-                    <i class="ph ph-ruler text-base mr-3"></i>Metriche
-                </button>
-                <button type="button" @click="activeTab = 'foto'"
-                        :class="{ 'is-active': activeTab === 'foto' }"
-                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
-                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
-                    <i class="ph ph-camera text-base mr-3"></i>Foto
-                    {% if photos %}<span class="ml-auto al-tag">{{ photos|length }}</span>{% endif %}
-                </button>
-                <button type="button" @click="activeTab = 'note'"
-                        :class="{ 'is-active': activeTab === 'note' }"
-                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
-                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
-                    <i class="ph ph-notebook text-base mr-3"></i>Note &amp; Feedback
-                    {% if response.status != 'REVIEWED' and is_coach %}
+                    <i class="ph {{ tab.icon }} text-base mr-3"></i>{{ tab.label }}
+                    {% if tab.count %}<span class="ml-auto al-tag">{{ tab.count }}</span>{% endif %}
+                    {% if tab.id == 'note' and response.status != 'REVIEWED' and is_coach %}
                     <span class="ml-auto w-1.5 h-1.5 rounded-full" style="background: var(--al-bronze);"></span>
                     {% endif %}
                 </button>
+                {% endfor %}
             </nav>
+            {% else %}
+            <div class="al-empty" style="padding: 24px;">
+                <p class="al-tag">Nessuna sezione disponibile per questo check.</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Right: Content -->
         <div>
 
-            <!-- ── TAB METRICHE ── -->
-            <div x-show="activeTab === 'metriche'" class="space-y-6" x-cloak>
-
-                <!-- Peso -->
+            <!-- ── SEZIONI DINAMICHE ── -->
+            {% for section in sections %}
+            <div x-show="activeTab === 'sec_{{ section.id|escapejs }}'" class="space-y-6" x-cloak>
                 <div class="al-card">
                     <div class="flex items-center gap-3 mb-5">
-                        <i class="ph ph-scales text-bronze text-xl"></i>
+                        <i class="ph {{ section.icon }} text-bronze text-xl"></i>
                         <div>
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Peso corporeo</p>
-                            <h3 class="al-h-3">Misurazione</h3>
+                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Sezione</p>
+                            <h3 class="al-h-3">{{ section.label }}</h3>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
+
+                    <div class="space-y-4">
+                        {% for q in section.questions %}
+
+                        {# ── METRICA / RANGE: numero con eventuale prev/delta ── #}
+                        {% if q.type == 'metrica' or q.type == 'range' %}
                         <div class="al-card al-card-warm al-card-flush" style="padding: 16px;">
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Peso attuale</p>
-                            <p class="al-display font-mono mt-1" style="font-size: 28px; color: var(--al-ink);">
-                                {% if response.weight_kg %}{{ response.weight_kg }}<span class="text-base font-medium text-ink-mute"> kg</span>{% else %}<span class="text-ink-mute">—</span>{% endif %}
-                            </p>
-                        </div>
-                        {% if prev_response and prev_response.weight_kg %}
-                        <div class="al-card al-card-flush" style="padding: 16px; border: 1px solid var(--al-rule);">
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Check precedente</p>
-                            <p class="al-display font-mono mt-1" style="font-size: 28px; color: var(--al-ink-mute);">{{ prev_response.weight_kg }}<span class="text-base font-medium"> kg</span></p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Benessere soggettivo -->
-                {% with answers=answers %}
-                {% if answers.mood or answers.diet_adherence or answers.workout_adherence %}
-                <div class="al-card">
-                    <div class="flex items-center gap-3 mb-5">
-                        <i class="ph ph-smiley text-bronze text-xl"></i>
-                        <div>
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Soggettivo</p>
-                            <h3 class="al-h-3">Benessere</h3>
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        {% if answers.mood %}
-                        <div class="flex items-center justify-between">
-                            <span class="al-body">Umore</span>
-                            <div class="flex items-center gap-1.5">
-                                {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full" style="background: {% if forloop.counter <= answers.mood|add:0 %}var(--al-aegean){% else %}var(--al-marble-warm){% endif %};"></span>
-                                {% endfor %}
-                                <span class="font-mono font-bold text-ink ml-2 text-sm">{{ answers.mood }}/5</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if answers.diet_adherence %}
-                        <div class="flex items-center justify-between">
-                            <span class="al-body">Aderenza dieta</span>
-                            <div class="flex items-center gap-1.5">
-                                {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full" style="background: {% if forloop.counter <= answers.diet_adherence|add:0 %}var(--al-bronze){% else %}var(--al-marble-warm){% endif %};"></span>
-                                {% endfor %}
-                                <span class="font-mono font-bold text-ink ml-2 text-sm">{{ answers.diet_adherence }}/5</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if answers.workout_adherence %}
-                        <div class="flex items-center justify-between">
-                            <span class="al-body">Aderenza allenamento</span>
-                            <div class="flex items-center gap-1.5">
-                                {% for i in "12345" %}
-                                <span class="w-2.5 h-2.5 rounded-full" style="background: {% if forloop.counter <= answers.workout_adherence|add:0 %}var(--al-bronze-l){% else %}var(--al-marble-warm){% endif %};"></span>
-                                {% endfor %}
-                                <span class="font-mono font-bold text-ink ml-2 text-sm">{{ answers.workout_adherence }}/5</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
-                {% endwith %}
-
-                <!-- Circonferenze -->
-                {% with has_circs=response.body_circumferences %}
-                {% if has_circs %}
-                <div class="al-card">
-                    <div class="flex items-center gap-3 mb-5">
-                        <i class="ph ph-ruler text-bronze text-xl"></i>
-                        <div>
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Misure (cm)</p>
-                            <h3 class="al-h-3">Circonferenze</h3>
-                        </div>
-                    </div>
-                    <div class="al-card al-card-flush overflow-hidden" style="border: 1px solid var(--al-rule);">
-                        <table class="w-full text-sm text-left">
-                            <thead style="background: var(--al-marble); border-bottom: 1px solid var(--al-rule);">
-                                <tr>
-                                    <th class="px-4 py-3 al-eyebrow" style="color: var(--al-ink-mute);">Punto</th>
-                                    {% if prev_response %}<th class="px-4 py-3 al-eyebrow hidden sm:table-cell" style="color: var(--al-ink-mute);">Precedente</th>{% endif %}
-                                    <th class="px-4 py-3 al-eyebrow" style="color: var(--al-ink-mute);">Attuale</th>
-                                    {% if prev_response %}<th class="px-4 py-3 al-eyebrow text-right" style="color: var(--al-ink-mute);">Δ</th>{% endif %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in circ_rows %}
-                                {% if row.current %}
-                                <tr style="border-bottom: 1px solid var(--al-rule);">
-                                    <td class="px-4 py-3 font-medium text-ink">{{ row.label }}</td>
-                                    {% if prev_response %}
-                                    <td class="px-4 py-3 text-ink-mute hidden sm:table-cell font-mono">{{ row.previous|default:"—" }}</td>
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div class="min-w-0">
+                                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">{{ q.label }}</p>
+                                    <p class="al-display font-mono mt-1" style="font-size: 26px; line-height: 1.15; color: var(--al-ink);">
+                                        {{ q.value }}{% if q.unit %}<span class="text-sm font-medium text-ink-mute"> {{ q.unit }}</span>{% endif %}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    {% if q.previous %}
+                                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Precedente</p>
+                                    <p class="font-mono text-ink-mute mt-1" style="font-size: 16px;">{{ q.previous }}{% if q.unit %} {{ q.unit }}{% endif %}</p>
                                     {% endif %}
-                                    <td class="px-4 py-3 font-mono font-bold text-ink">{{ row.current }}</td>
-                                    {% if prev_response %}
-                                    <td class="px-4 py-3 text-right">
-                                        {% if row.delta is not None %}
-                                            {% if row.delta < 0 %}
-                                            <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean);">
-                                                <i class="ph-bold ph-arrow-down-right mr-0.5"></i>{{ row.delta }}
-                                            </span>
-                                            {% elif row.delta > 0 %}
-                                            <span class="al-pill" style="background: rgba(138,106,58,0.10); color: var(--al-bronze);">
-                                                <i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ row.delta }}
-                                            </span>
-                                            {% else %}
-                                            <span class="al-tag">= 0</span>
-                                            {% endif %}
-                                        {% else %}
-                                        <span class="text-ink-mute text-xs">—</span>
-                                        {% endif %}
-                                    </td>
+                                    {% if q.delta is not None %}
+                                    <span class="al-pill mt-1" style="{% if q.delta < 0 %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% elif q.delta > 0 %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
+                                        {% if q.delta > 0 %}<i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ q.delta }}{% elif q.delta < 0 %}<i class="ph-bold ph-arrow-down-right mr-0.5"></i>{{ q.delta }}{% else %}= 0{% endif %}
+                                    </span>
                                     {% endif %}
-                                </tr>
-                                {% endif %}
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
-                {% endwith %}
-
-                <!-- Pliche -->
-                {% with has_sf=response.skinfolds %}
-                {% if has_sf %}
-                <div class="al-card">
-                    <div class="flex items-center gap-3 mb-5">
-                        <i class="ph ph-first-aid text-bronze text-xl"></i>
-                        <div>
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Pliche (mm)</p>
-                            <h3 class="al-h-3">Plicometria</h3>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {% for row in skinfold_rows %}
-                        {% if row.current %}
-                        <div class="al-card al-card-warm al-card-flush" style="padding: 14px;">
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">{{ row.label }}</p>
-                            <p class="font-mono font-bold text-ink mt-1" style="font-size: 18px;">{{ row.current }} <span class="text-xs font-normal text-ink-mute">mm</span></p>
-                            {% if row.delta is not None and prev_response %}
-                            <p class="al-tag mt-1 font-mono" style="color: {% if row.delta < 0 %}var(--al-aegean){% elif row.delta > 0 %}var(--al-bronze){% else %}var(--al-ink-mute){% endif %};">
-                                {% if row.delta > 0 %}+{% endif %}{{ row.delta }}
-                            </p>
+
+                        {# ── MEDIA (slider min-max): barra ── #}
+                        {% elif q.type == 'media' %}
+                        <div>
+                            <div class="flex items-center justify-between gap-3 mb-2">
+                                <span class="al-body">{{ q.label }}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-bold text-ink text-sm">{{ q.value }}{% if q.max %} / {{ q.max }}{% endif %}</span>
+                                    {% if q.delta is not None %}
+                                    <span class="al-tag font-mono" style="color: {% if q.delta < 0 %}var(--al-aegean){% elif q.delta > 0 %}var(--al-bronze){% else %}var(--al-ink-mute){% endif %};">
+                                        {% if q.delta > 0 %}+{% endif %}{{ q.delta }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div style="height: 6px; background: var(--al-marble-warm); border-radius: 999px; overflow: hidden;">
+                                <div style="height: 100%; background: var(--al-bronze); width: {% widthratio q.value q.max 100 %}%; transition: width .3s ease;"></div>
+                            </div>
+                            {% if q.min_label or q.max_label %}
+                            <div class="flex items-center justify-between mt-2 text-xs" style="color: var(--al-ink-line);">
+                                <span>{{ q.min_label|default:'' }}</span>
+                                <span>{{ q.max_label|default:'' }}</span>
+                            </div>
                             {% endif %}
                         </div>
+
+                        {# ── APERTA: blockquote ── #}
+                        {% elif q.type == 'aperta' %}
+                        <div class="al-card al-card-warm al-card-flush" style="padding: 16px; border-left: 3px solid var(--al-bronze);">
+                            <p class="al-eyebrow" style="color: var(--al-bronze);">{{ q.label }}</p>
+                            <p class="al-body mt-2 italic whitespace-pre-line">"{{ q.value }}"</p>
+                        </div>
+
+                        {# ── SI/NO ── #}
+                        {% elif q.type == 'si_no' %}
+                        <div class="flex items-center justify-between">
+                            <span class="al-body">{{ q.label }}</span>
+                            <span class="al-pill" style="{% if q.value == 'si' %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% else %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% endif %}">
+                                <i class="ph-bold {% if q.value == 'si' %}ph-check{% else %}ph-x{% endif %}"></i>
+                                {% if q.value == 'si' %}Sì{% else %}No{% endif %}
+                            </span>
+                        </div>
+
+                        {# ── RADIO / ELENCO / TEMPO ── #}
+                        {% elif q.type == 'radio' or q.type == 'elenco' or q.type == 'tempo' %}
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="al-body">{{ q.label }}</span>
+                            <span class="al-tag font-mono" style="background: var(--al-marble); color: var(--al-ink);">{{ q.value }}</span>
+                        </div>
+
+                        {# ── FALLBACK ── #}
+                        {% else %}
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="al-body">{{ q.label }}</span>
+                            <span class="text-ink font-medium">{{ q.value }}{% if q.unit %} <span class="text-ink-mute text-xs">{{ q.unit }}</span>{% endif %}</span>
+                        </div>
                         {% endif %}
+
                         {% endfor %}
                     </div>
                 </div>
-                {% endif %}
-                {% endwith %}
             </div>
+            {% endfor %}
 
             <!-- ── TAB FOTO ── -->
-            <div x-show="activeTab === 'foto'" x-cloak>
+            {% if has_photos_tab %}
+            <div x-show="activeTab === 'foto'" class="space-y-6" x-cloak>
                 <div class="al-card">
                     <div class="flex items-center gap-3 mb-5">
                         <i class="ph ph-camera text-bronze text-xl"></i>
                         <div>
-                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Foto progressi</p>
+                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Allegati &amp; progressi</p>
                             <h3 class="al-h-3">Galleria</h3>
                         </div>
                     </div>
+
                     {% if photos %}
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Foto progressi</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
                         {% for photo in photos %}
                         <div class="relative group aspect-[3/4] overflow-hidden" style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
                             <span class="absolute top-2 left-2 z-10 al-tag" style="background: var(--al-ink); color: var(--al-parchment);">
@@ -364,20 +303,53 @@
                         </div>
                         {% endfor %}
                     </div>
-                    {% else %}
+                    {% endif %}
+
+                    {% if attachments_by_q %}
+                    {% for q_id, files in attachments_by_q.items %}
+                    <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Allegato · {{ q_id }}</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                        {% for f in files %}
+                        <div class="relative group aspect-[4/5] overflow-hidden" style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
+                            {% if 'image' in f.mime_type or '.webp' in f.file_url or '.jpg' in f.file_url or '.png' in f.file_url or '.jpeg' in f.file_url %}
+                            <img src="{{ f.file_url }}" alt="{{ f.file_name }}"
+                                 class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                            <button type="button" @click="activeImage = '{{ f.file_url }}'; showImageModal = true"
+                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                    style="background: rgba(20,17,13,0.35);">
+                                <span class="w-10 h-10 flex items-center justify-center" style="background: var(--al-parchment); color: var(--al-bronze); border-radius: 999px; box-shadow: var(--al-shadow-2);">
+                                    <i class="ph ph-arrows-out-simple text-xl"></i>
+                                </span>
+                            </button>
+                            {% else %}
+                            <a href="{{ f.file_url }}" target="_blank" rel="noopener" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
+                                <i class="ph ph-file text-3xl" style="color: var(--al-bronze);"></i>
+                                <span class="al-tag truncate w-full">{{ f.file_name }}</span>
+                                <span class="al-link al-link-quiet text-xs">Apri</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    {% if not photos and not attachments_by_q %}
                     <div class="al-empty" style="padding: 40px 24px;">
                         <i class="ph ph-image-slash text-3xl text-ink-line mb-2 block"></i>
-                        <p class="al-tag">Nessuna foto caricata per questo check.</p>
+                        <p class="al-tag">Nessuna foto né allegato per questo check.</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
             <!-- ── TAB NOTE ── -->
+            {% if has_notes_tab %}
             <div x-show="activeTab === 'note'" class="space-y-5" x-cloak>
 
                 <!-- Note dell'atleta -->
-                {% if response.notes or response.injuries or response.limitations %}
+                {% if has_athlete_notes %}
                 <div class="al-card">
                     <div class="flex items-center gap-3 mb-5">
                         <i class="ph ph-megaphone text-bronze text-xl"></i>
@@ -413,7 +385,7 @@
                 {% if is_client and response.coach_feedback %}
                 <div class="al-card" style="background: rgba(138,106,58,0.06); border-color: rgba(138,106,58,0.30);">
                     <p class="al-eyebrow" style="color: var(--al-bronze);">Feedback del coach</p>
-                    <p class="al-body mt-2 leading-relaxed">{{ response.coach_feedback }}</p>
+                    <p class="al-body mt-2 leading-relaxed whitespace-pre-line">{{ response.coach_feedback }}</p>
                 </div>
                 {% endif %}
 
@@ -466,6 +438,7 @@
                 {% endif %}
 
             </div>
+            {% endif %}
 
         </div>
     </div>

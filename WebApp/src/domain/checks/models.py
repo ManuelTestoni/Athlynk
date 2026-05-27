@@ -38,6 +38,14 @@ class QuestionnaireResponse(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'status']),
+            models.Index(fields=['client', 'coach', '-submitted_at']),
+            models.Index(fields=['client', '-submitted_at']),
+            models.Index(fields=['coach', '-created_at']),
+        ]
+
     def __str__(self):
         return f"Response to {self.questionnaire_template} by {self.client}"
 
@@ -67,6 +75,10 @@ class AssignedCheck(models.Model):
 
     class Meta:
         ordering = ['-assigned_at']
+        indexes = [
+            models.Index(fields=['client', 'is_active']),
+            models.Index(fields=['coach', 'is_active']),
+        ]
 
     def __str__(self):
         return f"Check «{self.template}» → {self.client}"
@@ -88,6 +100,10 @@ class AssignedCheckInstance(models.Model):
 
     class Meta:
         ordering = ['-due_date']
+        indexes = [
+            models.Index(fields=['assignment', '-due_date']),
+            models.Index(fields=['status', 'expires_at']),
+        ]
 
     def __str__(self):
         return f"Istanza {self.due_date} [{self.status}]"
@@ -118,6 +134,11 @@ class ProgressPhoto(models.Model):
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', '-captured_at']),
+        ]
 
     def __str__(self):
         return f"{self.photo_type} Photo for {self.client}"

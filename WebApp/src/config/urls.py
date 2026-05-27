@@ -209,6 +209,7 @@ urlpatterns = [
     path('check/<int:response_id>/', views_check.check_detail_view, name='check_detail'),
     path('api/check/trova-coach/', views_client.find_coach_api, name='check_coach_api'),
     path('api/check/cerca-cliente/', views_check.api_check_search, name='check_search_api'),
+    path('api/check/clienti-stato/', views_check.api_coach_clients_check_status, name='check_clients_status_api'),
     path('api/check/pianifica/', views_check.api_check_schedule, name='check_schedule_api'),
     path('api/check/<int:response_id>/revisiona/', views_check.api_check_review, name='check_review_api'),
     path('check/trova-coach/<int:coach_id>/', views_client.coach_detail_view, name='check_coach_detail'),
