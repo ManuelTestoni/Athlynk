@@ -12,7 +12,8 @@ import os
 import json
 from datetime import timedelta
 
-from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance
+from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment
+from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
@@ -171,29 +172,27 @@ def check_create_view(request):
         return redirect('login')
 
     coach_filling_for_client = False
-    template_only = False
 
     if user.role == 'COACH':
         coach = get_session_coach(request)
         if not coach:
             return redirect('login')
-        template_only = (
-            request.GET.get('template_only') == '1'
-            or request.POST.get('template_only') == '1'
-        )
         client_id = request.GET.get('client_id') or request.POST.get('client_id')
-        if not client_id and not template_only:
+        template_id = request.GET.get('template_id') or request.POST.get('template_id')
+        if not client_id or not template_id:
             return redirect('check_dashboard')
-        client = None
-        if client_id:
-            try:
-                client = ClientProfile.objects.get(
-                    id=client_id,
-                    coaching_relationships_as_client__coach=coach,
-                    coaching_relationships_as_client__status='ACTIVE',
-                )
-            except ClientProfile.DoesNotExist:
-                return redirect('check_dashboard')
+        try:
+            client = ClientProfile.objects.get(
+                id=client_id,
+                coaching_relationships_as_client__coach=coach,
+                coaching_relationships_as_client__status='ACTIVE',
+            )
+        except ClientProfile.DoesNotExist:
+            return redirect('check_dashboard')
+        try:
+            template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+        except QuestionnaireTemplate.DoesNotExist:
+            return redirect('check_dashboard')
         coach_filling_for_client = True
     elif user.role == 'CLIENT':
         client = get_session_client(request)
@@ -201,17 +200,19 @@ def check_create_view(request):
         if not relationship:
             return redirect('check_coach_directory')
         coach = relationship.coach
+        template = None
     else:
         return redirect('check_dashboard')
 
     if request.method == 'GET':
         if coach_filling_for_client:
-            check_title = request.GET.get('title', '').strip()
             return render(request, 'pages/check/builder.html', {
                 'client': client,
                 'coach': coach,
-                'check_title': check_title,
-                'template_only': template_only,
+                'template': template,
+                'check_title': template.title,
+                'questions_config_json': json.dumps(template.questions_config or []),
+                'steps_config_json': json.dumps(template.steps_config or []),
             })
         return render(request, 'pages/check/create.html', {
             'client': client,
@@ -222,14 +223,14 @@ def check_create_view(request):
     # ── POST ───────────────────────────────────────────────────────
 
     # New wizard flow (coach builder)
-    if 'questions_config_json' in request.POST:
+    if coach_filling_for_client and 'answers_json' in request.POST:
         try:
-            questions_config = json.loads(request.POST.get('questions_config_json', '[]'))
             raw_answers = json.loads(request.POST.get('answers_json', '{}'))
         except json.JSONDecodeError:
             return redirect('check_dashboard')
 
-        check_title = request.POST.get('check_title', '').strip() or 'Check'
+        questions_config = template.questions_config or []
+        check_title = template.title
 
         def _parse_metric(val):
             try:
@@ -258,33 +259,13 @@ def check_create_view(request):
             'tricep': _parse_metric(raw_answers.get('pl_tricipite')),
         }
 
-        STRUCTURED_KEYS = {
-            'peso_corporeo', 'circ_spalle', 'circ_petto', 'circ_vita', 'circ_fianchi',
-            'circ_coscia', 'circ_braccio', 'pl_petto', 'pl_addome', 'pl_coscia',
-            'pl_tricipite', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
-            'benessere_umore', 'benessere_dieta', 'benessere_workout',
-        }
         answers_json = {
             'mood': raw_answers.get('benessere_umore', ''),
             'diet_adherence': raw_answers.get('benessere_dieta', ''),
             'workout_adherence': raw_answers.get('benessere_workout', ''),
         }
         for k, v in raw_answers.items():
-            if k not in STRUCTURED_KEYS:
-                answers_json[k] = v
-
-        template, _ = QuestionnaireTemplate.objects.update_or_create(
-            coach=coach,
-            title=check_title,
-            defaults={
-                'questionnaire_type': 'custom_check',
-                'is_active': True,
-                'questions_config': questions_config,
-            }
-        )
-
-        if template_only or not client:
-            return redirect('check_dashboard')
+            answers_json.setdefault(k, v)
 
         response = QuestionnaireResponse.objects.create(
             questionnaire_template=template,
@@ -301,19 +282,23 @@ def check_create_view(request):
             notes=raw_answers.get('note_messaggio', ''),
         )
 
-        for key, photo_type in [('photo_front', 'Front'), ('photo_side', 'Side'), ('photo_back', 'Back')]:
-            file = request.FILES.get(key)
-            if file and is_image(file):
-                webp_file = to_webp(file)
-                save_path = f'progress_photos/{client.id}/{photo_type.lower()}_{int(timezone.now().timestamp())}.webp'
-                saved_path = default_storage.save(save_path, webp_file)
-                ProgressPhoto.objects.create(
-                    client=client,
-                    coach=coach,
-                    questionnaire_response=response,
-                    file_url=default_storage.url(saved_path),
-                    photo_type=photo_type,
-                    captured_at=timezone.now(),
+        # Generic attachments (one input per `allegato` question, name=f'attachment_{q_id}', multiple)
+        for q in questions_config:
+            if q.get('type') != 'allegato':
+                continue
+            files = request.FILES.getlist(f'attachment_{q["id"]}')
+            for f in files:
+                save_path = f'check_attachments/{client.id}/{q["id"]}_{int(timezone.now().timestamp())}_{f.name}'
+                if is_image(f):
+                    saved = default_storage.save(save_path.rsplit('.', 1)[0] + '.webp', to_webp(f))
+                else:
+                    saved = default_storage.save(save_path, f)
+                QuestionAttachment.objects.create(
+                    response=response,
+                    question_id=q['id'],
+                    file_url=default_storage.url(saved),
+                    file_name=f.name,
+                    mime_type=getattr(f, 'content_type', '') or '',
                 )
 
         Notification.objects.create(
@@ -1113,68 +1098,79 @@ def api_check_assign(request):
 
     try:
         data = json.loads(request.body)
-        client_id     = data.get('client_id')
+        client_ids    = data.get('client_ids')
+        if client_ids is None and data.get('client_id'):
+            client_ids = [data.get('client_id')]
         template_id   = data.get('template_id')
         recurrence    = data.get('recurrence_type', 'once')
         weekly_day    = data.get('weekly_day')
         monthly_day   = data.get('monthly_day')
         duration_hrs  = max(1, int(data.get('duration_hours', 72)))
-        notes         = data.get('notes', '').strip()
+        notes         = (data.get('notes') or '').strip()
 
-        if not client_id or not template_id:
-            return JsonResponse({'error': 'Seleziona un atleta e un check.'}, status=400)
+        if not client_ids or not template_id:
+            return JsonResponse({'error': 'Seleziona almeno un atleta e un check.'}, status=400)
 
-        client = ClientProfile.objects.get(
-            id=client_id,
+        try:
+            template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach)
+        except QuestionnaireTemplate.DoesNotExist:
+            return JsonResponse({'error': 'Template non trovato.'}, status=404)
+
+        clients = list(ClientProfile.objects.filter(
+            id__in=client_ids,
             coaching_relationships_as_client__coach=coach,
             coaching_relationships_as_client__status='ACTIVE',
-        )
-        template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach)
+        ).distinct())
 
-        assignment = AssignedCheck.objects.create(
-            template=template,
-            snapshot_config=template.questions_config,
-            client=client,
-            coach=coach,
-            recurrence_type=recurrence,
-            weekly_day=weekly_day if recurrence == 'weekly' else None,
-            monthly_day=monthly_day if recurrence == 'monthly' else None,
-            duration_hours=duration_hrs,
-            notes=notes,
-        )
+        if not clients:
+            return JsonResponse({'error': 'Nessun atleta valido selezionato.'}, status=400)
 
-        # If "once" → create the single instance immediately
-        if recurrence == 'once':
-            _create_instance(assignment, timezone.localdate())
-        else:
-            # Just send the assignment notification email (instances generated lazily)
-            send_mail(
-                subject=f'Check ricorrente assegnato: {template.title}',
-                message=(
-                    f'Ciao {client.first_name},\n\n'
-                    f'Il tuo coach {coach.first_name} {coach.last_name} ti ha assegnato un check periodico: «{template.title}».\n\n'
-                    f'Troverai il check nella sezione "I miei check da compilare" quando sarà il momento.\n\n'
-                    f'Saluti,\nAthlynk'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[client.user.email],
-                fail_silently=True,
+        assignment_ids = []
+        for client in clients:
+            assignment = AssignedCheck.objects.create(
+                template=template,
+                snapshot_config=template.questions_config,
+                client=client,
+                coach=coach,
+                recurrence_type=recurrence,
+                weekly_day=weekly_day if recurrence == 'weekly' else None,
+                monthly_day=monthly_day if recurrence == 'monthly' else None,
+                duration_hours=duration_hrs,
+                notes=notes,
+            )
+            assignment_ids.append(assignment.id)
+
+            if recurrence == 'once':
+                _create_instance(assignment, timezone.localdate())
+            else:
+                send_mail(
+                    subject=f'Check ricorrente assegnato: {template.title}',
+                    message=(
+                        f'Ciao {client.first_name},\n\n'
+                        f'Il tuo coach {coach.first_name} {coach.last_name} ti ha assegnato un check periodico: «{template.title}».\n\n'
+                        f'Troverai il check nella sezione "I miei check da compilare" quando sarà il momento.\n\n'
+                        f'Saluti,\nAthlynk'
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[client.user.email],
+                    fail_silently=True,
+                )
+
+            Notification.objects.create(
+                target_user=client.user,
+                notification_type='CHECK_SUBMITTED',
+                title='Nuovo check da compilare',
+                body=f'Il tuo coach ti ha assegnato il check «{template.title}».',
+                link_url='/check/i-miei-check/',
             )
 
-        Notification.objects.create(
-            target_user=client.user,
-            notification_type='CHECK_SUBMITTED',
-            title='Nuovo check da compilare',
-            body=f'Il tuo coach ti ha assegnato il check «{template.title}».',
-            link_url='/check/i-miei-check/',
-        )
+        return JsonResponse({
+            'success': True,
+            'assigned_count': len(assignment_ids),
+            'assignment_ids': assignment_ids,
+            'assignment_id': assignment_ids[0] if assignment_ids else None,
+        })
 
-        return JsonResponse({'success': True, 'assignment_id': assignment.id})
-
-    except ClientProfile.DoesNotExist:
-        return JsonResponse({'error': 'Atleta non trovato o non associato.'}, status=404)
-    except QuestionnaireTemplate.DoesNotExist:
-        return JsonResponse({'error': 'Template non trovato.'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -1199,3 +1195,175 @@ def api_check_assignment_ics(request, assignment_id):
     resp = HttpResponse(ics, content_type='text/calendar; charset=utf-8')
     resp['Content-Disposition'] = f'attachment; filename="check_{assignment_id}.ics"'
     return resp
+
+
+# ── Template management (Gestisci Modelli) ─────────────────────────
+
+PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento']
+
+
+def _ensure_preset_clones(coach):
+    """Lazy-clone any preset templates missing for this coach."""
+    existing_keys = set(QuestionnaireTemplate.objects.filter(
+        coach=coach, preset_key__in=list(PRESETS.keys())
+    ).values_list('preset_key', flat=True))
+    for key in PRESETS:
+        if key in existing_keys:
+            continue
+        QuestionnaireTemplate.objects.create(coach=coach, **build_template_payload(key))
+
+
+def check_templates_list_view(request):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('check_dashboard')
+
+    _ensure_preset_clones(coach)
+
+    all_templates = QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+
+    presets_by_key = {t.preset_key: t for t in all_templates if t.preset_key}
+    presets = [presets_by_key[k] for k in PRESET_ORDER if k in presets_by_key]
+    customs = [t for t in all_templates.order_by('-updated_at') if not t.preset_key]
+
+    return render(request, 'pages/check/templates_list.html', {
+        'presets': presets,
+        'customs': customs,
+    })
+
+
+def check_template_new_view(request):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('check_dashboard')
+
+    if request.method == 'POST':
+        try:
+            title = (request.POST.get('title') or '').strip() or 'Nuovo modello'
+            steps_config = json.loads(request.POST.get('steps_config_json', '[]'))
+            questions_config = json.loads(request.POST.get('questions_config_json', '[]'))
+        except json.JSONDecodeError:
+            return redirect('check_templates_list')
+        tpl = QuestionnaireTemplate.objects.create(
+            coach=coach,
+            title=title,
+            questionnaire_type='custom_check',
+            is_active=True,
+            steps_config=steps_config,
+            questions_config=questions_config,
+        )
+        return redirect('check_template_edit', template_id=tpl.id)
+
+    default_steps = [{'id': 's_1', 'label': 'Step 1', 'icon': 'ph-list'}]
+    return render(request, 'pages/check/template_builder.html', {
+        'template': None,
+        'mode': 'new',
+        'title': '',
+        'steps_config_json': json.dumps(default_steps),
+        'questions_config_json': json.dumps([]),
+        'preset_key': '',
+        'is_modified_preset': False,
+    })
+
+
+def check_template_edit_view(request, template_id):
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('check_dashboard')
+    try:
+        tpl = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+    except QuestionnaireTemplate.DoesNotExist:
+        return redirect('check_templates_list')
+
+    if request.method == 'POST':
+        try:
+            title = (request.POST.get('title') or '').strip() or tpl.title
+            steps_config = json.loads(request.POST.get('steps_config_json', '[]'))
+            questions_config = json.loads(request.POST.get('questions_config_json', '[]'))
+        except json.JSONDecodeError:
+            return redirect('check_template_edit', template_id=tpl.id)
+        tpl.title = title
+        tpl.steps_config = steps_config
+        tpl.questions_config = questions_config
+        if tpl.preset_key:
+            tpl.is_modified_preset = True
+        tpl.save()
+        return redirect('check_template_edit', template_id=tpl.id)
+
+    return render(request, 'pages/check/template_builder.html', {
+        'template': tpl,
+        'mode': 'edit',
+        'title': tpl.title,
+        'steps_config_json': json.dumps(tpl.steps_config or []),
+        'questions_config_json': json.dumps(tpl.questions_config or []),
+        'preset_key': tpl.preset_key or '',
+        'is_modified_preset': bool(tpl.is_modified_preset),
+    })
+
+
+def api_check_template_restore(request, template_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    try:
+        tpl = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+    except QuestionnaireTemplate.DoesNotExist:
+        return JsonResponse({'error': 'Template non trovato.'}, status=404)
+    if not tpl.preset_key or tpl.preset_key not in PRESETS:
+        return JsonResponse({'error': 'Solo i preset di sistema possono essere ripristinati.'}, status=400)
+    payload = build_template_payload(tpl.preset_key)
+    tpl.title = payload['title']
+    tpl.description = payload['description']
+    tpl.steps_config = payload['steps_config']
+    tpl.questions_config = payload['questions_config']
+    tpl.is_modified_preset = False
+    tpl.save()
+    return JsonResponse({'success': True})
+
+
+def api_check_template_duplicate(request, template_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    try:
+        tpl = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+    except QuestionnaireTemplate.DoesNotExist:
+        return JsonResponse({'error': 'Template non trovato.'}, status=404)
+    copy = QuestionnaireTemplate.objects.create(
+        coach=coach,
+        title=f'Copia di {tpl.title}',
+        description=tpl.description,
+        questionnaire_type='custom_check',
+        is_active=True,
+        steps_config=tpl.steps_config,
+        questions_config=tpl.questions_config,
+    )
+    return JsonResponse({'success': True, 'template_id': copy.id})
+
+
+def api_check_template_delete(request, template_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    try:
+        tpl = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+    except QuestionnaireTemplate.DoesNotExist:
+        return JsonResponse({'error': 'Template non trovato.'}, status=404)
+    tpl.is_active = False
+    tpl.save(update_fields=['is_active', 'updated_at'])
+    return JsonResponse({'success': True})

@@ -10,6 +10,10 @@ class QuestionnaireTemplate(models.Model):
     objective = models.CharField(max_length=200, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     questions_config = models.JSONField(null=True, blank=True)
+    steps_config = models.JSONField(null=True, blank=True)
+    report_config = models.JSONField(null=True, blank=True)
+    preset_key = models.CharField(max_length=50, null=True, blank=True, db_index=True)
+    is_modified_preset = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -87,6 +91,21 @@ class AssignedCheckInstance(models.Model):
 
     def __str__(self):
         return f"Istanza {self.due_date} [{self.status}]"
+
+
+class QuestionAttachment(models.Model):
+    response = models.ForeignKey(QuestionnaireResponse, on_delete=models.CASCADE, related_name='attachments')
+    question_id = models.CharField(max_length=100)
+    file_url = models.URLField(max_length=500)
+    file_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.file_name} (q={self.question_id})"
 
 
 class ProgressPhoto(models.Model):

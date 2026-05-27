@@ -1,0 +1,733 @@
+{% extends 'base.html' %}
+{% block title %}{% if template %}{{ template.title }}{% else %}Nuovo modello{% endif %} – Builder{% endblock %}
+
+{% block content %}
+<style>
+[x-cloak] { display: none !important; }
+
+.tb-strip {
+    display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px;
+    scrollbar-width: thin; scrollbar-color: var(--al-rule-strong) transparent;
+}
+.tb-strip::-webkit-scrollbar { height: 5px; }
+.tb-strip::-webkit-scrollbar-thumb { background: var(--al-rule-strong); border-radius: 3px; }
+.tb-step {
+    flex-shrink: 0; min-width: 96px;
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 160ms var(--al-ease);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    line-height: 1.05;
+    position: relative;
+}
+.tb-step:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
+.tb-step.is-active {
+    background: var(--al-ink); border-color: var(--al-ink); color: var(--al-parchment);
+    box-shadow: 0 3px 12px rgba(20,17,13,0.18);
+}
+.tb-step.is-dragover { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,.18); }
+.tb-step.is-report { background: var(--al-marble); border-style: dashed; color: var(--al-bronze); }
+.tb-step.is-report.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: white; border-style: solid; }
+.tb-step-icon { font-size: 16px; opacity: 0.85; }
+.tb-step-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.tb-add-step {
+    flex-shrink: 0; min-width: 96px;
+    border: 2px dashed var(--al-rule-strong);
+    background: transparent;
+    border-radius: var(--al-r-sm);
+    color: var(--al-bronze);
+    cursor: pointer;
+    transition: all 140ms var(--al-ease);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.tb-add-step:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.tb-q-card {
+    background: var(--al-parchment); border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
+    transition: border-color 140ms var(--al-ease);
+}
+.tb-q-card:hover { border-color: var(--al-rule-strong); }
+.tb-q-card.is-dragging { opacity: .45; border-style: dashed; }
+.tb-q-card.drag-over { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,.18); }
+.tb-add-q {
+    width: 100%; margin-top: 10px; padding: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: transparent; border: 2px dashed var(--al-rule-strong);
+    border-radius: var(--al-r-sm); cursor: pointer; font-size: 13px; font-weight: 600;
+    color: var(--al-bronze); transition: all 140ms var(--al-ease);
+}
+.tb-add-q:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.tb-type-card {
+    cursor: pointer; border: 2px solid var(--al-rule);
+    border-radius: var(--al-r-sm); padding: 14px 10px; text-align: center;
+    background: var(--al-parchment); transition: all 140ms var(--al-ease);
+}
+.tb-type-card:hover { border-color: var(--al-bronze); background: var(--al-marble); transform: translateY(-1px); }
+.tb-type-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--al-marble); color: var(--al-ink-mute);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.tb-drag-handle { color: var(--al-ink-line); cursor: grab; font-size: 14px; flex-shrink: 0; }
+.tb-report-block { background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 12px; }
+.tb-report-step-label { font-family: var(--al-display); font-size: 14px; color: var(--al-bronze); margin-bottom: 8px; letter-spacing: .02em; }
+.tb-report-q { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--al-rule-faint); font-size: 13px; }
+.tb-report-q:last-child { border-bottom: none; }
+.tb-step-edit-input { background: rgba(255,255,255,.18); border: 1px solid currentColor; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: inherit; max-width: 140px; }
+</style>
+
+<form id="tb-form" method="POST" action="{% if template %}{% url 'check_template_edit' template_id=template.id %}{% else %}{% url 'check_template_new' %}{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="title" id="tb-input-title">
+    <input type="hidden" name="steps_config_json" id="tb-input-steps">
+    <input type="hidden" name="questions_config_json" id="tb-input-questions">
+</form>
+
+<div class="max-w-5xl mx-auto pb-16" x-data="templateBuilder()" x-cloak>
+
+    <!-- Back -->
+    <nav class="al-tag flex items-center gap-2 mb-4">
+        <a href="{% url 'check_templates_list' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-arrow-left text-xs"></i><span>Gestisci Modelli</span>
+        </a>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-3">
+        <div>
+            <p class="al-eyebrow mb-2">Studio · Builder Modello</p>
+            <h1 class="al-h-1" x-show="!editingTitle" @click="editingTitle = true; $nextTick(() => $refs.titleInput.focus())" style="cursor: text;">
+                <span x-text="title || 'Nuovo modello'"></span>
+                <i class="ph ph-pencil-simple text-bronze text-base" style="font-size: 18px; margin-left: 8px; opacity: .65;"></i>
+            </h1>
+            <input x-show="editingTitle" x-ref="titleInput" type="text" x-model="title"
+                   @blur="editingTitle = false" @keydown.enter.prevent="editingTitle = false"
+                   class="al-input al-h-1" style="font-family: var(--al-display); font-size: 32px; padding: 4px 8px; max-width: 560px;">
+            <div class="flex items-center gap-2 mt-2">
+                {% if preset_key %}
+                <span class="al-badge" style="background: var(--al-marble); color: var(--al-bronze); font-size: 10px;">Preset · {{ preset_key }}</span>
+                <span x-show="dirtyPreset" class="al-badge" style="background: var(--al-marble); color: var(--al-bronze); font-size: 10px;">Modificato</span>
+                <button @click="restorePreset()" type="button" class="al-link al-link-quiet text-xs" x-show="dirtyPreset">
+                    <i class="ph ph-arrow-counter-clockwise text-xs"></i> Ripristina
+                </button>
+                {% endif %}
+            </div>
+            <div class="al-rule-bronze mt-4"></div>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'check_templates_list' %}" class="al-btn al-btn-ghost">Annulla</a>
+            <button @click="save()" type="button" class="al-btn al-btn-bronze">
+                <i class="ph ph-floppy-disk text-sm"></i><span>Salva modello</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Step strip -->
+    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-6" style="background: rgba(244,239,228,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
+        <div class="tb-strip">
+            <template x-for="(s, idx) in steps" :key="s.id">
+                <div :class="'tb-step ' + (activeStepId === s.id ? 'is-active' : '') + (dragOverStepId === s.id ? ' is-dragover' : '')"
+                     @click="selectStep(s.id)"
+                     draggable="true"
+                     @dragstart="dragSrcStepId = s.id"
+                     @dragover.prevent="dragOverStepId = s.id"
+                     @drop.prevent="dropStep(s.id)"
+                     @dragend="dragSrcStepId = null; dragOverStepId = null">
+                    <i :class="'tb-step-icon ph ' + (s.icon || 'ph-list')"></i>
+                    <template x-if="editingStepId !== s.id">
+                        <span class="tb-step-label" x-text="s.label"></span>
+                    </template>
+                    <template x-if="editingStepId === s.id">
+                        <input class="tb-step-edit-input" x-model="s.label" @click.stop @blur="editingStepId = null" @keydown.enter.prevent="editingStepId = null" x-ref="stepInput">
+                    </template>
+                    <div class="flex gap-1" style="margin-top: 2px;" @click.stop>
+                        <button @click="startEditStep(s.id)" type="button" title="Rinomina" style="background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;padding:0;">
+                            <i class="ph ph-pencil-simple" style="font-size:11px;"></i>
+                        </button>
+                        <button @click="deleteStep(s.id)" type="button" title="Elimina step" x-show="steps.length > 1" style="background:transparent;border:none;color:inherit;opacity:.7;cursor:pointer;padding:0;">
+                            <i class="ph ph-x" style="font-size:11px;"></i>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <button @click="addStep()" type="button" class="tb-add-step" style="min-height: 64px;">
+                <i class="ph ph-plus"></i><span>Sezione</span>
+            </button>
+
+            <!-- Report pseudo-step -->
+            <div :class="'tb-step is-report ' + (activeStepId === '__report__' ? 'is-active' : '')"
+                 @click="selectStep('__report__')">
+                <i class="tb-step-icon ph ph-chart-pie-slice"></i>
+                <span class="tb-step-label">Report</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step content: questions -->
+    <div x-show="activeStepId !== '__report__'">
+        <div class="mb-5 flex items-end justify-between gap-3">
+            <div class="flex-1 min-w-0">
+                <p class="al-eyebrow" style="color: var(--al-bronze); margin-bottom: 4px;">Sezione</p>
+                <template x-if="!sectionTitleEditing">
+                    <h2 class="al-h-2 flex items-center gap-2"
+                        style="cursor: text;"
+                        @click="sectionTitleEditing = true; $nextTick(() => $refs.sectionInput && $refs.sectionInput.focus())"
+                        title="Clicca per rinominare la sezione">
+                        <span x-text="activeStep ? activeStep.label : ''"></span>
+                        <i class="ph ph-pencil-simple text-bronze" style="font-size: 18px; opacity: .55;"></i>
+                    </h2>
+                </template>
+                <template x-if="sectionTitleEditing">
+                    <input x-ref="sectionInput" type="text"
+                           :value="activeStep ? activeStep.label : ''"
+                           @input="if (activeStep) activeStep.label = $event.target.value"
+                           @blur="sectionTitleEditing = false"
+                           @keydown.enter.prevent="sectionTitleEditing = false"
+                           class="al-input"
+                           style="font-family: var(--al-display); font-size: 26px; padding: 4px 8px; max-width: 480px; letter-spacing: -0.005em;">
+                </template>
+                <p class="al-body text-sm mt-1">Aggiungi e configura le domande di questa sezione. Trascina per riordinare.</p>
+            </div>
+        </div>
+
+        <template x-if="activeStepQuestions.length === 0">
+            <div class="al-empty my-6">
+                <i class="ph ph-question al-empty-icon"></i>
+                <h3>Nessuna domanda</h3>
+                <p>Aggiungi la prima domanda con il pulsante qui sotto.</p>
+            </div>
+        </template>
+
+        <template x-for="q in activeStepQuestions" :key="q.id">
+            <div class="tb-q-card"
+                 draggable="true"
+                 @dragstart="dragSrcId = q.id"
+                 @dragover.prevent="dragOverId = q.id"
+                 @drop.prevent="dropQuestion(q.id)"
+                 @dragend="dragSrcId = null; dragOverId = null"
+                 :class="{'drag-over': dragOverId === q.id, 'is-dragging': dragSrcId === q.id}">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <i class="ph ph-dots-six-vertical tb-drag-handle" title="Trascina"></i>
+                        <span class="tb-type-badge" x-text="typeLabel(q.type)"></span>
+                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
+                        <template x-if="q.unit">
+                            <span class="al-tag" style="font-size: 10px;" x-text="q.unit"></span>
+                        </template>
+                        <template x-if="q.required">
+                            <span style="color:#c0392b;font-size:11px;font-weight:700;" title="Obbligatoria">*</span>
+                        </template>
+                        <template x-if="!q.report_visible">
+                            <span class="al-tag" style="font-size: 10px; color: var(--al-ink-mute);" title="Non inclusa nel report">
+                                <i class="ph ph-eye-slash text-xs"></i> nascosta
+                            </span>
+                        </template>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button @click="toggleRequired(q.id)" type="button"
+                                :title="q.required ? 'Rendi facoltativa' : 'Rendi obbligatoria'"
+                                class="p-1.5 rounded transition-colors hover:bg-marble"
+                                :style="q.required ? 'color:#c0392b;' : 'color:var(--al-ink-mute);'">
+                            <i class="ph ph-asterisk text-sm"></i>
+                        </button>
+                        <button @click="toggleReportVisible(q.id)" type="button"
+                                :title="q.report_visible ? 'Nascondi dal report' : 'Mostra nel report'"
+                                class="p-1.5 rounded transition-colors hover:bg-marble"
+                                :style="q.report_visible ? 'color:var(--al-bronze);' : 'color:var(--al-ink-line);'">
+                            <i :class="'ph text-sm ' + (q.report_visible ? 'ph-eye' : 'ph-eye-slash')"></i>
+                        </button>
+                        <button @click="openEditModal(q.id)" type="button" title="Modifica" class="p-1.5 rounded transition-colors hover:bg-marble" style="color: var(--al-ink-mute);">
+                            <i class="ph ph-pencil-simple text-sm"></i>
+                        </button>
+                        <button @click="removeQuestion(q.id)" type="button" title="Elimina" class="p-1.5 rounded transition-colors hover:bg-marble" style="color: var(--al-ink-mute);">
+                            <i class="ph ph-trash text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-xs" style="color: var(--al-ink-mute);" x-html="previewSummary(q)"></div>
+            </div>
+        </template>
+
+        <button @click="openAddModal()" type="button" class="tb-add-q">
+            <i class="ph ph-plus-circle text-lg"></i><span>Aggiungi domanda</span>
+        </button>
+    </div>
+
+    <!-- Report preview -->
+    <div x-show="activeStepId === '__report__'">
+        <div class="mb-5">
+            <h2 class="al-h-2">Anteprima Report</h2>
+            <p class="al-body text-sm mt-1">Le domande contrassegnate come <strong>visibili nel report</strong> appariranno qui. Le altre saranno comunque consultabili nel dettaglio del check.</p>
+        </div>
+
+        <template x-if="reportSteps.length === 0">
+            <div class="al-empty my-6">
+                <i class="ph ph-chart-pie-slice al-empty-icon"></i>
+                <h3>Report vuoto</h3>
+                <p>Nessuna domanda è impostata come visibile nel report. Abilita l'icona <i class="ph ph-eye"></i> sulle domande chiave.</p>
+            </div>
+        </template>
+
+        <template x-for="rs in reportSteps" :key="rs.id">
+            <div class="tb-report-block">
+                <div class="tb-report-step-label" x-text="rs.label"></div>
+                <template x-for="q in rs.questions" :key="q.id">
+                    <div class="tb-report-q">
+                        <span x-text="q.label"></span>
+                        <span class="al-tag" x-text="typeLabel(q.type) + (q.unit ? ' · ' + q.unit : '')"></span>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+
+    <!-- Add / Edit question modal -->
+    <div x-show="showModal" x-cloak>
+        <div class="al-modal-backdrop" @click="closeModal()"></div>
+        <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;max-width:560px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
+
+            <!-- Type pick (add only) -->
+            <div x-show="modalStep === 0">
+                <div class="al-modal-head flex items-start justify-between gap-4">
+                    <div>
+                        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Aggiungi</p>
+                        <h3 class="al-h-2">Tipo di risposta</h3>
+                        <p class="al-small mt-1" style="color: var(--al-ink-mute);">Scegli che tipo di risposta accetta la domanda.</p>
+                    </div>
+                    <button @click="closeModal()" type="button" class="al-btn al-btn-ghost shrink-0" style="padding: 6px;">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="al-modal-body">
+                    <div class="grid grid-cols-2 gap-3">
+                        <button @click="pickType('metrica')" type="button" class="tb-type-card">
+                            <i class="ph ph-ruler text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Numero con unità</p>
+                            <p class="al-tag text-xs mt-1">Es. 75 kg, 92 cm</p>
+                        </button>
+                        <button @click="pickType('media')" type="button" class="tb-type-card">
+                            <i class="ph ph-sliders text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Scala</p>
+                            <p class="al-tag text-xs mt-1">Da min a max</p>
+                        </button>
+                        <button @click="pickType('si_no')" type="button" class="tb-type-card">
+                            <i class="ph ph-toggle-left text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Sì / No</p>
+                            <p class="al-tag text-xs mt-1">Binaria</p>
+                        </button>
+                        <button @click="pickType('radio')" type="button" class="tb-type-card">
+                            <i class="ph ph-radio-button text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Scelta singola</p>
+                            <p class="al-tag text-xs mt-1">Una sola opzione</p>
+                        </button>
+                        <button @click="pickType('checkbox')" type="button" class="tb-type-card">
+                            <i class="ph ph-check-square text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Scelta multipla</p>
+                            <p class="al-tag text-xs mt-1">Più opzioni</p>
+                        </button>
+                        <button @click="pickType('aperta')" type="button" class="tb-type-card">
+                            <i class="ph ph-text-aa text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Risposta aperta</p>
+                            <p class="al-tag text-xs mt-1">Testo libero</p>
+                        </button>
+                        <button @click="pickType('allegato')" type="button" class="tb-type-card" style="grid-column: span 2;">
+                            <i class="ph ph-paperclip text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Foto o allegati</p>
+                            <p class="al-tag text-xs mt-1">Upload file (immagini, PDF, ecc.)</p>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config -->
+            <div x-show="modalStep === 1">
+                <div class="al-modal-head flex items-start justify-between gap-4">
+                    <div>
+                        <button @click="modalMode === 'add' ? modalStep = 0 : closeModal()" type="button" class="al-link al-link-quiet flex items-center gap-1 mb-2 text-xs" x-show="modalMode === 'add'">
+                            <i class="ph ph-arrow-left"></i> Cambia tipo
+                        </button>
+                        <h3 class="al-h-2" x-text="modalMode === 'add' ? 'Configura domanda' : 'Modifica domanda'"></h3>
+                        <p class="al-small mt-1" style="color: var(--al-bronze);" x-text="typeLabel(form.type)"></p>
+                    </div>
+                    <button @click="closeModal()" type="button" class="al-btn al-btn-ghost shrink-0" style="padding: 6px;">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+                <div class="al-modal-body space-y-4">
+                    <div>
+                        <label class="al-label">Testo della domanda *</label>
+                        <input type="text" x-model="form.label" placeholder="Es. Peso corporeo a digiuno" class="al-input">
+                    </div>
+
+                    <template x-if="form.type === 'metrica'">
+                        <div>
+                            <label class="al-label">Unità di misura</label>
+                            <div class="flex gap-2 flex-wrap mb-2">
+                                <template x-for="u in ['kg','cm','mm','%','bpm','kcal','min','h','km','n','L']" :key="u">
+                                    <button @click="form.unit = u" type="button"
+                                            :class="form.unit === u ? 'al-badge al-badge-aegean' : 'al-badge'"
+                                            style="text-transform: none; letter-spacing: 0; cursor: pointer; font-size: 12px;"
+                                            x-text="u"></button>
+                                </template>
+                            </div>
+                            <input type="text" x-model="form.unit" placeholder="Altra unità..." class="al-input" style="max-width: 200px;">
+                        </div>
+                    </template>
+
+                    <template x-if="form.type === 'media'">
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="al-label">Valore minimo</label>
+                                    <input type="number" x-model.number="form.min" class="al-input" min="0" max="99">
+                                </div>
+                                <div>
+                                    <label class="al-label">Valore massimo</label>
+                                    <input type="number" x-model.number="form.max" class="al-input" min="1" max="100">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="al-label">Etichetta min</label>
+                                    <input type="text" x-model="form.minLabel" placeholder="Es. Pessimo" class="al-input">
+                                </div>
+                                <div>
+                                    <label class="al-label">Etichetta max</label>
+                                    <input type="text" x-model="form.maxLabel" placeholder="Es. Ottimo" class="al-input">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="form.type === 'radio' || form.type === 'checkbox'">
+                        <div>
+                            <label class="al-label">Opzioni</label>
+                            <div class="space-y-2">
+                                <template x-for="(opt, i) in form.options" :key="i">
+                                    <div class="flex gap-2 items-center">
+                                        <input type="text" :value="opt" @input="form.options[i] = $event.target.value"
+                                               :placeholder="'Opzione ' + (i+1)" class="al-input flex-1">
+                                        <button @click="removeOption(i)" type="button" x-show="form.options.length > 1"
+                                                class="p-1.5 rounded hover:bg-marble transition-colors" style="color: var(--al-ink-mute);">
+                                            <i class="ph ph-trash text-sm"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <button @click="addOption()" type="button" class="al-btn al-btn-ghost al-btn-sm mt-2">
+                                <i class="ph ph-plus text-xs"></i> Aggiungi opzione
+                            </button>
+                        </div>
+                    </template>
+
+                    <template x-if="form.type === 'aperta'">
+                        <div>
+                            <label class="al-label">Testo suggerimento <span style="color: var(--al-ink-mute); font-weight: 400;">(facoltativo)</span></label>
+                            <input type="text" x-model="form.placeholder" placeholder="Es. Descrivi eventuali difficoltà..." class="al-input">
+                        </div>
+                    </template>
+
+                    <div class="flex items-center gap-4 pt-2" style="border-top: 1px solid var(--al-rule-faint);">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" x-model="form.required" style="accent-color: var(--al-bronze);">
+                            <span class="text-sm text-ink">Obbligatoria</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" x-model="form.report_visible" style="accent-color: var(--al-bronze);">
+                            <span class="text-sm text-ink">Visibile nel report</span>
+                        </label>
+                    </div>
+
+                    <template x-if="formError">
+                        <div class="al-toast is-danger">
+                            <i class="ph-fill ph-warning-circle shrink-0"></i><span x-text="formError"></span>
+                        </div>
+                    </template>
+                </div>
+                <div class="al-modal-foot">
+                    <button @click="closeModal()" type="button" class="al-btn al-btn-ghost">Annulla</button>
+                    <button @click="confirmModal()" type="button" class="al-btn al-btn-bronze">
+                        <i :class="'ph text-sm ' + (modalMode === 'add' ? 'ph-plus-circle' : 'ph-check')"></i>
+                        <span x-text="modalMode === 'add' ? 'Aggiungi' : 'Salva'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const TB_TYPE_LABELS = {
+    metrica:  'Numero con unità',
+    media:    'Scala',
+    si_no:    'Sì/No',
+    radio:    'Scelta singola',
+    checkbox: 'Scelta multipla',
+    aperta:   'Risposta aperta',
+    allegato: 'Allegato',
+};
+
+function templateBuilder() {
+    return {
+        title: '{{ title|escapejs }}',
+        steps: JSON.parse('{{ steps_config_json|escapejs }}' || '[]'),
+        questions: JSON.parse('{{ questions_config_json|escapejs }}' || '[]'),
+        presetKey: '{{ preset_key|escapejs }}',
+        dirtyPreset: {{ is_modified_preset|yesno:"true,false" }},
+
+        activeStepId: null,
+        editingStepId: null,
+        editingTitle: false,
+        sectionTitleEditing: false,
+
+        dragSrcId: null, dragOverId: null,
+        dragSrcStepId: null, dragOverStepId: null,
+
+        showModal: false,
+        modalMode: 'add',  // or 'edit'
+        modalStep: 0,
+        editingQuestionId: null,
+        formError: '',
+        form: {
+            type: '', label: '', unit: 'cm',
+            min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max',
+            options: ['', ''], placeholder: '',
+            required: false, report_visible: true,
+        },
+
+        init() {
+            if (!Array.isArray(this.steps) || this.steps.length === 0) {
+                this.steps = [{ id: 's_1', label: 'Sezione 1', icon: 'ph-list' }];
+            }
+            this.activeStepId = this.steps[0].id;
+            // ensure invariants
+            this.questions = this.questions.map(q => ({
+                required: false, report_visible: true, ...q,
+            }));
+        },
+
+        _emptyForm() {
+            return {
+                type: '', label: '', unit: 'cm',
+                min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max',
+                options: ['', ''], placeholder: '',
+                required: false, report_visible: true,
+            };
+        },
+
+        typeLabel(t) { return TB_TYPE_LABELS[t] || t; },
+
+        // ── Steps ──
+        get activeStep() {
+            if (this.activeStepId === '__report__') return null;
+            return this.steps.find(s => s.id === this.activeStepId);
+        },
+        get activeStepQuestions() {
+            if (!this.activeStep) return [];
+            return this.questions.filter(q => q.step_id === this.activeStep.id);
+        },
+        selectStep(id) {
+            this.activeStepId = id;
+            this.editingStepId = null;
+            this.sectionTitleEditing = false;
+        },
+        addStep() {
+            const id = 's_' + Date.now();
+            this.steps.push({ id, label: 'Nuova sezione', icon: 'ph-list' });
+            this.activeStepId = id;
+            this.$nextTick(() => this.startEditStep(id));
+        },
+        startEditStep(id) {
+            this.editingStepId = id;
+            this.activeStepId = id;
+            this.$nextTick(() => { if (this.$refs.stepInput) this.$refs.stepInput.focus(); });
+        },
+        deleteStep(id) {
+            if (this.steps.length <= 1) { alert('Deve esistere almeno una sezione.'); return; }
+            const qInStep = this.questions.filter(q => q.step_id === id);
+            if (qInStep.length > 0) {
+                if (!confirm(`La sezione contiene ${qInStep.length} domande. Verranno spostate alla prima sezione. Continuare?`)) return;
+                const remaining = this.steps.find(s => s.id !== id);
+                this.questions = this.questions.map(q => q.step_id === id ? { ...q, step_id: remaining.id } : q);
+            }
+            this.steps = this.steps.filter(s => s.id !== id);
+            if (this.activeStepId === id) this.activeStepId = this.steps[0].id;
+        },
+        dropStep(targetId) {
+            if (!this.dragSrcStepId || this.dragSrcStepId === targetId) {
+                this.dragSrcStepId = null; this.dragOverStepId = null; return;
+            }
+            const srcIdx = this.steps.findIndex(s => s.id === this.dragSrcStepId);
+            const tgtIdx = this.steps.findIndex(s => s.id === targetId);
+            if (srcIdx === -1 || tgtIdx === -1) return;
+            const moved = this.steps.splice(srcIdx, 1)[0];
+            this.steps.splice(tgtIdx, 0, moved);
+            this.dragSrcStepId = null; this.dragOverStepId = null;
+        },
+
+        // ── Questions ──
+        removeQuestion(id) { this.questions = this.questions.filter(q => q.id !== id); },
+        toggleRequired(id) {
+            const q = this.questions.find(q => q.id === id);
+            if (q) q.required = !q.required;
+            if (this.presetKey) this.dirtyPreset = true;
+        },
+        toggleReportVisible(id) {
+            const q = this.questions.find(q => q.id === id);
+            if (q) q.report_visible = !q.report_visible;
+            if (this.presetKey) this.dirtyPreset = true;
+        },
+        dropQuestion(targetId) {
+            if (!this.dragSrcId || this.dragSrcId === targetId) {
+                this.dragSrcId = null; this.dragOverId = null; return;
+            }
+            const srcIdx = this.questions.findIndex(q => q.id === this.dragSrcId);
+            const tgtIdx = this.questions.findIndex(q => q.id === targetId);
+            if (srcIdx === -1 || tgtIdx === -1) return;
+            if (this.questions[srcIdx].step_id !== this.questions[tgtIdx].step_id) {
+                this.dragSrcId = null; this.dragOverId = null; return;
+            }
+            const moved = this.questions.splice(srcIdx, 1)[0];
+            this.questions.splice(tgtIdx, 0, moved);
+            this.dragSrcId = null; this.dragOverId = null;
+        },
+        previewSummary(q) {
+            switch (q.type) {
+                case 'metrica':  return q.unit ? `Numero · unità <strong>${escapeHtml(q.unit)}</strong>` : 'Numero';
+                case 'media':    return `Scala da <strong>${q.min}</strong> (${escapeHtml(q.minLabel||'')}) a <strong>${q.max}</strong> (${escapeHtml(q.maxLabel||'')})`;
+                case 'si_no':    return 'Sì / No';
+                case 'radio':    return `Scelta singola · ${(q.options||[]).length} opzioni`;
+                case 'checkbox': return `Scelta multipla · ${(q.options||[]).length} opzioni`;
+                case 'aperta':   return q.placeholder ? `Testo libero · "${escapeHtml(q.placeholder)}"` : 'Testo libero';
+                case 'allegato': return 'Upload file (immagini, PDF, ecc.)';
+            }
+            return q.type;
+        },
+
+        // ── Modal (add/edit) ──
+        openAddModal() {
+            this.modalMode = 'add';
+            this.modalStep = 0;
+            this.editingQuestionId = null;
+            this.formError = '';
+            this.form = this._emptyForm();
+            this.showModal = true;
+        },
+        pickType(type) {
+            this.form.type = type;
+            if (type === 'metrica' && !this.form.unit) this.form.unit = 'cm';
+            this.modalStep = 1;
+        },
+        openEditModal(id) {
+            const q = this.questions.find(q => q.id === id);
+            if (!q) return;
+            this.modalMode = 'edit';
+            this.modalStep = 1;
+            this.editingQuestionId = id;
+            this.formError = '';
+            this.form = {
+                type: q.type, label: q.label || '',
+                unit: q.unit || '',
+                min: q.min ?? 1, max: q.max ?? 5,
+                minLabel: q.minLabel || 'Min', maxLabel: q.maxLabel || 'Max',
+                options: Array.isArray(q.options) && q.options.length ? [...q.options] : ['', ''],
+                placeholder: q.placeholder || '',
+                required: !!q.required,
+                report_visible: q.report_visible !== false,
+            };
+            this.showModal = true;
+        },
+        closeModal() { this.showModal = false; this.modalStep = 0; this.editingQuestionId = null; },
+        addOption() { this.form.options.push(''); },
+        removeOption(i) { if (this.form.options.length > 1) this.form.options.splice(i, 1); },
+        confirmModal() {
+            this.formError = '';
+            if (!this.form.label.trim()) { this.formError = 'Il testo della domanda è obbligatorio.'; return; }
+            if ((this.form.type === 'radio' || this.form.type === 'checkbox')) {
+                const opts = this.form.options.map(o => o.trim()).filter(Boolean);
+                if (opts.length < 2) { this.formError = 'Inserisci almeno 2 opzioni.'; return; }
+                this.form.options = opts;
+            }
+            if (this.modalMode === 'add') {
+                const newQ = this._buildQuestion();
+                this.questions.push(newQ);
+            } else {
+                const idx = this.questions.findIndex(q => q.id === this.editingQuestionId);
+                if (idx === -1) { this.closeModal(); return; }
+                const merged = { ...this.questions[idx], ...this._buildQuestion(this.questions[idx].id, this.questions[idx].step_id) };
+                this.questions[idx] = merged;
+            }
+            if (this.presetKey) this.dirtyPreset = true;
+            this.closeModal();
+        },
+        _buildQuestion(id, stepId) {
+            const q = {
+                id: id || ('q_' + Date.now()),
+                step_id: stepId || this.activeStepId,
+                type: this.form.type,
+                label: this.form.label.trim(),
+                required: !!this.form.required,
+                report_visible: !!this.form.report_visible,
+            };
+            if (this.form.type === 'metrica') q.unit = (this.form.unit || '').trim();
+            if (this.form.type === 'media') {
+                q.min = +this.form.min; q.max = +this.form.max;
+                q.minLabel = this.form.minLabel; q.maxLabel = this.form.maxLabel;
+            }
+            if (this.form.type === 'radio' || this.form.type === 'checkbox') {
+                q.options = this.form.options.filter(o => o.trim());
+            }
+            if (this.form.type === 'aperta') q.placeholder = this.form.placeholder || '';
+            return q;
+        },
+
+        // ── Report ──
+        get reportSteps() {
+            const visibleQs = this.questions.filter(q => q.report_visible !== false);
+            return this.steps.map(s => ({
+                id: s.id,
+                label: s.label,
+                questions: visibleQs.filter(q => q.step_id === s.id),
+            })).filter(rs => rs.questions.length > 0);
+        },
+
+        // ── Save / restore ──
+        save() {
+            if (!this.title.trim()) { alert('Il titolo del modello è obbligatorio.'); this.editingTitle = true; return; }
+            if (this.questions.length === 0) {
+                if (!confirm('Stai salvando un modello senza domande. Continuare?')) return;
+            }
+            document.getElementById('tb-input-title').value = this.title.trim();
+            document.getElementById('tb-input-steps').value = JSON.stringify(this.steps);
+            document.getElementById('tb-input-questions').value = JSON.stringify(this.questions);
+            document.getElementById('tb-form').submit();
+        },
+        async restorePreset() {
+            {% if template %}
+            if (!confirm('Ripristinare la configurazione di base? Le modifiche verranno perse.')) return;
+            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            try {
+                const res = await fetch('/api/check/modelli/{{ template.id }}/ripristina/', {
+                    method: 'POST', headers: { 'X-CSRFToken': csrf },
+                });
+                const data = await res.json();
+                if (data.success) window.location.reload();
+                else alert(data.error || 'Errore');
+            } catch (e) { alert('Errore di rete'); }
+            {% endif %}
+        },
+    };
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+</script>
+{% endblock %}

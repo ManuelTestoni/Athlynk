@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if template_only %}Nuovo Template Check{% else %}Builder Check – {{ client.first_name }} {{ client.last_name }}{% endif %}{% endblock %}
+{% block title %}Compila: {{ check_title }} – {{ client.first_name }} {{ client.last_name }}{% endblock %}
 
 {% block content %}
 <style>
@@ -18,894 +18,278 @@
 .ck-q-card {
     background: var(--al-parchment); border: 1px solid var(--al-rule);
     border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
-    transition: border-color 140ms var(--al-ease);
 }
-.ck-q-card:hover { border-color: var(--al-rule-strong); }
-.ck-add-btn {
-    width: 100%; margin-top: 10px; padding: 12px;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: transparent; border: 2px dashed var(--al-rule-strong);
-    border-radius: var(--al-r-sm); cursor: pointer; font-size: 13px; font-weight: 600;
-    color: var(--al-bronze); transition: all 140ms var(--al-ease);
-}
-.ck-add-btn:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
-.ck-type-card {
-    cursor: pointer; border: 2px solid var(--al-rule);
-    border-radius: var(--al-r-sm); padding: 14px 10px; text-align: center;
-    background: var(--al-parchment); transition: all 140ms var(--al-ease);
-}
-.ck-type-card:hover { border-color: var(--al-bronze); background: var(--al-marble); transform: translateY(-1px); }
 .ck-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--al-rule); }
-.ck-photo-slot {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    height: 128px; cursor: pointer; transition: all 140ms;
+.ck-file-slot {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer;
     border: 2px dashed var(--al-rule-strong); background: var(--al-marble);
     border-radius: var(--al-r-sm);
+    transition: border-color 140ms;
 }
-.ck-photo-slot:hover { border-color: var(--al-bronze); }
-.ck-photo-slot.has-file { border-color: var(--al-bronze); background: rgba(138,106,58,.08); }
-.ck-type-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 8px; border-radius: 999px;
-    background: var(--al-marble); color: var(--al-ink-mute);
-    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-}
-.ck-drag-handle { color: var(--al-ink-line); cursor: grab; font-size: 14px; flex-shrink: 0; }
-.ck-q-card.is-dragging { opacity: 0.45; border-style: dashed; }
-.ck-q-card.drag-over { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,.18); }
+.ck-file-slot:hover { border-color: var(--al-bronze); }
+.ck-file-slot.has-file { border-color: var(--al-bronze); background: rgba(138,106,58,.08); border-style: solid; }
 </style>
 
-<!-- The actual form wraps everything for multipart/file handling -->
-<form id="check-builder-form" method="POST" action="{% url 'check_create' %}" enctype="multipart/form-data">
+<form id="check-fill-form" method="POST" action="{% url 'check_create' %}" enctype="multipart/form-data">
     {% csrf_token %}
-    {% if not template_only %}<input type="hidden" name="client_id" value="{{ client.id }}">{% endif %}
-    {% if template_only %}<input type="hidden" name="template_only" value="1">{% endif %}
-    <input type="hidden" name="check_title" id="input-check-title">
-    <input type="hidden" name="questions_config_json" id="input-questions-config">
+    <input type="hidden" name="client_id" value="{{ client.id }}">
+    <input type="hidden" name="template_id" value="{{ template.id }}">
     <input type="hidden" name="answers_json" id="input-answers-json">
-    <!-- Photo inputs live here so they are always in the form -->
-    <input type="file" name="photo_front" id="photo_front_input" accept="image/*" class="sr-only">
-    <input type="file" name="photo_side" id="photo_side_input" accept="image/*" class="sr-only">
-    <input type="file" name="photo_back" id="photo_back_input" accept="image/*" class="sr-only">
+
+    <div class="max-w-3xl mx-auto pb-16" x-data="checkFill()" x-cloak>
+
+        <nav class="al-tag flex items-center gap-2 mb-6">
+            <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+                <i class="ph ph-arrow-left text-xs"></i><span>Check &amp; Progressi</span>
+            </a>
+        </nav>
+
+        <div class="mb-6">
+            <p class="al-eyebrow mb-2">Studio · Compila Check</p>
+            <h1 class="al-h-1">{{ check_title }} <span class="al-display-i">·</span> {{ client.first_name }}</h1>
+            <p class="al-body mt-1" style="color: var(--al-ink-mute);">{{ client.first_name }} {{ client.last_name }}</p>
+            <div class="al-rule-bronze mt-4"></div>
+        </div>
+
+        <!-- Step pills -->
+        <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background: rgba(244,239,228,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
+            <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
+                <template x-for="(s, idx) in steps" :key="s.id">
+                    <button @click="goTo(idx)" type="button"
+                            :class="stepIdx === idx ? 'ck-pill is-active' : (stepIdx > idx ? 'ck-pill is-done' : 'ck-pill is-todo')">
+                        <i :class="'ph ' + (stepIdx > idx ? 'ph-check-circle' : (s.icon || 'ph-list'))"></i>
+                        <span x-text="s.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Step content -->
+        <template x-for="(s, idx) in steps" :key="s.id">
+            <div x-show="stepIdx === idx">
+                <div class="mb-5">
+                    <h2 class="al-h-2" x-text="s.label"></h2>
+                </div>
+
+                <template x-if="questionsFor(s.id).length === 0">
+                    <div class="al-empty my-6">
+                        <i class="ph ph-question al-empty-icon"></i>
+                        <h3>Nessuna domanda</h3>
+                        <p>Questo step non ha domande configurate.</p>
+                    </div>
+                </template>
+
+                <template x-for="q in questionsFor(s.id)" :key="q.id">
+                    <div class="ck-q-card">
+                        <div class="flex items-center justify-between gap-3 mb-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-medium text-ink text-sm" x-text="q.label"></span>
+                                <template x-if="q.unit">
+                                    <span class="al-tag" style="font-size: 10px;" x-text="q.unit"></span>
+                                </template>
+                                <template x-if="q.required">
+                                    <span style="color:#c0392b;font-size:11px;font-weight:700;">*</span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- metrica -->
+                        <template x-if="q.type === 'metrica'">
+                            <div class="flex items-center gap-2">
+                                <input type="number" step="0.1" min="0" placeholder="0.0" class="al-input" style="max-width: 200px;"
+                                       :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
+                                <template x-if="q.unit">
+                                    <span class="al-badge" style="background: var(--al-marble); color: var(--al-ink-mute); text-transform: none; letter-spacing: 0; font-size: 12px;" x-text="q.unit"></span>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- media (scale) -->
+                        <template x-if="q.type === 'media'">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="al-tag text-xs" x-text="q.minLabel"></span>
+                                    <span class="font-mono font-semibold text-sm" style="color: var(--al-bronze);"
+                                          x-text="(answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)) + ' / ' + q.max"></span>
+                                    <span class="al-tag text-xs" x-text="q.maxLabel"></span>
+                                </div>
+                                <input type="range" :min="q.min" :max="q.max" step="1" class="w-full cursor-pointer" style="accent-color: var(--al-bronze);"
+                                       :value="answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)"
+                                       @input="answers[q.id] = +$event.target.value">
+                            </div>
+                        </template>
+
+                        <!-- si_no -->
+                        <template x-if="q.type === 'si_no'">
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" :name="'q_' + q.id" value="si" style="accent-color: var(--al-bronze);"
+                                           :checked="answers[q.id] === 'si'" @change="answers[q.id] = 'si'">
+                                    <span class="text-sm font-medium text-ink">Sì</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" :name="'q_' + q.id" value="no" style="accent-color: var(--al-bronze);"
+                                           :checked="answers[q.id] === 'no'" @change="answers[q.id] = 'no'">
+                                    <span class="text-sm font-medium text-ink">No</span>
+                                </label>
+                            </div>
+                        </template>
+
+                        <!-- radio (single choice) -->
+                        <template x-if="q.type === 'radio'">
+                            <div class="space-y-2">
+                                <template x-for="opt in (q.options || [])" :key="opt">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" :name="'q_' + q.id" :value="opt" style="accent-color: var(--al-bronze);"
+                                               :checked="answers[q.id] === opt" @change="answers[q.id] = opt">
+                                        <span class="text-sm text-ink" x-text="opt"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- checkbox (multi choice) -->
+                        <template x-if="q.type === 'checkbox'">
+                            <div class="space-y-2">
+                                <template x-for="opt in (q.options || [])" :key="opt">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" :value="opt" style="accent-color: var(--al-bronze);"
+                                               :checked="(answers[q.id] || []).includes(opt)"
+                                               @change="toggleCheckbox(q.id, opt, $event.target.checked)">
+                                        <span class="text-sm text-ink" x-text="opt"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- aperta -->
+                        <template x-if="q.type === 'aperta'">
+                            <textarea :placeholder="q.placeholder || ''" rows="3" class="al-textarea"
+                                      :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value"></textarea>
+                        </template>
+
+                        <!-- allegato -->
+                        <template x-if="q.type === 'allegato'">
+                            <div>
+                                <label class="ck-file-slot" :class="(fileNames[q.id]||[]).length ? 'has-file' : ''" :for="'file_' + q.id">
+                                    <i class="ph ph-paperclip text-2xl" style="color: var(--al-bronze);"></i>
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-semibold text-ink">
+                                            <template x-if="(fileNames[q.id]||[]).length === 0"><span>Carica file</span></template>
+                                            <template x-if="(fileNames[q.id]||[]).length > 0">
+                                                <span x-text="(fileNames[q.id]||[]).length + ' file selezionati'"></span>
+                                            </template>
+                                        </span>
+                                        <span class="al-tag" style="font-size: 11px;">Immagini, PDF, qualsiasi formato</span>
+                                    </div>
+                                </label>
+                                <input type="file" multiple :id="'file_' + q.id" :name="'attachment_' + q.id" class="sr-only"
+                                       @change="onFileChange(q.id, $event.target.files)">
+                                <template x-if="(fileNames[q.id]||[]).length > 0">
+                                    <ul class="mt-2 space-y-1 text-xs" style="color: var(--al-ink-mute);">
+                                        <template x-for="(n, i) in (fileNames[q.id]||[])" :key="i">
+                                            <li class="flex items-center gap-1.5">
+                                                <i class="ph ph-file text-xs"></i><span x-text="n"></span>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Nav -->
+        <div class="ck-nav">
+            <button @click="prev()" x-show="stepIdx > 0" type="button" class="al-btn al-btn-ghost">
+                <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
+            </button>
+            <div x-show="stepIdx === 0"></div>
+
+            <span class="al-tag font-mono text-xs">
+                <span x-text="stepIdx + 1"></span> / <span x-text="steps.length"></span>
+            </span>
+
+            <button @click="next()" x-show="stepIdx < steps.length - 1" type="button" class="al-btn al-btn-bronze">
+                <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
+            </button>
+            <button @click="submitCheck()" x-show="stepIdx === steps.length - 1" type="button" class="al-btn al-btn-bronze">
+                <i class="ph ph-paper-plane-tilt text-sm"></i><span>Invia Check</span>
+            </button>
+        </div>
+
+    </div>
 </form>
 
-<div class="max-w-3xl mx-auto pb-16" x-data="checkBuilder()" x-cloak>
-
-    <!-- Back -->
-    <nav class="al-tag flex items-center gap-2 mb-6">
-        <a href="{% url 'check_dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-arrow-left text-xs"></i><span>Check &amp; Progressi</span>
-        </a>
-    </nav>
-
-    <!-- Header -->
-    <div class="mb-6">
-        {% if template_only %}
-        <p class="al-eyebrow mb-2">Studio · Template Check</p>
-        <h1 class="al-h-1">Nuovo <span class="al-display-i">Template</span></h1>
-        <p class="al-body mt-1" style="color: var(--al-ink-mute);">Crea un template riutilizzabile da assegnare ai tuoi atleti.</p>
-        {% else %}
-        <p class="al-eyebrow mb-2">Studio · Check Builder</p>
-        <h1 class="al-h-1">Check per <span class="al-display-i">{{ client.first_name }}</span></h1>
-        <p class="al-body mt-1" style="color: var(--al-ink-mute);">{{ client.first_name }} {{ client.last_name }}</p>
-        {% endif %}
-        <div class="al-rule-bronze mt-4"></div>
-    </div>
-
-    <!-- Title (editable) -->
-    <div class="al-card mb-6">
-        <div class="flex items-center gap-3 mb-3">
-            <i class="ph ph-tag text-bronze text-lg"></i>
-            <div>
-                <p class="al-eyebrow" style="color: var(--al-ink-mute); font-size: 10px;">TITOLO</p>
-                <p class="font-semibold text-ink text-sm">Nome del Check</p>
-            </div>
-        </div>
-        <input type="text" x-model="checkTitle" @input="titleError = false"
-               placeholder="Es. Check Settimanale, Check Iniziale, Check Mese 3..."
-               class="al-input" :class="titleError ? 'is-error' : ''">
-        <template x-if="titleError">
-            <span class="al-input-error">Il titolo è obbligatorio per procedere</span>
-        </template>
-    </div>
-
-    <!-- Step pills nav -->
-    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background: rgba(244,239,228,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
-        <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
-            <template x-for="s in steps" :key="s.id">
-                <button @click="goTo(s.id)" type="button"
-                        :class="step === s.id ? 'ck-pill is-active' : (step > s.id ? 'ck-pill is-done' : 'ck-pill is-todo')">
-                    <i :class="'ph ' + (step > s.id ? 'ph-check-circle' : s.icon)"></i>
-                    <span x-text="s.label"></span>
-                </button>
-            </template>
-        </div>
-    </div>
-
-    <!-- ── STEP 1: Misurazioni ────────────────────────────────── -->
-    <div x-show="step === 1" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-        <div class="mb-5">
-            <h2 class="al-h-2">Misurazioni</h2>
-            <p class="al-body text-sm mt-1">Inserisci i valori rilevati. Rimuovi le misurazioni non necessarie o aggiungi metriche personalizzate.</p>
-        </div>
-
-        <template x-if="stepQuestions(1).length === 0">
-            <div class="al-empty my-6">
-                <i class="ph ph-ruler al-empty-icon"></i>
-                <h3>Nessuna misurazione</h3>
-                <p>Tutte le misurazioni sono state rimosse. Aggiungi nuove domande con il pulsante qui sotto.</p>
-            </div>
-        </template>
-
-        <template x-for="q in stepQuestions(1)" :key="q.id">
-            <div class="ck-q-card" draggable="true" @dragstart="dragStart(q.id)" @dragover.prevent="dragOver(q.id)" @drop.prevent="drop(q.id)" @dragend="dragEnd()" :class="{'drag-over': dragOverId === q.id, 'is-dragging': dragSrcId === q.id}">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <i class="ph ph-dots-six-vertical ck-drag-handle" title="Trascina per riordinare"></i>
-                        <span class="ck-type-badge" x-text="typeLabel(q.type)"></span>
-                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
-                        <template x-if="q.unit">
-                            <span class="al-tag" style="font-size: 10px;" x-text="q.unit"></span>
-                        </template>
-                        <template x-if="q.required">
-                            <span style="color:#c0392b;font-size:11px;font-weight:700;margin-left:2px;">*</span>
-                        </template>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button @click="toggleRequired(q.id)" type="button"
-                                :title="q.required ? 'Rendi facoltativa' : 'Rendi obbligatoria'"
-                                class="p-1.5 rounded transition-colors hover:bg-marble"
-                                :style="q.required ? 'color:#c0392b;' : 'color:var(--al-ink-mute);'">
-                            <i class="ph ph-asterisk text-sm"></i>
-                        </button>
-                        <button @click="removeQuestion(q.id)" type="button" title="Rimuovi domanda"
-                                class="p-1.5 rounded transition-colors hover:bg-marble" style="color: var(--al-ink-mute);">
-                            <i class="ph ph-trash text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-                <div x-html="renderInput(q)"></div>
-                <template x-if="q.type === 'metrica'">
-                    <div class="flex items-center gap-2">
-                        <input type="number" step="0.1" min="0" :placeholder="'0.0'" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''"
-                               @input="answers[q.id] = $event.target.value">
-                        <span class="al-badge" style="background: var(--al-marble); color: var(--al-ink-mute); text-transform: none; letter-spacing: 0; font-size: 12px;" x-text="q.unit"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'range'">
-                    <div class="flex items-center gap-3">
-                        <input type="number" step="1" :min="q.rangeMin" :max="q.rangeMax" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''"
-                               @input="answers[q.id] = $event.target.value">
-                        <span class="al-tag" x-text="q.rangeMin + ' – ' + q.rangeMax"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'media'">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="al-tag text-xs" x-text="q.minLabel"></span>
-                            <span class="font-mono font-semibold text-sm" style="color: var(--al-bronze);" x-text="(answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)) + ' / ' + q.max"></span>
-                            <span class="al-tag text-xs" x-text="q.maxLabel"></span>
-                        </div>
-                        <input type="range" :min="q.min" :max="q.max" step="1" class="w-full cursor-pointer" style="accent-color: var(--al-bronze);"
-                               :value="answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)"
-                               @input="answers[q.id] = +$event.target.value">
-                    </div>
-                </template>
-                <template x-if="q.type === 'aperta'">
-                    <textarea :placeholder="q.placeholder || ''" rows="2" class="al-textarea"
-                              :value="answers[q.id] ?? ''"
-                              @input="answers[q.id] = $event.target.value"></textarea>
-                </template>
-                <template x-if="q.type === 'si_no'">
-                    <div class="flex gap-6">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="si" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'si'" @change="answers[q.id] = 'si'">
-                            <span class="text-sm font-medium text-ink">Sì</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="no" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'no'" @change="answers[q.id] = 'no'">
-                            <span class="text-sm font-medium text-ink">No</span>
-                        </label>
-                    </div>
-                </template>
-                <template x-if="q.type === 'radio'">
-                    <div class="space-y-2">
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" :name="'q_' + q.id" :value="opt" style="accent-color: var(--al-bronze);"
-                                       :checked="answers[q.id] === opt" @change="answers[q.id] = opt">
-                                <span class="text-sm text-ink" x-text="opt"></span>
-                            </label>
-                        </template>
-                    </div>
-                </template>
-                <template x-if="q.type === 'elenco'">
-                    <select class="al-select" @change="answers[q.id] = $event.target.value">
-                        <option value="">Seleziona...</option>
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <option :value="opt" :selected="answers[q.id] === opt" x-text="opt"></option>
-                        </template>
-                    </select>
-                </template>
-                <template x-if="q.type === 'tempo'">
-                    <input type="time" class="al-input" style="max-width: 160px;"
-                           :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                </template>
-            </div>
-        </template>
-
-        <button @click="openAddModal(1)" type="button" class="ck-add-btn">
-            <i class="ph ph-plus-circle text-lg"></i>
-            <span>Aggiungi domanda</span>
-        </button>
-    </div>
-
-    <!-- ── STEP 2: Benessere ─────────────────────────────────── -->
-    <div x-show="step === 2" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-        <div class="mb-5">
-            <h2 class="al-h-2">Benessere</h2>
-            <p class="al-body text-sm mt-1">Domande soggettive e valutazioni. Rimuovi o aggiungi domande di qualsiasi tipo.</p>
-        </div>
-
-        <template x-if="stepQuestions(2).length === 0">
-            <div class="al-empty my-6">
-                <i class="ph ph-smiley al-empty-icon"></i>
-                <h3>Nessuna domanda</h3>
-                <p>Aggiungi domande con il pulsante qui sotto.</p>
-            </div>
-        </template>
-
-        <template x-for="q in stepQuestions(2)" :key="q.id">
-            <div class="ck-q-card" draggable="true" @dragstart="dragStart(q.id)" @dragover.prevent="dragOver(q.id)" @drop.prevent="drop(q.id)" @dragend="dragEnd()" :class="{'drag-over': dragOverId === q.id, 'is-dragging': dragSrcId === q.id}">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <i class="ph ph-dots-six-vertical ck-drag-handle" title="Trascina per riordinare"></i>
-                        <span class="ck-type-badge" x-text="typeLabel(q.type)"></span>
-                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
-                        <template x-if="q.unit">
-                            <span class="al-tag" style="font-size: 10px;" x-text="q.unit"></span>
-                        </template>
-                        <template x-if="q.required">
-                            <span style="color:#c0392b;font-size:11px;font-weight:700;margin-left:2px;">*</span>
-                        </template>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button @click="toggleRequired(q.id)" type="button"
-                                :title="q.required ? 'Rendi facoltativa' : 'Rendi obbligatoria'"
-                                class="p-1.5 rounded transition-colors hover:bg-marble"
-                                :style="q.required ? 'color:#c0392b;' : 'color:var(--al-ink-mute);'">
-                            <i class="ph ph-asterisk text-sm"></i>
-                        </button>
-                        <button @click="removeQuestion(q.id)" type="button" title="Rimuovi domanda"
-                                class="p-1.5 rounded transition-colors hover:bg-marble" style="color: var(--al-ink-mute);">
-                            <i class="ph ph-trash text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-                <template x-if="q.type === 'metrica'">
-                    <div class="flex items-center gap-2">
-                        <input type="number" step="0.1" min="0" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                        <span class="al-badge" style="background: var(--al-marble); color: var(--al-ink-mute); text-transform: none; letter-spacing: 0; font-size: 12px;" x-text="q.unit"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'range'">
-                    <div class="flex items-center gap-3">
-                        <input type="number" step="1" :min="q.rangeMin" :max="q.rangeMax" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                        <span class="al-tag" x-text="q.rangeMin + ' – ' + q.rangeMax"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'media'">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="al-tag text-xs" x-text="q.minLabel"></span>
-                            <span class="font-mono font-semibold text-sm" style="color: var(--al-bronze);" x-text="(answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)) + ' / ' + q.max"></span>
-                            <span class="al-tag text-xs" x-text="q.maxLabel"></span>
-                        </div>
-                        <input type="range" :min="q.min" :max="q.max" step="1" class="w-full cursor-pointer" style="accent-color: var(--al-bronze);"
-                               :value="answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)"
-                               @input="answers[q.id] = +$event.target.value">
-                    </div>
-                </template>
-                <template x-if="q.type === 'aperta'">
-                    <textarea :placeholder="q.placeholder || ''" rows="2" class="al-textarea"
-                              :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value"></textarea>
-                </template>
-                <template x-if="q.type === 'si_no'">
-                    <div class="flex gap-6">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="si" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'si'" @change="answers[q.id] = 'si'">
-                            <span class="text-sm font-medium text-ink">Sì</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="no" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'no'" @change="answers[q.id] = 'no'">
-                            <span class="text-sm font-medium text-ink">No</span>
-                        </label>
-                    </div>
-                </template>
-                <template x-if="q.type === 'radio'">
-                    <div class="space-y-2">
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" :name="'q_' + q.id" :value="opt" style="accent-color: var(--al-bronze);"
-                                       :checked="answers[q.id] === opt" @change="answers[q.id] = opt">
-                                <span class="text-sm text-ink" x-text="opt"></span>
-                            </label>
-                        </template>
-                    </div>
-                </template>
-                <template x-if="q.type === 'elenco'">
-                    <select class="al-select" @change="answers[q.id] = $event.target.value">
-                        <option value="">Seleziona...</option>
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <option :value="opt" :selected="answers[q.id] === opt" x-text="opt"></option>
-                        </template>
-                    </select>
-                </template>
-                <template x-if="q.type === 'tempo'">
-                    <input type="time" class="al-input" style="max-width: 160px;"
-                           :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                </template>
-            </div>
-        </template>
-
-        <button @click="openAddModal(2)" type="button" class="ck-add-btn">
-            <i class="ph ph-plus-circle text-lg"></i>
-            <span>Aggiungi domanda</span>
-        </button>
-    </div>
-
-    <!-- ── STEP 3: Note ──────────────────────────────────────── -->
-    <div x-show="step === 3" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-        <div class="mb-5">
-            <h2 class="al-h-2">Note &amp; Domande</h2>
-            <p class="al-body text-sm mt-1">Testi aperti, selezioni e segnalazioni. Personalizza liberamente.</p>
-        </div>
-
-        <template x-if="stepQuestions(3).length === 0">
-            <div class="al-empty my-6">
-                <i class="ph ph-note-pencil al-empty-icon"></i>
-                <h3>Nessuna domanda</h3>
-                <p>Aggiungi domande con il pulsante qui sotto.</p>
-            </div>
-        </template>
-
-        <template x-for="q in stepQuestions(3)" :key="q.id">
-            <div class="ck-q-card" draggable="true" @dragstart="dragStart(q.id)" @dragover.prevent="dragOver(q.id)" @drop.prevent="drop(q.id)" @dragend="dragEnd()" :class="{'drag-over': dragOverId === q.id, 'is-dragging': dragSrcId === q.id}">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <i class="ph ph-dots-six-vertical ck-drag-handle" title="Trascina per riordinare"></i>
-                        <span class="ck-type-badge" x-text="typeLabel(q.type)"></span>
-                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
-                        <template x-if="q.unit">
-                            <span class="al-tag" style="font-size: 10px;" x-text="q.unit"></span>
-                        </template>
-                        <template x-if="q.required">
-                            <span style="color:#c0392b;font-size:11px;font-weight:700;margin-left:2px;">*</span>
-                        </template>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button @click="toggleRequired(q.id)" type="button"
-                                :title="q.required ? 'Rendi facoltativa' : 'Rendi obbligatoria'"
-                                class="p-1.5 rounded transition-colors hover:bg-marble"
-                                :style="q.required ? 'color:#c0392b;' : 'color:var(--al-ink-mute);'">
-                            <i class="ph ph-asterisk text-sm"></i>
-                        </button>
-                        <button @click="removeQuestion(q.id)" type="button" title="Rimuovi domanda"
-                                class="p-1.5 rounded transition-colors hover:bg-marble" style="color: var(--al-ink-mute);">
-                            <i class="ph ph-trash text-sm"></i>
-                        </button>
-                    </div>
-                </div>
-                <template x-if="q.type === 'metrica'">
-                    <div class="flex items-center gap-2">
-                        <input type="number" step="0.1" min="0" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                        <span class="al-badge" style="background: var(--al-marble); color: var(--al-ink-mute); text-transform: none; letter-spacing: 0; font-size: 12px;" x-text="q.unit"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'range'">
-                    <div class="flex items-center gap-3">
-                        <input type="number" step="1" :min="q.rangeMin" :max="q.rangeMax" class="al-input" style="max-width: 180px;"
-                               :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                        <span class="al-tag" x-text="q.rangeMin + ' – ' + q.rangeMax"></span>
-                    </div>
-                </template>
-                <template x-if="q.type === 'media'">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="al-tag text-xs" x-text="q.minLabel"></span>
-                            <span class="font-mono font-semibold text-sm" style="color: var(--al-bronze);" x-text="(answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)) + ' / ' + q.max"></span>
-                            <span class="al-tag text-xs" x-text="q.maxLabel"></span>
-                        </div>
-                        <input type="range" :min="q.min" :max="q.max" step="1" class="w-full cursor-pointer" style="accent-color: var(--al-bronze);"
-                               :value="answers[q.id] !== undefined ? answers[q.id] : Math.round((q.min+q.max)/2)"
-                               @input="answers[q.id] = +$event.target.value">
-                    </div>
-                </template>
-                <template x-if="q.type === 'aperta'">
-                    <textarea :placeholder="q.placeholder || ''" rows="3" class="al-textarea"
-                              :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value"></textarea>
-                </template>
-                <template x-if="q.type === 'si_no'">
-                    <div class="flex gap-6">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="si" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'si'" @change="answers[q.id] = 'si'">
-                            <span class="text-sm font-medium text-ink">Sì</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" :name="'q_' + q.id" value="no" style="accent-color: var(--al-bronze);"
-                                   :checked="answers[q.id] === 'no'" @change="answers[q.id] = 'no'">
-                            <span class="text-sm font-medium text-ink">No</span>
-                        </label>
-                    </div>
-                </template>
-                <template x-if="q.type === 'radio'">
-                    <div class="space-y-2">
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" :name="'q_' + q.id" :value="opt" style="accent-color: var(--al-bronze);"
-                                       :checked="answers[q.id] === opt" @change="answers[q.id] = opt">
-                                <span class="text-sm text-ink" x-text="opt"></span>
-                            </label>
-                        </template>
-                    </div>
-                </template>
-                <template x-if="q.type === 'elenco'">
-                    <select class="al-select" @change="answers[q.id] = $event.target.value">
-                        <option value="">Seleziona...</option>
-                        <template x-for="opt in (q.options || [])" :key="opt">
-                            <option :value="opt" :selected="answers[q.id] === opt" x-text="opt"></option>
-                        </template>
-                    </select>
-                </template>
-                <template x-if="q.type === 'tempo'">
-                    <input type="time" class="al-input" style="max-width: 160px;"
-                           :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
-                </template>
-            </div>
-        </template>
-
-        <button @click="openAddModal(3)" type="button" class="ck-add-btn">
-            <i class="ph ph-plus-circle text-lg"></i>
-            <span>Aggiungi domanda</span>
-        </button>
-    </div>
-
-    <!-- ── STEP 4: Foto ──────────────────────────────────────── -->
-    <div x-show="step === 4" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
-        <div class="mb-5">
-            <h2 class="al-h-2">Foto Progressi</h2>
-            <p class="al-body text-sm mt-1">Facoltative ma consigliate. Solo il coach potrà visualizzarle.</p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-                <label class="al-label">Frontale</label>
-                <label class="ck-photo-slot" :class="photoNames.front ? 'has-file' : ''" for="photo_front_input">
-                    <template x-if="!photoNames.front">
-                        <div class="flex flex-col items-center gap-1">
-                            <i class="ph ph-camera text-2xl" style="color: var(--al-ink-line);"></i>
-                            <span class="al-tag">Carica foto</span>
-                        </div>
-                    </template>
-                    <template x-if="photoNames.front">
-                        <div class="flex flex-col items-center gap-1 px-2 text-center">
-                            <i class="ph ph-check-circle text-2xl text-bronze"></i>
-                            <span class="al-tag text-xs truncate max-w-full" x-text="photoNames.front"></span>
-                        </div>
-                    </template>
-                </label>
-            </div>
-            <div>
-                <label class="al-label">Laterale</label>
-                <label class="ck-photo-slot" :class="photoNames.side ? 'has-file' : ''" for="photo_side_input">
-                    <template x-if="!photoNames.side">
-                        <div class="flex flex-col items-center gap-1">
-                            <i class="ph ph-camera text-2xl" style="color: var(--al-ink-line);"></i>
-                            <span class="al-tag">Carica foto</span>
-                        </div>
-                    </template>
-                    <template x-if="photoNames.side">
-                        <div class="flex flex-col items-center gap-1 px-2 text-center">
-                            <i class="ph ph-check-circle text-2xl text-bronze"></i>
-                            <span class="al-tag text-xs truncate max-w-full" x-text="photoNames.side"></span>
-                        </div>
-                    </template>
-                </label>
-            </div>
-            <div>
-                <label class="al-label">Posteriore</label>
-                <label class="ck-photo-slot" :class="photoNames.back ? 'has-file' : ''" for="photo_back_input">
-                    <template x-if="!photoNames.back">
-                        <div class="flex flex-col items-center gap-1">
-                            <i class="ph ph-camera text-2xl" style="color: var(--al-ink-line);"></i>
-                            <span class="al-tag">Carica foto</span>
-                        </div>
-                    </template>
-                    <template x-if="photoNames.back">
-                        <div class="flex flex-col items-center gap-1 px-2 text-center">
-                            <i class="ph ph-check-circle text-2xl text-bronze"></i>
-                            <span class="al-tag text-xs truncate max-w-full" x-text="photoNames.back"></span>
-                        </div>
-                    </template>
-                </label>
-            </div>
-        </div>
-
-        <div class="al-toast mt-6" style="background: var(--al-info-bg, var(--al-marble)); color: var(--al-aegean); border-left-color: var(--al-aegean);">
-            <i class="ph-fill ph-info shrink-0"></i>
-            <span>Verifica tutte le risposte prima di inviare. Puoi tornare agli step precedenti cliccando le pillole in alto.</span>
-        </div>
-    </div>
-
-    <!-- Navigation -->
-    <div class="ck-nav">
-        <button @click="prev()" x-show="step > 1" type="button" class="al-btn al-btn-ghost">
-            <i class="ph ph-arrow-left text-sm"></i><span>Indietro</span>
-        </button>
-        <div x-show="step === 1"></div>
-
-        <span class="al-tag font-mono text-xs">
-            <span x-text="step"></span> / <span x-text="steps.length"></span>
-        </span>
-
-        <button @click="next()" x-show="step < steps.length" type="button" class="al-btn al-btn-bronze">
-            <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
-        </button>
-        <button @click="submitCheck()" x-show="step === steps.length" type="button" class="al-btn al-btn-bronze">
-            {% if template_only %}
-            <i class="ph ph-floppy-disk text-sm"></i><span>Salva Template</span>
-            {% else %}
-            <i class="ph ph-paper-plane-tilt text-sm"></i><span>Invia Check</span>
-            {% endif %}
-        </button>
-    </div>
-
-    <!-- ── ADD QUESTION MODAL ──────────────────────────────────── -->
-    <div x-show="showAddModal" x-cloak>
-        <div class="al-modal-backdrop" @click="showAddModal = false; addModalStep = 0;"></div>
-        <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;max-width:520px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
-
-            <!-- Step 0: Type selection -->
-            <div x-show="addModalStep === 0">
-                <div class="al-modal-head flex items-start justify-between gap-4">
-                    <div>
-                        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Aggiungi</p>
-                        <h3 class="al-h-2">Tipo di Domanda</h3>
-                        <p class="al-small mt-1" style="color: var(--al-ink-mute);">Scegli il tipo di risposta attesa</p>
-                    </div>
-                    <button @click="showAddModal = false; addModalStep = 0;" type="button" class="al-btn al-btn-ghost shrink-0" style="padding: 6px;">
-                        <i class="ph ph-x"></i>
-                    </button>
-                </div>
-                <div class="al-modal-body">
-                    <div class="grid grid-cols-2 gap-3">
-                        <button @click="selectType('metrica')" type="button" class="ck-type-card">
-                            <i class="ph ph-ruler text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Metrica</p>
-                            <p class="al-tag text-xs mt-1">Valore numerico con unità</p>
-                        </button>
-                        <button @click="selectType('media')" type="button" class="ck-type-card">
-                            <i class="ph ph-sliders text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Media / Scala</p>
-                            <p class="al-tag text-xs mt-1">Valore da 1 a N su slider</p>
-                        </button>
-                        <button @click="selectType('radio')" type="button" class="ck-type-card">
-                            <i class="ph ph-radio-button text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Radio Button</p>
-                            <p class="al-tag text-xs mt-1">Scelta singola da opzioni</p>
-                        </button>
-                        <button @click="selectType('aperta')" type="button" class="ck-type-card">
-                            <i class="ph ph-text-aa text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Risposta Aperta</p>
-                            <p class="al-tag text-xs mt-1">Testo libero</p>
-                        </button>
-                        <button @click="selectType('si_no')" type="button" class="ck-type-card">
-                            <i class="ph ph-toggle-left text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Sì / No</p>
-                            <p class="al-tag text-xs mt-1">Risposta binaria</p>
-                        </button>
-                        <button @click="selectType('elenco')" type="button" class="ck-type-card">
-                            <i class="ph ph-list-bullets text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Risposta da Elenco</p>
-                            <p class="al-tag text-xs mt-1">Dropdown con opzioni</p>
-                        </button>
-                        <button @click="selectType('tempo')" type="button" class="ck-type-card">
-                            <i class="ph ph-clock text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Tempo</p>
-                            <p class="al-tag text-xs mt-1">Durata (HH:MM)</p>
-                        </button>
-                        <button @click="selectType('range')" type="button" class="ck-type-card">
-                            <i class="ph ph-arrows-horizontal text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Range Prefissato</p>
-                            <p class="al-tag text-xs mt-1">Numero entro min/max</p>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 1: Configuration -->
-            <div x-show="addModalStep === 1">
-                <div class="al-modal-head flex items-start justify-between gap-4">
-                    <div>
-                        <button @click="addModalStep = 0" type="button" class="al-link al-link-quiet flex items-center gap-1 mb-2 text-xs">
-                            <i class="ph ph-arrow-left"></i> Cambia tipo
-                        </button>
-                        <h3 class="al-h-2">Configura Domanda</h3>
-                        <p class="al-small mt-1" style="color: var(--al-bronze);" x-text="typeLabel(newQ.type)"></p>
-                    </div>
-                    <button @click="showAddModal = false; addModalStep = 0;" type="button" class="al-btn al-btn-ghost shrink-0" style="padding: 6px;">
-                        <i class="ph ph-x"></i>
-                    </button>
-                </div>
-                <div class="al-modal-body space-y-4">
-                    <!-- Label always required -->
-                    <div>
-                        <label class="al-label">Testo della domanda *</label>
-                        <input type="text" x-model="newQ.label" placeholder="Es. Circonferenza coscia sinistra" class="al-input">
-                    </div>
-
-                    <!-- Metrica: unit -->
-                    <template x-if="newQ.type === 'metrica'">
-                        <div>
-                            <label class="al-label">Unità di misura</label>
-                            <div class="flex gap-2 flex-wrap mb-2">
-                                <template x-for="u in ['kg', 'cm', 'mm', '%', 'bpm', 'kcal', 'min', 'km']" :key="u">
-                                    <button @click="newQ.unit = u" type="button"
-                                            :class="newQ.unit === u ? 'al-badge al-badge-aegean' : 'al-badge'"
-                                            style="text-transform: none; letter-spacing: 0; cursor: pointer; font-size: 12px;"
-                                            x-text="u"></button>
-                                </template>
-                            </div>
-                            <input type="text" x-model="newQ.unit" placeholder="Altra unità..." class="al-input" style="max-width: 160px;">
-                        </div>
-                    </template>
-
-                    <!-- Media: min/max/labels -->
-                    <template x-if="newQ.type === 'media'">
-                        <div class="space-y-3">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="al-label">Valore minimo</label>
-                                    <input type="number" x-model="newQ.min" class="al-input" min="0" max="99">
-                                </div>
-                                <div>
-                                    <label class="al-label">Valore massimo</label>
-                                    <input type="number" x-model="newQ.max" class="al-input" min="1" max="100">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="al-label">Etichetta min</label>
-                                    <input type="text" x-model="newQ.minLabel" placeholder="Es. Pessimo" class="al-input">
-                                </div>
-                                <div>
-                                    <label class="al-label">Etichetta max</label>
-                                    <input type="text" x-model="newQ.maxLabel" placeholder="Es. Ottimo" class="al-input">
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-
-                    <!-- Radio / Elenco: options list -->
-                    <template x-if="newQ.type === 'radio' || newQ.type === 'elenco'">
-                        <div>
-                            <label class="al-label">Opzioni</label>
-                            <div class="space-y-2">
-                                <template x-for="(opt, i) in newQ.options" :key="i">
-                                    <div class="flex gap-2 items-center">
-                                        <input type="text" :value="opt" @input="newQ.options[i] = $event.target.value"
-                                               :placeholder="'Opzione ' + (i+1)" class="al-input flex-1">
-                                        <button @click="removeOption(i)" type="button"
-                                                x-show="newQ.options.length > 1"
-                                                class="p-1.5 rounded hover:bg-marble transition-colors" style="color: var(--al-ink-mute);">
-                                            <i class="ph ph-trash text-sm"></i>
-                                        </button>
-                                    </div>
-                                </template>
-                            </div>
-                            <button @click="addOption()" type="button" class="al-btn al-btn-ghost al-btn-sm mt-2">
-                                <i class="ph ph-plus text-xs"></i> Aggiungi opzione
-                            </button>
-                        </div>
-                    </template>
-
-                    <!-- Aperta: placeholder -->
-                    <template x-if="newQ.type === 'aperta'">
-                        <div>
-                            <label class="al-label">Testo suggerimento <span style="color: var(--al-ink-mute); font-weight: 400;">(facoltativo)</span></label>
-                            <input type="text" x-model="newQ.placeholder" placeholder="Es. Descrivi eventuali difficoltà..." class="al-input">
-                        </div>
-                    </template>
-
-                    <!-- Range: min/max -->
-                    <template x-if="newQ.type === 'range'">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="al-label">Minimo</label>
-                                <input type="number" x-model="newQ.rangeMin" class="al-input">
-                            </div>
-                            <div>
-                                <label class="al-label">Massimo</label>
-                                <input type="number" x-model="newQ.rangeMax" class="al-input">
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="addError">
-                        <div class="al-toast is-danger">
-                            <i class="ph-fill ph-warning-circle shrink-0"></i>
-                            <span x-text="addError"></span>
-                        </div>
-                    </template>
-                </div>
-                <div class="al-modal-foot">
-                    <button @click="showAddModal = false; addModalStep = 0;" type="button" class="al-btn al-btn-ghost">Annulla</button>
-                    <button @click="confirmAddQuestion()" type="button" class="al-btn al-btn-bronze">
-                        <i class="ph ph-plus-circle text-sm"></i><span>Aggiungi</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div><!-- /x-data -->
-
 <script>
-const DEFAULT_QUESTIONS = [
-    { id: 'peso_corporeo',     step: 1, type: 'metrica', label: 'Peso Corporeo',           unit: 'kg',  isDefault: true },
-    { id: 'circ_spalle',       step: 1, type: 'metrica', label: 'Circonferenza Spalle',     unit: 'cm',  isDefault: true },
-    { id: 'circ_petto',        step: 1, type: 'metrica', label: 'Circonferenza Petto',      unit: 'cm',  isDefault: true },
-    { id: 'circ_vita',         step: 1, type: 'metrica', label: 'Circonferenza Vita',       unit: 'cm',  isDefault: true },
-    { id: 'circ_fianchi',      step: 1, type: 'metrica', label: 'Circonferenza Fianchi',    unit: 'cm',  isDefault: true },
-    { id: 'circ_coscia',       step: 1, type: 'metrica', label: 'Circonf. Coscia DX',       unit: 'cm',  isDefault: true },
-    { id: 'circ_braccio',      step: 1, type: 'metrica', label: 'Circonf. Braccio DX',      unit: 'cm',  isDefault: true },
-    { id: 'pl_petto',          step: 1, type: 'metrica', label: 'Plica Petto',              unit: 'mm',  isDefault: true },
-    { id: 'pl_addome',         step: 1, type: 'metrica', label: 'Plica Addome',             unit: 'mm',  isDefault: true },
-    { id: 'pl_coscia',         step: 1, type: 'metrica', label: 'Plica Coscia',             unit: 'mm',  isDefault: true },
-    { id: 'pl_tricipite',      step: 1, type: 'metrica', label: 'Plica Tricipite',          unit: 'mm',  isDefault: true },
-    { id: 'benessere_umore',   step: 2, type: 'media',   label: 'Umore Generale',           min: 1, max: 5, minLabel: 'Pessimo',      maxLabel: 'Eccellente', isDefault: true },
-    { id: 'benessere_dieta',   step: 2, type: 'media',   label: 'Aderenza alla Dieta',      min: 1, max: 5, minLabel: 'Non seguita',   maxLabel: 'Perfetta',   isDefault: true },
-    { id: 'benessere_workout', step: 2, type: 'media',   label: 'Aderenza Allenamento',     min: 1, max: 5, minLabel: 'Non seguito',   maxLabel: 'Perfetto',   isDefault: true },
-    { id: 'note_infortuni',    step: 3, type: 'aperta',  label: 'Infortuni o Dolori',       placeholder: 'Eventuali dolori, tensioni o infortuni...',    isDefault: true },
-    { id: 'note_limitazioni',  step: 3, type: 'aperta',  label: 'Limitazioni o Adattamenti',placeholder: 'Hai saltato sessioni? Modificato esercizi?',   isDefault: true },
-    { id: 'note_messaggio',    step: 3, type: 'aperta',  label: 'Messaggio al Coach',       placeholder: 'Tutto quello che vuoi condividere...',         isDefault: true },
-];
-
-const TYPE_LABELS = {
-    metrica: 'Metrica',
-    media:   'Media',
-    radio:   'Radio',
-    aperta:  'Aperta',
-    si_no:   'Sì/No',
-    elenco:  'Elenco',
-    tempo:   'Tempo',
-    range:   'Range',
-};
-
-function checkBuilder() {
+function checkFill() {
     return {
-        step: 1,
-        steps: [
-            { id: 1, label: 'Misurazioni', icon: 'ph-ruler' },
-            { id: 2, label: 'Benessere',   icon: 'ph-smiley' },
-            { id: 3, label: 'Note',        icon: 'ph-note-pencil' },
-            { id: 4, label: 'Foto',        icon: 'ph-camera' },
-        ],
-        checkTitle: '{{ check_title|escapejs }}',
-        titleError: false,
-        questions: JSON.parse(JSON.stringify(DEFAULT_QUESTIONS)),
-        answers: { benessere_umore: 3, benessere_dieta: 3, benessere_workout: 3 },
-        photoNames: { front: '', side: '', back: '' },
-
-        showAddModal: false,
-        addModalStep: 0,
-        addTargetStep: 1,
-        addError: '',
-        newQ: { type: '', label: '', unit: 'cm', min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max', options: ['', ''], placeholder: '', rangeMin: 0, rangeMax: 100 },
-        dragSrcId: null,
-        dragOverId: null,
+        questions: JSON.parse('{{ questions_config_json|escapejs }}' || '[]'),
+        steps: JSON.parse('{{ steps_config_json|escapejs }}' || '[]'),
+        answers: {},
+        fileNames: {},
+        stepIdx: 0,
 
         init() {
-            document.getElementById('photo_front_input').addEventListener('change', (e) => {
-                this.photoNames.front = e.target.files[0]?.name || '';
-            });
-            document.getElementById('photo_side_input').addEventListener('change', (e) => {
-                this.photoNames.side = e.target.files[0]?.name || '';
-            });
-            document.getElementById('photo_back_input').addEventListener('change', (e) => {
-                this.photoNames.back = e.target.files[0]?.name || '';
-            });
-        },
-
-        goTo(s) { this.step = s; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-        prev() { if (this.step > 1) this.goTo(this.step - 1); },
-        next() { if (this.step < this.steps.length) this.goTo(this.step + 1); },
-
-        stepQuestions(s) { return this.questions.filter(q => q.step === s); },
-
-        typeLabel(t) { return TYPE_LABELS[t] || t; },
-
-        removeQuestion(id) {
-            this.questions = this.questions.filter(q => q.id !== id);
-            delete this.answers[id];
-        },
-
-        openAddModal(targetStep) {
-            this.addTargetStep = targetStep;
-            this.addModalStep = 0;
-            this.addError = '';
-            this.newQ = { type: '', label: '', unit: 'cm', min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max', options: ['', ''], placeholder: '', rangeMin: 0, rangeMax: 100 };
-            this.showAddModal = true;
-        },
-
-        selectType(type) {
-            this.newQ.type = type;
-            this.addModalStep = 1;
-        },
-
-        addOption() { this.newQ.options.push(''); },
-        removeOption(i) { if (this.newQ.options.length > 1) this.newQ.options.splice(i, 1); },
-
-        confirmAddQuestion() {
-            this.addError = '';
-            if (!this.newQ.label.trim()) { this.addError = 'Il testo della domanda è obbligatorio.'; return; }
-            if ((this.newQ.type === 'radio' || this.newQ.type === 'elenco') && this.newQ.options.filter(o => o.trim()).length < 2) {
-                this.addError = 'Inserisci almeno 2 opzioni.'; return;
+            if (!Array.isArray(this.steps) || this.steps.length === 0) {
+                this.steps = [{ id: 's_1', label: 'Check', icon: 'ph-list' }];
             }
-            const id = 'custom_' + Date.now();
-            const q = { id, step: this.addTargetStep, type: this.newQ.type, label: this.newQ.label.trim(), isDefault: false, required: false };
-            if (this.newQ.type === 'metrica')  { q.unit = this.newQ.unit; }
-            if (this.newQ.type === 'media')    { q.min = +this.newQ.min; q.max = +this.newQ.max; q.minLabel = this.newQ.minLabel; q.maxLabel = this.newQ.maxLabel; this.answers[id] = Math.round((+this.newQ.min + +this.newQ.max) / 2); }
-            if (this.newQ.type === 'radio' || this.newQ.type === 'elenco') { q.options = this.newQ.options.filter(o => o.trim()); }
-            if (this.newQ.type === 'aperta')   { q.placeholder = this.newQ.placeholder; }
-            if (this.newQ.type === 'range')    { q.rangeMin = +this.newQ.rangeMin; q.rangeMax = +this.newQ.rangeMax; }
-            this.questions.push(q);
-            this.showAddModal = false;
-            this.addModalStep = 0;
+            // Pre-init defaults
+            this.questions.forEach(q => {
+                if (q.type === 'media' && this.answers[q.id] === undefined) {
+                    this.answers[q.id] = Math.round((+q.min + +q.max) / 2);
+                }
+                if (q.type === 'checkbox' && !Array.isArray(this.answers[q.id])) {
+                    this.answers[q.id] = [];
+                }
+            });
         },
 
-        toggleRequired(id) {
-            const q = this.questions.find(q => q.id === id);
-            if (q) q.required = !q.required;
-        },
-        dragStart(id) { this.dragSrcId = id; },
-        dragOver(id)  { this.dragOverId = id; },
-        drop(id) {
-            if (this.dragSrcId === null || this.dragSrcId === id) { this.dragOverId = null; return; }
-            const srcIdx = this.questions.findIndex(q => q.id === this.dragSrcId);
-            const tgtIdx = this.questions.findIndex(q => q.id === id);
-            if (srcIdx === -1 || tgtIdx === -1 || this.questions[srcIdx].step !== this.questions[tgtIdx].step) {
-                this.dragSrcId = null; this.dragOverId = null; return;
+        questionsFor(stepId) { return this.questions.filter(q => q.step_id === stepId); },
+        goTo(i) { this.stepIdx = i; window.scrollTo({ top: 0, behavior: 'smooth' }); },
+        prev() { if (this.stepIdx > 0) this.goTo(this.stepIdx - 1); },
+        next() { if (this.stepIdx < this.steps.length - 1) this.goTo(this.stepIdx + 1); },
+
+        toggleCheckbox(qid, opt, checked) {
+            const cur = Array.isArray(this.answers[qid]) ? [...this.answers[qid]] : [];
+            if (checked && !cur.includes(opt)) cur.push(opt);
+            if (!checked) {
+                const i = cur.indexOf(opt);
+                if (i >= 0) cur.splice(i, 1);
             }
-            const moved = this.questions.splice(srcIdx, 1)[0];
-            this.questions.splice(tgtIdx, 0, moved);
-            this.dragSrcId = null; this.dragOverId = null;
+            this.answers[qid] = cur;
         },
-        dragEnd() { this.dragSrcId = null; this.dragOverId = null; },
+
+        onFileChange(qid, fileList) {
+            const names = [];
+            for (let i = 0; i < fileList.length; i++) names.push(fileList[i].name);
+            this.fileNames[qid] = names;
+        },
 
         submitCheck() {
-            if (!this.checkTitle.trim()) {
-                this.titleError = true;
-                this.goTo(1);
+            // Validate required
+            const missing = [];
+            for (const q of this.questions) {
+                if (!q.required) continue;
+                const v = this.answers[q.id];
+                if (q.type === 'allegato') {
+                    if (!(this.fileNames[q.id] || []).length) missing.push(q.label);
+                } else if (q.type === 'checkbox') {
+                    if (!Array.isArray(v) || v.length === 0) missing.push(q.label);
+                } else {
+                    if (v === undefined || v === null || String(v).trim() === '') missing.push(q.label);
+                }
+            }
+            if (missing.length > 0) {
+                alert('Domande obbligatorie mancanti:\n• ' + missing.join('\n• '));
                 return;
             }
-            document.getElementById('input-check-title').value = this.checkTitle.trim();
-            document.getElementById('input-questions-config').value = JSON.stringify(this.questions);
             document.getElementById('input-answers-json').value = JSON.stringify(this.answers);
-            document.getElementById('check-builder-form').submit();
+            document.getElementById('check-fill-form').submit();
         },
-
-        renderInput() { return ''; },
     };
 }
 </script>

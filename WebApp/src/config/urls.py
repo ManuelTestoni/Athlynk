@@ -194,6 +194,12 @@ urlpatterns = [
     # Check Progressi
     path('check/', views_check.check_dashboard_view, name='check_dashboard'),
     path('check/crea/', views_check.check_create_view, name='check_create'),
+    path('check/modelli/', views_check.check_templates_list_view, name='check_templates_list'),
+    path('check/modelli/nuovo/', views_check.check_template_new_view, name='check_template_new'),
+    path('check/modelli/<int:template_id>/', views_check.check_template_edit_view, name='check_template_edit'),
+    path('api/check/modelli/<int:template_id>/ripristina/', views_check.api_check_template_restore, name='api_check_template_restore'),
+    path('api/check/modelli/<int:template_id>/duplica/', views_check.api_check_template_duplicate, name='api_check_template_duplicate'),
+    path('api/check/modelli/<int:template_id>/elimina/', views_check.api_check_template_delete, name='api_check_template_delete'),
     path('check/trova-coach/', views_client.find_coach_list_view, name='check_coach_directory'),
     path('check/andamento/', views_check.check_progress_charts_view, name='check_progress_charts'),
     path('check/andamento/<int:client_id>/', views_check.check_progress_charts_view, name='check_progress_charts_client'),
