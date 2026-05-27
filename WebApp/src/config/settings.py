@@ -81,6 +81,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.middleware.SanitizationMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -113,6 +114,41 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
+# Cache — used for rate limiting and short-lived counters.
+# DatabaseCache persists across worker restarts and is multi-worker safe.
+# Run `python manage.py createcachetable` once after deploying.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}
+
+# Number of trusted reverse proxies in front of this app. Set to >0 in production
+# (e.g. 1 behind a single Railway/Fly/Cloudflare hop) so client_ip() honors
+# X-Forwarded-For. Keep at 0 in dev/single-host setups — otherwise attackers can
+# spoof the header and bypass IP-based rate limiting.
+TRUSTED_PROXY_COUNT = 0
+
+
+# Request body / upload limits. Hard caps to block DoS via giant uploads or
+# field-floods. Per-view code may impose tighter limits via services.sanitize.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024       # 10 MB form bodies (rare; mostly photos)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024       # 10 MB streamed to disk past this
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200                  # cap form-field flood
+DATA_UPLOAD_MAX_NUMBER_FILES = 20                    # cap multi-file uploads
+
+# Per-input-class caps used by sanitize helpers (in MB). Views opt in.
+SANITIZE_LIMITS = {
+    'image_mb': 10,
+    'json_body_mb': 1,
+    'short_text_chars': 200,
+    'long_text_chars': 5000,
+    'email_chars': 254,
+}
+SANITIZE_ALLOWED_IMAGE_MIMES = ('image/jpeg', 'image/png', 'image/webp')
 
 
 # Password validation

@@ -7,14 +7,46 @@ from domain.accounts.models import User, CoachProfile, ClientProfile
 from .services.tokens import generate_token, is_expired, get_client_ip
 from .services.email import send_welcome_verify, send_password_reset, send_password_changed
 from .services import password_reset as pwd_reset
+from .services import ratelimit
+from .services.sanitize import (
+    InvalidInput, clean_email, clean_password, clean_short_text,
+)
 
 logger = logging.getLogger(__name__)
 
 
+LOGIN_RATE_LIMIT = 5
+LOGIN_RATE_WINDOW_SECONDS = 15 * 60
+# Per-account ceiling: protects a single account from credential-stuffing
+# attacks even when the attacker rotates source IPs.
+LOGIN_EMAIL_RATE_LIMIT = 10
+LOGIN_EMAIL_RATE_WINDOW_SECONDS = 15 * 60
+LOGIN_BLOCKED_MESSAGE = (
+    'Troppi tentativi di accesso. Riprova tra qualche minuto.'
+)
+
+
 def login_view(request):
     if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        try:
+            email = clean_email(request.POST.get('email'))
+            password = clean_password(request.POST.get('password'), min_chars=1)
+        except InvalidInput as exc:
+            return render(request, 'pages/auth/login.html', {'error': str(exc)}, status=400)
+
+        ip = ratelimit.client_ip(request)
+        ip_allowed, _ = ratelimit.hit(
+            'login_ip', ip, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_SECONDS,
+        )
+        email_allowed, _ = ratelimit.hit(
+            'login_email', email, LOGIN_EMAIL_RATE_LIMIT, LOGIN_EMAIL_RATE_WINDOW_SECONDS,
+        ) if email else (True, LOGIN_EMAIL_RATE_LIMIT)
+        if not ip_allowed or not email_allowed:
+            logger.warning('login.rate_limited ip=%s email=%s ip_ok=%s email_ok=%s',
+                           ip, email, ip_allowed, email_allowed)
+            return render(request, 'pages/auth/login.html', {
+                'error': LOGIN_BLOCKED_MESSAGE,
+            }, status=429)
 
         try:
             user = User.objects.get(email=email)
@@ -26,6 +58,8 @@ def login_view(request):
             request.session['user_role'] = user.role
             user.last_login_at = timezone.now()
             user.save(update_fields=['last_login_at'])
+            ratelimit.reset('login_ip', ip, LOGIN_RATE_WINDOW_SECONDS)
+            ratelimit.reset('login_email', email, LOGIN_EMAIL_RATE_WINDOW_SECONDS)
             return redirect('dashboard')
         except User.DoesNotExist:
             return render(request, 'pages/auth/login.html', {'error': 'Email non trovata. Registrati!'})
@@ -35,21 +69,25 @@ def login_view(request):
 
 def signup_view(request):
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip().lower()
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        password = request.POST.get('password', '')
-        confirm_password = request.POST.get('confirm_password', '')
-        role = request.POST.get('role')
-        professional_type = request.POST.get('professional_type', 'COACH')
+        try:
+            email = clean_email(request.POST.get('email'))
+            first_name = clean_short_text(request.POST.get('first_name'), field='nome')
+            last_name = clean_short_text(request.POST.get('last_name'), field='cognome')
+            password = clean_password(request.POST.get('password'))
+            confirm_password = clean_password(request.POST.get('confirm_password'))
+        except InvalidInput as exc:
+            return render(request, 'pages/auth/signup.html', {'error': str(exc)}, status=400)
+
+        role = (request.POST.get('role') or '').strip().upper()
+        professional_type = (request.POST.get('professional_type') or 'COACH').strip().upper()
+        if role not in ('COACH', 'CLIENT'):
+            return render(request, 'pages/auth/signup.html', {'error': 'Ruolo non valido.'}, status=400)
+        if professional_type not in ('COACH', 'ALLENATORE', 'NUTRIZIONISTA'):
+            professional_type = 'COACH'
         newsletter_optin = request.POST.get('newsletter_optin') == 'on'
 
         if password != confirm_password:
             return render(request, 'pages/auth/signup.html', {'error': 'Le password non coincidono.'})
-        if len(password) < 8:
-            return render(request, 'pages/auth/signup.html', {'error': 'La password deve essere di almeno 8 caratteri.'})
-        if not email:
-            return render(request, 'pages/auth/signup.html', {'error': "L'email è obbligatoria."})
         if User.objects.filter(email__iexact=email).exists():
             return render(request, 'pages/auth/signup.html', {'error': 'Email già in uso. Accedi.'})
 
@@ -148,7 +186,10 @@ def resend_verification_view(request):
     """Generate a new token and email it."""
     if request.method != 'POST':
         return redirect('login')
-    email = (request.POST.get('email') or '').strip().lower()
+    try:
+        email = clean_email(request.POST.get('email'))
+    except InvalidInput:
+        return redirect('login')
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -185,7 +226,14 @@ def forgot_password_view(request):
     Never reveals whether an email is registered.
     """
     if request.method == 'POST':
-        email = (request.POST.get('email') or '').strip().lower()
+        try:
+            email = clean_email(request.POST.get('email'))
+        except InvalidInput:
+            # Stay generic: never reveal whether the email was missing/malformed.
+            return render(request, 'pages/auth/forgot_password.html', {
+                'notice': GENERIC_RESET_NOTICE,
+                'submitted': True,
+            })
         ip = get_client_ip(request)
         ua = (request.META.get('HTTP_USER_AGENT') or '')[:512]
 
@@ -244,8 +292,18 @@ def reset_password_view(request):
     """
     if request.method == 'POST':
         token_plain = (request.POST.get('token') or '').strip()
-        new_pw = request.POST.get('new_password') or ''
-        confirm_pw = request.POST.get('confirm_password') or ''
+        # Token is opaque hex/base64 — cap it to a sane length to block oversized
+        # garbage and skip Unicode normalization (would corrupt the hash lookup).
+        if len(token_plain) > 256 or '\x00' in token_plain:
+            return render(request, 'pages/auth/reset_password.html', {'token_invalid': True}, status=400)
+        try:
+            new_pw = clean_password(request.POST.get('new_password'))
+            confirm_pw = clean_password(request.POST.get('confirm_password'))
+        except InvalidInput as exc:
+            return render(request, 'pages/auth/reset_password.html', {
+                'token': token_plain,
+                'error': str(exc),
+            }, status=400)
 
         token = pwd_reset.validate_token(token_plain)
         if not token:
@@ -253,11 +311,6 @@ def reset_password_view(request):
                 'token_invalid': True,
             }, status=400)
 
-        if len(new_pw) < 8:
-            return render(request, 'pages/auth/reset_password.html', {
-                'token': token_plain,
-                'error': 'La password deve essere di almeno 8 caratteri.',
-            }, status=400)
         if new_pw != confirm_pw:
             return render(request, 'pages/auth/reset_password.html', {
                 'token': token_plain,
