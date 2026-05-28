@@ -33,6 +33,16 @@ _API_FORM_EXEMPT_PREFIXES = (
 )
 
 
+def _is_form_exempt(path):
+    """True for /api/ endpoints that legitimately accept form/multipart bodies."""
+    if any(path.startswith(p) for p in _API_FORM_EXEMPT_PREFIXES):
+        return True
+    # Chat message send is multipart: text body + optional image/video attachment.
+    if path.startswith('/api/chat/') and path.endswith('/send/'):
+        return True
+    return False
+
+
 def _scrub_querydict(qd):
     """Remove ASCII NUL bytes from all values in a Django QueryDict.
 
@@ -68,7 +78,7 @@ class SanitizationMiddleware:
         method = request.method or ''
 
         if path.startswith('/api/') and method in ('POST', 'PUT', 'PATCH'):
-            if not any(path.startswith(p) for p in _API_FORM_EXEMPT_PREFIXES):
+            if not _is_form_exempt(path):
                 ctype = (request.META.get('CONTENT_TYPE') or '').lower().split(';')[0].strip()
                 if ctype and ctype != 'application/json':
                     logger.warning('sanitize.bad_content_type path=%s ctype=%s', path, ctype)
