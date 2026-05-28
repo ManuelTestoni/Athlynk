@@ -13,12 +13,6 @@ from domain.calendar.models import Appointment
 from .session_utils import get_session_user, get_session_coach, get_session_client
 
 
-def _get_or_create_conversation(coach, client):
-    """Get or create a conversation between coach and client."""
-    conv, _ = Conversation.objects.get_or_create(coach=coach, client=client)
-    return conv
-
-
 def _user_has_access_to_conversation(user, conversation):
     """Check if user can access this conversation (must be either coach or client side)."""
     if user.role == 'COACH':

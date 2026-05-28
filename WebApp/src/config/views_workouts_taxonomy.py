@@ -13,7 +13,6 @@ suitable for both web (Alpine.js) and future mobile (Swift / Flutter) clients.
 from __future__ import annotations
 
 import json
-import re
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -372,22 +371,6 @@ def api_custom_exercise_detail(request, exercise_id):
 # ---------------------------------------------------------------------------
 # Volume aggregator
 # ---------------------------------------------------------------------------
-
-def _parse_rep_count(rep_raw) -> int:
-    """Take rep_range strings like '8', '8-10', '8x10' → return reps as int."""
-    if rep_raw is None:
-        return 0
-    if isinstance(rep_raw, int):
-        return rep_raw
-    s = str(rep_raw).strip()
-    if not s:
-        return 0
-    # take the highest number found (use it as a stable upper bound)
-    nums = [int(n) for n in re.findall(r'\d+', s)]
-    if not nums:
-        return 0
-    return max(nums)
-
 
 def api_plan_volume(request, plan_id):
     """Return per-muscle-group, per-week volume for a plan.
