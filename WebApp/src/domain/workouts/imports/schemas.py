@@ -7,6 +7,8 @@ Mirrors nutrition.schemas style.
 from typing import Literal, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
+from domain.shared.extraction import ConfidenceSummary  # noqa: F401  (re-export)
+
 
 DayOfWeek = Literal[
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
@@ -100,12 +102,6 @@ class WorkoutExtraction(BaseModel):
     sessions: list[SessionEntry] = Field(default_factory=list)
     extraction_notes: list[str] = Field(default_factory=list)
     document_summary: Optional[DocumentSummary] = None
-
-
-class ConfidenceSummary(BaseModel):
-    fields_total: int = 0
-    fields_uncertain: int = 0
-    ratio: float = 0.0
 
 
 class ConfirmPayload(BaseModel):

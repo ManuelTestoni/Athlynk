@@ -7,11 +7,8 @@ import json
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from domain.nutrition.llm_client import build_extraction_llm
+from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 from domain.shared.pdf import Chunk
-
-
-class AIExtractionError(Exception):
-    """LLM ha fallito o ha restituito JSON invalido (su tutti i chunk)."""
 
 
 CHUNK_SYSTEM_PROMPT = """Sei un estrattore di dati nutrizionali da PDF.

@@ -17,14 +17,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import ValidationError
 
 from domain.shared.excel_text import excel_to_text, ExcelParseError  # noqa: F401  (re-export)
+from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 from domain.shared.llm_extraction import build_extraction_llm
 from domain.workouts.imports.exercise_match import best_match
 from domain.workouts.imports.prompts import EXCEL_SYSTEM_PROMPT
 from domain.workouts.imports.schemas import ConfidenceSummary, WorkoutExtraction
-
-
-class AIExtractionError(Exception):
-    """LLM failed or returned invalid JSON."""
 
 
 # ─── AI extraction ──────────────────────────────────────────────────────

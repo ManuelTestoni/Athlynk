@@ -7,9 +7,8 @@ pagine inviare al modello AI. Riduce drasticamente il consumo di token.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
-from domain.shared.pdf import PdfPage
+from domain.shared.pdf import PdfPage, PageMeta  # noqa: F401  (PageMeta re-export)
 
 
 # Keyword positive — segnali tipici di una pagina-dieta.
@@ -46,18 +45,6 @@ PAGE_TYPES = (
     'decorative_or_irrelevant',
     'unknown',
 )
-
-
-@dataclass
-class PageMeta:
-    page_number: int
-    page_type: str
-    relevance_score: float       # 0..1
-    positive_hits: int
-    negative_hits: int
-    text_density: float
-    used_ocr: bool
-    has_table: bool
 
 
 _WORD_RE = re.compile(r"[a-zàèéìòùA-ZÀÈÉÌÒÙ]+")

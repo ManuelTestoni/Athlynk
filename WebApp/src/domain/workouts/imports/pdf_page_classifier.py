@@ -7,9 +7,9 @@ with workout-specific positive signals (sets/reps/load/RPE/exercise families).
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
 from domain.shared.pdf.ingestion import PdfPage
+from domain.shared.pdf import PageMeta  # noqa: F401  (PageMeta re-export)
 
 
 POSITIVE_KEYWORDS = {
@@ -49,18 +49,6 @@ PAGE_TYPES = (
     'decorative_or_irrelevant',
     'unknown',
 )
-
-
-@dataclass
-class PageMeta:
-    page_number: int
-    page_type: str
-    relevance_score: float
-    positive_hits: int
-    negative_hits: int
-    text_density: float
-    used_ocr: bool
-    has_table: bool
 
 
 def _count_keywords(text_lower: str, keywords: set[str]) -> int:

@@ -6,6 +6,8 @@ Validano la risposta JSON dell'LLM e il payload di conferma del frontend.
 from typing import Literal, Optional
 from pydantic import BaseModel, Field, ConfigDict
 
+from domain.shared.extraction import ConfidenceSummary  # noqa: F401  (re-export)
+
 
 DayOfWeek = Literal[
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
@@ -92,12 +94,6 @@ class DietExtraction(BaseModel):
     extraction_notes: Optional[str] = None
     total_calories_daily: Optional[float] = None
     notes: Optional[str] = None
-
-
-class ConfidenceSummary(BaseModel):
-    fields_total: int = 0
-    fields_uncertain: int = 0
-    ratio: float = 0.0
 
 
 class ConfirmPayload(BaseModel):

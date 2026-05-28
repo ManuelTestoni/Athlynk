@@ -10,13 +10,10 @@ import json
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
+from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 from domain.shared.llm_extraction import build_extraction_llm
 from domain.shared.pdf.chunker import Chunk
 from domain.workouts.imports.prompts import CHUNK_SYSTEM_PROMPT
-
-
-class AIExtractionError(Exception):
-    """LLM failed or returned invalid JSON across all chunks."""
 
 
 def _annotate_provenance(raw: dict, chunk: Chunk) -> dict:

@@ -19,6 +19,8 @@ from domain.nutrition.food_match import best_match
 from domain.nutrition.llm_client import build_extraction_llm
 from domain.nutrition.models import Supplement
 from domain.nutrition.schemas import DietExtraction, ConfidenceSummary
+from domain.shared.excel_text import ExcelParseError  # noqa: F401  (re-export)
+from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 
 
 MAX_GRID_CHARS = 12000
@@ -103,14 +105,6 @@ SCHEMA OUTPUT richiesto:
   "extraction_notes": string | null
 }
 """
-
-
-class ExcelParseError(Exception):
-    """File Excel non leggibile o vuoto."""
-
-
-class AIExtractionError(Exception):
-    """LLM ha fallito o ha restituito JSON invalido."""
 
 
 def excel_to_text(file_bytes: bytes) -> str:
