@@ -3,14 +3,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.db import transaction
-from django.db.models import Avg, Count, Max, Sum, F
-from datetime import timedelta, date
+from django.db.models import Count, Sum
+from datetime import timedelta
 import json
 
-from domain.accounts.models import ClientProfile, CoachProfile
+from domain.accounts.models import ClientProfile
 from domain.workouts.models import (
-    Exercise, WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment,
+    Exercise, WorkoutDay, WorkoutExercise, WorkoutAssignment,
     WorkoutSession, WorkoutSetLog, SessionMedia, SessionCoachNote,
 )
 from domain.coaching.models import CoachingRelationship

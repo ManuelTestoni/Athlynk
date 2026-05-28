@@ -1,7 +1,7 @@
 """Newsletter double opt-in views (confirm, unsubscribe, toggle from settings)."""
 from django.conf import settings
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 

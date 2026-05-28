@@ -53,7 +53,6 @@ Column mapping (xlsx header -> Food.<attr> (db_column)):
 """
 import os
 import sys
-import shutil
 import tempfile
 import zipfile
 import warnings

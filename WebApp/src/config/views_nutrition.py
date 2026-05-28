@@ -1769,7 +1769,7 @@ def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
                  client_data: dict | None) -> None:
     """Worker eseguito in background thread. Aggiorna lo stato via cache."""
     from domain.nutrition.pdf_importer import run_pdf_pipeline
-    from domain.nutrition.pdf_ingestion import PdfParseError
+    from domain.shared.pdf import PdfParseError
     from domain.nutrition.pdf_extractor import AIExtractionError
 
     def progress(phase: str, percent: int) -> None:

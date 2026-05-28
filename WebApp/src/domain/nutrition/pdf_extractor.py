@@ -7,7 +7,7 @@ import json
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from domain.nutrition.llm_client import build_extraction_llm
-from domain.nutrition.pdf_chunker import Chunk
+from domain.shared.pdf import Chunk
 
 
 class AIExtractionError(Exception):

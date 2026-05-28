@@ -20,11 +20,11 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from domain.nutrition.excel_importer import normalize_and_match, compute_confidence
-from domain.nutrition.pdf_chunker import chunk_pages
+from domain.shared.pdf import chunk_pages
 from domain.nutrition.pdf_extractor import extract_all_chunks, AIExtractionError
-from domain.nutrition.pdf_ingestion import open_pdf, PdfParseError
+from domain.shared.pdf import open_pdf, PdfParseError
 from domain.nutrition.pdf_merger import merge_chunks
-from domain.nutrition.pdf_ocr import ocr_page_if_needed
+from domain.shared.pdf import ocr_page_if_needed
 from domain.nutrition.pdf_page_classifier import classify_pages, select_relevant
 from domain.nutrition.schemas import ConfidenceSummary
 

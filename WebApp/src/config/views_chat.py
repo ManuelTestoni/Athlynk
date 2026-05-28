@@ -2,11 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.db.models import Q, Max, Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Subquery
 import json
 
 from domain.chat.models import Conversation, Message, Notification
-from domain.accounts.models import CoachProfile, ClientProfile, User
+from domain.accounts.models import CoachProfile, ClientProfile
 from domain.coaching.models import CoachingRelationship
 from domain.calendar.models import Appointment
 
@@ -292,7 +292,7 @@ def api_appointment_request(request, conversation_id):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    from datetime import date as date_type, time as time_type, datetime, timedelta
+    from datetime import date as date_type, datetime, timedelta
     from django.utils.timezone import make_aware
 
     title = (data.get('title') or 'Appuntamento').strip()

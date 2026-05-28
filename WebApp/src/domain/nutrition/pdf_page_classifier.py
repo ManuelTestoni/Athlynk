@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from domain.nutrition.pdf_ingestion import PdfPage
+from domain.shared.pdf import PdfPage
 
 
 # Keyword positive — segnali tipici di una pagina-dieta.

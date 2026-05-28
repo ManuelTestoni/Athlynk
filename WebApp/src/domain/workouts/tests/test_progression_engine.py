@@ -6,7 +6,6 @@ from domain.accounts.models import User, CoachProfile
 from domain.workouts.models import (
     Exercise,
     ProgressionRule,
-    WeekDefinition,
     WeeklyOverride,
     WorkoutDay,
     WorkoutExercise,

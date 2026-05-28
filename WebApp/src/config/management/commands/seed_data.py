@@ -1,9 +1,8 @@
 from django.core.management.base import BaseCommand
-from accounts.models import User, CoachProfile, ClientProfile
+from accounts.models import User, CoachProfile
 from coaching.models import SubscriptionPlan
-from workouts.models import WorkoutPlan, WorkoutDay, WorkoutExercise, Exercise
+from workouts.models import WorkoutPlan, Exercise
 from nutrition.models import NutritionPlan
-from datetime import datetime, timedelta
 
 
 class Command(BaseCommand):

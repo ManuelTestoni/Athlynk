@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from .ingestion import PdfPage
 
 
+# Tuned down from 2500 to 1800: smaller chunks reduce LLM output truncation and
+# "laziness" on long lists (the model tends to skip items when the output window
+# is wide).
 MAX_CHUNK_CHARS = 1800
+# Overlap between consecutive chunks of the same page: avoids splitting a logical
+# block (e.g. a header in chunk N and its body in chunk N+1).
 CHUNK_OVERLAP_CHARS = 400
 MAX_CHUNKS_PER_DOC = 30
 

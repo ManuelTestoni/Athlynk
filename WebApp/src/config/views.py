@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from domain.accounts.models import User, CoachProfile, ClientProfile
+from domain.accounts.models import User, ClientProfile
 from domain.coaching.models import CoachingRelationship
 from domain.checks.models import QuestionnaireResponse
 from domain.billing.models import SubscriptionPlan, ClientSubscription

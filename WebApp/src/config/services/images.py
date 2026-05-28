@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import io
 import os
-from typing import Optional
 
-from django.core.files.base import ContentFile, File
+from django.core.files.base import ContentFile
 
 
 WEBP_QUALITY = 90  # high-efficiency setting; visually lossless for photos

@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 
 from domain.accounts.models import User, CoachProfile
 from domain.workouts.models import (
-    Exercise, ProgressionRule, WeeklyValue, WeekDefinition, WorkoutPlan,
+    Exercise, ProgressionRule, WeeklyValue, WeekDefinition,
 )
 
 

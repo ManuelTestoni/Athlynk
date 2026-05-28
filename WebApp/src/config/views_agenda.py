@@ -241,7 +241,7 @@ def api_agenda_event_detail(request, event_id):
 # Calendar feed (Google Calendar / Apple Calendar subscription)
 # ---------------------------------------------------------------------------
 import secrets as _secrets
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404 as _get_or_404
 from domain.accounts.models import CoachProfile as _CoachProfile
 from domain.calendar.models import Appointment as _Appointment
@@ -261,7 +261,7 @@ def _ics_escape(text):
         str(text)
         .replace('\\', '\\\\')
         .replace(',', '\\,')
-        .replace(';', '\;')
+        .replace(';', '\\;')
         .replace('\n', '\\n')
     )
 

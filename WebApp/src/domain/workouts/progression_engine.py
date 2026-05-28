@@ -23,8 +23,6 @@ from typing import Iterable, Optional
 from django.db import transaction
 
 from .models import (
-    Exercise,
-    ExerciseVariantTransition,
     ProgressionRule,
     WeekDefinition,
     WeeklyOverride,

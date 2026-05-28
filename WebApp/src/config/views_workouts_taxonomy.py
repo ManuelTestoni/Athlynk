@@ -23,7 +23,7 @@ from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 
 from domain.workouts.models import (
-    Exercise, MuscleGroup, Sport, WorkoutDay, WorkoutExercise,
+    Exercise, MuscleGroup, Sport, WorkoutExercise,
     WorkoutFolder, WorkoutPlan,
 )
 

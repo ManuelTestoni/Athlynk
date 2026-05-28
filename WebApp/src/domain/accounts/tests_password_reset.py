@@ -9,7 +9,6 @@ Cover the security-critical paths:
 - consuming a token invalidates other live tokens for the same user.
 """
 from datetime import timedelta
-from unittest.mock import patch
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.core import mail

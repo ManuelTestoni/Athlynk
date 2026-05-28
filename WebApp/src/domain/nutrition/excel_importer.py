@@ -10,7 +10,6 @@ Flusso API-first puro (input → output, niente Django request/response):
 import io
 import json
 import re
-from typing import Any
 
 from openpyxl import load_workbook
 from langchain_core.messages import SystemMessage, HumanMessage

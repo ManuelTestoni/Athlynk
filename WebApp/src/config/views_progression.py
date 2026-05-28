@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 
 from domain.workouts.models import (
-    Exercise, ProgressionRule, WeekDefinition, WeeklyOverride, WorkoutDay,
+    Exercise, WeekDefinition, WeeklyOverride, WorkoutDay,
     WorkoutExercise, WorkoutPlan,
 )
 from domain.workouts import progression_engine

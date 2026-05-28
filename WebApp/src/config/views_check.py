@@ -4,11 +4,9 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db.models import Q, Count, OuterRef, Subquery
 from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
 from django.conf import settings
-import os
 import json
 from datetime import timedelta
 
