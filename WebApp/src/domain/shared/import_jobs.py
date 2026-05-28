@@ -20,12 +20,25 @@ from __future__ import annotations
 
 import threading
 import uuid
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional, TypedDict
 
 from django.core.cache import cache
 
 
 DEFAULT_TTL = 600  # 10 minutes
+
+JobStatus = Literal['queued', 'running', 'done', 'error']
+
+
+class JobPayload(TypedDict, total=False):
+    """Job payload stored in cache. Partial by design: each pipeline phase writes
+    the subset of keys it knows about (total=False)."""
+    status: JobStatus
+    phase: str
+    percent: int
+    result: dict[str, object] | None      # filled when status == 'done'
+    error_code: str | None
+    detail: str | None
 
 
 class JobStore:
@@ -43,14 +56,14 @@ class JobStore:
     def new_id(self) -> str:
         return uuid.uuid4().hex
 
-    def set(self, job_id: str, payload: dict) -> None:
+    def set(self, job_id: str, payload: JobPayload) -> None:
         cache.set(self.key(job_id), payload, self.ttl)
 
-    def get(self, job_id: str) -> Optional[dict]:
+    def get(self, job_id: str) -> Optional[JobPayload]:
         return cache.get(self.key(job_id))
 
-    def update(self, job_id: str, patch: dict) -> dict:
-        existing = self.get(job_id) or {}
+    def update(self, job_id: str, patch: JobPayload) -> JobPayload:
+        existing: JobPayload = self.get(job_id) or {}
         existing.update(patch)
         self.set(job_id, existing)
         return existing
@@ -65,7 +78,8 @@ class JobStore:
             })
         return _cb
 
-    def spawn(self, target: Callable, args: tuple = (), kwargs: Optional[dict] = None,
+    def spawn(self, target: Callable[..., object], args: tuple[object, ...] = (),
+              kwargs: Optional[dict[str, object]] = None,
               initial_phase: str = 'queued') -> str:
         """Allocate a job_id, mark it queued, start a daemon thread on `target`.
 
@@ -84,11 +98,11 @@ class JobStore:
         return job_id
 
 
-def serialize_status(job_id: str, job: Optional[dict]) -> dict:
+def serialize_status(job_id: str, job: Optional[JobPayload]) -> dict[str, object]:
     """Flatten a job payload for the polling endpoint."""
     if not job:
         return {'job_id': job_id, 'status': 'not_found'}
-    payload = {
+    payload: dict[str, object] = {
         'job_id': job_id,
         'status': job.get('status'),
         'phase': job.get('phase'),

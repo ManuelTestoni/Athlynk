@@ -565,11 +565,12 @@ _HANDLERS = {
 # Conflict detection
 # ---------------------------------------------------------------------------
 
-def _detect_conflicts(rules: list, max_week: int) -> list:
+def _detect_conflicts(rules: list, max_week: int) -> list[dict[str, object]]:
     """Find rules that target the same metric in overlapping weeks with
     conflict_strategy='ERROR'. Returns a list of {exercise_id, week, metric, rule_ids}.
+    `rules` is duck-typed (model instances or dicts) — accessed via `_attr`.
     """
-    out = []
+    out: list[dict[str, object]] = []
     by_ex_metric = defaultdict(list)
     for r in rules:
         if _attr(r, 'conflict_strategy') != 'ERROR':
@@ -602,8 +603,9 @@ def compute_for_exercise(
     overrides: Optional[Iterable] = None,
     week_defs: Optional[dict] = None,
     max_week: Optional[int] = None,
-) -> dict:
-    """Pure: returns {week_number: cell_dict} for the exercise. Does not persist."""
+) -> dict[int, dict]:
+    """Pure: returns {week_number: cell_dict} for the exercise. Does not persist.
+    Inner cell is a dynamic metric->value map (boundary), written to ORM fields."""
     weeks = list(weeks)
     if not weeks:
         return {}
@@ -614,7 +616,7 @@ def compute_for_exercise(
 
     rules_sorted = sorted(rules, key=lambda r: (_attr(r, 'order_index') or 0, _attr(r, 'id') or 0))
     base = _base_cell(ex)
-    conflicts: list = []
+    conflicts: list[dict[str, object]] = []
 
     auto_deload_weeks: set[int] = set()
     for r in rules_sorted:
@@ -625,7 +627,7 @@ def compute_for_exercise(
                 except (TypeError, ValueError):
                     pass
 
-    out: dict = {}
+    out: dict[int, dict] = {}
     for week in weeks:
         cell = dict(base)
         for rule in rules_sorted:
@@ -805,7 +807,8 @@ def compute_day_grid(plan: WorkoutPlan, day_id: int) -> dict:
         .order_by('order_index', 'id')
     )
 
-    overrides_by_ex = defaultdict(dict)  # ex_id -> {(week, metric): value_json}
+    # ex_id -> {(week, metric): value_json}; value_json is a JSON boundary value.
+    overrides_by_ex: defaultdict[int, dict[tuple[int, str], object]] = defaultdict(dict)
     qs = WeeklyOverride.objects.filter(workout_exercise__workout_day_id=day_id).order_by('workout_exercise_id', 'week_number')
     for ov in qs:
         overrides_by_ex[ov.workout_exercise_id][(ov.week_number, ov.metric)] = ov.value_json
@@ -818,7 +821,7 @@ def compute_day_grid(plan: WorkoutPlan, day_id: int) -> dict:
         inactive_set = set(int(x) for x in (ex.inactive_weeks or []) if isinstance(x, (int, str)) and str(x).isdigit())
         ends_at = ex.ends_at_week  # None = no upper bound
         for w in weeks:
-            row = {}
+            row: dict[str, object] = {}
             inactive = (
                 w < (ex.starts_at_week or 1)
                 or (ends_at is not None and w > ends_at)

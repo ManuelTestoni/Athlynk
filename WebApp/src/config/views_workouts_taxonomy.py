@@ -416,8 +416,8 @@ def api_plan_volume(request, plan_id):
     )
 
     # init structure: { (slug, week) : {primary_sets, secondary_sets} }
-    by_group: dict = {}
-    muscle_meta: dict = {}
+    by_group: dict[tuple[str, int], dict[str, float]] = {}
+    muscle_meta: dict[str, MuscleGroup] = {}
 
     for we in exercises:
         base_sets = we.set_count or 0

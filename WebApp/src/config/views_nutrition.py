@@ -179,7 +179,7 @@ def nutrizione_piani_view(request):
         .filter(coach=coach, status='ACTIVE')
         .values_list('nutrition_plan_id', 'client_id')
     )
-    assigned_map: dict = {}
+    assigned_map: dict[int, list[int]] = {}
     for plan_id, client_id in active_assignments:
         assigned_map.setdefault(plan_id, []).append(client_id)
 

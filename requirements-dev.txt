@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Static type checking (gate for type annotations). Config: WebApp/src/mypy.ini
+# Run from WebApp/src: mypy <paths>
+mypy==2.1.0
+django-stubs==6.0.5
