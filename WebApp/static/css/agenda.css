@@ -517,3 +517,57 @@
 }
 .agenda-empty i { font-size: 36px; display: block; margin-bottom: 10px; color: var(--al-stone-deep); }
 .agenda-empty p { font-size: 13px; }
+
+/* ----- Duration picker (create/edit modal) ----- */
+.agenda-dur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agenda-dur-chip {
+  flex: 1 1 0;
+  min-width: 58px;
+  padding: 9px 10px;
+  background: transparent;
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  font-family: var(--al-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--al-ink-mute);
+  cursor: pointer;
+  transition: all var(--al-d-fast) var(--al-ease);
+}
+.agenda-dur-chip:hover {
+  border-color: var(--al-bronze-soft);
+  background: var(--al-marble);
+  color: var(--al-ink);
+}
+.agenda-dur-chip.is-active {
+  background: var(--al-ink);
+  border-color: var(--al-ink);
+  color: var(--al-parchment);
+}
+.agenda-dur-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.agenda-dur-unit {
+  font-family: var(--al-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--al-ink-mute);
+}
+.agenda-dur-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--al-ink-soft);
+}
+.agenda-dur-end i { color: var(--al-bronze); font-size: 14px; }
+.agenda-dur-end strong { color: var(--al-ink); font-weight: 600; }

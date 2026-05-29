@@ -1010,7 +1010,7 @@ def api_check_schedule(request):
             title=f"Check Progressi – {client.first_name} {client.last_name}",
             appointment_type='check',
             start_datetime=start_datetime,
-            end_datetime=end_datetime,
+            duration_minutes=max(1, int((end_datetime - start_datetime).total_seconds() // 60)),
             description=notes,
             status='SCHEDULED',
         )

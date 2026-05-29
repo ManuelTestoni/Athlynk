@@ -1310,11 +1310,56 @@ input[type="number"] { -moz-appearance: textfield; }
   border-radius: var(--al-r-sm) !important;
 }
 
-/* Make print mode functional */
+/* ============================================================
+   PRINT — shared across every page
+   The app shell is a fixed-height, overflow-hidden flex layout
+   (body.h-screen → main.al-canvas[overflow-y:auto]). Left as-is
+   the browser prints only the visible viewport. Here we unwind
+   the shell so the full document flows and paginates naturally,
+   then hide chrome and tidy the page for paper.
+   ============================================================ */
 @media print {
-  .al-sidebar, .al-topbar, .al-btn, .al-modal-backdrop { display: none !important; }
-  body { background: white !important; color: black !important; }
-  .al-card { box-shadow: none !important; border: 1px solid #ccc !important; }
+  @page { size: A4; margin: 16mm 14mm; }
+
+  /* preserve the Athlynk palette (parchment/bronze/ink) on paper */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* unwind the scroll shell → natural full-height flow + multipage */
+  html, body { height: auto !important; overflow: visible !important; }
+  body { display: block !important; background: #fff !important; }
+  body > div.flex-1 { display: block !important; height: auto !important; overflow: visible !important; }
+  main.al-canvas {
+    display: block !important;
+    height: auto !important; min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  main.al-canvas > .al-page { padding: 0 !important; max-width: none !important; }
+
+  /* hide app chrome + interactive controls */
+  .al-sidebar, .al-topbar, .al-footer,
+  .al-toast-host, #cookie-banner-root,
+  .al-search-dropdown, .al-notif-pop,
+  .al-modal-backdrop, .al-btn, .al-print-hide {
+    display: none !important;
+  }
+
+  /* reveal-on-scroll blocks below the fold never intersect before the
+     print snapshot → force them to their resting (visible) state */
+  .al-reveal, .al-reveal-line { opacity: 1 !important; transform: none !important; }
+  .al-reveal-line::before { transform: scaleX(1) !important; }
+
+  /* keep logical blocks from splitting across page breaks */
+  .al-card, .av-section, .av-hero, .av-vitals, .av-private,
+  .pd-meal, .pd-hero, .pd-dashboard, .print-avoid { break-inside: avoid; }
+  h1, h2, h3, .al-h-1, .al-h-2, .al-h-3 { break-after: avoid; }
+  .print-break-before { break-before: page; }
+
+  /* flatten heavy shadows for clean toner output */
+  .al-card, .av-section, .av-hero, .av-vital, .av-private { box-shadow: none !important; }
 }
 
 /* Mobile touch targets */

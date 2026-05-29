@@ -1,0 +1,7 @@
+{# Reusable print trigger. Pairs with the global `@media print` rules in
+   athlynk.css that unwind the app shell so the full document paginates.
+   Optional context var `print_label` overrides the label (default "Stampa"). #}
+<button type="button" onclick="window.print()"
+        class="al-btn al-btn-ghost al-btn-sm al-print-hide" title="Stampa questa pagina">
+  <i class="ph ph-printer text-sm"></i><span>{{ print_label|default:"Stampa" }}</span>
+</button>

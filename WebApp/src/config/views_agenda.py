@@ -22,6 +22,15 @@ TYPE_COLORS = {
 }
 
 
+def _parse_duration(raw):
+    """Coerce a duration payload to a positive int of minutes. Returns None if invalid."""
+    try:
+        minutes = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes >= 1 else None
+
+
 def _serialize_event(evt, *, coach_view):
     title = evt.title
     if coach_view:
@@ -31,6 +40,7 @@ def _serialize_event(evt, *, coach_view):
         'title': title,
         'start': evt.start_datetime.isoformat(),
         'end': evt.end_datetime.isoformat(),
+        'duration_minutes': evt.duration_minutes,
         'type': evt.appointment_type,
         'color': TYPE_COLORS.get(evt.appointment_type.lower(), '#64748b'),
         'client_id': evt.client_id,
@@ -125,16 +135,16 @@ def api_agenda_events(request):
             title = (data.get('title') or '').strip()
             appointment_type = data.get('appointment_type', 'check')
             start_datetime = parse_datetime(data.get('start_datetime') or '')
-            end_datetime = parse_datetime(data.get('end_datetime') or '')
+            duration_minutes = _parse_duration(data.get('duration_minutes'))
             is_recurring = bool(data.get('is_recurring', False))
             recurrence_rule = data.get('recurrence_rule', '') or None
 
-            if not title or not client_id or not start_datetime or not end_datetime:
+            if not title or not client_id or not start_datetime:
                 return JsonResponse({'error': 'Campi obbligatori mancanti'}, status=400)
 
-            if end_datetime <= start_datetime:
+            if duration_minutes is None:
                 return JsonResponse(
-                    {'error': "La fine dell'appuntamento deve essere successiva all'inizio."},
+                    {'error': "Indica una durata valida (almeno 1 minuto)."},
                     status=400,
                 )
 
@@ -160,7 +170,7 @@ def api_agenda_events(request):
                     title=title,
                     appointment_type=appointment_type,
                     start_datetime=start_datetime + offset,
-                    end_datetime=end_datetime + offset,
+                    duration_minutes=duration_minutes,
                     description=data.get('description', ''),
                     meeting_url=data.get('meeting_url', '') if appointment_type == 'consulenza' else '',
                     is_recurring=is_recurring and i == 0,
@@ -208,15 +218,15 @@ def api_agenda_event_detail(request, event_id):
     title = (data.get('title') or '').strip()
     appointment_type = data.get('appointment_type', evt.appointment_type)
     start_datetime = parse_datetime(data.get('start_datetime') or '')
-    end_datetime = parse_datetime(data.get('end_datetime') or '')
+    duration_minutes = _parse_duration(data.get('duration_minutes'))
     client_id = data.get('client_id')
 
-    if not title or not start_datetime or not end_datetime or not client_id:
+    if not title or not start_datetime or not client_id:
         return JsonResponse({'error': 'Campi obbligatori mancanti.'}, status=400)
 
-    if end_datetime <= start_datetime:
+    if duration_minutes is None:
         return JsonResponse(
-            {'error': "La fine dell'appuntamento deve essere successiva all'inizio."},
+            {'error': "Indica una durata valida (almeno 1 minuto)."},
             status=400,
         )
 
@@ -229,7 +239,7 @@ def api_agenda_event_detail(request, event_id):
     evt.title = title
     evt.appointment_type = appointment_type
     evt.start_datetime = start_datetime
-    evt.end_datetime = end_datetime
+    evt.duration_minutes = duration_minutes
     evt.description = data.get('description', '') or ''
     evt.meeting_url = data.get('meeting_url', '') if appointment_type == 'consulenza' else ''
     evt.save()

@@ -20,7 +20,9 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   .chiron-fab {
     position: fixed;
     right: 26px;
-    bottom: 26px;
+    /* Vertically centered on the chat input bar (~64px tall, sitting on the footer):
+       footer-top + bar/2 - fab/2 = footer-h + 32 - 31 = footer-h + 1 */
+    bottom: calc(var(--al-footer-h, 32px) + 1px);
     width: 62px;
     height: 62px;
     border-radius: 50%;
@@ -489,7 +491,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       border-radius: 22px 22px 0 0;
     }
     .chiron-head { border-radius: 22px 22px 0 0; }
-    .chiron-fab { right: 18px; bottom: 18px; }
+    .chiron-fab { right: 18px; }
   }
 </style>
 

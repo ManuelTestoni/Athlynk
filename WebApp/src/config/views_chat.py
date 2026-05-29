@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Subquery, F
 import json
 
 from domain.chat.models import Conversation, Message, Notification
@@ -84,7 +84,7 @@ def chat_list_view(request):
         conversations = list(_annotate_conversations(
             Conversation.objects.filter(coach=coach)
             .select_related('client', 'client__user')
-            .order_by('-last_message_at', '-created_at'),
+            .order_by(F('last_message_at').desc(nulls_last=True), '-created_at'),
             user,
         ))
         unread_map = _unread_counts([c.id for c in conversations], user)
@@ -119,7 +119,7 @@ def chat_list_view(request):
         conversations = list(_annotate_conversations(
             Conversation.objects.filter(client=client)
             .select_related('coach', 'coach__user')
-            .order_by('-last_message_at', '-created_at'),
+            .order_by(F('last_message_at').desc(nulls_last=True), '-created_at'),
             user,
         ))
         unread_map = _unread_counts([c.id for c in conversations], user)
@@ -319,7 +319,7 @@ def api_appointment_request(request, conversation_id):
         title=title,
         description=notes or None,
         start_datetime=start_dt,
-        end_datetime=end_dt,
+        duration_minutes=max(1, int((end_dt - start_dt).total_seconds() // 60)),
         status='PENDING',
     )
 
@@ -378,7 +378,7 @@ def api_appointment_respond(request, conversation_id, appointment_id):
     if action not in ('accept', 'reject'):
         return JsonResponse({'error': 'Azione non valida'}, status=400)
 
-    from datetime import date as date_type, datetime, timedelta
+    from datetime import date as date_type, datetime
     from django.utils.timezone import make_aware
 
     if action == 'accept':
@@ -390,13 +390,12 @@ def api_appointment_respond(request, conversation_id, appointment_id):
             cd = date_type.fromisoformat(confirmed_date_str)
             h, m = map(int, confirmed_time_str.split(':'))
             start_dt = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
-            end_dt = start_dt + timedelta(hours=1)
         except (ValueError, TypeError):
             return JsonResponse({'error': 'Formato data/orario non valido'}, status=400)
         appointment.start_datetime = start_dt
-        appointment.end_datetime = end_dt
+        appointment.duration_minutes = 60
         appointment.status = 'SCHEDULED'
-        appointment.save(update_fields=['start_datetime', 'end_datetime', 'status', 'updated_at'])
+        appointment.save(update_fields=['start_datetime', 'duration_minutes', 'status', 'updated_at'])
         body_msg = f'Appuntamento confermato: {appointment.title} il {start_dt.strftime("%d/%m/%Y")} alle {start_dt.strftime("%H:%M")}'
         notif_type = 'APPOINTMENT_ACCEPTED'
         notif_title = 'Appuntamento confermato'
@@ -416,14 +415,13 @@ def api_appointment_respond(request, conversation_id, appointment_id):
                 cd = date_type.fromisoformat(counter_date_str)
                 h, m = map(int, counter_time_str.split(':'))
                 counter_start = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
-                counter_end = counter_start + timedelta(hours=1)
                 counter_appt = Appointment.objects.create(
                     coach=conversation.coach,
                     client=conversation.client,
                     appointment_type='consultation',
                     title=appointment.title,
                     start_datetime=counter_start,
-                    end_datetime=counter_end,
+                    duration_minutes=60,
                     status='PENDING',
                 )
                 counter_msg = Message.objects.create(

@@ -423,15 +423,36 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="al-label">Inizio</label>
-            <input type="datetime-local" x-model="newEvent.start_datetime" class="al-input">
+        <div>
+          <label class="al-label">Inizio</label>
+          <input type="datetime-local" x-model="newEvent.start_datetime" class="al-input">
+        </div>
+
+        <div>
+          <label class="al-label">Durata</label>
+          <div class="agenda-dur-chips">
+            <template x-for="p in durationPresets" :key="p.minutes">
+              <button type="button"
+                      @click="setDuration(p.minutes)"
+                      :class="{ 'is-active': !customDuration && newEvent.duration_minutes === p.minutes }"
+                      class="agenda-dur-chip"
+                      x-text="p.label"></button>
+            </template>
+            <button type="button"
+                    @click="enableCustomDuration()"
+                    :class="{ 'is-active': customDuration }"
+                    class="agenda-dur-chip">Altro</button>
           </div>
-          <div>
-            <label class="al-label">Fine</label>
-            <input type="datetime-local" x-model="newEvent.end_datetime" class="al-input">
+          <div x-show="customDuration" x-cloak class="agenda-dur-custom">
+            <input type="number" min="1" step="5"
+                   x-model.number="newEvent.duration_minutes"
+                   class="al-input" style="max-width: 120px;">
+            <span class="agenda-dur-unit">min</span>
           </div>
+          <p class="agenda-dur-end" x-show="durationEndLabel()">
+            <i class="ph ph-flag-checkered"></i>
+            <span>Fine prevista · <strong x-text="durationEndLabel()"></strong></span>
+          </p>
         </div>
 
         <div x-show="newEvent.appointment_type === 'check' && !editingId" class="al-card al-card-warm space-y-3" style="padding: 16px;">

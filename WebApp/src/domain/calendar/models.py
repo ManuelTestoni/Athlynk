@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models
 
 class Appointment(models.Model):
@@ -7,7 +9,7 @@ class Appointment(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
     start_datetime = models.DateTimeField()
-    end_datetime = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField(default=60)
     location = models.CharField(max_length=255, null=True, blank=True)
     meeting_url = models.URLField(max_length=500, null=True, blank=True)
     status = models.CharField(max_length=50)
@@ -24,6 +26,11 @@ class Appointment(models.Model):
             models.Index(fields=['client', 'start_datetime']),
             models.Index(fields=['status', 'start_datetime']),
         ]
+
+    @property
+    def end_datetime(self):
+        """Derived end instant: start + duration. Read-only — set duration_minutes to change."""
+        return self.start_datetime + timedelta(minutes=self.duration_minutes)
 
     def __str__(self):
         return f"{self.title} - {self.client}"

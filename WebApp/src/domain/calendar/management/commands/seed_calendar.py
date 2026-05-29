@@ -21,7 +21,6 @@ class Command(BaseCommand):
         # 1. Creazione di un appuntamento futuro 
         # Imposta un appuntamento per domani alla stessa ora attuale
         start_time = timezone.now() + timedelta(days=1)
-        end_time = start_time + timedelta(minutes=45) # 45 minuti di call
 
         appointment, created_apt = Appointment.objects.get_or_create(
             coach=coach,
@@ -31,7 +30,7 @@ class Command(BaseCommand):
                 'title': 'Call di Check-in Mensile',
                 'description': 'Analizzeremo i risultati dell\'ultimo mese di dieta e variamo la scheda sulle spalle.',
                 'start_datetime': start_time,
-                'end_datetime': end_time,
+                'duration_minutes': 45,
                 'location': 'Google Meet',
                 'meeting_url': 'https://meet.google.com/abc-defg-hij',
                 'status': 'SCHEDULED'

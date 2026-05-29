@@ -19,6 +19,7 @@
       <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-ghost al-btn-sm">
         <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
       </a>
+      {% include 'partials/_print_button.html' with print_label="Stampa scheda" %}
       <button @click="if(confirm('Eliminare la scheda?')){ busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) }"
               type="button" class="al-btn-icon al-btn al-btn-ghost" :disabled="busy" title="Elimina">
         <i class="ph ph-trash" style="color: #b91c1c;"></i>

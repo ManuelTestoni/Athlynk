@@ -370,9 +370,12 @@
 
 <div class="max-w-4xl mx-auto">
 
-  <a href="{% url 'nutrizione_piani' %}" class="pd-back">
-    <i class="ph ph-arrow-left"></i> La mia nutrizione
-  </a>
+  <div class="flex items-center justify-between gap-3">
+    <a href="{% url 'nutrizione_piani' %}" class="pd-back">
+      <i class="ph ph-arrow-left"></i> La mia nutrizione
+    </a>
+    {% include 'partials/_print_button.html' with print_label="Stampa dieta" %}
+  </div>
 
   <!-- Hero -->
   <section class="pd-hero">

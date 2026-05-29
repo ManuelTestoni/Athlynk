@@ -41,13 +41,21 @@ function fmtDayLabel(d) {
   return new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
 }
 
+const DURATION_PRESETS = [
+  { minutes: 30,  label: '30m' },
+  { minutes: 45,  label: '45m' },
+  { minutes: 60,  label: '1h' },
+  { minutes: 90,  label: '1h 30' },
+  { minutes: 120, label: '2h' },
+];
+
 function emptyAgendaEvent() {
   return {
     title: '',
     client_id: null,
     appointment_type: 'check',
     start_datetime: '',
-    end_datetime: '',
+    duration_minutes: 60,
     description: '',
     meeting_url: '',
     is_recurring: false,
@@ -77,6 +85,8 @@ document.addEventListener('alpine:init', () => {
     newEvent: emptyAgendaEvent(),
     editingId: null,
     saveError: '',
+    durationPresets: DURATION_PRESETS,
+    customDuration: false,
     clientSearchQuery: '',
     clientSearchResults: [],
     selectedClientName: '',
@@ -281,13 +291,11 @@ document.addEventListener('alpine:init', () => {
       const d = dateObj || this.currentDate;
       const start = new Date(d);
       if (start.getHours() === 0) start.setHours(9, 0, 0, 0);
-      const end = new Date(start);
-      end.setHours(end.getHours() + 1);
       this.editingId = null;
       this.saveError = '';
       this.newEvent = this._emptyEvent();
       this.newEvent.start_datetime = this._toLocalInput(start);
-      this.newEvent.end_datetime = this._toLocalInput(end);
+      this.customDuration = false;
       this.clientSearchQuery = '';
       this.clientSearchResults = [];
       this.selectedClientName = '';
@@ -300,17 +308,20 @@ document.addEventListener('alpine:init', () => {
       this.showDetailModal = false;
       this.editingId = evt.id;
       this.saveError = '';
+      const durationMinutes = evt.duration_minutes
+        || Math.max(1, Math.round((evt._end - evt._start) / 60000));
       this.newEvent = {
         title: evt.title || '',
         client_id: evt.client_id || null,
         appointment_type: evt._type || evt.type || 'check',
         start_datetime: this._toLocalInput(evt._start),
-        end_datetime: this._toLocalInput(evt._end),
+        duration_minutes: durationMinutes,
         description: evt.description || '',
         meeting_url: evt.meeting_url || '',
         is_recurring: false,
         recurrence_rule: 'settimanale',
       };
+      this.customDuration = !DURATION_PRESETS.some(p => p.minutes === durationMinutes);
       this.selectedClientName = evt.client_name || '';
       this.clientSearchQuery = '';
       this.clientSearchResults = [];
@@ -346,7 +357,7 @@ document.addEventListener('alpine:init', () => {
       // After programmatic x-model writes, push values into Flatpickr instances.
       this.$nextTick(() => {
         document.querySelectorAll(
-          '[x-model="newEvent.start_datetime"], [x-model="newEvent.end_datetime"]'
+          '[x-model="newEvent.start_datetime"]'
         ).forEach(el => {
           if (el._fp && el.value) el._fp.setDate(el.value, false);
         });
@@ -369,6 +380,24 @@ document.addEventListener('alpine:init', () => {
       this.clientSearchQuery = '';
     },
 
+    /* ---------------- duration ---------------- */
+    setDuration(minutes) {
+      this.customDuration = false;
+      this.newEvent.duration_minutes = minutes;
+    },
+    enableCustomDuration() {
+      this.customDuration = true;
+      if (!this.newEvent.duration_minutes || this.newEvent.duration_minutes < 1) {
+        this.newEvent.duration_minutes = 60;
+      }
+    },
+    durationEndLabel() {
+      const start = new Date(this.newEvent.start_datetime);
+      const mins = parseInt(this.newEvent.duration_minutes, 10);
+      if (!isFinite(start.getTime()) || !(mins >= 1)) return '';
+      return fmtTime(new Date(start.getTime() + mins * 60000));
+    },
+
     typePlaceholder() {
       const map = {
         check: 'Es. Check mensile',
@@ -388,18 +417,18 @@ document.addEventListener('alpine:init', () => {
     async saveAppointment() {
       const e = this.newEvent;
       this.saveError = '';
-      if (!e.title || !e.client_id || !e.start_datetime || !e.end_datetime) {
-        this.saveError = 'Completa titolo, atleta, inizio e fine.';
+      if (!e.title || !e.client_id || !e.start_datetime) {
+        this.saveError = 'Completa titolo, atleta e inizio.';
         return;
       }
       const startMs = new Date(e.start_datetime).getTime();
-      const endMs = new Date(e.end_datetime).getTime();
-      if (!isFinite(startMs) || !isFinite(endMs)) {
-        this.saveError = 'Date non valide.';
+      if (!isFinite(startMs)) {
+        this.saveError = 'Data di inizio non valida.';
         return;
       }
-      if (endMs <= startMs) {
-        this.saveError = 'La fine deve essere successiva all’inizio.';
+      e.duration_minutes = parseInt(e.duration_minutes, 10);
+      if (!(e.duration_minutes >= 1)) {
+        this.saveError = 'Indica una durata di almeno 1 minuto.';
         return;
       }
       const isEdit = !!this.editingId;
