@@ -3,4 +3,10 @@
 # Static type checking (gate for type annotations). Config: WebApp/src/mypy.ini
 # Run from WebApp/src: mypy <paths>
 mypy==2.1.0
+mypy_extensions==1.1.0
 django-stubs==6.0.5
+django-stubs-ext==6.0.5
+types-PyYAML==6.0.12.20260518
+
+# Debug toolbar (local only)
+django-debug-toolbar==6.3.0
