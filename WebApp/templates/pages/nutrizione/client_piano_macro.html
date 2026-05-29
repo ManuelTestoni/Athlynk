@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ plan.title }} — Obiettivo macro{% endblock %}
+
+{% block content %}
+<script>
+  window.MACRO_LOG_INIT = {
+    isWeekly: {{ is_weekly|yesno:"true,false" }},
+    targets: {{ targets_json|safe }},
+    entries: {{ log_json|safe }},
+    weekDays: {{ week_days_json|safe }},
+    csrf: "{{ csrf_token }}",
+    urls: {
+      foodSearch: "{% url 'nutrizione_food_search' %}",
+      createPattern: "{% url 'api_macro_log_create' assignment.id %}",
+      detailPattern: "/api/nutrizione/log/__ID__/",
+    },
+  };
+</script>
+<script src="{% static 'js/nutrition_macro_log.js' %}?v={{ ASSET_VERSION }}"></script>
+
+<style>
+  /* === Macro target plan — client logging === */
+  .ml-back {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-family: var(--al-mono); font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--al-ink-mute); text-decoration: none; transition: color .15s;
+  }
+  .ml-back:hover { color: var(--al-bronze); }
+
+  .ml-hero {
+    position: relative; overflow: hidden;
+    border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
+    background:
+      radial-gradient(circle at 95% -5%, rgba(138,106,58,0.24) 0%, transparent 50%),
+      radial-gradient(circle at -5% 110%, rgba(28,74,82,0.16) 0%, transparent 50%),
+      linear-gradient(160deg, var(--al-ink) 0%, #1c1812 60%, #2a2317 100%);
+    color: var(--al-parchment);
+    padding: 2.25rem 2rem 2rem; margin-bottom: 1.5rem;
+  }
+  .ml-hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+  }
+  .ml-eyebrow {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-family: var(--al-mono); font-size: .68rem; font-weight: 700;
+    letter-spacing: .26em; text-transform: uppercase; color: var(--al-bronze);
+    margin-bottom: .8rem; position: relative;
+  }
+  .ml-eyebrow::before { content: ''; width: 28px; height: 1px; background: var(--al-bronze); }
+  .ml-title {
+    font-family: var(--al-display); font-size: clamp(1.85rem, 4vw, 2.6rem);
+    line-height: 1.05; letter-spacing: -.018em; color: var(--al-parchment);
+    margin: 0 0 .6rem; position: relative;
+  }
+  .ml-title em { font-style: italic; color: var(--al-bronze); font-weight: 400; }
+  .ml-meta { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; position: relative; }
+  .ml-chip {
+    display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem;
+    background: rgba(244,239,228,0.05); border: 1px solid rgba(244,239,228,0.12);
+    border-radius: 999px; font-size: .72rem; font-weight: 500; color: rgba(244,239,228,0.82);
+  }
+  .ml-chip i { font-size: .9rem; color: var(--al-bronze); }
+  .ml-note {
+    margin-top: 1.3rem; padding: 1rem 1.2rem; border-radius: var(--al-r-sm);
+    background: rgba(244,239,228,0.05); border-left: 3px solid var(--al-bronze);
+    color: rgba(244,239,228,0.85); font-size: .88rem; line-height: 1.55; position: relative;
+  }
+  .ml-note-label {
+    font-family: var(--al-mono); font-size: .62rem; text-transform: uppercase;
+    letter-spacing: .15em; color: var(--al-bronze); display: block; margin-bottom: .35rem;
+  }
+
+  /* Day tabs */
+  .ml-days { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .25rem; margin-bottom: 1.25rem; }
+  .ml-day {
+    flex: 0 0 auto; min-width: 60px; text-align: center; cursor: pointer;
+    padding: .5rem .7rem; border-radius: var(--al-r-sm);
+    border: 1px solid var(--al-rule); background: var(--al-parchment); transition: all .15s;
+  }
+  .ml-day:hover { border-color: var(--al-bronze-soft); }
+  .ml-day.is-active { background: var(--al-ink); border-color: var(--al-ink); }
+  .ml-day-name {
+    font-family: var(--al-mono); font-size: .68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--al-ink-soft);
+  }
+  .ml-day.is-active .ml-day-name { color: var(--al-bronze); }
+  .ml-day-dot {
+    display: block; width: 5px; height: 5px; border-radius: 999px;
+    background: var(--al-rule); margin: .35rem auto 0;
+  }
+  .ml-day.has-target .ml-day-dot { background: var(--al-bronze); }
+  .ml-day.is-active .ml-day-dot { background: var(--al-parchment); }
+
+  /* Board */
+  .ml-board {
+    border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
+    background: white; padding: 1.5rem 1.6rem; margin-bottom: 1.25rem;
+  }
+  .ml-board-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+  }
+  .ml-board-head h2 { font-family: var(--al-display); font-size: 1.35rem; color: var(--al-ink); margin: 0; }
+  .ml-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+  @media (max-width: 560px) { .ml-gauges { grid-template-columns: 1fr; } }
+  .ml-gauge-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: .4rem; }
+  .ml-gauge-label {
+    display: inline-flex; align-items: center; gap: .45rem;
+    font-size: .8rem; font-weight: 600; color: var(--al-ink);
+  }
+  .ml-gauge-label .dot { width: 9px; height: 9px; border-radius: 999px; }
+  .ml-gauge-val { font-family: var(--al-mono); font-size: .82rem; font-variant-numeric: tabular-nums; }
+  .ml-gauge-val strong { font-size: 1.05rem; color: var(--al-ink); }
+  .ml-gauge-val small { color: var(--al-ink-mute); }
+  .ml-gauge-track { height: 8px; border-radius: 999px; background: var(--al-marble); overflow: hidden; }
+  .ml-gauge-fill { height: 100%; border-radius: 999px; transition: width .35s var(--al-ease, ease), background .2s; }
+  .ml-gauge-foot {
+    margin-top: .3rem; font-family: var(--al-mono); font-size: .66rem;
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* Search */
+  .ml-search-wrap { position: relative; margin-bottom: 1rem; }
+  .ml-results {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
+    max-height: 320px; overflow-y: auto;
+    background: var(--al-parchment); border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md); box-shadow: var(--al-shadow-2);
+  }
+  .ml-result {
+    width: 100%; text-align: left; padding: .7rem 1rem; background: transparent;
+    border: none; border-bottom: 1px solid var(--al-rule-faint); cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  }
+  .ml-result:hover { background: var(--al-marble-warm); }
+  .ml-result-name { font-size: .88rem; font-weight: 500; color: var(--al-ink); }
+  .ml-result-cat { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--al-ink-faint); }
+  .ml-result-macros { font-family: var(--al-mono); font-size: .7rem; color: var(--al-ink-mute); text-align: right; white-space: nowrap; }
+
+  /* Logged list */
+  .ml-entry {
+    display: grid; grid-template-columns: 1fr auto auto; gap: .85rem; align-items: center;
+    padding: .8rem 1rem; border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);
+    background: white; margin-bottom: .5rem;
+  }
+  .ml-entry:hover { border-color: var(--al-rule); }
+  .ml-entry-name { font-size: .9rem; font-weight: 500; color: var(--al-ink); margin: 0; line-height: 1.3; }
+  .ml-entry-macros {
+    margin-top: .15rem; font-family: var(--al-mono); font-size: .7rem; display: flex; gap: .6rem; flex-wrap: wrap;
+  }
+  .ml-entry-macros .k { color: var(--al-bronze); font-weight: 600; }
+  .ml-entry-macros .p { color: var(--al-aegean); }
+  .ml-entry-macros .c { color: var(--al-warn); }
+  .ml-entry-macros .f { color: var(--al-danger); }
+  .ml-qty { display: inline-flex; align-items: center; gap: .3rem; }
+  .ml-qty input {
+    width: 70px; text-align: center; font-family: var(--al-mono);
+    padding: 5px 6px; border: 1px solid var(--al-rule); border-radius: var(--al-r-xs);
+    background: var(--al-marble-warm); font-size: .85rem; color: var(--al-ink);
+  }
+  .ml-qty input:focus { outline: none; border-color: var(--al-bronze); }
+  .ml-qty span { font-size: .72rem; color: var(--al-ink-mute); }
+  .ml-del {
+    width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+    border-radius: var(--al-r-xs); border: none; background: transparent;
+    color: var(--al-ink-line); cursor: pointer; transition: all .15s;
+  }
+  .ml-del:hover { background: var(--al-danger-bg); color: var(--al-danger); }
+  .ml-empty {
+    text-align: center; padding: 2.5rem 1.5rem; border: 1px dashed var(--al-rule);
+    border-radius: var(--al-r-md); color: var(--al-ink-mute); background: var(--al-parchment);
+  }
+  [x-cloak] { display: none !important; }
+</style>
+
+<div class="max-w-4xl mx-auto" x-data="macroLog()" x-init="init()">
+
+  <div class="flex items-center justify-between gap-3">
+    <a href="{% url 'nutrizione_piani' %}" class="ml-back">
+      <i class="ph ph-arrow-left"></i> La mia nutrizione
+    </a>
+    {% include 'partials/_print_button.html' with print_label="Stampa obiettivo" %}
+  </div>
+
+  <!-- Hero -->
+  <section class="ml-hero mt-4">
+    <span class="ml-eyebrow">Obiettivo macro</span>
+    <h1 class="ml-title">{{ plan.title }}{% if plan.nutrition_goal %} <em>· {{ plan.nutrition_goal|lower }}</em>{% endif %}</h1>
+    <div class="ml-meta">
+      <span class="ml-chip">
+        <i class="{% if is_weekly %}ph ph-calendar{% else %}ph ph-sun{% endif %}"></i>
+        {% if is_weekly %}Settimanale{% else %}Giornaliero{% endif %}
+      </span>
+      <span class="ml-chip"><i class="ph ph-chart-donut"></i>Obiettivi macronutrienti</span>
+      {% if plan.plan_type %}<span class="ml-chip"><i class="ph ph-leaf"></i>{{ plan.plan_type }}</span>{% endif %}
+    </div>
+    {% if plan.description %}<p class="ml-note" style="border-left-color: rgba(244,239,228,0.2); margin-top: 1.1rem;">{{ plan.description }}</p>{% endif %}
+    {% if assignment.notes %}
+      <div class="ml-note">
+        <span class="ml-note-label">Note dal coach</span>{{ assignment.notes }}
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Weekly day tabs -->
+  <template x-if="isWeekly">
+    <div class="ml-days">
+      <template x-for="d in weekDays" :key="d.code">
+        <button type="button" class="ml-day"
+                :class="{ 'is-active': activeDay === d.code, 'has-target': dayHasTarget(d.code) }"
+                @click="activeDay = d.code; clearSearch()">
+          <span class="ml-day-name" x-text="d.label.slice(0,3)"></span>
+          <span class="ml-day-dot"></span>
+        </button>
+      </template>
+    </div>
+  </template>
+
+  <!-- Progress board -->
+  <section class="ml-board">
+    <div class="ml-board-head">
+      <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Il tuo diario</p>
+        <h2 x-text="isWeekly ? ('Obiettivo · ' + dayLabel(activeDay)) : 'Obiettivo giornaliero'"></h2>
+      </div>
+      <span class="al-tag font-mono" x-show="!currentTarget().kcal && !currentTarget().prot && !currentTarget().carb && !currentTarget().fat"
+            style="color: var(--al-ink-line);">
+        Nessun obiettivo impostato per questo giorno
+      </span>
+    </div>
+
+    <div class="ml-gauges">
+      <template x-for="row in [
+          {k:'kcal', l:'Energia',     u:'kcal', c:'var(--al-bronze)', dec:0},
+          {k:'prot', l:'Proteine',    u:'g',    c:'var(--al-aegean)', dec:1},
+          {k:'carb', l:'Carboidrati', u:'g',    c:'var(--al-warn)',   dec:1},
+          {k:'fat',  l:'Grassi',      u:'g',    c:'var(--al-danger)', dec:1}
+        ]" :key="row.k">
+        <div>
+          <div class="ml-gauge-top">
+            <span class="ml-gauge-label">
+              <span class="dot" :style="'background:' + row.c"></span>
+              <span x-text="row.l"></span>
+            </span>
+            <span class="ml-gauge-val">
+              <strong x-text="row.dec ? r1(totals()[row.k]) : r0(totals()[row.k])"></strong>
+              <small x-text="' / ' + (currentTarget()[row.k] || 0) + ' ' + row.u"></small>
+            </span>
+          </div>
+          <div class="ml-gauge-track" :style="'--ml-accent:' + row.c">
+            <div class="ml-gauge-fill"
+                 :style="'width:' + pct(totals()[row.k], currentTarget()[row.k]) + '%; background:' + barColor(totals()[row.k], currentTarget()[row.k])"></div>
+          </div>
+          <p class="ml-gauge-foot"
+             :style="overPct(totals()[row.k], currentTarget()[row.k]) ? 'color: var(--al-danger);' : 'color: var(--al-ink-mute);'"
+             x-show="currentTarget()[row.k] > 0"
+             x-text="overPct(totals()[row.k], currentTarget()[row.k])
+               ? ('+' + Math.abs(remaining(totals()[row.k], currentTarget()[row.k])) + ' ' + row.u + ' oltre')
+               : (remaining(totals()[row.k], currentTarget()[row.k]) + ' ' + row.u + ' al target')"></p>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <!-- Food search -->
+  <div class="ml-search-wrap" @click.outside="showResults = false">
+    <div class="al-search" style="border-style: dashed;">
+      <i class="ph ph-magnifying-glass"></i>
+      <input type="text" x-model="q" @input.debounce.300ms="search()" @focus="if (results.length) showResults = true"
+             placeholder="Cerca un alimento che hai mangiato…" class="al-input">
+      <span x-show="searching" class="al-tag">…</span>
+      <span x-show="adding" class="al-tag">salvataggio…</span>
+    </div>
+    <div class="ml-results" x-show="showResults && results.length > 0" x-cloak>
+      <template x-for="food in results" :key="food.id">
+        <button type="button" class="ml-result" @click="addFood(food)">
+          <span style="min-width:0;">
+            <span class="ml-result-name" x-text="food.name"></span>
+            <span class="ml-result-cat" x-show="food.category" x-text="food.category" style="display:block;"></span>
+          </span>
+          <span class="ml-result-macros">
+            <strong x-text="r0(food.kcal) + ' kcal'" style="color: var(--al-ink);"></strong><br>
+            <span x-text="'P ' + r1(food.protein) + ' · C ' + r1(food.carb) + ' · G ' + r1(food.fat) + ' /100g'"></span>
+          </span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <!-- Logged foods -->
+  <div>
+    <template x-if="visibleEntries().length === 0">
+      <div class="ml-empty">
+        <i class="ph ph-fork-knife" style="font-size: 2.2rem; color: var(--al-bronze);"></i>
+        <p style="margin-top: .6rem;">Nessun alimento registrato<span x-show="isWeekly" x-text="' per ' + dayLabel(activeDay)"></span>.</p>
+        <p class="al-small mt-1" style="color: var(--al-ink-line);">Cerca un alimento qui sopra per iniziare.</p>
+      </div>
+    </template>
+
+    <template x-for="entry in visibleEntries()" :key="entry.id">
+      <div class="ml-entry">
+        <div style="min-width:0;">
+          <p class="ml-entry-name" x-text="entry.food_name"></p>
+          <div class="ml-entry-macros">
+            <span class="k" x-text="r0(entryMacros(entry).kcal) + ' kcal'"></span>
+            <span class="p" x-text="'P ' + r1(entryMacros(entry).prot)"></span>
+            <span class="c" x-text="'C ' + r1(entryMacros(entry).carb)"></span>
+            <span class="f" x-text="'G ' + r1(entryMacros(entry).fat)"></span>
+          </div>
+        </div>
+        <div class="ml-qty">
+          <input type="number" min="1" step="1" x-model.number="entry.quantity_g"
+                 @input="queueQtyUpdate(entry)" @blur="commitQty(entry)">
+          <span>g</span>
+        </div>
+        <button type="button" class="ml-del" @click="removeEntry(entry)" title="Rimuovi">
+          <i class="ph ph-trash"></i>
+        </button>
+      </div>
+    </template>
+  </div>
+
+</div>
+{% endblock %}

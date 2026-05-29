@@ -74,10 +74,29 @@ function nutritionWizard() {
     })),
   }));
 
+  /* MACRO mode: per-weekday target store keyed by short day code. Seeded from
+     INIT.dayTargets (sparse) so only the days the coach filled are pre-loaded. */
+  const DAY_CODES = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
+  const macroDayTargets = {};
+  DAY_CODES.forEach(c => { macroDayTargets[c] = { kcal: null, protein: null, carb: null, fat: null }; });
+  (INIT.dayTargets || []).forEach(dt => {
+    const c = dt.day_of_week;
+    if (macroDayTargets[c]) {
+      macroDayTargets[c] = {
+        kcal: dt.kcal ?? null,
+        protein: dt.protein ?? null,
+        carb: dt.carb ?? null,
+        fat: dt.fat ?? null,
+      };
+    }
+  });
+
   const base = {
     /* === init data === */
     planId: plan ? plan.id : null,
     planKind: INIT.planKind || 'DAILY',
+    planMode: INIT.planMode || 'FOOD',
+    macroDayTargets: macroDayTargets,
     folders: INIT.folders || [],
     clientsAll: INIT.clients || [],
 
@@ -154,12 +173,17 @@ function nutritionWizard() {
     init() {
       const params = new URLSearchParams(window.location.search);
       const requestedStep = params.get('step');
+      /* MACRO plans set targets, not meals — relabel step 2 accordingly. */
+      if (this.planMode === 'MACRO') {
+        const s = this.stepDefs.find(d => d.id === 'builder');
+        if (s) { s.label = 'Obiettivi'; s.eyebrow = '02 · Macro'; }
+      }
       /* Track whether the plan started this session (no prior persistence) so
          "Esci senza salvare" knows whether to delete vs. restore.            */
       this._createdInSession = !this.planId;
       if (this.planId) {
         this.completedSteps.info = true;
-        this.completedSteps.builder = this.hasAnyMealWithItem();
+        this.completedSteps.builder = this.builderComplete();
         if (['info', 'builder', 'integratori', 'riepilogo'].includes(requestedStep)) {
           this.step = requestedStep;
         } else {
@@ -186,6 +210,7 @@ function nutritionWizard() {
         folder_id: this.folder_id,
         include_substitutions_in_avg: this.include_substitutions_in_avg,
         meals: JSON.parse(JSON.stringify(this.meals)),
+        macroDayTargets: JSON.parse(JSON.stringify(this.macroDayTargets)),
         supplements: JSON.parse(JSON.stringify(this.supplements)),
         supplementNotes: this.supplementNotes,
       };
@@ -204,6 +229,7 @@ function nutritionWizard() {
       this.folder_id = s.folder_id;
       this.include_substitutions_in_avg = s.include_substitutions_in_avg;
       this.meals = JSON.parse(JSON.stringify(s.meals));
+      if (s.macroDayTargets) this.macroDayTargets = JSON.parse(JSON.stringify(s.macroDayTargets));
       this.supplements = JSON.parse(JSON.stringify(s.supplements));
       this.supplementNotes = s.supplementNotes;
     },
@@ -270,10 +296,16 @@ function nutritionWizard() {
         return;
       }
       if (this.step === 'builder') {
-        if (!this.hasAnyMealWithItem()) {
-          this.tryFallbackToast(this.planKind === 'WEEKLY'
-            ? 'Compila almeno un giorno con un pasto.'
-            : 'Aggiungi almeno un pasto con un alimento.');
+        if (!this.builderComplete()) {
+          if (this.planMode === 'MACRO') {
+            this.tryFallbackToast(this.planKind === 'WEEKLY'
+              ? 'Imposta gli obiettivi macro per almeno un giorno.'
+              : 'Imposta almeno un obiettivo macro.');
+          } else {
+            this.tryFallbackToast(this.planKind === 'WEEKLY'
+              ? 'Compila almeno un giorno con un pasto.'
+              : 'Aggiungi almeno un pasto con un alimento.');
+          }
           return;
         }
         const ok = await this.persist();
@@ -351,6 +383,7 @@ function nutritionWizard() {
         description: this.description,
         plan_type: this.plan_type,
         plan_kind: this.planKind,
+        plan_mode: this.planMode,
         nutrition_goal: this.nutrition_goal,
         is_template: !!this.is_template,
         daily_kcal: this.daily_kcal || null,
@@ -359,7 +392,9 @@ function nutritionWizard() {
         fat_target_g: this.fat_target_g || null,
         folder_id: this.folder_id || null,
         include_substitutions_in_avg: !!this.include_substitutions_in_avg,
-        meals: this.serializedMeals(),
+        meals: this.planMode === 'MACRO' ? [] : this.serializedMeals(),
+        day_targets: (this.planMode === 'MACRO' && this.planKind === 'WEEKLY')
+          ? this.serializedDayTargets() : [],
       };
       try {
         const res = await fetch(url, {
@@ -563,6 +598,96 @@ function nutritionWizard() {
       return this.meals.filter(m => m.day_of_week === this.activeDay);
     },
 
+    /* ============================================================
+       MACRO mode — coach sets only the targets the client must hit.
+       ============================================================ */
+    builderComplete() {
+      return this.planMode === 'MACRO' ? this.hasAnyMacroTarget() : this.hasAnyMealWithItem();
+    },
+    /* Coerce a target field to a non-negative integer in place. */
+    sanitizeTarget(obj, key) {
+      let v = obj[key];
+      if (v === '' || v === null || v === undefined) { obj[key] = null; return; }
+      v = Math.floor(Number(v));
+      if (isNaN(v) || v < 0) v = 0;
+      obj[key] = v;
+    },
+    /* The target object currently being edited / displayed. */
+    currentMacroTarget() {
+      if (this.planKind === 'DAILY') {
+        return { kcal: this.daily_kcal, protein: this.protein_target_g,
+                 carb: this.carb_target_g, fat: this.fat_target_g };
+      }
+      if (this.activeDay === 'AVG') return this.macroAvgTarget();
+      return this.macroDayTargets[this.activeDay] || { kcal: null, protein: null, carb: null, fat: null };
+    },
+    dayTargetHasValue(code) {
+      const t = this.macroDayTargets[code];
+      if (!t) return false;
+      return [t.kcal, t.protein, t.carb, t.fat].some(v => v !== null && v !== '' && Number(v) > 0);
+    },
+    macroFilledDays() {
+      return this.weekDays.filter(d => this.dayTargetHasValue(d.code)).length;
+    },
+    hasAnyMacroTarget() {
+      if (this.planKind === 'DAILY') {
+        return [this.daily_kcal, this.protein_target_g, this.carb_target_g, this.fat_target_g]
+          .some(v => v !== null && v !== '' && Number(v) > 0);
+      }
+      return this.macroFilledDays() > 0;
+    },
+    macroAvgTarget() {
+      const filled = this.weekDays.filter(d => this.dayTargetHasValue(d.code));
+      const n = filled.length || 0;
+      const sum = { kcal: 0, protein: 0, carb: 0, fat: 0 };
+      filled.forEach(d => {
+        const t = this.macroDayTargets[d.code];
+        sum.kcal += Number(t.kcal) || 0;
+        sum.protein += Number(t.protein) || 0;
+        sum.carb += Number(t.carb) || 0;
+        sum.fat += Number(t.fat) || 0;
+      });
+      if (!n) return { kcal: null, protein: null, carb: null, fat: null };
+      return {
+        kcal: Math.round(sum.kcal / n), protein: Math.round(sum.protein / n),
+        carb: Math.round(sum.carb / n), fat: Math.round(sum.fat / n),
+      };
+    },
+    /* Duplicate the active day's targets onto another day. */
+    copyMacroDayFrom(srcCode) {
+      const src = this.macroDayTargets[srcCode];
+      if (!src) return;
+      this.macroDayTargets[this.activeDay] = {
+        kcal: src.kcal, protein: src.protein, carb: src.carb, fat: src.fat,
+      };
+    },
+    /* Donut segments for the target currently shown (reuses the shared
+       macroPieSegments helper, sized by kcal contribution prot×4/carb×4/fat×9). */
+    currentMacroSegments() {
+      const t = this.currentMacroTarget();
+      return this.macroPieSegments(t.protein, t.carb, t.fat);
+    },
+    /* Sum of macro-derived kcal for the current target (prot×4 + carb×4 + fat×9). */
+    currentMacroKcal() {
+      const t = this.currentMacroTarget();
+      return Math.round((Number(t.protein) || 0) * 4 + (Number(t.carb) || 0) * 4 + (Number(t.fat) || 0) * 9);
+    },
+    serializedDayTargets() {
+      const out = [];
+      this.weekDays.forEach(d => {
+        const t = this.macroDayTargets[d.code];
+        if (!t) return;
+        const has = [t.kcal, t.protein, t.carb, t.fat].some(v => v !== null && v !== '' && Number(v) > 0);
+        if (!has) return;
+        out.push({
+          day_of_week: d.code,
+          kcal: t.kcal || null, protein: t.protein || null,
+          carb: t.carb || null, fat: t.fat || null,
+        });
+      });
+      return out;
+    },
+
     /* === side panel === */
     sidePanelKcal() {
       if (this.planKind === 'WEEKLY' && this.activeDay === 'AVG') return this.avgKcal();
@@ -685,10 +810,19 @@ function nutritionWizard() {
       return this.meals.filter(m => m.day_of_week === this.recapDay);
     },
     riepilogoKcal() {
+      if (this.planMode === 'MACRO') {
+        if (this.planKind === 'WEEKLY') return this.macroAvgTarget().kcal || 0;
+        return this.daily_kcal || 0;
+      }
       if (this.planKind === 'WEEKLY') return this.avgKcal();
       return this.totalKcal();
     },
     riepilogoMacro(key) {
+      if (this.planMode === 'MACRO') {
+        if (this.planKind === 'WEEKLY') return this.macroAvgTarget()[key] || 0;
+        const map = { protein: this.protein_target_g, carb: this.carb_target_g, fat: this.fat_target_g };
+        return map[key] || 0;
+      }
       if (this.planKind === 'WEEKLY') return this.avgMacro(key);
       return this.totalMacro(key);
     },
@@ -708,7 +842,7 @@ function nutritionWizard() {
       return 'color: var(--al-danger);';
     },
     canAssign() {
-      return !!this.title.trim() && this.hasAnyMealWithItem();
+      return !!this.title.trim() && this.builderComplete();
     },
 
     async finalize(mode) {

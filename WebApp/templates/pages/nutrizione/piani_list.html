@@ -229,9 +229,17 @@
             <div class="p-5 flex-1">
               <div class="flex items-start justify-between gap-2 mb-3">
                 <div class="min-w-0">
-                  <template x-if="plan.plan_type">
-                    <span class="al-tag" x-text="plan.plan_type"></span>
-                  </template>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <template x-if="plan.plan_type">
+                      <span class="al-tag" x-text="plan.plan_type"></span>
+                    </template>
+                    <template x-if="plan.plan_mode === 'MACRO'">
+                      <span class="al-tag flex items-center gap-1"
+                            style="background: var(--al-marble-warm); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze); padding: 2px 8px;">
+                        <i class="ph ph-chart-donut text-[10px]"></i><span>Macro</span>
+                      </span>
+                    </template>
+                  </div>
                   <h3 class="al-h-2 mt-2" x-text="plan.title"></h3>
                 </div>
                 <div class="flex items-center gap-1 shrink-0" @click.stop>
@@ -405,7 +413,53 @@
       </div>
 
       <div class="al-modal-body" style="padding-top: 18px;">
-        <p class="al-label mb-3" style="letter-spacing: 0.14em;">Scegli il tipo di piano</p>
+        <p class="al-label mb-3" style="letter-spacing: 0.14em;">Contenuto del piano</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <!-- FOOD mode -->
+          <button type="button"
+                  @click="selectMode('FOOD')"
+                  class="text-left p-5 transition-all"
+                  :style="newPlanMode === 'FOOD'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
+                  onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
+                  onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
+                  :data-sel="newPlanMode === 'FOOD' ? '1' : ''">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 flex items-center justify-center"
+                   style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm, 10px);">
+                <i class="ph ph-bowl-food text-xl" style="color: var(--al-bronze);"></i>
+              </div>
+              <i class="ph-fill ph-check-circle text-xl" x-show="newPlanMode === 'FOOD'" style="color: var(--al-bronze);"></i>
+            </div>
+            <h4 class="al-h-4">Alimenti</h4>
+            <p class="al-small mt-1.5" style="color: var(--al-ink-mute);">Costruisci i pasti scegliendo gli alimenti e le grammature.</p>
+          </button>
+
+          <!-- MACRO mode -->
+          <button type="button"
+                  @click="selectMode('MACRO')"
+                  class="text-left p-5 transition-all"
+                  :style="newPlanMode === 'MACRO'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
+                  onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
+                  onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
+                  :data-sel="newPlanMode === 'MACRO' ? '1' : ''">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-10 h-10 flex items-center justify-center"
+                   style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm, 10px);">
+                <i class="ph ph-chart-donut text-xl" style="color: var(--al-bronze);"></i>
+              </div>
+              <i class="ph-fill ph-check-circle text-xl" x-show="newPlanMode === 'MACRO'" style="color: var(--al-bronze);"></i>
+            </div>
+            <h4 class="al-h-4">Macronutrienti</h4>
+            <p class="al-small mt-1.5" style="color: var(--al-ink-mute);">Imposti solo gli obiettivi macro: sarà l'atleta a registrare gli alimenti.</p>
+          </button>
+        </div>
+
+        <p class="al-label mb-3" style="letter-spacing: 0.14em;">Frequenza</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <!-- DAILY card -->
@@ -452,21 +506,23 @@
         </div>
 
         <!-- Divider -->
-        <div class="flex items-center gap-3 my-5">
-          <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
-          <span class="al-tag" style="font-size: 10px;">oppure importa da file</span>
-          <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
-        </div>
+        <div x-show="newPlanMode === 'FOOD'">
+          <div class="flex items-center gap-3 my-5">
+            <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
+            <span class="al-tag" style="font-size: 10px;">oppure importa da file</span>
+            <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
+          </div>
 
-        <div class="flex flex-wrap gap-2 justify-center">
-          <a :href="urls.importExcel" class="al-btn al-btn-ghost al-btn-sm">
-            <i class="ph ph-file-xls text-sm"></i>
-            <span>Excel</span>
-          </a>
-          <a :href="urls.importPdf" class="al-btn al-btn-ghost al-btn-sm">
-            <i class="ph ph-file-pdf text-sm"></i>
-            <span>PDF</span>
-          </a>
+          <div class="flex flex-wrap gap-2 justify-center">
+            <a :href="urls.importExcel" class="al-btn al-btn-ghost al-btn-sm">
+              <i class="ph ph-file-xls text-sm"></i>
+              <span>Excel</span>
+            </a>
+            <a :href="urls.importPdf" class="al-btn al-btn-ghost al-btn-sm">
+              <i class="ph ph-file-pdf text-sm"></i>
+              <span>PDF</span>
+            </a>
+          </div>
         </div>
       </div>
 

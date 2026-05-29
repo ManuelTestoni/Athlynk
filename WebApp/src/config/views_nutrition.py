@@ -15,7 +15,7 @@ from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper
 from domain.nutrition.models import (
     Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
-    NutritionAssignment, DietDay,
+    NutritionAssignment, DietDay, ClientMacroLogEntry,
     Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
 )
 
@@ -61,6 +61,7 @@ def _serialize_history_assignment(a, macros):
         'plan_title': plan.title,
         'plan_type': plan.plan_type or '',
         'plan_kind': plan.plan_kind,
+        'plan_mode': plan.plan_mode,
         'status': a.status,
         'assigned_at': a.assigned_at.strftime('%d %b %Y') if a.assigned_at else '',
         'start_date': a.start_date.strftime('%d %b %Y') if a.start_date else '',
@@ -78,12 +79,83 @@ WEEKDAY_MAP = {
     'THURSDAY': 'THURSDAY', 'FRIDAY': 'FRIDAY', 'SATURDAY': 'SATURDAY', 'SUNDAY': 'SUNDAY',
 }
 WEEKDAY_ORDER = {'MONDAY': 0, 'TUESDAY': 1, 'WEDNESDAY': 2, 'THURSDAY': 3, 'FRIDAY': 4, 'SATURDAY': 5, 'SUNDAY': 6}
+# Long weekday code → short UI code used by the wizard/client front-end.
+WEEKDAY_REVERSE = {'MONDAY': 'LUN', 'TUESDAY': 'MAR', 'WEDNESDAY': 'MER',
+                   'THURSDAY': 'GIO', 'FRIDAY': 'VEN', 'SATURDAY': 'SAB', 'SUNDAY': 'DOM'}
 
 
 def _normalize_weekday(code):
     if not code:
         return None
     return WEEKDAY_MAP.get(str(code).upper())
+
+
+def _coerce_non_negative_int(raw):
+    """Returns (value_or_None, error_bool). Empty/zero → None; negatives → error."""
+    if raw in (None, '', 0, '0'):
+        return None, False
+    try:
+        val = int(raw)
+    except (TypeError, ValueError):
+        return None, True
+    if val < 0:
+        return None, True
+    return val, False
+
+
+def _plan_macro_targets(plan):
+    """Macro targets for a MACRO plan.
+
+    DAILY → plan-level targets. WEEKLY → per-day targets plus the average of
+    the filled days (so list/summary views stay meaningful).
+    """
+    if plan.plan_kind == 'WEEKLY':
+        days = []
+        sums = {'kcal': 0, 'prot': 0, 'carb': 0, 'fat': 0}
+        filled = 0
+        for d in plan.days.all():
+            has_target = any([d.target_kcal, d.target_protein_g, d.target_carb_g, d.target_fat_g])
+            days.append({
+                'code': WEEKDAY_REVERSE.get(d.day_of_week, d.day_of_week),
+                'day_of_week': d.day_of_week,
+                'label': d.get_day_of_week_display(),
+                'kcal': d.target_kcal, 'protein': d.target_protein_g,
+                'carb': d.target_carb_g, 'fat': d.target_fat_g,
+            })
+            if has_target:
+                filled += 1
+                sums['kcal'] += d.target_kcal or 0
+                sums['prot'] += d.target_protein_g or 0
+                sums['carb'] += d.target_carb_g or 0
+                sums['fat'] += d.target_fat_g or 0
+        avg = {k: round(v / filled) if filled else 0 for k, v in sums.items()}
+        avg['pct'] = _macro_kcal_pct(avg['prot'], avg['carb'], avg['fat'])
+        return {'days': days, 'avg': avg, 'filled': filled}
+    avg = {
+        'kcal': plan.daily_kcal or 0,
+        'prot': plan.protein_target_g or 0,
+        'carb': plan.carb_target_g or 0,
+        'fat': plan.fat_target_g or 0,
+    }
+    avg['pct'] = _macro_kcal_pct(avg['prot'], avg['carb'], avg['fat'])
+    return {
+        'avg': avg,
+        'days': [],
+        'filled': 1 if (plan.daily_kcal or plan.protein_target_g or plan.carb_target_g or plan.fat_target_g) else 0,
+    }
+
+
+def _macro_kcal_pct(prot, carb, fat):
+    """Macro split as % of kcal (prot×4, carb×4, fat×9). Used for proportion bars."""
+    pk, ck, fk = (prot or 0) * 4, (carb or 0) * 4, (fat or 0) * 9
+    total = pk + ck + fk
+    if not total:
+        return {'prot': 0, 'carb': 0, 'fat': 0}
+    return {
+        'prot': round(pk / total * 100),
+        'carb': round(ck / total * 100),
+        'fat': round(fk / total * 100),
+    }
 
 
 def _get_active_relationship(client):
@@ -130,6 +202,13 @@ def nutrizione_piani_view(request):
             plan_ids.add(active_assignment.nutrition_plan_id)
         plan_ids.update(a.nutrition_plan_id for a in past_first)
         macros = _bulk_plan_macros(plan_ids)
+        # MACRO plans have no meal items — surface the coach's targets instead.
+        for a in ([active_assignment] + past_first):
+            if a and a.nutrition_plan.plan_mode == 'MACRO':
+                t = _plan_macro_targets(a.nutrition_plan)['avg']
+                macros[a.nutrition_plan_id] = {
+                    'kcal': t['kcal'], 'prot': t['prot'], 'carb': t['carb'], 'fat': t['fat'],
+                }
 
         active_data = None
         if active_assignment:
@@ -169,7 +248,7 @@ def nutrizione_piani_view(request):
     plans = (
         coach.nutrition_plans
         .select_related('folder')
-        .prefetch_related('meals__items__food')
+        .prefetch_related('meals__items__food', 'days')
         .annotate(assigned_count=Count('assignments'))
         .order_by('-updated_at')
     )
@@ -185,18 +264,26 @@ def nutrizione_piani_view(request):
 
     plans_payload = []
     for plan in plans:
-        total_kcal = total_prot = total_carb = total_fat = 0
-        for meal in plan.meals.all():
-            for item in meal.items.all():
-                total_kcal += item.kcal
-                total_prot += item.protein
-                total_carb += item.carbs
-                total_fat += item.fat
+        if plan.plan_mode == 'MACRO':
+            avg = _plan_macro_targets(plan)['avg']
+            total_kcal, total_prot, total_carb, total_fat = (
+                avg['kcal'], avg['prot'], avg['carb'], avg['fat'],
+            )
+        else:
+            total_kcal = total_prot = total_carb = total_fat = 0
+            for meal in plan.meals.all():
+                for item in meal.items.all():
+                    total_kcal += item.kcal
+                    total_prot += item.protein
+                    total_carb += item.carbs
+                    total_fat += item.fat
         plans_payload.append({
             'id': plan.id,
             'title': plan.title,
             'description': plan.description or '',
             'plan_type': plan.plan_type or '',
+            'plan_kind': plan.plan_kind,
+            'plan_mode': plan.plan_mode,
             'status': plan.status or '',
             'is_template': plan.is_template,
             'folder_id': plan.folder_id,
@@ -278,6 +365,10 @@ def nutrizione_piano_create_view(request):
     if kind not in ('DAILY', 'WEEKLY'):
         kind = 'DAILY'
 
+    mode = (request.GET.get('mode') or 'FOOD').upper()
+    if mode not in ('FOOD', 'MACRO'):
+        mode = 'FOOD'
+
     folders = NutritionFolder.objects.filter(coach=coach).order_by('order', 'id').values('id', 'title')
     folders_json = json.dumps(list(folders))
 
@@ -287,6 +378,8 @@ def nutrizione_piano_create_view(request):
         'meals_json': '[]',
         'initial_folder_id': initial_folder_id,
         'plan_kind': kind,
+        'plan_mode': mode,
+        'day_targets_json': '[]',
         'folders_json': folders_json,
         'supplements_json': '{"items": [], "notes": ""}',
     })
@@ -393,6 +486,18 @@ def nutrizione_piano_edit_view(request, plan_id):
     folders_json = json.dumps(list(folders))
 
     plan_kind = getattr(plan, 'plan_kind', None) or 'DAILY'
+    plan_mode = getattr(plan, 'plan_mode', None) or 'FOOD'
+
+    day_targets_data = []
+    if plan_mode == 'MACRO' and plan_kind == 'WEEKLY':
+        for d in plan.days.all():
+            day_targets_data.append({
+                'day_of_week': WEEKDAY_REVERSE.get(d.day_of_week, d.day_of_week),
+                'kcal': d.target_kcal,
+                'protein': d.target_protein_g,
+                'carb': d.target_carb_g,
+                'fat': d.target_fat_g,
+            })
 
     supplements_data = {'items': [], 'notes': ''}
     sheet = plan.supplement_sheet
@@ -412,6 +517,8 @@ def nutrizione_piano_edit_view(request, plan_id):
         'plan': plan,
         'meals_json': json.dumps(meals_data),
         'plan_kind': plan_kind,
+        'plan_mode': plan_mode,
+        'day_targets_json': json.dumps(day_targets_data),
         'folders_json': folders_json,
         'supplements_json': json.dumps(supplements_data),
     })
@@ -488,6 +595,8 @@ def nutrizione_piano_detail_view(request, plan_id):
         for c in assignable_clients
     ])
 
+    macro_targets = _plan_macro_targets(plan) if plan.plan_mode == 'MACRO' else None
+
     return render(request, 'pages/nutrizione/piano_detail.html', {
         'plan': plan,
         'meals_detail': meals_detail,
@@ -499,6 +608,7 @@ def nutrizione_piano_detail_view(request, plan_id):
         'assignments': assignments,
         'clients_json': clients_json,
         'assignments_count': assignments.count(),
+        'macro_targets': macro_targets,
     })
 
 
@@ -986,7 +1096,7 @@ def api_piano_assign(request, plan_id):
         target_user=client.user,
         notification_type='NUTRITION_ASSIGNED',
         title='Nuovo piano alimentare',
-        body=f'Ti è stato assegnato il piano "{plan.name}".',
+        body=f'Ti è stato assegnato il piano "{plan.title}".',
         link_url=f'/nutrizione/dettaglio/{assignment.id}/',
     )
     try:
@@ -1010,6 +1120,10 @@ def nutrizione_client_detail_view(request, assignment_id):
 
     assignment = get_object_or_404(NutritionAssignment, id=assignment_id, client=client)
     plan = assignment.nutrition_plan
+
+    if plan.plan_mode == 'MACRO':
+        return _render_client_macro_detail(request, assignment, plan)
+
     meals = plan.meals.prefetch_related('items__food', 'items__substitutions__food').all()
 
     include_subs = bool(plan.include_substitutions_in_avg)
@@ -1056,6 +1170,131 @@ def nutrizione_client_detail_view(request, assignment_id):
     })
 
 
+def _macro_log_json(entry):
+    food = entry.food
+    return {
+        'id': entry.id,
+        'day_of_week': WEEKDAY_REVERSE.get(entry.day_of_week) if entry.day_of_week else None,
+        'food_id': entry.food_id,
+        'food_name': food.nome_alimento if food else (entry.raw_name or ''),
+        'category': (food.categoria_alimento or '') if food else '',
+        'quantity_g': entry.quantity_g,
+        'kcal_per_100g': food.energia_kcal if food else 0,
+        'protein_per_100g': food.proteine_g if food else 0,
+        'carb_per_100g': food.carboidrati_g if food else 0,
+        'fat_per_100g': food.lipidi_g if food else 0,
+    }
+
+
+def _render_client_macro_detail(request, assignment, plan):
+    """Client-facing view for a MACRO plan: coach targets + the client's own
+    food log with live macro totals (computed front-end)."""
+    targets = _plan_macro_targets(plan)
+    entries = (
+        assignment.macro_log.select_related('food').all()
+    )
+    log_json = json.dumps([_macro_log_json(e) for e in entries])
+
+    week_days = [
+        {'code': WEEKDAY_REVERSE[c], 'day_of_week': c,
+         'label': dict(DietDay.DAY_CHOICES)[c]}
+        for c in WEEKDAY_ORDER
+    ]
+
+    return render(request, 'pages/nutrizione/client_piano_macro.html', {
+        'assignment': assignment,
+        'plan': plan,
+        'targets_json': json.dumps(targets),
+        'log_json': log_json,
+        'week_days_json': json.dumps(week_days),
+        'is_weekly': plan.plan_kind == 'WEEKLY',
+    })
+
+
+# ─── API: Client macro food-log CRUD ──────────────────────────────────────────────
+
+def _require_client_json(request):
+    user = get_session_user(request)
+    if not user:
+        return None, JsonResponse({'error': 'Non autenticato'}, status=401)
+    client = get_session_client(request)
+    if not client:
+        return None, JsonResponse({'error': 'Non autorizzato'}, status=403)
+    return client, None
+
+
+@require_http_methods(["POST"])
+def api_macro_log_create(request, assignment_id):
+    client, err = _require_client_json(request)
+    if err:
+        return err
+    assignment = get_object_or_404(
+        NutritionAssignment, id=assignment_id, client=client,
+    )
+    if assignment.nutrition_plan.plan_mode != 'MACRO':
+        return JsonResponse({'error': 'Piano non compatibile'}, status=400)
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+
+    food_id = data.get('food_id')
+    try:
+        food = Food.objects.get(id=food_id)
+    except (Food.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'Alimento non trovato'}, status=400)
+
+    try:
+        qty = float(data.get('quantity_g'))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Quantità non valida'}, status=400)
+    if qty <= 0:
+        return JsonResponse({'error': 'La quantità deve essere positiva'}, status=400)
+
+    day_code = None
+    if assignment.nutrition_plan.plan_kind == 'WEEKLY':
+        day_code = _normalize_weekday(data.get('day_of_week'))
+        if not day_code:
+            return JsonResponse({'error': 'Giorno non valido'}, status=400)
+
+    entry = ClientMacroLogEntry.objects.create(
+        assignment=assignment,
+        day_of_week=day_code,
+        food=food,
+        quantity_g=qty,
+    )
+    return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
+
+
+@require_http_methods(["PATCH", "DELETE"])
+def api_macro_log_detail(request, entry_id):
+    client, err = _require_client_json(request)
+    if err:
+        return err
+    entry = get_object_or_404(
+        ClientMacroLogEntry, id=entry_id, assignment__client=client,
+    )
+
+    if request.method == "DELETE":
+        entry.delete()
+        return JsonResponse({'ok': True})
+
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+    if 'quantity_g' in data:
+        try:
+            qty = float(data.get('quantity_g'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'Quantità non valida'}, status=400)
+        if qty <= 0:
+            return JsonResponse({'error': 'La quantità deve essere positiva'}, status=400)
+        entry.quantity_g = qty
+        entry.save(update_fields=['quantity_g', 'updated_at'])
+    return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
+
+
 # ─── Internal helpers ────────────────────────────────────────────────────────────
 
 def _handle_plan_save(request, coach, plan):
@@ -1083,6 +1322,10 @@ def _handle_plan_save(request, coach, plan):
     if incoming_kind and incoming_kind not in ('DAILY', 'WEEKLY'):
         return JsonResponse({'error': 'plan_kind non valido'}, status=400)
 
+    incoming_mode = (data.get('plan_mode') or '').upper()
+    if incoming_mode and incoming_mode not in ('FOOD', 'MACRO'):
+        return JsonResponse({'error': 'plan_mode non valido'}, status=400)
+
     macro_labels = {
         'daily_kcal': 'Kcal',
         'protein_target_g': 'Proteine',
@@ -1106,6 +1349,38 @@ def _handle_plan_save(request, coach, plan):
             {'error': 'plan_kind non modificabile dopo la creazione'},
             status=400,
         )
+    if plan is not None and incoming_mode and incoming_mode != plan.plan_mode:
+        return JsonResponse(
+            {'error': 'plan_mode non modificabile dopo la creazione'},
+            status=400,
+        )
+
+    plan_mode = (plan.plan_mode if plan is not None else (incoming_mode or 'FOOD'))
+
+    # Parse + validate per-day macro targets (WEEKLY MACRO plans only).
+    parsed_day_targets = []
+    if plan_mode == 'MACRO' and (incoming_kind or (plan.plan_kind if plan else 'DAILY')) == 'WEEKLY':
+        for dt in (data.get('day_targets') or []):
+            day_code = _normalize_weekday(dt.get('day_of_week'))
+            if not day_code:
+                continue
+            parsed = {'day_of_week': day_code}
+            for src, dst, label in (
+                ('kcal', 'target_kcal', 'Kcal'),
+                ('protein', 'target_protein_g', 'Proteine'),
+                ('carb', 'target_carb_g', 'Carboidrati'),
+                ('fat', 'target_fat_g', 'Grassi'),
+            ):
+                val, err = _coerce_non_negative_int(dt.get(src))
+                if err:
+                    return JsonResponse(
+                        {'error': f'{label} ({day_code}): valore non valido o negativo'},
+                        status=400,
+                    )
+                parsed[dst] = val
+            # Skip wholly-empty days.
+            if any(parsed[k] is not None for k in ('target_kcal', 'target_protein_g', 'target_carb_g', 'target_fat_g')):
+                parsed_day_targets.append(parsed)
 
     with transaction.atomic():
         if plan is None:
@@ -1116,6 +1391,7 @@ def _handle_plan_save(request, coach, plan):
                 description=data.get('description', ''),
                 plan_type=data.get('plan_type', ''),
                 plan_kind=plan_kind,
+                plan_mode=plan_mode,
                 nutrition_goal=data.get('nutrition_goal', ''),
                 daily_kcal=data.get('daily_kcal') or None,
                 protein_target_g=data.get('protein_target_g') or None,
@@ -1146,6 +1422,32 @@ def _handle_plan_save(request, coach, plan):
             plan.meals.all().delete()
 
         is_weekly = plan.plan_kind == 'WEEKLY'
+
+        # ── MACRO mode: no meals, only targets ──────────────────────────────
+        if plan_mode == 'MACRO':
+            plan.meals.all().delete()
+            if is_weekly:
+                keep_codes = {p['day_of_week'] for p in parsed_day_targets}
+                plan.days.exclude(day_of_week__in=keep_codes).delete()
+                existing = {d.day_of_week: d for d in plan.days.all()}
+                for p in parsed_day_targets:
+                    day = existing.get(p['day_of_week'])
+                    if day is None:
+                        day = DietDay(plan=plan, day_of_week=p['day_of_week'])
+                    day.order = WEEKDAY_ORDER.get(p['day_of_week'], 0)
+                    day.target_kcal = p['target_kcal']
+                    day.target_protein_g = p['target_protein_g']
+                    day.target_carb_g = p['target_carb_g']
+                    day.target_fat_g = p['target_fat_g']
+                    day.save()
+            else:
+                plan.days.all().delete()
+            return JsonResponse({
+                'ok': True, 'plan_id': plan.id,
+                'plan_kind': plan.plan_kind, 'plan_mode': plan.plan_mode,
+            })
+
+        # ── FOOD mode: build meals ──────────────────────────────────────────
         day_cache = {}
         if is_weekly:
             day_cache = {d.day_of_week: d for d in plan.days.all()}

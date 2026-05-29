@@ -41,10 +41,17 @@
         <div class="al-rule-bronze mt-5"></div>
 
         <div class="pd-meta-strip mt-4">
-          <span class="pd-meta-item">
-            <i class="ph ph-bowl-steam"></i>
-            <strong>{{ meals_detail|length }}</strong> pasti
-          </span>
+          {% if plan.plan_mode == 'MACRO' %}
+            <span class="pd-meta-item">
+              <i class="ph ph-chart-donut"></i>
+              <strong>Obiettivi macro</strong>
+            </span>
+          {% else %}
+            <span class="pd-meta-item">
+              <i class="ph ph-bowl-steam"></i>
+              <strong>{{ meals_detail|length }}</strong> pasti
+            </span>
+          {% endif %}
           <span class="pd-meta-divider"></span>
           <span class="pd-meta-item">
             <i class="ph ph-users-three"></i>
@@ -88,6 +95,76 @@
     </div>
   </header>
 
+  {% if plan.plan_mode == 'MACRO' %}
+  <!-- =================== MACRO TARGET DASHBOARD =================== -->
+  <section class="pd-dashboard al-reveal" style="--d:80ms;">
+    <div class="pd-kcal">
+      <p class="al-eyebrow" style="color: var(--al-bronze);">Obiettivo energia{% if plan.plan_kind == 'WEEKLY' %} · media{% endif %}</p>
+      <div class="pd-kcal-numeric">
+        <span class="pd-kcal-value">{{ macro_targets.avg.kcal }}</span>
+        <span class="pd-kcal-unit">kcal / giorno</span>
+      </div>
+      <p class="al-small pd-kcal-target">L'atleta registra gli alimenti per raggiungere questi valori.</p>
+    </div>
+
+    <div class="pd-macro-stack">
+      <div class="pd-bar">
+        <span class="pd-bar-seg pd-bar-prot" style="width: {{ macro_targets.avg.pct.prot }}%" title="Proteine {{ macro_targets.avg.pct.prot }}%"></span>
+        <span class="pd-bar-seg pd-bar-carb" style="width: {{ macro_targets.avg.pct.carb }}%" title="Carb {{ macro_targets.avg.pct.carb }}%"></span>
+        <span class="pd-bar-seg pd-bar-fat"  style="width: {{ macro_targets.avg.pct.fat }}%"  title="Grassi {{ macro_targets.avg.pct.fat }}%"></span>
+      </div>
+      <div class="pd-macro-row">
+        <div class="pd-macro pd-macro--prot">
+          <span class="pd-macro-dot"></span>
+          <div><p class="pd-macro-name">Proteine</p><p class="pd-macro-val">{{ macro_targets.avg.prot }}<span>g</span></p></div>
+          <span class="pd-macro-pct">{{ macro_targets.avg.pct.prot }}%</span>
+        </div>
+        <div class="pd-macro pd-macro--carb">
+          <span class="pd-macro-dot"></span>
+          <div><p class="pd-macro-name">Carboidrati</p><p class="pd-macro-val">{{ macro_targets.avg.carb }}<span>g</span></p></div>
+          <span class="pd-macro-pct">{{ macro_targets.avg.pct.carb }}%</span>
+        </div>
+        <div class="pd-macro pd-macro--fat">
+          <span class="pd-macro-dot"></span>
+          <div><p class="pd-macro-name">Grassi</p><p class="pd-macro-val">{{ macro_targets.avg.fat }}<span>g</span></p></div>
+          <span class="pd-macro-pct">{{ macro_targets.avg.pct.fat }}%</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% if plan.plan_kind == 'WEEKLY' %}
+  <!-- Per-day targets -->
+  <section class="mt-10">
+    <div class="flex items-end justify-between mb-5">
+      <div>
+        <p class="al-eyebrow">Obiettivi per giorno</p>
+        <h2 class="al-h-2 mt-1">La <span class="al-display-i">settimana</span></h2>
+      </div>
+      <span class="al-small" style="color: var(--al-ink-mute);">{{ macro_targets.filled }} giorno{{ macro_targets.filled|pluralize:"i" }} impostat{{ macro_targets.filled|pluralize:"o,i" }}</span>
+    </div>
+    <div class="pd-macro-days">
+      {% for d in macro_targets.days %}
+        <div class="pd-macro-day{% if not d.kcal and not d.protein and not d.carb and not d.fat %} is-empty{% endif %}">
+          <span class="pd-macro-day-label">{{ d.label }}</span>
+          {% if d.kcal or d.protein or d.carb or d.fat %}
+            <span class="pd-macro-day-kcal">{{ d.kcal|default:0 }}<small>kcal</small></span>
+            <span class="pd-macro-day-macros">
+              <span style="color: var(--al-aegean);">P {{ d.protein|default:0 }}</span>
+              <span style="color: var(--al-warn);">C {{ d.carb|default:0 }}</span>
+              <span style="color: var(--al-danger);">G {{ d.fat|default:0 }}</span>
+            </span>
+          {% else %}
+            <span class="pd-macro-day-empty">non impostato</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% endif %}
+
+  {% if plan.plan_mode != 'MACRO' %}
   <!-- =================== MACRO DASHBOARD =================== -->
   <section class="pd-dashboard al-reveal" style="--d:80ms;">
     <!-- Left: kcal dial -->
@@ -274,6 +351,7 @@
       </div>
     {% endif %}
   </section>
+  {% endif %}
 
   <!-- =================== ASSIGNMENTS =================== -->
   {% if assignments %}
@@ -395,7 +473,16 @@
   flex-direction: column;
   gap: 8px;
   align-items: stretch;
-  min-width: 220px;
+  min-width: 208px;
+}
+/* Normalize every action (including the al-btn-sm print button) to one size
+   so the stacked column reads as a tidy, uniform control group. */
+.pd-actions > .al-btn,
+.pd-actions > .al-print-hide {
+  width: 100%;
+  padding: 9px 16px;
+  font-size: 11px;
+  min-height: 38px;
 }
 .pd-btn-primary {
   box-shadow: 0 8px 22px -10px rgba(138,106,58,0.5);
@@ -779,6 +866,52 @@
   letter-spacing: 0.06em;
   color: var(--al-ink-mute);
   text-transform: uppercase;
+}
+
+/* ── MACRO plan: per-day targets ── */
+.pd-macro-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.pd-macro-day {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--al-rule);
+  border-left: 3px solid var(--al-bronze);
+  border-radius: var(--al-r-sm);
+  background: linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble-warm) 100%);
+}
+.pd-macro-day.is-empty {
+  border-left-color: var(--al-rule);
+  background: var(--al-marble);
+  opacity: 0.7;
+}
+.pd-macro-day-label {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--al-ink-soft);
+}
+.pd-macro-day-kcal {
+  font-family: var(--al-display, serif);
+  font-size: 1.55rem; line-height: 1;
+  color: var(--al-bronze);
+}
+.pd-macro-day-kcal small {
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--al-ink-mute); margin-left: 4px;
+}
+.pd-macro-day-macros {
+  display: flex; gap: 10px;
+  font-family: var(--al-mono, ui-monospace, monospace);
+  font-size: 11px; font-weight: 600;
+}
+.pd-macro-day-empty {
+  font-size: 12px; font-style: italic; color: var(--al-ink-line);
 }
 </style>
 

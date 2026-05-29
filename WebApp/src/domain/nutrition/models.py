@@ -67,12 +67,19 @@ class NutritionPlan(models.Model):
         ('DAILY', 'Giornaliero'),
         ('WEEKLY', 'Settimanale'),
     ]
+    # FOOD  → coach builds meals/foods (classic diet).
+    # MACRO → coach only sets macro targets; the client logs the foods they eat.
+    PLAN_MODE_CHOICES = [
+        ('FOOD', 'Alimenti'),
+        ('MACRO', 'Macronutrienti'),
+    ]
 
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='nutrition_plans')
     title = models.CharField(max_length=200)
     description = models.TextField(null=True, blank=True)
     plan_type = models.CharField(max_length=100, null=True, blank=True)
     plan_kind = models.CharField(max_length=10, choices=PLAN_KIND_CHOICES, default='DAILY')
+    plan_mode = models.CharField(max_length=10, choices=PLAN_MODE_CHOICES, default='FOOD')
     nutrition_goal = models.CharField(max_length=200, null=True, blank=True)
     daily_kcal = models.IntegerField(null=True, blank=True)
     protein_target_g = models.IntegerField(null=True, blank=True)
@@ -111,6 +118,11 @@ class DietDay(models.Model):
     day_of_week = models.CharField(max_length=10, choices=DAY_CHOICES)
     order = models.PositiveIntegerField(default=0)
     notes = models.TextField(null=True, blank=True)
+    # Per-day macro targets — used only by WEEKLY plans in MACRO mode.
+    target_kcal = models.PositiveIntegerField(null=True, blank=True)
+    target_protein_g = models.PositiveIntegerField(null=True, blank=True)
+    target_carb_g = models.PositiveIntegerField(null=True, blank=True)
+    target_fat_g = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['order']
@@ -286,3 +298,58 @@ class NutritionAssignment(models.Model):
 
     def __str__(self):
         return f"Plan {self.nutrition_plan.title} for {self.client}"
+
+
+class ClientMacroLogEntry(models.Model):
+    """A food the client logged against a MACRO-mode plan assignment.
+
+    The coach sets only macro targets; the client records what they actually
+    eat. Macros are derived live from the linked Food row + quantity, exactly
+    like MealItem, so totals stay consistent across the app.
+    """
+    DAY_CHOICES = DietDay.DAY_CHOICES
+
+    assignment = models.ForeignKey(
+        NutritionAssignment, on_delete=models.CASCADE, related_name='macro_log',
+    )
+    # Null for DAILY plans; the weekday code (MONDAY…) for WEEKLY plans.
+    day_of_week = models.CharField(max_length=10, choices=DAY_CHOICES, null=True, blank=True)
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True)
+    raw_name = models.CharField(max_length=200, null=True, blank=True)
+    quantity_g = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['assignment', 'day_of_week']),
+        ]
+
+    @property
+    def kcal(self):
+        if not self.food:
+            return 0
+        return round(self.food.energia_kcal * self.quantity_g / 100, 1)
+
+    @property
+    def protein(self):
+        if not self.food:
+            return 0
+        return round(self.food.proteine_g * self.quantity_g / 100, 1)
+
+    @property
+    def carbs(self):
+        if not self.food:
+            return 0
+        return round(self.food.carboidrati_g * self.quantity_g / 100, 1)
+
+    @property
+    def fat(self):
+        if not self.food:
+            return 0
+        return round(self.food.lipidi_g * self.quantity_g / 100, 1)
+
+    def __str__(self):
+        label = self.food.nome_alimento if self.food else (self.raw_name or '???')
+        return f"{self.quantity_g}g {label} (log {self.assignment_id})"

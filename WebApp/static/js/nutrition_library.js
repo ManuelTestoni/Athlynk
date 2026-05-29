@@ -31,6 +31,7 @@ function nutritionLibrary() {
     /* new-plan modal */
     newPlanModal: false,
     newPlanKind: null,
+    newPlanMode: 'FOOD',
 
     /* drag */
     draggedPlanId: null,
@@ -127,14 +128,17 @@ function nutritionLibrary() {
     /* === new-plan modal === */
     openNewPlanModal() {
       this.newPlanKind = null;
+      this.newPlanMode = 'FOOD';
       this.newPlanModal = true;
     },
     selectKind(k) { this.newPlanKind = k; },
+    selectMode(m) { this.newPlanMode = m; },
     continueNewPlan() {
       if (!this.newPlanKind) return;
       const fid = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
       const params = new URLSearchParams();
       params.set('kind', this.newPlanKind);
+      if (this.newPlanMode && this.newPlanMode !== 'FOOD') params.set('mode', this.newPlanMode);
       if (fid) params.set('folder_id', fid);
       window.location.href = this.urls.planCreate + '?' + params.toString();
     },
