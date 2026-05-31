@@ -141,6 +141,11 @@ urlpatterns = [
     path('api/sessioni/<int:session_id>/dettaglio/', views_session.api_session_detail, name='api_session_detail'),
     path('api/sessioni/<int:session_id>/nota-coach/', views_session.api_session_coach_note, name='api_session_coach_note'),
     path('api/media/<int:media_id>/commento/', views_session.api_media_comment, name='api_media_comment'),
+    # Percorso (journey timeline)
+    path('il-mio-percorso/', views_client.il_mio_percorso_view, name='il_mio_percorso'),
+    path('api/coach/clienti/<int:client_id>/percorso/', views_client.api_coach_client_percorso, name='api_coach_percorso'),
+    path('api/cliente/percorso/', views_client.api_client_my_percorso, name='api_client_percorso'),
+
     # Coach progress APIs
     path('api/coach/clienti/<int:client_id>/progressi/kpi/', views_session.api_progress_kpi, name='api_progress_kpi'),
     path('api/coach/clienti/<int:client_id>/progressi/carichi/', views_session.api_progress_loads, name='api_progress_loads'),

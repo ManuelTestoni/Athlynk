@@ -2506,3 +2506,248 @@ body[data-scrolled="1"] .al-sidebar-top {
     clip-path: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Percorso Timeline
+   ═══════════════════════════════════════════════════════════════════ */
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.al-timeline-wrap {
+  border-radius: var(--al-r-md);
+  overflow: hidden;
+  background: var(--al-marble-w);
+  border: 1px solid var(--al-rule);
+}
+
+/* Filter pills row */
+.al-timeline-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--al-rule-faint);
+  background: var(--al-parchment);
+  flex-wrap: wrap;
+}
+
+.al-tl-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px 5px 10px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font-family: var(--al-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  background: var(--al-marble);
+  color: var(--al-ink-mute);
+  user-select: none;
+}
+.al-tl-filter i { font-size: 13px; }
+.al-tl-filter:hover { background: var(--al-stone); color: var(--al-ink); }
+
+.al-tl-filter.active-allenamento {
+  background: rgba(138,106,58,0.12);
+  border-color: rgba(138,106,58,0.35);
+  color: var(--al-bronze);
+}
+.al-tl-filter.active-nutrizione {
+  background: rgba(28,74,82,0.10);
+  border-color: rgba(28,74,82,0.30);
+  color: var(--al-aegean);
+}
+.al-tl-filter.active-check {
+  background: rgba(74,107,58,0.10);
+  border-color: rgba(74,107,58,0.28);
+  color: var(--al-success);
+}
+
+/* Scroll container */
+.al-timeline-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.al-timeline-scroll::-webkit-scrollbar { display: none; }
+.al-timeline-scroll:active { cursor: grabbing; }
+
+/* SVG track */
+.al-timeline-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Axis line */
+.al-tl-axis {
+  stroke: var(--al-rule-strong);
+  stroke-width: 1.5;
+}
+
+/* Month label on axis */
+.al-tl-month-line {
+  stroke: var(--al-rule-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.al-tl-month-label {
+  font-family: 'Bodoni Moda', serif;
+  font-style: italic;
+  font-size: 11px;
+  fill: var(--al-ink-mute);
+  dominant-baseline: middle;
+}
+
+.al-tl-month-label-major {
+  font-family: 'Bodoni Moda', serif;
+  font-style: italic;
+  font-size: 13px;
+  fill: var(--al-bronze);
+  font-weight: 500;
+}
+
+/* Connector line */
+.al-tl-connector {
+  stroke: var(--al-rule-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* Dot on axis */
+.al-tl-dot-div.type-allenamento { background: var(--al-bronze); }
+.al-tl-dot-div.type-nutrizione  { background: var(--al-aegean); }
+.al-tl-dot-div.type-check       { background: var(--al-success); }
+
+/* Floating event cards (foreignObject) */
+.al-tl-card {
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 16px -6px rgba(20,17,13,0.14);
+  width: 154px;
+  cursor: default;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+.al-tl-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2.5px;
+  border-radius: 10px 10px 0 0;
+}
+.al-tl-card.type-allenamento::before { background: var(--al-bronze); }
+.al-tl-card.type-nutrizione::before  { background: var(--al-aegean); }
+.al-tl-card.type-check::before       { background: var(--al-success); }
+
+.al-tl-card:hover {
+  box-shadow: 0 8px 24px -8px rgba(20,17,13,0.22);
+  transform: translateY(-2px);
+}
+
+.al-tl-card-type {
+  font-family: var(--al-sans);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.al-tl-card-type.type-allenamento { color: var(--al-bronze); }
+.al-tl-card-type.type-nutrizione  { color: var(--al-aegean); }
+.al-tl-card-type.type-check       { color: var(--al-success); }
+
+.al-tl-card-title {
+  font-family: var(--al-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--al-ink);
+  line-height: 1.3;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.al-tl-card-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--al-ink-mute);
+  letter-spacing: 0.03em;
+}
+
+.al-tl-card-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: var(--al-sans);
+}
+.al-tl-card-badge.s-active   { background: var(--al-success-bg); color: var(--al-success); }
+.al-tl-card-badge.s-reviewed { background: var(--al-success-bg); color: var(--al-success); }
+.al-tl-card-badge.s-warn     { background: var(--al-warn-bg);    color: var(--al-warn); }
+.al-tl-card-badge.s-neutral  { background: var(--al-marble);     color: var(--al-ink-mute); }
+
+/* Event wrapper — z-index elevation on hover */
+.al-tl-event-wrap {
+  position: absolute;
+  z-index: 4;
+  transition: z-index 0s;
+}
+.al-tl-event-wrap:hover {
+  z-index: 20;
+}
+.al-tl-event-wrap:hover .al-tl-card {
+  box-shadow: 0 12px 36px -10px rgba(20,17,13,0.28);
+  transform: translateY(-3px);
+}
+
+/* Card as link */
+a.al-tl-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+a.al-tl-card:hover .al-tl-card-title { color: var(--al-bronze); }
+
+/* Load more / empty state */
+.al-timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--al-rule-faint);
+  background: var(--al-parchment);
+  gap: 10px;
+}
+
+.al-timeline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  gap: 8px;
+  color: var(--al-ink-mute);
+}
+.al-timeline-empty i { font-size: 32px; opacity: 0.35; }
+.al-timeline-empty p { font-size: 13px; margin: 0; }

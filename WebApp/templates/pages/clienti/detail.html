@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ client.first_name }} {{ client.last_name }}{% endblock %}
+
+{% block extra_head %}
+<script src="{% static 'js/timeline.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto space-y-6">
@@ -163,178 +168,11 @@
         </div>
     </div>
 
-    <!-- Storico tabbed -->
-    <div class="al-card al-card-flush" x-data="{ tab: 'workouts' }">
-        <div class="al-card-head">
-            <div>
-                <p class="al-eyebrow">Storico</p>
-                <h2 class="al-h-2 mt-1">Cronologia <span class="al-display-i">atleta</span></h2>
-            </div>
-            <i class="ph ph-clock-counter-clockwise text-bronze text-xl"></i>
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex border-b px-4 overflow-x-auto" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
-            <button @click="tab='workouts'" type="button"
-                    :class="tab==='workouts'?'border-bronze text-ink':'border-transparent text-ink-mute hover:text-ink'"
-                    class="px-4 py-3 border-b-2 transition-colors whitespace-nowrap"
-                    style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;">Schede</button>
-            <button @click="tab='nutrition'" type="button"
-                    :class="tab==='nutrition'?'border-bronze text-ink':'border-transparent text-ink-mute hover:text-ink'"
-                    class="px-4 py-3 border-b-2 transition-colors whitespace-nowrap"
-                    style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;">Diete</button>
-            <button @click="tab='supplements'" type="button"
-                    :class="tab==='supplements'?'border-bronze text-ink':'border-transparent text-ink-mute hover:text-ink'"
-                    class="px-4 py-3 border-b-2 transition-colors whitespace-nowrap"
-                    style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;">Integratori</button>
-            <button @click="tab='checks'" type="button"
-                    :class="tab==='checks'?'border-bronze text-ink':'border-transparent text-ink-mute hover:text-ink'"
-                    class="px-4 py-3 border-b-2 transition-colors whitespace-nowrap"
-                    style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;">Check</button>
-        </div>
-
-        <!-- Schede -->
-        <div x-show="tab==='workouts'" class="divide-y" style="--tw-divide-opacity:1;">
-            {% for a in workout_assignments %}
-            <div class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                <div class="min-w-0">
-                    <p class="font-medium text-ink truncate">{{ a.workout_plan.title }}</p>
-                    <p class="al-small">Creato {{ a.created_at|date:"d M Y" }}{% if a.start_date %} · dal {{ a.start_date|date:"d M Y" }}{% endif %}</p>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    {% if a.status == 'ACTIVE' %}
-                    <span class="al-badge al-badge-success">Attivo</span>
-                    {% else %}
-                    <span class="al-badge">{{ a.status }}</span>
-                    {% endif %}
-                    <a href="{% url 'allenamenti_edit' a.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Apri</a>
-                </div>
-            </div>
-            {% empty %}
-            <div class="al-empty" style="padding: 32px;">
-                <p class="al-tag">Nessuna scheda assegnata.</p>
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- Diete -->
-        <div x-show="tab==='nutrition'" x-cloak>
-            {% for a in nutrition_assignments %}
-            <div class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                <div class="min-w-0">
-                    <p class="font-medium text-ink truncate">{{ a.nutrition_plan.title }}</p>
-                    <p class="al-small">Creato {{ a.created_at|date:"d M Y" }}</p>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    {% if a.status == 'ACTIVE' %}
-                    <span class="al-badge al-badge-success">Attivo</span>
-                    {% else %}
-                    <span class="al-badge">{{ a.status }}</span>
-                    {% endif %}
-                    <a href="{% url 'nutrizione_piano_detail' a.nutrition_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Apri</a>
-                </div>
-            </div>
-            {% empty %}
-            <div class="al-empty" style="padding: 32px;"><p class="al-tag">Nessuna dieta assegnata.</p></div>
-            {% endfor %}
-        </div>
-
-        <!-- Integratori -->
-        <div x-show="tab==='supplements'" x-cloak>
-            {% for a in supplement_assignments %}
-            <div class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                <div class="min-w-0">
-                    <p class="font-medium text-ink truncate">{{ a.sheet.title }}</p>
-                    <p class="al-small">Assegnato {{ a.assigned_at|date:"d M Y" }}</p>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    {% if a.status == 'ACTIVE' %}
-                    <span class="al-badge al-badge-success">Attivo</span>
-                    {% else %}
-                    <span class="al-badge">{{ a.status }}</span>
-                    {% endif %}
-                    <a href="{% url 'nutrizione_integratori_detail' a.sheet.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Apri</a>
-                </div>
-            </div>
-            {% empty %}
-            <div class="al-empty" style="padding: 32px;"><p class="al-tag">Nessuna scheda integratori assegnata.</p></div>
-            {% endfor %}
-        </div>
-
-        <!-- Check -->
-        <div x-show="tab==='checks'" x-cloak>
-            {% for c in all_checks %}
-            <div class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
-                <div class="min-w-0">
-                    <p class="font-medium text-ink truncate">{{ c.questionnaire_template.title }}</p>
-                    <p class="al-small">{{ c.submitted_at|date:"d M Y"|default:c.created_at|date:"d M Y" }}{% if c.weight_kg %} · {{ c.weight_kg }} kg{% endif %}</p>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    {% if c.status == 'REVIEWED' %}
-                    <span class="al-badge al-badge-success">Revisionato</span>
-                    {% else %}
-                    <span class="al-badge al-badge-warn">Da revisionare</span>
-                    {% endif %}
-                    <a href="{% url 'check_detail' c.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Apri</a>
-                </div>
-            </div>
-            {% empty %}
-            <div class="al-empty" style="padding: 32px;"><p class="al-tag">Nessun check registrato.</p></div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Recent Checks table -->
-    <div class="al-card al-card-flush">
-        <div class="al-card-head">
-            <div>
-                <p class="al-eyebrow">Progressi</p>
-                <h2 class="al-h-2 mt-1">Check <span class="al-display-i">recenti</span></h2>
-            </div>
-            <a href="{% url 'check_dashboard' %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Vedi tutti</a>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="al-table">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Tipo</th>
-                        <th>Peso</th>
-                        <th>Stato</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for check in recent_checks %}
-                    <tr>
-                        <td><span class="al-table-num">{{ check.submitted_at|date:"d M Y"|default:check.created_at|date:"d M Y" }}</span></td>
-                        <td>{{ check.questionnaire_template.title }}</td>
-                        <td>
-                            {% if check.weight_kg %}
-                            <span class="font-mono font-medium text-ink">{{ check.weight_kg }} kg</span>
-                            {% else %}
-                            <span class="al-tag">—</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if check.status == 'REVIEWED' %}
-                            <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Revisionato</span>
-                            {% else %}
-                            <span class="al-badge al-badge-warn"><span class="dot"></span>Da revisionare</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4">
-                            <div class="al-empty">
-                                <p class="al-tag">Nessun check registrato.</p>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <!-- Timeline percorso atleta -->
+    {% with client_id_str=client.id|stringformat:"s" %}
+    {% with api_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/" %}
+    {% include 'partials/_timeline_percorso.html' %}
+    {% endwith %}
+    {% endwith %}
 </div>
 {% endblock %}

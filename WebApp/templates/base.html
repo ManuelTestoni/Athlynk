@@ -231,6 +231,14 @@
                 </a>
 
                 {% if has_any_professional %}
+                <a href="{% url 'il_mio_percorso' %}"
+                   class="al-nav-link {% if s == 'percorso' %}is-active{% endif %}">
+                    <i class="ph ph-map-trifold"></i>
+                    <span>Il mio percorso</span>
+                </a>
+                {% endif %}
+
+                {% if has_any_professional %}
                 <a href="{% url 'abbonamenti_dashboard' %}"
                    class="al-nav-link {% if s == 'abbonamenti' %}is-active{% endif %}">
                     <i class="ph ph-credit-card"></i>

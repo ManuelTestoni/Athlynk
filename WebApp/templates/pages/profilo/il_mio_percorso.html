@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Il mio percorso{% endblock %}
+{% block page_id %}percorso{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'dashboard' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-house text-xs"></i><span>Dashboard</span>
+        </a>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">Il mio percorso</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+            <p class="al-eyebrow mb-3 flex items-center gap-2">
+                <i class="ph ph-map-trifold text-bronze"></i>
+                Atleta &middot; Percorso
+            </p>
+            <h1 class="al-h-1">Il mio <span class="al-display-i">percorso</span></h1>
+            <p class="al-body mt-2">La tua storia: allenamenti, alimentazione e check nel tempo.</p>
+            <div class="al-rule-bronze mt-5"></div>
+        </div>
+    </div>
+
+    <!-- Legend cards -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="al-card al-reveal" style="--d:0ms; padding: 14px 18px; border-left: 3px solid var(--al-bronze);">
+            <div class="flex items-center gap-3">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: rgba(138,106,58,0.12); color: var(--al-bronze);">
+                    <i class="ph ph-barbell"></i>
+                </div>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Allenamento</p>
+                    <p class="text-[12px] font-medium text-ink">Schede e piani</p>
+                </div>
+            </div>
+        </div>
+        <div class="al-card al-reveal" style="--d:60ms; padding: 14px 18px; border-left: 3px solid var(--al-aegean);">
+            <div class="flex items-center gap-3">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
+                    <i class="ph ph-leaf"></i>
+                </div>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Nutrizione</p>
+                    <p class="text-[12px] font-medium text-ink">Piani alimentari</p>
+                </div>
+            </div>
+        </div>
+        <div class="al-card al-reveal" style="--d:120ms; padding: 14px 18px; border-left: 3px solid var(--al-success);">
+            <div class="flex items-center gap-3">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-success-bg); color: var(--al-success);">
+                    <i class="ph ph-chart-line"></i>
+                </div>
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Check</p>
+                    <p class="text-[12px] font-medium text-ink">Monitoraggio progressi</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if relationship %}
+        {% with api_url="/api/cliente/percorso/" timeline_title="personale" %}
+        {% include 'partials/_timeline_percorso.html' %}
+        {% endwith %}
+    {% else %}
+    <div class="al-card al-reveal" style="padding: 60px 24px; text-align: center;">
+        <i class="ph ph-map-trifold text-4xl mb-4 block" style="color: var(--al-ink-line);"></i>
+        <h2 class="al-h-3 mb-2">Nessun coach associato</h2>
+        <p class="al-body mb-6">Connettiti con un coach o uno specialista per visualizzare il tuo percorso.</p>
+        <a href="{% url 'check_coach_directory' %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-magnifying-glass text-sm"></i>
+            <span>Trova un coach</span>
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<script src="{% static 'js/timeline.js' %}"></script>
+{% endblock %}

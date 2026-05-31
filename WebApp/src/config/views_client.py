@@ -802,3 +802,161 @@ def find_coach_api(request):
         })
 
     return JsonResponse({'coaches': coach_cards})
+
+
+# ── Timeline "Percorso" ──────────────────────────────────────────────────────
+
+def _build_percorso_events(client, coach, window_start, window_end):
+    """Collect and merge timeline events for a client in [window_start, window_end]."""
+    from datetime import date as date_type
+    events = []
+
+    # Workout assignments
+    for wa in (WorkoutAssignment.objects
+               .filter(client=client, coach=coach)
+               .select_related('workout_plan')
+               .filter(created_at__date__gte=window_start, created_at__date__lte=window_end)):
+        events.append({
+            'id': f'allenamento-{wa.id}',
+            'type': 'allenamento',
+            'date': wa.created_at.date().isoformat(),
+            'title': wa.workout_plan.title,
+            'subtitle': 'Piano assegnato',
+            'status': wa.status,
+            'status_label': 'Attivo' if wa.status == 'ACTIVE' else wa.status.capitalize(),
+            'url': f'/allenamenti/legacy/{wa.id}/modifica/',
+        })
+
+    # Nutrition assignments
+    for na in (NutritionAssignment.objects
+               .filter(client=client, coach=coach)
+               .select_related('nutrition_plan')
+               .filter(assigned_at__date__gte=window_start, assigned_at__date__lte=window_end)):
+        events.append({
+            'id': f'nutrizione-{na.id}',
+            'type': 'nutrizione',
+            'date': na.assigned_at.date().isoformat(),
+            'title': na.nutrition_plan.title,
+            'subtitle': 'Piano nutrizionale',
+            'status': na.status,
+            'status_label': 'Attivo' if na.status == 'ACTIVE' else na.status.capitalize(),
+            'url': f'/nutrizione/piani/{na.nutrition_plan_id}/',
+        })
+
+    # Check responses
+    for qr in (QuestionnaireResponse.objects
+               .filter(client=client, coach=coach)
+               .select_related('questionnaire_template')
+               .defer('answers_json', 'body_circumferences', 'skinfolds',
+                      'coach_feedback', 'coach_private_notes')
+               .filter(created_at__date__gte=window_start, created_at__date__lte=window_end)):
+        ref_date = (qr.submitted_at.date() if qr.submitted_at else qr.created_at.date())
+        events.append({
+            'id': f'check-{qr.id}',
+            'type': 'check',
+            'date': ref_date.isoformat(),
+            'title': qr.questionnaire_template.title,
+            'subtitle': 'Check compilato',
+            'status': qr.status,
+            'status_label': 'Revisionato' if qr.status == 'REVIEWED' else 'Da revisionare',
+            'url': f'/check/{qr.id}/',
+        })
+
+    events.sort(key=lambda e: e['date'])
+    return events
+
+
+def api_coach_client_percorso(request, client_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    relationship = CoachingRelationship.objects.filter(
+        coach=coach, client_id=client_id
+    ).select_related('client').first()
+    if not relationship:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    return _percorso_response(request, relationship.client, coach, relationship.start_date)
+
+
+def api_client_my_percorso(request):
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    rel = get_active_relationship(client)
+    if not rel:
+        return JsonResponse({
+            'events': [], 'window_start': '', 'window_end': '',
+            'has_more': False, 'relationship_start': '',
+        })
+
+    return _percorso_response(request, client, rel.coach, rel.start_date)
+
+
+def _percorso_response(request, client, coach, relationship_start=None):
+    import datetime
+    from datetime import date as date_type
+
+    today = date_type.today()
+
+    # Relationship start: floor to first of that month
+    if relationship_start:
+        rel_start = relationship_start if isinstance(relationship_start, date_type) else relationship_start.date()
+        rel_start = rel_start.replace(day=1)
+    else:
+        rel_start = (today - datetime.timedelta(days=365)).replace(day=1)
+
+    # Pagination: "before" shifts the window back
+    before_str = request.GET.get('before', '')
+    try:
+        window_end = date_type.fromisoformat(before_str) - datetime.timedelta(days=1)
+    except (ValueError, TypeError):
+        window_end = today
+
+    # 6-calendar-month window going backwards from window_end
+    anchor = window_end.replace(day=1)
+    cur = anchor
+    for _ in range(5):
+        cur = (cur - datetime.timedelta(days=1)).replace(day=1)
+    window_start = cur
+
+    # Never go before relationship start
+    window_start = max(window_start, rel_start)
+
+    events = _build_percorso_events(client, coach, window_start, window_end)
+
+    # has_more: there are events before window_start AND we haven't reached rel_start
+    has_more = window_start > rel_start and (
+        WorkoutAssignment.objects
+        .filter(client=client, coach=coach, created_at__date__lt=window_start)
+        .exists() or
+        NutritionAssignment.objects
+        .filter(client=client, coach=coach, assigned_at__date__lt=window_start)
+        .exists() or
+        QuestionnaireResponse.objects
+        .filter(client=client, coach=coach, created_at__date__lt=window_start)
+        .exists()
+    )
+
+    return JsonResponse({
+        'events': events,
+        'window_start': window_start.isoformat(),
+        'window_end': window_end.isoformat(),
+        'has_more': has_more,
+        'relationship_start': rel_start.isoformat(),
+    })
+
+
+def il_mio_percorso_view(request):
+    client = get_session_client(request)
+    if not client:
+        return redirect('login')
+
+    rel = get_active_relationship(client)
+    return render(request, 'pages/profilo/il_mio_percorso.html', {
+        'client': client,
+        'relationship': rel,
+        'is_client': True,
+    })
