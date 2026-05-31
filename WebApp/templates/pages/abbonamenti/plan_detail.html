@@ -16,9 +16,9 @@
             <p class="text-sm text-ink-mute mt-1">{{ plan.description }}</p>
         </div>
         <div class="flex gap-3">
-            <a href="{% url 'subscription_plan_edit' plan.id %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-al-sm bg-ink text-white text-sm font-semibold hover:bg-black transition-colors shadow-sm">
-                <i class="ph ph-pencil mr-2"></i>
-                Modifica
+            <a href="{% url 'subscription_plan_edit' plan.id %}" class="al-btn">
+                <i class="ph ph-pencil"></i>
+                <span>Modifica</span>
             </a>
             <button onclick="deleteplan({{ plan.id }})" class="inline-flex items-center justify-center px-4 py-2.5 rounded-al-sm border border-red-200 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors">
                 <i class="ph ph-trash mr-2"></i>

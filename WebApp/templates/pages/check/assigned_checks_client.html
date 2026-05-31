@@ -145,7 +145,10 @@
     <div class="al-empty" style="padding: 80px 32px;">
         <i class="ph ph-clipboard-text al-empty-icon"></i>
         <h3>Nessun check assegnato</h3>
-        <p>Quando il tuo coach ti assegnerà un check, lo troverai qui da compilare.</p>
+        <p>Quando il tuo coach ti assegnerà un check, lo troverai qui da compilare. Nel frattempo puoi scrivergli.</p>
+        <a href="{% url 'chat_list' %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-chat-circle-dots"></i> <span>Contatta il tuo coach</span>
+        </a>
     </div>
     {% endif %}
 

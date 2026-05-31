@@ -64,7 +64,17 @@
     <div class="al-empty">
       <i class="ph ph-chats-circle al-empty-icon"></i>
       <h3>Nessuna conversazione</h3>
-      <p>{% if is_coach %}Le chat con i tuoi atleti appariranno qui.{% else %}Connettiti a un professionista per iniziare a chattare.{% endif %}</p>
+      {% if is_coach %}
+      <p>Le chat con i tuoi atleti appariranno qui. Registra il tuo primo atleta per iniziare.</p>
+      <a href="{% url 'clienti_list' %}" class="al-btn al-btn-bronze">
+        <i class="ph ph-users-three"></i> <span>Vai ai tuoi atleti</span>
+      </a>
+      {% else %}
+      <p>Connettiti a un professionista per iniziare a chattare.</p>
+      <a href="{% url 'check_coach_directory' %}" class="al-btn al-btn-bronze">
+        <i class="ph ph-magnifying-glass"></i> <span>Trova un professionista</span>
+      </a>
+      {% endif %}
     </div>
     {% endif %}
   </div>

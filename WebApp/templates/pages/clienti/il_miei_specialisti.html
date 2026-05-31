@@ -34,6 +34,17 @@
             <i class="ph ph-caret-right text-ink-mute group-hover:text-ink-soft transition-colors shrink-0"></i>
         </a>
         {% endwith %}
+        {% empty %}
+        <div class="sm:col-span-2 al-card al-card-warm">
+            <div class="al-empty">
+                <i class="ph ph-user-circle-plus al-empty-icon"></i>
+                <h3>Nessuno specialista</h3>
+                <p>Non sei ancora connesso ad alcun coach, allenatore o nutrizionista. Trova il professionista giusto per te.</p>
+                <a href="{% url 'check_coach_directory' %}" class="al-btn al-btn-bronze">
+                    <i class="ph ph-magnifying-glass"></i> <span>Trova uno specialista</span>
+                </a>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>

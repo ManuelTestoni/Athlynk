@@ -534,9 +534,12 @@
     </div>
     <p class="al-eyebrow mb-2">Nessun atleta attivo</p>
     <h3 class="al-h-2" style="margin-bottom: 10px;">Ancora nessun <span class="al-display-i">atleta</span> in carico</h3>
-    <p class="al-body" style="max-width: 420px; margin: 0 auto; color: var(--al-ink-mute);">
+    <p class="al-body" style="max-width: 420px; margin: 0 auto 20px; color: var(--al-ink-mute);">
       Quando avrai atleti attivi potrai compilare la loro prima visita e creare anamnesi su misura.
     </p>
+    <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-bronze">
+      <i class="ph ph-user-plus"></i> <span>Registra un atleta</span>
+    </a>
   </div>
 
   {% endif %}

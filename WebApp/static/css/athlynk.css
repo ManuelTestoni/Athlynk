@@ -361,6 +361,41 @@ body {
   font-size: 16px;
 }
 
+/* ---------- Contrast safety net for legacy Tailwind buttons ----------
+   Ad-hoc buttons/links using the legacy aliases (bg-primary == bg-ink ==
+   #14110d, bg-brand == bronze, bg-accent == aegean) historically paired a
+   dark surface with text-white and a hover that either no-op'd (bg-ink →
+   bg-ink) or jumped off-palette (emerald/blue), occasionally collapsing to
+   "dark text on dark bg". This net guarantees: (a) text stays light on dark
+   surfaces, (b) hover always produces a visible, on-brand lift. Real .al-btn
+   elements opt out — they own their own treatment. */
+:is(a, button)[class*="bg-primary"]:not(.al-btn),
+:is(a, button)[class*="bg-ink"]:not(.al-btn),
+:is(a, button)[class*="bg-brand"]:not(.al-btn),
+:is(a, button)[class*="bg-accent"]:not(.al-btn) {
+  color: var(--al-parchment) !important;
+  transition: background-color var(--al-d-base) var(--al-ease),
+              box-shadow var(--al-d-base) var(--al-ease),
+              transform var(--al-d-snap) var(--al-ease) !important;
+}
+:is(a, button)[class*="bg-primary"]:not(.al-btn):hover,
+:is(a, button)[class*="bg-ink"]:not(.al-btn):hover {
+  background-color: var(--al-bronze) !important;
+  color: var(--al-parchment) !important;
+  box-shadow: var(--al-shadow-glow-bronze);
+  transform: translateY(-1px);
+}
+:is(a, button)[class*="bg-brand"]:not(.al-btn):hover {
+  background-color: var(--al-bronze-s) !important;
+  color: var(--al-parchment) !important;
+  transform: translateY(-1px);
+}
+:is(a, button)[class*="bg-accent"]:not(.al-btn):hover {
+  background-color: var(--al-aegean-t) !important;
+  color: var(--al-parchment) !important;
+  transform: translateY(-1px);
+}
+
 /* Link with bronze underline reveal */
 .al-link {
   position: relative;
@@ -2518,18 +2553,74 @@ body[data-scrolled="1"] .al-sidebar-top {
   overflow: hidden;
   background: var(--al-marble-w);
   border: 1px solid var(--al-rule);
+  width: 100%;
 }
 
 /* Filter pills row */
 .al-timeline-filters {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px 20px 12px;
   border-bottom: 1px solid var(--al-rule-faint);
   background: var(--al-parchment);
   flex-wrap: wrap;
 }
+.al-tl-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Zoom — segmented scale control (Settimane / Mesi / Anni) */
+.al-tl-zoom {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  border: 1px solid var(--al-rule-strong);
+  border-radius: var(--al-r-pill);
+  background: var(--al-marble);
+  flex-shrink: 0;
+}
+.al-tl-zoom button {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  text-align: center;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--al-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--al-ink-mute);
+  border-radius: var(--al-r-pill);
+  transition: color var(--al-d-base) var(--al-ease);
+}
+.al-tl-zoom button.is-active { color: var(--al-parchment); }
+.al-tl-zoom button:hover:not(.is-active) { color: var(--al-ink); }
+/* sliding ink marker */
+.al-tl-zoom-marker {
+  position: absolute;
+  z-index: 0;
+  top: 3px; bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  background: var(--al-ink);
+  border-radius: var(--al-r-pill);
+  box-shadow: 0 2px 8px -2px rgba(20,17,13,0.4);
+  transition: transform var(--al-d-base) var(--al-ease-spr);
+}
+.al-tl-zoom-marker.z-0 { transform: translateX(0); }
+.al-tl-zoom-marker.z-1 { transform: translateX(100%); }
+.al-tl-zoom-marker.z-2 { transform: translateX(200%); }
 
 .al-tl-filter {
   display: inline-flex;
@@ -2568,10 +2659,10 @@ body[data-scrolled="1"] .al-sidebar-top {
   color: var(--al-success);
 }
 
-/* Scroll container */
+/* Scroll container — horizontal only, never vertical */
 .al-timeline-scroll {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   cursor: grab;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -2622,10 +2713,105 @@ body[data-scrolled="1"] .al-sidebar-top {
   stroke-dasharray: 4 3;
 }
 
-/* Dot on axis */
+/* Dot on axis (legacy floating-card layout) */
 .al-tl-dot-div.type-allenamento { background: var(--al-bronze); }
 .al-tl-dot-div.type-nutrizione  { background: var(--al-aegean); }
 .al-tl-dot-div.type-check       { background: var(--al-success); }
+
+/* ── Collapsed event dot (clickable marker, sits on the axis) ── */
+.al-tl-dot {
+  position: absolute;
+  z-index: 4;
+  width: 22px; height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--al-r-pill);
+  border: 2px solid var(--al-parchment);
+  background: var(--al-stone-d);
+  color: var(--al-parchment);
+  cursor: pointer;
+  box-shadow: 0 0 0 1.5px var(--al-rule-strong), 0 2px 6px -2px rgba(20,17,13,0.3);
+  transition: transform var(--al-d-snap) var(--al-ease-spr),
+              box-shadow var(--al-d-base) var(--al-ease);
+}
+.al-tl-dot i { font-size: 12px; line-height: 1; }
+.al-tl-dot.type-allenamento { background: var(--al-bronze); }
+.al-tl-dot.type-nutrizione  { background: var(--al-aegean); }
+.al-tl-dot.type-check       { background: var(--al-success); }
+.al-tl-dot:hover {
+  transform: scale(1.28);
+  z-index: 6;
+}
+.al-tl-dot:focus-visible { outline: none; }
+.al-tl-dot.is-open {
+  transform: scale(1.35);
+  z-index: 7;
+  box-shadow: 0 0 0 2px var(--al-parchment),
+              0 0 0 5px color-mix(in oklch, var(--al-bronze) 55%, transparent),
+              0 4px 12px -3px rgba(20,17,13,0.4);
+}
+
+/* ── Expanded popover card ── */
+.al-tl-pop {
+  position: absolute;
+  z-index: 30;
+  width: 220px;
+  transform-origin: bottom center;
+  animation: al-tl-pop-in 0.34s var(--al-ease-spr) backwards;
+}
+@keyframes al-tl-pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .al-tl-pop { animation: none; }
+}
+.al-tl-pop .al-tl-card {
+  width: 220px;
+  cursor: default;
+  box-shadow: var(--al-elev-pop);
+}
+.al-tl-pop-stem {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px; height: 12px;
+  background: var(--al-parchment);
+  border-right: 1px solid var(--al-rule);
+  border-bottom: 1px solid var(--al-rule);
+  transform: translateX(-50%) rotate(45deg);
+  z-index: -1;
+}
+.al-tl-pop-close {
+  position: absolute;
+  top: 7px; right: 7px;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: var(--al-r-pill);
+  background: transparent;
+  color: var(--al-ink-mute);
+  cursor: pointer;
+  transition: background var(--al-d-fast) var(--al-ease), color var(--al-d-fast) var(--al-ease);
+}
+.al-tl-pop-close:hover { background: var(--al-marble-w); color: var(--al-ink); }
+.al-tl-pop-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  font-family: var(--al-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--al-bronze);
+  text-decoration: none;
+  transition: gap var(--al-d-base) var(--al-ease), color var(--al-d-base) var(--al-ease);
+}
+.al-tl-pop-link:hover { gap: 9px; color: var(--al-bronze-s); }
 
 /* Floating event cards (foreignObject) */
 .al-tl-card {
@@ -2711,6 +2897,33 @@ body[data-scrolled="1"] .al-sidebar-top {
   position: absolute;
   z-index: 4;
   transition: z-index 0s;
+}
+
+/* Staggered entrance — cards rise toward the axis as the timeline mounts.
+   --i is the event index (set inline); delay caps so long timelines don't drag. */
+.al-tl-enter {
+  animation: al-tl-pop 0.5s var(--al-ease-spr) backwards;
+  animation-delay: calc(min(var(--i, 0) * 28ms, 700ms));
+}
+@keyframes al-tl-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .al-tl-enter { animation: none; }
+}
+
+/* Axis draws in from the left on mount */
+.al-tl-axis-line {
+  transform-origin: left center;
+  animation: al-tl-axis-draw 0.7s var(--al-ease-out) both;
+}
+@keyframes al-tl-axis-draw {
+  from { transform: scaleX(0); opacity: 0.4; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .al-tl-axis-line { animation: none; }
 }
 .al-tl-event-wrap:hover {
   z-index: 20;

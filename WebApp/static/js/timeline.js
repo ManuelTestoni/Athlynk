@@ -1,5 +1,14 @@
 /* Percorso Timeline — Alpine.js component
- * Horizontal infographic timeline with drag-scroll, filters, and pagination.
+ * A single horizontal axis. Every event is a collapsed dot sitting ON the
+ * axis (no vertical scrolling). Click a dot to expand its card with an
+ * animation; click again / elsewhere / Esc to collapse.
+ *
+ * View modes control how many months fit in the viewport — the data span
+ * (≥ 1 year) is fixed; the track is rescaled and scrolls horizontally:
+ *   anno      → ~12 months per viewport (whole year visible)
+ *   semestre  → ~6  months per viewport (first half shown, scroll for rest)
+ *   mese      → ~1  month  per viewport (zoomed in, scroll through the year)
+ *
  * Usage: x-data="percorsoTimeline({ apiUrl: '...' })"
  */
 (function () {
@@ -13,89 +22,89 @@
     check:       { icon: 'ph-chart-line', label: 'Check'       },
   };
 
-  const PX_PER_DAY   = 14;   // horizontal density
-  const COLLISION_GAP = 180; // min px gap before switching sides
-  const VERT_STEP    = 52;   // px added when both sides collide
-  const CARD_H       = 96;   // estimated card height for geometry
+  // months visible per viewport, by view mode
+  const MONTHS_PER_VIEW = { anno: 12, semestre: 6, mese: 1 };
+  const VIEW_INDEX      = { anno: 0, semestre: 1, mese: 2 };
+  const AVG_DAYS_MONTH  = 30.4375;
+
+  const PAD       = 60;   // left/right inner padding of the track (px)
+  const DOT_GAP   = 18;   // min px between dots before nudging
+  const CARD_W    = 220;  // expanded card width
 
   window.percorsoTimeline = function (opts) {
     return {
       /* ── reactive state ── */
-      apiUrl:           opts.apiUrl || '',
-      filters:          ['allenamento', 'nutrizione', 'check'],
-      events:           [],
-      placedEvents:     [],
-      months:           [],
-      windowStart:      '',
-      windowEnd:        '',
-      relationshipStart:'',
-      hasMore:          false,
-      loading:          false,
-      loadingMore:      false,
-      trackWidth:       800,
-      trackHeight:      380,
-      axisY:            190,
+      apiUrl:       opts.apiUrl || '',
+      filters:      ['allenamento', 'nutrizione', 'check'],
+      view:         'anno',
+      openId:       null,
+      events:       [],
+      placedEvents: [],
+      months:       [],
+      windowStart:  '',
+      windowEnd:    '',
+      loading:      false,
+      trackWidth:   800,
+      trackHeight:  320,
+      axisY:        160,
 
       /* ── internal (not reactive) ── */
       _dragging:   false,
       _startX:     0,
       _scrollLeft: 0,
+      _moved:      false,
 
       /* ── lifecycle ── */
       init() {
         this.axisY = Math.round(this.trackHeight / 2);
-        this.fetchEvents(null);
+        this.fetchEvents();
         this.$nextTick(() => this._initDragScroll());
+        // close the open card on Esc
+        this._onKey = (e) => { if (e.key === 'Escape') this.openId = null; };
+        window.addEventListener('keydown', this._onKey);
+        // recompute scale on resize (viewport-relative)
+        this._onResize = () => this._layout();
+        window.addEventListener('resize', this._onResize);
       },
 
       /* ── API ── */
-      async fetchEvents(before) {
-        if (this.loading || this.loadingMore) return;
-        if (before) { this.loadingMore = true; } else { this.loading = true; }
-
+      async fetchEvents() {
+        if (this.loading) return;
+        this.loading = true;
         try {
           const url = new URL(this.apiUrl, window.location.origin);
-          if (before) url.searchParams.set('before', before);
-
           const r = await fetch(url.toString(), { credentials: 'same-origin' });
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
-
-          if (before) {
-            const seen = new Set(this.events.map(e => e.id));
-            const older = d.events.filter(e => !seen.has(e.id));
-            this.events = [...older, ...this.events];
-            // extend the known window backwards
-            if (d.window_start) this.windowStart = d.window_start;
-          } else {
-            this.events           = d.events || [];
-            this.windowStart      = d.window_start || '';
-            this.windowEnd        = d.window_end   || '';
-            this.relationshipStart= d.relationship_start || '';
-          }
-
-          this.hasMore = !!d.has_more;
-
+          this.events      = d.events || [];
+          this.windowStart = d.window_start || '';
+          this.windowEnd   = d.window_end   || '';
           this._layout();
-
-          // after layout: scroll right so most-recent events are visible
-          if (!before) {
-            this.$nextTick(() => {
-              const el = this.$refs.scrollContainer;
-              if (el) el.scrollLeft = el.scrollWidth;
-            });
-          }
+          // start at the beginning of the journey (left), per design
+          this.$nextTick(() => {
+            const el = this.$refs.scrollContainer;
+            if (el) el.scrollLeft = 0;
+          });
         } catch (err) {
           console.warn('[percorsoTimeline] fetch error:', err);
         } finally {
-          this.loading     = false;
-          this.loadingMore = false;
+          this.loading = false;
         }
       },
 
-      loadMore() {
-        if (this.hasMore && !this.loadingMore) this.fetchEvents(this.windowStart);
+      /* ── view mode (interval) ── */
+      setView(mode) {
+        if (mode === this.view || !MONTHS_PER_VIEW[mode]) return;
+        this.view = mode;
+        this.openId = null;
+        this._layout();
+        this.$nextTick(() => {
+          const el = this.$refs.scrollContainer;
+          if (el) el.scrollLeft = 0;   // show the first slice
+        });
       },
+      viewActive(mode) { return this.view === mode; },
+      viewIndex() { return VIEW_INDEX[this.view] || 0; },
 
       /* ── filters ── */
       toggleFilter(type) {
@@ -106,10 +115,18 @@
           if (this.filters.length === 1) return;
           this.filters.splice(i, 1);
         }
+        this.openId = null;
         this._layout();
       },
-
       filterActive(type) { return this.filters.includes(type); },
+
+      /* ── open / close events ── */
+      toggle(ev) {
+        if (this._moved) return;            // ignore clicks that were drags
+        this.openId = this.openId === ev.id ? null : ev.id;
+      },
+      isOpen(ev)  { return this.openId === ev.id; },
+      openEvent() { return this.placedEvents.find(e => e.id === this.openId) || null; },
 
       /* ── layout ── */
       _layout() {
@@ -119,61 +136,51 @@
           return;
         }
 
-        const wStart   = new Date(this.windowStart);
-        const wEnd     = new Date(this.windowEnd);
+        const el = this.$refs.scrollContainer;
+        const viewportW = (el && el.clientWidth) ? el.clientWidth : 1000;
+
+        const wStart = new Date(this.windowStart);
+        const wEnd   = new Date(this.windowEnd);
         const totalDays = Math.max(1, (wEnd - wStart) / 86400000);
 
-        this.trackWidth = Math.max(860, Math.round(totalDays * PX_PER_DAY) + 120);
-        this.months     = this._buildMonths(wStart, wEnd);
+        // px/day so that MONTHS_PER_VIEW months exactly fill the viewport
+        const monthsPerView = MONTHS_PER_VIEW[this.view] || 12;
+        const usable   = Math.max(320, viewportW - PAD * 2);
+        const pxPerDay = usable / (monthsPerView * AVG_DAYS_MONTH);
+
+        this.trackWidth = Math.max(viewportW, Math.round(totalDays * pxPerDay) + PAD * 2);
+        this.months = this._buildMonths(wStart, wEnd, pxPerDay);
 
         const filtered = this.events.filter(e => this.filters.includes(e.type));
 
-        const occupiedAbove = [];
-        const occupiedBelow = [];
-        const placed = [];
-
-        filtered.forEach((ev, idx) => {
-          const evDate   = new Date(ev.date);
-          const dayOff   = Math.max(0, (evDate - wStart) / 86400000);
-          const x        = Math.round(dayOff * PX_PER_DAY) + 60;
-
-          let side    = idx % 2 === 0 ? 'above' : 'below';
-          let vOffset = 0;
-
-          const aboveHit = this._collides(occupiedAbove, x);
-          const belowHit = this._collides(occupiedBelow, x);
-
-          if (side === 'above' && aboveHit && !belowHit)       side = 'below';
-          else if (side === 'below' && belowHit && !aboveHit)  side = 'above';
-          else if (aboveHit && belowHit)                       vOffset = VERT_STEP;
-
-          (side === 'above' ? occupiedAbove : occupiedBelow).push({ x, xEnd: x + 160 });
-
-          placed.push({
-            ...ev,
-            x,
-            side,
-            vOffset,
-            meta: TYPE_META[ev.type] || TYPE_META.check,
-          });
+        // place dots on the axis; nudge overlapping ones just enough to stay tappable
+        let lastX = -Infinity;
+        const placed = filtered.map((ev) => {
+          const evDate = new Date(ev.date);
+          const dayOff = Math.max(0, (evDate - wStart) / 86400000);
+          let x = Math.round(dayOff * pxPerDay) + PAD;
+          if (x - lastX < DOT_GAP) x = lastX + DOT_GAP;
+          lastX = x;
+          return { ...ev, x, meta: TYPE_META[ev.type] || TYPE_META.check };
         });
 
+        // if the currently open event got filtered out, close it
+        if (this.openId != null && !placed.some(e => e.id === this.openId)) {
+          this.openId = null;
+        }
         this.placedEvents = placed;
       },
 
-      _collides(list, x) {
-        return list.some(o => x < o.xEnd + COLLISION_GAP && x + 160 > o.x - COLLISION_GAP);
-      },
-
-      _buildMonths(start, end) {
+      _buildMonths(start, end, pxPerDay) {
         const months = [];
         const cur = new Date(start.getFullYear(), start.getMonth(), 1);
         while (cur <= end) {
           const dayOff = (cur - start) / 86400000;
+          const isJan  = cur.getMonth() === 0;
           months.push({
             label: MONTH_NAMES_IT[cur.getMonth()] + ' ' + cur.getFullYear(),
-            fullLabel: MONTH_NAMES_FULL[cur.getMonth()] + ' ' + cur.getFullYear(),
-            x: Math.round(dayOff * PX_PER_DAY) + 60,
+            isJan,
+            x: Math.round(dayOff * pxPerDay) + PAD,
           });
           cur.setMonth(cur.getMonth() + 1);
         }
@@ -181,40 +188,30 @@
       },
 
       /* ── geometry helpers used in template ── */
-      connectorStyle(ev) {
-        const gap = 28 + ev.vOffset;
-        const top = ev.side === 'above' ? this.axisY - gap : this.axisY;
-        return [
-          'position:absolute',
-          `left:${ev.x}px`,
-          `top:${top}px`,
-          'width:1px',
-          `height:${gap}px`,
-          'background:repeating-linear-gradient(to bottom,var(--al-rule-strong) 0,var(--al-rule-strong) 4px,transparent 4px,transparent 7px)',
-          'pointer-events:none',
-          'z-index:2',
-        ].join(';');
-      },
-
-      cardTop(ev) {
-        return ev.side === 'above'
-          ? this.axisY - CARD_H - 28 - ev.vOffset
-          : this.axisY + 28 + ev.vOffset;
+      // expanded card sits above the axis, horizontally centered on its dot,
+      // clamped so it never spills past the track edges
+      cardLeft(ev) {
+        const half = CARD_W / 2;
+        let left = ev.x - half;
+        if (left < 8) left = 8;
+        if (left + CARD_W > this.trackWidth - 8) left = this.trackWidth - 8 - CARD_W;
+        return left;
       },
 
       formatDate(iso) {
         if (!iso) return '';
         const d = new Date(iso);
-        return d.getDate() + ' ' + MONTH_NAMES_IT[d.getMonth()];
+        return d.getDate() + ' ' + MONTH_NAMES_IT[d.getMonth()] + ' ' + d.getFullYear();
       },
 
-      /* ── drag-scroll ── */
+      /* ── drag-scroll (horizontal only) ── */
       _initDragScroll() {
         const el = this.$refs.scrollContainer;
         if (!el) return;
 
         const onDown = (e) => {
           this._dragging   = true;
+          this._moved      = false;
           this._startX     = e.pageX - el.offsetLeft;
           this._scrollLeft = el.scrollLeft;
           el.style.cursor  = 'grabbing';
@@ -222,11 +219,14 @@
         const onUp = () => {
           this._dragging  = false;
           el.style.cursor = 'grab';
+          // let the click handler read _moved, then reset shortly after
+          setTimeout(() => { this._moved = false; }, 0);
         };
         const onMove = (e) => {
           if (!this._dragging) return;
           e.preventDefault();
           const dx = (e.pageX - el.offsetLeft) - this._startX;
+          if (Math.abs(dx) > 4) this._moved = true;
           el.scrollLeft = this._scrollLeft - dx * 1.4;
         };
 

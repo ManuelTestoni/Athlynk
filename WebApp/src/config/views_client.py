@@ -908,43 +908,22 @@ def _percorso_response(request, client, coach, relationship_start=None):
     else:
         rel_start = (today - datetime.timedelta(days=365)).replace(day=1)
 
-    # Pagination: "before" shifts the window back
-    before_str = request.GET.get('before', '')
-    try:
-        window_end = date_type.fromisoformat(before_str) - datetime.timedelta(days=1)
-    except (ValueError, TypeError):
-        window_end = today
-
-    # 6-calendar-month window going backwards from window_end
-    anchor = window_end.replace(day=1)
-    cur = anchor
-    for _ in range(5):
-        cur = (cur - datetime.timedelta(days=1)).replace(day=1)
-    window_start = cur
-
-    # Never go before relationship start
-    window_start = max(window_start, rel_start)
+    # The timeline always spans at least one full year. The whole span is
+    # returned in a single response — the client controls how many months
+    # fit in the viewport (Anno / Semestre / Mese) and scrolls horizontally.
+    window_start = rel_start
+    window_end = today
+    one_year_later = rel_start.replace(year=rel_start.year + 1)
+    if window_end < one_year_later:
+        window_end = one_year_later
 
     events = _build_percorso_events(client, coach, window_start, window_end)
-
-    # has_more: there are events before window_start AND we haven't reached rel_start
-    has_more = window_start > rel_start and (
-        WorkoutAssignment.objects
-        .filter(client=client, coach=coach, created_at__date__lt=window_start)
-        .exists() or
-        NutritionAssignment.objects
-        .filter(client=client, coach=coach, assigned_at__date__lt=window_start)
-        .exists() or
-        QuestionnaireResponse.objects
-        .filter(client=client, coach=coach, created_at__date__lt=window_start)
-        .exists()
-    )
 
     return JsonResponse({
         'events': events,
         'window_start': window_start.isoformat(),
         'window_end': window_end.isoformat(),
-        'has_more': has_more,
+        'has_more': False,
         'relationship_start': rel_start.isoformat(),
     })
 

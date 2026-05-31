@@ -17,30 +17,40 @@
     <i class="ph ph-map-trifold text-bronze text-xl"></i>
   </div>
 
-  <!-- Filters -->
+  <!-- Filters + Zoom -->
   <div class="al-timeline-filters">
-    <span class="al-tag" style="color: var(--al-ink-mute); font-size: 10px; margin-right: 4px;">Filtra:</span>
+    <div class="al-tl-filter-group">
+      <span class="al-tag" style="color: var(--al-ink-mute); font-size: 10px; margin-right: 4px;">Filtra:</span>
 
-    <button type="button"
-            @click="toggleFilter('allenamento')"
-            :class="filterActive('allenamento') ? 'al-tl-filter active-allenamento' : 'al-tl-filter'">
-      <i class="ph ph-barbell"></i>
-      <span>Allenamento</span>
-    </button>
+      <button type="button"
+              @click="toggleFilter('allenamento')"
+              :class="filterActive('allenamento') ? 'al-tl-filter active-allenamento' : 'al-tl-filter'">
+        <i class="ph ph-barbell"></i>
+        <span>Allenamento</span>
+      </button>
 
-    <button type="button"
-            @click="toggleFilter('nutrizione')"
-            :class="filterActive('nutrizione') ? 'al-tl-filter active-nutrizione' : 'al-tl-filter'">
-      <i class="ph ph-leaf"></i>
-      <span>Nutrizione</span>
-    </button>
+      <button type="button"
+              @click="toggleFilter('nutrizione')"
+              :class="filterActive('nutrizione') ? 'al-tl-filter active-nutrizione' : 'al-tl-filter'">
+        <i class="ph ph-leaf"></i>
+        <span>Nutrizione</span>
+      </button>
 
-    <button type="button"
-            @click="toggleFilter('check')"
-            :class="filterActive('check') ? 'al-tl-filter active-check' : 'al-tl-filter'">
-      <i class="ph ph-chart-line"></i>
-      <span>Check</span>
-    </button>
+      <button type="button"
+              @click="toggleFilter('check')"
+              :class="filterActive('check') ? 'al-tl-filter active-check' : 'al-tl-filter'">
+        <i class="ph ph-chart-line"></i>
+        <span>Check</span>
+      </button>
+    </div>
+
+    <!-- Intervallo di visualizzazione -->
+    <div class="al-tl-zoom" role="group" aria-label="Intervallo di visualizzazione">
+      <span class="al-tl-zoom-marker" :class="`z-${viewIndex()}`" aria-hidden="true"></span>
+      <button type="button" @click="setView('anno')"     :class="viewActive('anno')     ? 'is-active' : ''">Anno</button>
+      <button type="button" @click="setView('semestre')" :class="viewActive('semestre') ? 'is-active' : ''">Semestre</button>
+      <button type="button" @click="setView('mese')"     :class="viewActive('mese')     ? 'is-active' : ''">Mese</button>
+    </div>
   </div>
 
   <!-- Loading skeleton -->
@@ -50,89 +60,85 @@
   </div>
 
   <!-- Empty state -->
-  <div x-show="!loading && placedEvents.length === 0" class="al-timeline-empty" style="min-height: 360px;" x-cloak>
+  <div x-show="!loading && placedEvents.length === 0" class="al-timeline-empty" :style="`min-height:${trackHeight}px;`" x-cloak>
     <i class="ph ph-map-trifold"></i>
     <p>Nessun evento nel periodo selezionato.</p>
-    <p style="font-size: 11px; opacity: .65;">Rimuovi qualche filtro o carica eventi precedenti.</p>
+    <p style="font-size: 11px; opacity: .65;">Rimuovi qualche filtro per vedere il percorso.</p>
   </div>
 
-  <!-- Timeline scroll container -->
+  <!-- Timeline scroll container (horizontal only — no vertical scroll) -->
   <div x-show="!loading && placedEvents.length > 0"
        x-ref="scrollContainer"
        class="al-timeline-scroll"
-       style="position:relative; min-height:360px; background: linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble) 100%);"
+       :style="`position:relative; height:${trackHeight}px; background: linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble) 100%);`"
+       @click.self="openId = null"
        x-cloak>
 
     <!-- Track (sets horizontal width) -->
-    <div :style="`position:relative; width:${trackWidth}px; height:${trackHeight}px; min-height:360px;`">
+    <div :style="`position:relative; width:${trackWidth}px; height:${trackHeight}px;`"
+         @click.self="openId = null">
 
       <!-- Month separator lines + labels -->
       <template x-for="m in months" :key="m.label">
         <div>
-          <!-- vertical dashed month line -->
-          <div :style="`position:absolute; left:${m.x}px; top:0; bottom:0; width:1px; background:repeating-linear-gradient(to bottom, var(--al-rule-faint) 0, var(--al-rule-faint) 4px, transparent 4px, transparent 7px);`"></div>
+          <!-- vertical dashed month line — January gets a stronger rule -->
+          <div :style="`position:absolute; left:${m.x}px; top:0; bottom:0; width:1px; background:repeating-linear-gradient(to bottom, ${m.isJan ? 'var(--al-rule)' : 'var(--al-rule-faint)'} 0, ${m.isJan ? 'var(--al-rule)' : 'var(--al-rule-faint)'} 4px, transparent 4px, transparent 7px); pointer-events:none;`"></div>
           <!-- month label on the axis -->
-          <div :style="`position:absolute; left:${m.x + 6}px; top:${axisY + 6}px; font-family:'Bodoni Moda',serif; font-style:italic; font-size:11px; color:var(--al-bronze); white-space:nowrap; pointer-events:none; user-select:none;`"
+          <div :style="`position:absolute; left:${m.x + 6}px; top:${axisY + 12}px; font-family:'Bodoni Moda',serif; font-style:italic; font-size:${m.isJan ? '12.5px' : '11px'}; font-weight:${m.isJan ? '600' : '400'}; color:var(--al-bronze); white-space:nowrap; pointer-events:none; user-select:none;`"
                x-text="m.label"></div>
         </div>
       </template>
 
       <!-- Central horizontal axis -->
-      <div :style="`position:absolute; left:0; right:0; top:${axisY}px; height:2px; background:var(--al-rule-strong); pointer-events:none;`"></div>
+      <div class="al-tl-axis-line" :style="`position:absolute; left:0; right:0; top:${axisY}px; height:2px; background:var(--al-rule-strong); pointer-events:none;`"></div>
 
-      <!-- Events -->
-      <template x-for="ev in placedEvents" :key="ev.id">
-        <div>
-          <!-- Connector line: vertical dashed -->
-          <div :style="connectorStyle(ev)"></div>
+      <!-- Event dots — collapsed by default, sitting ON the axis -->
+      <template x-for="(ev, evIndex) in placedEvents" :key="ev.id">
+        <button type="button"
+                class="al-tl-dot al-tl-enter"
+                :class="`type-${ev.type}` + (isOpen(ev) ? ' is-open' : '')"
+                :style="`left:${ev.x - 11}px; top:${axisY - 11}px; --i:${evIndex};`"
+                :title="ev.title"
+                :aria-label="ev.meta.label + ': ' + ev.title"
+                @click="toggle(ev)">
+          <i :class="`ph ${ev.meta.icon}`"></i>
+        </button>
+      </template>
 
-          <!-- Axis dot -->
-          <div :style="`position:absolute; left:${ev.x - 6}px; top:${axisY - 6}px; width:12px; height:12px; border-radius:50%; border:2px solid var(--al-parchment); box-shadow:0 0 0 1.5px var(--al-rule-strong); z-index:3;`"
-               :class="`al-tl-dot-div type-${ev.type}`"></div>
-
-          <!-- Date mini label -->
-          <div :style="`position:absolute; left:${ev.x}px; transform:translateX(-50%); ${ev.side === 'above' ? 'top:' + (axisY + 10) + 'px;' : 'top:' + (axisY - 20) + 'px;'} font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--al-ink-line); white-space:nowrap; pointer-events:none; user-select:none;`"
-               x-text="formatDate(ev.date)"></div>
-
-          <!-- Event card wrapper (handles z-index elevation on hover) -->
-          <div class="al-tl-event-wrap"
-               :style="`left:${ev.x - 77}px; top:${cardTop(ev)}px; width:154px;`">
-            <div :class="`al-tl-card type-${ev.type}`"
-                 :style="ev.url ? 'cursor:pointer;' : ''"
-                 @click="ev.url && (window.location.href = ev.url)">
-              <div :class="`al-tl-card-type type-${ev.type}`">
-                <i :class="`ph ${ev.meta.icon}`"></i>
-                <span x-text="ev.meta.label"></span>
-              </div>
-              <div class="al-tl-card-title" :title="ev.title" x-text="ev.title"></div>
-              <div class="al-tl-card-date" x-text="formatDate(ev.date)"></div>
-              <template x-if="ev.url">
-                <div style="font-size:9px; text-transform:uppercase; letter-spacing:.1em; color:var(--al-bronze); margin-top:5px; font-family:var(--al-sans); font-weight:600;">
-                  Vedi dettagli →
-                </div>
-              </template>
+      <!-- Expanded card — single, animated open/close -->
+      <template x-if="openEvent()">
+        <div class="al-tl-pop"
+             :style="`left:${cardLeft(openEvent())}px; bottom:${trackHeight - axisY + 16}px;`"
+             @click.stop>
+          <div :class="`al-tl-card type-${openEvent().type}`">
+            <button type="button" class="al-tl-pop-close" @click="openId = null" aria-label="Chiudi">
+              <i class="ph ph-x"></i>
+            </button>
+            <div :class="`al-tl-card-type type-${openEvent().type}`">
+              <i :class="`ph ${openEvent().meta.icon}`"></i>
+              <span x-text="openEvent().meta.label"></span>
             </div>
+            <div class="al-tl-card-title" style="white-space:normal;" :title="openEvent().title" x-text="openEvent().title"></div>
+            <div class="al-tl-card-date" x-text="formatDate(openEvent().date)"></div>
+            <template x-if="openEvent().url">
+              <a :href="openEvent().url" class="al-tl-pop-link">
+                Vedi dettagli <i class="ph ph-arrow-right"></i>
+              </a>
+            </template>
           </div>
-
+          <!-- pointer down to the dot -->
+          <div class="al-tl-pop-stem"></div>
         </div>
       </template>
 
     </div>
   </div>
 
-  <!-- Footer: load more / range info -->
-  <div class="al-timeline-footer" x-show="!loading">
-    <template x-if="hasMore">
-      <button type="button"
-              @click="loadMore()"
-              :disabled="loadingMore"
-              class="al-btn al-btn-sm al-btn-ghost">
-        <i class="ph ph-arrow-left text-xs" x-show="!loadingMore"></i>
-        <div x-show="loadingMore"
-             style="width:12px;height:12px;border:1.5px solid var(--al-rule-strong);border-top-color:var(--al-bronze);border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;"></div>
-        <span x-text="loadingMore ? 'Caricamento…' : 'Carica mesi precedenti'"></span>
-      </button>
-    </template>
+  <!-- Footer: hint + range info -->
+  <div class="al-timeline-footer" x-show="!loading && placedEvents.length > 0">
+    <span class="al-tag" style="font-size: 10px; color: var(--al-ink-mute);">
+      <i class="ph ph-hand-tap" style="margin-right:4px;"></i>Tocca un evento per i dettagli
+    </span>
     <span class="al-tag" x-show="windowStart && windowEnd" style="font-size: 10px; color: var(--al-ink-mute);">
       <span x-text="windowStart"></span>
       <span style="margin: 0 4px; opacity:.4;">→</span>

@@ -282,6 +282,9 @@ window._coachTemplates = {{ coach_templates_json|safe }};
                                 <i class="ph ph-users al-empty-icon"></i>
                                 <h3>Nessun atleta</h3>
                                 <p x-text="query ? 'Nessun risultato per la ricerca.' : (filterStatus === 'da_revisionare' ? 'Nessun check da revisionare.' : 'Nessun atleta associato.')"></p>
+                                <a x-show="!query" href="{% url 'clienti_registra' %}" class="al-btn al-btn-bronze">
+                                    <i class="ph ph-user-plus"></i> <span>Registra atleta</span>
+                                </a>
                             </div>
                         </td></tr>
                     </template>
