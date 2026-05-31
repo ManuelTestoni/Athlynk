@@ -27,6 +27,25 @@
 </script>
 <script src="{% static 'js/nutrition_library.js' %}?v={{ ASSET_VERSION }}"></script>
 
+<style>
+  /* Chip macro compatte per le card piano (stile libreria allenamenti) */
+  .nu-mini-macro {
+    display: inline-flex; align-items: baseline; gap: .25rem;
+    padding: .18rem .5rem;
+    border-radius: var(--al-r-xs);
+    background: var(--al-marble-warm);
+    border: 1px solid var(--al-rule-faint);
+    font-size: .7rem;
+    color: var(--al-ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .nu-mini-macro strong { font-weight: 700; }
+  .nu-mini-macro.is-kcal { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
+  .nu-mini-macro.is-p { color: var(--al-aegean); border-color: rgba(28,74,82,0.18); background: rgba(28,74,82,0.06); }
+  .nu-mini-macro.is-c { color: var(--al-warn); border-color: rgba(166,128,43,0.22); background: rgba(166,128,43,0.06); }
+  .nu-mini-macro.is-f { color: var(--al-danger); border-color: rgba(138,58,58,0.22); background: rgba(138,58,58,0.06); }
+</style>
+
 <div class="max-w-7xl mx-auto"
      x-data="nutritionLibrary()"
      x-init="init()"
@@ -215,85 +234,64 @@
         </div>
       </template>
 
-      <!-- Cards grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <!-- Cards grid (stile libreria allenamenti) -->
+      <div class="wb-card-grid">
         <template x-for="plan in visiblePlans()" :key="plan.id">
-          <div class="al-card al-card-flush al-reveal flex flex-col"
-               draggable="true"
-               :style="draggedPlanId === plan.id ? 'cursor: grabbing;' : 'cursor: grab;'"
-               @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
-               @dragend="draggedPlanId = null; dropTargetId = null">
-            <!-- Bronze accent line -->
-            <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
+          <article class="wb-card"
+                   draggable="true"
+                   @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
+                   @dragend="draggedPlanId = null; dropTargetId = null">
+            <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
 
-            <div class="p-5 flex-1">
-              <div class="flex items-start justify-between gap-2 mb-3">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <template x-if="plan.plan_type">
-                      <span class="al-tag" x-text="plan.plan_type"></span>
-                    </template>
-                    <template x-if="plan.plan_mode === 'MACRO'">
-                      <span class="al-tag flex items-center gap-1"
-                            style="background: var(--al-marble-warm); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze); padding: 2px 8px;">
-                        <i class="ph ph-chart-donut text-[10px]"></i><span>Macro</span>
-                      </span>
-                    </template>
-                  </div>
-                  <h3 class="al-h-2 mt-2" x-text="plan.title"></h3>
-                </div>
-                <div class="flex items-center gap-1 shrink-0" @click.stop>
+            <div class="wb-card-header">
+              <div class="min-w-0">
+                <h3 class="wb-card-title" x-text="plan.title"></h3>
+                <p class="wb-card-meta mt-2">
+                  <span x-text="plan.plan_kind === 'WEEKLY' ? 'Settimanale' : 'Giornaliero'"></span>
+                  <template x-if="plan.plan_type"><span>·</span></template>
+                  <template x-if="plan.plan_type"><span x-text="plan.plan_type"></span></template>
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-1.5 shrink-0">
+                <span class="wb-kind-badge"
+                      :class="plan.plan_kind === 'WEEKLY' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
+                      x-text="plan.plan_kind === 'WEEKLY' ? 'Settimana' : 'Giorno'"></span>
+                <template x-if="plan.plan_mode === 'MACRO'">
+                  <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-chart-donut"></i>Macro</span>
+                </template>
+                <div class="flex items-center gap-1 mt-0.5" @click.stop>
                   <a :href="urls.planEdit.replace('__ID__', plan.id)"
-                     class="p-1.5 text-ink-line hover:text-bronze transition-colors" title="Modifica">
-                    <i class="ph ph-pencil text-base"></i>
+                     class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
+                    <i class="ph ph-pencil text-sm"></i>
                   </a>
                   <button @click="openDelete(plan.id)" type="button"
-                          class="p-1.5 transition-colors" title="Elimina"
+                          class="p-1 transition-colors" title="Elimina"
                           style="color: var(--al-ink-line);"
                           onmouseover="this.style.color='var(--al-danger)'"
                           onmouseout="this.style.color='var(--al-ink-line)'">
-                    <i class="ph ph-trash text-base"></i>
+                    <i class="ph ph-trash text-sm"></i>
                   </button>
-                </div>
-              </div>
-
-              <p class="al-body line-clamp-2 mb-4" x-show="plan.description" x-text="plan.description"></p>
-
-              <!-- Macros -->
-              <div class="grid grid-cols-4 gap-2 mt-4">
-                <div class="text-center py-2 px-1"
-                     style="background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
-                  <p class="al-tag" style="font-size:9px;">kcal</p>
-                  <p class="font-mono font-medium text-ink mt-1" x-text="plan.kcal"></p>
-                </div>
-                <div class="text-center py-2 px-1"
-                     style="background: var(--al-info-bg); border: 1px solid rgba(28,74,82,0.18); border-radius: var(--al-r-sm);">
-                  <p class="al-tag" style="font-size:9px; color: var(--al-aegean);">Pro</p>
-                  <p class="font-mono font-medium mt-1" style="color: var(--al-aegean);" x-text="plan.prot + 'g'"></p>
-                </div>
-                <div class="text-center py-2 px-1"
-                     style="background: var(--al-warn-bg); border: 1px solid rgba(166,128,43,0.22); border-radius: var(--al-r-sm);">
-                  <p class="al-tag" style="font-size:9px; color: var(--al-warn);">Carb</p>
-                  <p class="font-mono font-medium mt-1" style="color: var(--al-warn);" x-text="plan.carb + 'g'"></p>
-                </div>
-                <div class="text-center py-2 px-1"
-                     style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.22); border-radius: var(--al-r-sm);">
-                  <p class="al-tag" style="font-size:9px; color: var(--al-danger);">Fat</p>
-                  <p class="font-mono font-medium mt-1" style="color: var(--al-danger);" x-text="plan.fat + 'g'"></p>
                 </div>
               </div>
             </div>
 
-            <div class="border-t px-5 py-3 flex items-center justify-between" style="border-color: var(--al-rule);">
-              <div class="flex items-center gap-3 al-tag">
-                <span class="flex items-center gap-1">
-                  <i class="ph ph-users text-xs"></i><span x-text="plan.assigned_count"></span>
-                </span>
-                <span class="flex items-center gap-1">
-                  <i class="ph ph-clock text-xs"></i><span x-text="relativeTime(plan.updated_at)"></span>
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
+            <p class="al-small" style="color: var(--al-ink-mute); line-height: 1.5;"
+               x-show="plan.description"
+               x-text="plan.description && plan.description.length > 110 ? plan.description.slice(0, 110) + '…' : plan.description"></p>
+
+            <!-- Macro snapshot (chip inline) -->
+            <div class="flex flex-wrap gap-1.5">
+              <span class="nu-mini-macro is-kcal"><strong x-text="plan.kcal"></strong> kcal</span>
+              <span class="nu-mini-macro is-p">P <strong x-text="plan.prot + 'g'"></strong></span>
+              <span class="nu-mini-macro is-c">C <strong x-text="plan.carb + 'g'"></strong></span>
+              <span class="nu-mini-macro is-f">F <strong x-text="plan.fat + 'g'"></strong></span>
+            </div>
+
+            <div class="wb-card-foot" style="flex-wrap: wrap; gap: .5rem;">
+              <span class="flex items-center gap-1">
+                <i class="ph ph-users"></i> <span x-text="plan.assigned_count"></span> assegn.
+              </span>
+              <div class="flex items-center gap-2" @click.stop>
                 <a :href="urls.planDetail.replace('__ID__', plan.id)"
                    class="al-link al-link-quiet text-[11px] uppercase tracking-widest">
                   Dettaglio <i class="ph ph-arrow-right text-xs"></i>
@@ -304,7 +302,7 @@
                 </button>
               </div>
             </div>
-          </div>
+          </article>
         </template>
       </div>
     </main>
