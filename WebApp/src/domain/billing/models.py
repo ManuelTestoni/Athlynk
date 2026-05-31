@@ -27,6 +27,7 @@ class ClientSubscription(models.Model):
     auto_renew = models.BooleanField(default=True)
     external_payment_provider = models.CharField(max_length=100, null=True, blank=True)
     external_reference = models.CharField(max_length=255, null=True, blank=True)
+    expiry_reminder_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

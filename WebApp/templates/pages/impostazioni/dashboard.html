@@ -55,6 +55,14 @@
                     <i class="ph ph-envelope text-base mr-3"></i>Newsletter
                 </button>
 
+                {% if is_coach %}
+                <a href="{% url 'settings_automatic_messages' %}"
+                   class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                   style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
+                    <i class="ph ph-chat-centered-text text-base mr-3"></i>Messaggi automatici
+                </a>
+                {% endif %}
+
                 <button @click="activeTab = 'elimina'" type="button"
                         :class="{ 'is-active': activeTab === 'elimina' }"
                         class="al-vtab flex items-center px-4 py-3 text-left w-full"

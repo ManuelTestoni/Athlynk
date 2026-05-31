@@ -236,6 +236,76 @@ def notifications_view(request):
     return render(request, 'pages/impostazioni/notifications.html', ctx)
 
 
+_AUTO_MSG_EVENTS = [
+    ('WELCOME', '01', 'Benvenuto', 'Inviato automaticamente quando aggiungi un nuovo atleta.',
+     'Ciao {nome}, benvenuto/a! 🎉 Sono felice di iniziare questo percorso insieme.'),
+    ('GOODBYE', '02', 'Arrivederci', 'Inviato quando un atleta interrompe il percorso con te.',
+     'Grazie di tutto {nome} 🙏 È stato un piacere allenarti. Le porte restano sempre aperte!'),
+    ('SUBSCRIPTION_EXPIRING', '03', 'Abbonamento in scadenza',
+     'Inviato qualche giorno prima della scadenza dell’abbonamento.',
+     'Ciao {nome}, il tuo abbonamento sta per scadere ⏳ Rinnova per non perdere i progressi!'),
+]
+
+_AUTO_MSG_BODY_MAX = 2000
+
+
+def automatic_messages_view(request):
+    """Coach-only: configure the per-event automatic chat messages sent to athletes."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('impostazioni_dashboard')
+
+    from domain.chat.models import AutomaticMessageTemplate
+
+    error = None
+    templates = {t.event_type: t for t in AutomaticMessageTemplate.objects.filter(coach=coach)}
+
+    if request.method == 'POST':
+        for event_type, *_rest in _AUTO_MSG_EVENTS:
+            tpl, _created = AutomaticMessageTemplate.objects.get_or_create(coach=coach, event_type=event_type)
+            tpl.body = (request.POST.get(f'body_{event_type}', '') or '')[:_AUTO_MSG_BODY_MAX]
+            tpl.is_enabled = request.POST.get(f'enabled_{event_type}') == 'on'
+            if request.POST.get(f'remove_attachment_{event_type}') == '1':
+                tpl.attachment = None
+            elif f'attachment_{event_type}' in request.FILES:
+                raw = request.FILES[f'attachment_{event_type}']
+                if is_image(raw):
+                    tpl.attachment = to_webp(raw)
+                else:
+                    error = 'Il file allegato deve essere un’immagine valida.'
+            tpl.save()
+            templates[event_type] = tpl
+        if not error:
+            return redirect(f"{request.path}?saved=1")
+
+    rows = []
+    for event_type, num, label, desc, placeholder in _AUTO_MSG_EVENTS:
+        tpl = templates.get(event_type)
+        rows.append({
+            'event_type': event_type,
+            'num': num,
+            'label': label,
+            'desc': desc,
+            'placeholder': placeholder,
+            'body': tpl.body if tpl else '',
+            'is_enabled': tpl.is_enabled if tpl else False,
+            'attachment_url': tpl.attachment.url if (tpl and tpl.attachment) else '',
+        })
+
+    return render(request, 'pages/impostazioni/automatic_messages.html', {
+        'auth_user': user,
+        'coach': coach,
+        'is_coach': True,
+        'rows': rows,
+        'saved': request.GET.get('saved') == '1',
+        'error': error,
+        'active_tab': 'messaggi_auto',
+    })
+
+
 def calendar_view(request):
     """Coach calendar subscription page — Google Calendar / Apple Calendar."""
     user = get_session_user(request)

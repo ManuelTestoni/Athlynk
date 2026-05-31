@@ -232,6 +232,7 @@ urlpatterns = [
     path('impostazioni/elimina-account/', views_settings.delete_account_view, name='delete_account'),
     path('impostazioni/notifiche/', views_settings.notifications_view, name='settings_notifications'),
     path('impostazioni/calendario/', views_settings.calendar_view, name='settings_calendar'),
+    path('impostazioni/messaggi-automatici/', views_settings.automatic_messages_view, name='settings_automatic_messages'),
     path('api/agenda/calendar-token/', views_agenda.api_coach_calendar_token, name='api_coach_calendar_token'),
     path('calendar/coach/<str:token>.ics', views_agenda.coach_calendar_feed, name='coach_calendar_feed'),
 

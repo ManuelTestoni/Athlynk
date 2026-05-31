@@ -77,3 +77,25 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notif to {self.target_user_id}: {self.title}"
+
+
+class AutomaticMessageTemplate(models.Model):
+    EVENT_TYPES = [
+        ('WELCOME', 'Benvenuto'),
+        ('GOODBYE', 'Arrivederci'),
+        ('SUBSCRIPTION_EXPIRING', 'Abbonamento in scadenza'),
+    ]
+
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='automatic_message_templates')
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)
+    body = models.TextField(blank=True)
+    attachment = models.FileField(upload_to='automatic_messages/', null=True, blank=True)
+    is_enabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('coach', 'event_type')]
+
+    def __str__(self):
+        return f"AutoMsg {self.event_type} for coach {self.coach_id}"

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Messaggi automatici · Impostazioni{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+
+  <div class="mb-7">
+    <p class="al-eyebrow mb-2">Studio &middot; Impostazioni</p>
+    <h1 class="al-h-2">Messaggi <span class="al-display-i">automatici</span></h1>
+    <p class="al-body mt-2" style="color: var(--al-ink-mute);">
+      Messaggi inviati in chat ai tuoi atleti su eventi chiave. Scrivi il testo, aggiungi emoji o una
+      foto, e attiva ciò che vuoi inviare. Usa <code>{nome}</code> e <code>{cognome}</code> per
+      personalizzare con il nome dell'atleta.
+    </p>
+    <div class="al-rule-bronze mt-5"></div>
+  </div>
+
+  {% if saved %}
+  <div class="al-toast is-success mb-6">
+    <i class="ph-fill ph-check-circle"></i>
+    <span>Messaggi automatici salvati.</span>
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="al-toast is-danger mb-6">
+    <i class="ph-fill ph-warning-circle"></i>
+    <span>{{ error }}</span>
+  </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
+    {% csrf_token %}
+
+    {% for row in rows %}
+    <div class="al-card al-card-flush" x-data="{
+        enabled: {% if row.is_enabled %}true{% else %}false{% endif %},
+        initialUrl: '{{ row.attachment_url|escapejs }}',
+        previewUrl: '{{ row.attachment_url|escapejs }}',
+        objectUrl: null,
+        removed: false,
+        onPick(e) {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+            this.objectUrl = URL.createObjectURL(f);
+            this.previewUrl = this.objectUrl;
+            this.removed = false;
+        },
+        removePhoto(input) {
+            if (this.objectUrl) { URL.revokeObjectURL(this.objectUrl); this.objectUrl = null; }
+            this.previewUrl = '';
+            this.removed = true;
+            input.value = '';
+        }
+    }">
+      <div class="p-6 md:p-7">
+
+        <!-- Head + toggle -->
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">{{ row.num }}</p>
+            <h2 class="al-h-3 mt-1">{{ row.label }}</h2>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">{{ row.desc }}</p>
+          </div>
+          <label class="flex items-center gap-2 shrink-0 cursor-pointer" style="margin-top: 4px;">
+            <input type="checkbox" name="enabled_{{ row.event_type }}" x-model="enabled"
+                   style="width: 18px; height: 18px; accent-color: #8a6a3a;">
+            <span class="al-tag" x-text="enabled ? 'Attivo' : 'Disattivo'"
+                  :style="enabled ? 'color: var(--al-success);' : 'color: var(--al-ink-mute);'"></span>
+          </label>
+        </div>
+
+        <div class="al-divider"></div>
+
+        <!-- Body -->
+        <div>
+          <label class="al-label">Testo del messaggio</label>
+          <textarea name="body_{{ row.event_type }}" rows="3" maxlength="2000"
+                    placeholder="{{ row.placeholder }}"
+                    class="al-textarea">{{ row.body }}</textarea>
+          <span class="al-input-help">Testo ed emoji. Token: <code>{nome}</code>, <code>{cognome}</code>. Max 2000 caratteri.</span>
+        </div>
+
+        <div class="al-divider"></div>
+
+        <!-- Photo -->
+        <p class="al-label">Foto (opzionale)</p>
+        <div class="flex items-center gap-5">
+          <div class="w-20 h-20 flex items-center justify-center overflow-hidden shrink-0"
+               style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
+            <template x-if="previewUrl">
+              <img :src="previewUrl" alt="" class="w-full h-full object-cover">
+            </template>
+            <template x-if="!previewUrl">
+              <i class="ph ph-image text-3xl text-ink-line"></i>
+            </template>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <label for="att_{{ row.event_type }}" class="al-btn al-btn-ghost cursor-pointer">
+                <i class="ph ph-upload-simple"></i><span x-text="previewUrl ? 'Cambia foto' : 'Carica foto'"></span>
+              </label>
+              <button type="button" x-show="previewUrl" @click="removePhoto($refs.att_{{ row.event_type }})" class="al-btn al-btn-ghost">
+                <i class="ph ph-trash"></i><span>Rimuovi</span>
+              </button>
+            </div>
+            <input type="file" id="att_{{ row.event_type }}" name="attachment_{{ row.event_type }}"
+                   accept="image/*" class="hidden" x-ref="att_{{ row.event_type }}" @change="onPick($event)">
+            <input type="hidden" name="remove_attachment_{{ row.event_type }}" :value="removed ? '1' : ''">
+            <span class="al-input-help">JPG, PNG o WebP. Convertita automaticamente. Max 2000px.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="flex justify-end">
+      <button type="submit" class="al-btn al-btn-bronze">
+        <i class="ph ph-floppy-disk text-sm"></i><span>Salva modifiche</span>
+      </button>
+    </div>
+  </form>
+
+  <p class="al-small mt-4" style="color: var(--al-ink-faint);">
+    L'invio avviene automaticamente lato server. "Abbonamento in scadenza" parte qualche giorno
+    prima della scadenza; gli altri al momento dell'evento.
+  </p>
+</div>
+{% endblock %}
