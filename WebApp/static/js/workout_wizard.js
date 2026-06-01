@@ -2185,8 +2185,8 @@ document.addEventListener('alpine:init', () => {
       this.progUi.previewComputed = {};
     },
 
-    removeRule(r) {
-      if (!confirm('Rimuovere questa progressione? I valori delle settimane saranno ricalcolati.')) return;
+    async removeRule(r) {
+      if (!await window.alConfirm({ icon: 'ph-trash', title: 'Rimuovere la\nprogressione?', subtitle: 'I valori delle settimane saranno ricalcolati.', confirmLabel: 'Sì, rimuovi' })) return;
       const isSame = (x) => {
         if (r.id != null && x.id != null) return x.id === r.id;
         if (r._local_id && x._local_id) return x._local_id === r._local_id;

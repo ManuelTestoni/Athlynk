@@ -628,8 +628,8 @@
       get avgCarb() { return this.macroSum('carb'); },
       get avgFat()  { return this.macroSum('fat'); },
 
-      reset() {
-        if (!confirm('Vuoi davvero ricominciare? Le modifiche andranno perse.')) return;
+      async reset() {
+        if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ricominciare\nda capo?', subtitle: 'Tutte le modifiche andranno perse.', confirmLabel: 'Sì, ricomincia' })) return;
         this.stopPolling();
         this.stopLoadingAnim();
         this.currentStep = 1;

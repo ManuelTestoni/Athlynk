@@ -202,19 +202,14 @@
           <i class="ph ph-magnifying-glass"></i>
           <input type="text" class="al-input" placeholder="Cerca piano…" x-model.debounce.150ms="search">
         </div>
-        <div class="flex items-center gap-1.5 flex-wrap">
+        <div class="al-filter" role="tablist" aria-label="Filtra piani">
           <template x-for="chip in filterChips" :key="chip.id">
-            <button type="button"
-                    @click="activeFilter = chip.id"
-                    class="al-tag transition-all"
-                    :class="activeFilter === chip.id
-                      ? 'is-active'
-                      : 'hover:text-bronze'"
-                    :style="activeFilter === chip.id
-                      ? 'background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze); padding: 5px 11px; cursor: pointer;'
-                      : 'background: var(--al-marble); color: var(--al-ink-soft); border: 1px solid var(--al-rule); padding: 5px 11px; cursor: pointer;'">
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': activeFilter === chip.id }"
+                    :aria-selected="activeFilter === chip.id"
+                    @click="activeFilter = chip.id">
               <span x-text="chip.label"></span>
-              <span class="font-mono ml-1.5 opacity-70" style="font-size: 10px;" x-text="'(' + filterCounts[chip.id] + ')'"></span>
+              <span class="al-filter-count" x-text="filterCounts[chip.id]"></span>
             </button>
           </template>
         </div>

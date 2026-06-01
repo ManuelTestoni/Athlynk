@@ -42,13 +42,17 @@ function nutritionWizardWeeklyMixin() {
       const tot = filled.reduce((s, d) => s + this.dayMacro(d.code, key), 0);
       return Math.round(tot / filled.length);
     },
-    duplicateFromDay(srcCode) {
+    async duplicateFromDay(srcCode) {
       const dest = this.activeDay;
       const destCount = this.dayMealCount(dest);
       let mode = 'append';
       if (destCount > 0) {
-        const ans = confirm('Il giorno ' + this.weekDayLabel(dest) + ' contiene gia ' + destCount +
-          ' pasti.\n\nOK = Sostituisci, Annulla = Aggiungi');
+        const ans = await window.alConfirm({
+          variant: 'neutral', icon: 'ph-copy',
+          title: 'Giorno non vuoto',
+          subtitle: this.weekDayLabel(dest) + ' contiene già ' + destCount + ' pasti. Vuoi sostituirli o aggiungere i nuovi?',
+          confirmLabel: 'Sostituisci', cancelLabel: 'Aggiungi',
+        });
         mode = ans ? 'replace' : 'append';
       }
       if (mode === 'replace') {

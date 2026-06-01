@@ -25,7 +25,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
         <div class="al-kpi al-reveal" style="--d:0ms;">
             <div class="al-kpi-label">Atleti Totali</div>
-            <div class="al-kpi-num">{{ total_clients|default:"0" }}</div>
+            <div class="al-kpi-num" data-countup="{{ total_clients|default:0 }}">{{ total_clients|default:"0" }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-users text-bronze"></i>
                 <span>Atleti in studio</span>
@@ -34,7 +34,7 @@
 
         <div class="al-kpi al-reveal" style="--d:60ms;">
             <div class="al-kpi-label">Check da Visionare</div>
-            <div class="al-kpi-num">{{ checks_to_review|default:"0" }}</div>
+            <div class="al-kpi-num" data-countup="{{ checks_to_review|default:0 }}">{{ checks_to_review|default:"0" }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-clipboard-text text-bronze"></i>
                 <span>In coda di revisione</span>
@@ -43,7 +43,7 @@
 
         <div class="al-kpi al-reveal" style="--d:120ms;">
             <div class="al-kpi-label">Piani in Scadenza</div>
-            <div class="al-kpi-num">{{ expiring_subscriptions|default:"0" }}</div>
+            <div class="al-kpi-num" data-countup="{{ expiring_subscriptions|default:0 }}">{{ expiring_subscriptions|default:"0" }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-clock-countdown text-bronze"></i>
                 <span>Entro 7 giorni</span>
@@ -52,7 +52,7 @@
 
         <div class="al-kpi al-reveal" style="--d:180ms;">
             <div class="al-kpi-label">Appuntamenti Oggi</div>
-            <div class="al-kpi-num">{{ appointments_today|default:"0" }}</div>
+            <div class="al-kpi-num" data-countup="{{ appointments_today|default:0 }}">{{ appointments_today|default:"0" }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-calendar-check text-bronze"></i>
                 <span>In programma</span>

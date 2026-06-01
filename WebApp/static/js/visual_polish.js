@@ -92,5 +92,162 @@
         b.classList.remove('is-loading');
       });
     });
+
+    // 6) Staggered reveal — cascade repeated content (rows/cards/list items)
+    //    into view. Pure class/CSS-var toggles, no business logic.
+    //    Opt-in: [data-stagger] container. Auto: .al-table with a <tbody>.
+    if (!reducedMotion && 'IntersectionObserver' in window) {
+      var STAGGER_CAP = 24; // beyond this, children share the final delay
+      var staggerIO = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          e.target.classList.add('is-in');
+          staggerIO.unobserve(e.target);
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+      // Auto-detect card grids: any container with >=2 direct .al-card
+      // children is a list — arm it like a table. Skip ones whose children
+      // already animate via .al-reveal (base.html) to avoid double motion.
+      var seenParents = [];
+      document.querySelectorAll('.al-card').forEach(function (card) {
+        var p = card.parentElement;
+        if (!p || seenParents.indexOf(p) !== -1) return;
+        seenParents.push(p);
+        if (p.hasAttribute('data-stagger') || p.classList.contains('al-table')) return;
+        var cards = 0, j;
+        for (j = 0; j < p.children.length; j++) {
+          if (p.children[j].classList.contains('al-card')) cards++;
+        }
+        if (cards < 2) return;
+        if (p.querySelector(':scope > .al-reveal, :scope > .al-card.al-reveal')) return;
+        p.setAttribute('data-stagger', '');
+      });
+
+      var staggerTargets = [];
+      document.querySelectorAll('[data-stagger]').forEach(function (el) {
+        staggerTargets.push({ el: el, kids: el.children });
+      });
+      document.querySelectorAll('.al-table').forEach(function (tbl) {
+        var body = tbl.tBodies && tbl.tBodies[0];
+        if (body && body.rows.length) staggerTargets.push({ el: tbl, kids: body.rows });
+      });
+
+      staggerTargets.forEach(function (t) {
+        if (!t.kids || !t.kids.length) return;
+        for (var i = 0; i < t.kids.length; i++) {
+          t.kids[i].style.setProperty('--i', Math.min(i, STAGGER_CAP));
+        }
+        t.el.classList.add('al-armed');
+        staggerIO.observe(t.el);
+      });
+    }
+
+    // 7) Count-up — numeric values tick from 0 to target as they enter view.
+    //    Opt-in: [data-countup="<number>"] (dot decimal). Optional
+    //    data-countup-prefix / data-countup-suffix. Display-only.
+    if (!reducedMotion && 'IntersectionObserver' in window) {
+      var fmt = function (n, decimals) {
+        return n.toLocaleString('it-IT', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals
+        });
+      };
+      var runCountUp = function (el) {
+        var target = parseFloat(el.dataset.countup);
+        if (isNaN(target)) return;
+        var raw = el.dataset.countup.trim();
+        var dot = raw.indexOf('.');
+        var decimals = dot === -1 ? 0 : raw.length - dot - 1;
+        var prefix = el.dataset.countupPrefix || '';
+        var suffix = el.dataset.countupSuffix || '';
+        var dur = 1100, start = null;
+        el.classList.add('is-counting');
+        var step = function (ts) {
+          if (start === null) start = ts;
+          var p = Math.min((ts - start) / dur, 1);
+          var eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+          el.textContent = prefix + fmt(target * eased, decimals) + suffix;
+          if (p < 1) {
+            window.requestAnimationFrame(step);
+          } else {
+            el.textContent = prefix + fmt(target, decimals) + suffix;
+            el.classList.remove('is-counting');
+          }
+        };
+        window.requestAnimationFrame(step);
+      };
+      var countIO = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          runCountUp(e.target);
+          countIO.unobserve(e.target);
+        });
+      }, { threshold: 0.5 });
+      document.querySelectorAll('[data-countup]').forEach(function (el) {
+        countIO.observe(el);
+      });
+    }
+
+    // 8) Filter sliding pill — the active indicator glides between segments
+    //    of any .al-filter (segmented control). Pure positioning of a
+    //    cosmetic element; reads .is-active toggled by the app/Alpine.
+    document.querySelectorAll('.al-filter').forEach(function (filter) {
+      var slider = document.createElement('span');
+      slider.className = 'al-filter-slider';
+      slider.setAttribute('aria-hidden', 'true');
+      filter.insertBefore(slider, filter.firstChild);
+      filter.classList.add('has-slider');
+
+      var placed = false; // first successful placement never animates
+      function place(animate) {
+        var chip = filter.querySelector(
+          '.al-filter-chip.is-active, .al-filter-chip[aria-selected="true"]'
+        );
+        if (!chip) { slider.classList.remove('is-ready'); return; }
+        var doAnimate = animate && placed;
+        if (!doAnimate) slider.style.transition = 'none';
+        slider.style.width = chip.offsetWidth + 'px';
+        slider.style.height = chip.offsetHeight + 'px';
+        slider.style.transform =
+          'translate(' + chip.offsetLeft + 'px,' + chip.offsetTop + 'px)';
+        slider.classList.toggle(
+          'is-bronze',
+          chip.classList.contains('is-bronze') || chip.dataset.tone === 'bronze'
+        );
+        slider.classList.add('is-ready');
+        if (!doAnimate) {
+          void slider.offsetWidth; // flush, then restore transition
+          slider.style.transition = '';
+        }
+        placed = true;
+      }
+
+      // React to active-chip changes and to chips rendered later by Alpine.
+      // Ignore mutations on the slider itself to avoid a feedback loop.
+      var mo = new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          if (muts[i].target !== slider) { place(true); return; }
+        }
+      });
+      mo.observe(filter, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['class', 'aria-selected']
+      });
+
+      // Initial placement — retried across frames for late Alpine renders.
+      place(false);
+      window.requestAnimationFrame(function () { place(false); });
+      setTimeout(function () { place(false); }, 80);
+
+      var rzTicking = false;
+      window.addEventListener('resize', function () {
+        if (rzTicking) return;
+        rzTicking = true;
+        window.requestAnimationFrame(function () { place(false); rzTicking = false; });
+      }, { passive: true });
+    });
   });
 })();

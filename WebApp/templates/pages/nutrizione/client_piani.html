@@ -635,7 +635,7 @@ function nutritionClient(seed) {
         this.hasMore = !!d.has_more;
         this.total = d.total ?? this.total;
       } catch (e) {
-        alert('Errore nel caricamento dello storico.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore nel caricamento dello storico.' });
       } finally {
         this.loading = false;
       }

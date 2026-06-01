@@ -462,6 +462,37 @@
       </template>
     </div>
 
+    <!-- Global confirm/alert dialog host (vedi static/js/confirm.js) -->
+    <div x-data x-cloak>
+      <div x-show="$store.confirm.open"
+           @click.self="$store.confirm.cancel()"
+           @keydown.escape.window="$store.confirm.open && $store.confirm.cancel()"
+           class="al-dlg-backdrop">
+        <div class="al-dlg-panel"
+             :class="$store.confirm.opts.variant === 'neutral' && 'al-dlg-panel--neutral'">
+          <div class="al-dlg-icon-wrap">
+            <div class="al-dlg-icon">
+              <span class="al-dlg-ring-2"></span>
+              <span class="al-dlg-ring"></span>
+              <div class="al-dlg-icon-core"><i class="ph" :class="$store.confirm.opts.icon"></i></div>
+            </div>
+          </div>
+          <h3 class="al-dlg-title" x-text="$store.confirm.opts.title"></h3>
+          <p class="al-dlg-subtitle" x-show="$store.confirm.opts.subtitle" x-text="$store.confirm.opts.subtitle"></p>
+          <div class="al-dlg-divider"></div>
+          <div class="al-dlg-actions">
+            <button type="button" class="al-dlg-btn-cancel"
+                    x-show="$store.confirm.opts.mode !== 'alert'"
+                    @click="$store.confirm.cancel()"
+                    x-text="$store.confirm.opts.cancelLabel"></button>
+            <button type="button" class="al-dlg-btn-confirm" @click="$store.confirm.confirm()">
+              <span x-text="$store.confirm.opts.confirmLabel"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Reveal-on-scroll observer -->
     <script>
       (function () {
@@ -525,6 +556,7 @@
       })();
     </script>
     <script src="{% static 'js/toasts.js' %}?v={{ ASSET_VERSION }}"></script>
+    <script src="{% static 'js/confirm.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/visual_polish.js' %}?v={{ ASSET_VERSION }}" defer></script>
     {% if messages %}
     <script>

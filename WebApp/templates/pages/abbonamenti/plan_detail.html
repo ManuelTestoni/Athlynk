@@ -197,8 +197,13 @@
 </div>
 
 <script>
-function deleteplan(planId) {
-    if (!confirm('Sei sicuro di voler eliminare questo piano? Nessun atleta attivo deve essere presente.')) {
+async function deleteplan(planId) {
+    if (!await window.alConfirm({
+        icon: 'ph-trash',
+        title: 'Eliminare il\npiano?',
+        subtitle: 'Nessun atleta attivo deve essere presente. Operazione irreversibile.',
+        confirmLabel: 'Sì, elimina',
+    })) {
         return;
     }
 
@@ -213,12 +218,12 @@ function deleteplan(planId) {
         if (data.success) {
             window.location.href = '{% url "abbonamenti_dashboard" %}';
         } else {
-            alert('Errore: ' + data.error);
+            Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Errore durante l\'eliminazione del piano');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore durante l\'eliminazione del piano' });
     });
 }
 </script>

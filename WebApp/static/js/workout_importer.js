@@ -453,8 +453,8 @@
       },
 
       // ─── Save (confirm) ─────────────────────────────────
-      reset() {
-        if (!confirm('Vuoi davvero ricominciare? Le modifiche andranno perse.')) return;
+      async reset() {
+        if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ricominciare\nda capo?', subtitle: 'Tutte le modifiche andranno perse.', confirmLabel: 'Sì, ricomincia' })) return;
         this.stopPolling(); this.stopLoadingAnim();
         this.currentStep = 1;
         this.file = null;
@@ -469,7 +469,7 @@
 
       async save() {
         if (this.uncertainCount() > 0) {
-          if (!confirm('Ci sono ' + this.uncertainCount() + ' esercizi non risolti. Risolvi prima di salvare.')) return;
+          await window.alAlert({ variant: 'neutral', icon: 'ph-warning', title: 'Esercizi non\nrisolti', subtitle: 'Ci sono ' + this.uncertainCount() + ' esercizi non risolti. Risolvili prima di salvare.' });
           return;
         }
         this.saving = true;

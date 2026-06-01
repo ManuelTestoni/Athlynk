@@ -193,12 +193,12 @@
       });
       const d = await r.json();
       if (!r.ok) {
-        alert(d.error || 'Errore duplicazione.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: d.error || 'Errore duplicazione.' });
         return;
       }
       window.location.href = d.redirect_url || window.location.href;
     } catch (e) {
-      alert('Errore di rete.');
+      Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
     } finally {
       if (btn) {
         btn.disabled = false;

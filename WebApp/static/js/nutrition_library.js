@@ -163,11 +163,11 @@ function nutritionLibrary() {
           body: JSON.stringify({ title }),
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Errore'); return; }
+        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); return; }
         this.folders.push(data);
         this.selectedFolderId = data.id;
       } catch (e) {
-        alert('Errore di rete.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
       }
       this.cancelCreateFolder();
     },
@@ -191,9 +191,9 @@ function nutritionLibrary() {
           body: JSON.stringify({ title: newTitle }),
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error); this.cancelEditFolder(); return; }
+        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); this.cancelEditFolder(); return; }
         folder.title = data.title;
-      } catch (e) { alert('Errore di rete.'); }
+      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
       this.cancelEditFolder();
     },
 
@@ -242,7 +242,7 @@ function nutritionLibrary() {
         });
         if (!res.ok) {
           const data = await res.json();
-          alert(data.error || 'Errore');
+          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
           return;
         }
         const deletedId = this.folderToDelete.id;
@@ -258,7 +258,7 @@ function nutritionLibrary() {
         }
         this.folders = this.folders.filter(f => f.id !== deletedId);
         if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
-      } catch (e) { alert('Errore di rete.'); }
+      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
       this.deleteFolderOpen = false;
       this.folderToDelete = null;
     },
@@ -289,7 +289,7 @@ function nutritionLibrary() {
           const f = this.folders.find(f => f.id === folderId);
           if (f) f.plan_count += 1;
         }
-      } catch (e) { plan.folder_id = previousFolderId; alert('Errore di rete.'); }
+      } catch (e) { plan.folder_id = previousFolderId; Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
     },
 
     /* === assign === */
@@ -330,7 +330,7 @@ function nutritionLibrary() {
           this.successFlash = false;
         }, 700);
       } else {
-        alert('Errore durante l\'assegnazione.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore durante l\'assegnazione.' });
       }
     },
 

@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     console.error("Errore nel salvataggio dei dati");
-                    alert("Si è verificato un errore durante il salvataggio.");
+                    Alpine.store('toasts').push({ kind: 'danger', msg: 'Si è verificato un errore durante il salvataggio.' });
                 }
             } catch (error) {
                 console.error("Errore di rete:", error);

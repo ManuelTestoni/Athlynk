@@ -549,11 +549,11 @@ function templateBuilder() {
             this.activeStepId = id;
             this.$nextTick(() => { if (this.$refs.stepInput) this.$refs.stepInput.focus(); });
         },
-        deleteStep(id) {
-            if (this.steps.length <= 1) { alert('Deve esistere almeno una sezione.'); return; }
+        async deleteStep(id) {
+            if (this.steps.length <= 1) { await window.alAlert({ variant: 'neutral', icon: 'ph-warning', title: 'Operazione non possibile', subtitle: 'Deve esistere almeno una sezione.' }); return; }
             const qInStep = this.questions.filter(q => q.step_id === id);
             if (qInStep.length > 0) {
-                if (!confirm(`La sezione contiene ${qInStep.length} domande. Verranno spostate alla prima sezione. Continuare?`)) return;
+                if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-right', title: 'Eliminare la\nsezione?', subtitle: `Contiene ${qInStep.length} domande: verranno spostate alla prima sezione.`, confirmLabel: 'Continua' })) return;
                 const remaining = this.steps.find(s => s.id !== id);
                 this.questions = this.questions.map(q => q.step_id === id ? { ...q, step_id: remaining.id } : q);
             }
@@ -699,10 +699,10 @@ function templateBuilder() {
         },
 
         // ── Save / restore ──
-        save() {
-            if (!this.title.trim()) { alert('Il titolo del modello è obbligatorio.'); this.editingTitle = true; return; }
+        async save() {
+            if (!this.title.trim()) { this.editingTitle = true; await window.alAlert({ variant: 'neutral', icon: 'ph-text-aa', title: 'Titolo mancante', subtitle: 'Il titolo del modello è obbligatorio.' }); return; }
             if (this.questions.length === 0) {
-                if (!confirm('Stai salvando un modello senza domande. Continuare?')) return;
+                if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-warning', title: 'Modello senza\ndomande', subtitle: 'Stai salvando un modello senza domande. Continuare?', confirmLabel: 'Salva comunque' })) return;
             }
             document.getElementById('tb-input-title').value = this.title.trim();
             document.getElementById('tb-input-steps').value = JSON.stringify(this.steps);
@@ -711,7 +711,7 @@ function templateBuilder() {
         },
         async restorePreset() {
             {% if template %}
-            if (!confirm('Ripristinare la configurazione di base? Le modifiche verranno perse.')) return;
+            if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ripristinare la\nconfigurazione?', subtitle: 'Tornerà alla configurazione di base. Le modifiche verranno perse.', confirmLabel: 'Sì, ripristina' })) return;
             const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
             try {
                 const res = await fetch('/api/check/modelli/{{ template.id }}/ripristina/', {
@@ -719,8 +719,8 @@ function templateBuilder() {
                 });
                 const data = await res.json();
                 if (data.success) window.location.reload();
-                else alert(data.error || 'Errore');
-            } catch (e) { alert('Errore di rete'); }
+                else Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
+            } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
             {% endif %}
         },
     };

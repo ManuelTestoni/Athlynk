@@ -455,7 +455,7 @@ document.addEventListener('alpine:init', () => {
 
     async deleteAppointment() {
       if (!this.canManage || !this.editingId) return;
-      if (!confirm('Eliminare questo appuntamento?')) return;
+      if (!await window.alConfirm({ icon: 'ph-trash', title: 'Eliminare\nl\'appuntamento?', subtitle: 'L\'appuntamento verrà rimosso dal calendario.', confirmLabel: 'Sì, elimina' })) return;
       try {
         const r = await fetch(`/api/agenda/events/${this.editingId}/`, {
           method: 'DELETE',

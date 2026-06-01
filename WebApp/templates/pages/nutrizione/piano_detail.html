@@ -979,7 +979,7 @@ function planDetail() {
         this.successFlash = true;
         setTimeout(() => window.location.reload(), 700);
       } else {
-        alert('Errore durante l\'assegnazione.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore durante l\'assegnazione.' });
       }
     },
   };

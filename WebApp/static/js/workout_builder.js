@@ -124,11 +124,11 @@ document.addEventListener('alpine:init', () => {
         // ----- SAVE -----
         async saveWorkout(status = "ACTIVE") {
             if (!this.title || !this.selectedClient) {
-                alert("Titolo e cliente obbligatori.");
+                Alpine.store('toasts').push({ kind: 'warn', msg: 'Titolo e cliente obbligatori.' });
                 return;
             }
             if (this.days.length > 20) {
-                alert("Massimo 20 giornate per scheda.");
+                Alpine.store('toasts').push({ kind: 'warn', msg: 'Massimo 20 giornate per scheda.' });
                 return;
             }
 
@@ -165,11 +165,11 @@ document.addEventListener('alpine:init', () => {
                 if (response.ok && data.redirect_url) {
                     window.location.href = data.redirect_url;
                 } else {
-                    alert("Errore: " + (data.error || "Impossibile salvare la scheda"));
+                    Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Impossibile salvare la scheda' });
                 }
             } catch (e) {
                 console.error(e);
-                alert("Errore di rete");
+                Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' });
             } finally {
                 this.isSaving = false;
             }

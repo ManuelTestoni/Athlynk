@@ -32,7 +32,7 @@
 
         <div class="al-kpi al-reveal" style="--d:60ms;">
             <div class="al-kpi-label">Abbonamenti Attivi</div>
-            <div class="al-kpi-num">{{ active_subs }}</div>
+            <div class="al-kpi-num" data-countup="{{ active_subs|default:0 }}">{{ active_subs }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-check-circle text-bronze"></i>
                 <span>In corso</span>
@@ -41,7 +41,7 @@
 
         <div class="al-kpi al-reveal" style="--d:120ms;">
             <div class="al-kpi-label">Piani Disponibili</div>
-            <div class="al-kpi-num">{{ subscription_plans.count }}</div>
+            <div class="al-kpi-num" data-countup="{{ subscription_plans.count|default:0 }}">{{ subscription_plans.count }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-list-dashes text-bronze"></i>
                 <span>Listino</span>
@@ -149,21 +149,17 @@
         <div x-data="{ tab: 'piani' }" class="al-card al-card-flush flex-1 flex flex-col min-h-0 overflow-hidden">
 
             <!-- Tab nav -->
-            <div class="border-b px-6 pt-5" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
-                <nav class="flex gap-6 -mb-px">
-                    <button @click="tab = 'piani'" type="button"
-                            :class="tab === 'piani' ? 'border-bronze text-ink' : 'border-transparent text-ink-mute hover:text-ink'"
-                            class="pb-4 border-b-2 font-medium transition-colors flex items-center gap-2"
-                            style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;">
-                        <i class="ph ph-list-dashes text-base"></i>Listino
+            <div class="px-6 pt-5 pb-2" style="background: var(--al-marble-warm); border-bottom: 1px solid var(--al-rule);">
+                <div class="al-filter" role="tablist" aria-label="Vista abbonamenti">
+                    <button @click="tab = 'piani'" type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': tab === 'piani' }" :aria-selected="tab === 'piani'">
+                        <i class="ph ph-list-dashes"></i>Listino
                     </button>
-                    <button @click="tab = 'iscritti'" type="button"
-                            :class="tab === 'iscritti' ? 'border-bronze text-ink' : 'border-transparent text-ink-mute hover:text-ink'"
-                            class="pb-4 border-b-2 font-medium transition-colors flex items-center gap-2"
-                            style="font-family: var(--al-sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;">
-                        <i class="ph ph-users text-base"></i>Iscritti
+                    <button @click="tab = 'iscritti'" type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': tab === 'iscritti' }" :aria-selected="tab === 'iscritti'">
+                        <i class="ph ph-users"></i>Iscritti
                     </button>
-                </nav>
+                </div>
             </div>
 
             <!-- Tab: Listino -->

@@ -84,7 +84,7 @@
       <p class="al-small" style="color: var(--al-ink-mute);">Invalida l'URL attuale e ne crea uno nuovo. Tutte le sottoscrizioni esistenti smetteranno di funzionare.</p>
     </div>
     <button type="submit" class="al-btn al-btn-danger al-btn-sm"
-            onclick="return confirm('Rigenerare il link? Le iscrizioni esistenti smetteranno di funzionare.');">
+            onclick="event.preventDefault(); var f=this.form; window.alConfirm({ icon: 'ph-arrows-clockwise', title: 'Rigenerare il\nlink?', subtitle: 'Tutte le iscrizioni esistenti smetteranno di funzionare.', confirmLabel: 'Sì, rigenera' }).then(function(ok){ if(ok) f.submit(); });">
       Rigenera
     </button>
   </form>

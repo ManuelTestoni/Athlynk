@@ -164,22 +164,22 @@ window._coachTemplates = {{ coach_templates_json|safe }};
     <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
         <div class="al-kpi al-reveal" style="--d:0ms;">
             <div class="al-kpi-label">Da Revisionare</div>
-            <div class="al-kpi-num">{{ to_review_count }}</div>
+            <div class="al-kpi-num" data-countup="{{ to_review_count|default:0 }}">{{ to_review_count }}</div>
             <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-bell-ringing text-bronze"></i><span>Coda</span></div>
         </div>
         <div class="al-kpi al-reveal" style="--d:60ms;">
             <div class="al-kpi-label">Revisionati</div>
-            <div class="al-kpi-num">{{ reviewed_count }}</div>
+            <div class="al-kpi-num" data-countup="{{ reviewed_count|default:0 }}">{{ reviewed_count }}</div>
             <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-check-circle text-bronze"></i><span>Completati</span></div>
         </div>
         <div class="al-kpi al-reveal" style="--d:120ms;">
             <div class="al-kpi-label">Da Compilare</div>
-            <div class="al-kpi-num">{{ pending_assignments_count }}</div>
+            <div class="al-kpi-num" data-countup="{{ pending_assignments_count|default:0 }}">{{ pending_assignments_count }}</div>
             <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-paper-plane-tilt text-bronze"></i><span>Assegnati</span></div>
         </div>
         <div class="al-kpi al-reveal" style="--d:180ms;">
             <div class="al-kpi-label">Check Programmati</div>
-            <div class="al-kpi-num">{{ upcoming_checks_count }}</div>
+            <div class="al-kpi-num" data-countup="{{ upcoming_checks_count|default:0 }}">{{ upcoming_checks_count }}</div>
             <div class="al-kpi-meta flex items-center gap-2"><i class="ph ph-calendar-check text-bronze"></i><span>In agenda</span></div>
         </div>
     </div>

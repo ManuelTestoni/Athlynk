@@ -269,7 +269,7 @@ function checkFill() {
             this.fileNames[qid] = names;
         },
 
-        submitCheck() {
+        async submitCheck() {
             // Validate required
             const missing = [];
             for (const q of this.questions) {
@@ -284,7 +284,7 @@ function checkFill() {
                 }
             }
             if (missing.length > 0) {
-                alert('Domande obbligatorie mancanti:\n• ' + missing.join('\n• '));
+                await window.alAlert({ variant: 'neutral', icon: 'ph-warning', title: 'Campi\nobbligatori', subtitle: 'Compila le domande mancanti:\n• ' + missing.join('\n• ') });
                 return;
             }
             document.getElementById('input-answers-json').value = JSON.stringify(this.answers);

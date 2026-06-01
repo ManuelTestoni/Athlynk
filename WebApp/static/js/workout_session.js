@@ -469,7 +469,7 @@ function sessionRunner() {
 
     async finalize() {
       if (this.uploadingCount > 0) {
-        alert('Attendi il completamento del caricamento media…');
+        Alpine.store('toasts').push({ kind: 'warn', msg: 'Attendi il completamento del caricamento media…' });
         return;
       }
       this.finalizing = true;
@@ -486,7 +486,7 @@ function sessionRunner() {
         window.location.href = this.urls.back;
       } catch (e) {
         this.finalizing = false;
-        alert('Errore salvataggio.');
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore salvataggio.' });
       }
     },
 

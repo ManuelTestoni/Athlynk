@@ -101,13 +101,56 @@
         box-shadow: var(--al-shadow-3);
         z-index: 2;
         border-radius: 22px;
+        overflow: hidden;
       }
+      /* The panel reuses .al-page's generic lift; here we override it with a
+         richer, slightly slower rise + soft scale for a premium entrance. */
+      .auth-panel.al-page {
+        animation: al-auth-rise 0.92s var(--al-ease-emp) backwards;
+      }
+      @keyframes al-auth-rise {
+        from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.965); }
+        60%  { opacity: 1; }
+        to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+      }
+
+      /* Bronze top hairline — sweeps open from the centre. */
       .auth-panel::before {
         content: '';
         position: absolute;
         top: 0; left: 0; right: 0;
         height: 2px;
         background: linear-gradient(90deg, transparent, var(--al-bronze), transparent);
+        transform: scaleX(0);
+        transform-origin: center;
+        animation: al-auth-rule 1s var(--al-ease-out) 0.28s backwards;
+      }
+      @keyframes al-auth-rule {
+        to { transform: scaleX(1); }
+      }
+
+      /* One-pass light glaze — a single luxe sheen crossing the panel. */
+      .auth-panel::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(
+          105deg,
+          transparent 32%,
+          rgba(255, 255, 255, 0.42) 47%,
+          rgba(200, 167, 116, 0.20) 53%,
+          transparent 68%
+        );
+        background-size: 240% 100%;
+        background-position: 180% 0;
+        opacity: 0;
+        animation: al-auth-glaze 1.5s var(--al-ease-out) 0.38s backwards;
+      }
+      @keyframes al-auth-glaze {
+        0%   { opacity: 0; background-position: 180% 0; }
+        20%  { opacity: 1; }
+        100% { opacity: 0; background-position: -90% 0; }
       }
 
       .auth-mark { width: 38px; height: 38px; }

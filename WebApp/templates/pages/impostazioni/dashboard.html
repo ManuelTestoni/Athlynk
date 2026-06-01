@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 
 {% block title %}Impostazioni{% endblock %}
+{% block page_id %}impostazioni{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ activeTab: '{{ active_tab|default:"profilo" }}', showDeleteModal: false, showResetPwModal: false }">
+<div class="max-w-7xl mx-auto" x-data="{ activeTab: '{{ active_tab|default:"profilo" }}', showDeleteModal: false }">
 
     <!-- Header -->
     <div class="mb-8">
@@ -310,7 +311,9 @@
                         </div>
                     </div>
 
-                    <button type="button" @click="showResetPwModal = true" class="al-btn al-btn-bronze">
+                    <button type="button" class="al-btn al-btn-bronze"
+                            data-email="{{ auth_user.email }}"
+                            @click="window.alConfirm({ variant: 'neutral', icon: 'ph-paper-plane-tilt', title: 'Invia link\ndi reset?', subtitle: 'Riceverai una mail a ' + $el.dataset.email + ' con un link valido 30 minuti per impostare una nuova password.', confirmLabel: 'Sì, invia link' }).then(ok => ok && $refs.resetPwForm.submit())">
                         <i class="ph ph-paper-plane-tilt text-sm"></i>
                         <span>Invia link di reset</span>
                     </button>
@@ -480,39 +483,11 @@
         </div>
     </div>
 
-    <!-- Modal: conferma invio reset password -->
-    <div x-show="showResetPwModal" x-cloak
-         class="al-modal-backdrop"
-         x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end"
-         x-transition:leave="al-fade-leave" x-transition:leave-start="al-fade-leave-start" x-transition:leave-end="al-fade-leave-end"
-         @click.self="showResetPwModal = false"
-         @keydown.escape.window="showResetPwModal = false">
-        <div class="al-modal-panel max-w-md w-full"
-             x-show="showResetPwModal"
-             x-transition:enter="al-pop-enter" x-transition:enter-start="al-pop-enter-start" x-transition:enter-end="al-pop-enter-end"
-             x-transition:leave="al-pop-leave" x-transition:leave-start="al-pop-leave-start" x-transition:leave-end="al-pop-leave-end">
-            <form method="POST" action="{% url 'request_password_reset' %}">
-                {% csrf_token %}
-                <input type="hidden" name="from_settings" value="1">
-                <div class="p-6 border-b" style="border-color: var(--al-rule);">
-                    <div class="flex items-center gap-3">
-                        <span class="w-10 h-10 flex items-center justify-center" style="background: var(--al-marble-warm); border-radius: var(--al-r-sm);">
-                            <i class="ph-fill ph-paper-plane-tilt text-xl text-bronze"></i>
-                        </span>
-                        <h3 class="al-h-3">Invia link di reset</h3>
-                    </div>
-                    <p class="al-small mt-3">Riceverai una mail a <strong>{{ auth_user.email }}</strong> con un link valido 30 minuti per impostare una nuova password.</p>
-                </div>
-                <div class="p-6 border-t flex justify-end gap-3" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
-                    <button type="button" @click="showResetPwModal = false" class="al-btn al-btn-ghost">Annulla</button>
-                    <button type="submit" class="al-btn al-btn-bronze">
-                        <i class="ph ph-paper-plane-tilt text-sm"></i>
-                        <span>Invia link</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- Form nascosto: invio reset password (conferma via window.alConfirm) -->
+    <form method="POST" action="{% url 'request_password_reset' %}" x-ref="resetPwForm" class="hidden">
+        {% csrf_token %}
+        <input type="hidden" name="from_settings" value="1">
+    </form>
 
 </div>
 {% endblock %}

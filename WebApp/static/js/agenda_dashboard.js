@@ -121,7 +121,7 @@ document.addEventListener('alpine:init', () => {
 
         async saveAppointment() {
             if(!this.newEvent.title || !this.newEvent.client_id || !this.newEvent.start_datetime || !this.newEvent.end_datetime) {
-                alert("Completa i campi obbligatori (Titolo, Cliente, Inizio, Fine).");
+                Alpine.store('toasts').push({ kind: 'warn', msg: 'Completa i campi obbligatori (Titolo, Cliente, Inizio, Fine).' });
                 return;
             }
 
@@ -140,14 +140,14 @@ document.addEventListener('alpine:init', () => {
                 
                 const data = await response.json();
                 if(response.ok) {
-                    alert("Appuntamento salvato con successo!");
+                    Alpine.store('toasts').push({ kind: 'success', msg: 'Appuntamento salvato con successo!' });
                     window.location.reload(); // Semplice ricarica per mostrare l'evento
                 } else {
-                    alert("Errore: " + (data.error || "Impossibile salvare"));
+                    Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Impossibile salvare' });
                 }
             } catch (e) {
                 console.error(e);
-                alert("Errore di rete");
+                Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' });
             }
         },
 
@@ -162,10 +162,10 @@ document.addEventListener('alpine:init', () => {
         },
 
         connectGoogle() {
-            alert('Reindirizzamento OAuth a Google Calendar...');
+            Alpine.store('toasts').push({ kind: 'info', msg: 'Reindirizzamento OAuth a Google Calendar...' });
         },
         connectApple() {
-            alert('Apertura popup per credenziali iCloud Calendar (caldav)...');
+            Alpine.store('toasts').push({ kind: 'info', msg: 'Apertura popup per credenziali iCloud Calendar (caldav)...' });
         }
     }));
 });

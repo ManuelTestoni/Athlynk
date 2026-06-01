@@ -29,14 +29,14 @@
 
 <div class="max-w-7xl mx-auto" x-data="{
     async restore(id) {
-        if (!confirm('Ripristinare il modello alla configurazione di base? Le modifiche andranno perse.')) return;
+        if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ripristinare il\nmodello?', subtitle: 'Tornerà alla configurazione di base. Le modifiche andranno perse.', confirmLabel: 'Sì, ripristina' })) return;
         await this.call('/api/check/modelli/' + id + '/ripristina/');
     },
     async duplicate(id) {
         await this.call('/api/check/modelli/' + id + '/duplica/');
     },
     async remove(id) {
-        if (!confirm('Eliminare definitivamente questo modello?')) return;
+        if (!await window.alConfirm({ icon: 'ph-trash', title: 'Eliminare il\nmodello?', subtitle: 'Verrà rimosso definitivamente. Operazione irreversibile.', confirmLabel: 'Sì, elimina' })) return;
         await this.call('/api/check/modelli/' + id + '/elimina/');
     },
     async call(url) {
@@ -45,8 +45,8 @@
             const res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf } });
             const data = await res.json();
             if (data.success) { window.location.reload(); }
-            else { alert(data.error || 'Errore'); }
-        } catch (e) { alert('Errore di rete'); }
+            else { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); }
+        } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
     }
 }">
 

@@ -341,10 +341,10 @@ function nutritionWizard() {
              at init, undoing every change persisted via Avanti / Salva bozza
              during this edit session. The original draft survives untouched.   */
       const createdNow = this._createdInSession;
-      const msg = createdNow
-        ? 'Uscire senza salvare? Il piano appena creato verrà eliminato.'
-        : 'Annullare le modifiche di questa sessione? Verrà ripristinata l\'ultima versione salvata.';
-      if (!confirm(msg)) return;
+      const ok = await window.alConfirm(createdNow
+        ? { icon: 'ph-trash', title: 'Uscire senza\nsalvare?', subtitle: 'Il piano appena creato verrà eliminato.', confirmLabel: 'Sì, esci' }
+        : { variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Annullare le\nmodifiche?', subtitle: 'Verrà ripristinata l\'ultima versione salvata.', confirmLabel: 'Sì, annulla' });
+      if (!ok) return;
 
       this.saving = true;
       try {
@@ -470,11 +470,11 @@ function nutritionWizard() {
         items: [],
       });
     },
-    removeMeal(key) {
+    async removeMeal(key) {
       const i = this.meals.findIndex(m => m._key === key);
       if (i < 0) return;
       if (this.meals[i].items.length > 0) {
-        if (!confirm('Eliminare il pasto e i suoi alimenti?')) return;
+        if (!await window.alConfirm({ icon: 'ph-trash', title: 'Eliminare il\npasto?', subtitle: 'Il pasto e tutti i suoi alimenti verranno rimossi.', confirmLabel: 'Sì, elimina' })) return;
       }
       this.meals.splice(i, 1);
     },
