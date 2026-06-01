@@ -34,9 +34,10 @@ class Food(models.Model):
     leucina_mg = models.FloatField(default=0, db_column='Leucina(mg)')
     valina_mg = models.FloatField(default=0, db_column='Valina(mg)')
     lattosio_g = models.FloatField(default=0, db_column='Lattosio(g)')
+    genericity_score = models.FloatField(default=0.0, db_index=True, db_column='Genericity_Score')
 
     class Meta:
-        ordering = ['nome_alimento']
+        ordering = ['-genericity_score', 'nome_alimento']
 
     def __str__(self):
         return self.nome_alimento
@@ -314,6 +315,10 @@ class ClientMacroLogEntry(models.Model):
     )
     # Null for DAILY plans; the weekday code (MONDAY…) for WEEKLY plans.
     day_of_week = models.CharField(max_length=10, choices=DAY_CHOICES, null=True, blank=True)
+    # Calendar date this entry was logged for. Entries are locked after midnight.
+    log_date = models.DateField(null=True, blank=True, db_index=True)
+    # Meal group name (e.g. "Colazione", "Pranzo"). Null for legacy entries.
+    meal_name = models.CharField(max_length=100, null=True, blank=True)
     food = models.ForeignKey(Food, on_delete=models.CASCADE, null=True, blank=True)
     raw_name = models.CharField(max_length=200, null=True, blank=True)
     quantity_g = models.FloatField()
@@ -324,6 +329,7 @@ class ClientMacroLogEntry(models.Model):
         ordering = ['created_at', 'id']
         indexes = [
             models.Index(fields=['assignment', 'day_of_week']),
+            models.Index(fields=['assignment', 'log_date'], name='nutrition_c_assign_logdate_idx'),
         ]
 
     @property

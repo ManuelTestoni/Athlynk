@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ date_display_day }}, {{ date_display_full }} — {{ plan.title }}{% endblock %}
+
+{% block content %}
+<script>
+  window.MACRO_LOG_DAY_INIT = {
+    entries: {{ log_json|safe }},
+    target:  {{ day_target_json|safe }},
+  };
+</script>
+
+<style>
+  /* ══ Day-detail page ═══════════════════════════════════════════ */
+
+  @keyframes mld-fadein {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes mld-reveal-bar {
+    from { width: 0; }
+  }
+
+  .mld-back {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-family: var(--al-mono); font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .14em;
+    color: var(--al-ink-mute); text-decoration: none;
+    transition: color var(--al-d-snap);
+  }
+  .mld-back:hover { color: var(--al-bronze); }
+
+  /* Hero */
+  .mld-hero {
+    position: relative; overflow: hidden;
+    border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
+    padding: 2.25rem 2rem 2rem; margin: 1.25rem 0 1.5rem;
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(138,106,58,.18) 0%, transparent 55%),
+      radial-gradient(ellipse at 0% 100%, rgba(28,74,82,.12) 0%, transparent 55%),
+      linear-gradient(150deg, var(--al-ink) 0%, #1e1a15 55%, #2d2619 100%);
+    animation: mld-fadein var(--al-d-page) var(--al-ease-out) both;
+  }
+  .mld-hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.016) 0 1px, transparent 1px 4px);
+  }
+  .mld-hero-eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: var(--al-mono); font-size: .62rem; font-weight: 700;
+    letter-spacing: .28em; text-transform: uppercase; color: var(--al-bronze);
+    margin-bottom: .75rem;
+  }
+  .mld-hero-eyebrow::before { content: ''; width: 22px; height: 1px; background: var(--al-bronze); }
+  .mld-hero-dow {
+    font-family: var(--al-mono); font-size: .72rem; font-weight: 700;
+    letter-spacing: .22em; text-transform: uppercase;
+    color: rgba(244,239,228,.45); margin-bottom: .2rem;
+  }
+  .mld-hero-date {
+    font-family: var(--al-display); font-size: clamp(1.9rem, 4.5vw, 2.8rem);
+    line-height: 1.04; letter-spacing: -.02em;
+    color: var(--al-parchment); margin: 0 0 .5rem; position: relative;
+  }
+  .mld-hero-meta { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .85rem; }
+  .mld-chip {
+    display: inline-flex; align-items: center; gap: .35rem; padding: .28rem .65rem;
+    background: rgba(244,239,228,.06); border: 1px solid rgba(244,239,228,.12);
+    border-radius: 999px; font-size: .7rem; color: rgba(244,239,228,.75);
+  }
+  .mld-chip i { color: var(--al-bronze); font-size: .85rem; }
+
+  /* Summary board */
+  .mld-board {
+    border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
+    background: white; padding: 1.4rem 1.5rem; margin-bottom: 1.25rem;
+    animation: mld-fadein var(--al-d-page) var(--al-ease-out) .08s both;
+  }
+  .mld-board-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;
+  }
+  .mld-board-head h2 { font-family: var(--al-display); font-size: 1.25rem; color: var(--al-ink); margin: 0; }
+  .mld-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.4rem; }
+  @media (max-width: 560px) { .mld-gauges { grid-template-columns: 1fr; } }
+
+  .mld-gauge-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: .35rem; }
+  .mld-gauge-label {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .78rem; font-weight: 600; color: var(--al-ink);
+  }
+  .mld-gauge-label .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .mld-gauge-val { font-family: var(--al-mono); font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .mld-gauge-val strong { font-size: 1rem; color: var(--al-ink); }
+  .mld-gauge-val small { color: var(--al-ink-mute); }
+  .mld-gauge-track { height: 7px; border-radius: 999px; background: var(--al-marble); overflow: hidden; }
+  .mld-gauge-fill {
+    height: 100%; border-radius: 999px;
+    animation: mld-reveal-bar var(--al-d-slow) var(--al-ease-out) .3s both;
+    transition: background .2s;
+  }
+  .mld-gauge-foot {
+    margin-top: .28rem; font-family: var(--al-mono); font-size: .63rem;
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+
+  /* No-target banner */
+  .mld-no-target {
+    padding: .7rem 1rem; border-radius: var(--al-r-sm);
+    background: var(--al-marble); border-left: 3px solid var(--al-rule);
+    font-size: .82rem; color: var(--al-ink-mute);
+    font-family: var(--al-mono); letter-spacing: .04em;
+  }
+
+  /* Food list */
+  .mld-foods {
+    border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
+    background: white; overflow: hidden;
+    animation: mld-fadein var(--al-d-page) var(--al-ease-out) .14s both;
+  }
+  .mld-foods-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.4rem; border-bottom: 1px solid var(--al-rule-faint);
+    background: var(--al-parchment);
+  }
+  .mld-foods-head h3 { font-family: var(--al-display); font-size: 1.1rem; color: var(--al-ink); margin: 0; }
+  .mld-foods-count {
+    font-family: var(--al-mono); font-size: .65rem; letter-spacing: .1em;
+    background: var(--al-marble); color: var(--al-ink-mute);
+    padding: .22rem .65rem; border-radius: 999px;
+  }
+
+  .mld-entry {
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 1rem;
+    padding: .72rem 1.4rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+    animation: mld-fadein var(--al-d-base) var(--al-ease-out) both;
+  }
+  .mld-entry:last-child { border-bottom: none; }
+  .mld-entry:hover { background: var(--al-parchment); }
+  .mld-entry-name { font-size: .9rem; font-weight: 500; color: var(--al-ink); }
+  .mld-entry-cat { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--al-ink-mute); margin-top: .1rem; }
+  .mld-entry-right { text-align: right; flex-shrink: 0; }
+  .mld-entry-qty {
+    font-family: var(--al-mono); font-size: .82rem; font-weight: 600; color: var(--al-ink);
+    margin-bottom: .12rem;
+  }
+  .mld-entry-macros {
+    font-family: var(--al-mono); font-size: .65rem; display: flex; gap: .45rem;
+    justify-content: flex-end; flex-wrap: wrap;
+  }
+  .mld-entry-macros .k { color: var(--al-bronze); font-weight: 700; }
+  .mld-entry-macros .p { color: var(--al-aegean); }
+  .mld-entry-macros .c { color: var(--al-warn); }
+  .mld-entry-macros .f { color: var(--al-danger); }
+
+  /* Empty state */
+  .mld-empty {
+    padding: 2.5rem 1.5rem; text-align: center;
+    color: var(--al-ink-mute); font-size: .88rem;
+  }
+
+  /* Divider line */
+  .mld-rule {
+    display: flex; align-items: center; gap: .75rem;
+    margin: 1.5rem 0 1rem; color: var(--al-ink-mute);
+    font-family: var(--al-mono); font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
+  }
+  .mld-rule::before, .mld-rule::after {
+    content: ''; flex: 1; height: 1px; background: var(--al-rule);
+  }
+</style>
+
+<div class="max-w-4xl mx-auto"
+     x-data="macroLogDay()"
+     x-init="init()">
+
+  <!-- Back navigation -->
+  <a href="{% url 'nutrizione_client_detail' assignment.id %}" class="mld-back">
+    <i class="ph ph-arrow-left"></i> {{ plan.title }}
+  </a>
+
+  <!-- Date hero -->
+  <section class="mld-hero">
+    <span class="mld-hero-eyebrow">Diario storico</span>
+    <p class="mld-hero-dow">{{ date_display_day }}</p>
+    <h1 class="mld-hero-date">{{ date_display_full }}</h1>
+    <div class="mld-hero-meta">
+      <span class="mld-chip"><i class="ph ph-lock-simple"></i> Giornata chiusa</span>
+      <span class="mld-chip"><i class="ph ph-fork-knife"></i>
+        <span x-text="entries.length + ' ' + (entries.length === 1 ? 'alimento' : 'alimenti')"></span>
+      </span>
+      <span class="mld-chip" x-show="target.kcal > 0">
+        <i class="ph ph-target"></i>
+        <span x-text="'Obiettivo: ' + target.kcal + ' kcal'"></span>
+      </span>
+    </div>
+  </section>
+
+  <!-- Macro summary -->
+  <section class="mld-board">
+    <div class="mld-board-head">
+      <div>
+        <p class="al-eyebrow" style="color:var(--al-ink-mute);">Riepilogo</p>
+        <h2>Macronutrienti giornata</h2>
+      </div>
+      <span x-show="!target.kcal && !target.prot && !target.carb && !target.fat"
+            class="mld-no-target">Nessun obiettivo impostato</span>
+    </div>
+
+    <div class="mld-gauges">
+      <template x-for="row in [
+          {k:'kcal', l:'Energia',     u:'kcal', c:'var(--al-bronze)', dec:0},
+          {k:'prot', l:'Proteine',    u:'g',    c:'var(--al-aegean)', dec:1},
+          {k:'carb', l:'Carboidrati', u:'g',    c:'var(--al-warn)',   dec:1},
+          {k:'fat',  l:'Grassi',      u:'g',    c:'var(--al-danger)', dec:1}
+        ]" :key="row.k">
+        <div>
+          <div class="mld-gauge-top">
+            <span class="mld-gauge-label">
+              <span class="dot" :style="'background:' + row.c"></span>
+              <span x-text="row.l"></span>
+            </span>
+            <span class="mld-gauge-val">
+              <strong x-text="row.dec ? r1(totals()[row.k]) : r0(totals()[row.k])"></strong>
+              <small x-text="' / ' + (target[row.k] || 0) + ' ' + row.u" x-show="target[row.k] > 0"></small>
+              <small x-text="' ' + row.u" x-show="!target[row.k]"></small>
+            </span>
+          </div>
+          <div class="mld-gauge-track">
+            <div class="mld-gauge-fill"
+                 :style="'width:' + pct(totals()[row.k], target[row.k]) + '%; background:' + barColor(totals()[row.k], target[row.k])">
+            </div>
+          </div>
+          <p class="mld-gauge-foot"
+             :style="overPct(totals()[row.k], target[row.k]) ? 'color:var(--al-danger);' : 'color:var(--al-ink-mute);'"
+             x-show="target[row.k] > 0"
+             x-text="overPct(totals()[row.k], target[row.k])
+               ? ('+' + Math.abs(remaining(totals()[row.k], target[row.k])) + ' ' + row.u + ' oltre il target')
+               : (remaining(totals()[row.k], target[row.k]) + ' ' + row.u + ' al target')">
+          </p>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <div class="mld-rule">Alimenti registrati</div>
+
+  <!-- Food list -->
+  <div class="mld-foods">
+    <div class="mld-foods-head">
+      <h3>Diario alimentare</h3>
+      <span class="mld-foods-count"
+            x-text="entries.length + ' voci'"></span>
+    </div>
+
+    <template x-if="entries.length === 0">
+      <div class="mld-empty">
+        <i class="ph ph-fork-knife" style="font-size:2rem; color:var(--al-rule);"></i>
+        <p class="mt-2">Nessun alimento registrato in questa giornata.</p>
+      </div>
+    </template>
+
+    <template x-for="(entry, i) in entries" :key="entry.id">
+      <div class="mld-entry" :style="`animation-delay: ${200 + i * 40}ms`">
+        <div>
+          <p class="mld-entry-name" x-text="entry.food_name"></p>
+          <p class="mld-entry-cat" x-show="entry.category" x-text="entry.category"></p>
+        </div>
+        <div class="mld-entry-right">
+          <p class="mld-entry-qty" x-text="entry.quantity_g + ' g'"></p>
+          <div class="mld-entry-macros">
+            <span class="k" x-text="r0(entryMacros(entry).kcal) + ' kcal'"></span>
+            <span class="p" x-text="'P ' + r1(entryMacros(entry).prot)"></span>
+            <span class="c" x-text="'C ' + r1(entryMacros(entry).carb)"></span>
+            <span class="f" x-text="'G ' + r1(entryMacros(entry).fat)"></span>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+</div>
+
+<script>
+function macroLogDay() {
+  const INIT = window.MACRO_LOG_DAY_INIT || {};
+  return {
+    entries: INIT.entries || [],
+    target: INIT.target || { kcal: 0, prot: 0, carb: 0, fat: 0 },
+
+    init() {},
+
+    entryMacros(e) {
+      const q = parseFloat(e.quantity_g) || 0;
+      return {
+        kcal: (e.kcal_per_100g  || 0) * q / 100,
+        prot: (e.protein_per_100g || 0) * q / 100,
+        carb: (e.carb_per_100g  || 0) * q / 100,
+        fat:  (e.fat_per_100g   || 0) * q / 100,
+      };
+    },
+    totals() {
+      const t = { kcal: 0, prot: 0, carb: 0, fat: 0 };
+      this.entries.forEach(e => {
+        const m = this.entryMacros(e);
+        t.kcal += m.kcal; t.prot += m.prot; t.carb += m.carb; t.fat += m.fat;
+      });
+      return t;
+    },
+    r0(n) { return Math.round(n || 0); },
+    r1(n) { return Math.round((n || 0) * 10) / 10; },
+    pct(consumed, tgt) {
+      if (!tgt || tgt <= 0) return 0;
+      return Math.min(100, Math.round((consumed / tgt) * 100));
+    },
+    overPct(consumed, tgt) { return tgt > 0 && consumed > tgt; },
+    remaining(consumed, tgt) { return Math.round((tgt || 0) - (consumed || 0)); },
+    barColor(consumed, tgt) {
+      if (!tgt) return 'var(--al-rule)';
+      const p = consumed / tgt;
+      if (p > 1.08) return 'var(--al-danger)';
+      if (p >= 0.85) return 'var(--al-bronze)';
+      return 'var(--al-aegean)';
+    },
+  };
+}
+window.macroLogDay = macroLogDay;
+</script>
+
+{% endblock %}

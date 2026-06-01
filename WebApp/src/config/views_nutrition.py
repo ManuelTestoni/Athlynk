@@ -1,6 +1,9 @@
 import json
 import threading
 import uuid
+import calendar as cal_lib
+from datetime import date, timedelta
+from collections import defaultdict
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -12,7 +15,7 @@ from config.session_utils import (
 )
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
-from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper
+from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
 from domain.nutrition.models import (
     Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
     NutritionAssignment, DietDay, ClientMacroLogEntry,
@@ -1009,9 +1012,23 @@ def api_food_search(request):
     q = request.GET.get('q', '').strip()
     category = request.GET.get('cat', '').strip()
 
+    food_search_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
     foods = Food.objects.all()
+    if food_search_mode == 'media':
+        foods = foods.filter(nome_alimento__icontains='media')
+    else:
+        foods = foods.exclude(nome_alimento__icontains='media')
     if q:
         foods = foods.filter(nome_alimento__icontains=q)
+        # Query-dependent relevance: exact > starts-with > word-boundary > contains.
+        # Tiebroken by the precomputed query-independent genericity_score (desc).
+        foods = foods.annotate(relevance=Case(
+            When(nome_alimento__iexact=q, then=Value(4)),
+            When(nome_alimento__istartswith=q, then=Value(3)),
+            When(nome_alimento__icontains=f' {q}', then=Value(2)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )).order_by('-relevance', '-genericity_score', 'nome_alimento')
     if category:
         foods = foods.filter(categoria_alimento=category)
     foods = foods[:30]
@@ -1175,6 +1192,8 @@ def _macro_log_json(entry):
     return {
         'id': entry.id,
         'day_of_week': WEEKDAY_REVERSE.get(entry.day_of_week) if entry.day_of_week else None,
+        'log_date': entry.log_date.isoformat() if entry.log_date else None,
+        'meal_name': entry.meal_name or '',
         'food_id': entry.food_id,
         'food_name': food.nome_alimento if food else (entry.raw_name or ''),
         'category': (food.categoria_alimento or '') if food else '',
@@ -1189,9 +1208,13 @@ def _macro_log_json(entry):
 def _render_client_macro_detail(request, assignment, plan):
     """Client-facing view for a MACRO plan: coach targets + the client's own
     food log with live macro totals (computed front-end)."""
+    today = date.today()
     targets = _plan_macro_targets(plan)
     entries = (
-        assignment.macro_log.select_related('food').all()
+        assignment.macro_log
+        .filter(log_date=today)
+        .select_related('food')
+        .all()
     )
     log_json = json.dumps([_macro_log_json(e) for e in entries])
 
@@ -1208,6 +1231,7 @@ def _render_client_macro_detail(request, assignment, plan):
         'log_json': log_json,
         'week_days_json': json.dumps(week_days),
         'is_weekly': plan.plan_kind == 'WEEKLY',
+        'today_str': today.isoformat(),
     })
 
 
@@ -1257,11 +1281,15 @@ def api_macro_log_create(request, assignment_id):
         if not day_code:
             return JsonResponse({'error': 'Giorno non valido'}, status=400)
 
+    meal_name = (data.get('meal_name') or '').strip()[:100] or None
+
     entry = ClientMacroLogEntry.objects.create(
         assignment=assignment,
         day_of_week=day_code,
+        log_date=date.today(),
         food=food,
         quantity_g=qty,
+        meal_name=meal_name,
     )
     return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
 
@@ -1275,6 +1303,9 @@ def api_macro_log_detail(request, entry_id):
         ClientMacroLogEntry, id=entry_id, assignment__client=client,
     )
 
+    if entry.log_date and entry.log_date < date.today():
+        return JsonResponse({'error': 'Non puoi modificare un giorno passato'}, status=403)
+
     if request.method == "DELETE":
         entry.delete()
         return JsonResponse({'ok': True})
@@ -1283,6 +1314,7 @@ def api_macro_log_detail(request, entry_id):
         data = json.loads(request.body)
     except ValueError:
         return JsonResponse({'error': 'JSON non valido'}, status=400)
+    update_fields = []
     if 'quantity_g' in data:
         try:
             qty = float(data.get('quantity_g'))
@@ -1291,8 +1323,140 @@ def api_macro_log_detail(request, entry_id):
         if qty <= 0:
             return JsonResponse({'error': 'La quantità deve essere positiva'}, status=400)
         entry.quantity_g = qty
-        entry.save(update_fields=['quantity_g', 'updated_at'])
+        update_fields.append('quantity_g')
+    if 'meal_name' in data:
+        entry.meal_name = (data.get('meal_name') or '').strip()[:100] or None
+        update_fields.append('meal_name')
+    if update_fields:
+        entry.save(update_fields=update_fields + ['updated_at'])
     return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
+
+
+@require_http_methods(['GET'])
+def api_macro_log_history(request, assignment_id):
+    """Last 7 closed days grouped by log_date, including per-day targets."""
+    client, err = _require_client_json(request)
+    if err:
+        return err
+    assignment = get_object_or_404(
+        NutritionAssignment, id=assignment_id, client=client,
+    )
+    if assignment.nutrition_plan.plan_mode != 'MACRO':
+        return JsonResponse({'error': 'Piano non compatibile'}, status=400)
+
+    today = date.today()
+    cutoff = today - timedelta(days=7)
+    entries = (
+        assignment.macro_log
+        .filter(log_date__isnull=False, log_date__lt=today, log_date__gte=cutoff)
+        .select_related('food')
+        .order_by('-log_date', 'created_at')
+    )
+
+    plan = assignment.nutrition_plan
+    targets_raw = _plan_macro_targets(plan)
+    day_targets_map = {}
+    if plan.plan_kind == 'WEEKLY':
+        for d in targets_raw.get('days', []):
+            day_targets_map[d['day_of_week']] = {
+                'kcal': d['kcal'] or 0,
+                'prot': d['protein'] or 0,
+                'carb': d['carb'] or 0,
+                'fat': d['fat'] or 0,
+            }
+
+    by_date = defaultdict(list)
+    for e in entries:
+        by_date[e.log_date.isoformat()].append(_macro_log_json(e))
+
+    _MONTHS_IT_SHORT = ['', 'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
+                        'lug', 'ago', 'set', 'ott', 'nov', 'dic']
+    _DAYS_IT_SHORT = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
+
+    history = []
+    for d_str, items in sorted(by_date.items(), reverse=True):
+        d_obj = date.fromisoformat(d_str)
+        if plan.plan_kind == 'DAILY':
+            target = {
+                'kcal': plan.daily_kcal or 0,
+                'prot': plan.protein_target_g or 0,
+                'carb': plan.carb_target_g or 0,
+                'fat': plan.fat_target_g or 0,
+            }
+        else:
+            dow = cal_lib.day_name[d_obj.weekday()].upper()
+            target = day_targets_map.get(dow, {'kcal': 0, 'prot': 0, 'carb': 0, 'fat': 0})
+        history.append({
+            'date': d_str,
+            'dow_short': _DAYS_IT_SHORT[d_obj.weekday()].upper(),
+            'date_short': f"{d_obj.day} {_MONTHS_IT_SHORT[d_obj.month].upper()}",
+            'entries': items,
+            'target': target,
+        })
+    return JsonResponse({'history': history})
+
+
+def macro_log_day_view(request, assignment_id, date_str):
+    """Full-page detail for one closed day's macro log."""
+    from django.http import Http404
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    client = get_session_client(request)
+    if not client:
+        return redirect('dashboard')
+
+    try:
+        log_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise Http404
+
+    if log_date >= date.today():
+        raise Http404
+
+    assignment = get_object_or_404(NutritionAssignment, id=assignment_id, client=client)
+    plan = assignment.nutrition_plan
+    if plan.plan_mode != 'MACRO':
+        raise Http404
+
+    entries = list(
+        assignment.macro_log
+        .filter(log_date=log_date)
+        .select_related('food')
+        .order_by('created_at')
+    )
+    log_json = json.dumps([_macro_log_json(e) for e in entries])
+
+    if plan.plan_kind == 'DAILY':
+        day_target = {
+            'kcal': plan.daily_kcal or 0,
+            'prot': plan.protein_target_g or 0,
+            'carb': plan.carb_target_g or 0,
+            'fat': plan.fat_target_g or 0,
+        }
+    else:
+        dow = cal_lib.day_name[log_date.weekday()].upper()
+        day_obj = plan.days.filter(day_of_week=dow).first()
+        day_target = {
+            'kcal': (day_obj.target_kcal or 0) if day_obj else 0,
+            'prot': (day_obj.target_protein_g or 0) if day_obj else 0,
+            'carb': (day_obj.target_carb_g or 0) if day_obj else 0,
+            'fat': (day_obj.target_fat_g or 0) if day_obj else 0,
+        }
+
+    _MONTHS_IT = ['', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+                  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+    _DAYS_IT = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+
+    return render(request, 'pages/nutrizione/client_piano_macro_day.html', {
+        'assignment': assignment,
+        'plan': plan,
+        'log_date': log_date,
+        'date_display_day': _DAYS_IT[log_date.weekday()],
+        'date_display_full': f"{log_date.day} {_MONTHS_IT[log_date.month]} {log_date.year}",
+        'log_json': log_json,
+        'day_target_json': json.dumps(day_target),
+    })
 
 
 # ─── Internal helpers ────────────────────────────────────────────────────────────

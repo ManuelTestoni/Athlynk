@@ -1,0 +1,14 @@
+Ciao {{ client_name }}!
+
+La giornata sta per finire e il tuo diario alimentare non è ancora completo.
+
+{% if plan_title %}Piano: {{ plan_title }}{% endif %}
+
+Ricorda: puoi aggiungere gli alimenti fino a mezzanotte di oggi. Dopo non sarà più possibile modificare il giorno corrente.
+
+Apri il diario → {{ plan_url }}
+
+---
+Non vuoi più ricevere questi promemoria? Gestisci le tue preferenze qui: {{ settings_url }}
+
+© Athlynk · {{ site_url }}

@@ -139,6 +139,27 @@ def send_nutrition_assigned(client_profile, coach_profile, plan, plan_url):
     )
 
 
+def send_macro_reminder(client_profile, plan, plan_url):
+    """Remind a client to complete their macro log before midnight."""
+    user = getattr(client_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    if not user.email_pref('macro_reminder', True):
+        return False
+    settings_url = f"{settings.SITE_URL}{reverse('settings_notifications')}"
+    return send_html_mail(
+        to=user.email,
+        subject='Ricordati di compilare il diario alimentare oggi · Athlynk',
+        template_base='macro_reminder',
+        context={
+            'client_name': _client_display_name(client_profile),
+            'plan_title': getattr(plan, 'title', '') or '',
+            'plan_url': plan_url,
+            'settings_url': settings_url,
+        },
+    )
+
+
 def send_newsletter_confirm(subscriber):
     """Double opt-in confirmation email."""
     confirm_url = f"{settings.SITE_URL}{reverse('newsletter_confirm', args=[subscriber.confirm_token])}"

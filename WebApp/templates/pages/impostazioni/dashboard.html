@@ -20,6 +20,7 @@
         <span>
             {% if saved == 'profilo' %}Profilo aggiornato.
             {% elif saved == 'sicurezza' %}Password aggiornata.
+            {% elif saved == 'nutrizione' %}Preferenza nutrizione salvata.
             {% else %}Impostazioni salvate.{% endif %}
         </span>
     </div>
@@ -54,6 +55,12 @@
                         class="al-vtab flex items-center px-4 py-3 text-left w-full"
                         style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-envelope text-base mr-3"></i>Newsletter
+                </button>
+                <button @click="activeTab = 'nutrizione'" type="button"
+                        :class="{ 'is-active': activeTab === 'nutrizione' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
+                    <i class="ph ph-leaf text-base mr-3"></i>Nutrizione
                 </button>
 
                 {% if is_coach %}
@@ -393,10 +400,54 @@
                 </div>
             </div>
 
+            <!-- Nutrizione -->
+            <div x-show="activeTab === 'nutrizione'" class="p-6 md:p-8" x-cloak>
+                <div class="al-section-head">
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">04</p>
+                    <h2 class="al-h-2 mt-1">Nutrizione</h2>
+                    <p class="al-small mt-2">Scegli come cercare gli alimenti nella banca dati. La scelta è esclusiva.</p>
+                </div>
+
+                <form method="POST" action="{% url 'impostazioni_dashboard' %}" class="mt-6 space-y-5 max-w-md">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="nutrizione">
+
+                    <p class="al-label">Modalità di ricerca alimenti</p>
+
+                    <label class="flex items-start gap-4 p-4 cursor-pointer"
+                           style="border: 1px solid {% if food_search_mode == 'alimento' or not food_search_mode %}var(--al-bronze){% else %}var(--al-rule){% endif %}; border-radius: var(--al-r-sm); background: {% if food_search_mode == 'alimento' or not food_search_mode %}var(--al-marble-warm){% else %}transparent{% endif %};">
+                        <input type="radio" name="food_search_mode" value="alimento"
+                               {% if food_search_mode == 'alimento' or not food_search_mode %}checked{% endif %}
+                               class="mt-0.5 shrink-0" style="accent-color: var(--al-bronze);">
+                        <div>
+                            <p class="font-semibold text-ink text-[14px]">Alimenti specifici</p>
+                            <p class="al-small mt-0.5">Cerca tra tutti gli alimenti individuali nella banca dati (es. «Petto di pollo», «Riso bianco cotto»). Escludi le medie di categoria.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-4 p-4 cursor-pointer"
+                           style="border: 1px solid {% if food_search_mode == 'media' %}var(--al-bronze){% else %}var(--al-rule){% endif %}; border-radius: var(--al-r-sm); background: {% if food_search_mode == 'media' %}var(--al-marble-warm){% else %}transparent{% endif %};">
+                        <input type="radio" name="food_search_mode" value="media"
+                               {% if food_search_mode == 'media' %}checked{% endif %}
+                               class="mt-0.5 shrink-0" style="accent-color: var(--al-bronze);">
+                        <div>
+                            <p class="font-semibold text-ink text-[14px]">Medie di categoria</p>
+                            <p class="al-small mt-0.5">Cerca solo tra le medie per gruppo alimentare (es. «Carne bovina, media», «Formaggi freschi, media»). Utile per stime rapide.</p>
+                        </div>
+                    </label>
+
+                    <div class="flex justify-end pt-2 border-t" style="border-color: var(--al-rule);">
+                        <button type="submit" class="al-btn al-btn-bronze">
+                            <i class="ph ph-floppy-disk text-sm"></i><span>Salva preferenza</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Elimina account -->
             <div x-show="activeTab === 'elimina'" class="p-6 md:p-8" x-cloak>
                 <div class="al-section-head">
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">04</p>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">05</p>
                     <h2 class="al-h-2 mt-1" style="color: #b91c1c;">Elimina account</h2>
                     <p class="al-small mt-2">Operazione irreversibile. Tutti i tuoi dati saranno rimossi dalla piattaforma.</p>
                 </div>

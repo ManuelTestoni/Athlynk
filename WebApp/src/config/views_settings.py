@@ -49,6 +49,16 @@ def impostazioni_view(request):
                 client.save()
                 return redirect(f"{request.path}?saved=profilo")
 
+            if action == 'nutrizione':
+                mode = request.POST.get('food_search_mode', 'alimento')
+                if mode not in ('alimento', 'media'):
+                    mode = 'alimento'
+                prefs = dict(user.email_prefs or {})
+                prefs['food_search_mode'] = mode
+                user.email_prefs = prefs
+                user.save(update_fields=['email_prefs', 'updated_at'])
+                return redirect(f"{request.path}?saved=nutrizione")
+
         saved = request.GET.get('saved')
         if saved and not error:
             active_tab = saved
@@ -66,6 +76,7 @@ def impostazioni_view(request):
             'saved': saved,
             'newsletter_status': _newsletter_status(user.email),
             'reset_request_sent': reset_request_sent,
+            'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
         })
 
     # COACH
@@ -100,6 +111,16 @@ def impostazioni_view(request):
             coach.save()
             return redirect(f"{request.path}?saved=profilo")
 
+        if action == 'nutrizione':
+            mode = request.POST.get('food_search_mode', 'alimento')
+            if mode not in ('alimento', 'media'):
+                mode = 'alimento'
+            prefs = dict(user.email_prefs or {})
+            prefs['food_search_mode'] = mode
+            user.email_prefs = prefs
+            user.save(update_fields=['email_prefs', 'updated_at'])
+            return redirect(f"{request.path}?saved=nutrizione")
+
     saved = request.GET.get('saved')
     if saved and not error:
         active_tab = saved
@@ -117,6 +138,7 @@ def impostazioni_view(request):
         'saved': saved,
         'newsletter_status': _newsletter_status(user.email),
         'reset_request_sent': reset_request_sent,
+        'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
     })
 
 
