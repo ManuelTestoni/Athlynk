@@ -1,24 +1,22 @@
 //
 //  ContentView.swift
-//  Athlynk
-//
-//  Created by Manuel Testoni on 01/06/2026.
+//  Root router: splash → login → main app, cross-faded.
 //
 
 import SwiftUI
+import Combine
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @EnvironmentObject var app: AppState
 
-#Preview {
-    ContentView()
+    var body: some View {
+        ZStack {
+            switch app.phase {
+            case .splash: SplashView()
+            case .login:  LoginView()
+            case .app:    MainTabView()
+            }
+        }
+        .animation(.spring(response: 0.7, dampingFraction: 0.85), value: app.phase)
+    }
 }

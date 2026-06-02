@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- DEV ONLY: the athlete app talks to the Django backend over plain HTTP on
+	     http://localhost:8000. App Transport Security blocks cleartext by
+	     default, so we open an exception scoped to localhost. Remove / tighten
+	     before shipping a production build that hits an HTTPS host.
+
+	     This file lives in the project root (NOT inside the Athlynk/ synchronized
+	     group) so it is consumed only as INFOPLIST_FILE and never auto-added to
+	     Copy Bundle Resources, which would cause "Multiple commands produce
+	     Info.plist". -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+</dict>
+</plist>

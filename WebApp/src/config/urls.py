@@ -39,6 +39,7 @@ from . import views_newsletter
 from . import views_legal
 from . import views_consent
 from . import views_chiron
+from . import api as mobile_api
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -261,4 +262,15 @@ urlpatterns = [
     path('api/notifications/unread-count/', views_notifications.api_notifications_unread_count, name='notifications_unread_count'),
     path('api/notifications/<int:notification_id>/read/', views_notifications.api_notification_mark_read, name='notification_mark_read'),
     path('api/notifications/read-all/', views_notifications.api_notifications_mark_all_read, name='notifications_mark_all_read'),
+
+    # Mobile API v1 (Athlete iOS app) — token auth, JSON only
+    path('api/v1/auth/login', mobile_api.login, name='api_v1_login'),
+    path('api/v1/me', mobile_api.me, name='api_v1_me'),
+    path('api/v1/workouts', mobile_api.workouts, name='api_v1_workouts'),
+    path('api/v1/nutrition', mobile_api.nutrition, name='api_v1_nutrition'),
+    path('api/v1/checks', mobile_api.checks, name='api_v1_checks'),
+    path('api/v1/notifications', mobile_api.notifications, name='api_v1_notifications'),
+    path('api/v1/conversations', mobile_api.conversations, name='api_v1_conversations'),
+    path('api/v1/conversations/<int:conversation_id>/messages', mobile_api.messages, name='api_v1_messages'),
+    path('api/v1/conversations/<int:conversation_id>/send', mobile_api.send_message, name='api_v1_send_message'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
