@@ -1,99 +1,130 @@
 //
 //  NutritionView.swift
-//  Active nutrition plan: macro target rings + meal breakdown.
+//  Stitch "Piani Nutrizionali": plan summary cards (ATTIVO badge, daily target,
+//  macro split, Pro/Car/Fat columns) + meal breakdown for the active plan.
 //
 
 import SwiftUI
 
 struct NutritionView: View {
+    @EnvironmentObject var app: AppState
     @State private var plans: [NutritionPlanDTO] = []
     @State private var loading = true
     @State private var error: String?
     @State private var appear = false
 
     var body: some View {
-        ScreenScroll {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("CARBURANTE").voltEyebrow()
-                GlitchText(text: "FUEL", size: 56)
-            }
-            .revealUp(appear, index: 0)
+        NavigationStack {
+            ScreenScroll {
+                ScreenHeader(eyebrow: "Alimentazione",
+                             title: "I TUOI\nPIANI",
+                             subtitle: "I tuoi piani nutrizionali attivi e i target giornalieri di macro.",
+                             initials: initials,
+                             accent: Palette.lime)
+                    .revealUp(appear, index: 0)
 
-            if loading {
-                LoadingPanel(text: "Carico il piano…")
-            } else if let error {
-                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
-            } else if let plan = plans.first {
-                macroBoard(plan).revealUp(appear, index: 1)
-                mealsSection(plan)
-            } else {
-                EmptyPanel(icon: "fork.knife", text: "Nessun piano nutrizionale attivo.")
+                NavigationLink { SupplementsView() } label: { supplementsLink }
+                    .buttonStyle(PressableButtonStyle())
+                    .revealUp(appear, index: 1)
+
+                if loading {
+                    LoadingPanel(text: "Carico il piano…")
+                } else if let error {
+                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
+                } else if plans.isEmpty {
+                    EmptyPanel(icon: "fork.knife", text: "Nessun piano nutrizionale attivo.")
+                } else {
+                    ForEach(Array(plans.enumerated()), id: \.element.id) { i, plan in
+                        planCard(plan, active: i == 0).revealUp(appear, index: i + 2)
+                    }
+                    if let plan = plans.first {
+                        mealsSection(plan)
+                    }
+                }
+            }
+            .navigationDestination(for: MealDTO.self) { meal in
+                MealDetailView(meal: meal)
             }
         }
+        .tint(Palette.lime)
         .onAppear { appear = true }
         .task { await load() }
         .refreshable { await load() }
     }
 
-    private func macroBoard(_ plan: NutritionPlanDTO) -> some View {
+    private var supplementsLink: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(Palette.amber.opacity(0.16))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "pills.fill")
+                    .font(.system(size: 20, weight: .black)).foregroundStyle(Palette.amber)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Integratori").font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                Text("Il tuo protocollo")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+            }
+            Spacer()
+            Image(systemName: "arrow.up.right").font(.system(size: 15, weight: .black))
+                .foregroundStyle(Palette.amber)
+        }
+        .padding(16).voltPanel(Palette.amber.opacity(0.35))
+    }
+
+    private func planCard(_ plan: NutritionPlanDTO, active: Bool) -> some View {
         let kcal = plan.dailyKcal ?? dayTotalsKcal(plan)
-        return VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if active { StatusBadge(text: "Attivo", color: Palette.lime) }
                     Text(plan.title).font(Typo.display(22)).foregroundStyle(Palette.textHi)
-                    Text(plan.planMode == "MACRO" ? "MODALITÀ MACRO" : "MODALITÀ ALIMENTI")
-                        .font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.lime)
                 }
                 Spacer()
                 if let coach = plan.coach { CoachChip(coach: coach, color: Palette.lime) }
             }
 
-            HStack(alignment: .top, spacing: 0) {
-                bigKcal(kcal)
-                Divider().frame(height: 70).overlay(Palette.line)
-                VStack(spacing: 12) {
-                    macroBar("PROTEINE", plan.proteinTargetG, Palette.magenta)
-                    macroBar("CARBO", plan.carbTargetG, Palette.cyan)
-                    macroBar("GRASSI", plan.fatTargetG, Palette.amber)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.leading, 16)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("TARGET GIORNALIERO")
+                    .font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(Palette.textLow)
+                Spacer()
+                Text("\(kcal)").font(Typo.poster(28)).foregroundStyle(Palette.lime)
+                Text("kcal").font(Typo.mono(11, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
+            }
+
+            if let split = macroSplit(plan) {
+                Text("MACROS  \(split)")
+                    .font(Typo.mono(10, .bold)).tracking(2).foregroundStyle(Palette.textMid)
+            }
+
+            HStack(spacing: 10) {
+                macroCol("PRO", plan.proteinTargetG, Palette.magenta)
+                macroCol("CARB", plan.carbTargetG, Palette.cyan)
+                macroCol("FAT", plan.fatTargetG, Palette.amber)
             }
         }
         .padding(18)
         .voltPanel(Palette.lime.opacity(0.4))
     }
 
-    private func bigKcal(_ kcal: Int) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            RollingNumber(value: kcal, size: 44, color: Palette.lime)
-            Text("KCAL / GIORNO").font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
-        }
-        .frame(width: 130, alignment: .leading)
-    }
-
-    private func macroBar(_ label: String, _ grams: Int?, _ color: Color) -> some View {
-        HStack(spacing: 10) {
-            Text(label).font(Typo.mono(9, .bold)).tracking(1)
-                .foregroundStyle(Palette.textMid).frame(width: 64, alignment: .leading)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Palette.void2)
-                    Capsule().fill(color)
-                        .frame(width: geo.size.width * fraction(grams))
-                        .neonGlow(color, radius: 5)
-                }
-            }
-            .frame(height: 7)
+    private func macroCol(_ label: String, _ grams: Int?, _ color: Color) -> some View {
+        VStack(spacing: 3) {
             Text(grams.map { "\($0)g" } ?? "—")
-                .font(Typo.mono(12, .bold)).foregroundStyle(Palette.textHi)
-                .frame(width: 42, alignment: .trailing)
+                .font(Typo.mono(18, .black)).foregroundStyle(color)
+            Text(label).font(Typo.mono(8, .bold)).tracking(1).foregroundStyle(Palette.textLow)
         }
+        .frame(maxWidth: .infinity).padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Palette.void2))
     }
 
-    private func fraction(_ g: Int?) -> CGFloat {
-        guard let g else { return 0 }
-        return min(CGFloat(g) / 300.0, 1)   // visual scale only
+    /// kcal-based macro split, e.g. "40/40/20" (P/C/F).
+    private func macroSplit(_ plan: NutritionPlanDTO) -> String? {
+        guard let p = plan.proteinTargetG, let c = plan.carbTargetG, let f = plan.fatTargetG else { return nil }
+        let pk = Double(p * 4), ck = Double(c * 4), fk = Double(f * 9)
+        let total = pk + ck + fk
+        guard total > 0 else { return nil }
+        func pct(_ v: Double) -> Int { Int((v / total * 100).rounded()) }
+        return "\(pct(pk))/\(pct(ck))/\(pct(fk))"
     }
 
     @ViewBuilder
@@ -102,7 +133,9 @@ struct NutritionView: View {
         if !meals.isEmpty {
             Text("PASTI").voltEyebrow().padding(.top, 6).revealUp(appear, index: 2)
             ForEach(Array(meals.enumerated()), id: \.element.id) { i, meal in
-                mealCard(meal, index: i).revealUp(appear, index: i + 3)
+                NavigationLink(value: meal) { mealCard(meal, index: i) }
+                    .buttonStyle(PressableButtonStyle())
+                    .revealUp(appear, index: i + 3)
             }
         }
     }
@@ -135,6 +168,13 @@ struct NutritionView: View {
 
     private func dayTotalsKcal(_ plan: NutritionPlanDTO) -> Int {
         Int((plan.days.first?.meals.reduce(0) { $0 + $1.kcal }) ?? 0)
+    }
+
+    private var initials: String {
+        let f = app.user?.firstName.first.map(String.init) ?? ""
+        let l = app.user?.lastName.first.map(String.init) ?? ""
+        let s = (f + l).uppercased()
+        return s.isEmpty ? "A" : s
     }
 
     private func load() async {

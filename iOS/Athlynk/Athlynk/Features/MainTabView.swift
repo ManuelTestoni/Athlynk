@@ -86,3 +86,61 @@ struct EmptyPanel: View {
         .voltPanel()
     }
 }
+
+/// Stitch "Monumental Stack" header: mono eyebrow + serif display title + body
+/// subtitle, with an optional initials avatar pinned top-right (the wordmark/
+/// account-icon row from the mockups).
+struct ScreenHeader: View {
+    var eyebrow: String
+    var title: String
+    var subtitle: String? = nil
+    var initials: String? = nil
+    var accent: Color = Palette.bronze
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                Text(eyebrow)
+                    .font(Typo.mono(11, .semibold)).tracking(3)
+                    .textCase(.uppercase).foregroundStyle(accent)
+                Spacer()
+                if let initials {
+                    Circle()
+                        .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: 40, height: 40)
+                        .overlay(Text(initials).font(Typo.poster(16)).foregroundStyle(Palette.void0))
+                        .neonGlow(Palette.amber, radius: 8)
+                }
+            }
+            Text(title)
+                .font(Typo.poster(46)).foregroundStyle(Palette.textHi)
+                .lineLimit(2).minimumScaleFactor(0.55)
+                .fixedSize(horizontal: false, vertical: true)
+            if let subtitle {
+                Text(subtitle)
+                    .font(Typo.body(14)).foregroundStyle(Palette.textMid)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Rectangle().fill(accent).frame(height: 1).opacity(0.5)   // bronze hairline rule
+        }
+    }
+}
+
+/// Small rectangular status pill (Stitch "ATTIVO" / "DA COMPILARE" badges).
+struct StatusBadge: View {
+    var text: String
+    var color: Color = Palette.lime
+    var filled: Bool = true
+
+    var body: some View {
+        Text(text)
+            .font(Typo.mono(9, .black)).tracking(1).textCase(.uppercase)
+            .foregroundStyle(filled ? Palette.void0 : color)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background {
+                if filled { Capsule().fill(color) }
+                else { Capsule().stroke(color, lineWidth: 1) }
+            }
+    }
+}

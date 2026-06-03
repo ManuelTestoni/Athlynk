@@ -1,11 +1,13 @@
 //
 //  WorkoutsView.swift
-//  Active training plans → day cards → push into a live day.
+//  Stitch "I Tuoi Programmi": training plans as summary cards (ATTIVO badge,
+//  date range, elapsed progress). Tapping a card opens the full plan detail.
 //
 
 import SwiftUI
 
 struct WorkoutsView: View {
+    @EnvironmentObject var app: AppState
     @State private var plans: [WorkoutPlanDTO] = []
     @State private var loading = true
     @State private var error: String?
@@ -14,11 +16,16 @@ struct WorkoutsView: View {
     var body: some View {
         NavigationStack {
             ScreenScroll {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("PROGRAMMA").voltEyebrow()
-                    GlitchText(text: "TRAIN", size: 56)
-                }
-                .revealUp(appear, index: 0)
+                ScreenHeader(eyebrow: "Programma",
+                             title: "I TUOI\nPROGRAMMI",
+                             subtitle: "Sfoglia le tue schede di allenamento. Continua il tuo viaggio verso la forza e l'equilibrio.",
+                             initials: initials,
+                             accent: Palette.magenta)
+                    .revealUp(appear, index: 0)
+
+                NavigationLink { WorkoutHistoryView() } label: { historyLink }
+                    .buttonStyle(PressableButtonStyle())
+                    .revealUp(appear, index: 1)
 
                 if loading {
                     LoadingPanel(text: "Carico le schede…")
@@ -28,12 +35,17 @@ struct WorkoutsView: View {
                     EmptyPanel(icon: "dumbbell", text: "Nessuna scheda attiva.\nIl tuo coach non te ne ha ancora assegnata una.")
                 } else {
                     ForEach(Array(plans.enumerated()), id: \.element.id) { i, plan in
-                        planCard(plan).revealUp(appear, index: i + 1)
+                        NavigationLink(value: plan) { planSummaryCard(plan) }
+                            .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: i + 2)
                     }
                 }
             }
-            .navigationDestination(for: WorkoutDayDTO.self) { day in
-                WorkoutDayView(day: day)
+            .navigationDestination(for: WorkoutPlanDTO.self) { plan in
+                WorkoutPlanDetailView(plan: plan)
+            }
+            .navigationDestination(for: ExerciseDTO.self) { ex in
+                ExerciseDetailView(exercise: ex)
             }
         }
         .tint(Palette.magenta)
@@ -42,19 +54,33 @@ struct WorkoutsView: View {
         .refreshable { await load() }
     }
 
-    private func planCard(_ plan: WorkoutPlanDTO) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private func planSummaryCard(_ plan: WorkoutPlanDTO) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
+                    StatusBadge(text: "Attivo", color: Palette.magenta)
                     Text(plan.title).font(Typo.display(24)).foregroundStyle(Palette.textHi)
-                    if let goal = plan.goal {
-                        Text(goal.uppercased())
-                            .font(Typo.mono(10, .bold)).tracking(2).foregroundStyle(Palette.magenta)
+                    if let range = plan.dateRangeLabel {
+                        Text(range).font(Typo.mono(11)).foregroundStyle(Palette.textMid)
                     }
                 }
                 Spacer()
-                if let coach = plan.coach {
-                    CoachChip(coach: coach, color: Palette.magenta)
+                Image(systemName: "arrow.up.right").font(.system(size: 15, weight: .black))
+                    .foregroundStyle(Palette.magenta)
+            }
+
+            if let pct = plan.progressFraction {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(Int(pct * 100))% Completato")
+                        .font(Typo.mono(10, .bold)).tracking(1).foregroundStyle(Palette.magenta)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Palette.void2)
+                            Capsule().fill(Palette.magenta)
+                                .frame(width: geo.size.width * pct).neonGlow(Palette.magenta, radius: 5)
+                        }
+                    }
+                    .frame(height: 5)
                 }
             }
 
@@ -64,33 +90,31 @@ struct WorkoutsView: View {
                 if let d = plan.durationWeeks { metricPill("\(d)", "SETTIM", Palette.violet) }
             }
 
-            VStack(spacing: 10) {
-                ForEach(plan.days) { day in
-                    NavigationLink(value: day) { dayRow(day) }
-                        .buttonStyle(PressableButtonStyle())
-                }
+            if let coach = plan.coach {
+                HStack { Spacer(); CoachChip(coach: coach, color: Palette.magenta) }
             }
         }
-        .padding(18)
-        .voltPanel(Palette.magenta.opacity(0.4))
+        .padding(18).voltPanel(Palette.magenta.opacity(0.4))
     }
 
-    private func dayRow(_ day: WorkoutDayDTO) -> some View {
+    private var historyLink: some View {
         HStack(spacing: 14) {
-            Text("\(day.dayOrder)")
-                .font(Typo.poster(30)).foregroundStyle(Palette.magenta)
-                .frame(width: 38)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(Palette.violet.opacity(0.16))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 20, weight: .black)).foregroundStyle(Palette.violet)
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(day.label).font(Typo.display(17)).foregroundStyle(Palette.textHi)
-                Text("\(day.exercises.count) esercizi" + (day.focusArea.map { " · \($0)" } ?? ""))
+                Text("Storico allenamenti").font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                Text("Le sessioni completate")
                     .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
             }
             Spacer()
-            Image(systemName: "play.fill").font(.system(size: 14, weight: .black))
-                .foregroundStyle(Palette.magenta)
+            Image(systemName: "arrow.up.right").font(.system(size: 15, weight: .black))
+                .foregroundStyle(Palette.violet)
         }
-        .padding(.vertical, 12).padding(.horizontal, 14)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Palette.void2))
+        .padding(16).voltPanel(Palette.violet.opacity(0.35))
     }
 
     private func metricPill(_ v: String, _ l: String, _ c: Color) -> some View {
@@ -102,11 +126,40 @@ struct WorkoutsView: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Palette.void2))
     }
 
+    private var initials: String {
+        let f = app.user?.firstName.first.map(String.init) ?? ""
+        let l = app.user?.lastName.first.map(String.init) ?? ""
+        let s = (f + l).uppercased()
+        return s.isEmpty ? "A" : s
+    }
+
     private func load() async {
         loading = true; error = nil
         do { plans = try await APIClient.shared.workouts() }
         catch { self.error = error.localizedDescription }
         loading = false
+    }
+}
+
+/// Derived schedule window + elapsed progress from start_date + duration_weeks.
+extension WorkoutPlanDTO {
+    var startDateParsed: Date? { startDate.flatMap(ISO8601.parse) }
+    var endDateParsed: Date? {
+        guard let s = startDateParsed, let w = durationWeeks else { return nil }
+        return Calendar.current.date(byAdding: .day, value: w * 7, to: s)
+    }
+    var dateRangeLabel: String? {
+        guard let s = startDateParsed else { return nil }
+        let f = DateFormatter(); f.locale = Locale(identifier: "it_IT"); f.dateFormat = "d MMM"
+        guard let e = endDateParsed else { return f.string(from: s) }
+        let y = DateFormatter(); y.dateFormat = "yyyy"
+        return "\(f.string(from: s)) - \(f.string(from: e)) \(y.string(from: e))"
+    }
+    var progressFraction: CGFloat? {
+        guard let s = startDateParsed, let e = endDateParsed else { return nil }
+        let total = e.timeIntervalSince(s)
+        guard total > 0 else { return nil }
+        return CGFloat(min(max(Date().timeIntervalSince(s) / total, 0), 1))
     }
 }
 

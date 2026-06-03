@@ -314,3 +314,345 @@ struct MessageDTO: Codable, Identifiable, Hashable {
 }
 
 struct MessagesResponse: Codable { let messages: [MessageDTO] }
+
+// MARK: - Subscription (Il Mio Abbonamento)
+
+struct SubscriptionPlanDTO: Codable, Hashable, Identifiable {
+    let id: Int
+    let name: String
+    let planType: String?
+    let description: String?
+    let price: Double
+    let currency: String
+    let durationDays: Int?
+    let billingInterval: String?
+    let includedServices: [String]
+    let coach: Coach?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, price, currency, coach
+        case planType = "plan_type"
+        case durationDays = "duration_days"
+        case billingInterval = "billing_interval"
+        case includedServices = "included_services"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        planType = try c.decodeIfPresent(String.self, forKey: .planType)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        price = (try? c.decode(Double.self, forKey: .price)) ?? 0
+        currency = (try? c.decode(String.self, forKey: .currency)) ?? "EUR"
+        durationDays = try c.decodeIfPresent(Int.self, forKey: .durationDays)
+        billingInterval = try c.decodeIfPresent(String.self, forKey: .billingInterval)
+        // included_services is a free-form JSON field: tolerate non-string arrays.
+        includedServices = (try? c.decode([String].self, forKey: .includedServices)) ?? []
+        coach = try c.decodeIfPresent(Coach.self, forKey: .coach)
+    }
+}
+
+struct SubscriptionDTO: Codable, Hashable {
+    let id: Int
+    let status: String
+    let paymentStatus: String?
+    let startDate: String?
+    let endDate: String?
+    let autoRenew: Bool
+    let plan: SubscriptionPlanDTO
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, plan
+        case paymentStatus = "payment_status"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case autoRenew = "auto_renew"
+    }
+}
+
+struct SubscriptionResponse: Codable { let subscription: SubscriptionDTO? }
+
+// MARK: - Appointments (Agenda)
+
+struct AppointmentDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let type: String?
+    let title: String
+    let description: String?
+    let start: String?
+    let end: String?
+    let durationMinutes: Int?
+    let location: String?
+    let meetingUrl: String?
+    let status: String?
+    let coach: Coach?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, title, description, start, end, location, status, coach
+        case durationMinutes = "duration_minutes"
+        case meetingUrl = "meeting_url"
+    }
+}
+
+struct AppointmentsResponse: Codable { let appointments: [AppointmentDTO] }
+
+// MARK: - Progress (check history)
+
+struct ProgressPhotoDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let url: String
+    let type: String?
+    let capturedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, url, type
+        case capturedAt = "captured_at"
+    }
+}
+
+struct ProgressEntryDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let submittedAt: String?
+    let weightKg: Double?
+    let coachFeedback: String?
+    let notes: String?
+    let photos: [ProgressPhotoDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case id, notes, photos
+        case submittedAt = "submitted_at"
+        case weightKg = "weight_kg"
+        case coachFeedback = "coach_feedback"
+    }
+}
+
+struct ProgressResponse: Codable { let entries: [ProgressEntryDTO] }
+
+// MARK: - Editable profile
+
+struct ClientProfileDTO: Codable, Hashable {
+    let firstName: String
+    let lastName: String
+    let phone: String?
+    let heightCm: Int?
+    let primaryGoal: String?
+    let activityLevel: String?
+    let gender: String?
+    let birthDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case phone, gender
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case heightCm = "height_cm"
+        case primaryGoal = "primary_goal"
+        case activityLevel = "activity_level"
+        case birthDate = "birth_date"
+    }
+}
+
+struct ProfileResponse: Codable { let profile: ClientProfileDTO }
+
+// MARK: - Workout history (Storico Allenamenti)
+
+struct WorkoutSessionDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let dayLabel: String
+    let focusArea: String?
+    let startedAt: String?
+    let endedAt: String?
+    let durationMinutes: Int?
+    let avgRpe: Double?
+    let completed: Bool
+    let interrupted: Bool
+    let setCount: Int
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, completed, interrupted, notes
+        case dayLabel = "day_label"
+        case focusArea = "focus_area"
+        case startedAt = "started_at"
+        case endedAt = "ended_at"
+        case durationMinutes = "duration_minutes"
+        case avgRpe = "avg_rpe"
+        case setCount = "set_count"
+    }
+}
+
+struct WorkoutHistoryResponse: Codable { let sessions: [WorkoutSessionDTO] }
+
+// MARK: - Supplements (Integratori)
+
+struct SupplementItemDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let category: String?
+    let unit: String?
+    let dose: String
+    let timing: String?
+    let notes: String?
+}
+
+struct SupplementSheetDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let notes: String?
+    let coach: Coach?
+    let items: [SupplementItemDTO]
+}
+
+struct SupplementsResponse: Codable { let sheets: [SupplementSheetDTO] }
+
+// MARK: - Coach detail (Profilo Coach)
+
+struct CoachDetailDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let firstName: String
+    let lastName: String
+    let professionalType: String?
+    let specialization: String?
+    let city: String?
+    let profileImageUrl: String?
+    let bio: String?
+    let description: String?
+    let certifications: String?
+    let yearsExperience: Int?
+    let socialInstagram: String?
+    let socialYoutube: String?
+    let socialWebsite: String?
+
+    var fullName: String { "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces) }
+
+    enum CodingKeys: String, CodingKey {
+        case id, city, bio, description, certifications
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case professionalType = "professional_type"
+        case specialization
+        case profileImageUrl = "profile_image_url"
+        case yearsExperience = "years_experience"
+        case socialInstagram = "social_instagram"
+        case socialYoutube = "social_youtube"
+        case socialWebsite = "social_website"
+    }
+}
+
+struct CoachDetailResponse: Codable { let coach: CoachDetailDTO }
+
+// MARK: - Settings (Impostazioni)
+
+struct SettingToggleDTO: Codable, Identifiable, Hashable {
+    let key: String
+    let label: String
+    let desc: String
+    let enabled: Bool
+    var id: String { key }
+}
+
+struct SettingsDTO: Codable, Hashable {
+    let email: String
+    let notifications: [SettingToggleDTO]
+}
+
+struct SettingsResponse: Codable { let settings: SettingsDTO }
+
+// MARK: - Plans on offer (Piani e Prezzi)
+
+struct PlansResponse: Codable { let plans: [SubscriptionPlanDTO] }
+
+// MARK: - Active session (Sessione Attiva)
+
+struct SessionExerciseDTO: Codable, Identifiable, Hashable {
+    let workoutExerciseId: Int
+    let name: String
+    let targetMuscleGroup: String?
+    let sets: Int
+    let reps: String
+    let loadValue: Double?
+    let loadUnit: String?
+    let recoverySeconds: Int?
+    let notes: String?
+
+    var id: Int { workoutExerciseId }
+
+    enum CodingKeys: String, CodingKey {
+        case name, sets, reps, notes
+        case workoutExerciseId = "workout_exercise_id"
+        case targetMuscleGroup = "target_muscle_group"
+        case loadValue = "load_value"
+        case loadUnit = "load_unit"
+        case recoverySeconds = "recovery_seconds"
+    }
+}
+
+struct LoggedSetDTO: Codable, Hashable {
+    let workoutExerciseId: Int
+    let setNumber: Int
+    let repsDone: Int?
+    let loadUsed: Double?
+    let loadUnit: String?
+    let rpe: Int?
+    let completed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case rpe, completed
+        case workoutExerciseId = "workout_exercise_id"
+        case setNumber = "set_number"
+        case repsDone = "reps_done"
+        case loadUsed = "load_used"
+        case loadUnit = "load_unit"
+    }
+}
+
+struct SessionStartDTO: Codable {
+    let sessionId: Int
+    let exercises: [SessionExerciseDTO]
+    let setsLogged: [LoggedSetDTO]
+    let startedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case exercises
+        case sessionId = "session_id"
+        case setsLogged = "sets_logged"
+        case startedAt = "started_at"
+    }
+}
+
+// MARK: - Anamnesis (Questionario Anamnesi, read-only)
+
+struct AnamnesisDTO: Codable, Hashable {
+    let id: Int
+    let date: String?
+    let age: Int?
+    let weightKg: Double?
+    let heightCm: Double?
+    let medicalHistory: String?
+    let medications: String?
+    let injuries: String?
+    let allergies: String?
+    let intolerances: String?
+    let lifestyleNotes: String?
+    let sleepQuality: String?
+    let stressLevel: String?
+    let foodHabits: String?
+    let weightHistory: String?
+    let pathGoal: String?
+    let coach: Coach?
+
+    enum CodingKeys: String, CodingKey {
+        case id, date, age, medications, injuries, allergies, intolerances, coach
+        case weightKg = "weight_kg"
+        case heightCm = "height_cm"
+        case medicalHistory = "medical_history"
+        case lifestyleNotes = "lifestyle_notes"
+        case sleepQuality = "sleep_quality"
+        case stressLevel = "stress_level"
+        case foodHabits = "food_habits"
+        case weightHistory = "weight_history"
+        case pathGoal = "path_goal"
+    }
+}
+
+struct AnamnesisResponse: Codable { let anamnesis: AnamnesisDTO? }

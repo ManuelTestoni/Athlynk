@@ -117,4 +117,97 @@ final class APIClient {
         _ = try await request("/api/v1/conversations/\(conversation)/send",
                               method: "POST", body: ["body": body])
     }
+
+    func subscription() async throws -> SubscriptionDTO? {
+        try decode(SubscriptionResponse.self, from: try await request("/api/v1/subscription")).subscription
+    }
+
+    func appointments() async throws -> [AppointmentDTO] {
+        try decode(AppointmentsResponse.self, from: try await request("/api/v1/appointments")).appointments
+    }
+
+    func progress() async throws -> [ProgressEntryDTO] {
+        try decode(ProgressResponse.self, from: try await request("/api/v1/progress")).entries
+    }
+
+    func profile() async throws -> ClientProfileDTO {
+        try decode(ProfileResponse.self, from: try await request("/api/v1/profile")).profile
+    }
+
+    @discardableResult
+    func updateProfile(_ fields: [String: Any]) async throws -> ClientProfileDTO {
+        try decode(ProfileResponse.self,
+                   from: try await request("/api/v1/profile", method: "PATCH", body: fields)).profile
+    }
+
+    func markNotificationRead(id: Int) async throws {
+        _ = try await request("/api/v1/notifications/\(id)/read", method: "POST")
+    }
+
+    func workoutHistory() async throws -> [WorkoutSessionDTO] {
+        try decode(WorkoutHistoryResponse.self, from: try await request("/api/v1/workout-history")).sessions
+    }
+
+    func supplements() async throws -> [SupplementSheetDTO] {
+        try decode(SupplementsResponse.self, from: try await request("/api/v1/supplements")).sheets
+    }
+
+    func coach(id: Int) async throws -> CoachDetailDTO {
+        try decode(CoachDetailResponse.self, from: try await request("/api/v1/coaches/\(id)")).coach
+    }
+
+    func settings() async throws -> SettingsDTO {
+        try decode(SettingsResponse.self, from: try await request("/api/v1/settings")).settings
+    }
+
+    @discardableResult
+    func updateSetting(key: String, enabled: Bool) async throws -> SettingsDTO {
+        try decode(SettingsResponse.self,
+                   from: try await request("/api/v1/settings", method: "PATCH", body: [key: enabled])).settings
+    }
+
+    func plans() async throws -> [SubscriptionPlanDTO] {
+        try decode(PlansResponse.self, from: try await request("/api/v1/plans")).plans
+    }
+
+    // MARK: Write flows
+
+    func sessionStart(assignmentId: Int, dayId: Int) async throws -> SessionStartDTO {
+        try decode(SessionStartDTO.self,
+                   from: try await request("/api/v1/sessions/start", method: "POST",
+                                           body: ["assignment_id": assignmentId, "day_id": dayId]))
+    }
+
+    func logSet(sessionId: Int, exerciseId: Int, setNumber: Int,
+                reps: Int?, load: Double?, loadUnit: String, rpe: Int?, completed: Bool) async throws {
+        var body: [String: Any] = [
+            "workout_exercise_id": exerciseId,
+            "set_number": setNumber,
+            "load_unit": loadUnit,
+            "completed": completed,
+        ]
+        body["reps_done"] = reps ?? NSNull()
+        body["load_used"] = load ?? NSNull()
+        body["rpe"] = rpe ?? NSNull()
+        _ = try await request("/api/v1/sessions/\(sessionId)/log-set", method: "POST", body: body)
+    }
+
+    func finishSession(sessionId: Int, notes: String, interrupted: Bool) async throws {
+        _ = try await request("/api/v1/sessions/\(sessionId)/finish", method: "POST",
+                              body: ["notes": notes, "interrupted": interrupted])
+    }
+
+    func submitCheck(instanceId: Int, weightKg: Double?, measurements: [String: Double], notes: String) async throws {
+        var body: [String: Any] = ["measurements": measurements, "notes": notes]
+        body["weight_kg"] = weightKg ?? NSNull()
+        _ = try await request("/api/v1/checks/\(instanceId)/submit", method: "POST", body: body)
+    }
+
+    func anamnesis() async throws -> AnamnesisDTO? {
+        try decode(AnamnesisResponse.self, from: try await request("/api/v1/anamnesis")).anamnesis
+    }
+
+    func forgotPassword(email: String) async throws {
+        _ = try await request("/api/v1/auth/forgot-password", method: "POST", body: ["email": email])
+    }
 }

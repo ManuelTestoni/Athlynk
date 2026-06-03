@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var appear = false
+    @State private var showForgot = false
     @FocusState private var focus: Field?
 
     enum Field { case email, password }
@@ -58,6 +59,13 @@ struct LoginView: View {
                     .revealUp(appear, index: 2)
                     .disabled(email.isEmpty || password.isEmpty)
 
+                    Button { showForgot = true } label: {
+                        Text("Password dimenticata?")
+                            .font(Typo.mono(12, .semibold)).foregroundStyle(Palette.cyan)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .revealUp(appear, index: 3)
+
                     Text("Connesso a \(APIClient.shared.baseURL)")
                         .font(Typo.mono(10))
                         .foregroundStyle(Palette.textLow)
@@ -72,6 +80,9 @@ struct LoginView: View {
         }
         .onAppear { appear = true }
         .animation(.spring, value: app.loginError)
+        .sheet(isPresented: $showForgot) {
+            NavigationStack { ForgotPasswordView() }
+        }
     }
 }
 

@@ -15,6 +15,7 @@ The iOS client talks to ``http://localhost:8000/api/v1/...`` in development.
 
 import json
 import logging
+from datetime import timedelta
 
 from django.contrib.auth.hashers import check_password
 from django.core import signing
@@ -22,12 +23,16 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from domain.accounts.models import User
+from domain.accounts.models import CoachProfile, User
+from domain.billing.models import ClientSubscription, SubscriptionPlan
+from domain.calendar.models import Appointment
 from domain.chat.models import Conversation, Message, Notification
-from domain.checks.models import AssignedCheckInstance
-from domain.coaching.models import CoachingRelationship
-from domain.nutrition.models import NutritionAssignment
-from domain.workouts.models import WorkoutAssignment
+from domain.checks.models import AssignedCheckInstance, QuestionnaireResponse
+from domain.coaching.models import ClientAnamnesis, CoachingRelationship
+from domain.nutrition.models import NutritionAssignment, SupplementAssignment
+from domain.workouts.models import (
+    Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSetLog,
+)
 
 from .session_utils import get_active_relationships
 
@@ -392,3 +397,584 @@ def send_message(request, user, conversation_id):
     conv.last_message_at = msg.sent_at
     conv.save(update_fields=['last_message_at'])
     return JsonResponse({'id': msg.id, 'sent_at': _iso(msg.sent_at)}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Subscription — "Il Mio Abbonamento"
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def subscription(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'subscription': None})
+    sub = (
+        ClientSubscription.objects
+        .filter(client=client)
+        .select_related('subscription_plan', 'subscription_plan__coach')
+        .order_by('-start_date')
+        .first()
+    )
+    if not sub:
+        return JsonResponse({'subscription': None})
+    plan = sub.subscription_plan
+    return JsonResponse({'subscription': {
+        'id': sub.id,
+        'status': sub.status,
+        'payment_status': sub.payment_status,
+        'start_date': _iso(sub.start_date),
+        'end_date': _iso(sub.end_date),
+        'auto_renew': sub.auto_renew,
+        'plan': {
+            'id': plan.id,
+            'name': plan.name,
+            'plan_type': plan.plan_type,
+            'description': plan.description,
+            'price': float(plan.price),
+            'currency': plan.currency,
+            'duration_days': plan.duration_days,
+            'billing_interval': plan.billing_interval,
+            'included_services': plan.included_services or [],
+            'coach': _coach_dict(plan.coach),
+        },
+    }})
+
+
+# ---------------------------------------------------------------------------
+# Appointments — "Agenda"
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def appointments(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'appointments': []})
+    items = (
+        Appointment.objects
+        .filter(client=client)
+        .select_related('coach')
+        .order_by('start_datetime')
+    )
+    out = [{
+        'id': a.id,
+        'type': a.appointment_type,
+        'title': a.title,
+        'description': a.description,
+        'start': _iso(a.start_datetime),
+        'end': _iso(a.end_datetime),
+        'duration_minutes': a.duration_minutes,
+        'location': a.location,
+        'meeting_url': a.meeting_url,
+        'status': a.status,
+        'coach': _coach_dict(a.coach),
+    } for a in items]
+    return JsonResponse({'appointments': out})
+
+
+# ---------------------------------------------------------------------------
+# Progress — submitted check history (weight series, photos, coach feedback)
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def progress(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'entries': []})
+    responses = (
+        QuestionnaireResponse.objects
+        .filter(client=client, submitted_at__isnull=False)
+        .prefetch_related('photos')
+        .order_by('-submitted_at')
+    )
+    entries = [{
+        'id': r.id,
+        'submitted_at': _iso(r.submitted_at),
+        'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
+        'coach_feedback': r.coach_feedback,
+        'notes': r.notes,
+        'photos': [{
+            'id': p.id,
+            'url': p.file_url,
+            'type': p.photo_type,
+            'captured_at': _iso(p.captured_at),
+        } for p in r.photos.all()],
+    } for r in responses]
+    return JsonResponse({'entries': entries})
+
+
+# ---------------------------------------------------------------------------
+# Notifications — mark a single notification read
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def notification_read(request, user, notification_id):
+    n = Notification.objects.filter(id=notification_id, target_user=user).first()
+    if not n:
+        return JsonResponse({'error': 'Notifica non trovata'}, status=404)
+    if not n.is_read:
+        n.is_read = True
+        n.save(update_fields=['is_read'])
+    return JsonResponse({'id': n.id, 'is_read': True})
+
+
+# ---------------------------------------------------------------------------
+# Profile — read / edit the athlete's own ClientProfile
+# ---------------------------------------------------------------------------
+
+def _client_profile_dict(client):
+    return {
+        'first_name': client.first_name,
+        'last_name': client.last_name,
+        'phone': client.phone,
+        'height_cm': client.height_cm,
+        'primary_goal': client.primary_goal,
+        'activity_level': client.activity_level,
+        'gender': client.gender,
+        'birth_date': _iso(client.birth_date),
+    }
+
+
+@api_view(['GET', 'PATCH'])
+def profile(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Profilo non disponibile'}, status=404)
+    if request.method == 'PATCH':
+        data = _body(request)
+        if data.get('first_name'):
+            client.first_name = data['first_name'].strip()
+        if data.get('last_name'):
+            client.last_name = data['last_name'].strip()
+        if 'phone' in data:
+            client.phone = (data.get('phone') or '').strip() or None
+        if 'height_cm' in data:
+            raw = data.get('height_cm')
+            try:
+                client.height_cm = int(raw) if raw not in (None, '') else None
+            except (TypeError, ValueError):
+                pass
+        if 'primary_goal' in data:
+            client.primary_goal = (data.get('primary_goal') or '').strip() or None
+        if 'activity_level' in data:
+            client.activity_level = (data.get('activity_level') or '').strip() or None
+        client.save()
+    return JsonResponse({'profile': _client_profile_dict(client)})
+
+
+# ---------------------------------------------------------------------------
+# Workout history — completed/past training sessions ("Storico Allenamenti")
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def workout_history(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'sessions': []})
+    sessions = (
+        WorkoutSession.objects
+        .filter(client=client)
+        .select_related('workout_day')
+        .prefetch_related('set_logs')
+        .order_by('-started_at')[:100]
+    )
+    out = []
+    for s in sessions:
+        day = s.workout_day
+        logs = list(s.set_logs.all())
+        out.append({
+            'id': s.id,
+            'day_label': day.title or day.day_name or f'Giorno {day.day_order}',
+            'focus_area': day.focus_area,
+            'started_at': _iso(s.started_at),
+            'ended_at': _iso(s.ended_at),
+            'duration_minutes': s.duration_minutes,
+            'avg_rpe': s.avg_rpe,
+            'completed': s.completed,
+            'interrupted': s.interrupted,
+            'set_count': sum(1 for x in logs if x.completed),
+            'notes': s.notes,
+        })
+    return JsonResponse({'sessions': out})
+
+
+# ---------------------------------------------------------------------------
+# Supplements — active supplement protocol ("Integratori")
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def supplements(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'sheets': []})
+    assignments = (
+        SupplementAssignment.objects
+        .filter(client=client, status='ACTIVE')
+        .select_related('sheet', 'coach')
+        .prefetch_related('sheet__items__supplement')
+        .order_by('-assigned_at')
+    )
+    sheets = []
+    for a in assignments:
+        sheet = a.sheet
+        items = [{
+            'id': it.id,
+            'name': it.supplement.name,
+            'category': it.supplement.category,
+            'unit': it.supplement.unit,
+            'dose': it.dose,
+            'timing': it.timing,
+            'notes': it.notes,
+        } for it in sheet.items.all()]
+        sheets.append({
+            'id': sheet.id,
+            'title': sheet.title,
+            'notes': sheet.notes,
+            'coach': _coach_dict(a.coach),
+            'items': items,
+        })
+    return JsonResponse({'sheets': sheets})
+
+
+# ---------------------------------------------------------------------------
+# Coach detail — full profile of a coach linked to this athlete ("Profilo Coach")
+# ---------------------------------------------------------------------------
+
+def _linked_coach_ids(client):
+    """Coach ids actually connected to this athlete (relationships, assignments,
+    conversations). Used to gate coach-scoped reads against IDOR."""
+    ids = set()
+    rels = get_active_relationships(client)
+    for key in ('full', 'workout', 'nutrition'):
+        rel = rels.get(key)
+        if rel and rel.coach_id:
+            ids.add(rel.coach_id)
+    ids.update(WorkoutAssignment.objects.filter(client=client).values_list('coach_id', flat=True))
+    ids.update(NutritionAssignment.objects.filter(client=client).values_list('coach_id', flat=True))
+    ids.update(Conversation.objects.filter(client=client).values_list('coach_id', flat=True))
+    return ids
+
+
+@api_view(['GET'])
+def coach_detail(request, user, coach_id):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Coach non trovato'}, status=404)
+
+    if coach_id not in _linked_coach_ids(client):
+        return JsonResponse({'error': 'Coach non trovato'}, status=404)
+    coach = CoachProfile.objects.filter(id=coach_id).first()
+    if not coach:
+        return JsonResponse({'error': 'Coach non trovato'}, status=404)
+
+    payload = _coach_dict(coach)
+    payload.update({
+        'bio': coach.bio,
+        'description': coach.description,
+        'certifications': coach.certifications,
+        'years_experience': coach.years_experience,
+        'social_instagram': coach.social_instagram,
+        'social_youtube': coach.social_youtube,
+        'social_website': coach.social_website,
+    })
+    return JsonResponse({'coach': payload})
+
+
+# ---------------------------------------------------------------------------
+# Settings — email notification preferences ("Impostazioni")
+# ---------------------------------------------------------------------------
+
+_EMAIL_NOTIF_KEYS = [
+    ('workout_assigned',   'Nuovo piano di allenamento', 'Mail quando il coach ti assegna una nuova scheda.'),
+    ('nutrition_assigned', 'Nuovo piano nutrizionale',   'Mail quando ti viene assegnato un piano alimentare.'),
+]
+
+
+@api_view(['GET', 'PATCH'])
+def settings(request, user):
+    if request.method == 'PATCH':
+        data = _body(request)
+        prefs = dict(user.email_prefs or {})
+        for key, _label, _desc in _EMAIL_NOTIF_KEYS:
+            if key in data:
+                prefs[key] = bool(data[key])
+        user.email_prefs = prefs
+        user.save(update_fields=['email_prefs', 'updated_at'])
+    prefs = user.email_prefs or {}
+    return JsonResponse({'settings': {
+        'email': user.email,
+        'notifications': [
+            {'key': k, 'label': label, 'desc': desc, 'enabled': bool(prefs.get(k, True))}
+            for k, label, desc in _EMAIL_NOTIF_KEYS
+        ],
+    }})
+
+
+# ---------------------------------------------------------------------------
+# Subscription plans on offer from the athlete's coaches ("Piani e Prezzi")
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def plans(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'plans': []})
+    coach_ids = _linked_coach_ids(client)
+    qs = (
+        SubscriptionPlan.objects
+        .filter(coach_id__in=coach_ids, is_active=True)
+        .select_related('coach')
+        .order_by('price')
+    )
+    out = [{
+        'id': p.id,
+        'name': p.name,
+        'plan_type': p.plan_type,
+        'description': p.description,
+        'price': float(p.price),
+        'currency': p.currency,
+        'duration_days': p.duration_days,
+        'billing_interval': p.billing_interval,
+        'included_services': p.included_services or [],
+        'coach': _coach_dict(p.coach),
+    } for p in qs]
+    return JsonResponse({'plans': out})
+
+
+# ---------------------------------------------------------------------------
+# Live training session ("Sessione Attiva") — start, log a set, finish
+# ---------------------------------------------------------------------------
+
+def _logged_set_dict(sl):
+    return {
+        'workout_exercise_id': sl.workout_exercise_id,
+        'set_number': sl.set_number,
+        'reps_done': sl.reps_done,
+        'load_used': float(sl.load_used) if sl.load_used is not None else None,
+        'load_unit': sl.load_unit,
+        'rpe': sl.rpe,
+        'completed': sl.completed,
+    }
+
+
+@api_view(['POST'])
+def session_start(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    data = _body(request)
+    assignment = WorkoutAssignment.objects.filter(id=data.get('assignment_id'), client=client).first()
+    if not assignment:
+        return JsonResponse({'error': 'Assegnazione non trovata'}, status=404)
+    day = WorkoutDay.objects.filter(id=data.get('day_id'), workout_plan=assignment.workout_plan).first()
+    if not day:
+        return JsonResponse({'error': 'Giorno non trovato'}, status=404)
+
+    # Reuse an open session for the same (assignment, day) from the last 6 hours.
+    session = (
+        WorkoutSession.objects
+        .filter(assignment=assignment, workout_day=day, client=client,
+                ended_at__isnull=True, started_at__gte=timezone.now() - timedelta(hours=6))
+        .order_by('-started_at').first()
+        or WorkoutSession.objects.create(assignment=assignment, workout_day=day, client=client,
+                                         started_at=timezone.now())
+    )
+
+    exercises = [{
+        'workout_exercise_id': ex.id,
+        'name': ex.exercise.name,
+        'target_muscle_group': ex.exercise.target_muscle_group,
+        'sets': ex.set_count or 3,
+        'reps': ex.rep_range or (str(ex.rep_count) if ex.rep_count else '10'),
+        'load_value': float(ex.load_value) if ex.load_value else None,
+        'load_unit': ex.load_unit or 'KG',
+        'recovery_seconds': ex.recovery_seconds or 90,
+        'notes': ex.technique_notes or '',
+    } for ex in day.exercises.select_related('exercise').order_by('order_index')]
+
+    sets_logged = [_logged_set_dict(sl) for sl in session.set_logs.all() if sl.set_number != 0]
+
+    return JsonResponse({
+        'session_id': session.id,
+        'exercises': exercises,
+        'sets_logged': sets_logged,
+        'started_at': _iso(session.started_at),
+    })
+
+
+@api_view(['POST'])
+def session_log_set(request, user, session_id):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    session = WorkoutSession.objects.filter(id=session_id, client=client).first()
+    if not session:
+        return JsonResponse({'error': 'Sessione non trovata'}, status=404)
+    data = _body(request)
+    we = WorkoutExercise.objects.filter(id=data.get('workout_exercise_id'),
+                                        workout_day=session.workout_day).first()
+    if not we:
+        return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
+
+    reps = data.get('reps_done')
+    load = data.get('load_used')
+    rpe = data.get('rpe')
+    log, _ = WorkoutSetLog.objects.update_or_create(
+        session=session, workout_exercise=we, set_number=int(data.get('set_number') or 1),
+        defaults={
+            'reps_done': int(reps) if reps not in (None, '') else None,
+            'load_used': load if load not in (None, '') else None,
+            'load_unit': data.get('load_unit') or 'KG',
+            'rpe': int(rpe) if rpe not in (None, '') else None,
+            'completed': bool(data.get('completed', True)),
+        },
+    )
+    return JsonResponse({'set_id': log.id, 'success': True})
+
+
+@api_view(['POST'])
+def session_finish(request, user, session_id):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    session = WorkoutSession.objects.filter(id=session_id, client=client).first()
+    if not session:
+        return JsonResponse({'error': 'Sessione non trovata'}, status=404)
+    data = _body(request)
+    interrupted = bool(data.get('interrupted', False))
+    session.notes = data.get('notes') or ''
+    session.ended_at = timezone.now()
+    session.completed = not interrupted
+    session.interrupted = interrupted
+    session.recompute_summary()
+    session.save()
+    return JsonResponse({
+        'session_id': session.id,
+        'duration_minutes': session.duration_minutes,
+        'avg_rpe': session.avg_rpe,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Submit a pending check-in ("Nuovo Check")
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def check_submit(request, user, instance_id):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    instance = (
+        AssignedCheckInstance.objects
+        .select_related('assignment__template', 'assignment__coach')
+        .filter(id=instance_id, assignment__client=client).first()
+    )
+    if not instance:
+        return JsonResponse({'error': 'Check non trovato'}, status=404)
+    if instance.status == 'completed':
+        return JsonResponse({'error': 'Check già compilato'}, status=400)
+    if instance.status == 'pending' and timezone.now() > instance.expires_at:
+        instance.status = 'expired'
+        instance.save(update_fields=['status'])
+        return JsonResponse({'error': 'Check scaduto'}, status=400)
+
+    assignment = instance.assignment
+    if not assignment.template:
+        return JsonResponse({'error': 'Modello non disponibile'}, status=400)
+
+    data = _body(request)
+
+    def _pm(v):
+        try:
+            f = float(v or 0)
+            return str(round(f, 1)) if f > 0 else ''
+        except (ValueError, TypeError):
+            return ''
+
+    try:
+        weight = float(data.get('weight_kg') or 0) or None
+    except (ValueError, TypeError):
+        weight = None
+
+    m = data.get('measurements') or {}
+    body_circ = {
+        'shoulders':   _pm(m.get('shoulders')),
+        'chest':       _pm(m.get('chest')),
+        'waist':       _pm(m.get('waist')),
+        'hips':        _pm(m.get('hips')),
+        'thigh_right': _pm(m.get('thigh')),
+        'arm_right':   _pm(m.get('arm')),
+    }
+
+    resp = QuestionnaireResponse.objects.create(
+        questionnaire_template=assignment.template,
+        client=client,
+        coach=assignment.coach,
+        submitted_at=timezone.now(),
+        status='COMPLETED',
+        weight_kg=weight,
+        body_circumferences=body_circ,
+        answers_json={},
+        notes=(data.get('notes') or '').strip(),
+    )
+    instance.status = 'completed'
+    instance.response = resp
+    instance.save(update_fields=['status', 'response'])
+    return JsonResponse({'id': resp.id, 'status': 'completed'}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Anamnesis — read the coach-compiled intake form ("Questionario Anamnesi")
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def anamnesis(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'anamnesis': None})
+    a = (
+        ClientAnamnesis.objects
+        .filter(client=client).select_related('coach')
+        .order_by('-anamnesis_date').first()
+    )
+    if not a:
+        return JsonResponse({'anamnesis': None})
+    return JsonResponse({'anamnesis': {
+        'id': a.id,
+        'date': _iso(a.anamnesis_date),
+        'age': a.age,
+        'weight_kg': float(a.weight_kg) if a.weight_kg is not None else None,
+        'height_cm': float(a.height_cm) if a.height_cm is not None else None,
+        'medical_history': a.medical_history,
+        'medications': a.medications,
+        'injuries': a.injuries,
+        'allergies': a.allergies,
+        'intolerances': a.intolerances,
+        'lifestyle_notes': a.lifestyle_notes,
+        'sleep_quality': a.sleep_quality,
+        'stress_level': a.stress_level,
+        'food_habits': a.food_habits,
+        'weight_history': a.weight_history,
+        'path_goal': a.path_goal,
+        'coach': _coach_dict(a.coach),
+    }})
+
+
+# ---------------------------------------------------------------------------
+# Forgot password — public, generic response ("Reset Password")
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+def forgot_password(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Metodo non consentito'}, status=405)
+    data = _body(request)
+    email = (data.get('email') or '').strip().lower()
+    ip = request.META.get('REMOTE_ADDR')
+    ua = (request.META.get('HTTP_USER_AGENT') or '')[:512]
+    try:
+        from .views_auth import _maybe_issue_reset
+        _maybe_issue_reset(email, ip, ua)
+    except Exception:
+        logger.exception('api forgot-password failed')
+    # Always generic: never reveal whether the email exists.
+    return JsonResponse({'message': "Se l'email è registrata, riceverai un link per reimpostare la password."})
