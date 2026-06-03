@@ -29,6 +29,9 @@ struct ProfileView: View {
                     navRow(icon: "bubble.left.and.bubble.right.fill", title: "Messaggi", color: Palette.cyan) {
                         ChatListView()
                     }
+                    navRow(icon: "map.fill", title: "Il mio percorso", color: Palette.bronze) {
+                        JourneyView()
+                    }
                     navRow(icon: "calendar", title: "Agenda", color: Palette.cyan) {
                         AgendaView()
                     }

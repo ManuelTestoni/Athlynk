@@ -15,9 +15,10 @@ The iOS client talks to ``http://localhost:8000/api/v1/...`` in development.
 
 import json
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.contrib.auth.hashers import check_password
+from django.utils.dateparse import parse_date
 from django.core import signing
 from django.http import JsonResponse
 from django.utils import timezone
@@ -29,7 +30,9 @@ from domain.calendar.models import Appointment
 from domain.chat.models import Conversation, Message, Notification
 from domain.checks.models import AssignedCheckInstance, QuestionnaireResponse
 from domain.coaching.models import ClientAnamnesis, CoachingRelationship
-from domain.nutrition.models import NutritionAssignment, SupplementAssignment
+from domain.nutrition.models import (
+    ClientMacroLogEntry, Food, NutritionAssignment, SupplementAssignment,
+)
 from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSetLog,
 )
@@ -131,6 +134,7 @@ def _user_dict(user):
         'first_name': first,
         'last_name': last,
         'display_name': (f'{first} {last}'.strip() or user.email),
+        'chiron_seen': bool(user.chiron_intro_seen),
     }
 
 
@@ -303,6 +307,183 @@ def nutrition(request, user):
             'days': days,
         })
     return JsonResponse({'plans': plans})
+
+
+# ---------------------------------------------------------------------------
+# MACRO-mode logging: the coach sets only targets, the client records what
+# they actually eat today and tracks calories/macros consumed. FOOD-mode plans
+# are read-only (handled client-side) and never reach these endpoints.
+# ---------------------------------------------------------------------------
+
+_WEEKDAY_CODES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+
+
+def _today_weekday_code():
+    return _WEEKDAY_CODES[date.today().weekday()]
+
+
+def _macro_entry_dict(e):
+    food = e.food
+    return {
+        'id': e.id,
+        'food_id': e.food_id,
+        'name': food.nome_alimento if food else (e.raw_name or ''),
+        'meal_name': e.meal_name or '',
+        'quantity_g': e.quantity_g,
+        'kcal': e.kcal,
+        'protein': e.protein,
+        'carbs': e.carbs,
+        'fat': e.fat,
+    }
+
+
+def _macro_assignment(user, assignment_id):
+    """Return (assignment, error_response). Error if not the client's, or not MACRO."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return None, JsonResponse({'error': 'Non disponibile'}, status=403)
+    a = (NutritionAssignment.objects
+         .select_related('nutrition_plan')
+         .filter(id=assignment_id, client=client).first())
+    if not a:
+        return None, JsonResponse({'error': 'Piano non trovato'}, status=404)
+    if a.nutrition_plan.plan_mode != 'MACRO':
+        return None, JsonResponse({'error': 'Piano non compatibile'}, status=400)
+    return a, None
+
+
+@api_view(['GET'])
+def food_search(request, user):
+    q = (request.GET.get('q') or '').strip()
+    foods = Food.objects.exclude(nome_alimento__icontains='media')
+    if q:
+        foods = foods.filter(nome_alimento__icontains=q)
+    foods = foods.order_by('-genericity_score', 'nome_alimento')[:30]
+    return JsonResponse({'results': [{
+        'id': f.id,
+        'name': f.nome_alimento,
+        'category': f.categoria_alimento or '',
+        'kcal': f.energia_kcal,
+        'protein': f.proteine_g,
+        'carb': f.carboidrati_g,
+        'fat': f.lipidi_g,
+    } for f in foods]})
+
+
+@api_view(['GET'])
+def macro_day(request, user, assignment_id):
+    """Today's logged foods + consumed totals + the day's macro target."""
+    a, err = _macro_assignment(user, assignment_id)
+    if err:
+        return err
+    plan = a.nutrition_plan
+    weekly = plan.plan_kind == 'WEEKLY'
+    day_code = _today_weekday_code()
+
+    qs = a.macro_log.filter(log_date=date.today()).select_related('food')
+    if weekly:
+        qs = qs.filter(day_of_week=day_code)
+    entries = list(qs.order_by('created_at', 'id'))
+
+    target = {'kcal': plan.daily_kcal or 0, 'protein': plan.protein_target_g or 0,
+              'carb': plan.carb_target_g or 0, 'fat': plan.fat_target_g or 0}
+    if weekly:
+        d = plan.days.filter(day_of_week=day_code).first()
+        if d:
+            target = {'kcal': d.target_kcal or 0, 'protein': d.target_protein_g or 0,
+                      'carb': d.target_carb_g or 0, 'fat': d.target_fat_g or 0}
+
+    consumed = {
+        'kcal': round(sum(e.kcal for e in entries), 1),
+        'protein': round(sum(e.protein for e in entries), 1),
+        'carb': round(sum(e.carbs for e in entries), 1),
+        'fat': round(sum(e.fat for e in entries), 1),
+    }
+    return JsonResponse({'macro_day': {
+        'date': date.today().isoformat(),
+        'target': target,
+        'consumed': consumed,
+        'entries': [_macro_entry_dict(e) for e in entries],
+    }})
+
+
+@api_view(['POST'])
+def macro_log_create(request, user, assignment_id):
+    a, err = _macro_assignment(user, assignment_id)
+    if err:
+        return err
+    data = _body(request)
+    food = Food.objects.filter(id=data.get('food_id')).first()
+    if not food:
+        return JsonResponse({'error': 'Alimento non trovato'}, status=400)
+    try:
+        qty = float(data.get('quantity_g'))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Quantità non valida'}, status=400)
+    if qty <= 0:
+        return JsonResponse({'error': 'La quantità deve essere positiva'}, status=400)
+
+    day_code = _today_weekday_code() if a.nutrition_plan.plan_kind == 'WEEKLY' else None
+    entry = ClientMacroLogEntry.objects.create(
+        assignment=a,
+        day_of_week=day_code,
+        log_date=date.today(),
+        food=food,
+        quantity_g=qty,
+        meal_name=(data.get('meal_name') or '').strip()[:100] or None,
+    )
+    return JsonResponse({'ok': True, 'entry': _macro_entry_dict(entry)})
+
+
+@api_view(['DELETE'])
+def macro_log_delete(request, user, entry_id):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    entry = ClientMacroLogEntry.objects.filter(id=entry_id, assignment__client=client).first()
+    if not entry:
+        return JsonResponse({'error': 'Voce non trovata'}, status=404)
+    if entry.log_date and entry.log_date < date.today():
+        return JsonResponse({'error': 'Non puoi modificare un giorno passato'}, status=403)
+    entry.delete()
+    return JsonResponse({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# "Il mio percorso" — the athlete's timeline of assignments, plans and checks.
+# Reuses the web's event builder so coach and athlete views stay in sync.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def journey(request, user):
+    client = getattr(user, 'client_profile', None)
+    empty = {'events': [], 'window_start': '', 'window_end': '', 'relationship_start': ''}
+    if not client:
+        return JsonResponse(empty)
+    rels = get_active_relationships(client)
+    rel = rels.get('full') or rels.get('workout') or rels.get('nutrition')
+    if not rel:
+        return JsonResponse(empty)
+
+    today = date.today()
+    start = getattr(rel, 'start_date', None)
+    if start:
+        rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
+    else:
+        rel_start = (today - timedelta(days=365)).replace(day=1)
+    window_end = today
+    one_year_later = rel_start.replace(year=rel_start.year + 1)
+    if window_end < one_year_later:
+        window_end = one_year_later
+
+    from .views_client import _build_percorso_events
+    events = _build_percorso_events(client, rel.coach, rel_start, window_end)
+    return JsonResponse({
+        'events': events,
+        'window_start': rel_start.isoformat(),
+        'window_end': window_end.isoformat(),
+        'relationship_start': rel_start.isoformat(),
+    })
 
 
 @api_view(['GET'])
@@ -490,6 +671,7 @@ def progress(request, user):
         'id': r.id,
         'submitted_at': _iso(r.submitted_at),
         'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
+        'measurements': {k: v for k, v in (r.body_circumferences or {}).items() if v not in (None, '')},
         'coach_feedback': r.coach_feedback,
         'notes': r.notes,
         'photos': [{
@@ -527,6 +709,8 @@ def _client_profile_dict(client):
         'last_name': client.last_name,
         'phone': client.phone,
         'height_cm': client.height_cm,
+        'weight_kg': float(client.current_weight_kg) if client.current_weight_kg is not None else None,
+        'sport': client.sport,
         'primary_goal': client.primary_goal,
         'activity_level': client.activity_level,
         'gender': client.gender,
@@ -553,10 +737,28 @@ def profile(request, user):
                 client.height_cm = int(raw) if raw not in (None, '') else None
             except (TypeError, ValueError):
                 pass
+        if 'weight_kg' in data:
+            raw = data.get('weight_kg')
+            try:
+                client.current_weight_kg = round(float(raw), 1) if raw not in (None, '') else None
+            except (TypeError, ValueError):
+                pass
+        if 'sport' in data:
+            client.sport = (data.get('sport') or '').strip() or None
         if 'primary_goal' in data:
             client.primary_goal = (data.get('primary_goal') or '').strip() or None
         if 'activity_level' in data:
             client.activity_level = (data.get('activity_level') or '').strip() or None
+        if 'gender' in data:
+            client.gender = (data.get('gender') or '').strip() or None
+        if 'birth_date' in data:
+            raw = (data.get('birth_date') or '').strip()
+            if raw:
+                parsed = parse_date(raw)
+                if parsed:
+                    client.birth_date = parsed
+            else:
+                client.birth_date = None
         client.save()
     return JsonResponse({'profile': _client_profile_dict(client)})
 
@@ -707,6 +909,25 @@ def settings(request, user):
             for k, label, desc in _EMAIL_NOTIF_KEYS
         ],
     }})
+
+
+@api_view(['POST'])
+def tutorial_complete(request, user):
+    # Mark the Chiron first-login tutorial as seen so it never shows again.
+    if not user.chiron_intro_seen:
+        user.chiron_intro_seen = True
+        user.save(update_fields=['chiron_intro_seen', 'updated_at'])
+    return JsonResponse({'ok': True, 'chiron_seen': True})
+
+
+@api_view(['DELETE'])
+def delete_account(request, user):
+    # Soft delete: deactivate the account. Token auth (_user_from_token) filters
+    # is_active=True, so the user is immediately logged out everywhere and cannot
+    # log back in — without cascade-wiping linked plans/checks/history.
+    user.is_active = False
+    user.save(update_fields=['is_active', 'updated_at'])
+    return JsonResponse({'ok': True})
 
 
 # ---------------------------------------------------------------------------

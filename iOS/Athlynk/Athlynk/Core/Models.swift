@@ -12,12 +12,19 @@ struct AuthUser: Codable, Identifiable, Hashable {
     let firstName: String
     let lastName: String
     let displayName: String
+    /// Optional for back-compat with servers that predate the field.
+    let chironSeen: Bool?
+
+    var isClient: Bool { role.uppercased() == "CLIENT" }
+    /// First-login mascot tutorial should run only for clients who haven't met Chiron.
+    var needsChironIntro: Bool { isClient && (chironSeen != true) }
 
     enum CodingKeys: String, CodingKey {
         case id, email, role
         case firstName = "first_name"
         case lastName = "last_name"
         case displayName = "display_name"
+        case chironSeen = "chiron_seen"
     }
 }
 
@@ -415,12 +422,15 @@ struct ProgressEntryDTO: Codable, Identifiable, Hashable {
     let id: Int
     let submittedAt: String?
     let weightKg: Double?
+    /// Body circumferences in cm, keyed by site (waist, chest, …). Server sends
+    /// values as strings ("85.0"); empty sites are omitted.
+    let measurements: [String: String]?
     let coachFeedback: String?
     let notes: String?
     let photos: [ProgressPhotoDTO]
 
     enum CodingKeys: String, CodingKey {
-        case id, notes, photos
+        case id, notes, photos, measurements
         case submittedAt = "submitted_at"
         case weightKg = "weight_kg"
         case coachFeedback = "coach_feedback"
@@ -436,21 +446,89 @@ struct ClientProfileDTO: Codable, Hashable {
     let lastName: String
     let phone: String?
     let heightCm: Int?
+    let weightKg: Double?
+    let sport: String?
     let primaryGoal: String?
     let activityLevel: String?
     let gender: String?
     let birthDate: String?
 
     enum CodingKeys: String, CodingKey {
-        case phone, gender
+        case phone, gender, sport
         case firstName = "first_name"
         case lastName = "last_name"
         case heightCm = "height_cm"
+        case weightKg = "weight_kg"
         case primaryGoal = "primary_goal"
         case activityLevel = "activity_level"
         case birthDate = "birth_date"
     }
 }
+
+// MARK: - MACRO-mode food logging
+
+struct FoodDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let category: String?
+    let kcal: Double      // per 100 g
+    let protein: Double
+    let carb: Double
+    let fat: Double
+}
+
+struct MacroMacrosDTO: Codable, Hashable {
+    let kcal: Double
+    let protein: Double
+    let carb: Double
+    let fat: Double
+}
+
+struct MacroEntryDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let mealName: String
+    let quantityG: Double
+    let kcal: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, kcal, protein, carbs, fat
+        case mealName = "meal_name"
+        case quantityG = "quantity_g"
+    }
+}
+
+struct MacroDayDTO: Codable, Hashable {
+    let date: String
+    let target: MacroMacrosDTO
+    let consumed: MacroMacrosDTO
+    let entries: [MacroEntryDTO]
+}
+
+struct FoodSearchResponse: Codable { let results: [FoodDTO] }
+struct MacroDayResponse: Codable { let macroDay: MacroDayDTO
+    enum CodingKeys: String, CodingKey { case macroDay = "macro_day" } }
+
+// MARK: - "Il mio percorso" timeline
+
+struct JourneyEventDTO: Codable, Identifiable, Hashable {
+    let id: String
+    let type: String          // allenamento | nutrizione | check
+    let date: String          // ISO yyyy-MM-dd
+    let title: String
+    let subtitle: String?
+    let statusLabel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, date, title, subtitle
+        case statusLabel = "status_label"
+    }
+}
+
+struct JourneyResponse: Codable { let events: [JourneyEventDTO] }
 
 struct ProfileResponse: Codable { let profile: ClientProfileDTO }
 

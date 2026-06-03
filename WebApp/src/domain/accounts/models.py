@@ -9,6 +9,8 @@ class User(models.Model):
     email_verification_token = models.CharField(max_length=128, blank=True, default='', db_index=True)
     email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
+    # First-login mascot tutorial: True once the client has met Chiron. Shown once.
+    chiron_intro_seen = models.BooleanField(default=False)
     # Per-notification opt-in flags. Settings page exposes one toggle per key.
     # Defaults: client receives assignment emails; toggle off to silence.
     email_prefs = models.JSONField(default=dict, blank=True)
@@ -72,6 +74,11 @@ class ClientProfile(models.Model):
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=20, null=True, blank=True)
     height_cm = models.IntegerField(null=True, blank=True)
+    # Self-declared current weight, captured at onboarding (the Chiron intake).
+    # Ongoing weight history still lives in check responses.
+    current_weight_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    # Primary sport / discipline the athlete trains for.
+    sport = models.CharField(max_length=100, null=True, blank=True)
     activity_level = models.CharField(max_length=100, null=True, blank=True)
     medical_notes_summary = models.TextField(null=True, blank=True)
     primary_goal = models.CharField(max_length=200, null=True, blank=True)

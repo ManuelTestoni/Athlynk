@@ -210,4 +210,42 @@ final class APIClient {
     func forgotPassword(email: String) async throws {
         _ = try await request("/api/v1/auth/forgot-password", method: "POST", body: ["email": email])
     }
+
+    func deleteAccount() async throws {
+        _ = try await request("/api/v1/account", method: "DELETE")
+    }
+
+    func completeTutorial() async throws {
+        _ = try await request("/api/v1/tutorial/complete", method: "POST")
+    }
+
+    // MARK: MACRO-mode logging
+
+    func searchFoods(_ query: String) async throws -> [FoodDTO] {
+        let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return try decode(FoodSearchResponse.self,
+                          from: try await request("/api/v1/nutrition/foods?q=\(q)")).results
+    }
+
+    func macroDay(assignment: Int) async throws -> MacroDayDTO {
+        try decode(MacroDayResponse.self,
+                   from: try await request("/api/v1/nutrition/assignments/\(assignment)/macro-day")).macroDay
+    }
+
+    func addMacroLog(assignment: Int, foodId: Int, quantityG: Double, mealName: String?) async throws {
+        var body: [String: Any] = ["food_id": foodId, "quantity_g": quantityG]
+        if let mealName, !mealName.isEmpty { body["meal_name"] = mealName }
+        _ = try await request("/api/v1/nutrition/assignments/\(assignment)/macro-log",
+                              method: "POST", body: body)
+    }
+
+    func deleteMacroLog(entryId: Int) async throws {
+        _ = try await request("/api/v1/nutrition/macro-log/\(entryId)", method: "DELETE")
+    }
+
+    // MARK: Journey timeline
+
+    func journey() async throws -> [JourneyEventDTO] {
+        try decode(JourneyResponse.self, from: try await request("/api/v1/journey")).events
+    }
 }

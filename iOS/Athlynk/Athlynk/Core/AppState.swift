@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     @Published var me: MeResponse?
     @Published var loginError: String?
     @Published var isAuthenticating = false
+    /// Drives the one-time Chiron mascot tutorial (clients, first login only).
+    @Published var showChiron = false
 
     private let tokenKey = "athlynk.api.token"
     private let api = APIClient.shared
@@ -30,6 +32,7 @@ final class AppState: ObservableObject {
             let me = try await api.me()
             self.me = me
             self.user = me.user
+            showChiron = me.user.needsChironIntro
             phase = .app
         } catch {
             // Token stale / server down → back to login.
@@ -49,6 +52,8 @@ final class AppState: ObservableObject {
             Keychain.set(res.token, for: tokenKey)
             user = res.user
             me = try? await api.me()
+            // Prefer the richer /me payload, but fall back to the login user.
+            showChiron = (me?.user ?? res.user).needsChironIntro
             Haptics.success()
             withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { phase = .app }
         } catch {
@@ -63,6 +68,18 @@ final class AppState: ObservableObject {
         user = nil
         me = nil
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { phase = .login }
+    }
+
+    /// Dismiss the Chiron tutorial and persist that it has been seen.
+    func finishChiron() {
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showChiron = false }
+        Task { try? await api.completeTutorial() }
+    }
+
+    /// Deactivate the account server-side, then drop the local session.
+    func deleteAccount() async {
+        try? await api.deleteAccount()
+        logout()
     }
 
     var greetingName: String {

@@ -38,7 +38,11 @@ struct NutritionView: View {
                         planCard(plan, active: i == 0).revealUp(appear, index: i + 2)
                     }
                     if let plan = plans.first {
-                        mealsSection(plan)
+                        if plan.planMode == "MACRO" {
+                            macroDiaryLink(plan).revealUp(appear, index: 2)
+                        } else {
+                            mealsSection(plan)
+                        }
                     }
                 }
             }
@@ -125,6 +129,31 @@ struct NutritionView: View {
         guard total > 0 else { return nil }
         func pct(_ v: Double) -> Int { Int((v / total * 100).rounded()) }
         return "\(pct(pk))/\(pct(ck))/\(pct(fk))"
+    }
+
+    private func macroDiaryLink(_ plan: NutritionPlanDTO) -> some View {
+        NavigationLink {
+            MacroLogView(assignmentId: plan.assignmentId, planTitle: plan.title)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(Palette.lime.opacity(0.16))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "fork.knife.circle.fill")
+                        .font(.system(size: 22, weight: .black)).foregroundStyle(Palette.lime)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Diario di oggi").font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                    Text("Registra gli alimenti e traccia le calorie")
+                        .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 15, weight: .black))
+                    .foregroundStyle(Palette.lime)
+            }
+            .padding(16).voltPanel(Palette.lime.opacity(0.4))
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     @ViewBuilder
