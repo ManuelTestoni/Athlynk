@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athlynk · Codex — Documentazione del codice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Athlynk — Greek luxury (mirrors iOS Theme.swift + athlynk.css) */
+    --parchment:#F4EFE4; --marble:#ECE5D6; --stone:#D8CFBA;
+    --ink:#14110D; --ink-mute:#5B554A; --ink-line:#8A8270;
+    --bronze:#8A6A3A; --aegean:#1C4A52; --aegean-deep:#0E2F36;
+    --olive:#4A6B3A; --gold:#9C6F2E; --terra:#9C5A3A;
+    --hair:rgba(20,17,13,.14); --hair-soft:rgba(20,17,13,.08);
+    --display:"Bodoni Moda",Didot,serif;
+    --body:"Spectral",Georgia,serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+    --sidebar:300px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:32px}
+  body{
+    margin:0;background:var(--parchment);color:var(--ink);
+    font-family:var(--body);font-size:16px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* Atmosphere: marble light + faint metal washes + paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(680px 520px at 68% -8%, rgba(255,255,255,.6), transparent 70%),
+      radial-gradient(560px 480px at 2% 102%, rgba(138,106,58,.07), transparent 70%),
+      radial-gradient(560px 480px at 100% 22%, rgba(28,74,82,.06), transparent 70%);
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;
+    mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---- Layout ---- */
+  .shell{display:grid;grid-template-columns:var(--sidebar) 1fr;max-width:1340px;margin:0 auto}
+  nav.side{
+    position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    padding:34px 26px 60px;border-right:1px solid var(--hair);
+  }
+  nav.side::-webkit-scrollbar{width:6px}
+  nav.side::-webkit-scrollbar-thumb{background:var(--stone);border-radius:3px}
+  main{padding:64px 64px 140px;min-width:0;max-width:980px}
+
+  /* ---- Sidebar ---- */
+  .brand{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .brand .seal{
+    width:30px;height:30px;border-radius:50%;flex:none;align-self:center;
+    background:linear-gradient(160deg,var(--gold),var(--bronze));
+    display:grid;place-items:center;color:var(--parchment);
+    font-family:var(--display);font-weight:700;font-size:15px;
+    box-shadow:0 6px 16px rgba(20,17,13,.18);
+  }
+  .brand h1{font-family:var(--display);font-weight:700;font-size:25px;margin:0;letter-spacing:.5px}
+  .brand small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:3px;
+    text-transform:uppercase;color:var(--bronze);margin-top:20px;padding-left:2px}
+  .navgroup{margin-top:26px}
+  .navgroup>span{
+    font-family:var(--mono);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+    color:var(--ink-line);display:block;margin:0 0 9px 2px;
+  }
+  nav.side a{
+    display:block;text-decoration:none;color:var(--ink-mute);
+    font-size:14.5px;padding:4px 10px;border-left:2px solid transparent;
+    border-radius:0 6px 6px 0;transition:.2s;
+  }
+  nav.side a:hover{color:var(--ink);background:rgba(20,17,13,.035)}
+  nav.side a.active{color:var(--aegean);border-left-color:var(--bronze);background:rgba(28,74,82,.05);font-weight:500}
+
+  /* ---- Type ---- */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--bronze)}
+  h2.sec{font-family:var(--display);font-weight:600;font-size:clamp(34px,5vw,52px);line-height:1.04;
+    margin:0 0 4px;letter-spacing:-.5px}
+  h3{font-family:var(--display);font-weight:600;font-size:27px;margin:54px 0 6px;letter-spacing:-.2px}
+  h4{font-family:var(--mono);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-line);margin:30px 0 12px}
+  p{margin:12px 0;color:#2c281f}
+  a.ln{color:var(--aegean);text-decoration:none;border-bottom:1px solid rgba(28,74,82,.3)}
+  a.ln:hover{border-color:var(--aegean)}
+  .rule{height:1px;background:var(--bronze);opacity:.45;margin:14px 0 0;border:0}
+  code,.mono{font-family:var(--mono)}
+  .lead{font-size:18.5px;color:var(--ink-mute);max-width:62ch;font-weight:300}
+
+  section{padding-top:30px;margin-bottom:8px}
+  section>.head{margin-bottom:26px}
+
+  /* ---- Panels / cards ---- */
+  .panel{
+    background:var(--marble);border:1px solid var(--hair);border-radius:16px;
+    padding:22px 24px;margin:16px 0;box-shadow:0 14px 30px rgba(20,17,13,.06);
+  }
+  .grid{display:grid;gap:14px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .grid.three{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:880px){.grid.two,.grid.three{grid-template-columns:1fr}}
+
+  /* ---- Endpoint cards (Doxygen-like) ---- */
+  .ep{background:var(--marble);border:1px solid var(--hair);border-radius:14px;
+    padding:16px 20px;margin:12px 0;box-shadow:0 10px 24px rgba(20,17,13,.05);transition:.25s}
+  .ep:hover{transform:translateY(-2px);box-shadow:0 18px 36px rgba(20,17,13,.09)}
+  .ep .sig{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  .ep .path{font-family:var(--mono);font-size:14.5px;font-weight:600;color:var(--ink)}
+  .ep .fn{font-family:var(--mono);font-size:12px;color:var(--ink-line);margin-left:auto}
+  .ep p{margin:9px 0 0;font-size:15px}
+  .meth{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1px;
+    padding:3px 9px;border-radius:5px;color:var(--parchment)}
+  .GET{background:var(--aegean)} .POST{background:var(--bronze)}
+  .PATCH{background:var(--gold)} .DELETE{background:var(--terra)}
+  .lock{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--olive);
+    border:1px solid rgba(74,107,58,.4);border-radius:5px;padding:2px 7px}
+  .open{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--terra);
+    border:1px solid rgba(156,90,58,.4);border-radius:5px;padding:2px 7px}
+
+  /* ---- Symbol rows (models / methods) ---- */
+  .sym{display:grid;grid-template-columns:minmax(190px,1fr) 2fr;gap:14px;
+    padding:11px 0;border-bottom:1px solid var(--hair-soft);align-items:baseline}
+  .sym:last-child{border-bottom:0}
+  .sym .name{font-family:var(--mono);font-size:13.5px;font-weight:600;color:var(--aegean-deep)}
+  .sym .desc{font-size:14.5px;color:var(--ink-mute)}
+  @media(max-width:760px){.sym{grid-template-columns:1fr;gap:2px}}
+
+  /* code block */
+  pre{background:var(--aegean-deep);color:#e8e2d2;border-radius:12px;padding:18px 20px;
+    overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;
+    box-shadow:0 14px 30px rgba(14,47,54,.25)}
+  pre .k{color:#d9a85a} pre .s{color:#9fc6a0} pre .c{color:#7b8a86;font-style:italic} pre .t{color:#7fb3bd}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:1px;
+    text-transform:uppercase;padding:4px 11px;border-radius:20px;border:1px solid var(--hair);
+    color:var(--ink-mute);margin:0 6px 8px 0;background:rgba(255,255,255,.35)}
+
+  /* hero */
+  .hero{padding:58px 0 22px}
+  .hero h2.sec{font-size:clamp(46px,8vw,86px)}
+  .archi{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:26px 0 4px}
+  .node{flex:1;min-width:150px;background:var(--marble);border:1px solid var(--hair);
+    border-radius:13px;padding:16px 18px;box-shadow:0 10px 22px rgba(20,17,13,.05)}
+  .node .t{font-family:var(--display);font-size:19px;font-weight:600}
+  .node .d{font-size:13px;color:var(--ink-mute);margin-top:3px}
+  .arrow{display:grid;place-items:center;padding:0 10px;color:var(--bronze);
+    font-family:var(--mono);font-size:20px;flex:none}
+  @media(max-width:880px){.arrow{transform:rotate(90deg);padding:8px 0}}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(16px);animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  footer{border-top:1px solid var(--hair);margin-top:80px;padding-top:24px;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:1px;color:var(--ink-line)}
+
+  @media(max-width:960px){
+    .shell{grid-template-columns:1fr}
+    nav.side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--hair)}
+    main{padding:40px 26px 100px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ======================= SIDEBAR ======================= -->
+  <nav class="side">
+    <div class="brand"><span class="seal">A</span><h1>Athlynk</h1></div>
+    <small>Codex · Documentazione</small>
+
+    <div class="navgroup"><span>Panoramica</span>
+      <a href="#overview">Il sistema</a>
+      <a href="#architecture">Architettura</a>
+      <a href="#security">Modello di sicurezza</a>
+    </div>
+    <div class="navgroup"><span>Backend · Django</span>
+      <a href="#auth">Auth &amp; Token</a>
+      <a href="#api">API · /api/v1</a>
+      <a href="#models">Modelli di dominio</a>
+    </div>
+    <div class="navgroup"><span>iOS · SwiftUI</span>
+      <a href="#ios-core">Core</a>
+      <a href="#ios-design">Design system</a>
+      <a href="#ios-features">Features</a>
+    </div>
+    <div class="navgroup"><span>Riferimento</span>
+      <a href="#conventions">Convenzioni</a>
+    </div>
+  </nav>
+
+  <!-- ======================= MAIN ======================= -->
+  <main>
+
+    <!-- HERO -->
+    <header class="hero rv">
+      <div class="eyebrow">Documentazione del codice · v1</div>
+      <h2 class="sec">Athlynk<br>Codex.</h2>
+      <p class="lead">Riferimento tecnico della piattaforma Athlynk — l'API mobile Django
+      e l'app atleta SwiftUI. Strutturato come un reference di simboli: moduli, endpoint,
+      modelli e viste, ognuno con firma, scopo e contratto.</p>
+      <hr class="rule">
+    </header>
+
+    <!-- OVERVIEW -->
+    <section id="overview">
+      <div class="head">
+        <div class="eyebrow">Panoramica</div>
+        <h2 class="sec">Il sistema</h2>
+      </div>
+      <p>Athlynk collega atleti e professionisti (coach, trainer, nutrizionisti). Esistono
+      due frontend sullo stesso dominio Django: la <b>web app</b> (coach + atleta) e l'<b>app
+      iOS nativa</b> dedicata all'atleta. L'app iOS non parla mai col database direttamente:
+      consuma una proiezione JSON di sola-lettura-prevalente esposta sotto <code>/api/v1</code>.</p>
+
+      <div class="grid three">
+        <div class="panel"><div class="eyebrow">Backend</div>
+          <p style="margin-top:8px">Django 6 · custom-auth · Postgres (Supabase) · cache DB per rate-limit. Nessuna dipendenza DRF: viste semplici che ritornano <code>JsonResponse</code>.</p></div>
+        <div class="panel"><div class="eyebrow">Mobile</div>
+          <p style="margin-top:8px">SwiftUI · async/await · token in Keychain · estetica greca-lusso (Didot, pergamena, bronzo/Egeo).</p></div>
+        <div class="panel"><div class="eyebrow">Confine</div>
+          <p style="margin-top:8px">35 endpoint <code>/api/v1</code>. Auth a token firmati via header <code>Authorization: Bearer</code>.</p></div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture">
+      <div class="head">
+        <div class="eyebrow">Panoramica</div>
+        <h2 class="sec">Architettura</h2>
+      </div>
+      <p>Flusso di una richiesta dall'app fino al dato e ritorno.</p>
+      <div class="archi">
+        <div class="node"><div class="t">App iOS</div><div class="d">SwiftUI · APIClient async</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">HTTPS</div><div class="d">Bearer token · ATS/TLS</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">Django /api/v1</div><div class="d">api_view · auth · viste</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">Postgres</div><div class="d">Modelli dominio · Supabase</div></div>
+      </div>
+
+      <h4>Ciclo di vita della richiesta</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">1 · Middleware</div><div class="desc">Security, Session, CSRF, Auth, Clickjacking, <code>SanitizationMiddleware</code> (sanitizzazione input).</div></div>
+        <div class="sym"><div class="name">2 · api_view</div><div class="desc">Esente CSRF (auth a token, non a cookie), gate sul metodo HTTP, risoluzione utente dal Bearer token.</div></div>
+        <div class="sym"><div class="name">3 · Vista</div><div class="desc">Chiamata come <code>view(request, user, …)</code>; ogni query è ristretta al <code>client_profile</code> dell'utente.</div></div>
+        <div class="sym"><div class="name">4 · Serializzazione</div><div class="desc">Builder di dict semplici (<code>_coach_dict</code>, <code>_day_dict</code>, …) → <code>JsonResponse</code>.</div></div>
+      </div>
+    </section>
+
+    <!-- SECURITY MODEL -->
+    <section id="security">
+      <div class="head">
+        <div class="eyebrow">Panoramica</div>
+        <h2 class="sec">Modello di sicurezza</h2>
+      </div>
+      <p class="lead" style="font-size:17px">Postura difensiva ad alto livello. I segreti e i
+      dettagli operativi restano fuori dal repo.</p>
+
+      <div class="grid two">
+        <div class="panel"><div class="eyebrow">Autenticazione</div>
+          <p>Token <b>firmati</b> con <code>django.core.signing</code> (HMAC su <code>SECRET_KEY</code>):
+          il payload — solo lo <code>uid</code> — è leggibile ma non falsificabile. Validità 30 giorni,
+          inviato come <code>Authorization: Bearer</code>. Sull'app è custodito nel <b>Keychain</b>.</p></div>
+        <div class="panel"><div class="eyebrow">Autorizzazione</div>
+          <p>Ogni endpoint restringe le query al <code>client_profile</code> dell'utente autenticato.
+          Gli accessi per-id (conversazioni, check, notifiche) verificano la proprietà → niente IDOR.</p></div>
+        <div class="panel"><div class="eyebrow">Credenziali</div>
+          <p>Password con hash via Django (<code>check_password</code>, confronto a tempo costante).
+          Il login è <b>rate-limited</b> per IP e per account (finestra a bucket in cache), con reset
+          al primo accesso valido.</p></div>
+        <div class="panel"><div class="eyebrow">Trasporto &amp; input</div>
+          <p>In produzione: HTTPS forzato, HSTS, cookie <code>Secure</code>. Upload immagini
+          ri-codificati server-side (neutralizza payload nascosti), con tetti di dimensione e
+          allowlist MIME. ATS sull'app forza TLS verso i domini reali.</p></div>
+      </div>
+      <p style="font-size:14px;color:var(--ink-line)"><b>Nota.</b> Il report di audit dettagliato
+      (debolezze residue, vettori, mitigazioni interne) è mantenuto separatamente e <b>non</b> è
+      incluso in questa documentazione pubblica: documentare le debolezze equivale a fornire una
+      mappa all'attaccante.</p>
+    </section>
+
+    <!-- ============ BACKEND: AUTH ============ -->
+    <section id="auth">
+      <div class="head">
+        <div class="eyebrow">Backend · config/api.py</div>
+        <h2 class="sec">Auth &amp; Token</h2>
+      </div>
+      <p>Infrastruttura di autenticazione. Token stateless firmati — nessun modello/migrazione
+      aggiuntiva: il token è un blob firmato che porta l'id utente.</p>
+
+      <div class="panel">
+        <div class="sym"><div class="name">issue_token(user)</div><div class="desc">Firma <code>{'uid': user.id}</code> con salt dedicato → stringa token. Emesso al login.</div></div>
+        <div class="sym"><div class="name">_user_from_token(token)</div><div class="desc">Verifica firma e scadenza (30 gg), ritorna l'<code>User</code> attivo o <code>None</code>.</div></div>
+        <div class="sym"><div class="name">_bearer(request)</div><div class="desc">Estrae il token dall'header <code>Authorization: Bearer &lt;token&gt;</code>.</div></div>
+        <div class="sym"><div class="name">@api_view(methods)</div><div class="desc">Decoratore: esenzione CSRF + gate sul metodo + auth a token. Inietta <code>user</code> nella vista, o ritorna <code>401</code>.</div></div>
+      </div>
+
+      <pre><span class="c"># Pattern di ogni endpoint protetto</span>
+<span class="k">@api_view</span>([<span class="s">'GET'</span>])
+<span class="k">def</span> <span class="t">endpoint</span>(request, user):       <span class="c"># user già autenticato</span>
+    client = <span class="t">getattr</span>(user, <span class="s">'client_profile'</span>, <span class="k">None</span>)
+    <span class="k">if not</span> client:
+        <span class="k">return</span> JsonResponse({<span class="s">'error'</span>: …}, status=<span class="t">403</span>)
+    <span class="c"># … query SEMPRE filtrata per `client` …</span></pre>
+    </section>
+
+    <!-- ============ BACKEND: API REFERENCE ============ -->
+    <section id="api">
+      <div class="head">
+        <div class="eyebrow">Backend · config/api.py · config/urls.py</div>
+        <h2 class="sec">API · /api/v1</h2>
+      </div>
+      <p>Reference completo dei 35 endpoint. Legenda: <span class="meth GET">GET</span>
+      <span class="meth POST">POST</span> <span class="meth PATCH">PATCH</span>
+      <span class="meth DELETE">DELETE</span> · <span class="lock">🔒 auth</span> richiede token ·
+      <span class="open">pubblico</span> senza token.</p>
+
+      <h3>Autenticazione</h3>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/auth/login</span><span class="open">pubblico</span><span class="fn">login()</span></div>
+        <p>Verifica email + password, emette il token. <b>Rate-limited</b> per IP e account (<code>429</code> se superato). <code>401</code> credenziali errate, <code>403</code> email non verificata. Ritorna <code>{token, user}</code>.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/auth/forgot-password</span><span class="open">pubblico</span><span class="fn">forgot_password()</span></div>
+        <p>Avvia il reset password inviando l'email di recupero. Risposta generica (no enumeration).</p></div>
+
+      <h3>Account &amp; Profilo</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/me</span><span class="lock">🔒 auth</span><span class="fn">me()</span></div>
+        <p>Identità dell'utente + i professionisti collegati (coach / trainer / nutrizionista) + sintesi del profilo (altezza, obiettivo, livello attività, foto).</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="meth PATCH">PATCH</span><span class="path">/api/v1/profile</span><span class="lock">🔒 auth</span><span class="fn">profile()</span></div>
+        <p>Legge / modifica il <code>ClientProfile</code> dell'atleta: nome, telefono, altezza, peso, sport, obiettivo, livello, genere, data di nascita.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/profile/photo</span><span class="lock">🔒 auth</span><span class="fn">profile_photo()</span></div>
+        <p>Upload avatar (multipart). L'immagine viene ri-codificata in WebP server-side; ritorna l'URL assoluto.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="meth PATCH">PATCH</span><span class="path">/api/v1/settings</span><span class="lock">🔒 auth</span><span class="fn">settings()</span></div>
+        <p>Preferenze di notifica email per categoria.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/tutorial/complete</span><span class="lock">🔒 auth</span><span class="fn">tutorial_complete()</span></div>
+        <p>Segna come visto il tutorial del mascotte Chiron (mostrato al primo accesso).</p></div>
+      <div class="ep"><div class="sig"><span class="meth DELETE">DELETE</span><span class="path">/api/v1/account</span><span class="lock">🔒 auth</span><span class="fn">delete_account()</span></div>
+        <p>Disattiva l'account lato server.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/devices/register</span><span class="lock">🔒 auth</span><span class="fn">register_device()</span></div>
+        <p>Registra/aggiorna il device token APNs dell'utente per le push notification.</p></div>
+
+      <h3>Allenamento</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/workouts</span><span class="lock">🔒 auth</span><span class="fn">workouts()</span></div>
+        <p>Piani di allenamento attivi assegnati, con giorni ed esercizi (prescrizione completa: set, rep, carico, recupero, tempo, note).</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/workout-history</span><span class="lock">🔒 auth</span><span class="fn">workout_history()</span></div>
+        <p>Sessioni di allenamento passate/completate (storico).</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/sessions/start</span><span class="lock">🔒 auth</span><span class="fn">session_start()</span></div>
+        <p>Avvia una <code>WorkoutSession</code> live per un giorno di un piano assegnato.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/sessions/{id}/log-set</span><span class="lock">🔒 auth</span><span class="fn">session_log_set()</span></div>
+        <p>Registra/aggiorna un set (reps, carico, RPE, completato) nella sessione — verifica che la sessione sia dell'utente.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/sessions/{id}/finish</span><span class="lock">🔒 auth</span><span class="fn">session_finish()</span></div>
+        <p>Chiude la sessione (completata o interrotta), ricalcola durata e RPE medio.</p></div>
+
+      <h3>Nutrizione</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/nutrition</span><span class="lock">🔒 auth</span><span class="fn">nutrition()</span></div>
+        <p>Piani nutrizionali attivi: giorni, pasti e alimenti con macro.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/nutrition/foods</span><span class="lock">🔒 auth</span><span class="fn">food_search()</span></div>
+        <p>Ricerca nel database alimenti (param <code>?q=</code>), ordinata per genericità.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/nutrition/assignments/{id}/macro-day</span><span class="lock">🔒 auth</span><span class="fn">macro_day()</span></div>
+        <p>Modalità MACRO: alimenti loggati oggi + totali consumati + target macro del giorno.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/nutrition/assignments/{id}/macro-log</span><span class="lock">🔒 auth</span><span class="fn">macro_log_create()</span></div>
+        <p>Registra un alimento consumato (assegnazione verificata come MACRO e dell'utente).</p></div>
+      <div class="ep"><div class="sig"><span class="meth DELETE">DELETE</span><span class="path">/api/v1/nutrition/macro-log/{entry_id}</span><span class="lock">🔒 auth</span><span class="fn">macro_log_delete()</span></div>
+        <p>Elimina una voce del diario macro dell'utente.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/supplements</span><span class="lock">🔒 auth</span><span class="fn">supplements()</span></div>
+        <p>Protocollo integratori attivo dell'atleta.</p></div>
+
+      <h3>Check &amp; Progressi</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/checks</span><span class="lock">🔒 auth</span><span class="fn">checks()</span></div>
+        <p>Check-in in sospeso (timeline di monitoraggio).</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/checks/{instance_id}/submit</span><span class="lock">🔒 auth</span><span class="fn">check_submit()</span></div>
+        <p>Invia un check in sospeso (peso, misure, note). Rifiuta check già compilati o scaduti.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/progress</span><span class="lock">🔒 auth</span><span class="fn">progress()</span></div>
+        <p>Storico dei check inviati: serie peso, misure, foto, feedback del coach.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/anamnesis</span><span class="lock">🔒 auth</span><span class="fn">anamnesis()</span></div>
+        <p>Questionario anamnesi (modulo d'ingresso) in sola lettura.</p></div>
+
+      <h3>Agenda &amp; Percorso</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/appointments</span><span class="lock">🔒 auth</span><span class="fn">appointments()</span></div>
+        <p>Appuntamenti dell'atleta con i coach (tipo, orario, luogo, link meeting, stato).</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/journey</span><span class="lock">🔒 auth</span><span class="fn">journey()</span></div>
+        <p>Timeline del percorso: piani, diete ed eventi assegnati. Riusa il builder di eventi del web per tenere allineate vista coach e atleta.</p></div>
+
+      <h3>Chat &amp; Notifiche</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/conversations</span><span class="lock">🔒 auth</span><span class="fn">conversations()</span></div>
+        <p>Elenco conversazioni dell'atleta con ultimo messaggio.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/conversations/{id}/messages</span><span class="lock">🔒 auth</span><span class="fn">messages()</span></div>
+        <p>Messaggi di una conversazione — caricati solo se appartiene all'utente (blocca IDOR).</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/conversations/{id}/send</span><span class="lock">🔒 auth</span><span class="fn">send_message()</span></div>
+        <p>Invia un messaggio di testo nella conversazione (proprietà verificata).</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/notifications</span><span class="lock">🔒 auth</span><span class="fn">notifications()</span></div>
+        <p>Feed completo delle notifiche dell'utente.</p></div>
+      <div class="ep"><div class="sig"><span class="meth POST">POST</span><span class="path">/api/v1/notifications/{id}/read</span><span class="lock">🔒 auth</span><span class="fn">notification_read()</span></div>
+        <p>Segna come letta una notifica (verifica <code>target_user</code>).</p></div>
+
+      <h3>Abbonamento</h3>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/subscription</span><span class="lock">🔒 auth</span><span class="fn">subscription()</span></div>
+        <p>Abbonamento attivo dell'atleta: stato, pagamento, date, piano e prezzo.</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/plans</span><span class="lock">🔒 auth</span><span class="fn">plans()</span></div>
+        <p>Piani di abbonamento offerti dai coach dell'atleta ("Piani e Prezzi").</p></div>
+      <div class="ep"><div class="sig"><span class="meth GET">GET</span><span class="path">/api/v1/coaches/{id}</span><span class="lock">🔒 auth</span><span class="fn">coach_detail()</span></div>
+        <p>Profilo completo di un coach — solo se realmente collegato all'atleta (relazioni/assegnazioni).</p></div>
+    </section>
+
+    <!-- ============ BACKEND: MODELS ============ -->
+    <section id="models">
+      <div class="head">
+        <div class="eyebrow">Backend · domain/*/models.py</div>
+        <h2 class="sec">Modelli di dominio</h2>
+      </div>
+      <p>I modelli Django per area applicativa. L'API è una proiezione di questi.</p>
+
+      <h3>accounts</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">User</div><div class="desc">Utente con auth custom (<code>password_hash</code>, <code>role</code>, verifica email, flag tutorial Chiron).</div></div>
+        <div class="sym"><div class="name">CoachProfile</div><div class="desc">Profilo professionista: tipo, specializzazione, città, immagine, bio.</div></div>
+        <div class="sym"><div class="name">ClientProfile</div><div class="desc">Profilo atleta: anagrafica, altezza/peso, sport, obiettivo, livello, avatar.</div></div>
+        <div class="sym"><div class="name">DeviceToken</div><div class="desc">Token APNs per device, per consegna push.</div></div>
+        <div class="sym"><div class="name">PasswordResetToken</div><div class="desc">Token a tempo per il reset password.</div></div>
+      </div>
+
+      <h3>coaching</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">CoachingRelationship</div><div class="desc">Legame coach↔atleta per ambito (full / workout / nutrition).</div></div>
+        <div class="sym"><div class="name">ClientAnamnesis</div><div class="desc">Modulo anamnesi d'ingresso compilato per l'atleta.</div></div>
+      </div>
+
+      <h3>workouts</h3>
+      <div class="panel grid two" style="padding:18px 24px">
+        <div class="sym"><div class="name">Exercise</div><div class="desc">Esercizio: muscolo target, attrezzo, video.</div></div>
+        <div class="sym"><div class="name">WorkoutPlan</div><div class="desc">Piano: obiettivo, livello, frequenza, durata.</div></div>
+        <div class="sym"><div class="name">WorkoutDay</div><div class="desc">Giorno del piano: focus, tipo, note.</div></div>
+        <div class="sym"><div class="name">WorkoutExercise</div><div class="desc">Prescrizione di un esercizio nel giorno (set/rep/carico/RIR/RPE/tempo).</div></div>
+        <div class="sym"><div class="name">WorkoutAssignment</div><div class="desc">Assegnazione di un piano a un atleta.</div></div>
+        <div class="sym"><div class="name">WorkoutSession</div><div class="desc">Sessione eseguita: durata, RPE medio, stato.</div></div>
+        <div class="sym"><div class="name">WorkoutSetLog</div><div class="desc">Set registrato in sessione.</div></div>
+        <div class="sym"><div class="name">Sport · MuscleGroup</div><div class="desc">Tassonomie di riferimento.</div></div>
+        <div class="sym"><div class="name">WeekDefinition · ProgressionRule</div><div class="desc">Periodizzazione e regole di progressione.</div></div>
+        <div class="sym"><div class="name">SessionMedia · SessionCoachNote</div><div class="desc">Media e note del coach sulla sessione.</div></div>
+      </div>
+
+      <h3>nutrition</h3>
+      <div class="panel grid two" style="padding:18px 24px">
+        <div class="sym"><div class="name">Food</div><div class="desc">Alimento con valori energetici e macro.</div></div>
+        <div class="sym"><div class="name">NutritionPlan</div><div class="desc">Piano nutrizionale (modalità diet o MACRO).</div></div>
+        <div class="sym"><div class="name">DietDay · Meal · MealItem</div><div class="desc">Struttura giorno → pasti → alimenti.</div></div>
+        <div class="sym"><div class="name">MealItemSubstitution</div><div class="desc">Alternative per un alimento del pasto.</div></div>
+        <div class="sym"><div class="name">NutritionAssignment</div><div class="desc">Assegnazione di un piano nutrizionale.</div></div>
+        <div class="sym"><div class="name">ClientMacroLogEntry</div><div class="desc">Voce del diario macro auto-registrata dall'atleta.</div></div>
+        <div class="sym"><div class="name">Supplement · SupplementSheet</div><div class="desc">Integratori e scheda protocollo.</div></div>
+        <div class="sym"><div class="name">SupplementAssignment</div><div class="desc">Assegnazione del protocollo integratori.</div></div>
+      </div>
+
+      <h3>checks · calendar · billing · chat</h3>
+      <div class="panel grid two" style="padding:18px 24px">
+        <div class="sym"><div class="name">QuestionnaireTemplate</div><div class="desc">Modello di questionario check.</div></div>
+        <div class="sym"><div class="name">AssignedCheck · …Instance</div><div class="desc">Check assegnato e sue istanze ricorrenti.</div></div>
+        <div class="sym"><div class="name">QuestionnaireResponse</div><div class="desc">Risposta inviata: peso, misure, feedback.</div></div>
+        <div class="sym"><div class="name">ProgressPhoto · QuestionAttachment</div><div class="desc">Foto progressi e allegati.</div></div>
+        <div class="sym"><div class="name">Appointment</div><div class="desc">Appuntamento in agenda atleta↔coach.</div></div>
+        <div class="sym"><div class="name">SubscriptionPlan · ClientSubscription</div><div class="desc">Piano offerto e abbonamento attivo dell'atleta.</div></div>
+        <div class="sym"><div class="name">Conversation · Message</div><div class="desc">Chat e messaggi.</div></div>
+        <div class="sym"><div class="name">Notification</div><div class="desc">Notifica per utente (con tipo).</div></div>
+      </div>
+    </section>
+
+    <!-- ============ iOS: CORE ============ -->
+    <section id="ios-core">
+      <div class="head">
+        <div class="eyebrow">iOS · Athlynk/Core</div>
+        <h2 class="sec">Core</h2>
+      </div>
+      <p>Lo strato dati e sessione dell'app. <code>@MainActor</code> ovunque tocchi lo stato osservato.</p>
+
+      <h3>AppState · ObservableObject</h3>
+      <p>Ciclo di vita di auth e sessione per tutta l'app. Stato pubblicato e transizioni di fase.</p>
+      <div class="panel">
+        <div class="sym"><div class="name">@Published phase</div><div class="desc"><code>.splash → .login → .app</code>.</div></div>
+        <div class="sym"><div class="name">@Published user · me</div><div class="desc">Identità (<code>AuthUser</code>) e payload <code>/me</code> con coach e profilo.</div></div>
+        <div class="sym"><div class="name">@Published avatarUrl</div><div class="desc">URL foto profilo, esposto a tutta l'app per gli avatar negli header.</div></div>
+        <div class="sym"><div class="name">bootstrap()</div><div class="desc">Decide la rotta post-splash in base al token in Keychain; carica <code>/me</code>.</div></div>
+        <div class="sym"><div class="name">login() · logout()</div><div class="desc">Autentica e persiste il token; oppure svuota la sessione locale.</div></div>
+        <div class="sym"><div class="name">enablePushNotifications()</div><div class="desc">Chiede il permesso e registra per le push APNs (no-op finché manca l'entitlement).</div></div>
+      </div>
+
+      <h3>APIClient · async</h3>
+      <p>Wrapper sottile sull'API <code>/api/v1</code>. Un metodo per endpoint, tutti <code>async throws</code>.
+      Inietta il Bearer token, decodifica i DTO, mappa gli errori HTTP.</p>
+      <div class="panel grid two" style="padding:18px 24px">
+        <div class="sym"><div class="name">login · me</div><div class="desc">Auth e bootstrap.</div></div>
+        <div class="sym"><div class="name">workouts · workoutHistory</div><div class="desc">Piani e storico allenamenti.</div></div>
+        <div class="sym"><div class="name">sessionStart · logSet · finishSession</div><div class="desc">Sessione live.</div></div>
+        <div class="sym"><div class="name">nutrition · searchFoods</div><div class="desc">Piani e ricerca alimenti.</div></div>
+        <div class="sym"><div class="name">macroDay · addMacroLog · deleteMacroLog</div><div class="desc">Diario macro.</div></div>
+        <div class="sym"><div class="name">supplements</div><div class="desc">Protocollo integratori.</div></div>
+        <div class="sym"><div class="name">checks · submitCheck · progress · anamnesis</div><div class="desc">Check e progressi.</div></div>
+        <div class="sym"><div class="name">conversations · messages · send</div><div class="desc">Chat.</div></div>
+        <div class="sym"><div class="name">notifications · markNotificationRead</div><div class="desc">Notifiche.</div></div>
+        <div class="sym"><div class="name">appointments · journey</div><div class="desc">Agenda e percorso.</div></div>
+        <div class="sym"><div class="name">subscription · plans · coach</div><div class="desc">Abbonamento e coach.</div></div>
+        <div class="sym"><div class="name">profile · updateProfile · uploadProfilePhoto</div><div class="desc">Profilo e avatar.</div></div>
+        <div class="sym"><div class="name">settings · updateSetting</div><div class="desc">Preferenze notifiche.</div></div>
+        <div class="sym"><div class="name">registerDevice · completeTutorial · deleteAccount · forgotPassword</div><div class="desc">Utility account.</div></div>
+      </div>
+
+      <h3>Altri Core</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">Models.swift</div><div class="desc">Tutti i DTO <code>Codable</code> (AuthUser, MeResponse, WorkoutPlanDTO, NutritionPlanDTO, ClientProfileDTO, …) con mapping <code>snake_case</code> → camelCase.</div></div>
+        <div class="sym"><div class="name">Keychain</div><div class="desc">Persistenza sicura del token (get/set/delete).</div></div>
+        <div class="sym"><div class="name">Haptics</div><div class="desc">Feedback tattile (success/error/impact).</div></div>
+        <div class="sym"><div class="name">APIError</div><div class="desc">Errori tipizzati (URL, rete, decodifica, status).</div></div>
+      </div>
+    </section>
+
+    <!-- ============ iOS: DESIGN SYSTEM ============ -->
+    <section id="ios-design">
+      <div class="head">
+        <div class="eyebrow">iOS · Athlynk/Theme · Athlynk/Components</div>
+        <h2 class="sec">Design system</h2>
+      </div>
+      <p>L'estetica greca-lusso in codice. Ogni schermata si ri-tematizza tramite queste
+      primitive — i nomi dell'API ("VOLT"/"neon") sono storici, l'aspetto è marmo e bronzo.</p>
+
+      <h3>Theme.swift</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">Palette</div><div class="desc">Superfici (pergamena, marmo, pietra), inchiostri di testo, accenti (bronzo, Egeo, oliva, oro). Helper <code>accent(i)</code> per colorare per indice.</div></div>
+        <div class="sym"><div class="name">Typo</div><div class="desc"><code>poster/display</code> = Didot serif monumentale; <code>mono</code> = numerali/HUD; <code>body</code> = testo di sistema.</div></div>
+        <div class="sym"><div class="name">View.voltPanel()</div><div class="desc">Superficie marmo con bordo a filo d'inchiostro ed elevazione morbida.</div></div>
+        <div class="sym"><div class="name">View.neonGlow() · voltEyebrow()</div><div class="desc">Ombra-lusso soffusa; etichetta eyebrow mono bronzo maiuscola.</div></div>
+        <div class="sym"><div class="name">Color(hex:)</div><div class="desc">Inizializzatore da intero esadecimale.</div></div>
+      </div>
+
+      <h3>Components</h3>
+      <div class="panel grid two" style="padding:18px 24px">
+        <div class="sym"><div class="name">AvatarView</div><div class="desc">Avatar atleta: foto profilo se presente, altrimenti sigillo bronzo con iniziali.</div></div>
+        <div class="sym"><div class="name">VoltBackground</div><div class="desc">Sfondo: campo pergamena, luce marmo, tinte bronzo/Egeo, grana.</div></div>
+        <div class="sym"><div class="name">NeonTabBar · AppTab</div><div class="desc">Tab bar custom + enum delle sezioni.</div></div>
+        <div class="sym"><div class="name">NeonButton</div><div class="desc">Bottone primario con stato loading.</div></div>
+        <div class="sym"><div class="name">RingGauge · RollingNumber</div><div class="desc">Anello di completamento e numeri animati.</div></div>
+        <div class="sym"><div class="name">PressableCard</div><div class="desc">Stile bottone con feedback alla pressione.</div></div>
+        <div class="sym"><div class="name">GlitchText · ParticleBurst</div><div class="desc">Effetti per i momenti d'impatto.</div></div>
+        <div class="sym"><div class="name">Skeleton (Skel*)</div><div class="desc">Placeholder di caricamento (blocchi, righe, avatar, card).</div></div>
+      </div>
+    </section>
+
+    <!-- ============ iOS: FEATURES ============ -->
+    <section id="ios-features">
+      <div class="head">
+        <div class="eyebrow">iOS · Athlynk/Features</div>
+        <h2 class="sec">Features</h2>
+      </div>
+      <p>Le viste SwiftUI per area. Ognuna consuma <code>APIClient</code> e si veste col design system.</p>
+
+      <h4>Shell &amp; onboarding</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">SplashView</div><div class="desc">Cold-open: il wordmark si "accende", poi chiama <code>bootstrap()</code>.</div></div>
+        <div class="sym"><div class="name">OnboardingView</div><div class="desc">Carosello intro a 3 slide, una volta al primo avvio.</div></div>
+        <div class="sym"><div class="name">LoginView</div><div class="desc">Accesso atleta.</div></div>
+        <div class="sym"><div class="name">ChironTutorialView</div><div class="desc">Onboarding col mascotte Chiron, il centauro-arciere che istruiva gli eroi.</div></div>
+        <div class="sym"><div class="name">MainTabView</div><div class="desc">Guscio app: sfondo persistente + tab bar custom sopra le schermate. Include <code>ScreenHeader</code>.</div></div>
+      </div>
+
+      <h4>Hub &amp; profilo</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">DashboardView</div><div class="desc">L'Hub: saluto, metriche rapide, allenamento e pasto di oggi, ultima chat.</div></div>
+        <div class="sym"><div class="name">ProfileView · EditProfileView</div><div class="desc">Profilo atleta (avatar, statistiche, professionisti) e modifica campi + foto.</div></div>
+        <div class="sym"><div class="name">SettingsView · HelpView</div><div class="desc">Preferenze email e FAQ/contatti.</div></div>
+        <div class="sym"><div class="name">NotificheView</div><div class="desc">Feed notifiche; il tap segna come letta.</div></div>
+      </div>
+
+      <h4>Allenamento</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">WorkoutsView · WorkoutPlanDetailView</div><div class="desc">Programmi come card e dettaglio del piano.</div></div>
+        <div class="sym"><div class="name">WorkoutDayView · ExerciseDetailView</div><div class="desc">Giorno di allenamento e prescrizione del singolo esercizio.</div></div>
+        <div class="sym"><div class="name">ActiveSessionView</div><div class="desc">Logger live: avvia una sessione, registra i set, anello che si riempie.</div></div>
+        <div class="sym"><div class="name">WorkoutHistoryView</div><div class="desc">Storico sessioni raggruppato per mese.</div></div>
+      </div>
+
+      <h4>Nutrizione</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">NutritionView · MealDetailView</div><div class="desc">Piani nutrizionali e dettaglio pasto (kcal + macro).</div></div>
+        <div class="sym"><div class="name">MacroLogView</div><div class="desc">Diario alimentare MACRO: l'atleta registra ciò che mangia verso il target.</div></div>
+        <div class="sym"><div class="name">SupplementsView</div><div class="desc">Protocollo integratori.</div></div>
+      </div>
+
+      <h4>Check, agenda &amp; abbonamento</h4>
+      <div class="panel">
+        <div class="sym"><div class="name">ChecksView · NewCheckView</div><div class="desc">Timeline dei check e compilazione di un check in sospeso.</div></div>
+        <div class="sym"><div class="name">ProgressView · AnamnesisView</div><div class="desc">Grafici progressi + comparatore foto, e anamnesi in lettura.</div></div>
+        <div class="sym"><div class="name">JourneyView</div><div class="desc">Il mio percorso: timeline di piani, diete ed eventi.</div></div>
+        <div class="sym"><div class="name">AgendaView · AppointmentDetailView</div><div class="desc">Appuntamenti e dettaglio.</div></div>
+        <div class="sym"><div class="name">SubscriptionView · PricingView · CheckoutView</div><div class="desc">Abbonamento attivo, piani e prezzi, checkout (mock).</div></div>
+        <div class="sym"><div class="name">ChatListView · CoachDetailView</div><div class="desc">Chat coi coach e profilo del coach.</div></div>
+      </div>
+    </section>
+
+    <!-- CONVENTIONS -->
+    <section id="conventions">
+      <div class="head">
+        <div class="eyebrow">Riferimento</div>
+        <h2 class="sec">Convenzioni</h2>
+      </div>
+      <div class="grid two">
+        <div class="panel"><div class="eyebrow">Backend</div>
+          <p style="margin-top:8px">Helper privati con <code>_underscore</code> (serializer, guardie di proprietà).
+          Ogni endpoint protetto da <code>@api_view</code>. Query sempre filtrate per <code>client</code>.
+          Semplicità prima di tutto: niente DRF, niente astrazioni speculative.</p></div>
+        <div class="panel"><div class="eyebrow">iOS</div>
+          <p style="margin-top:8px">Un file = una feature/vista. DTO <code>Codable</code> in <code>Models.swift</code>.
+          Stato osservato su <code>@MainActor</code>. Ri-skin tramite le primitive di <code>Theme</code>,
+          mai colori hard-coded sparsi.</p></div>
+      </div>
+      <p class="pill">snake_case API</p><p class="pill">camelCase Swift</p><p class="pill">Bearer auth</p>
+      <p class="pill">@MainActor</p><p class="pill">JsonResponse</p><p class="pill">async/await</p>
+    </section>
+
+    <footer>
+      ATHLYNK · CODEX — documentazione generata dal codice sorgente · backend Django + iOS SwiftUI
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // staggered reveal
+  document.querySelectorAll('.panel, .ep, h3, .archi, .grid').forEach((el,i)=>{
+    el.classList.add('rv'); el.style.animationDelay=(Math.min(i,8)*45)+'ms';
+  });
+  // scrollspy
+  const links=[...document.querySelectorAll('nav.side a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');
+    }});
+  },{rootMargin:'-12% 0px -78% 0px'});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
