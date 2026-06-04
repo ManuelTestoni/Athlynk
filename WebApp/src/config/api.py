@@ -38,6 +38,7 @@ from domain.workouts.models import (
 )
 
 from .session_utils import get_active_relationships
+from .services import ratelimit
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,14 @@ logger = logging.getLogger(__name__)
 # be forged without SECRET_KEY. 30-day lifetime keeps the athlete logged in.
 TOKEN_SALT = 'athlynk.api.v1.token'
 TOKEN_MAX_AGE = 60 * 60 * 24 * 30
+
+# Login throttle — mirrors the web login (config/views_auth.py): per-IP and
+# per-account buckets so neither a single source nor a single account can be
+# brute-forced. Counters reset on a successful login.
+LOGIN_RATE_LIMIT = 5
+LOGIN_RATE_WINDOW_SECONDS = 15 * 60
+LOGIN_EMAIL_RATE_LIMIT = 10
+LOGIN_EMAIL_RATE_WINDOW_SECONDS = 15 * 60
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +207,19 @@ def login(request):
     password = data.get('password') or ''
     if not email or not password:
         return JsonResponse({'error': 'Email e password obbligatorie'}, status=400)
+
+    ip = ratelimit.client_ip(request)
+    ip_allowed, _ = ratelimit.hit(
+        'login_ip', ip, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_SECONDS,
+    )
+    email_allowed, _ = ratelimit.hit(
+        'login_email', email, LOGIN_EMAIL_RATE_LIMIT, LOGIN_EMAIL_RATE_WINDOW_SECONDS,
+    )
+    if not ip_allowed or not email_allowed:
+        logger.warning('api.login.rate_limited ip=%s email=%s ip_ok=%s email_ok=%s',
+                       ip, email, ip_allowed, email_allowed)
+        return JsonResponse({'error': 'Troppi tentativi di accesso. Riprova tra qualche minuto.'}, status=429)
+
     try:
         user = User.objects.get(email__iexact=email)
     except User.DoesNotExist:
@@ -207,6 +229,8 @@ def login(request):
     if not user.is_verified:
         return JsonResponse({'error': 'Email non verificata'}, status=403)
 
+    ratelimit.reset('login_ip', ip, LOGIN_RATE_WINDOW_SECONDS)
+    ratelimit.reset('login_email', email, LOGIN_EMAIL_RATE_WINDOW_SECONDS)
     user.last_login_at = timezone.now()
     user.save(update_fields=['last_login_at'])
     return JsonResponse({'token': issue_token(user), 'user': _user_dict(user)})

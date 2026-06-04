@@ -218,3 +218,25 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR.parent / 'media'
 
+
+# --- Production transport security -----------------------------------------
+# Only enforced when DEBUG is off, so local http://127.0.0.1 development (and
+# the iOS app talking to http://localhost) keeps working untouched. In
+# production every response is HTTPS-only with HSTS, and the session/CSRF
+# cookies are marked Secure so they never travel in plaintext.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000              # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Behind a TLS-terminating proxy (Railway/Fly/Cloudflare), trust its scheme
+    # header so SECURE_SSL_REDIRECT doesn't loop. Only honored alongside a
+    # configured TRUSTED_PROXY_COUNT > 0.
+    if TRUSTED_PROXY_COUNT > 0:
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Hosts allowed to submit CSRF-protected forms (full https origins).
+    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+
