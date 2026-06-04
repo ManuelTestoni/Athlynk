@@ -592,7 +592,14 @@ def messages(request, user, conversation_id):
     conv = _own_conversation(user, conversation_id)
     if not conv:
         return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
-    msgs = conv.messages.order_by('sent_at')[:200]
+    qs = conv.messages.order_by('sent_at')
+    # ?since=<last_id>: while the chat is open the client polls for only the
+    # messages newer than the last one it holds — tiny indexed query, empty
+    # result when nothing changed (no battery/payload wasted on full reloads).
+    since = request.GET.get('since')
+    if since and since.isdigit():
+        qs = qs.filter(id__gt=int(since))
+    msgs = qs[:200]
     return JsonResponse({'messages': [{
         'id': m.id,
         'body': m.body,

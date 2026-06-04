@@ -37,6 +37,7 @@ struct NotificheView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
         .refreshable { await load() }
+        .onRemoteChange { Task { await load() } }
     }
 
     private func row(_ n: NotificationDTO) -> some View {

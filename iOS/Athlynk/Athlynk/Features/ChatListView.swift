@@ -31,6 +31,7 @@ struct ChatListView: View {
         .navigationTitle("").navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { convos = (try? await APIClient.shared.conversations()) ?? []; loading = false }
+        .onRemoteChange(["MESSAGE"]) { Task { convos = (try? await APIClient.shared.conversations()) ?? [] } }
     }
 
     private func row(_ c: ConversationDTO) -> some View {
@@ -81,7 +82,9 @@ struct ChatDetailView: View {
         .navigationTitle(conversation.coach?.fullName ?? "Chat")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .task { await reload() }
+        // Full load once, then poll only for newer messages while the screen is
+        // open. SwiftUI cancels this `.task` on disappear, stopping the poll.
+        .task { await reload(); await pollLoop() }
     }
 
     private func bubble(_ m: MessageDTO) -> some View {
@@ -127,12 +130,28 @@ struct ChatDetailView: View {
 
     private func reload() async { messages = (try? await APIClient.shared.messages(conversation: conversation.id)) ?? [] }
 
+    /// Fetch only messages newer than the last one held; append the unseen ones.
+    private func pollOnce() async {
+        guard let new = try? await APIClient.shared.messages(conversation: conversation.id, since: messages.last?.id),
+              !new.isEmpty else { return }
+        let known = Set(messages.map(\.id))
+        messages.append(contentsOf: new.filter { !known.contains($0.id) })
+    }
+
+    private func pollLoop() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if Task.isCancelled { return }
+            await pollOnce()
+        }
+    }
+
     private func send() async {
         let text = draft.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
         sending = true; draft = ""; Haptics.tap()
         try? await APIClient.shared.send(conversation: conversation.id, body: text)
-        await reload()
+        await pollOnce()
         sending = false
     }
 }

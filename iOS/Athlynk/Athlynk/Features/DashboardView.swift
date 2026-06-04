@@ -100,6 +100,8 @@ struct DashboardView: View {
         .onAppear { appear = true }
         .task { await vm.load() }
         .refreshable { await vm.load() }
+        .onRemoteChange(["WORKOUT_ASSIGNED", "NUTRITION_ASSIGNED", "CHECK_REVIEWED",
+                         "COACH_FEEDBACK", "MESSAGE"]) { Task { await vm.load() } }
     }
 
     // MARK: Cards

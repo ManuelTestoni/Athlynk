@@ -65,6 +65,7 @@ struct ChecksView: View {
         .onAppear { appear = true }
         .task { await load() }
         .refreshable { await load() }
+        .onRemoteChange(["CHECK_REVIEWED"]) { Task { await load() } }
     }
 
     private func timelineRow(_ c: CheckDTO, index: Int, isLast: Bool) -> some View {

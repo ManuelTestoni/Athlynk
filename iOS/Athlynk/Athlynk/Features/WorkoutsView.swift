@@ -52,6 +52,7 @@ struct WorkoutsView: View {
         .onAppear { appear = true }
         .task { await load() }
         .refreshable { await load() }
+        .onRemoteChange(["WORKOUT_ASSIGNED"]) { Task { await load() } }
     }
 
     private func planSummaryCard(_ plan: WorkoutPlanDTO) -> some View {

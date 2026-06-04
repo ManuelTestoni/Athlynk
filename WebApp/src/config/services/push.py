@@ -96,7 +96,10 @@ def _dispatch(tokens, title, body, data, badge) -> None:
 
     jwt = _provider_jwt()
     host = 'api.sandbox.push.apple.com' if settings.APNS_USE_SANDBOX else 'api.push.apple.com'
-    aps = {'alert': {'title': title, 'body': body}, 'sound': 'default'}
+    # content-available wakes the app in the background so it can refetch the
+    # changed slice (workout/nutrition/check/chat) without the user opening it —
+    # the alert is still shown. The client maps `type` to the view to refresh.
+    aps = {'alert': {'title': title, 'body': body}, 'sound': 'default', 'content-available': 1}
     if badge is not None:
         aps['badge'] = badge
     payload = json.dumps({'aps': aps, **(data or {})}).encode()

@@ -108,9 +108,12 @@ final class APIClient {
         try decode(ConversationsResponse.self, from: try await request("/api/v1/conversations")).conversations
     }
 
-    func messages(conversation: Int) async throws -> [MessageDTO] {
-        try decode(MessagesResponse.self,
-                   from: try await request("/api/v1/conversations/\(conversation)/messages")).messages
+    /// `since` = id of the last message held; the server returns only newer ones
+    /// (empty when nothing changed). Used by the open chat's foreground poll.
+    func messages(conversation: Int, since: Int? = nil) async throws -> [MessageDTO] {
+        var path = "/api/v1/conversations/\(conversation)/messages"
+        if let since { path += "?since=\(since)" }
+        return try decode(MessagesResponse.self, from: try await request(path)).messages
     }
 
     func send(conversation: Int, body: String) async throws {

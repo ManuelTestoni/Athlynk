@@ -1143,6 +1143,80 @@ ing
   100% { background-position: -200% 0; }
 }
 
+/* ---------- Page-transition skeleton ----------
+   Painted into .al-page by skeleton_nav.js during full-page navigation,
+   while the next SSR document is fetched from the server. Pure chrome:
+   static marble panels with shimmering .al-skel blocks inside. */
+.al-pageskel {
+  animation: al-fade-up var(--al-d-page) var(--al-ease-out) both;
+}
+.al-pageskel * { pointer-events: none; }
+
+.al-pageskel-head { margin-bottom: var(--al-s-7, 28px); }
+.al-pageskel-eyebrow { width: 84px;  height: 10px; margin-bottom: 16px; }
+.al-pageskel-title   { width: 320px; max-width: 60%; height: 34px; margin-bottom: 14px; border-radius: var(--al-r-md); }
+.al-pageskel-sub     { width: 44%;   height: 13px; }
+
+.al-pageskel-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: var(--al-s-4, 16px);
+  margin-bottom: var(--al-s-7, 28px);
+}
+.al-pageskel-panel {
+  background: var(--al-marble);
+  border: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08));
+  border-radius: var(--al-r-md);
+  padding: var(--al-s-5, 20px);
+}
+.al-pageskel-stat .al-skel:first-child { width: 52%; height: 9px;  margin-bottom: 16px; }
+.al-pageskel-stat .al-skel:last-child  { width: 70%; height: 26px; border-radius: var(--al-r-sm); }
+
+.al-pageskel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--al-s-4, 16px);
+  padding: 14px var(--al-s-5, 20px);
+  border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06));
+}
+.al-pageskel-row:last-child { border-bottom: 0; }
+.al-pageskel-row-main { flex: 1; min-width: 0; }
+.al-pageskel-row-main .al-skel:first-child { width: 40%; height: 12px; margin-bottom: 9px; }
+.al-pageskel-row-main .al-skel:last-child  { width: 64%; height: 9px; }
+
+.al-pageskel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--al-s-4, 16px);
+  margin-bottom: var(--al-s-5, 20px);
+}
+.al-pageskel-toolbar .al-skel:first-child { width: 240px; max-width: 50%; height: 38px; border-radius: var(--al-r-md); }
+.al-pageskel-toolbar .al-skel:last-child  { width: 120px; height: 38px; border-radius: var(--al-r-pill); }
+
+.al-pageskel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--al-s-5, 20px);
+}
+.al-pageskel-cardhead .al-skel:first-child { width: 56px; height: 56px; border-radius: var(--al-r-md); margin-bottom: 16px; }
+.al-pageskel-cardhead .al-skel:nth-child(2) { width: 70%; height: 15px; margin-bottom: 10px; }
+.al-pageskel-cardhead .al-skel:last-child   { width: 90%; height: 10px; }
+
+.al-pageskel-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-6, 24px);
+}
+@media (min-width: 1024px) {
+  .al-pageskel-cols { grid-template-columns: 2fr 1fr; }
+}
+.al-pageskel-para .al-skel { height: 11px; margin-bottom: 12px; }
+.al-pageskel-para .al-skel:nth-child(1) { width: 96%; }
+.al-pageskel-para .al-skel:nth-child(2) { width: 88%; }
+.al-pageskel-para .al-skel:nth-child(3) { width: 92%; }
+.al-pageskel-para .al-skel:nth-child(4) { width: 60%; }
+
 /* ---------- Toast ---------- */
 .al-toast {
   background: var(--al-ink);

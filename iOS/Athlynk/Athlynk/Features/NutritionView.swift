@@ -54,6 +54,7 @@ struct NutritionView: View {
         .onAppear { appear = true }
         .task { await load() }
         .refreshable { await load() }
+        .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { Task { await load() } }
     }
 
     private var supplementsLink: some View {
