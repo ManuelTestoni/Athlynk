@@ -28,7 +28,7 @@ struct WorkoutsView: View {
                     .revealUp(appear, index: 1)
 
                 if loading {
-                    LoadingPanel(text: "Carico le schede…")
+                    ListCardsSkeleton(accent: Palette.magenta, count: 2)
                 } else if let error {
                     EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
                 } else if plans.isEmpty {

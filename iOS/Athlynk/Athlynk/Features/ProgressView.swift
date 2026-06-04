@@ -51,7 +51,7 @@ struct ProgressTrackerView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico i progressi…")
+                        ProgressSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
                     } else if entries.isEmpty {

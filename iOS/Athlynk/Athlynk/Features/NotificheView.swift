@@ -17,7 +17,7 @@ struct NotificheView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 12) {
                     if loading {
-                        LoadingPanel()
+                        AvatarRowsSkeleton(accent: Palette.cyan, count: 6)
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
                     } else if items.isEmpty {

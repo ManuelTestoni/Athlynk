@@ -59,6 +59,7 @@ class Notification(models.Model):
         ('WORKOUT_ASSIGNED', 'Workout Assigned'),
         ('NUTRITION_ASSIGNED', 'Nutrition Plan Assigned'),
         ('SUPPLEMENT_ASSIGNED', 'Supplement Sheet Assigned'),
+        ('MACRO_REMINDER', 'Macro Log Reminder'),
     ]
 
     target_user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='notifications')

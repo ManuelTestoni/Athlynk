@@ -16,6 +16,7 @@ from django.core.management.base import BaseCommand
 from django.urls import reverse
 
 from domain.nutrition.models import NutritionAssignment, ClientMacroLogEntry
+from domain.chat.models import Notification
 
 
 COMPLETION_THRESHOLD = 0.80
@@ -37,6 +38,7 @@ class Command(BaseCommand):
         )
 
         sent = 0
+        pushed = 0
         for assignment in assignments:
             plan = assignment.nutrition_plan
             target_kcal = self._get_target_kcal(plan, today_dow)
@@ -67,7 +69,31 @@ class Command(BaseCommand):
                 if options.get('verbosity', 1) >= 2:
                     self.stdout.write(f'  Sent to {client}')
 
-        self.stdout.write(self.style.SUCCESS(f'Sent {sent} macro reminder email(s).'))
+            # In-app + push reminder. Creating the Notification fires an APNs push
+            # via the post_save signal (a no-op until APNs keys are configured).
+            # Deduped to one MACRO_REMINDER per client per day.
+            pushed += self._push_reminder(client, today)
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Sent {sent} macro reminder email(s); {pushed} in-app/push reminder(s).'
+        ))
+
+    def _push_reminder(self, client, today):
+        user = getattr(client, 'user', None)
+        if not user:
+            return 0
+        if Notification.objects.filter(
+            target_user=user, notification_type='MACRO_REMINDER', created_at__date=today
+        ).exists():
+            return 0
+        Notification.objects.create(
+            target_user=user,
+            notification_type='MACRO_REMINDER',
+            title='Completa i macro di oggi',
+            body='Registra gli alimenti prima di mezzanotte: a fine giornata il diario viene chiuso.',
+            link_url='/nutrizione/',
+        )
+        return 1
 
     def _get_target_kcal(self, plan, today_dow):
         if plan.plan_kind == 'DAILY':

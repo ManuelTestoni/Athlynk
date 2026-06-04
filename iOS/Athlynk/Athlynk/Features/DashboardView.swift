@@ -53,12 +53,7 @@ struct DashboardView: View {
                         .font(Typo.mono(11, .semibold)).tracking(3)
                         .textCase(.uppercase).foregroundStyle(Palette.bronze)
                     Spacer()
-                    Circle()
-                        .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
-                                             startPoint: .top, endPoint: .bottom))
-                        .frame(width: 40, height: 40)
-                        .overlay(Text(initials).font(Typo.poster(16)).foregroundStyle(Palette.void0))
-                        .neonGlow(Palette.amber, radius: 8)
+                    AvatarView(url: app.avatarUrl, initials: initials, size: 40, initialsSize: 16)
                 }
                 Text(app.greetingName.uppercased())
                     .font(Typo.poster(52)).foregroundStyle(Palette.textHi)
@@ -83,7 +78,7 @@ struct DashboardView: View {
             .revealUp(appear, index: 1)
 
             if vm.loading {
-                LoadingPanel()
+                DashboardSkeleton()
             } else {
                 // Today's session
                 Text("OGGI").voltEyebrow().padding(.top, 6).revealUp(appear, index: 2)

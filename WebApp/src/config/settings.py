@@ -26,6 +26,19 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv(
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 CONSENT_VERSION = config('CONSENT_VERSION', default='2026-05-13.v1')
 
+# --- Apple Push Notifications (APNs) ----------------------------------------
+# All optional. When the auth key / IDs are unset, push delivery is a silent
+# no-op (see config.services.push) so the app runs untouched until the real
+# Apple credentials are dropped in. To activate later, set these in the env:
+#   APNS_AUTH_KEY (raw .p8 contents) or APNS_AUTH_KEY_PATH (file path),
+#   APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_USE_SANDBOX.
+APNS_AUTH_KEY = config('APNS_AUTH_KEY', default='')
+APNS_AUTH_KEY_PATH = config('APNS_AUTH_KEY_PATH', default='')
+APNS_KEY_ID = config('APNS_KEY_ID', default='')
+APNS_TEAM_ID = config('APNS_TEAM_ID', default='')
+APNS_BUNDLE_ID = config('APNS_BUNDLE_ID', default='com.athlynk.app')
+APNS_USE_SANDBOX = config('APNS_USE_SANDBOX', default=True, cast=bool)
+
 # --- Email configuration ---------------------------------------------------
 # EMAIL_MODE selects the backend. Values:
 #   console          -> stdout (default in dev)

@@ -18,7 +18,7 @@ struct SubscriptionView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico l'abbonamento…")
+                        SubscriptionSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
                     } else if let sub {

@@ -58,10 +58,12 @@ struct MeProfile: Codable {
     let heightCm: Int?
     let primaryGoal: String?
     let activityLevel: String?
+    let imageUrl: String?
     enum CodingKeys: String, CodingKey {
         case heightCm = "height_cm"
         case primaryGoal = "primary_goal"
         case activityLevel = "activity_level"
+        case imageUrl = "profile_image_url"
     }
 }
 
@@ -452,6 +454,7 @@ struct ClientProfileDTO: Codable, Hashable {
     let activityLevel: String?
     let gender: String?
     let birthDate: String?
+    let imageUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case phone, gender, sport
@@ -462,7 +465,13 @@ struct ClientProfileDTO: Codable, Hashable {
         case primaryGoal = "primary_goal"
         case activityLevel = "activity_level"
         case birthDate = "birth_date"
+        case imageUrl = "profile_image_url"
     }
+}
+
+struct ProfilePhotoResponse: Codable {
+    let imageUrl: String
+    enum CodingKeys: String, CodingKey { case imageUrl = "profile_image_url" }
 }
 
 // MARK: - MACRO-mode food logging

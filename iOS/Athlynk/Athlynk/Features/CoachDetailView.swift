@@ -20,7 +20,7 @@ struct CoachDetailView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico il profilo…")
+                        CoachDetailSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
                     } else if let coach {

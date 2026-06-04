@@ -19,7 +19,7 @@ struct SupplementsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     if loading {
-                        LoadingPanel(text: "Carico il protocollo…")
+                        SupplementsSkeleton(count: 3)
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.amber)
                     } else if sheets.isEmpty {

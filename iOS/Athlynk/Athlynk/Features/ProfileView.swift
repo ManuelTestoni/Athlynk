@@ -72,12 +72,7 @@ struct ProfileView: View {
 
     private var identityCard: some View {
         HStack(spacing: 16) {
-            ZStack {
-                Circle().fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
-                                             startPoint: .top, endPoint: .bottom))
-                    .frame(width: 66, height: 66).neonGlow(Palette.amber, radius: 12)
-                Text(initials).font(Typo.poster(26)).foregroundStyle(Palette.void0)
-            }
+            AvatarView(url: app.avatarUrl, initials: initials, size: 66, initialsSize: 26, glow: 12)
             VStack(alignment: .leading, spacing: 4) {
                 Text(app.user?.displayName ?? "Atleta")
                     .font(Typo.display(24)).foregroundStyle(Palette.textHi)

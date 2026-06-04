@@ -28,7 +28,7 @@ struct NutritionView: View {
                     .revealUp(appear, index: 1)
 
                 if loading {
-                    LoadingPanel(text: "Carico il piano…")
+                    NutritionSkeleton()
                 } else if let error {
                     EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
                 } else if plans.isEmpty {

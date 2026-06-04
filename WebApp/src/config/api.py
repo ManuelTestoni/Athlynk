@@ -24,7 +24,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from domain.accounts.models import CoachProfile, User
+from domain.accounts.models import CoachProfile, DeviceToken, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
 from domain.chat.models import Conversation, Message, Notification
@@ -103,6 +103,17 @@ def _body(request):
 
 def _iso(dt):
     return dt.isoformat() if dt else None
+
+
+def _abs_media(request, url):
+    """Mobile clients can't resolve relative MEDIA paths ("/media/…") the way a
+    browser does against the page origin. Promote them to absolute URLs so
+    AsyncImage on iOS can load them; leave already-absolute URLs untouched."""
+    if not url:
+        return url
+    if url.startswith('http://') or url.startswith('https://'):
+        return url
+    return request.build_absolute_uri(url)
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +225,7 @@ def me(request, user):
             'height_cm': client.height_cm,
             'primary_goal': client.primary_goal,
             'activity_level': client.activity_level,
+            'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
         }
     return JsonResponse(payload)
 
@@ -676,7 +688,7 @@ def progress(request, user):
         'notes': r.notes,
         'photos': [{
             'id': p.id,
-            'url': p.file_url,
+            'url': _abs_media(request, p.file_url),
             'type': p.photo_type,
             'captured_at': _iso(p.captured_at),
         } for p in r.photos.all()],
@@ -703,7 +715,7 @@ def notification_read(request, user, notification_id):
 # Profile — read / edit the athlete's own ClientProfile
 # ---------------------------------------------------------------------------
 
-def _client_profile_dict(client):
+def _client_profile_dict(request, client):
     return {
         'first_name': client.first_name,
         'last_name': client.last_name,
@@ -715,6 +727,7 @@ def _client_profile_dict(client):
         'activity_level': client.activity_level,
         'gender': client.gender,
         'birth_date': _iso(client.birth_date),
+        'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
     }
 
 
@@ -760,7 +773,46 @@ def profile(request, user):
             else:
                 client.birth_date = None
         client.save()
-    return JsonResponse({'profile': _client_profile_dict(client)})
+    return JsonResponse({'profile': _client_profile_dict(request, client)})
+
+
+# ---------------------------------------------------------------------------
+# Profile photo — upload the athlete's own avatar (multipart, gallery pick)
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def profile_photo(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Profilo non disponibile'}, status=404)
+    upload = request.FILES.get('photo') or request.FILES.get('file')
+    if not upload:
+        return JsonResponse({'error': 'Nessuna immagine inviata'}, status=400)
+    from config.services.images import to_webp
+    try:
+        webp = to_webp(upload)
+    except Exception:
+        return JsonResponse({'error': 'Immagine non valida'}, status=400)
+    client.profile_image.save(webp.name, webp, save=True)
+    return JsonResponse({'profile_image_url': _abs_media(request, client.profile_image.url)})
+
+
+# ---------------------------------------------------------------------------
+# Device registration — store an APNs token for push notifications
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def register_device(request, user):
+    data = _body(request)
+    token = (data.get('token') or '').strip()
+    if not token:
+        return JsonResponse({'error': 'Token mancante'}, status=400)
+    platform = (data.get('platform') or 'ios').strip().lower()
+    DeviceToken.objects.update_or_create(
+        token=token,
+        defaults={'user': user, 'platform': platform, 'is_active': True},
+    )
+    return JsonResponse({'ok': True})
 
 
 # ---------------------------------------------------------------------------

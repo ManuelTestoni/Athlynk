@@ -93,6 +93,27 @@ class ClientProfile(models.Model):
         return f"Client: {self.first_name} {self.last_name}"
 
 
+class DeviceToken(models.Model):
+    """An APNs device token for push notifications, registered by the mobile app
+    after the user grants notification permission. Push delivery is a silent
+    no-op until APNs credentials are configured (see config.services.push), so
+    this table can be populated safely before the keys land."""
+    PLATFORMS = [('ios', 'iOS'), ('android', 'Android')]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='device_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=16, choices=PLATFORMS, default='ios')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'is_active'])]
+
+    def __str__(self):
+        return f"{self.platform} token for user {self.user_id}"
+
+
 class PasswordResetToken(models.Model):
     """Single-use, short-lived password-reset token.
 

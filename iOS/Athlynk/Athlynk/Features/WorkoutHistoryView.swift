@@ -32,7 +32,7 @@ struct WorkoutHistoryView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     if loading {
-                        LoadingPanel(text: "Carico lo storico…")
+                        DateCardsSkeleton(accent: Palette.violet, count: 3)
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
                     } else if sessions.isEmpty {

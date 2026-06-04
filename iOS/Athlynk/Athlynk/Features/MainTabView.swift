@@ -91,6 +91,7 @@ struct EmptyPanel: View {
 /// subtitle, with an optional initials avatar pinned top-right (the wordmark/
 /// account-icon row from the mockups).
 struct ScreenHeader: View {
+    @EnvironmentObject private var app: AppState
     var eyebrow: String
     var title: String
     var subtitle: String? = nil
@@ -105,12 +106,7 @@ struct ScreenHeader: View {
                     .textCase(.uppercase).foregroundStyle(accent)
                 Spacer()
                 if let initials {
-                    Circle()
-                        .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
-                                             startPoint: .top, endPoint: .bottom))
-                        .frame(width: 40, height: 40)
-                        .overlay(Text(initials).font(Typo.poster(16)).foregroundStyle(Palette.void0))
-                        .neonGlow(Palette.amber, radius: 8)
+                    AvatarView(url: app.avatarUrl, initials: initials, size: 40, initialsSize: 16)
                 }
             }
             Text(title)

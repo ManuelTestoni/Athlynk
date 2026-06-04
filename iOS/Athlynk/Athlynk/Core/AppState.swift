@@ -5,6 +5,8 @@
 
 import SwiftUI
 import Combine
+import UIKit
+import UserNotifications
 
 @MainActor
 final class AppState: ObservableObject {
@@ -13,6 +15,8 @@ final class AppState: ObservableObject {
     @Published var phase: Phase = .splash
     @Published var user: AuthUser?
     @Published var me: MeResponse?
+    /// The athlete's profile-photo URL, surfaced app-wide for header avatars.
+    @Published var avatarUrl: String?
     @Published var loginError: String?
     @Published var isAuthenticating = false
     /// Drives the one-time Chiron mascot tutorial (clients, first login only).
@@ -32,8 +36,10 @@ final class AppState: ObservableObject {
             let me = try await api.me()
             self.me = me
             self.user = me.user
+            self.avatarUrl = me.profile?.imageUrl
             showChiron = me.user.needsChironIntro
             phase = .app
+            enablePushNotifications()
         } catch {
             // Token stale / server down → back to login.
             api.token = nil
@@ -52,10 +58,12 @@ final class AppState: ObservableObject {
             Keychain.set(res.token, for: tokenKey)
             user = res.user
             me = try? await api.me()
+            avatarUrl = me?.profile?.imageUrl
             // Prefer the richer /me payload, but fall back to the login user.
             showChiron = (me?.user ?? res.user).needsChironIntro
             Haptics.success()
             withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { phase = .app }
+            enablePushNotifications()
         } catch {
             Haptics.error()
             loginError = error.localizedDescription
@@ -67,6 +75,7 @@ final class AppState: ObservableObject {
         Keychain.delete(tokenKey)
         user = nil
         me = nil
+        avatarUrl = nil
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { phase = .login }
     }
 
@@ -80,6 +89,18 @@ final class AppState: ObservableObject {
     func deleteAccount() async {
         try? await api.deleteAccount()
         logout()
+    }
+
+    /// Ask for notification permission, then register for remote (APNs) push.
+    /// Safe before the push entitlement exists: registration simply fails and is
+    /// ignored by the AppDelegate, so nothing breaks until the key is added.
+    func enablePushNotifications() {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+            guard granted else { return }
+            UIApplication.shared.registerForRemoteNotifications()
+        }
     }
 
     var greetingName: String {

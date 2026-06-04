@@ -24,7 +24,7 @@ struct SettingsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico le impostazioni…")
+                        SettingsSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
                     } else {

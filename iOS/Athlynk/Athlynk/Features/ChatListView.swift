@@ -15,7 +15,7 @@ struct ChatListView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     GlitchText(text: "CHAT", size: 48).padding(.top, 8)
                     if loading {
-                        LoadingPanel()
+                        AvatarRowsSkeleton(accent: Palette.cyan, count: 5)
                     } else if convos.isEmpty {
                         EmptyPanel(icon: "bubble.left", text: "Nessuna conversazione.")
                     } else {

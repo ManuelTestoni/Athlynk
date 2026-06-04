@@ -11,6 +11,17 @@
 	     group) so it is consumed only as INFOPLIST_FILE and never auto-added to
 	     Copy Bundle Resources, which would cause "Multiple commands produce
 	     Info.plist". -->
+	<!-- Photo library: the modern PhotosPicker (PHPickerViewController) runs
+	     out-of-process and needs no permission prompt, but we declare the usage
+	     string anyway for App Review and any future direct-library access. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Consenti l'accesso alle foto per impostare la tua immagine del profilo.</string>
+	<!-- Allow the app to receive remote (APNs) push notifications. Inert until
+	     the Push Notifications capability + APNs key are added to the target. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

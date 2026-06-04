@@ -43,7 +43,7 @@ struct ChecksView: View {
             .revealUp(appear, index: 1)
 
             if loading {
-                LoadingPanel()
+                TimelineSkeleton(accent: Palette.violet, count: 3)
             } else if let error {
                 EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
             } else if checks.isEmpty {

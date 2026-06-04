@@ -23,7 +23,7 @@ struct MacroLogView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico il diario…")
+                        MacroLogSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
                     } else if let day {

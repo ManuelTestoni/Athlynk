@@ -20,7 +20,7 @@ struct AgendaView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     if loading {
-                        LoadingPanel(text: "Carico l'agenda…")
+                        DateCardsSkeleton(accent: Palette.cyan, count: 3)
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
                     } else if items.isEmpty {

@@ -40,7 +40,7 @@ struct JourneyView: View {
                     if !events.isEmpty { filters }
 
                     if loading {
-                        LoadingPanel(text: "Carico il percorso…")
+                        TimelineSkeleton(accent: Palette.bronze, count: 4, railWidth: 44)
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.bronze)
                     } else if shown.isEmpty {

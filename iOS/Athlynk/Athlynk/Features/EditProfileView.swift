@@ -5,9 +5,11 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppState
 
     @State private var firstName = ""
     @State private var lastName = ""
@@ -15,6 +17,11 @@ struct EditProfileView: View {
     @State private var heightCm = ""
     @State private var goal = ""
     @State private var activity = ""
+
+    @State private var imageUrl: String?
+    @State private var photoItem: PhotosPickerItem?
+    @State private var avatarPreview: Data?
+    @State private var uploadingPhoto = false
 
     @State private var loading = true
     @State private var saving = false
@@ -26,8 +33,9 @@ struct EditProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        LoadingPanel(text: "Carico il profilo…")
+                        FormSkeleton(accent: Palette.amber, count: 6)
                     } else {
+                        avatarPicker
                         if let error {
                             Text(error).font(Typo.body(13)).foregroundStyle(Palette.magenta)
                         }
@@ -54,6 +62,87 @@ struct EditProfileView: View {
         .task { await load() }
     }
 
+    // MARK: Avatar
+
+    private var avatarPicker: some View {
+        VStack(spacing: 10) {
+            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: 104, height: 104)
+                        .neonGlow(Palette.amber, radius: 10)
+                    avatarImage
+                        .frame(width: 104, height: 104)
+                        .clipShape(Circle())
+                    if uploadingPhoto {
+                        Circle().fill(Color(hex: 0x14110D, alpha: 0.45)).frame(width: 104, height: 104)
+                        ProgressView().tint(Palette.void0)
+                    }
+                    // Camera badge
+                    Circle().fill(Palette.void0).frame(width: 34, height: 34)
+                        .overlay(Image(systemName: "camera.fill")
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(Palette.amber))
+                        .overlay(Circle().stroke(Palette.amber, lineWidth: 2))
+                        .offset(x: 36, y: 36)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(uploadingPhoto)
+
+            Text("Tocca per cambiare foto")
+                .font(Typo.mono(10, .bold)).tracking(1).foregroundStyle(Palette.textLow)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 6)
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task { await pickAndUpload(item) }
+        }
+    }
+
+    @ViewBuilder
+    private var avatarImage: some View {
+        if let data = avatarPreview, let ui = UIImage(data: data) {
+            Image(uiImage: ui).resizable().scaledToFill()
+        } else if let imageUrl, let url = URL(string: imageUrl) {
+            AsyncImage(url: url) { phase in
+                if case .success(let img) = phase { img.resizable().scaledToFill() }
+                else { avatarInitials }
+            }
+        } else {
+            avatarInitials
+        }
+    }
+
+    private var avatarInitials: some View {
+        let f = firstName.first.map(String.init) ?? ""
+        let l = lastName.first.map(String.init) ?? ""
+        let s = (f + l).uppercased()
+        return Text(s.isEmpty ? "A" : s)
+            .font(Typo.poster(38)).foregroundStyle(Palette.void0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func pickAndUpload(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        avatarPreview = data
+        uploadingPhoto = true
+        error = nil
+        do {
+            let newUrl = try await APIClient.shared.uploadProfilePhoto(data)
+            imageUrl = newUrl
+            app.avatarUrl = newUrl
+            Haptics.success()
+        } catch {
+            Haptics.error()
+            self.error = error.localizedDescription
+            avatarPreview = nil
+        }
+        uploadingPhoto = false
+    }
+
     private func field(_ label: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased()).font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
@@ -76,6 +165,7 @@ struct EditProfileView: View {
             heightCm = p.heightCm.map { "\($0)" } ?? ""
             goal = p.primaryGoal ?? ""
             activity = p.activityLevel ?? ""
+            imageUrl = p.imageUrl
         } catch {
             self.error = error.localizedDescription
         }
