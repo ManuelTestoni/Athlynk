@@ -57,7 +57,14 @@
   }
 
   document.addEventListener('alpine:init', () => {
-    Alpine.data('volumeAnalytics', () => ({
+    Alpine.data('volumeAnalytics', () => {
+    // Chart.js instance kept OUTSIDE Alpine's reactive data — wrapping a live
+    // chart in Alpine's Proxy breaks `.update()` (Chart mutates deep internals
+    // during its animation loop, and the proxy traps choke on it). This is the
+    // same pitfall that bites the client-check charts. Create/destroy still
+    // work through a proxy; in-place update does not — so keep it local.
+    let _chart = null;
+    return {
       /* lifecycle */
       isOpen: false,
       payload: null,           // captured plan snapshot
@@ -71,11 +78,12 @@
       secondaryMode: 'total',  // 'total' | 'primary' | 'secondary'
       _builderMode: false,    // hide week filter when in builder context (single-week locked)
       _progressionMode: false, // wizard step 3: show line tab, allow week filter, hide radar
+      _planDetailMode: false, // coach plan-detail: histogram+line multi-week, radar single-week
       hideRadar: false,
+      _weeksBeforeRadar: null, // restores multi-week selection when leaving radar
 
       /* computed cache */
       computedGroups: [],      // [{slug, name, color_token, per_week: [{week, primary_sets, secondary_sets}]}]
-      _chart: null,
       _canvas: null,
 
       /* === Public lifecycle === */
@@ -90,8 +98,9 @@
           if (e.key === 'Escape' && this.isOpen) this.close();
         });
 
-        // Watch secondaryMode changes to trigger chart updates
-        this.$watch('secondaryMode', () => { if (this.isOpen && this.hasData()) this.renderChart(); });
+        // Watch secondaryMode changes — animate the values in place so the
+        // chart content morphs between totale / primario / secondario.
+        this.$watch('secondaryMode', () => { if (this.isOpen && this.hasData()) this._updateValues(); });
       },
 
       handleOpen(detail) {
@@ -101,6 +110,7 @@
         this.payload = p.days || [];
         this._progressionMode = !!p.progressionMode;
         this._builderMode = !this._progressionMode && !(p.planId);
+        this._planDetailMode = !!p.planId && !this._progressionMode;
         this.hideRadar = !!p.hideRadar || this._progressionMode;
         if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;
@@ -262,6 +272,12 @@
 
       /* === Selection / interaction === */
       toggleWeek(w) {
+        if (this.chartType === 'radar') {
+          // Radar is single-week: pick exactly one.
+          this.weeksSelected = [w];
+          this.renderChart();
+          return;
+        }
         const i = this.weeksSelected.indexOf(w);
         if (i >= 0) this.weeksSelected.splice(i, 1);
         else this.weeksSelected.push(w);
@@ -284,12 +300,19 @@
       },
       setChartType(t) {
         if (this.chartType === t) return;
+        const prev = this.chartType;
         this.chartType = t;
-        this.renderChart();
-      },
-      setSecondaryMode(mode) {
-        if (this.secondaryMode === mode) return;
-        this.secondaryMode = mode;
+        if (t === 'radar') {
+          // Radar shows a single week — collapse selection, remember the rest.
+          if (this.weeksSelected.length > 1) {
+            this._weeksBeforeRadar = this.weeksSelected.slice();
+            this.weeksSelected = [this.weeksSelected[0]];
+          }
+        } else if (prev === 'radar' && this._weeksBeforeRadar) {
+          // Restore the multi-week selection used before entering radar.
+          this.weeksSelected = this._weeksBeforeRadar;
+          this._weeksBeforeRadar = null;
+        }
         this.renderChart();
       },
 
@@ -328,7 +351,7 @@
 
       /* === Chart === */
       _destroyChart() {
-        if (this._chart) { this._chart.destroy(); this._chart = null; }
+        if (_chart) { _chart.destroy(); _chart = null; }
       },
 
       mountCanvas(el) {
@@ -338,9 +361,42 @@
       },
 
       _resizeChart() {
-        if (this._chart && typeof this._chart.resize === 'function') {
-          try { this._chart.resize(); } catch (_) { /* ignore */ }
+        if (_chart && typeof _chart.resize === 'function') {
+          try { _chart.resize(); } catch (_) { /* ignore */ }
         }
+      },
+
+      // Re-tween the chart's values in place (no destroy/recreate) when only
+      // the per-muscle mode changes — bars, line points and the radar polygon
+      // morph to the new totale/primario/secondario values. Dataset count and
+      // labels are unchanged across modes, so we just swap the numbers.
+      _updateValues() {
+        const c = _chart;
+        if (!c) { this.renderChart(); return; }
+        const groups = this.activeGroups();
+        if (!groups.length || !this.weeksSelected.length) { this.renderChart(); return; }
+
+        if (this.chartType === 'line') {
+          // One dataset per group, values across the selected weeks.
+          groups.forEach((g, gi) => {
+            if (c.data.datasets[gi]) {
+              c.data.datasets[gi].data = this.weeksSelected.map(w => this.groupTotalForWeek(g, w));
+            }
+          });
+        } else {
+          // Histogram + radar: one dataset per (visible) week, values per group.
+          const weeks = this.chartType === 'radar' ? this.weeksSelected.slice(0, 4) : this.weeksSelected;
+          weeks.forEach((w, i) => {
+            if (c.data.datasets[i]) {
+              c.data.datasets[i].data = groups.map(g => this.groupTotalForWeek(g, w));
+            }
+          });
+        }
+
+        // Enable a one-off tween for this update (base config is animation:false
+        // so type/week/group re-renders stay instant).
+        c.options.animation = { duration: 600, easing: 'easeOutQuart' };
+        c.update();
       },
 
       renderChart() {
@@ -417,7 +473,7 @@
             maxBarThickness: 32,
           };
         });
-        this._chart = new Chart(ctx, {
+        _chart = new Chart(ctx, {
           type: 'bar',
           data: { labels, datasets },
           options: {
@@ -451,7 +507,7 @@
             spanGaps: true,
           };
         });
-        this._chart = new Chart(ctx, {
+        _chart = new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
           options: {
@@ -483,7 +539,7 @@
             borderWidth: 2,
           };
         });
-        this._chart = new Chart(ctx, {
+        _chart = new Chart(ctx, {
           type: 'radar',
           data: { labels, datasets },
           options: {
@@ -500,7 +556,8 @@
           },
         });
       },
-    }));
+    };
+    });
   });
 
   /* Global handle — page sends payload via this method, partial listens. */

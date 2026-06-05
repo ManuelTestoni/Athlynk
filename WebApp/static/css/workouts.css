@@ -1329,6 +1329,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   border-radius: 999px;
   padding: 3px;
   gap: 2px;
+  position: relative; /* anchor for the sliding pill (al-filter-slider) */
 }
 .va-segctl button {
   border: none;
@@ -1345,10 +1346,20 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   gap: 6px;
   transition: all 160ms var(--al-ease);
 }
+.va-segctl button {
+  position: relative;
+  z-index: 1; /* sit above the sliding pill */
+}
 .va-segctl button.is-active {
   background: var(--al-ink);
   color: var(--al-parchment);
   box-shadow: 0 1px 4px rgba(20,17,13,0.18);
+}
+/* When the sliding pill is present, the moving pill provides the fill —
+   drop the active button's own background so it glides instead of snapping. */
+.va-segctl.has-slider button.is-active {
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Filter rows */

@@ -28,6 +28,8 @@ struct NewCheckView: View {
     @State private var pickerItems: [String: [PhotosPickerItem]] = [:]
     @State private var loadingPhotos = false
     @State private var saving = false
+    /// Once true, the form is replaced by the success confirmation screen.
+    @State private var submitted = false
     /// Per-question validation messages, shown above each field.
     @State private var fieldErrors: [String: String] = [:]
     /// Submit/network failure, shown once at the top.
@@ -53,6 +55,14 @@ struct NewCheckView: View {
     private var isLast: Bool { stepIdx >= steps.count - 1 }
 
     var body: some View {
+        if submitted {
+            CheckSuccessView(title: check.title) { dismiss() }
+        } else {
+            form
+        }
+    }
+
+    private var form: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -422,9 +432,8 @@ struct NewCheckView: View {
         let files = attachments.filter { !$0.value.isEmpty }
         do {
             try await APIClient.shared.submitCheck(instanceId: check.id, answers: answers, attachments: files)
-            Haptics.success()
-            onDone()
-            dismiss()
+            onDone()   // refresh the timeline underneath while we show the confirmation
+            withAnimation(.easeOut(duration: 0.25)) { submitted = true }
         } catch {
             Haptics.error()
             self.submitError = error.localizedDescription

@@ -2,8 +2,13 @@
    Page-transition skeletons for the SSR app. On a full-page internal
    navigation the browser keeps the old page frozen until the next
    document arrives from the server (DB query + network latency). We
-   intercept the click, and after a short grace period paint a section-
-   shaped skeleton into .al-page so the wait reads as "instant".
+   intercept the click, and after a short grace period paint a skeleton
+   shaped like the *destination* page into .al-page so the wait reads
+   as "instant".
+
+   The skeleton must mirror the structure of the page being loaded, not
+   a generic placeholder — so each route family routes to its own
+   archetype (dashboard, list, detail, form, builder, chat).
 
    SAFE BOUNDARY: no fetch, no form submit, no state. Never calls
    preventDefault — the real navigation always proceeds untouched.
@@ -15,31 +20,56 @@
   var timer = null;
   var shown = false;
 
-  /* ---- variant routing ---------------------------------------------- */
+  /* ---- variant routing ----------------------------------------------
+     Order matters: most specific families first. */
   function variantFor(path) {
-    if (path === '/' || /\/dashboard\/?$/.test(path) || /(^|\/)agenda(\/|$)/.test(path)) {
-      return 'dashboard';
-    }
-    if (/\/\d+(\/|$)/.test(path) ||
-        /(create|edit|detail|wizard|builder|session|profilo|percorso|checkout|plan|registra|me)(\/|$)/.test(path)) {
-      return 'detail';
-    }
+    // chat conversation — message bubbles + composer
+    if (/^\/chat\/\d+/.test(path)) return 'chat';
+
+    // settings & simple stacked forms (before builder: anamnesi/crea is a form)
+    if (/^\/(impostazioni|profilo)(\/|$)/.test(path) ||
+        /\/(registra|modifica)(\/|$)/.test(path) ||
+        /\/anamnesi\/crea/.test(path)) return 'form';
+
+    // builders & wizards — sidebar list + canvas
+    if (/\/(wizard|crea|builder)(\/|$)/.test(path) ||
+        /\/modelli\/(nuovo|\d+)(\/|$)/.test(path) ||
+        /\/sessione\/\d+/.test(path)) return 'builder';
+
+    // dashboards — KPI grid + two columns
+    if (path === '/' || /\/dashboard\/?$/.test(path) ||
+        /^\/agenda\/?$/.test(path) ||
+        path === '/check/' || /^\/check\/andamento/.test(path)) return 'dashboard';
+
+    // anything keyed by an id → two-column detail
+    if (/\/\d+(\/|$)/.test(path)) return 'detail';
+
+    // list (default) — search toolbar + rows
     return 'list';
   }
 
-  /* ---- markup builders ---------------------------------------------- */
-  function head() {
-    return '<div class="al-pageskel-head">' +
-             '<div class="al-skel al-pageskel-eyebrow"></div>' +
-             '<div class="al-skel al-pageskel-title"></div>' +
-             '<div class="al-skel al-pageskel-sub"></div>' +
-           '</div>';
-  }
+  /* ---- markup builders ----------------------------------------------- */
   function rep(html, n) { var s = ''; for (var i = 0; i < n; i++) s += html; return s; }
 
-  function stat() {
-    return '<div class="al-pageskel-panel al-pageskel-stat">' +
-             '<div class="al-skel"></div><div class="al-skel"></div></div>';
+  // Page header: eyebrow + title + subtitle + bronze rule, with optional
+  // right-aligned action buttons — matches the al-eyebrow/al-h-1/al-rule-bronze
+  // header that opens almost every page.
+  function head(actions) {
+    return '<div class="al-pageskel-head">' +
+             '<div class="al-pageskel-head-main">' +
+               '<div class="al-skel al-pageskel-eyebrow"></div>' +
+               '<div class="al-skel al-pageskel-title"></div>' +
+               '<div class="al-skel al-pageskel-sub"></div>' +
+               '<div class="al-pageskel-rule"></div>' +
+             '</div>' +
+             (actions ? '<div class="al-pageskel-head-actions">' +
+               rep('<div class="al-skel al-pageskel-btn"></div>', actions) + '</div>' : '') +
+           '</div>';
+  }
+
+  function kpi() {
+    return '<div class="al-pageskel-panel al-pageskel-kpi">' +
+             '<div class="al-skel"></div><div class="al-skel"></div><div class="al-skel"></div></div>';
   }
   function row() {
     return '<div class="al-pageskel-row">' +
@@ -55,28 +85,63 @@
   function para() {
     return '<div class="al-pageskel-para">' + rep('<div class="al-skel"></div>', 4) + '</div>';
   }
+  function field() {
+    return '<div class="al-pageskel-field">' +
+             '<div class="al-skel"></div><div class="al-skel"></div></div>';
+  }
+  function bubble(side) {
+    return '<div class="al-pageskel-bubble al-pageskel-bubble-' + side + '">' +
+             '<div class="al-skel"></div></div>';
+  }
+
+  function panel(inner) { return '<div class="al-pageskel-panel" style="padding:0">' + inner + '</div>'; }
 
   function build(variant) {
     if (variant === 'dashboard') {
-      return head() +
-        '<div class="al-pageskel-stats">' + rep(stat(), 4) + '</div>' +
+      return head(2) +
+        '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' +
         '<div class="al-pageskel-cols">' +
-          '<div class="al-pageskel-panel" style="padding:0">' + rep(row(), 5) + '</div>' +
-          '<div class="al-pageskel-panel" style="padding:0">' + rep(row(), 4) + '</div>' +
+          panel(rep(row(), 5)) + panel(rep(row(), 4)) +
         '</div>';
     }
     if (variant === 'detail') {
-      return head() +
+      return head(1) +
         '<div class="al-pageskel-cols">' +
           '<div class="al-pageskel-panel">' + para() +
             '<div class="al-pageskel-grid" style="margin-top:24px">' + rep(card(), 2) + '</div></div>' +
-          '<div class="al-pageskel-panel" style="padding:0">' + rep(row(), 4) + '</div>' +
+          panel(rep(row(), 4)) +
+        '</div>';
+    }
+    if (variant === 'form') {
+      return head(0) +
+        '<div class="al-pageskel-panel al-pageskel-form">' + rep(field(), 6) + '</div>';
+    }
+    if (variant === 'builder') {
+      return head(2) +
+        '<div class="al-pageskel-builder">' +
+          panel(rep(row(), 6)) +
+          '<div class="al-pageskel-panel">' +
+            '<div class="al-pageskel-grid">' + rep(card(), 4) + '</div></div>' +
+        '</div>';
+    }
+    if (variant === 'chat') {
+      return '<div class="al-pageskel-chat">' +
+          '<div class="al-pageskel-chatbar">' +
+            '<div class="al-skel al-skel-circle al-skel-circle-md"></div>' +
+            '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+          '</div>' +
+          '<div class="al-pageskel-chatbody">' +
+            bubble('in') + bubble('out') + bubble('in') + bubble('in') + bubble('out') +
+          '</div>' +
+          '<div class="al-pageskel-chatcompose">' +
+            '<div class="al-skel"></div><div class="al-skel al-pageskel-btn"></div>' +
+          '</div>' +
         '</div>';
     }
     // list (default)
-    return head() +
+    return head(1) +
       '<div class="al-pageskel-toolbar"><div class="al-skel"></div><div class="al-skel"></div></div>' +
-      '<div class="al-pageskel-panel" style="padding:0">' + rep(row(), 8) + '</div>';
+      panel(rep(row(), 8));
   }
 
   /* ---- show ---------------------------------------------------------- */
@@ -84,7 +149,7 @@
     var page = document.querySelector('.al-page');
     if (!page || shown) return;
     shown = true;
-    page.innerHTML = '<div class="al-pageskel">' + build(variant) + '</div>';
+    page.innerHTML = '<div class="al-pageskel al-pageskel-' + variant + '">' + build(variant) + '</div>';
     var main = document.querySelector('main.al-canvas');
     if (main) main.scrollTop = 0;
   }

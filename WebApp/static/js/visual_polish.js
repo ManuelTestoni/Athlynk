@@ -190,9 +190,13 @@
     }
 
     // 8) Filter sliding pill — the active indicator glides between segments
-    //    of any .al-filter (segmented control). Pure positioning of a
-    //    cosmetic element; reads .is-active toggled by the app/Alpine.
-    document.querySelectorAll('.al-filter').forEach(function (filter) {
+    //    of any segmented control: the standard .al-filter chips and the
+    //    .va-segctl chart-type switchers (Istogramma / Linea / Radar, metric
+    //    switchers, etc.). Pure positioning of a cosmetic element; reads the
+    //    .is-active marker toggled by the app/Alpine.
+    function attachSlider(filter, activeSel) {
+      if (filter.classList.contains('has-slider')) return;
+
       var slider = document.createElement('span');
       slider.className = 'al-filter-slider';
       slider.setAttribute('aria-hidden', 'true');
@@ -201,9 +205,7 @@
 
       var placed = false; // first successful placement never animates
       function place(animate) {
-        var chip = filter.querySelector(
-          '.al-filter-chip.is-active, .al-filter-chip[aria-selected="true"]'
-        );
+        var chip = filter.querySelector(activeSel);
         if (!chip) { slider.classList.remove('is-ready'); return; }
         var doAnimate = animate && placed;
         if (!doAnimate) slider.style.transition = 'none';
@@ -248,6 +250,39 @@
         rzTicking = true;
         window.requestAnimationFrame(function () { place(false); rzTicking = false; });
       }, { passive: true });
+    }
+
+    function scanSliders(root) {
+      if (!root || !root.querySelectorAll) return;
+      var self = (root.matches ? root : null);
+      if (self && self.matches('.al-filter:not(.has-slider)')) {
+        attachSlider(self, '.al-filter-chip.is-active, .al-filter-chip[aria-selected="true"]');
+      }
+      if (self && self.matches('.va-segctl:not(.has-slider)')) {
+        attachSlider(self, 'button.is-active');
+      }
+      root.querySelectorAll('.al-filter:not(.has-slider)').forEach(function (f) {
+        attachSlider(f, '.al-filter-chip.is-active, .al-filter-chip[aria-selected="true"]');
+      });
+      root.querySelectorAll('.va-segctl:not(.has-slider)').forEach(function (f) {
+        attachSlider(f, 'button.is-active');
+      });
+    }
+
+    scanSliders(document);
+    window.requestAnimationFrame(function () { scanSliders(document); });
+    setTimeout(function () { scanSliders(document); }, 120);
+
+    // Teleported drawers (volume / exercise-stats) mount their .va-segctl into
+    // <body> after Alpine inits — watch for them and attach lazily.
+    var segMo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        var added = muts[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          if (added[j].nodeType === 1) scanSliders(added[j]);
+        }
+      }
     });
+    segMo.observe(document.body, { childList: true, subtree: true });
   });
 })();

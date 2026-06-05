@@ -46,7 +46,7 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
           <button type="button" :class="{ 'is-active': chartType === 'histogram' }" @click="setChartType('histogram')">
             <i class="ph ph-chart-bar"></i> Istogramma
           </button>
-          <template x-if="_progressionMode">
+          <template x-if="_progressionMode || _planDetailMode">
             <button type="button" :class="{ 'is-active': chartType === 'line' }" @click="setChartType('line')">
               <i class="ph ph-chart-line"></i> Linea
             </button>
@@ -59,7 +59,7 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
         </div>
 
         <!-- Secondary muscle dropdown -->
-        <select class="va-secondary-select" x-model="secondaryMode" @change="setSecondaryMode(secondaryMode)">
+        <select class="va-secondary-select" x-model="secondaryMode">
           <option value="total">Volume totale</option>
           <option value="primary">Volume muscolo primario</option>
           <option value="secondary">Volume muscolo secondario</option>
@@ -82,8 +82,10 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
           <template x-if="durationWeeks > 1 && !_builderMode">
             <div class="va-filter-row">
               <div class="flex justify-between items-center">
-                <span class="va-filter-label">Settimane</span>
-                <button type="button" class="al-link al-link-quiet text-xs" @click="selectAllWeeks()">Tutte</button>
+                <span class="va-filter-label" x-text="chartType === 'radar' ? 'Settimana (singola)' : 'Settimane'"></span>
+                <button type="button" class="al-link al-link-quiet text-xs"
+                        x-show="chartType !== 'radar'"
+                        @click="selectAllWeeks()">Tutte</button>
               </div>
               <div class="flex flex-wrap gap-2">
                 <template x-for="w in Array.from({length: durationWeeks}, (_, i) => i + 1)" :key="w">
@@ -118,11 +120,6 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
           <template x-if="chartType === 'radar' && activeGroups().length > 8">
             <div class="va-info-banner">
               Il radar è più leggibile con max 8 gruppi muscolari. Considera di filtrare.
-            </div>
-          </template>
-          <template x-if="chartType === 'radar' && weeksSelected.length > 4 && !_builderMode">
-            <div class="va-info-banner">
-              Il radar mostra al massimo 4 settimane. Le altre sono escluse temporaneamente.
             </div>
           </template>
 
