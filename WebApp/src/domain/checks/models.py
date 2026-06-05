@@ -1,5 +1,26 @@
 from django.db import models
 
+
+class CheckFolder(models.Model):
+    coach = models.ForeignKey(
+        'accounts.CoachProfile', on_delete=models.CASCADE,
+        related_name='check_folders',
+    )
+    title = models.CharField(max_length=120)
+    label_text = models.CharField(max_length=40, blank=True, default='')
+    label_color = models.CharField(max_length=20, blank=True, default='')
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'title']
+        unique_together = [('coach', 'title')]
+
+    def __str__(self):
+        return f"{self.title} ({self.coach_id})"
+
+
 class QuestionnaireTemplate(models.Model):
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='questionnaire_templates')
     title = models.CharField(max_length=200)
@@ -14,6 +35,10 @@ class QuestionnaireTemplate(models.Model):
     report_config = models.JSONField(null=True, blank=True)
     preset_key = models.CharField(max_length=50, null=True, blank=True, db_index=True)
     is_modified_preset = models.BooleanField(default=False)
+    folder = models.ForeignKey(
+        CheckFolder, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='templates',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

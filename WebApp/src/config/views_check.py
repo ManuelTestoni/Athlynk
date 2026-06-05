@@ -10,7 +10,7 @@ from django.conf import settings
 import json
 from datetime import timedelta
 
-from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment
+from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
@@ -1509,9 +1509,40 @@ def check_templates_list_view(request):
     presets = [presets_by_key[k] for k in PRESET_ORDER if k in presets_by_key]
     customs = [t for t in all_templates.order_by('-updated_at') if not t.preset_key]
 
+    customs_payload = [
+        {
+            'id': t.id,
+            'title': t.title,
+            'description': t.description or '',
+            'questions_count': len(t.questions_config or []),
+            'steps_count': len(t.steps_config or []),
+            'folder_id': t.folder_id,
+            'updated_at': t.updated_at.isoformat() if t.updated_at else '',
+        }
+        for t in customs
+    ]
+
+    folders = list(
+        CheckFolder.objects.filter(coach=coach)
+        .annotate(template_count=Count('templates', filter=Q(templates__is_active=True)))
+        .order_by('order', 'title')
+    )
+    folders_payload = [
+        {
+            'id': f.id,
+            'title': f.title,
+            'label_text': f.label_text or '',
+            'label_color': f.label_color or '',
+            'order': f.order,
+            'template_count': f.template_count,
+        }
+        for f in folders
+    ]
+
     return render(request, 'pages/check/templates_list.html', {
         'presets': presets,
-        'customs': customs,
+        'customs_payload': customs_payload,
+        'folders_payload': folders_payload,
     })
 
 

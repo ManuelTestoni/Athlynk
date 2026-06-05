@@ -236,10 +236,55 @@ final class APIClient {
                               body: ["notes": notes, "interrupted": interrupted])
     }
 
-    func submitCheck(instanceId: Int, weightKg: Double?, measurements: [String: Double], notes: String) async throws {
-        var body: [String: Any] = ["measurements": measurements, "notes": notes]
-        body["weight_kg"] = weightKg ?? NSNull()
-        _ = try await request("/api/v1/checks/\(instanceId)/submit", method: "POST", body: body)
+    /// Submit a multi-step check. `answers` is keyed by question id; values are
+    /// String for text/metric/choice questions and [String] for multi-select.
+    /// `attachments` maps an `allegato` question id to already-compressed JPEG
+    /// bytes; when present the request is sent as multipart.
+    func submitCheck(instanceId: Int, answers: [String: Any],
+                     attachments: [String: [Data]] = [:]) async throws {
+        let path = "/api/v1/checks/\(instanceId)/submit"
+        let hasFiles = attachments.values.contains { !$0.isEmpty }
+        if !hasFiles {
+            _ = try await request(path, method: "POST", body: ["answers": answers])
+            return
+        }
+
+        guard let url = URL(string: baseURL + path) else { throw APIError.badURL }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+
+        var body = Data()
+        func field(_ s: String) { body.append(s.data(using: .utf8)!) }
+
+        let answersJSON = String(data: try JSONSerialization.data(withJSONObject: answers), encoding: .utf8) ?? "{}"
+        field("--\(boundary)\r\n")
+        field("Content-Disposition: form-data; name=\"answers\"\r\n\r\n")
+        field("\(answersJSON)\r\n")
+
+        for (qid, images) in attachments {
+            for (i, data) in images.enumerated() {
+                field("--\(boundary)\r\n")
+                field("Content-Disposition: form-data; name=\"attachment_\(qid)\"; filename=\"\(qid)_\(i).jpg\"\r\n")
+                field("Content-Type: image/jpeg\r\n\r\n")
+                body.append(data)
+                field("\r\n")
+            }
+        }
+        field("--\(boundary)--\r\n")
+
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await session.upload(for: req, from: body) }
+        catch { throw APIError.transport(error.localizedDescription) }
+        guard let http = resp as? HTTPURLResponse else { throw APIError.transport("Nessuna risposta") }
+        guard (200..<300).contains(http.statusCode) else {
+            var msg = ""
+            if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let err = obj["error"] as? String { msg = err }
+            throw APIError.http(http.statusCode, msg)
+        }
     }
 
     func anamnesis() async throws -> AnamnesisDTO? {

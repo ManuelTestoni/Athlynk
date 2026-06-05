@@ -24,6 +24,7 @@ from . import views_workouts
 from . import views_workouts_taxonomy
 from . import views_agenda
 from . import views_check
+from . import views_check_taxonomy
 from . import views_auth
 from . import views_client
 from . import views_settings
@@ -210,6 +211,9 @@ urlpatterns = [
     path('api/check/modelli/<int:template_id>/ripristina/', views_check.api_check_template_restore, name='api_check_template_restore'),
     path('api/check/modelli/<int:template_id>/duplica/', views_check.api_check_template_duplicate, name='api_check_template_duplicate'),
     path('api/check/modelli/<int:template_id>/elimina/', views_check.api_check_template_delete, name='api_check_template_delete'),
+    path('api/check/cartelle/', views_check_taxonomy.api_check_folders, name='api_check_folders'),
+    path('api/check/cartelle/<int:folder_id>/', views_check_taxonomy.api_check_folder_detail, name='api_check_folder_detail'),
+    path('api/check/modelli/<int:template_id>/cartella/', views_check_taxonomy.api_check_template_folder, name='api_check_template_folder'),
     path('check/trova-coach/', views_client.find_coach_list_view, name='check_coach_directory'),
     path('check/andamento/', views_check.check_progress_charts_view, name='check_progress_charts'),
     path('check/andamento/<int:client_id>/', views_check.check_progress_charts_view, name='check_progress_charts_client'),

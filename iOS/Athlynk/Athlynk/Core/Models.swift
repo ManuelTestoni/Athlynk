@@ -259,17 +259,77 @@ struct NutritionResponse: Codable { let plans: [NutritionPlanDTO] }
 
 // MARK: - Checks / Notifications / Chat
 
+/// One section of a multi-step check.
+struct CheckStep: Codable, Identifiable, Hashable {
+    let id: String
+    let label: String
+}
+
+/// A single question the athlete must answer. `type` mirrors the web builder:
+/// metrica | media | si_no | radio | checkbox | aperta.
+struct CheckQuestion: Codable, Identifiable, Hashable {
+    let id: String
+    let type: String
+    let label: String
+    let required: Bool
+    let unit: String?
+    let options: [String]
+    let min: Double?
+    let max: Double?
+    let minLabel: String?
+    let maxLabel: String?
+    let placeholder: String?
+    let stepId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, label, required, unit, options, min, max
+        case minLabel = "min_label"
+        case maxLabel = "max_label"
+        case placeholder
+        case stepId = "step_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        type = (try? c.decode(String.self, forKey: .type)) ?? "aperta"
+        label = (try? c.decode(String.self, forKey: .label)) ?? id
+        required = (try? c.decode(Bool.self, forKey: .required)) ?? false
+        unit = try? c.decodeIfPresent(String.self, forKey: .unit)
+        options = (try? c.decode([String].self, forKey: .options)) ?? []
+        min = try? c.decodeIfPresent(Double.self, forKey: .min)
+        max = try? c.decodeIfPresent(Double.self, forKey: .max)
+        minLabel = try? c.decodeIfPresent(String.self, forKey: .minLabel)
+        maxLabel = try? c.decodeIfPresent(String.self, forKey: .maxLabel)
+        placeholder = try? c.decodeIfPresent(String.self, forKey: .placeholder)
+        stepId = try? c.decodeIfPresent(String.self, forKey: .stepId)
+    }
+}
+
 struct CheckDTO: Codable, Identifiable, Hashable {
     let id: Int
     let title: String
     let dueDate: String?
     let expiresAt: String?
     let coach: Coach?
+    let steps: [CheckStep]
+    let questions: [CheckQuestion]
 
     enum CodingKeys: String, CodingKey {
-        case id, title, coach
+        case id, title, coach, steps, questions
         case dueDate = "due_date"
         case expiresAt = "expires_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        dueDate = try? c.decodeIfPresent(String.self, forKey: .dueDate)
+        expiresAt = try? c.decodeIfPresent(String.self, forKey: .expiresAt)
+        coach = try? c.decodeIfPresent(Coach.self, forKey: .coach)
+        steps = (try? c.decode([CheckStep].self, forKey: .steps)) ?? []
+        questions = (try? c.decode([CheckQuestion].self, forKey: .questions)) ?? []
     }
 }
 

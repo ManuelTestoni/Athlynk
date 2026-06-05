@@ -127,10 +127,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=config('DATABASE_URL'),
-        conn_max_age=600,
+        conn_max_age=0,
         ssl_require=True,
     )
 }
+
+# Supabase transaction pooler (porta 6543): multiplexa le connessioni a fine
+# transazione. Con psycopg3 vanno disabilitati i prepared statement server-side
+# (la connessione fisica cambia tra query → "prepared statement does not exist")
+# e i server-side cursor (named cursor assumono connessione stabile).
+if 'test' not in sys.argv:
+    DATABASES['default']['OPTIONS'] = {'prepare_threshold': None}
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 # Il test runner crea/distrugge un DB dedicato a ogni esecuzione: su Supabase
 # sarebbe lento e consumerebbe il free tier. I test girano quindi su SQLite locale.

@@ -56,35 +56,38 @@ struct ChatListView: View {
 
 struct ChatDetailView: View {
     let conversation: ConversationDTO
+    @EnvironmentObject private var app: AppState
     @State private var messages: [MessageDTO] = []
     @State private var draft = ""
     @State private var sending = false
     @FocusState private var focused: Bool
 
     var body: some View {
-        ZStack {
-            VoltBackground(palette: [Palette.cyan, Palette.violet, Palette.cyan, Palette.magenta])
-            VStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 10) {
-                            ForEach(messages) { m in bubble(m).id(m.id) }
-                        }
-                        .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 12)
-                    }
-                    .onChange(of: messages.count) { _, _ in
-                        if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
-                    }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(messages) { m in bubble(m).id(m.id) }
                 }
-                composer
+                .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 12)
+            }
+            .onChange(of: messages.count) { _, _ in
+                if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
             }
         }
+        // Composer rides the bottom safe area, so it floats above the keyboard
+        // when the field is focused and the scroll content insets to match.
+        .safeAreaInset(edge: .bottom, spacing: 0) { composer }
+        .background(VoltBackground(palette: [Palette.cyan, Palette.violet, Palette.cyan, Palette.magenta]))
         .navigationTitle(conversation.coach?.fullName ?? "Chat")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         // Full load once, then poll only for newer messages while the screen is
         // open. SwiftUI cancels this `.task` on disappear, stopping the poll.
         .task { await reload(); await pollLoop() }
+        // Drop the floating tab bar while in chat so it can't cover the composer;
+        // restore it on the way out.
+        .onAppear { app.tabBarHidden = true }
+        .onDisappear { app.tabBarHidden = false }
     }
 
     private func bubble(_ m: MessageDTO) -> some View {

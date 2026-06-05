@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var app: AppState
     @State private var tab: AppTab = .home
 
     var body: some View {
@@ -29,6 +30,9 @@ struct MainTabView: View {
 
             NeonTabBar(selection: $tab)
                 .padding(.bottom, 6)
+                .offset(y: app.tabBarHidden ? 160 : 0)
+                .opacity(app.tabBarHidden ? 0 : 1)
+                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
         }
     }
 

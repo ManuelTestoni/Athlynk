@@ -20,6 +20,7 @@ from datetime import date, timedelta
 from django.contrib.auth.hashers import check_password
 from django.utils.dateparse import parse_date
 from django.core import signing
+from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -28,7 +29,7 @@ from domain.accounts.models import CoachProfile, DeviceToken, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
 from domain.chat.models import Conversation, Message, Notification
-from domain.checks.models import AssignedCheckInstance, QuestionnaireResponse
+from domain.checks.models import AssignedCheckInstance, QuestionAttachment, QuestionnaireResponse
 from domain.coaching.models import ClientAnamnesis, CoachingRelationship
 from domain.nutrition.models import (
     ClientMacroLogEntry, Food, NutritionAssignment, SupplementAssignment,
@@ -39,6 +40,7 @@ from domain.workouts.models import (
 
 from .session_utils import get_active_relationships
 from .services import ratelimit
+from .services.images import is_image, to_webp
 
 logger = logging.getLogger(__name__)
 
@@ -539,8 +541,72 @@ def checks(request, user):
         'due_date': _iso(inst.due_date),
         'expires_at': _iso(inst.expires_at),
         'coach': _coach_dict(inst.assignment.coach),
+        **_check_form(inst),
     } for inst in instances]
     return JsonResponse({'pending': pending})
+
+
+# Question keys whose values land in dedicated columns (not answers_json) — must
+# stay in sync with the web fill flow's RESERVED handling in views_check.
+_CHECK_RESERVED = {
+    'peso_corporeo', 'circ_spalle', 'circ_petto', 'circ_vita', 'circ_fianchi',
+    'circ_coscia', 'circ_braccio', 'pl_petto', 'pl_addome', 'pl_coscia',
+    'pl_tricipite', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
+    'benessere_umore', 'benessere_dieta', 'benessere_workout',
+}
+
+# Plausible ranges (cm for circumferences, kg for weight, mm for skinfolds) used
+# to reject nonsense like a 1000 cm arm. Mirrors the client-side guard.
+_CHECK_BOUNDS = {
+    'peso_corporeo': (20.0, 400.0),
+    'circ_spalle': (40.0, 200.0),
+    'circ_petto': (40.0, 200.0),
+    'circ_vita': (30.0, 200.0),
+    'circ_fianchi': (40.0, 200.0),
+    'circ_coscia': (20.0, 120.0),
+    'circ_braccio': (10.0, 80.0),
+    'pl_petto': (1.0, 100.0),
+    'pl_addome': (1.0, 100.0),
+    'pl_coscia': (1.0, 100.0),
+    'pl_tricipite': (1.0, 100.0),
+}
+
+
+def _check_form(inst):
+    """Steps + questions the athlete must fill, frozen at assignment time.
+
+    Mirrors the web fill flow: questions come from the assignment snapshot,
+    steps from the live template (falling back to a single implicit step).
+    `allegato` questions are kept; the app collects images for them and uploads
+    them as multipart on submit.
+    """
+    assignment = inst.assignment
+    questions = [
+        {
+            'id': q.get('id'),
+            'type': q.get('type', 'aperta'),
+            'label': q.get('label', q.get('id')),
+            'required': bool(q.get('required')),
+            'unit': q.get('unit'),
+            'options': q.get('options') or [],
+            'min': q.get('min'),
+            'max': q.get('max'),
+            'min_label': q.get('minLabel'),
+            'max_label': q.get('maxLabel'),
+            'placeholder': q.get('placeholder'),
+            'step_id': q.get('step_id'),
+        }
+        for q in (assignment.snapshot_config or [])
+    ]
+    steps = (assignment.template.steps_config if assignment.template else None) or []
+    if not steps:
+        steps = [{'id': '__solo', 'label': 'Check', 'icon': 'ph-list'}]
+    fallback_sid = steps[0].get('id')
+    for q in questions:
+        if not q['step_id']:
+            q['step_id'] = fallback_sid
+    steps = [{'id': s.get('id'), 'label': s.get('label', 'Sezione')} for s in steps]
+    return {'steps': steps, 'questions': questions}
 
 
 @api_view(['GET'])
@@ -1185,7 +1251,50 @@ def check_submit(request, user, instance_id):
     if not assignment.template:
         return JsonResponse({'error': 'Modello non disponibile'}, status=400)
 
-    data = _body(request)
+    # Answers arrive as a JSON body, or as a JSON string in a multipart form when
+    # the submit carries image attachments.
+    if request.content_type and 'multipart' in request.content_type:
+        try:
+            answers = json.loads(request.POST.get('answers') or '{}')
+        except json.JSONDecodeError:
+            answers = None
+    else:
+        answers = (_body(request) or {}).get('answers') or {}
+    if not isinstance(answers, dict):
+        return JsonResponse({'error': 'Risposte non valide'}, status=400)
+
+    snapshot = assignment.snapshot_config or []
+
+    # Required-question validation (allegato → at least one uploaded file).
+    missing = []
+    for q in snapshot:
+        if not q.get('required'):
+            continue
+        if q.get('type') == 'allegato':
+            if not request.FILES.getlist(f'attachment_{q.get("id")}'):
+                missing.append(q.get('label', q.get('id')))
+        elif str(answers.get(q.get('id')) or '').strip() == '':
+            missing.append(q.get('label', q.get('id')))
+    if missing:
+        return JsonResponse(
+            {'error': 'Compila tutte le domande obbligatorie: ' + ', '.join(missing)},
+            status=400,
+        )
+
+    # Range-check structured measurements.
+    for key, (lo, hi) in _CHECK_BOUNDS.items():
+        raw = answers.get(key)
+        if raw in (None, ''):
+            continue
+        try:
+            val = float(str(raw).replace(',', '.'))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': f'Valore non numerico per «{key}».'}, status=400)
+        if not (lo <= val <= hi):
+            return JsonResponse(
+                {'error': f'Valore fuori scala per «{key}» (atteso {lo:g}–{hi:g}).'},
+                status=400,
+            )
 
     def _pm(v):
         try:
@@ -1195,19 +1304,32 @@ def check_submit(request, user, instance_id):
             return ''
 
     try:
-        weight = float(data.get('weight_kg') or 0) or None
+        weight = float(answers.get('peso_corporeo') or 0) or None
     except (ValueError, TypeError):
         weight = None
 
-    m = data.get('measurements') or {}
     body_circ = {
-        'shoulders':   _pm(m.get('shoulders')),
-        'chest':       _pm(m.get('chest')),
-        'waist':       _pm(m.get('waist')),
-        'hips':        _pm(m.get('hips')),
-        'thigh_right': _pm(m.get('thigh')),
-        'arm_right':   _pm(m.get('arm')),
+        'shoulders':   _pm(answers.get('circ_spalle')),
+        'chest':       _pm(answers.get('circ_petto')),
+        'waist':       _pm(answers.get('circ_vita')),
+        'hips':        _pm(answers.get('circ_fianchi')),
+        'thigh_right': _pm(answers.get('circ_coscia')),
+        'arm_right':   _pm(answers.get('circ_braccio')),
     }
+    skinfolds = {
+        'chest':   _pm(answers.get('pl_petto')),
+        'abdomen': _pm(answers.get('pl_addome')),
+        'thigh':   _pm(answers.get('pl_coscia')),
+        'tricep':  _pm(answers.get('pl_tricipite')),
+    }
+    answers_json = {
+        'mood': answers.get('benessere_umore', ''),
+        'diet_adherence': answers.get('benessere_dieta', ''),
+        'workout_adherence': answers.get('benessere_workout', ''),
+    }
+    for k, v in answers.items():
+        if k not in _CHECK_RESERVED:
+            answers_json[k] = v
 
     resp = QuestionnaireResponse.objects.create(
         questionnaire_template=assignment.template,
@@ -1217,12 +1339,42 @@ def check_submit(request, user, instance_id):
         status='COMPLETED',
         weight_kg=weight,
         body_circumferences=body_circ,
-        answers_json={},
-        notes=(data.get('notes') or '').strip(),
+        skinfolds=skinfolds,
+        answers_json=answers_json,
+        injuries=answers.get('note_infortuni', ''),
+        limitations=answers.get('note_limitazioni', ''),
+        notes=(answers.get('note_messaggio') or '').strip(),
     )
     instance.status = 'completed'
     instance.response = resp
     instance.save(update_fields=['status', 'response'])
+
+    # Persist any uploaded images for `allegato` questions. The app already
+    # downscales/compresses client-side; we re-encode to WebP as a backstop.
+    for q in snapshot:
+        if q.get('type') != 'allegato':
+            continue
+        for f in request.FILES.getlist(f'attachment_{q.get("id")}'):
+            base = f'check_attachments/{client.id}/{q.get("id")}_{int(timezone.now().timestamp())}_{f.name}'
+            if is_image(f):
+                saved = default_storage.save(base.rsplit('.', 1)[0] + '.webp', to_webp(f))
+            else:
+                saved = default_storage.save(base, f)
+            QuestionAttachment.objects.create(
+                response=resp,
+                question_id=q.get('id'),
+                file_url=default_storage.url(saved),
+                file_name=f.name,
+                mime_type=getattr(f, 'content_type', '') or '',
+            )
+
+    Notification.objects.create(
+        target_user=assignment.coach.user,
+        notification_type='CHECK_SUBMITTED',
+        title=f'{client.first_name} ha compilato il check',
+        body=f'{client.first_name} {client.last_name} ha compilato «{assignment.template.title}».',
+        link_url=f'/check/{resp.id}/',
+    )
     return JsonResponse({'id': resp.id, 'status': 'completed'}, status=201)
 
 

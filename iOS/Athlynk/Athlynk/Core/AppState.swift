@@ -21,6 +21,9 @@ final class AppState: ObservableObject {
     @Published var isAuthenticating = false
     /// Drives the one-time Chiron mascot tutorial (clients, first login only).
     @Published var showChiron = false
+    /// Slides the floating tab bar off-screen for immersive screens (e.g. chat,
+    /// where it would otherwise cover the message composer).
+    @Published var tabBarHidden = false
 
     private let tokenKey = "athlynk.api.token"
     private let api = APIClient.shared

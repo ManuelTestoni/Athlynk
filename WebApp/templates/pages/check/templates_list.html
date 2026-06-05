@@ -1,7 +1,28 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Gestisci Modelli Check{% endblock %}
 
 {% block content %}
+{{ customs_payload|json_script:"check-library-templates" }}
+{{ folders_payload|json_script:"check-library-folders" }}
+<script>
+  window.CHECK_LIBRARY_INIT = {
+    templates: JSON.parse(document.getElementById('check-library-templates').textContent),
+    folders: JSON.parse(document.getElementById('check-library-folders').textContent),
+    urls: {
+      folders: "{% url 'api_check_folders' %}",
+      folderDetail: "/api/check/cartelle/__ID__/",
+      templateFolder: "/api/check/modelli/__ID__/cartella/",
+      templateEdit: "/check/modelli/__ID__/",
+      templateDuplicate: "/api/check/modelli/__ID__/duplica/",
+      templateRestore: "/api/check/modelli/__ID__/ripristina/",
+      templateDelete: "/api/check/modelli/__ID__/elimina/",
+    },
+    csrf: "{{ csrf_token }}",
+  };
+</script>
+<script src="{% static 'js/check_library.js' %}?v={{ ASSET_VERSION }}"></script>
+
 <style>
 .tm-card {
     background: var(--al-parchment);
@@ -27,28 +48,10 @@
 .tm-section-head h2 { font-family: var(--al-display); font-size: 22px; margin: 0; letter-spacing: -0.01em; }
 </style>
 
-<div class="max-w-7xl mx-auto" x-data="{
-    async restore(id) {
-        if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ripristinare il\nmodello?', subtitle: 'Tornerà alla configurazione di base. Le modifiche andranno perse.', confirmLabel: 'Sì, ripristina' })) return;
-        await this.call('/api/check/modelli/' + id + '/ripristina/');
-    },
-    async duplicate(id) {
-        await this.call('/api/check/modelli/' + id + '/duplica/');
-    },
-    async remove(id) {
-        if (!await window.alConfirm({ icon: 'ph-trash', title: 'Eliminare il\nmodello?', subtitle: 'Verrà rimosso definitivamente. Operazione irreversibile.', confirmLabel: 'Sì, elimina' })) return;
-        await this.call('/api/check/modelli/' + id + '/elimina/');
-    },
-    async call(url) {
-        const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
-        try {
-            const res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf } });
-            const data = await res.json();
-            if (data.success) { window.location.reload(); }
-            else { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); }
-        } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
-    }
-}">
+<div class="max-w-7xl mx-auto"
+     x-data="checkLibrary()"
+     x-init="init()"
+     @keydown.escape.window="deleteModal=false; deleteFolderOpen=false; menuFolder=null">
 
     <!-- Back -->
     <nav class="al-tag flex items-center gap-2 mb-4">
@@ -62,7 +65,7 @@
         <div>
             <p class="al-eyebrow mb-3">Studio · Modelli</p>
             <h1 class="al-h-1">Gestisci <span class="al-display-i">Modelli</span></h1>
-            <p class="al-body mt-2">Crea, modifica e ripristina i modelli di check usati per i tuoi atleti.</p>
+            <p class="al-body mt-2">Crea, organizza in cartelle e ripristina i modelli di check usati per i tuoi atleti.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div>
@@ -120,44 +123,291 @@
     <section>
         <div class="tm-section-head">
             <h2>Modelli personali</h2>
-            <span class="al-tag">{{ customs|length }} modelli</span>
+            <span class="al-tag"><span x-text="templates.length"></span> modelli</span>
         </div>
 
-        {% if customs %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for t in customs %}
-            <article class="tm-card">
-                <h3>{{ t.title }}</h3>
-                <p class="tm-desc">{{ t.description|default:"—" }}</p>
-                <div class="tm-meta">
-                    <span class="al-tag"><i class="ph ph-question text-xs"></i> {{ t.questions_config|length|default:0 }} domande</span>
-                    <span class="al-tag"><i class="ph ph-list text-xs"></i> {{ t.steps_config|length|default:0 }} step</span>
-                    <span class="al-tag"><i class="ph ph-clock text-xs"></i> {{ t.updated_at|date:"d/m/Y" }}</span>
+        <!-- 2-col shell: sidebar cartelle + workspace -->
+        <div class="wb-shell">
+
+            <!-- ---------- SIDEBAR ---------- -->
+            <aside class="wb-sidebar">
+                <div class="wb-sidebar-header">
+                    <h3>Cartelle</h3>
+                    <button type="button" class="al-btn-icon al-btn-ghost" title="Nuova cartella" @click="startCreateFolder()">
+                        <i class="ph ph-plus"></i>
+                    </button>
                 </div>
-                <div class="tm-actions">
-                    <a href="{% url 'check_template_edit' template_id=t.id %}" class="al-btn al-btn-bronze al-btn-sm">
-                        <i class="ph ph-pencil-simple text-xs"></i> Modifica
+
+                <div class="wb-folder-list">
+                    <!-- All -->
+                    <div class="wb-folder-item"
+                         :class="{ 'is-active': selectedFolderId === 'all' }"
+                         @click="selectedFolderId = 'all'">
+                        <i class="ph ph-stack"></i>
+                        <span>Tutti</span>
+                        <span class="wb-folder-count" x-text="templates.length"></span>
+                    </div>
+
+                    <!-- Unfiled -->
+                    <div class="wb-folder-item"
+                         :class="{ 'is-active': selectedFolderId === 'unfiled', 'is-drop-target': dropTargetId === 'unfiled' }"
+                         @click="selectedFolderId = 'unfiled'"
+                         @dragover.prevent="dropTargetId = 'unfiled'"
+                         @dragleave="dropTargetId = null"
+                         @drop.prevent="dropTemplateOnFolder(null)">
+                        <i class="ph ph-folder-dashed"></i>
+                        <span>Senza cartella</span>
+                        <span class="wb-folder-count" x-text="templates.filter(t => !t.folder_id).length"></span>
+                    </div>
+
+                    <!-- User folders -->
+                    <template x-for="folder in folders" :key="folder.id">
+                        <div class="wb-folder-item"
+                             :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id }"
+                             @click="selectFolder(folder.id)"
+                             @dragover.prevent="dropTargetId = folder.id"
+                             @dragleave="dropTargetId = null"
+                             @drop.prevent="dropTemplateOnFolder(folder.id)">
+                            <span class="wb-folder-label-dot"
+                                  :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
+                                  :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
+
+                            <span x-show="editingFolderId !== folder.id" x-text="folder.title"
+                                  @dblclick.stop="startEditFolder(folder)"></span>
+
+                            <input x-show="editingFolderId === folder.id"
+                                   x-ref="folderEditInput"
+                                   class="wb-folder-inline-input"
+                                   x-model="folderEditDraft"
+                                   @blur="finishEditFolder(folder)"
+                                   @keydown.enter.prevent="finishEditFolder(folder)"
+                                   @keydown.escape.prevent="cancelEditFolder()"
+                                   @click.stop>
+
+                            <span class="wb-folder-count" x-show="editingFolderId !== folder.id" x-text="folder.template_count"></span>
+
+                            <button type="button" class="wb-folder-menu-btn"
+                                    @click.stop="openFolderMenu(folder)"
+                                    title="Opzioni cartella"
+                                    x-show="editingFolderId !== folder.id">
+                                <i class="ph ph-dots-three-vertical"></i>
+                            </button>
+                        </div>
+                    </template>
+
+                    <!-- Inline create -->
+                    <div class="wb-folder-item" x-show="creatingFolder">
+                        <i class="ph ph-folder-plus"></i>
+                        <input x-ref="folderCreateInput"
+                               class="wb-folder-inline-input"
+                               x-model="folderCreateDraft"
+                               placeholder="Nome cartella…"
+                               @blur="finishCreateFolder()"
+                               @keydown.enter.prevent="finishCreateFolder()"
+                               @keydown.escape.prevent="cancelCreateFolder()">
+                    </div>
+                </div>
+
+                <!-- Color picker popover -->
+                <template x-if="menuFolder">
+                    <div class="wb-fade-in mt-3 p-3 rounded"
+                         style="border: 1px solid var(--al-rule); background: var(--al-parchment);">
+                        <p class="al-eyebrow mb-2">Etichetta colorata</p>
+                        <input type="text" x-model="menuFolder.label_text"
+                               @change="patchFolderLabel(menuFolder)"
+                               placeholder="Es. Settimanali"
+                               class="al-input mb-2"
+                               style="font-size: 12px; padding: 5px 8px;">
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            <template x-for="c in availableLabelColors" :key="c">
+                                <button type="button"
+                                        class="wb-folder-label-dot"
+                                        :class="'wb-folder-label-dot--' + c"
+                                        :style="menuFolder.label_color === c ? 'outline: 2px solid var(--al-bronze); outline-offset: 2px;' : ''"
+                                        :title="c"
+                                        style="width: 18px; height: 18px;"
+                                        @click="setFolderColor(menuFolder, c)"></button>
+                            </template>
+                            <button type="button" class="wb-folder-label-dot"
+                                    style="width: 18px; height: 18px; background: transparent; border: 1px dashed var(--al-rule-strong);"
+                                    @click="setFolderColor(menuFolder, '')"
+                                    title="Senza colore"></button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" class="al-btn al-btn-ghost al-btn-sm flex-1"
+                                    @click="confirmDeleteFolder(menuFolder)">
+                                <i class="ph ph-trash"></i> Elimina
+                            </button>
+                            <button type="button" class="al-btn al-btn-bronze al-btn-sm flex-1"
+                                    @click="menuFolder = null">Chiudi</button>
+                        </div>
+                    </div>
+                </template>
+            </aside>
+
+            <!-- ---------- WORKSPACE ---------- -->
+            <main>
+                <!-- Toolbar: search -->
+                <div class="flex items-center gap-3 mb-5 flex-wrap">
+                    <div class="al-search flex-1 min-w-[220px]">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" class="al-input" placeholder="Cerca modello…" x-model.debounce.150ms="search">
+                    </div>
+                    <a href="{% url 'check_template_new' %}" class="al-btn al-btn-ghost al-btn-sm">
+                        <i class="ph ph-plus-circle text-xs"></i><span>Crea da zero</span>
                     </a>
-                    <button @click="duplicate({{ t.id }})" type="button" class="al-btn al-btn-ghost al-btn-sm">
-                        <i class="ph ph-copy text-xs"></i> Duplica
-                    </button>
-                    <button @click="remove({{ t.id }})" type="button" class="al-btn al-btn-ghost al-btn-sm" style="color:#c0392b;">
-                        <i class="ph ph-trash text-xs"></i> Elimina
-                    </button>
                 </div>
-            </article>
-            {% endfor %}
+
+                <!-- Empty state -->
+                <template x-if="visibleTemplates().length === 0">
+                    <div class="tm-empty">
+                        <i class="ph ph-note-pencil" style="font-size: 2rem; display:block; margin-bottom: .5rem;"></i>
+                        <p class="mb-2 al-h-4" x-text="emptyTitle()"></p>
+                        <p class="al-small mb-3" x-text="emptyDescription()"></p>
+                        <a href="{% url 'check_template_new' %}" class="al-btn al-btn-ghost al-btn-sm">
+                            <i class="ph ph-plus-circle text-xs"></i> Crea il primo
+                        </a>
+                    </div>
+                </template>
+
+                <!-- Cards grid -->
+                <div class="wb-card-grid">
+                    <template x-for="t in visibleTemplates()" :key="t.id">
+                        <article class="wb-card"
+                                 draggable="true"
+                                 @dragstart="draggedTemplateId = t.id; $event.dataTransfer.effectAllowed = 'move'"
+                                 @dragend="draggedTemplateId = null; dropTargetId = null">
+                            <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
+
+                            <div class="wb-card-header">
+                                <div class="min-w-0">
+                                    <h3 class="wb-card-title" x-text="t.title"></h3>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0" @click.stop>
+                                    <a :href="editUrl(t.id)"
+                                       class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
+                                        <i class="ph ph-pencil text-sm"></i>
+                                    </a>
+                                    <button @click="openDelete(t.id)" type="button"
+                                            class="p-1 transition-colors" title="Elimina"
+                                            style="color: var(--al-ink-line);"
+                                            onmouseover="this.style.color='var(--al-danger)'"
+                                            onmouseout="this.style.color='var(--al-ink-line)'">
+                                        <i class="ph ph-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p class="al-small" style="color: var(--al-ink-mute); line-height: 1.5;"
+                               x-show="t.description"
+                               x-text="t.description && t.description.length > 110 ? t.description.slice(0, 110) + '…' : t.description"></p>
+
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="al-tag"><i class="ph ph-question text-xs"></i> <span x-text="t.questions_count"></span> domande</span>
+                                <span class="al-tag"><i class="ph ph-list text-xs"></i> <span x-text="t.steps_count"></span> step</span>
+                            </div>
+
+                            <div class="wb-card-foot" style="flex-wrap: wrap; gap: .5rem;">
+                                <span></span>
+                                <div class="flex items-center gap-2" @click.stop>
+                                    <button @click="duplicate(t.id)" type="button" class="al-btn al-btn-ghost al-btn-sm">
+                                        <i class="ph ph-copy text-xs"></i> Duplica
+                                    </button>
+                                    <a :href="editUrl(t.id)" class="al-btn al-btn-sm al-btn-bronze">
+                                        <i class="ph ph-pencil-simple text-xs"></i>
+                                        <span>Modifica</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </article>
+                    </template>
+                </div>
+            </main>
         </div>
-        {% else %}
-        <div class="tm-empty">
-            <i class="ph ph-note-pencil" style="font-size: 2rem; display:block; margin-bottom: .5rem;"></i>
-            <p class="mb-2">Nessun modello personale.</p>
-            <a href="{% url 'check_template_new' %}" class="al-btn al-btn-ghost al-btn-sm">
-                <i class="ph ph-plus-circle text-xs"></i> Crea il primo
-            </a>
-        </div>
-        {% endif %}
     </section>
+
+    <!-- =================== DELETE TEMPLATE CONFIRM =================== -->
+    <div x-show="deleteModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="al-modal-backdrop" @click="deleteModal=false"></div>
+        <div class="al-modal-panel text-center" style="max-width: 380px;">
+            <div class="al-modal-body" style="padding-top: 32px;">
+                <div class="w-12 h-12 flex items-center justify-center mx-auto mb-4"
+                     style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.25);">
+                    <i class="ph ph-trash text-xl" style="color: var(--al-danger);"></i>
+                </div>
+                <h3 class="al-h-3">Elimina modello?</h3>
+                <p class="al-small mt-2 mb-2">Verrà rimosso definitivamente. Operazione irreversibile.</p>
+            </div>
+            <div class="al-modal-foot">
+                <button @click="deleteModal=false" type="button" class="al-btn al-btn-ghost flex-1">Annulla</button>
+                <button @click="confirmDelete()" type="button" class="al-btn al-btn-danger flex-1">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================== DELETE FOLDER MODAL =================== -->
+    <template x-teleport="body">
+    <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
+        <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
+            <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
+                <h2 class="al-h-4">Elimina cartella</h2>
+                <button type="button" class="al-btn-icon al-btn-ghost" @click="deleteFolderOpen = false">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="al-modal-body">
+                <template x-if="folderToDelete && folderToDelete.template_count === 0">
+                    <p class="al-body">Elimino la cartella «<span x-text="folderToDelete.title"></span>»?</p>
+                </template>
+                <template x-if="folderToDelete && folderToDelete.template_count > 0">
+                    <div>
+                        <p class="al-body mb-3">
+                            La cartella «<span x-text="folderToDelete.title"></span>» contiene
+                            <strong x-text="folderToDelete.template_count"></strong> modelli.
+                            Scegli come procedere:
+                        </p>
+                        <div class="space-y-2">
+                            <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                                <input type="radio" value="move_to_unfiled" x-model="deleteFolderAction" class="mt-1">
+                                <span class="al-small">Sposta in <strong>Senza cartella</strong></span>
+                            </label>
+                            <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule);">
+                                <input type="radio" value="move_to" x-model="deleteFolderAction" class="mt-1">
+                                <span class="al-small flex-1">
+                                    Sposta in un'altra cartella:
+                                    <select x-model="deleteFolderTarget" class="al-select mt-1"
+                                            style="font-size: 12px; padding: 4px 6px;" @click.stop>
+                                        <option value="">— Scegli —</option>
+                                        <template x-for="f in folders.filter(x => x.id !== folderToDelete?.id)" :key="f.id">
+                                            <option :value="f.id" x-text="f.title"></option>
+                                        </template>
+                                    </select>
+                                </span>
+                            </label>
+                            <label class="flex items-start gap-2 p-3 rounded cursor-pointer"
+                                   style="border: 1px solid var(--al-rule); background: rgba(138,58,58,0.05);">
+                                <input type="radio" value="delete_templates" x-model="deleteFolderAction" class="mt-1">
+                                <span class="al-small">
+                                    <strong style="color: var(--al-danger);">Elimina anche i modelli</strong> (irreversibile)
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="al-modal-foot">
+                <button type="button" class="al-btn al-btn-ghost" @click="deleteFolderOpen = false">Annulla</button>
+                <button type="button" class="al-btn"
+                        :class="deleteFolderAction === 'delete_templates' ? 'al-btn-danger' : 'al-btn-bronze'"
+                        :disabled="folderToDelete && folderToDelete.template_count > 0 && deleteFolderAction === 'move_to' && !deleteFolderTarget"
+                        @click="executeFolderDelete()">
+                    Conferma
+                </button>
+            </div>
+        </div>
+    </div>
+    </template>
 
 </div>
 {% endblock %}
