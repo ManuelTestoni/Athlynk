@@ -611,15 +611,26 @@ def _check_form(inst):
 
 @api_view(['GET'])
 def notifications(request, user):
-    items = Notification.objects.filter(target_user=user).order_by('-created_at')[:50]
-    return JsonResponse({'notifications': [{
-        'id': n.id,
-        'type': n.notification_type,
-        'title': n.title,
-        'body': n.body,
-        'is_read': n.is_read,
-        'created_at': _iso(n.created_at),
-    } for n in items]})
+    # Infinite scroll: ?offset=<n> pages back through the feed, 20 at a time.
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except ValueError:
+        offset = 0
+    page = 20
+    qs = Notification.objects.filter(target_user=user).order_by('-created_at')
+    items = list(qs[offset:offset + page])
+    has_more = qs.count() > offset + page
+    return JsonResponse({
+        'notifications': [{
+            'id': n.id,
+            'type': n.notification_type,
+            'title': n.title,
+            'body': n.body,
+            'is_read': n.is_read,
+            'created_at': _iso(n.created_at),
+        } for n in items],
+        'has_more': has_more,
+    })
 
 
 def _own_conversation(user, conversation_id):
@@ -653,26 +664,48 @@ def conversations(request, user):
     return JsonResponse({'conversations': out})
 
 
+def _message_dict(m, user_id):
+    return {
+        'id': m.id,
+        'body': m.body,
+        'message_type': m.message_type,
+        'is_mine': m.sender_user_id == user_id,
+        'sent_at': _iso(m.sent_at),
+    }
+
+
 @api_view(['GET'])
 def messages(request, user, conversation_id):
     conv = _own_conversation(user, conversation_id)
     if not conv:
         return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
-    qs = conv.messages.order_by('sent_at')
+
     # ?since=<last_id>: while the chat is open the client polls for only the
     # messages newer than the last one it holds — tiny indexed query, empty
     # result when nothing changed (no battery/payload wasted on full reloads).
     since = request.GET.get('since')
     if since and since.isdigit():
-        qs = qs.filter(id__gt=int(since))
-    msgs = qs[:200]
-    return JsonResponse({'messages': [{
-        'id': m.id,
-        'body': m.body,
-        'message_type': m.message_type,
-        'is_mine': m.sender_user_id == user.id,
-        'sent_at': _iso(m.sent_at),
-    } for m in msgs]})
+        new = conv.messages.filter(id__gt=int(since)).order_by('sent_at')
+        return JsonResponse({
+            'messages': [_message_dict(m, user.id) for m in new],
+            'has_more': False,
+        })
+
+    # Otherwise return one page of the most recent messages. ?before=<id> walks
+    # older pages on scroll-up. We fetch newest-first, then reverse so the client
+    # always receives them oldest→newest (display order).
+    page = 30
+    qs = conv.messages.order_by('-sent_at')
+    before = request.GET.get('before')
+    if before and before.isdigit():
+        qs = qs.filter(id__lt=int(before))
+    window = list(qs[:page])
+    has_more = qs.count() > page
+    window.reverse()
+    return JsonResponse({
+        'messages': [_message_dict(m, user.id) for m in window],
+        'has_more': has_more,
+    })
 
 
 @api_view(['POST'])
@@ -920,14 +953,21 @@ def register_device(request, user):
 def workout_history(request, user):
     client = getattr(user, 'client_profile', None)
     if not client:
-        return JsonResponse({'sessions': []})
-    sessions = (
+        return JsonResponse({'sessions': [], 'has_more': False})
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except ValueError:
+        offset = 0
+    page = 20
+    qs = (
         WorkoutSession.objects
         .filter(client=client)
         .select_related('workout_day')
         .prefetch_related('set_logs')
-        .order_by('-started_at')[:100]
+        .order_by('-started_at')
     )
+    sessions = list(qs[offset:offset + page])
+    has_more = qs.count() > offset + page
     out = []
     for s in sessions:
         day = s.workout_day
@@ -945,7 +985,7 @@ def workout_history(request, user):
             'set_count': sum(1 for x in logs if x.completed),
             'notes': s.notes,
         })
-    return JsonResponse({'sessions': out})
+    return JsonResponse({'sessions': out, 'has_more': has_more})
 
 
 # ---------------------------------------------------------------------------

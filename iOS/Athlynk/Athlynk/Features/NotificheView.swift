@@ -9,6 +9,8 @@ import SwiftUI
 struct NotificheView: View {
     @State private var items: [NotificationDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
 
     var body: some View {
@@ -26,6 +28,10 @@ struct NotificheView: View {
                         ForEach(items) { n in
                             Button { Task { await markRead(n) } } label: { row(n) }
                                 .buttonStyle(PressableButtonStyle())
+                                .onAppear { if n.id == items.last?.id { Task { await loadMore() } } }
+                        }
+                        if loadingMore {
+                            ProgressView().tint(Palette.cyan).frame(maxWidth: .infinity).padding(.vertical, 8)
                         }
                     }
                 }
@@ -99,8 +105,21 @@ struct NotificheView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { items = try await APIClient.shared.notifications() }
-        catch { self.error = error.localizedDescription }
+        do {
+            let page = try await APIClient.shared.notifications()
+            items = page.notifications
+            hasMore = page.hasMore ?? false
+        } catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore, !loading else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        guard let page = try? await APIClient.shared.notifications(offset: items.count) else { return }
+        let known = Set(items.map(\.id))
+        items.append(contentsOf: page.notifications.filter { !known.contains($0.id) })
+        hasMore = page.hasMore ?? false
     }
 }

@@ -1059,14 +1059,15 @@ document.addEventListener('alpine:init', () => {
       const week = this.progUi.activeWeek;
       const groups = new Map(); // slug -> {slug, name, color_token, volume}
 
+      const computed = this.progression?.computed || {};
       this.plan.days.forEach(day => {
         (day.exercises || []).forEach(ex => {
           const primaries = ex.primary_muscles || [];
           const secondaries = ex.secondary_muscles || [];
           const baseSets = parseInt(ex.sets, 10) || 0;
 
-          const weekOv = ex.weekly_overrides?.[week];
-          const sets = (weekOv?.sets != null ? parseInt(weekOv.sets, 10) : baseSets) || 0;
+          const cell = ex.pk ? (computed[String(ex.pk)]?.[String(week)] || {}) : {};
+          const sets = (cell.set_count != null ? parseInt(cell.set_count, 10) : baseSets) || 0;
 
           primaries.forEach(m => {
             if (!groups.has(m.slug)) {
@@ -2377,6 +2378,13 @@ document.addEventListener('alpine:init', () => {
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
           this._showToast(d.error || 'Errore aggiornamento');
+        } else {
+          const d = await r.json().catch(() => ({}));
+          if (d.computed) {
+            this.progression.computed = d.computed;
+            this._computeProgVolume();
+            this._refreshProgChart();
+          }
         }
       } catch (_) {
         this._showToast('Errore di rete');

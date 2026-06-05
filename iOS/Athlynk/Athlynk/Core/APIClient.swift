@@ -100,20 +100,31 @@ final class APIClient {
         try decode(ChecksResponse.self, from: try await request("/api/v1/checks")).pending
     }
 
-    func notifications() async throws -> [NotificationDTO] {
-        try decode(NotificationsResponse.self, from: try await request("/api/v1/notifications")).notifications
+    /// `offset` pages back through the feed (20 per page). Returns the page and
+    /// whether older notifications remain.
+    func notifications(offset: Int = 0) async throws -> NotificationsResponse {
+        try decode(NotificationsResponse.self,
+                   from: try await request("/api/v1/notifications?offset=\(offset)"))
     }
 
     func conversations() async throws -> [ConversationDTO] {
         try decode(ConversationsResponse.self, from: try await request("/api/v1/conversations")).conversations
     }
 
+    /// One page of recent messages (oldest→newest), newest page by default.
+    /// `before` = id of the oldest message held; the server returns the page just
+    /// before it (scroll-up history). `hasMore` reports whether older pages exist.
+    func messages(conversation: Int, before: Int? = nil) async throws -> MessagesResponse {
+        var path = "/api/v1/conversations/\(conversation)/messages"
+        if let before { path += "?before=\(before)" }
+        return try decode(MessagesResponse.self, from: try await request(path))
+    }
+
     /// `since` = id of the last message held; the server returns only newer ones
     /// (empty when nothing changed). Used by the open chat's foreground poll.
-    func messages(conversation: Int, since: Int? = nil) async throws -> [MessageDTO] {
-        var path = "/api/v1/conversations/\(conversation)/messages"
-        if let since { path += "?since=\(since)" }
-        return try decode(MessagesResponse.self, from: try await request(path)).messages
+    func newMessages(conversation: Int, since: Int) async throws -> [MessageDTO] {
+        try decode(MessagesResponse.self,
+                   from: try await request("/api/v1/conversations/\(conversation)/messages?since=\(since)")).messages
     }
 
     func send(conversation: Int, body: String) async throws {
@@ -183,8 +194,10 @@ final class APIClient {
         _ = try await request("/api/v1/notifications/\(id)/read", method: "POST")
     }
 
-    func workoutHistory() async throws -> [WorkoutSessionDTO] {
-        try decode(WorkoutHistoryResponse.self, from: try await request("/api/v1/workout-history")).sessions
+    /// `offset` pages back through past sessions (20 per page).
+    func workoutHistory(offset: Int = 0) async throws -> WorkoutHistoryResponse {
+        try decode(WorkoutHistoryResponse.self,
+                   from: try await request("/api/v1/workout-history?offset=\(offset)"))
     }
 
     func supplements() async throws -> [SupplementSheetDTO] {

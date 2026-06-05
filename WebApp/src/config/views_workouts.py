@@ -181,17 +181,23 @@ def allenamenti_list_view(request):
     if not coach or not can_manage_workouts(coach):
         return redirect('dashboard')
 
-    plans_qs = (WorkoutPlan.objects
-                .filter(coach=coach)
-                .select_related('folder', 'sport')
-                .annotate(day_count=Count('days', distinct=True),
-                          assignment_count=Count('assignments', distinct=True))
-                .order_by('-updated_at'))
+    plans_qs = list(WorkoutPlan.objects
+                    .filter(coach=coach)
+                    .select_related('folder', 'sport')
+                    .annotate(day_count=Count('days', distinct=True),
+                              assignment_count=Count('assignments', distinct=True))
+                    .order_by('-updated_at'))
 
     folders = list(
         WorkoutFolder.objects.filter(coach=coach)
         .annotate(plan_count=Count('plans'))
         .order_by('order', 'title')
+    )
+
+    # Progression families per plan, inferred from per-week overrides vs base
+    # (counted one hit per exercise per family). Programmazioni only in the UI.
+    prog_summary = progression_engine.classify_progressions_for_plans(
+        [p.id for p in plans_qs]
     )
 
     plans_data = [
@@ -212,6 +218,7 @@ def allenamenti_list_view(request):
             'sport_name': p.sport.name if p.sport_id else '',
             'sport_icon': (p.sport.icon if p.sport_id else '') or '',
             'updated_at': p.updated_at.isoformat() if p.updated_at else '',
+            'progression_summary': prog_summary.get(p.id, []),
         }
         for p in plans_qs
     ]

@@ -227,6 +227,15 @@
                   <span x-show="plan.frequency_per_week">·</span>
                   <span x-show="plan.frequency_per_week" x-text="plan.frequency_per_week + ' gg/sett'"></span>
                 </p>
+                <div class="wb-prog-tags mt-2"
+                     x-show="plan.plan_kind === 'PROGRAM' && plan.progression_summary && plan.progression_summary.length">
+                  <template x-for="prog in plan.progression_summary" :key="prog.family">
+                    <span class="wb-prog-tag">
+                      <span x-text="prog.count"></span>
+                      <span x-text="prog.label.toLowerCase()"></span>
+                    </span>
+                  </template>
+                </div>
               </div>
               <div class="flex flex-col items-end gap-1">
                 <span class="wb-kind-badge"

@@ -350,7 +350,11 @@ struct NotificationDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct NotificationsResponse: Codable { let notifications: [NotificationDTO] }
+struct NotificationsResponse: Codable {
+    let notifications: [NotificationDTO]
+    let hasMore: Bool?
+    enum CodingKeys: String, CodingKey { case notifications; case hasMore = "has_more" }
+}
 
 struct ConversationDTO: Codable, Identifiable, Hashable {
     let id: Int
@@ -382,7 +386,11 @@ struct MessageDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct MessagesResponse: Codable { let messages: [MessageDTO] }
+struct MessagesResponse: Codable {
+    let messages: [MessageDTO]
+    let hasMore: Bool?
+    enum CodingKeys: String, CodingKey { case messages; case hasMore = "has_more" }
+}
 
 // MARK: - Subscription (Il Mio Abbonamento)
 
@@ -628,7 +636,11 @@ struct WorkoutSessionDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct WorkoutHistoryResponse: Codable { let sessions: [WorkoutSessionDTO] }
+struct WorkoutHistoryResponse: Codable {
+    let sessions: [WorkoutSessionDTO]
+    let hasMore: Bool?
+    enum CodingKeys: String, CodingKey { case sessions; case hasMore = "has_more" }
+}
 
 // MARK: - Supplements (Integratori)
 

@@ -879,3 +879,149 @@ def truncate_rules_to_duration(plan: WorkoutPlan) -> None:
         workout_exercise__workout_day__workout_plan=plan,
         week_number__gt=duration,
     ).delete()
+
+
+# ---------------------------------------------------------------------------
+# Progression classification (inferred from per-week overrides vs base)
+# ---------------------------------------------------------------------------
+
+# Which family an upward/downward shift of each metric represents.
+#   'up'   → family triggered when an override exceeds the base value.
+#   'down' → family triggered when an override drops below the base value.
+#   'any'  → family triggered when any override differs from the base value.
+_FAMILY_TREND = {
+    'set_count':        ('up',  ProgressionRule.FAMILY_VOLUME),
+    'rep_range':        ('up',  ProgressionRule.FAMILY_VOLUME),
+    'load_value':       ('up',  ProgressionRule.FAMILY_INTENSITY),
+    'rpe':              ('up',  ProgressionRule.FAMILY_INTENSITY),
+    'rir':              ('up',  ProgressionRule.FAMILY_INTENSITY),
+    'recovery_seconds': ('down', ProgressionRule.FAMILY_DENSITY),
+    'tempo':            ('any', ProgressionRule.FAMILY_TEMPO),
+}
+
+
+def _unwrap_override_value(value_json):
+    """WeeklyOverride.value_json is stored either as a bare scalar (cell editor)
+    or wrapped as {'value': v} (legacy payload path). Normalise to the scalar."""
+    if isinstance(value_json, dict) and 'value' in value_json:
+        return value_json['value']
+    return value_json
+
+
+def _max_int(text) -> Optional[int]:
+    """Largest integer appearing in a rep-range-style string ('8-12' → 12)."""
+    if text is None:
+        return None
+    import re
+    nums = re.findall(r'\d+', str(text))
+    return max(int(n) for n in nums) if nums else None
+
+
+def _as_float(value) -> Optional[float]:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _families_for_exercise(base: dict, overrides_by_metric: dict) -> set:
+    """Given an exercise's base metrics and the override values seen across the
+    weeks, return the set of progression families that exercise expresses."""
+    families = set()
+    for metric, (trend, family) in _FAMILY_TREND.items():
+        values = [_unwrap_override_value(v) for v in overrides_by_metric.get(metric, [])]
+        values = [v for v in values if v is not None and v != '']
+        if not values:
+            continue
+
+        if metric == 'rep_range':
+            base_n = _max_int(base.get('rep_range'))
+            ov_max = max((_max_int(v) for v in values if _max_int(v) is not None), default=None)
+            if ov_max is not None and (base_n is None or ov_max > base_n):
+                families.add(family)
+            continue
+
+        if metric == 'tempo':
+            base_t = (base.get('tempo') or '')
+            if any(str(v) != str(base_t) for v in values):
+                families.add(family)
+            continue
+
+        # Numeric metrics.
+        nums = [_as_float(v) for v in values]
+        nums = [n for n in nums if n is not None]
+        if not nums:
+            continue
+        base_n = _as_float(base.get(metric))
+        if trend == 'up':
+            ref = base_n if base_n is not None else 0.0
+            if max(nums) > ref:
+                families.add(family)
+        elif trend == 'down':
+            if base_n is not None and min(nums) < base_n:
+                families.add(family)
+    return families
+
+
+def classify_progressions_for_plans(plan_ids) -> dict:
+    """Infer progression families from saved WeeklyOverride rows, counting one
+    hit per exercise per family.
+
+    Returns: {plan_id: [{'family': str, 'label': str, 'count': int}, ...]}
+    ordered by the canonical family order.
+    """
+    plan_ids = list(plan_ids)
+    if not plan_ids:
+        return {}
+
+    base_metrics = ('set_count', 'rep_range', 'rep_count', 'load_value',
+                    'rpe', 'rir', 'recovery_seconds', 'tempo')
+    ex_rows = (WorkoutExercise.objects
+               .filter(workout_day__workout_plan_id__in=plan_ids)
+               .values('id', 'workout_day__workout_plan_id', *base_metrics))
+    ex_base = {}
+    ex_plan = {}
+    for r in ex_rows:
+        ex_plan[r['id']] = r['workout_day__workout_plan_id']
+        ex_base[r['id']] = {
+            'set_count': r['set_count'],
+            'rep_range': r['rep_range'] or (str(r['rep_count']) if r['rep_count'] else ''),
+            'load_value': r['load_value'],
+            'rpe': r['rpe'],
+            'rir': r['rir'],
+            'recovery_seconds': r['recovery_seconds'],
+            'tempo': r['tempo'] or '',
+        }
+
+    ov_by_ex = defaultdict(lambda: defaultdict(list))
+    for ov in (WeeklyOverride.objects
+               .filter(workout_exercise__workout_day__workout_plan_id__in=plan_ids)
+               .values('workout_exercise_id', 'metric', 'value_json')):
+        ov_by_ex[ov['workout_exercise_id']][ov['metric']].append(ov['value_json'])
+
+    # Explicit ProgressionRule rows (legacy drawer / AI import) contribute their
+    # declared family directly, so schede built either way show labels.
+    rules_by_ex = defaultdict(set)
+    for r in (ProgressionRule.objects
+              .filter(workout_plan_id__in=plan_ids)
+              .values('workout_exercise_id', 'family')):
+        if r['family']:
+            rules_by_ex[r['workout_exercise_id']].add(r['family'])
+
+    plan_counts = defaultdict(lambda: defaultdict(int))
+    for ex_id, plan_id in ex_plan.items():
+        families = _families_for_exercise(ex_base[ex_id], ov_by_ex.get(ex_id, {}))
+        families |= rules_by_ex.get(ex_id, set())
+        for family in families:
+            plan_counts[plan_id][family] += 1
+
+    labels = dict(ProgressionRule.FAMILY_CHOICES)
+    order = {fam: i for i, (fam, _) in enumerate(ProgressionRule.FAMILY_CHOICES)}
+    result = {}
+    for plan_id in plan_ids:
+        fams = plan_counts.get(plan_id, {})
+        result[plan_id] = [
+            {'family': f, 'label': labels.get(f, f), 'count': fams[f]}
+            for f in sorted(fams, key=lambda f: order.get(f, 99))
+        ]
+    return result

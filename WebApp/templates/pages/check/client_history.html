@@ -482,6 +482,11 @@ function lineDataset(label,data,color){
 }
 
 function clientProgressCharts(){
+  // Chart.js instances kept OUTSIDE Alpine's reactive data — Alpine's Proxy
+  // breaks Chart's .update() (it mutates deep internals during animation).
+  // `charts` stays reactive but only as a readiness flag (skeleton/is-ready);
+  // the live instances live here so .update() animates values in place.
+  const _inst = { weight: null, circ: null, skin: null };
   return {
     activeCirc:'waist', activeSkin:'abdomen',
     charts:{ weight:null, circ:null, skin:null },
@@ -525,29 +530,32 @@ function clientProgressCharts(){
 
     buildWeightChart(){
       const el=document.getElementById('ch-weightChart'); if(!el) return;
-      this.charts.weight=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset('Peso',_chartData.weight,AL_BRONZE)] }, options:baseOptions('kg',AL_BRONZE) });
+      _inst.weight=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset('Peso',_chartData.weight,AL_BRONZE)] }, options:baseOptions('kg',AL_BRONZE) });
+      this.charts.weight = true;
     },
     buildCircChart(){
       const el=document.getElementById('ch-circChart'); if(!el) return;
-      this.charts.circ=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset(CIRC_LABELS[this.activeCirc],_chartData.circumferences[this.activeCirc]||[],AL_AEGEAN)] }, options:baseOptions('cm',AL_AEGEAN) });
+      _inst.circ=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset(CIRC_LABELS[this.activeCirc],_chartData.circumferences[this.activeCirc]||[],AL_AEGEAN)] }, options:baseOptions('cm',AL_AEGEAN) });
+      this.charts.circ = true;
     },
     buildSkinChart(){
       const el=document.getElementById('ch-skinChart'); if(!el) return;
-      this.charts.skin=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset(SKIN_LABELS[this.activeSkin],_chartData.skinfolds[this.activeSkin]||[],AL_BRONZE)] }, options:baseOptions('mm',AL_BRONZE) });
+      _inst.skin=new Chart(el,{ type:'line', data:{ labels:_chartData.labels, datasets:[lineDataset(SKIN_LABELS[this.activeSkin],_chartData.skinfolds[this.activeSkin]||[],AL_BRONZE)] }, options:baseOptions('mm',AL_BRONZE) });
+      this.charts.skin = true;
     },
     updateCircChart(){
-      this.recalcStats(); if(!this.charts.circ) return;
+      this.recalcStats(); if(!_inst.circ) return;
       const data = _chartData.circumferences[this.activeCirc] || [];
-      this.charts.circ.data.datasets[0].label=CIRC_LABELS[this.activeCirc];
-      this.charts.circ.data.datasets[0].data=[...data];
-      this.charts.circ.update();
+      _inst.circ.data.datasets[0].label=CIRC_LABELS[this.activeCirc];
+      _inst.circ.data.datasets[0].data=[...data];
+      _inst.circ.update();
     },
     updateSkinChart(){
-      this.recalcStats(); if(!this.charts.skin) return;
+      this.recalcStats(); if(!_inst.skin) return;
       const data = _chartData.skinfolds[this.activeSkin] || [];
-      this.charts.skin.data.datasets[0].label=SKIN_LABELS[this.activeSkin];
-      this.charts.skin.data.datasets[0].data=[...data];
-      this.charts.skin.update();
+      _inst.skin.data.datasets[0].label=SKIN_LABELS[this.activeSkin];
+      _inst.skin.data.datasets[0].data=[...data];
+      _inst.skin.update();
     }
   };
 }

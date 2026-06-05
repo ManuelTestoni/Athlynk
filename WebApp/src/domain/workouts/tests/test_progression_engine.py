@@ -164,3 +164,94 @@ class DensityRestTest(TestCase):
         self.assertEqual(cells[1]['recovery_seconds'], 120)
         self.assertEqual(cells[2]['recovery_seconds'], 105)
         self.assertEqual(cells[5]['recovery_seconds'], 60)  # clamped to floor
+
+
+class ClassifyProgressionsTest(TestCase):
+    def _summary(self, plan):
+        out = progression_engine.classify_progressions_for_plans([plan.id])[plan.id]
+        return {row['family']: row['count'] for row in out}
+
+    def test_no_overrides_yields_no_families(self):
+        plan, ex = _plan_with_exercise(weeks=4)
+        self.assertEqual(self._summary(plan), {})
+
+    def test_set_increase_is_volume(self):
+        plan, ex = _plan_with_exercise(weeks=4, sets=3)
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='set_count', value_json=5,
+        )
+        self.assertEqual(self._summary(plan), {'VOLUME': 1})
+
+    def test_rep_increase_is_volume(self):
+        plan, ex = _plan_with_exercise(weeks=4, rep_range='8')
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=2, metric='rep_range', value_json='10-12',
+        )
+        self.assertEqual(self._summary(plan), {'VOLUME': 1})
+
+    def test_load_increase_is_intensity(self):
+        plan, ex = _plan_with_exercise(weeks=4, load=Decimal('80'))
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=4, metric='load_value', value_json=90,
+        )
+        self.assertEqual(self._summary(plan), {'INTENSITY': 1})
+
+    def test_recovery_drop_is_density(self):
+        plan, ex = _plan_with_exercise(weeks=4, rest=120)
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='recovery_seconds', value_json=75,
+        )
+        self.assertEqual(self._summary(plan), {'DENSITY': 1})
+
+    def test_recovery_increase_is_not_density(self):
+        plan, ex = _plan_with_exercise(weeks=4, rest=90)
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='recovery_seconds', value_json=120,
+        )
+        self.assertEqual(self._summary(plan), {})
+
+    def test_wrapped_value_json_unwrapped(self):
+        # Legacy payload path stores {'value': v}; classifier must unwrap it.
+        plan, ex = _plan_with_exercise(weeks=4, load=Decimal('80'))
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=2, metric='load_value',
+            value_json={'value': 95, 'unit': 'KG'},
+        )
+        self.assertEqual(self._summary(plan), {'INTENSITY': 1})
+
+    def test_explicit_progression_rule_counts(self):
+        # A ProgressionRule (no grid overrides) still produces its family label.
+        plan, ex = _plan_with_exercise(weeks=4)
+        ProgressionRule.objects.create(
+            workout_plan=plan, workout_exercise=ex,
+            family='VOLUME', subtype='VOL_DOUBLE', target_metric='reps',
+            application_mode='RULE_BASED', start_week=1,
+            parameters={'rep_low': 8, 'rep_high': 12},
+        )
+        self.assertEqual(self._summary(plan), {'VOLUME': 1})
+
+    def test_rule_and_override_same_family_not_double_counted(self):
+        plan, ex = _plan_with_exercise(weeks=4, load=Decimal('80'))
+        ProgressionRule.objects.create(
+            workout_plan=plan, workout_exercise=ex,
+            family='INTENSITY', subtype='INT_RPE', target_metric='rpe',
+            application_mode='EXPLICIT_VALUES', start_week=1, parameters={},
+        )
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='load_value', value_json=90,
+        )
+        self.assertEqual(self._summary(plan), {'INTENSITY': 1})
+
+    def test_one_count_per_exercise_per_family(self):
+        # Same exercise progressing in load across two weeks still counts once.
+        plan, ex = _plan_with_exercise(weeks=4, load=Decimal('80'), sets=3)
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=2, metric='load_value', value_json=85,
+        )
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='load_value', value_json=90,
+        )
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=3, metric='set_count', value_json=4,
+        )
+        self.assertEqual(self._summary(plan), {'VOLUME': 1, 'INTENSITY': 1})

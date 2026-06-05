@@ -60,18 +60,41 @@ struct ChatDetailView: View {
     @State private var messages: [MessageDTO] = []
     @State private var draft = ""
     @State private var sending = false
+    @State private var hasOlder = false
+    @State private var loadingOlder = false
     @FocusState private var focused: Bool
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 10) {
+                    if hasOlder {
+                        Button { Task { await loadOlder(proxy) } } label: {
+                            HStack(spacing: 8) {
+                                if loadingOlder {
+                                    ProgressView().tint(Palette.cyan)
+                                } else {
+                                    Image(systemName: "arrow.up").font(.system(size: 12, weight: .bold))
+                                    Text("Carica precedenti").font(Typo.mono(11, .semibold))
+                                }
+                            }
+                            .foregroundStyle(Palette.cyan)
+                            .padding(.vertical, 8).padding(.horizontal, 16)
+                            .background(Capsule().stroke(Palette.cyan.opacity(0.4), lineWidth: 1))
+                        }
+                        .disabled(loadingOlder)
+                        .padding(.bottom, 4)
+                    }
                     ForEach(messages) { m in bubble(m).id(m.id) }
                 }
                 .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 12)
             }
-            .onChange(of: messages.count) { _, _ in
-                if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+            // Scroll to bottom only when a *newer* message arrives (the last id
+            // changes). Prepending older history keeps the last id, so the view
+            // stays put while we restore position in loadOlder().
+            .onChange(of: messages.last?.id) { _, id in
+                guard let id else { return }
+                withAnimation { proxy.scrollTo(id, anchor: .bottom) }
             }
         }
         // Composer rides the bottom safe area, so it floats above the keyboard
@@ -131,11 +154,32 @@ struct ChatDetailView: View {
         .background(.ultraThinMaterial)
     }
 
-    private func reload() async { messages = (try? await APIClient.shared.messages(conversation: conversation.id)) ?? [] }
+    /// Load the most recent page; `hasOlder` drives the "Carica precedenti" button.
+    private func reload() async {
+        guard let page = try? await APIClient.shared.messages(conversation: conversation.id) else { return }
+        messages = page.messages
+        hasOlder = page.hasMore ?? false
+    }
+
+    /// Prepend the previous page (older than the oldest held), restoring scroll
+    /// position to the message that was at the top so the view doesn't jump.
+    private func loadOlder(_ proxy: ScrollViewProxy) async {
+        guard !loadingOlder, let anchor = messages.first?.id else { return }
+        loadingOlder = true
+        defer { loadingOlder = false }
+        guard let page = try? await APIClient.shared.messages(conversation: conversation.id, before: anchor) else { return }
+        let known = Set(messages.map(\.id))
+        let older = page.messages.filter { !known.contains($0.id) }
+        guard !older.isEmpty else { hasOlder = false; return }
+        messages.insert(contentsOf: older, at: 0)
+        hasOlder = page.hasMore ?? false
+        proxy.scrollTo(anchor, anchor: .top)
+    }
 
     /// Fetch only messages newer than the last one held; append the unseen ones.
     private func pollOnce() async {
-        guard let new = try? await APIClient.shared.messages(conversation: conversation.id, since: messages.last?.id),
+        guard let last = messages.last?.id,
+              let new = try? await APIClient.shared.newMessages(conversation: conversation.id, since: last),
               !new.isEmpty else { return }
         let known = Set(messages.map(\.id))
         messages.append(contentsOf: new.filter { !known.contains($0.id) })
@@ -154,7 +198,8 @@ struct ChatDetailView: View {
         guard !text.isEmpty else { return }
         sending = true; draft = ""; Haptics.tap()
         try? await APIClient.shared.send(conversation: conversation.id, body: text)
-        await pollOnce()
+        // Empty chat has no "last id" to poll against — reload the first page.
+        if messages.isEmpty { await reload() } else { await pollOnce() }
         sending = false
     }
 }

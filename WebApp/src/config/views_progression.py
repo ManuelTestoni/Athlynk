@@ -229,8 +229,14 @@ def api_progression_cell(request, plan_id):
                 workout_exercise=ex, week_number=week, metric=metric,
                 defaults={'value_json': value},
             )
+        # Recompute so the builder charts reflect the edit without a full save.
+        result = progression_engine.compute_weekly_values(plan)
 
-    return JsonResponse({'status': 'ok'})
+    computed = {
+        str(ex_id): {str(w): _cell_to_json(cell) for w, cell in cells.items()}
+        for ex_id, cells in result['computed'].items()
+    }
+    return JsonResponse({'status': 'ok', 'computed': computed})
 
 
 @csrf_exempt

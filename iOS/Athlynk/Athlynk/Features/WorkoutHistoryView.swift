@@ -10,6 +10,8 @@ import SwiftUI
 struct WorkoutHistoryView: View {
     @State private var sessions: [WorkoutSessionDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
 
     private var groups: [(title: String, sessions: [WorkoutSessionDTO])] {
@@ -45,7 +47,13 @@ struct WorkoutHistoryView: View {
                                 Text(g.title.uppercased()).font(Typo.mono(10, .bold)).tracking(2)
                             }
                             .foregroundStyle(Palette.violet).padding(.top, 6)
-                            ForEach(g.sessions) { card($0) }
+                            ForEach(g.sessions) { s in
+                                card(s)
+                                    .onAppear { if s.id == sessions.last?.id { Task { await loadMore() } } }
+                            }
+                        }
+                        if loadingMore {
+                            ProgressView().tint(Palette.violet).frame(maxWidth: .infinity).padding(.vertical, 8)
                         }
                     }
                 }
@@ -108,8 +116,21 @@ struct WorkoutHistoryView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { sessions = try await APIClient.shared.workoutHistory() }
-        catch { self.error = error.localizedDescription }
+        do {
+            let page = try await APIClient.shared.workoutHistory()
+            sessions = page.sessions
+            hasMore = page.hasMore ?? false
+        } catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore, !loading else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        guard let page = try? await APIClient.shared.workoutHistory(offset: sessions.count) else { return }
+        let known = Set(sessions.map(\.id))
+        sessions.append(contentsOf: page.sessions.filter { !known.contains($0.id) })
+        hasMore = page.hasMore ?? false
     }
 }

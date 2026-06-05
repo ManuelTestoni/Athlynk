@@ -287,6 +287,24 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .wb-kind-badge--program  { background: rgba(28,74,82,.12); color: var(--al-aegean); }
 .wb-kind-badge--weekly   { background: rgba(138,106,58,.14); color: var(--al-bronze); }
 
+.wb-prog-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wb-prog-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(28,74,82,.08);
+  color: var(--al-aegean);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 /* --------- Type Picker modal cards ------------------------------- */
 .wb-type-card {
   flex: 1;
