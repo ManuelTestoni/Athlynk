@@ -265,8 +265,16 @@ struct CheckStep: Codable, Identifiable, Hashable {
     let label: String
 }
 
+/// One selectable anthropometry measure (circonferenza / plica). `key` is the
+/// stored key (with `_l`/`_r` for limbs); `label` is the resolved ISAK name.
+struct AntroItem: Codable, Identifiable, Hashable {
+    let key: String
+    let label: String
+    var id: String { key }
+}
+
 /// A single question the athlete must answer. `type` mirrors the web builder:
-/// metrica | media | si_no | radio | checkbox | aperta.
+/// antropometria | metrica | media | si_no | radio | checkbox | aperta | allegato.
 struct CheckQuestion: Codable, Identifiable, Hashable {
     let id: String
     let type: String
@@ -280,6 +288,10 @@ struct CheckQuestion: Codable, Identifiable, Hashable {
     let maxLabel: String?
     let placeholder: String?
     let stepId: String?
+    // antropometria-only
+    let weight: Bool
+    let circumferences: [AntroItem]
+    let skinfolds: [AntroItem]
 
     enum CodingKeys: String, CodingKey {
         case id, type, label, required, unit, options, min, max
@@ -287,6 +299,7 @@ struct CheckQuestion: Codable, Identifiable, Hashable {
         case maxLabel = "max_label"
         case placeholder
         case stepId = "step_id"
+        case weight, circumferences, skinfolds
     }
 
     init(from decoder: Decoder) throws {
@@ -303,6 +316,9 @@ struct CheckQuestion: Codable, Identifiable, Hashable {
         maxLabel = try? c.decodeIfPresent(String.self, forKey: .maxLabel)
         placeholder = try? c.decodeIfPresent(String.self, forKey: .placeholder)
         stepId = try? c.decodeIfPresent(String.self, forKey: .stepId)
+        weight = (try? c.decode(Bool.self, forKey: .weight)) ?? true
+        circumferences = (try? c.decode([AntroItem].self, forKey: .circumferences)) ?? []
+        skinfolds = (try? c.decode([AntroItem].self, forKey: .skinfolds)) ?? []
     }
 }
 

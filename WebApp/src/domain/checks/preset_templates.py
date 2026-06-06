@@ -17,7 +17,10 @@ Schema:
         }, ...],
     }
 
-Supported question types (6): metrica, media, si_no, radio, checkbox, aperta, allegato.
+Supported question types: antropometria, metrica, media, si_no, radio, checkbox, aperta, allegato.
+The `antropometria` type bundles peso/circonferenze/pliche (see domain.checks.anthropometry);
+its config keys are: 'weight' (bool), 'circumferences' (ordered stored-keys),
+'skinfolds' (ordered keys).
 """
 
 PRESETS = {
@@ -32,17 +35,11 @@ PRESETS = {
             {'id': 's_foto',      'label': 'Foto',          'icon': 'ph-camera'},
         ],
         'questions': [
-            {'id': 'peso_corporeo',     'step_id': 's_antrop',    'type': 'metrica', 'label': 'Peso corporeo',        'unit': 'kg', 'required': True,  'report_visible': True},
-            {'id': 'circ_spalle',       'step_id': 's_antrop',    'type': 'metrica', 'label': 'Circonferenza spalle', 'unit': 'cm', 'required': False, 'report_visible': True},
-            {'id': 'circ_petto',        'step_id': 's_antrop',    'type': 'metrica', 'label': 'Circonferenza petto',  'unit': 'cm', 'required': False, 'report_visible': True},
-            {'id': 'circ_vita',         'step_id': 's_antrop',    'type': 'metrica', 'label': 'Circonferenza vita',   'unit': 'cm', 'required': False, 'report_visible': True},
-            {'id': 'circ_fianchi',      'step_id': 's_antrop',    'type': 'metrica', 'label': 'Circonferenza fianchi','unit': 'cm', 'required': False, 'report_visible': True},
-            {'id': 'circ_coscia',       'step_id': 's_antrop',    'type': 'metrica', 'label': 'Coscia DX',            'unit': 'cm', 'required': False, 'report_visible': False},
-            {'id': 'circ_braccio',      'step_id': 's_antrop',    'type': 'metrica', 'label': 'Braccio DX',           'unit': 'cm', 'required': False, 'report_visible': False},
-            {'id': 'pl_petto',          'step_id': 's_antrop',    'type': 'metrica', 'label': 'Plica petto',          'unit': 'mm', 'required': False, 'report_visible': False},
-            {'id': 'pl_addome',         'step_id': 's_antrop',    'type': 'metrica', 'label': 'Plica addome',         'unit': 'mm', 'required': False, 'report_visible': False},
-            {'id': 'pl_coscia',         'step_id': 's_antrop',    'type': 'metrica', 'label': 'Plica coscia',         'unit': 'mm', 'required': False, 'report_visible': False},
-            {'id': 'pl_tricipite',      'step_id': 's_antrop',    'type': 'metrica', 'label': 'Plica tricipite',      'unit': 'mm', 'required': False, 'report_visible': False},
+            {'id': 'antropometria', 'step_id': 's_antrop', 'type': 'antropometria', 'label': 'Antropometria',
+             'weight': True,
+             'circumferences': ['chest', 'waist', 'gluteal', 'arm_relaxed_l', 'arm_relaxed_r', 'thigh_l', 'thigh_r'],
+             'skinfolds': ['triceps', 'subscapular', 'suprailiac', 'abdominal'],
+             'required': True, 'report_visible': True},
             {'id': 'benessere_umore',   'step_id': 's_benessere', 'type': 'media',   'label': 'Umore generale',        'min': 1, 'max': 5, 'minLabel': 'Pessimo',    'maxLabel': 'Eccellente', 'required': True,  'report_visible': True},
             {'id': 'benessere_sonno',   'step_id': 's_benessere', 'type': 'media',   'label': 'Qualità del sonno',     'min': 1, 'max': 5, 'minLabel': 'Pessima',    'maxLabel': 'Ottima',     'required': False, 'report_visible': True},
             {'id': 'benessere_dieta',   'step_id': 's_benessere', 'type': 'media',   'label': 'Aderenza alla dieta',   'min': 1, 'max': 5, 'minLabel': 'Non seguita','maxLabel': 'Perfetta',   'required': True,  'report_visible': True},

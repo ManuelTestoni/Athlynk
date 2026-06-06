@@ -78,7 +78,13 @@ struct NewCheckView: View {
                         Text("Nessuna domanda in questa sezione.")
                             .font(Typo.body(14)).foregroundStyle(Palette.textMid)
                     } else {
-                        ForEach(qs) { q in questionCard(q).id(q.id) }
+                        ForEach(qs) { q in
+                            if q.type == "antropometria" {
+                                antropometriaCards(q).id(q.id)
+                            } else {
+                                questionCard(q).id(q.id)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 28)
@@ -163,6 +169,68 @@ struct NewCheckView: View {
         .padding(18)
         .voltPanel(invalid ? Palette.magenta.opacity(0.6) : Palette.violet.opacity(0.35))
         .animation(.easeOut(duration: 0.2), value: invalid)
+    }
+
+    // MARK: Antropometria — peso / circonferenze / pliche as distinct cells
+
+    @ViewBuilder
+    private func antropometriaCards(_ q: CheckQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if q.weight {
+                antroPhaseCard(icon: "scalemass.fill", title: "Peso corporeo") {
+                    antroField(label: "Peso", key: "peso_corporeo", unit: "kg")
+                }
+            }
+            if !q.circumferences.isEmpty {
+                antroPhaseCard(icon: "ruler.fill", title: "Circonferenze") {
+                    antroGrid(q.circumferences, prefix: "circ::", unit: "cm")
+                }
+            }
+            if !q.skinfolds.isEmpty {
+                antroPhaseCard(icon: "circle.dashed", title: "Pliche cutanee") {
+                    antroGrid(q.skinfolds, prefix: "pl::", unit: "mm")
+                }
+            }
+        }
+    }
+
+    private func antroPhaseCard<Content: View>(icon: String, title: String,
+                                               @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.bronze)
+                Text(title).voltEyebrow()
+            }
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .voltPanel(Palette.violet.opacity(0.35))
+    }
+
+    private func antroGrid(_ items: [AntroItem], prefix: String, unit: String) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10)], spacing: 12) {
+            ForEach(items) { item in
+                antroField(label: item.label, key: prefix + item.key, unit: unit)
+            }
+        }
+    }
+
+    private func antroField(label: String, key: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
+                .lineLimit(1).minimumScaleFactor(0.75)
+            HStack(spacing: 6) {
+                TextField("", text: bind(key), prompt: Text("0.0").foregroundStyle(Palette.textLow))
+                    .font(Typo.mono(15, .semibold)).foregroundStyle(Palette.textHi).tint(Palette.violet)
+                    .keyboardType(.decimalPad)
+                    .focused($focused, equals: key)
+                Text(unit).font(Typo.mono(10, .bold)).foregroundStyle(Palette.textLow)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 9).fill(Palette.void2))
+        }
     }
 
     @ViewBuilder
@@ -370,6 +438,8 @@ struct NewCheckView: View {
     /// Validate one question; returns a user-facing message or nil if it passes.
     private func problem(_ q: CheckQuestion) -> String? {
         switch q.type {
+        case "antropometria":
+            return nil   // composite — individual fields are optional
         case "checkbox":
             return q.required && (multi[q.id] ?? []).isEmpty ? "Seleziona almeno un'opzione." : nil
         case "allegato":
@@ -424,6 +494,15 @@ struct NewCheckView: View {
             if q.type == "checkbox" {
                 let v = multi[q.id] ?? []
                 if !v.isEmpty { answers[q.id] = v }
+            } else if q.type == "antropometria" {
+                // Sub-fields live in `text` under peso_corporeo / circ::* / pl::*.
+                var keys = q.weight ? ["peso_corporeo"] : []
+                keys += q.circumferences.map { "circ::" + $0.key }
+                keys += q.skinfolds.map { "pl::" + $0.key }
+                for k in keys {
+                    let v = (text[k] ?? "").trimmingCharacters(in: .whitespaces)
+                    if !v.isEmpty { answers[k] = v }
+                }
             } else if q.type != "allegato" {
                 let v = (text[q.id] ?? "").trimmingCharacters(in: .whitespaces)
                 if !v.isEmpty { answers[q.id] = v }

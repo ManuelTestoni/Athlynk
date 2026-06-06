@@ -12,6 +12,9 @@ from datetime import timedelta
 
 from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
 from domain.checks.preset_templates import PRESETS, build_template_payload
+from domain.checks.anthropometry import (
+    circ_label, skin_label, order_circ_keys, order_skin_keys, catalog_json,
+)
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
@@ -23,22 +26,6 @@ except ImportError:
     from domain.appointments.models import Appointment
 
 from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
-
-CIRC_LABELS = [
-    ('shoulders', 'Spalle'),
-    ('chest', 'Petto'),
-    ('waist', 'Vita'),
-    ('hips', 'Fianchi'),
-    ('thigh_right', 'Coscia DX'),
-    ('arm_right', 'Braccio DX'),
-]
-
-SKINFOLD_LABELS = [
-    ('chest', 'Petto'),
-    ('abdomen', 'Addome'),
-    ('thigh', 'Coscia'),
-    ('tricep', 'Tricipite'),
-]
 
 RESERVED_FIELD_MAP = {
     'peso_corporeo':    ('weight_kg', None),
@@ -75,6 +62,133 @@ def _get_q_value(q_id, resp):
     return v if v not in ('', None) else None
 
 
+def _to_float(val):
+    try:
+        v = float(val or 0)
+        return v or None
+    except (ValueError, TypeError):
+        return None
+
+
+def build_measurements(raw_answers, questions_config, parse_fn):
+    """Build (weight_kg, body_circumferences, skinfolds) from submitted answers.
+
+    Template-driven: handles both legacy `metrica` antropometric questions (via
+    RESERVED_FIELD_MAP) and the composite `antropometria` type. `parse_fn`
+    normalizes a single metric value to its stored string form.
+    """
+    weight_kg = None
+    circ, skin = {}, {}
+    for q in (questions_config or []):
+        qid = q.get('id')
+        qtype = q.get('type')
+        if qtype == 'antropometria':
+            if q.get('weight'):
+                w = _to_float(raw_answers.get('peso_corporeo'))
+                if w:
+                    weight_kg = w
+            for key in q.get('circumferences') or []:
+                circ[key] = parse_fn(raw_answers.get('circ::' + key))
+            for key in q.get('skinfolds') or []:
+                skin[key] = parse_fn(raw_answers.get('pl::' + key))
+        elif qtype == 'metrica' and qid in RESERVED_FIELD_MAP:
+            field, sub = RESERVED_FIELD_MAP[qid]
+            val = raw_answers.get(qid)
+            if field == 'weight_kg':
+                w = _to_float(val)
+                if w:
+                    weight_kg = w
+            elif field == 'body_circumferences':
+                circ[sub] = parse_fn(val)
+            elif field == 'skinfolds':
+                skin[sub] = parse_fn(val)
+    return weight_kg, circ, skin
+
+
+def _measure_row(label, unit, val, prev):
+    delta = None
+    try:
+        if prev not in (None, ''):
+            delta = round(float(val) - float(prev), 1)
+    except (ValueError, TypeError):
+        delta = None
+    return {'type': 'metrica', 'label': label, 'unit': unit,
+            'value': val, 'previous': prev, 'delta': delta}
+
+
+def _antropometria_rows(q, response, prev_response):
+    """Expand a composite `antropometria` question into ordered metrica-style
+    rows (weight → circonferenze → pliche) so detail.html renders them as usual."""
+    rows = []
+    if q.get('weight'):
+        val = response.weight_kg
+        if val not in (None, ''):
+            prev = prev_response.weight_kg if prev_response else None
+            rows.append({**_measure_row('Peso corporeo', 'kg', val, prev), 'id': 'peso_corporeo'})
+    curr_c = response.body_circumferences or {}
+    prev_c = (prev_response.body_circumferences or {}) if prev_response else {}
+    for key in q.get('circumferences') or []:
+        val = curr_c.get(key)
+        if val in (None, ''):
+            continue
+        rows.append({**_measure_row(circ_label(key), 'cm', val, prev_c.get(key)), 'id': 'circ::' + key})
+    curr_s = response.skinfolds or {}
+    prev_s = (prev_response.skinfolds or {}) if prev_response else {}
+    for key in q.get('skinfolds') or []:
+        val = curr_s.get(key)
+        if val in (None, ''):
+            continue
+        rows.append({**_measure_row(skin_label(key), 'mm', val, prev_s.get(key)), 'id': 'pl::' + key})
+    return rows
+
+
+def _collect_measurement_keys(responses):
+    present_circ, present_skin = set(), set()
+    for r in responses:
+        for k, v in (r['body_circumferences'] or {}).items():
+            if v not in (None, ''):
+                present_circ.add(k)
+        for k, v in (r['skinfolds'] or {}).items():
+            if v not in (None, ''):
+                present_skin.add(k)
+    return order_circ_keys(present_circ), order_skin_keys(present_skin)
+
+
+def _build_chart_data(target_client):
+    """Time-series chart data, dynamic over the measurements actually stored
+    for the athlete (ordered per ISAK catalog; legacy keys kept in tail)."""
+    responses = list(
+        QuestionnaireResponse.objects.filter(client=target_client)
+        .order_by('submitted_at')
+        .values('submitted_at', 'weight_kg', 'body_circumferences', 'skinfolds')
+    )
+    circ_keys, skin_keys = _collect_measurement_keys(responses)
+    labels, weight = [], []
+    chart_circ = {k: [] for k in circ_keys}
+    chart_skin = {k: [] for k in skin_keys}
+    for r in responses:
+        labels.append(r['submitted_at'].strftime('%d/%m/%Y'))
+        weight.append(float(r['weight_kg']) if r['weight_kg'] else None)
+        circ = r['body_circumferences'] or {}
+        for k in circ_keys:
+            v = circ.get(k)
+            chart_circ[k].append(float(v) if v else None)
+        skin = r['skinfolds'] or {}
+        for k in skin_keys:
+            v = skin.get(k)
+            chart_skin[k].append(float(v) if v else None)
+    return {
+        'labels': labels,
+        'weight': weight,
+        'circumferences': chart_circ,
+        'skinfolds': chart_skin,
+        'circ_keys': circ_keys,
+        'skin_keys': skin_keys,
+        'circ_labels': {k: circ_label(k) for k in circ_keys},
+        'skin_labels': {k: skin_label(k) for k in skin_keys},
+    }
+
+
 def _build_check_sections(template, response, prev_response, attachments_by_q):
     if not template:
         return []
@@ -102,6 +216,10 @@ def _build_check_sections(template, response, prev_response, attachments_by_q):
                     'label': q.get('label', 'Allegato'),
                     'files': files,
                 })
+                continue
+
+            if q_type == 'antropometria':
+                rendered.extend(_antropometria_rows(q, response, prev_response))
                 continue
 
             val = _get_q_value(q_id, response)
@@ -153,31 +271,30 @@ def _has_allegato_questions(template):
     return False
 
 
+def _dict_deltas(curr, prev):
+    curr = curr or {}
+    prev = prev or {}
+    out = {}
+    for key in curr:
+        try:
+            if curr.get(key) and prev.get(key):
+                out[key] = round(float(curr[key]) - float(prev[key]), 1)
+            else:
+                out[key] = None
+        except (ValueError, TypeError):
+            out[key] = None
+    return out
+
+
 def _compute_deltas(current_response, prev_response):
     weight_delta = None
     if prev_response and current_response.weight_kg and prev_response.weight_kg:
         weight_delta = float(current_response.weight_kg) - float(prev_response.weight_kg)
 
-    circ_deltas = {}
-    curr_circ = current_response.body_circumferences or {}
-    prev_circ = (prev_response.body_circumferences or {}) if prev_response else {}
-    for key, _ in CIRC_LABELS:
-        try:
-            delta = float(curr_circ.get(key, '') or 0) - float(prev_circ.get(key, '') or 0)
-            circ_deltas[key] = round(delta, 1) if curr_circ.get(key) and prev_circ.get(key) else None
-        except (ValueError, TypeError):
-            circ_deltas[key] = None
-
-    skinfold_deltas = {}
-    curr_sf = current_response.skinfolds or {}
-    prev_sf = (prev_response.skinfolds or {}) if prev_response else {}
-    for key, _ in SKINFOLD_LABELS:
-        try:
-            delta = float(curr_sf.get(key, '') or 0) - float(prev_sf.get(key, '') or 0)
-            skinfold_deltas[key] = round(delta, 1) if curr_sf.get(key) and prev_sf.get(key) else None
-        except (ValueError, TypeError):
-            skinfold_deltas[key] = None
-
+    prev_circ = prev_response.body_circumferences if prev_response else None
+    prev_sf = prev_response.skinfolds if prev_response else None
+    circ_deltas = _dict_deltas(current_response.body_circumferences, prev_circ)
+    skinfold_deltas = _dict_deltas(current_response.skinfolds, prev_sf)
     return weight_delta, circ_deltas, skinfold_deltas
 
 
@@ -326,6 +443,7 @@ def check_create_view(request):
                 'check_title': template.title,
                 'questions_config_json': json.dumps(template.questions_config or []),
                 'steps_config_json': json.dumps(template.steps_config or []),
+                'catalog_json': json.dumps(catalog_json()),
             })
         return render(request, 'pages/check/create.html', {
             'client': client,
@@ -352,25 +470,8 @@ def check_create_view(request):
             except (ValueError, TypeError):
                 return ''
 
-        try:
-            weight_kg = float(raw_answers.get('peso_corporeo') or 0) or None
-        except (ValueError, TypeError):
-            weight_kg = None
-
-        body_circumferences = {
-            'shoulders': _parse_metric(raw_answers.get('circ_spalle')),
-            'chest': _parse_metric(raw_answers.get('circ_petto')),
-            'waist': _parse_metric(raw_answers.get('circ_vita')),
-            'hips': _parse_metric(raw_answers.get('circ_fianchi')),
-            'thigh_right': _parse_metric(raw_answers.get('circ_coscia')),
-            'arm_right': _parse_metric(raw_answers.get('circ_braccio')),
-        }
-        skinfolds = {
-            'chest': _parse_metric(raw_answers.get('pl_petto')),
-            'abdomen': _parse_metric(raw_answers.get('pl_addome')),
-            'thigh': _parse_metric(raw_answers.get('pl_coscia')),
-            'tricep': _parse_metric(raw_answers.get('pl_tricipite')),
-        }
+        weight_kg, body_circumferences, skinfolds = build_measurements(
+            raw_answers, questions_config, _parse_metric)
 
         answers_json = {
             'mood': raw_answers.get('benessere_umore', ''),
@@ -378,6 +479,9 @@ def check_create_view(request):
             'workout_adherence': raw_answers.get('benessere_workout', ''),
         }
         for k, v in raw_answers.items():
+            if k == 'peso_corporeo' or k in RESERVED_FIELD_MAP \
+                    or k.startswith('circ::') or k.startswith('pl::'):
+                continue
             answers_json.setdefault(k, v)
 
         response = QuestionnaireResponse.objects.create(
@@ -575,31 +679,21 @@ def check_detail_view(request, response_id):
 
     weight_delta, circ_deltas, skinfold_deltas = _compute_deltas(response, prev_response)
 
-    circ_rows = []
     curr_circ = response.body_circumferences or {}
     prev_circ = (prev_response.body_circumferences or {}) if prev_response else {}
-    for key, label in CIRC_LABELS:
-        curr_val = curr_circ.get(key, '')
-        prev_val = prev_circ.get(key, '')
-        circ_rows.append({
-            'label': label,
-            'current': curr_val,
-            'previous': prev_val,
-            'delta': circ_deltas.get(key),
-        })
+    circ_rows = [
+        {'label': circ_label(key), 'current': curr_circ.get(key, ''),
+         'previous': prev_circ.get(key, ''), 'delta': circ_deltas.get(key)}
+        for key in order_circ_keys(k for k, v in curr_circ.items() if v not in (None, ''))
+    ]
 
-    skinfold_rows = []
     curr_sf = response.skinfolds or {}
     prev_sf = (prev_response.skinfolds or {}) if prev_response else {}
-    for key, label in SKINFOLD_LABELS:
-        curr_val = curr_sf.get(key, '')
-        prev_val = prev_sf.get(key, '')
-        skinfold_rows.append({
-            'label': label,
-            'current': curr_val,
-            'previous': prev_val,
-            'delta': skinfold_deltas.get(key),
-        })
+    skinfold_rows = [
+        {'label': skin_label(key), 'current': curr_sf.get(key, ''),
+         'previous': prev_sf.get(key, ''), 'delta': skinfold_deltas.get(key)}
+        for key in order_skin_keys(k for k, v in curr_sf.items() if v not in (None, ''))
+    ]
 
     photos = list(response.photos.all())
     answers = response.answers_json or {}
@@ -687,36 +781,7 @@ def client_check_history_view(request, client_id):
     paginator = Paginator(responses_qs, per_page)
     page_obj = paginator.get_page(page)
 
-    # Build chart data inline (same logic as check_progress_charts_view)
-    all_responses = list(
-        QuestionnaireResponse.objects.filter(client=target_client)
-        .order_by('submitted_at')
-        .values('submitted_at', 'weight_kg', 'body_circumferences', 'skinfolds')
-    )
-    circ_keys = ['shoulders', 'chest', 'waist', 'hips', 'thigh_right', 'arm_right']
-    skin_keys = ['chest', 'abdomen', 'thigh', 'tricep']
-    chart_labels = []
-    chart_weight = []
-    chart_circ = {k: [] for k in circ_keys}
-    chart_skin = {k: [] for k in skin_keys}
-    for r in all_responses:
-        chart_labels.append(r['submitted_at'].strftime('%d/%m/%Y'))
-        chart_weight.append(float(r['weight_kg']) if r['weight_kg'] else None)
-        circ = r['body_circumferences'] or {}
-        for k in circ_keys:
-            v = circ.get(k)
-            chart_circ[k].append(float(v) if v else None)
-        skin = r['skinfolds'] or {}
-        for k in skin_keys:
-            v = skin.get(k)
-            chart_skin[k].append(float(v) if v else None)
-
-    chart_data = {
-        'labels': chart_labels,
-        'weight': chart_weight,
-        'circumferences': chart_circ,
-        'skinfolds': chart_skin,
-    }
+    chart_data = _build_chart_data(target_client)
 
     context = {
         'target_client': target_client,
@@ -751,43 +816,13 @@ def check_progress_charts_view(request, client_id=None):
     else:
         return redirect('check_dashboard')
 
-    responses = list(
-        QuestionnaireResponse.objects.filter(client=target_client)
-        .order_by('submitted_at')
-        .values('submitted_at', 'weight_kg', 'body_circumferences', 'skinfolds')
-    )
-
-    labels = []
-    weight_data = []
-    circ_keys = ['shoulders', 'chest', 'waist', 'hips', 'thigh_right', 'arm_right']
-    skin_keys = ['chest', 'abdomen', 'thigh', 'tricep']
-    circ_data = {k: [] for k in circ_keys}
-    skin_data = {k: [] for k in skin_keys}
-
-    for r in responses:
-        labels.append(r['submitted_at'].strftime('%d/%m/%Y'))
-        weight_data.append(float(r['weight_kg']) if r['weight_kg'] else None)
-        circ = r['body_circumferences'] or {}
-        for k in circ_keys:
-            v = circ.get(k)
-            circ_data[k].append(float(v) if v else None)
-        skin = r['skinfolds'] or {}
-        for k in skin_keys:
-            v = skin.get(k)
-            skin_data[k].append(float(v) if v else None)
-
-    chart_data = {
-        'labels': labels,
-        'weight': weight_data,
-        'circumferences': circ_data,
-        'skinfolds': skin_data,
-    }
+    chart_data = _build_chart_data(target_client)
 
     return render(request, 'pages/check/progress_charts.html', {
         'target_client': target_client,
         'is_coach_view': is_coach_view,
         'chart_data_json': json.dumps(chart_data),
-        'total_checks': len(labels),
+        'total_checks': len(chart_data['labels']),
     })
 
 
@@ -1257,6 +1292,7 @@ def fill_assigned_check_view(request, instance_id):
             'assignment': assignment,
             'questions_config_json': json.dumps(questions_config),
             'steps_config_json': json.dumps(steps_config),
+            'catalog_json': json.dumps(catalog_json()),
             'coach': coach,
             'errors': [],
         })
@@ -1267,10 +1303,10 @@ def fill_assigned_check_view(request, instance_id):
     except json.JSONDecodeError:
         raw_answers = {}
 
-    # Validate required questions
+    # Validate required questions (antropometria is composite → skip simple check)
     errors = []
     for q in questions_config:
-        if q.get('required'):
+        if q.get('required') and q.get('type') != 'antropometria':
             val = raw_answers.get(q['id'])
             if val is None or str(val).strip() == '':
                 errors.append(f'«{q["label"]}» è obbligatoria.')
@@ -1281,6 +1317,7 @@ def fill_assigned_check_view(request, instance_id):
             'assignment': assignment,
             'questions_config_json': json.dumps(questions_config),
             'steps_config_json': json.dumps(steps_config),
+            'catalog_json': json.dumps(catalog_json()),
             'coach': coach,
             'errors': errors,
             'prefill_json': json.dumps(raw_answers),
@@ -1293,39 +1330,22 @@ def fill_assigned_check_view(request, instance_id):
         except (ValueError, TypeError):
             return ''
 
-    try:
-        weight_kg = float(raw_answers.get('peso_corporeo') or 0) or None
-    except (ValueError, TypeError):
-        weight_kg = None
+    weight_kg, body_circumferences, skinfolds = build_measurements(
+        raw_answers, questions_config, _pm)
 
-    body_circumferences = {
-        'shoulders': _pm(raw_answers.get('circ_spalle')),
-        'chest':     _pm(raw_answers.get('circ_petto')),
-        'waist':     _pm(raw_answers.get('circ_vita')),
-        'hips':      _pm(raw_answers.get('circ_fianchi')),
-        'thigh_right': _pm(raw_answers.get('circ_coscia')),
-        'arm_right': _pm(raw_answers.get('circ_braccio')),
-    }
-    skinfolds = {
-        'chest':   _pm(raw_answers.get('pl_petto')),
-        'abdomen': _pm(raw_answers.get('pl_addome')),
-        'thigh':   _pm(raw_answers.get('pl_coscia')),
-        'tricep':  _pm(raw_answers.get('pl_tricipite')),
-    }
     STRUCTURED = {
-        'peso_corporeo', 'circ_spalle', 'circ_petto', 'circ_vita', 'circ_fianchi',
-        'circ_coscia', 'circ_braccio', 'pl_petto', 'pl_addome', 'pl_coscia',
-        'pl_tricipite', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
+        'peso_corporeo', 'note_infortuni', 'note_limitazioni', 'note_messaggio',
         'benessere_umore', 'benessere_dieta', 'benessere_workout',
-    }
+    } | set(RESERVED_FIELD_MAP.keys())
     answers_json = {
         'mood': raw_answers.get('benessere_umore', ''),
         'diet_adherence': raw_answers.get('benessere_dieta', ''),
         'workout_adherence': raw_answers.get('benessere_workout', ''),
     }
     for k, v in raw_answers.items():
-        if k not in STRUCTURED:
-            answers_json[k] = v
+        if k in STRUCTURED or k.startswith('circ::') or k.startswith('pl::'):
+            continue
+        answers_json[k] = v
 
     template = assignment.template
     response_obj = QuestionnaireResponse.objects.create(
@@ -1580,6 +1600,7 @@ def check_template_new_view(request):
         'questions_config_json': json.dumps([]),
         'preset_key': '',
         'is_modified_preset': False,
+        'catalog_json': json.dumps(catalog_json()),
     })
 
 
@@ -1618,6 +1639,7 @@ def check_template_edit_view(request, template_id):
         'questions_config_json': json.dumps(tpl.questions_config or []),
         'preset_key': tpl.preset_key or '',
         'is_modified_preset': bool(tpl.is_modified_preset),
+        'catalog_json': json.dumps(catalog_json()),
     })
 
 

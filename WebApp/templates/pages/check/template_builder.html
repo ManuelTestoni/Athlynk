@@ -79,6 +79,8 @@
 .tb-report-q { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--al-rule-faint); font-size: 13px; }
 .tb-report-q:last-child { border-bottom: none; }
 .tb-step-edit-input { background: rgba(255,255,255,.18); border: 1px solid currentColor; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: inherit; max-width: 140px; }
+.tb-antro-group { background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); padding: 12px 14px; }
+.tb-antro-group .text-ink { cursor: default; }
 </style>
 
 <form id="tb-form" method="POST" action="{% if template %}{% url 'check_template_edit' template_id=template.id %}{% else %}{% url 'check_template_new' %}{% endif %}">
@@ -287,8 +289,10 @@
         </template>
     </div>
 
-    <!-- Add / Edit question modal -->
-    <div x-show="showModal" x-cloak>
+    <!-- Add / Edit question modal (teleported to body → fixed positioning is relative
+         to the viewport, so the panel stays centered even when scrolled to the bottom) -->
+    <template x-teleport="body">
+    <div x-show="showModal" x-cloak style="position:fixed;inset:0;z-index:50;">
         <div class="al-modal-backdrop" @click="closeModal()"></div>
         <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;max-width:560px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
 
@@ -306,10 +310,15 @@
                 </div>
                 <div class="al-modal-body">
                     <div class="grid grid-cols-2 gap-3">
-                        <button @click="pickType('metrica')" type="button" class="tb-type-card">
+                        <button @click="pickType('antropometria')" type="button" class="tb-type-card" style="grid-column: span 2;">
                             <i class="ph ph-ruler text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
+                            <p class="font-semibold text-sm text-ink">Antropometria</p>
+                            <p class="al-tag text-xs mt-1">Peso, circonferenze e pliche (ISAK)</p>
+                        </button>
+                        <button @click="pickType('metrica')" type="button" class="tb-type-card">
+                            <i class="ph ph-hash text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
                             <p class="font-semibold text-sm text-ink">Numero con unità</p>
-                            <p class="al-tag text-xs mt-1">Es. 75 kg, 92 cm</p>
+                            <p class="al-tag text-xs mt-1">Es. 65 %, 8 h</p>
                         </button>
                         <button @click="pickType('media')" type="button" class="tb-type-card">
                             <i class="ph ph-sliders text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
@@ -369,7 +378,7 @@
                         <div>
                             <label class="al-label">Unità di misura</label>
                             <div class="flex gap-2 flex-wrap mb-2">
-                                <template x-for="u in ['kg','cm','mm','%','bpm','kcal','min','h','km','n','L']" :key="u">
+                                <template x-for="u in ['%','bpm','kcal','min','h','km','n','L']" :key="u">
                                     <button @click="form.unit = u" type="button"
                                             :class="form.unit === u ? 'al-badge al-badge-aegean' : 'al-badge'"
                                             style="text-transform: none; letter-spacing: 0; cursor: pointer; font-size: 12px;"
@@ -377,6 +386,73 @@
                                 </template>
                             </div>
                             <input type="text" x-model="form.unit" placeholder="Altra unità..." class="al-input" style="max-width: 200px;">
+                            <p class="al-small mt-1" style="color: var(--al-ink-mute);">Per kg, cm e mm usa il tipo <strong>Antropometria</strong>.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="form.type === 'antropometria'">
+                        <div class="space-y-4">
+                            <!-- Peso corporeo -->
+                            <div class="tb-antro-group">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" x-model="form.weight" style="accent-color: var(--al-bronze);">
+                                    <span class="font-semibold text-sm text-ink">Peso corporeo</span>
+                                    <span class="al-tag text-xs">kg</span>
+                                </label>
+                            </div>
+
+                            <!-- Circonferenze -->
+                            <div class="tb-antro-group">
+                                <p class="al-label" style="margin-bottom:6px;">Circonferenze <span style="color:var(--al-ink-mute);font-weight:400;">(cm · arti DX+SX di default)</span></p>
+                                <div class="space-y-1.5">
+                                    <template x-for="c in CATALOG.circumferences" :key="c.key">
+                                        <div class="flex items-center justify-between gap-3 py-1" :title="c.isak + ' — ' + c.position">
+                                            <span class="text-sm text-ink" x-text="c.it"></span>
+                                            <div class="flex items-center gap-3 shrink-0">
+                                                <template x-if="!c.is_limb">
+                                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                                        <input type="checkbox" style="accent-color: var(--al-bronze);"
+                                                               :checked="form.circumferences.includes(c.key)"
+                                                               @change="toggleCirc(c.key, $event.target.checked)">
+                                                        <span class="al-tag text-xs">includi</span>
+                                                    </label>
+                                                </template>
+                                                <template x-if="c.is_limb">
+                                                    <div class="flex items-center gap-3">
+                                                        <label class="flex items-center gap-1.5 cursor-pointer">
+                                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
+                                                                   :checked="form.circumferences.includes(c.key + '_r')"
+                                                                   @change="toggleCirc(c.key + '_r', $event.target.checked)">
+                                                            <span class="al-tag text-xs">DX</span>
+                                                        </label>
+                                                        <label class="flex items-center gap-1.5 cursor-pointer">
+                                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
+                                                                   :checked="form.circumferences.includes(c.key + '_l')"
+                                                                   @change="toggleCirc(c.key + '_l', $event.target.checked)">
+                                                            <span class="al-tag text-xs">SX</span>
+                                                        </label>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Pliche -->
+                            <div class="tb-antro-group">
+                                <p class="al-label" style="margin-bottom:6px;">Pliche cutanee <span style="color:var(--al-ink-mute);font-weight:400;">(mm · valore singolo)</span></p>
+                                <div class="space-y-1.5">
+                                    <template x-for="s in CATALOG.skinfolds" :key="s.key">
+                                        <label class="flex items-center justify-between gap-3 py-1 cursor-pointer" :title="s.isak + ' — ' + s.position">
+                                            <span class="text-sm text-ink" x-text="s.it"></span>
+                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
+                                                   :checked="form.skinfolds.includes(s.key)"
+                                                   @change="toggleSkin(s.key, $event.target.checked)">
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </template>
 
@@ -460,11 +536,13 @@
             </div>
         </div>
     </div>
+    </template>
 
 </div>
 
 <script>
 const TB_TYPE_LABELS = {
+    antropometria: 'Antropometria',
     metrica:  'Numero con unità',
     media:    'Scala',
     si_no:    'Sì/No',
@@ -473,6 +551,12 @@ const TB_TYPE_LABELS = {
     aperta:   'Risposta aperta',
     allegato: 'Allegato',
 };
+
+const CATALOG = JSON.parse('{{ catalog_json|escapejs }}' || '{"circumferences":[],"skinfolds":[]}');
+const CIRC_ORDER = [];
+CATALOG.circumferences.forEach(c => { c.is_limb ? CIRC_ORDER.push(c.key + '_l', c.key + '_r') : CIRC_ORDER.push(c.key); });
+const SKIN_ORDER = CATALOG.skinfolds.map(s => s.key);
+const _orderBy = (arr, order) => [...arr].sort((a, b) => (order.indexOf(a) + 1 || 1e4) - (order.indexOf(b) + 1 || 1e4));
 
 function templateBuilder() {
     return {
@@ -496,9 +580,10 @@ function templateBuilder() {
         editingQuestionId: null,
         formError: '',
         form: {
-            type: '', label: '', unit: 'cm',
+            type: '', label: '', unit: '',
             min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max',
             options: ['', ''], placeholder: '',
+            weight: true, circumferences: [], skinfolds: [],
             required: false, report_visible: true,
         },
 
@@ -515,9 +600,10 @@ function templateBuilder() {
 
         _emptyForm() {
             return {
-                type: '', label: '', unit: 'cm',
+                type: '', label: '', unit: '',
                 min: 1, max: 5, minLabel: 'Min', maxLabel: 'Max',
                 options: ['', ''], placeholder: '',
+                weight: true, circumferences: [], skinfolds: [],
                 required: false, report_visible: true,
             };
         },
@@ -600,6 +686,13 @@ function templateBuilder() {
         },
         previewSummary(q) {
             switch (q.type) {
+                case 'antropometria': {
+                    const parts = [];
+                    if (q.weight !== false) parts.push('Peso');
+                    if ((q.circumferences || []).length) parts.push(`${q.circumferences.length} circonferenze`);
+                    if ((q.skinfolds || []).length) parts.push(`${q.skinfolds.length} pliche`);
+                    return parts.length ? parts.join(' · ') : 'Nessuna misura selezionata';
+                }
                 case 'metrica':  return q.unit ? `Numero · unità <strong>${escapeHtml(q.unit)}</strong>` : 'Numero';
                 case 'media':    return `Scala da <strong>${q.min}</strong> (${escapeHtml(q.minLabel||'')}) a <strong>${q.max}</strong> (${escapeHtml(q.maxLabel||'')})`;
                 case 'si_no':    return 'Sì / No';
@@ -622,8 +715,23 @@ function templateBuilder() {
         },
         pickType(type) {
             this.form.type = type;
-            if (type === 'metrica' && !this.form.unit) this.form.unit = 'cm';
+            if (type === 'antropometria') {
+                if (!this.form.label.trim()) this.form.label = 'Antropometria';
+                this.form.weight = true;
+                this.form.circumferences = [];
+                this.form.skinfolds = [];
+            }
             this.modalStep = 1;
+        },
+        toggleCirc(key, on) {
+            const set = new Set(this.form.circumferences);
+            on ? set.add(key) : set.delete(key);
+            this.form.circumferences = _orderBy([...set], CIRC_ORDER);
+        },
+        toggleSkin(key, on) {
+            const set = new Set(this.form.skinfolds);
+            on ? set.add(key) : set.delete(key);
+            this.form.skinfolds = _orderBy([...set], SKIN_ORDER);
         },
         openEditModal(id) {
             const q = this.questions.find(q => q.id === id);
@@ -639,6 +747,9 @@ function templateBuilder() {
                 minLabel: q.minLabel || 'Min', maxLabel: q.maxLabel || 'Max',
                 options: Array.isArray(q.options) && q.options.length ? [...q.options] : ['', ''],
                 placeholder: q.placeholder || '',
+                weight: q.weight !== false,
+                circumferences: Array.isArray(q.circumferences) ? [...q.circumferences] : [],
+                skinfolds: Array.isArray(q.skinfolds) ? [...q.skinfolds] : [],
                 required: !!q.required,
                 report_visible: q.report_visible !== false,
             };
@@ -649,7 +760,16 @@ function templateBuilder() {
         removeOption(i) { if (this.form.options.length > 1) this.form.options.splice(i, 1); },
         confirmModal() {
             this.formError = '';
+            if (this.form.type === 'antropometria' && !this.form.label.trim()) this.form.label = 'Antropometria';
             if (!this.form.label.trim()) { this.formError = 'Il testo della domanda è obbligatorio.'; return; }
+            if (this.form.type === 'metrica') {
+                const u = (this.form.unit || '').trim().toLowerCase();
+                if (['kg', 'cm', 'mm'].includes(u)) { this.formError = 'Per kg, cm e mm usa il tipo Antropometria.'; return; }
+            }
+            if (this.form.type === 'antropometria' && !this.form.weight
+                && this.form.circumferences.length === 0 && this.form.skinfolds.length === 0) {
+                this.formError = 'Seleziona almeno il peso o una misura.'; return;
+            }
             if ((this.form.type === 'radio' || this.form.type === 'checkbox')) {
                 const opts = this.form.options.map(o => o.trim()).filter(Boolean);
                 if (opts.length < 2) { this.formError = 'Inserisci almeno 2 opzioni.'; return; }
@@ -685,6 +805,11 @@ function templateBuilder() {
                 q.options = this.form.options.filter(o => o.trim());
             }
             if (this.form.type === 'aperta') q.placeholder = this.form.placeholder || '';
+            if (this.form.type === 'antropometria') {
+                q.weight = !!this.form.weight;
+                q.circumferences = _orderBy(this.form.circumferences, CIRC_ORDER);
+                q.skinfolds = _orderBy(this.form.skinfolds, SKIN_ORDER);
+            }
             return q;
         },
 

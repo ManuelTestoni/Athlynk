@@ -38,9 +38,11 @@ from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSetLog,
 )
 
+from domain.checks.anthropometry import circ_label, skin_label
 from .session_utils import get_active_relationships
 from .services import ratelimit
 from .services.images import is_image, to_webp
+from .views_check import build_measurements, RESERVED_FIELD_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -587,8 +589,9 @@ def _check_form(inst):
     them as multipart on submit.
     """
     assignment = inst.assignment
-    questions = [
-        {
+    questions = []
+    for q in (assignment.snapshot_config or []):
+        item = {
             'id': q.get('id'),
             'type': q.get('type', 'aperta'),
             'label': q.get('label', q.get('id')),
@@ -602,8 +605,16 @@ def _check_form(inst):
             'placeholder': q.get('placeholder'),
             'step_id': q.get('step_id'),
         }
-        for q in (assignment.snapshot_config or [])
-    ]
+        if q.get('type') == 'antropometria':
+            # Resolve ISAK labels server-side so the app doesn't duplicate the catalog.
+            item['weight'] = q.get('weight', True)
+            item['circumferences'] = [
+                {'key': k, 'label': circ_label(k)} for k in (q.get('circumferences') or [])
+            ]
+            item['skinfolds'] = [
+                {'key': k, 'label': skin_label(k)} for k in (q.get('skinfolds') or [])
+            ]
+        questions.append(item)
     steps = (assignment.template.steps_config if assignment.template else None) or []
     if not steps:
         steps = [{'id': '__solo', 'label': 'Check', 'icon': 'ph-list'}]
@@ -1311,10 +1322,11 @@ def check_submit(request, user, instance_id):
 
     snapshot = assignment.snapshot_config or []
 
-    # Required-question validation (allegato → at least one uploaded file).
+    # Required-question validation (allegato → at least one uploaded file;
+    # antropometria is composite → not validated as a single field).
     missing = []
     for q in snapshot:
-        if not q.get('required'):
+        if not q.get('required') or q.get('type') == 'antropometria':
             continue
         if q.get('type') == 'allegato':
             if not request.FILES.getlist(f'attachment_{q.get("id")}'):
@@ -1327,11 +1339,23 @@ def check_submit(request, user, instance_id):
             status=400,
         )
 
-    # Range-check structured measurements.
-    for key, (lo, hi) in _CHECK_BOUNDS.items():
-        raw = answers.get(key)
-        if raw in (None, ''):
+    # Range-check measurements: legacy reserved keys keep their tuned ranges;
+    # antropometria keys (peso_corporeo, circ::*, pl::*) use generic bounds.
+    def _bounds_for(key):
+        if key in _CHECK_BOUNDS:
+            return _CHECK_BOUNDS[key]
+        if key == 'peso_corporeo':
+            return (20.0, 400.0)
+        if key.startswith('circ::'):
+            return (5.0, 250.0)
+        if key.startswith('pl::'):
+            return (1.0, 100.0)
+        return None
+    for key, raw in answers.items():
+        bounds = _bounds_for(key)
+        if not bounds or raw in (None, ''):
             continue
+        lo, hi = bounds
         try:
             val = float(str(raw).replace(',', '.'))
         except (ValueError, TypeError):
@@ -1349,33 +1373,17 @@ def check_submit(request, user, instance_id):
         except (ValueError, TypeError):
             return ''
 
-    try:
-        weight = float(answers.get('peso_corporeo') or 0) or None
-    except (ValueError, TypeError):
-        weight = None
+    weight, body_circ, skinfolds = build_measurements(answers, snapshot, _pm)
 
-    body_circ = {
-        'shoulders':   _pm(answers.get('circ_spalle')),
-        'chest':       _pm(answers.get('circ_petto')),
-        'waist':       _pm(answers.get('circ_vita')),
-        'hips':        _pm(answers.get('circ_fianchi')),
-        'thigh_right': _pm(answers.get('circ_coscia')),
-        'arm_right':   _pm(answers.get('circ_braccio')),
-    }
-    skinfolds = {
-        'chest':   _pm(answers.get('pl_petto')),
-        'abdomen': _pm(answers.get('pl_addome')),
-        'thigh':   _pm(answers.get('pl_coscia')),
-        'tricep':  _pm(answers.get('pl_tricipite')),
-    }
     answers_json = {
         'mood': answers.get('benessere_umore', ''),
         'diet_adherence': answers.get('benessere_dieta', ''),
         'workout_adherence': answers.get('benessere_workout', ''),
     }
     for k, v in answers.items():
-        if k not in _CHECK_RESERVED:
-            answers_json[k] = v
+        if k in _CHECK_RESERVED or k.startswith('circ::') or k.startswith('pl::'):
+            continue
+        answers_json[k] = v
 
     resp = QuestionnaireResponse.objects.create(
         questionnaire_template=assignment.template,

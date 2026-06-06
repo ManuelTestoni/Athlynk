@@ -105,6 +105,72 @@
                             </div>
                         </template>
 
+                        <!-- antropometria -->
+                        <template x-if="q.type === 'antropometria'">
+                            <div class="antro-phases">
+                                <template x-if="q.weight !== false">
+                                    <div class="antro-phase">
+                                        <div class="antro-phase-head">
+                                            <i class="ph ph-scales"></i>
+                                            <span class="antro-phase-title">Peso corporeo</span>
+                                        </div>
+                                        <div class="antro-grid is-single">
+                                            <label class="antro-field">
+                                                <span class="antro-field-label">Peso</span>
+                                                <span class="antro-input">
+                                                    <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
+                                                           :value="answers['peso_corporeo'] ?? ''" @input="answers['peso_corporeo'] = $event.target.value">
+                                                    <span class="antro-unit">kg</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="(q.circumferences || []).length">
+                                    <div class="antro-phase">
+                                        <div class="antro-phase-head">
+                                            <i class="ph ph-ruler"></i>
+                                            <span class="antro-phase-title">Circonferenze</span>
+                                            <span class="antro-phase-count" x-text="q.circumferences.length + ' voci'"></span>
+                                        </div>
+                                        <div class="antro-grid">
+                                            <template x-for="key in q.circumferences" :key="key">
+                                                <label class="antro-field">
+                                                    <span class="antro-field-label" x-text="circLabel(key)"></span>
+                                                    <span class="antro-input">
+                                                        <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
+                                                               :value="answers['circ::' + key] ?? ''" @input="answers['circ::' + key] = $event.target.value">
+                                                        <span class="antro-unit">cm</span>
+                                                    </span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="(q.skinfolds || []).length">
+                                    <div class="antro-phase">
+                                        <div class="antro-phase-head">
+                                            <i class="ph ph-dot-outline"></i>
+                                            <span class="antro-phase-title">Pliche cutanee</span>
+                                            <span class="antro-phase-count" x-text="q.skinfolds.length + ' voci'"></span>
+                                        </div>
+                                        <div class="antro-grid">
+                                            <template x-for="key in q.skinfolds" :key="key">
+                                                <label class="antro-field">
+                                                    <span class="antro-field-label" x-text="skinLabel(key)"></span>
+                                                    <span class="antro-input">
+                                                        <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
+                                                               :value="answers['pl::' + key] ?? ''" @input="answers['pl::' + key] = $event.target.value">
+                                                        <span class="antro-unit">mm</span>
+                                                    </span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
                         <!-- media (scale) -->
                         <template x-if="q.type === 'media'">
                             <div>
@@ -225,6 +291,7 @@
 </form>
 
 <script>
+const CATALOG = JSON.parse('{{ catalog_json|escapejs }}' || '{"circumferences":[],"skinfolds":[]}');
 function checkFill() {
     return {
         questions: JSON.parse('{{ questions_config_json|escapejs }}' || '[]'),
@@ -232,6 +299,17 @@ function checkFill() {
         answers: {},
         fileNames: {},
         stepIdx: 0,
+
+        circLabel(key) {
+            const side = key.endsWith('_r') ? ' DX' : key.endsWith('_l') ? ' SX' : '';
+            const base = key.replace(/_(l|r)$/, '');
+            const c = CATALOG.circumferences.find(x => x.key === base);
+            return (c ? c.it : base) + side;
+        },
+        skinLabel(key) {
+            const s = CATALOG.skinfolds.find(x => x.key === key);
+            return s ? s.it : key;
+        },
 
         init() {
             if (!Array.isArray(this.steps) || this.steps.length === 0) {
@@ -274,6 +352,7 @@ function checkFill() {
             const missing = [];
             for (const q of this.questions) {
                 if (!q.required) continue;
+                if (q.type === 'antropometria') continue;
                 const v = this.answers[q.id];
                 if (q.type === 'allegato') {
                     if (!(this.fileNames[q.id] || []).length) missing.push(q.label);

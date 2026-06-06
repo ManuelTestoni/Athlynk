@@ -246,12 +246,9 @@
           </div>
         </div>
         <select x-model="activeCirc" @change="updateCircChart()" class="pc-mini-select">
-          <option value="shoulders">Spalle</option>
-          <option value="chest">Petto</option>
-          <option value="waist">Vita</option>
-          <option value="hips">Fianchi</option>
-          <option value="thigh_right">Coscia</option>
-          <option value="arm_right">Braccio</option>
+          <template x-for="k in CIRC_KEYS" :key="k">
+            <option :value="k" x-text="CIRC_LABELS[k]"></option>
+          </template>
         </select>
       </div>
 
@@ -287,10 +284,9 @@
           </div>
         </div>
         <select x-model="activeSkin" @change="updateSkinChart()" class="pc-mini-select">
-          <option value="chest">Petto</option>
-          <option value="abdomen">Addome</option>
-          <option value="thigh">Coscia</option>
-          <option value="tricep">Tricipite</option>
+          <template x-for="k in SKIN_KEYS" :key="k">
+            <option :value="k" x-text="SKIN_LABELS[k]"></option>
+          </template>
         </select>
       </div>
 
@@ -324,13 +320,10 @@
 <script>
 const _chartData = {{ chart_data_json|safe }};
 
-const CIRC_LABELS = {
-  shoulders: 'Spalle', chest: 'Petto', waist: 'Vita',
-  hips: 'Fianchi', thigh_right: 'Coscia', arm_right: 'Braccio'
-};
-const SKIN_LABELS = {
-  chest: 'Petto', abdomen: 'Addome', thigh: 'Coscia', tricep: 'Tricipite'
-};
+const CIRC_LABELS = _chartData.circ_labels || {};
+const SKIN_LABELS = _chartData.skin_labels || {};
+const CIRC_KEYS   = _chartData.circ_keys || [];
+const SKIN_KEYS   = _chartData.skin_keys || [];
 
 const AL_BRONZE  = '#8a6a3a';
 const AL_AEGEAN  = '#1c4a52';
@@ -454,23 +447,21 @@ function progressCharts(){
   // instances live here so .update() animates the values in place.
   const _inst = { weight: null, circ: null, skin: null };
   return {
-    activeCirc: 'waist',
-    activeSkin: 'abdomen',
+    activeCirc: CIRC_KEYS[0] || '',
+    activeSkin: SKIN_KEYS[0] || '',
     charts: { weight: null, circ: null, skin: null },
     stats: {
       weight: { latest: null, delta: null },
       circ:   { latest: null, delta: null },
       skin:   { latest: null, delta: null },
     },
-    CIRC_LABELS, SKIN_LABELS,
+    CIRC_LABELS, SKIN_LABELS, CIRC_KEYS, SKIN_KEYS,
 
     init(){
       if (!_chartData.labels || _chartData.labels.length < 2) return;
 
-      this.activeCirc = firstWithData(_chartData.circumferences,
-        ['waist','chest','shoulders','hips','thigh_right','arm_right']);
-      this.activeSkin = firstWithData(_chartData.skinfolds,
-        ['abdomen','chest','thigh','tricep']);
+      this.activeCirc = firstWithData(_chartData.circumferences, CIRC_KEYS);
+      this.activeSkin = firstWithData(_chartData.skinfolds, SKIN_KEYS);
 
       this.recalcStats();
 

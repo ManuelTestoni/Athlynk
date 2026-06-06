@@ -3709,3 +3709,69 @@ body[data-page="impostazioni"] .al-footer .text-ink-mute { color: rgba(244,239,2
 [data-countup] {
   transition: color var(--al-d-silk) var(--al-ease-silk);
 }
+
+/* ============================================================
+   Antropometria — compilazione (peso · circonferenze · pliche)
+   Phase cells used by the check fill flow (builder + fill_assigned).
+   ============================================================ */
+.antro-phases { display: flex; flex-direction: column; gap: 14px; }
+.antro-phase {
+  background: var(--al-marble);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  padding: 14px 16px;
+}
+.antro-phase-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--al-rule-faint);
+}
+.antro-phase-head i { color: var(--al-bronze); font-size: 16px; }
+.antro-phase-title {
+  font-family: var(--al-display);
+  font-size: 14px;
+  letter-spacing: .02em;
+  color: var(--al-ink);
+}
+.antro-phase-count {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--al-ink-mute);
+}
+.antro-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.antro-grid.is-single { grid-template-columns: minmax(0, 1fr); }
+.antro-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.antro-field-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .03em;
+  color: var(--al-ink-mute);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.antro-input {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: 9px;
+  padding: 0 10px;
+  transition: border-color 140ms var(--al-ease);
+}
+.antro-input:focus-within { border-color: var(--al-bronze); }
+.antro-input input {
+  flex: 1 1 auto; min-width: 0;
+  border: none; outline: none; background: transparent;
+  padding: 10px 0;
+  font-family: var(--al-mono, 'JetBrains Mono', monospace);
+  font-size: 15px; font-weight: 600; color: var(--al-ink);
+}
+.antro-input .antro-unit {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 600; color: var(--al-ink-line);
+  text-transform: none; letter-spacing: 0;
+}
+@media (max-width: 520px) {
+  .antro-grid { grid-template-columns: minmax(0, 1fr); }
+}
