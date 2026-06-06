@@ -31,7 +31,7 @@
   const DOT_GAP     = 18;   // min px between dots before nudging
   const CARD_W      = 220;  // expanded card width
   const PHASE_MIN_W = 26;   // minimum visible width of a phase band (px)
-  const PHASE_H     = 58;   // height of a phase band, centred on the axis
+  const PHASE_H     = 74;   // height of a phase band, centred on the axis
 
   window.percorsoTimeline = function (opts) {
     return {
@@ -55,6 +55,7 @@
       trackWidth:   800,
       trackHeight:  320,
       axisY:        160,
+      popPos:       { left: 0, bottom: 0 },   // viewport coords for the teleported popover
 
       /* ── add-phase form ── */
       formOpen:  false,
@@ -80,9 +81,16 @@
           this.openPhaseId = null;
         };
         window.addEventListener('keydown', this._onKey);
-        // recompute scale on resize (viewport-relative)
-        this._onResize = () => this._layout();
+        // recompute scale on resize (viewport-relative); a moved viewport
+        // invalidates the popover's fixed coords, so close it.
+        this._onResize = () => { this.openId = null; this.openPhaseId = null; this._layout(); };
         window.addEventListener('resize', this._onResize);
+        // the popover is teleported to <body> with fixed coords anchored to a
+        // dot — page scroll detaches it from its anchor, so close it.
+        this._onWinScroll = () => {
+          if (this.openId || this.openPhaseId) { this.openId = null; this.openPhaseId = null; }
+        };
+        window.addEventListener('scroll', this._onWinScroll, { passive: true });
       },
 
       /* ── API ── */
@@ -99,15 +107,18 @@
           this.windowStart = d.window_start || '';
           this.windowEnd   = d.window_end   || '';
           this._layout();
-          // start at the beginning of the journey (left), per design
-          this.$nextTick(() => {
-            const el = this.$refs.scrollContainer;
-            if (el) el.scrollLeft = 0;
-          });
         } catch (err) {
           console.warn('[percorsoTimeline] fetch error:', err);
         } finally {
           this.loading = false;
+          // the scroll container is display:none while loading, so the layout
+          // above measured a 0/fallback width. Recompute now that it's visible
+          // so the track fills the full container width, then start at the left.
+          this.$nextTick(() => {
+            this._layout();
+            const el = this.$refs.scrollContainer;
+            if (el) el.scrollLeft = 0;
+          });
         }
       },
 
@@ -144,6 +155,7 @@
         if (this._moved) return;            // ignore clicks that were drags
         this.openPhaseId = null;
         this.openId = this.openId === ev.id ? null : ev.id;
+        if (this.openId) this.$nextTick(() => this._setPopPos(ev.x, 16));
       },
       isOpen(ev)  { return this.openId === ev.id; },
       openEvent() { return this.placedEvents.find(e => e.id === this.openId) || null; },
@@ -153,6 +165,20 @@
         if (this._moved) return;
         this.openId = null;
         this.openPhaseId = this.openPhaseId === ph.id ? null : ph.id;
+        if (this.openPhaseId) this.$nextTick(() => this._setPopPos(ph.x + ph.w / 2, PHASE_H / 2 + 10));
+      },
+
+      /* position the body-teleported popover above its anchor, in viewport
+         coords, clamped horizontally to the window */
+      _setPopPos(anchorX, aboveOffset) {
+        const el = this.$refs.scrollContainer;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const screenX = rect.left + (anchorX - el.scrollLeft);
+        let left = screenX - CARD_W / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - 8 - CARD_W));
+        const bottom = window.innerHeight - (rect.top + this.axisY - aboveOffset);
+        this.popPos = { left: Math.round(left), bottom: Math.round(bottom) };
       },
       isPhaseOpen(ph) { return this.openPhaseId === ph.id; },
       openPhase()     { return this.placedPhases.find(p => p.id === this.openPhaseId) || null; },
@@ -235,31 +261,12 @@
         return months;
       },
 
-      /* ── geometry helpers used in template ── */
-      // expanded card sits above the axis, horizontally centered on its dot,
-      // clamped so it never spills past the track edges
-      cardLeft(ev) {
-        const half = CARD_W / 2;
-        let left = ev.x - half;
-        if (left < 8) left = 8;
-        if (left + CARD_W > this.trackWidth - 8) left = this.trackWidth - 8 - CARD_W;
-        return left;
-      },
-
       formatDate(iso) {
         if (!iso) return '';
         const d = new Date(iso);
         return d.getDate() + ' ' + MONTH_NAMES_IT[d.getMonth()] + ' ' + d.getFullYear();
       },
 
-      /* phase popover: centred over the band, clamped to the track */
-      phaseCardLeft(ph) {
-        const half = CARD_W / 2;
-        let left = ph.x + ph.w / 2 - half;
-        if (left < 8) left = 8;
-        if (left + CARD_W > this.trackWidth - 8) left = this.trackWidth - 8 - CARD_W;
-        return left;
-      },
       phaseTop()  { return this.axisY - PHASE_H / 2; },
       phaseHeight() { return PHASE_H; },
       durationLabel(ph) {
@@ -317,7 +324,11 @@
           this.phases.push(d);
           this.formOpen = false;
           this._layout();
-          this.$nextTick(() => { this.openPhaseId = d.id; });
+          this.$nextTick(() => {
+            this.openPhaseId = d.id;
+            const ph = this.openPhase();
+            if (ph) this._setPopPos(ph.x + ph.w / 2, PHASE_H / 2 + 10);
+          });
         } catch (err) {
           this.formError = 'Errore di rete. Riprova.';
         } finally {
@@ -367,6 +378,11 @@
           if (Math.abs(dx) > 4) this._moved = true;
           el.scrollLeft = this._scrollLeft - dx * 1.4;
         };
+
+        // any horizontal scroll detaches the popover from its dot — close it
+        el.addEventListener('scroll', () => {
+          if (this.openId || this.openPhaseId) { this.openId = null; this.openPhaseId = null; }
+        }, { passive: true });
 
         el.addEventListener('mousedown',  onDown);
         el.addEventListener('mouseup',    onUp);

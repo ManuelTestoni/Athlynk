@@ -134,10 +134,12 @@
         </button>
       </template>
 
-      <!-- Expanded card — single, animated open/close -->
+      <!-- Expanded card — teleported to <body> so it escapes the timeline
+           box's overflow clipping and can pop above the container edge -->
+      <template x-teleport="body">
       <template x-if="openEvent()">
         <div class="al-tl-pop"
-             :style="`left:${cardLeft(openEvent())}px; bottom:${trackHeight - axisY + 16}px;`"
+             :style="`position:fixed; left:${popPos.left}px; bottom:${popPos.bottom}px;`"
              @click.stop>
           <div :class="`al-tl-card type-${openEvent().type}`">
             <button type="button" class="al-tl-pop-close" @click="openId = null" aria-label="Chiudi">
@@ -159,11 +161,13 @@
           <div class="al-tl-pop-stem"></div>
         </div>
       </template>
+      </template>
 
-      <!-- Expanded phase card -->
+      <!-- Expanded phase card — teleported to <body> (same reason as above) -->
+      <template x-teleport="body">
       <template x-if="openPhase()">
         <div class="al-tl-pop"
-             :style="`left:${phaseCardLeft(openPhase())}px; bottom:${trackHeight - axisY + phaseHeight()/2 + 10}px;`"
+             :style="`position:fixed; left:${popPos.left}px; bottom:${popPos.bottom}px;`"
              @click.stop>
           <div class="al-tl-card type-fase">
             <button type="button" class="al-tl-pop-close" @click="openPhaseId = null" aria-label="Chiudi">
@@ -184,6 +188,7 @@
           </div>
           <div class="al-tl-pop-stem"></div>
         </div>
+      </template>
       </template>
 
     </div>
