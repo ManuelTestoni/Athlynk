@@ -26,6 +26,46 @@ class CoachingRelationship(models.Model):
     def __str__(self):
         return f"{self.coach} - {self.client} ({self.status})"
 
+
+class CoachingPhase(models.Model):
+    """A free-text note placed on the client's timeline by the professional,
+    spanning a period (start_date + duration) — e.g. a cut/bulk block."""
+    DURATION_UNITS = [
+        ('WEEKS', 'Settimane'),
+        ('MONTHS', 'Mesi'),
+    ]
+
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='coaching_phases')
+    client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='coaching_phases')
+    title = models.CharField(max_length=120)
+    note = models.TextField(blank=True, default='')
+    start_date = models.DateField()
+    duration_value = models.PositiveIntegerField()
+    duration_unit = models.CharField(max_length=10, choices=DURATION_UNITS, default='WEEKS')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['start_date']
+        indexes = [
+            models.Index(fields=['coach', 'client']),
+        ]
+
+    @property
+    def end_date(self):
+        from datetime import timedelta
+        if self.duration_unit == 'MONTHS':
+            month = self.start_date.month - 1 + self.duration_value
+            year = self.start_date.year + month // 12
+            month = month % 12 + 1
+            import calendar
+            day = min(self.start_date.day, calendar.monthrange(year, month)[1])
+            return self.start_date.replace(year=year, month=month, day=day)
+        return self.start_date + timedelta(weeks=self.duration_value)
+
+    def __str__(self):
+        return f"{self.title} ({self.client})"
+
 class ClientAnamnesis(models.Model):
     client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='anamnesis')
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.SET_NULL, null=True, blank=True, related_name='client_anamnesis')

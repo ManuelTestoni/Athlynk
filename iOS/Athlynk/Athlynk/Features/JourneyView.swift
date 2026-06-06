@@ -9,10 +9,30 @@ import SwiftUI
 
 struct JourneyView: View {
     @State private var events: [JourneyEventDTO] = []
+    @State private var phases: [JourneyPhaseDTO] = []
     @State private var loading = true
     @State private var error: String?
     @State private var filter: String?      // nil = all
     @State private var appear = false
+
+    /// A timeline row is either an assigned event or a coach phase. Phases are
+    /// placed on the rail at their start date.
+    private enum Item: Identifiable {
+        case event(JourneyEventDTO)
+        case phase(JourneyPhaseDTO)
+        var id: String {
+            switch self {
+            case .event(let e): return "e-\(e.id)"
+            case .phase(let p): return "p-\(p.id)"
+            }
+        }
+        var date: String {
+            switch self {
+            case .event(let e): return e.date
+            case .phase(let p): return p.start
+            }
+        }
+    }
 
     private struct Meta { let icon: String; let label: String; let color: Color }
     private func meta(_ type: String) -> Meta {
@@ -24,11 +44,18 @@ struct JourneyView: View {
         }
     }
 
-    /// Newest first, filtered.
-    private var shown: [JourneyEventDTO] {
-        let sorted = events.sorted { ($0.date) > ($1.date) }
-        guard let filter else { return sorted }
-        return sorted.filter { $0.type == filter }
+    /// Newest first, filtered. Events and phases merged onto one rail.
+    private var shown: [Item] {
+        var items: [Item] = []
+        if filter == nil || filter == "fase" {
+            items += phases.map { Item.phase($0) }
+        }
+        if filter == nil {
+            items += events.map { Item.event($0) }
+        } else if filter != "fase" {
+            items += events.filter { $0.type == filter }.map { Item.event($0) }
+        }
+        return items.sorted { $0.date > $1.date }
     }
 
     var body: some View {
@@ -37,7 +64,7 @@ struct JourneyView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     header
-                    if !events.isEmpty { filters }
+                    if !events.isEmpty || !phases.isEmpty { filters }
 
                     if loading {
                         TimelineSkeleton(accent: Palette.bronze, count: 4, railWidth: 44)
@@ -76,6 +103,9 @@ struct JourneyView: View {
                 filterChip("allenamento", "Allenamento", "dumbbell.fill", Palette.magenta)
                 filterChip("nutrizione", "Nutrizione", "leaf.fill", Palette.lime)
                 filterChip("check", "Check", "chart.xyaxis.line", Palette.cyan)
+                if !phases.isEmpty {
+                    filterChip("fase", "Fasi", "flag.fill", Palette.phase)
+                }
             }
             .padding(.vertical, 2)
         }
@@ -102,14 +132,21 @@ struct JourneyView: View {
     private var timeline: some View {
         let items = shown
         return VStack(spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { i, ev in
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
                 let prevMonth = i > 0 ? monthKey(items[i - 1].date) : ""
-                let showMonth = i == 0 || monthKey(ev.date) != prevMonth
+                let showMonth = i == 0 || monthKey(item.date) != prevMonth
                 if showMonth {
-                    monthLabel(ev.date).revealUp(appear, index: min(i, 8))
+                    monthLabel(item.date).revealUp(appear, index: min(i, 8))
                 }
-                row(ev, isFirst: i == 0, isLast: i == items.count - 1)
-                    .revealUp(appear, index: min(i + 1, 9))
+                Group {
+                    switch item {
+                    case .event(let ev):
+                        row(ev, isFirst: i == 0, isLast: i == items.count - 1)
+                    case .phase(let ph):
+                        phaseRow(ph, isFirst: i == 0, isLast: i == items.count - 1)
+                    }
+                }
+                .revealUp(appear, index: min(i + 1, 9))
             }
         }
     }
@@ -165,6 +202,61 @@ struct JourneyView: View {
         }
     }
 
+    private func phaseRow(_ ph: JourneyPhaseDTO, isFirst: Bool, isLast: Bool) -> some View {
+        let c = Palette.phase
+        return HStack(alignment: .top, spacing: 0) {
+            // Rail + flag node
+            ZStack(alignment: .top) {
+                Rectangle().fill(Palette.line).frame(width: 2)
+                    .padding(.top, isFirst ? 26 : 0)
+                    .padding(.bottom, isLast ? 0 : -100)
+                Image(systemName: "flag.fill")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(Palette.void0)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(c))
+                    .overlay(Circle().stroke(Palette.void0, lineWidth: 3))
+                    .overlay(Circle().fill(c).frame(width: 22, height: 22).blur(radius: 6).opacity(0.5))
+                    .padding(.top, 16)
+            }
+            .frame(width: 44)
+
+            // Card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    Image(systemName: "flag.fill").font(.system(size: 11, weight: .black)).foregroundStyle(c)
+                    Text("FASE").font(Typo.mono(9, .bold)).tracking(1.5).foregroundStyle(c)
+                    Spacer()
+                    Text(durationLabel(ph).uppercased()).font(Typo.mono(9, .bold)).foregroundStyle(c)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Capsule().fill(c.opacity(0.14)))
+                }
+                Text(ph.title).font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(dayTitle(ph.start)) → \(dayTitle(ph.end))")
+                    .font(Typo.mono(10, .bold)).foregroundStyle(Palette.textLow)
+                if !ph.note.isEmpty {
+                    Text(ph.note).font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(15)
+            .voltPanel(c.opacity(0.32))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(c.opacity(0.5), lineWidth: 1.5)
+            )
+            .padding(.bottom, 12)
+        }
+    }
+
+    private func durationLabel(_ ph: JourneyPhaseDTO) -> String {
+        if ph.durationUnit == "MONTHS" {
+            return "\(ph.durationValue) \(ph.durationValue == 1 ? "mese" : "mesi")"
+        }
+        return "\(ph.durationValue) \(ph.durationValue == 1 ? "settimana" : "settimane")"
+    }
+
     // MARK: Dates
 
     private func parse(_ iso: String) -> Date? {
@@ -184,7 +276,11 @@ struct JourneyView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { events = try await APIClient.shared.journey() }
+        do {
+            let r = try await APIClient.shared.journey()
+            events = r.events
+            phases = r.phases
+        }
         catch { self.error = error.localizedDescription }
         loading = false
     }

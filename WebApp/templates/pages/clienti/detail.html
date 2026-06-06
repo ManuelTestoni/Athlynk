@@ -170,7 +170,7 @@
 
     <!-- Timeline percorso atleta -->
     {% with client_id_str=client.id|stringformat:"s" %}
-    {% with api_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/" %}
+    {% with api_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/" phase_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/fasi/" can_manage_phases=True %}
     {% include 'partials/_timeline_percorso.html' %}
     {% endwith %}
     {% endwith %}

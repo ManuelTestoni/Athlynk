@@ -148,6 +148,8 @@ urlpatterns = [
     # Percorso (journey timeline)
     path('il-mio-percorso/', views_client.il_mio_percorso_view, name='il_mio_percorso'),
     path('api/coach/clienti/<int:client_id>/percorso/', views_client.api_coach_client_percorso, name='api_coach_percorso'),
+    path('api/coach/clienti/<int:client_id>/percorso/fasi/', views_client.api_coach_phase_create, name='api_coach_phase_create'),
+    path('api/coach/clienti/<int:client_id>/percorso/fasi/<int:phase_id>/', views_client.api_coach_phase_delete, name='api_coach_phase_delete'),
     path('api/cliente/percorso/', views_client.api_client_my_percorso, name='api_client_percorso'),
 
     # Coach progress APIs

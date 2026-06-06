@@ -27,6 +27,7 @@ enum Palette {
     static let lime    = Color(hex: 0x4A6B3A)   // olive — success
     static let violet  = Color(hex: 0x0E2F36)   // aegean deep
     static let amber   = Color(hex: 0x9C6F2E)   // deep gold
+    static let phase   = Color(hex: 0x6E4A63)   // dusty plum — coach phases
 
     // Ink (text)
     static let textHi  = Color(hex: 0x14110D)   // ink

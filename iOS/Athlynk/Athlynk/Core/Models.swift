@@ -605,7 +605,34 @@ struct JourneyEventDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct JourneyResponse: Codable { let events: [JourneyEventDTO] }
+struct JourneyPhaseDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let note: String
+    let start: String          // ISO yyyy-MM-dd
+    let end: String            // ISO yyyy-MM-dd
+    let durationValue: Int
+    let durationUnit: String   // WEEKS | MONTHS
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, note, start, end
+        case durationValue = "duration_value"
+        case durationUnit = "duration_unit"
+    }
+}
+
+struct JourneyResponse: Codable {
+    let events: [JourneyEventDTO]
+    let phases: [JourneyPhaseDTO]
+
+    enum CodingKeys: String, CodingKey { case events, phases }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        events = try c.decodeIfPresent([JourneyEventDTO].self, forKey: .events) ?? []
+        phases = try c.decodeIfPresent([JourneyPhaseDTO].self, forKey: .phases) ?? []
+    }
+}
 
 struct ProfileResponse: Codable { let profile: ClientProfileDTO }
 

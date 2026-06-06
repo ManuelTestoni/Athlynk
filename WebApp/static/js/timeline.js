@@ -27,26 +27,39 @@
   const VIEW_INDEX      = { anno: 0, semestre: 1, mese: 2 };
   const AVG_DAYS_MONTH  = 30.4375;
 
-  const PAD       = 60;   // left/right inner padding of the track (px)
-  const DOT_GAP   = 18;   // min px between dots before nudging
-  const CARD_W    = 220;  // expanded card width
+  const PAD         = 60;   // left/right inner padding of the track (px)
+  const DOT_GAP     = 18;   // min px between dots before nudging
+  const CARD_W      = 220;  // expanded card width
+  const PHASE_MIN_W = 26;   // minimum visible width of a phase band (px)
+  const PHASE_H     = 58;   // height of a phase band, centred on the axis
 
   window.percorsoTimeline = function (opts) {
     return {
       /* ── reactive state ── */
       apiUrl:       opts.apiUrl || '',
-      filters:      ['allenamento', 'nutrizione', 'check'],
+      phaseUrl:     opts.phaseUrl || '',          // base URL for phase create/delete
+      canManage:    !!opts.canManage,             // professional can add/remove phases
+      filters:      ['allenamento', 'nutrizione', 'check', 'fase'],
       view:         'anno',
       openId:       null,
+      openPhaseId:  null,
       events:       [],
+      phases:       [],
       placedEvents: [],
+      placedPhases: [],
       months:       [],
       windowStart:  '',
       windowEnd:    '',
       loading:      false,
+      saving:       false,
       trackWidth:   800,
       trackHeight:  320,
       axisY:        160,
+
+      /* ── add-phase form ── */
+      formOpen:  false,
+      formError: '',
+      form:      { title: '', note: '', start_date: '', duration_value: 8, duration_unit: 'WEEKS' },
 
       /* ── internal (not reactive) ── */
       _dragging:   false,
@@ -59,8 +72,13 @@
         this.axisY = Math.round(this.trackHeight / 2);
         this.fetchEvents();
         this.$nextTick(() => this._initDragScroll());
-        // close the open card on Esc
-        this._onKey = (e) => { if (e.key === 'Escape') this.openId = null; };
+        // close the open card / phase / form on Esc
+        this._onKey = (e) => {
+          if (e.key !== 'Escape') return;
+          if (this.formOpen) { this.closeForm(); return; }
+          this.openId = null;
+          this.openPhaseId = null;
+        };
         window.addEventListener('keydown', this._onKey);
         // recompute scale on resize (viewport-relative)
         this._onResize = () => this._layout();
@@ -77,6 +95,7 @@
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           this.events      = d.events || [];
+          this.phases      = d.phases || [];
           this.windowStart = d.window_start || '';
           this.windowEnd   = d.window_end   || '';
           this._layout();
@@ -123,10 +142,20 @@
       /* ── open / close events ── */
       toggle(ev) {
         if (this._moved) return;            // ignore clicks that were drags
+        this.openPhaseId = null;
         this.openId = this.openId === ev.id ? null : ev.id;
       },
       isOpen(ev)  { return this.openId === ev.id; },
       openEvent() { return this.placedEvents.find(e => e.id === this.openId) || null; },
+
+      /* ── open / close phases ── */
+      togglePhase(ph) {
+        if (this._moved) return;
+        this.openId = null;
+        this.openPhaseId = this.openPhaseId === ph.id ? null : ph.id;
+      },
+      isPhaseOpen(ph) { return this.openPhaseId === ph.id; },
+      openPhase()     { return this.placedPhases.find(p => p.id === this.openPhaseId) || null; },
 
       /* ── layout ── */
       _layout() {
@@ -143,10 +172,13 @@
         const wEnd   = new Date(this.windowEnd);
         const totalDays = Math.max(1, (wEnd - wStart) / 86400000);
 
-        // px/day so that MONTHS_PER_VIEW months exactly fill the viewport
+        // px/day so that MONTHS_PER_VIEW months exactly fill the viewport.
+        // Floor it so the data span always fills at least the usable width —
+        // otherwise a span shorter than the view (e.g. < 12 months in "anno")
+        // leaves the track padded with empty space instead of filling it.
         const monthsPerView = MONTHS_PER_VIEW[this.view] || 12;
         const usable   = Math.max(320, viewportW - PAD * 2);
-        const pxPerDay = usable / (monthsPerView * AVG_DAYS_MONTH);
+        const pxPerDay = Math.max(usable / (monthsPerView * AVG_DAYS_MONTH), usable / totalDays);
 
         this.trackWidth = Math.max(viewportW, Math.round(totalDays * pxPerDay) + PAD * 2);
         this.months = this._buildMonths(wStart, wEnd, pxPerDay);
@@ -169,6 +201,22 @@
           this.openId = null;
         }
         this.placedEvents = placed;
+
+        // place phase bands (translucent period blocks sitting across the axis)
+        const showPhases = this.filters.includes('fase');
+        const placedPhases = !showPhases ? [] : this.phases.map((ph) => {
+          const sDate = new Date(ph.start);
+          const eDate = new Date(ph.end);
+          const sOff  = Math.max(0, (sDate - wStart) / 86400000);
+          const eOff  = Math.max(sOff, (eDate - wStart) / 86400000);
+          const x     = Math.round(sOff * pxPerDay) + PAD;
+          const w     = Math.max(PHASE_MIN_W, Math.round((eOff - sOff) * pxPerDay));
+          return { ...ph, x, w };
+        });
+        if (this.openPhaseId != null && !placedPhases.some(p => p.id === this.openPhaseId)) {
+          this.openPhaseId = null;
+        }
+        this.placedPhases = placedPhases;
       },
 
       _buildMonths(start, end, pxPerDay) {
@@ -202,6 +250,96 @@
         if (!iso) return '';
         const d = new Date(iso);
         return d.getDate() + ' ' + MONTH_NAMES_IT[d.getMonth()] + ' ' + d.getFullYear();
+      },
+
+      /* phase popover: centred over the band, clamped to the track */
+      phaseCardLeft(ph) {
+        const half = CARD_W / 2;
+        let left = ph.x + ph.w / 2 - half;
+        if (left < 8) left = 8;
+        if (left + CARD_W > this.trackWidth - 8) left = this.trackWidth - 8 - CARD_W;
+        return left;
+      },
+      phaseTop()  { return this.axisY - PHASE_H / 2; },
+      phaseHeight() { return PHASE_H; },
+      durationLabel(ph) {
+        const u = ph.duration_unit === 'MONTHS'
+          ? (ph.duration_value === 1 ? 'mese' : 'mesi')
+          : (ph.duration_value === 1 ? 'settimana' : 'settimane');
+        return ph.duration_value + ' ' + u;
+      },
+      phaseRange(ph) {
+        return this.formatDate(ph.start) + ' → ' + this.formatDate(ph.end);
+      },
+
+      /* ── add-phase form ── */
+      openForm() {
+        this.openId = null;
+        this.openPhaseId = null;
+        this.formError = '';
+        this.form = {
+          title: '', note: '',
+          start_date: new Date().toISOString().slice(0, 10),
+          duration_value: 8, duration_unit: 'WEEKS',
+        };
+        this.formOpen = true;
+      },
+      closeForm() { this.formOpen = false; },
+
+      _csrf() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value
+          || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1]
+          || '';
+      },
+
+      async submitPhase() {
+        if (this.saving) return;
+        this.formError = '';
+        if (!this.form.title.trim())     { this.formError = 'Inserisci un titolo.'; return; }
+        if (!this.form.start_date)       { this.formError = "Scegli la data d'inizio."; return; }
+        if (!(this.form.duration_value >= 1)) { this.formError = 'La durata deve essere almeno 1.'; return; }
+
+        this.saving = true;
+        try {
+          const r = await fetch(this.phaseUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+            body: JSON.stringify({
+              title: this.form.title.trim(),
+              note: this.form.note.trim(),
+              start_date: this.form.start_date,
+              duration_value: this.form.duration_value,
+              duration_unit: this.form.duration_unit,
+            }),
+          });
+          const d = await r.json();
+          if (!r.ok) { this.formError = d.error || 'Errore durante il salvataggio.'; return; }
+          this.phases.push(d);
+          this.formOpen = false;
+          this._layout();
+          this.$nextTick(() => { this.openPhaseId = d.id; });
+        } catch (err) {
+          this.formError = 'Errore di rete. Riprova.';
+        } finally {
+          this.saving = false;
+        }
+      },
+
+      async deletePhase(ph) {
+        if (this.saving) return;
+        this.saving = true;
+        try {
+          const r = await fetch(this.phaseUrl + ph.id + '/', {
+            method: 'DELETE', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': this._csrf() },
+          });
+          if (!r.ok) return;
+          this.phases = this.phases.filter(p => p.id !== ph.id);
+          this.openPhaseId = null;
+          this._layout();
+        } finally {
+          this.saving = false;
+        }
       },
 
       /* ── drag-scroll (horizontal only) ── */

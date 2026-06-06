@@ -11,7 +11,7 @@ import json
 from domain.accounts.models import CoachProfile, ClientProfile, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
-from domain.coaching.models import CoachingRelationship
+from domain.coaching.models import CoachingRelationship, CoachingPhase
 from domain.nutrition.models import NutritionAssignment, SupplementAssignment
 from domain.workouts.models import WorkoutAssignment
 
@@ -866,6 +866,22 @@ def _build_percorso_events(client, coach, window_start, window_end):
     return events
 
 
+def _serialize_phases(client, coach):
+    """Phases (coach notes spanning a period) for this client/coach pair."""
+    phases = []
+    for ph in CoachingPhase.objects.filter(client=client, coach=coach):
+        phases.append({
+            'id': ph.id,
+            'title': ph.title,
+            'note': ph.note or '',
+            'start': ph.start_date.isoformat(),
+            'end': ph.end_date.isoformat(),
+            'duration_value': ph.duration_value,
+            'duration_unit': ph.duration_unit,
+        })
+    return phases
+
+
 def api_coach_client_percorso(request, client_id):
     coach = get_session_coach(request)
     if not coach:
@@ -878,6 +894,75 @@ def api_coach_client_percorso(request, client_id):
         return JsonResponse({'error': 'Not found'}, status=404)
 
     return _percorso_response(request, relationship.client, coach, relationship.start_date)
+
+
+@require_http_methods(["POST"])
+def api_coach_phase_create(request, client_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    relationship = CoachingRelationship.objects.filter(coach=coach, client_id=client_id).first()
+    if not relationship:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    from datetime import date as date_type
+    try:
+        payload = json.loads(request.body or '{}')
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Body non valido.'}, status=400)
+
+    title = (payload.get('title') or '').strip()
+    note = (payload.get('note') or '').strip()
+    start_str = (payload.get('start_date') or '').strip()
+    unit = (payload.get('duration_unit') or 'WEEKS').strip().upper()
+
+    if not title:
+        return JsonResponse({'error': 'Il titolo è obbligatorio.'}, status=400)
+    try:
+        start_date = date_type.fromisoformat(start_str)
+    except ValueError:
+        return JsonResponse({'error': 'Data di inizio non valida.'}, status=400)
+    try:
+        duration_value = int(payload.get('duration_value'))
+    except (TypeError, ValueError):
+        duration_value = 0
+    if duration_value < 1:
+        return JsonResponse({'error': 'La durata deve essere almeno 1.'}, status=400)
+    if unit not in ('WEEKS', 'MONTHS'):
+        unit = 'WEEKS'
+
+    phase = CoachingPhase.objects.create(
+        coach=coach,
+        client_id=client_id,
+        title=title[:120],
+        note=note,
+        start_date=start_date,
+        duration_value=duration_value,
+        duration_unit=unit,
+    )
+    return JsonResponse({
+        'id': phase.id,
+        'title': phase.title,
+        'note': phase.note,
+        'start': phase.start_date.isoformat(),
+        'end': phase.end_date.isoformat(),
+        'duration_value': phase.duration_value,
+        'duration_unit': phase.duration_unit,
+    })
+
+
+@require_http_methods(["DELETE"])
+def api_coach_phase_delete(request, client_id, phase_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    phase = CoachingPhase.objects.filter(id=phase_id, coach=coach, client_id=client_id).first()
+    if not phase:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    phase.delete()
+    return JsonResponse({'success': True})
 
 
 def api_client_my_percorso(request):
@@ -918,9 +1003,17 @@ def _percorso_response(request, client, coach, relationship_start=None):
         window_end = one_year_later
 
     events = _build_percorso_events(client, coach, window_start, window_end)
+    phases = _serialize_phases(client, coach)
+
+    # The track must always reach at least the end of the latest phase.
+    for ph in phases:
+        ph_end = date_type.fromisoformat(ph['end'])
+        if ph_end > window_end:
+            window_end = ph_end
 
     return JsonResponse({
         'events': events,
+        'phases': phases,
         'window_start': window_start.isoformat(),
         'window_end': window_end.isoformat(),
         'has_more': False,

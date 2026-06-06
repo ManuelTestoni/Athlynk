@@ -514,10 +514,16 @@ def journey(request, user):
     if window_end < one_year_later:
         window_end = one_year_later
 
-    from .views_client import _build_percorso_events
+    from .views_client import _build_percorso_events, _serialize_phases
     events = _build_percorso_events(client, rel.coach, rel_start, window_end)
+    phases = _serialize_phases(client, rel.coach)
+    for ph in phases:
+        ph_end = date.fromisoformat(ph['end'])
+        if ph_end > window_end:
+            window_end = ph_end
     return JsonResponse({
         'events': events,
+        'phases': phases,
         'window_start': rel_start.isoformat(),
         'window_end': window_end.isoformat(),
         'relationship_start': rel_start.isoformat(),

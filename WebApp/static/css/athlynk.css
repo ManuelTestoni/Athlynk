@@ -43,6 +43,11 @@
   --al-info:      var(--al-aegean);
   --al-info-bg:   #d8e2e4;
 
+  /* Phase accent (timeline period blocks) — dusty plum */
+  --al-phase:     #6e4a63;
+  --al-phase-s:   #8a6580;
+  --al-phase-bg:  #e8dde4;
+
   /* Hairlines */
   --al-rule:        rgba(20,17,13,0.14);
   --al-rule-strong: rgba(20,17,13,0.32);
@@ -330,6 +335,13 @@ body {
   border-color: var(--al-aegean);
 }
 .al-btn-aegean::after { background: var(--al-aegean-d); }
+
+.al-btn-phase {
+  background: var(--al-phase);
+  border-color: var(--al-phase);
+  color: var(--al-parchment);
+}
+.al-btn-phase::after { background: var(--al-ink); }
 
 .al-btn-ghost {
   background: transparent;
@@ -2994,6 +3006,41 @@ body[data-scrolled="1"] .al-sidebar-top {
   border-color: rgba(74,107,58,0.28);
   color: var(--al-success);
 }
+.al-tl-filter.active-fase {
+  background: rgba(110,74,99,0.12);
+  border-color: rgba(110,74,99,0.32);
+  color: var(--al-phase);
+}
+
+/* "Aggiungi fase" button in the timeline header */
+.al-tl-add-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 11px;
+  border-radius: var(--al-r-pill);
+  border: 1.5px solid var(--al-phase);
+  background: transparent;
+  color: var(--al-phase);
+  font-family: var(--al-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--al-d-base) var(--al-ease),
+              color var(--al-d-base) var(--al-ease),
+              transform var(--al-d-snap) var(--al-ease-spr),
+              box-shadow var(--al-d-base) var(--al-ease);
+}
+.al-tl-add-phase i { font-size: 14px; }
+.al-tl-add-phase:hover {
+  background: var(--al-phase);
+  color: var(--al-parchment);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px rgba(110,74,99,0.6);
+}
+.al-tl-add-phase:active { transform: translateY(0); }
 
 /* Scroll container — horizontal only, never vertical */
 .al-timeline-scroll {
@@ -3087,6 +3134,198 @@ body[data-scrolled="1"] .al-sidebar-top {
   box-shadow: 0 0 0 2px var(--al-parchment),
               0 0 0 5px color-mix(in oklch, var(--al-bronze) 55%, transparent),
               0 4px 12px -3px rgba(20,17,13,0.4);
+}
+
+/* ── Phase band (translucent period block straddling the axis) ── */
+.al-tl-phase {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  padding: 7px 10px 0 13px;
+  border: 0;
+  border-left: 2.5px solid var(--al-phase);
+  border-radius: 4px 8px 8px 4px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklch, var(--al-phase) 16%, transparent) 0%,
+      color-mix(in oklch, var(--al-phase) 7%, transparent) 100%);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  transition: background var(--al-d-base) var(--al-ease),
+              box-shadow var(--al-d-base) var(--al-ease),
+              transform var(--al-d-snap) var(--al-ease-spr);
+}
+/* faint diagonal hatch to read as a "duration" zone */
+.al-tl-phase::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--al-phase) 9%, transparent) 0,
+    color-mix(in oklch, var(--al-phase) 9%, transparent) 1px,
+    transparent 1px, transparent 8px);
+  pointer-events: none;
+  opacity: 0.7;
+}
+.al-tl-phase:hover {
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklch, var(--al-phase) 24%, transparent) 0%,
+      color-mix(in oklch, var(--al-phase) 12%, transparent) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--al-phase) 35%, transparent);
+}
+.al-tl-phase.is-open {
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklch, var(--al-phase) 28%, transparent) 0%,
+      color-mix(in oklch, var(--al-phase) 14%, transparent) 100%);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--al-phase) 50%, transparent),
+              0 6px 18px -10px rgba(110,74,99,0.5);
+}
+/* start-date marker: a flag pinned to the left edge */
+.al-tl-phase-flag {
+  position: absolute;
+  top: -9px;
+  left: -8px;
+  width: 19px; height: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--al-r-pill);
+  background: var(--al-phase);
+  color: var(--al-parchment);
+  border: 2px solid var(--al-parchment);
+  box-shadow: 0 2px 6px -2px rgba(110,74,99,0.6);
+  z-index: 3;
+}
+.al-tl-phase-flag i { font-size: 10px; line-height: 1; }
+.al-tl-phase-label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--al-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--al-phase);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Phase popover card variant */
+.al-tl-card.type-fase::before { background: var(--al-phase); }
+.al-tl-card-type.type-fase { color: var(--al-phase); }
+.al-tl-phase-note {
+  margin-top: 8px;
+  font-family: var(--al-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--al-ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.al-tl-phase-del {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  background: transparent;
+  color: var(--al-ink-mute);
+  font-family: var(--al-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--al-d-base) var(--al-ease);
+}
+.al-tl-phase-del:hover:not(:disabled) {
+  border-color: var(--al-danger);
+  color: var(--al-danger);
+  background: rgba(220,38,38,0.06);
+}
+.al-tl-phase-del:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Add-phase modal ── */
+.al-tl-form-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(20,17,13,0.42);
+  backdrop-filter: blur(3px);
+}
+.al-tl-form-panel {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule-strong);
+  border-radius: var(--al-r-md);
+  box-shadow: var(--al-shadow-3);
+  overflow: hidden;
+}
+.al-tl-form-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, var(--al-phase), transparent);
+}
+/* Alpine x-transition enter classes */
+.al-tl-form-enter { transition: opacity 0.26s var(--al-ease-out), transform 0.26s var(--al-ease-spr); }
+.al-tl-form-enter-start { opacity: 0; transform: translateY(14px) scale(0.97); }
+.al-tl-form-enter-end   { opacity: 1; transform: translateY(0) scale(1); }
+.al-tl-form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--al-rule-faint);
+}
+.al-tl-form-head .al-tl-pop-close { position: static; }
+.al-tl-form-body {
+  padding: 18px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.al-tl-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.al-tl-form-duration {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 8px;
+}
+.al-tl-form-error {
+  font-family: var(--al-sans);
+  font-size: 12px;
+  color: var(--al-danger);
+  margin: -4px 0 0;
+}
+.al-tl-form-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .al-tl-form-row { grid-template-columns: 1fr; }
 }
 
 /* ── Expanded popover card ── */

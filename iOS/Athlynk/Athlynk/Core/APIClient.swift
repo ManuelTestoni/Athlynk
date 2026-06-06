@@ -342,7 +342,7 @@ final class APIClient {
 
     // MARK: Journey timeline
 
-    func journey() async throws -> [JourneyEventDTO] {
-        try decode(JourneyResponse.self, from: try await request("/api/v1/journey")).events
+    func journey() async throws -> JourneyResponse {
+        try decode(JourneyResponse.self, from: try await request("/api/v1/journey"))
     }
 }

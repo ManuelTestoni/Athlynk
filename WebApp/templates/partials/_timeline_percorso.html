@@ -5,7 +5,7 @@
 {% endcomment %}
 
 <div class="al-timeline-wrap al-reveal"
-     x-data="percorsoTimeline({ apiUrl: '{{ api_url }}' })"
+     x-data="percorsoTimeline({ apiUrl: '{{ api_url }}'{% if can_manage_phases %}, phaseUrl: '{{ phase_url }}', canManage: true{% endif %} })"
      x-init="init()">
 
   <!-- Header -->
@@ -14,7 +14,14 @@
       <p class="al-eyebrow">Panoramica</p>
       <h2 class="al-h-2 mt-1">Il percorso <span class="al-display-i">{% if timeline_title %}{{ timeline_title }}{% else %}dell'atleta{% endif %}</span></h2>
     </div>
+    {% if can_manage_phases %}
+    <button type="button" class="al-tl-add-phase" @click="openForm()">
+      <i class="ph ph-plus"></i>
+      <span>Aggiungi fase</span>
+    </button>
+    {% else %}
     <i class="ph ph-map-trifold text-bronze text-xl"></i>
+    {% endif %}
   </div>
 
   <!-- Filters + Zoom -->
@@ -41,6 +48,13 @@
               :class="filterActive('check') ? 'al-tl-filter active-check' : 'al-tl-filter'">
         <i class="ph ph-chart-line"></i>
         <span>Check</span>
+      </button>
+
+      <button type="button"
+              @click="toggleFilter('fase')"
+              :class="filterActive('fase') ? 'al-tl-filter active-fase' : 'al-tl-filter'">
+        <i class="ph ph-flag-banner"></i>
+        <span>Fasi</span>
       </button>
     </div>
 
@@ -89,6 +103,21 @@
         </div>
       </template>
 
+      <!-- Phase bands — translucent period blocks straddling the axis -->
+      <template x-for="ph in placedPhases" :key="'ph-' + ph.id">
+        <button type="button"
+                class="al-tl-phase al-tl-enter"
+                :class="isPhaseOpen(ph) ? 'is-open' : ''"
+                :style="`left:${ph.x}px; top:${phaseTop()}px; width:${ph.w}px; height:${phaseHeight()}px;`"
+                :title="ph.title + ' · ' + durationLabel(ph)"
+                @click="togglePhase(ph)">
+          <span class="al-tl-phase-flag" aria-hidden="true">
+            <i class="ph ph-flag-banner"></i>
+          </span>
+          <span class="al-tl-phase-label" x-text="ph.title"></span>
+        </button>
+      </template>
+
       <!-- Central horizontal axis -->
       <div class="al-tl-axis-line" :style="`position:absolute; left:0; right:0; top:${axisY}px; height:2px; background:var(--al-rule-strong); pointer-events:none;`"></div>
 
@@ -131,6 +160,32 @@
         </div>
       </template>
 
+      <!-- Expanded phase card -->
+      <template x-if="openPhase()">
+        <div class="al-tl-pop"
+             :style="`left:${phaseCardLeft(openPhase())}px; bottom:${trackHeight - axisY + phaseHeight()/2 + 10}px;`"
+             @click.stop>
+          <div class="al-tl-card type-fase">
+            <button type="button" class="al-tl-pop-close" @click="openPhaseId = null" aria-label="Chiudi">
+              <i class="ph ph-x"></i>
+            </button>
+            <div class="al-tl-card-type type-fase">
+              <i class="ph ph-flag-banner"></i>
+              <span x-text="durationLabel(openPhase())"></span>
+            </div>
+            <div class="al-tl-card-title" style="white-space:normal;" x-text="openPhase().title"></div>
+            <div class="al-tl-card-date" x-text="phaseRange(openPhase())"></div>
+            <p class="al-tl-phase-note" x-show="openPhase().note" x-text="openPhase().note"></p>
+            <template x-if="canManage">
+              <button type="button" class="al-tl-phase-del" @click="deletePhase(openPhase())" :disabled="saving">
+                <i class="ph ph-trash"></i><span>Elimina fase</span>
+              </button>
+            </template>
+          </div>
+          <div class="al-tl-pop-stem"></div>
+        </div>
+      </template>
+
     </div>
   </div>
 
@@ -145,6 +200,68 @@
       <span x-text="windowEnd"></span>
     </span>
   </div>
+
+  {% if can_manage_phases %}
+  {% csrf_token %}
+  <!-- Add-phase modal — teleported to <body> so it escapes the timeline
+       wrapper's overflow:hidden + reveal transform (otherwise it's clipped) -->
+  <template x-teleport="body">
+  <div x-show="formOpen" x-cloak class="al-tl-form-backdrop" @click.self="closeForm()"
+       x-transition.opacity.duration.200ms>
+    <div class="al-tl-form-panel" x-show="formOpen"
+         x-transition:enter="al-tl-form-enter" x-transition:enter-start="al-tl-form-enter-start" x-transition:enter-end="al-tl-form-enter-end">
+      <div class="al-tl-form-head">
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-phase);">Nuova fase</p>
+          <h3 class="al-h-3 mt-1">Segna un periodo sul percorso</h3>
+        </div>
+        <button type="button" class="al-tl-pop-close" @click="closeForm()" aria-label="Chiudi"><i class="ph ph-x"></i></button>
+      </div>
+
+      <form class="al-tl-form-body" @submit.prevent="submitPhase()">
+        <div>
+          <label class="al-label">Titolo</label>
+          <input type="text" class="al-input" x-model="form.title" maxlength="120"
+                 placeholder="Es. Definizione, Massa, Scarico…" />
+        </div>
+
+        <div>
+          <label class="al-label">Note <span style="text-transform:none; letter-spacing:0; color:var(--al-ink-line);">(facoltative)</span></label>
+          <textarea class="al-textarea" x-model="form.note" rows="3"
+                    placeholder="Scrivi qui indicazioni, obiettivi o promemoria per questa fase…"></textarea>
+        </div>
+
+        <div class="al-tl-form-row">
+          <div>
+            <label class="al-label">Inizio periodo</label>
+            <input type="date" class="al-input" x-model="form.start_date" />
+          </div>
+          <div>
+            <label class="al-label">Durata</label>
+            <div class="al-tl-form-duration">
+              <input type="number" class="al-input" min="1" max="104" x-model.number="form.duration_value" />
+              <select class="al-select" x-model="form.duration_unit">
+                <option value="WEEKS">Settimane</option>
+                <option value="MONTHS">Mesi</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <p class="al-tl-form-error" x-show="formError" x-text="formError" x-cloak></p>
+
+        <div class="al-tl-form-foot">
+          <button type="button" class="al-btn al-btn-ghost" @click="closeForm()">Annulla</button>
+          <button type="submit" class="al-btn al-btn-phase" :disabled="saving">
+            <i class="ph ph-check"></i>
+            <span x-text="saving ? 'Salvataggio…' : 'Aggiungi fase'"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </template>
+  {% endif %}
 
 </div>
 
