@@ -3042,7 +3042,9 @@ body[data-scrolled="1"] .al-sidebar-top {
 }
 .al-tl-add-phase:active { transform: translateY(0); }
 
-/* Scroll container — horizontal only, never vertical */
+/* Scroll container — horizontal only, never vertical.
+   Height is set inline to the content-driven trackHeight (see timeline.js),
+   so the box hugs the timeline exactly with no dead band of page background. */
 .al-timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -3105,21 +3107,21 @@ body[data-scrolled="1"] .al-sidebar-top {
 .al-tl-dot {
   position: absolute;
   z-index: 4;
-  width: 22px; height: 22px;
+  width: 28px; height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border-radius: var(--al-r-pill);
-  border: 2px solid var(--al-parchment);
+  border: 2.5px solid var(--al-parchment);
   background: var(--al-stone-d);
   color: var(--al-parchment);
   cursor: pointer;
-  box-shadow: 0 0 0 1.5px var(--al-rule-strong), 0 2px 6px -2px rgba(20,17,13,0.3);
+  box-shadow: 0 0 0 1.5px var(--al-rule-strong), 0 2px 7px -2px rgba(20,17,13,0.32);
   transition: transform var(--al-d-snap) var(--al-ease-spr),
               box-shadow var(--al-d-base) var(--al-ease);
 }
-.al-tl-dot i { font-size: 12px; line-height: 1; }
+.al-tl-dot i { font-size: 15px; line-height: 1; }
 .al-tl-dot.type-allenamento { background: var(--al-bronze); }
 .al-tl-dot.type-nutrizione  { background: var(--al-aegean); }
 .al-tl-dot.type-check       { background: var(--al-success); }
@@ -3188,9 +3190,9 @@ body[data-scrolled="1"] .al-sidebar-top {
 /* start-date marker: a flag pinned to the left edge */
 .al-tl-phase-flag {
   position: absolute;
-  top: -10px;
-  left: -9px;
-  width: 22px; height: 22px;
+  top: -12px;
+  left: -11px;
+  width: 26px; height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3201,12 +3203,12 @@ body[data-scrolled="1"] .al-sidebar-top {
   box-shadow: 0 2px 6px -2px rgba(110,74,99,0.6);
   z-index: 3;
 }
-.al-tl-phase-flag i { font-size: 11px; line-height: 1; }
+.al-tl-phase-flag i { font-size: 13px; line-height: 1; }
 .al-tl-phase-label {
   position: relative;
   z-index: 1;
   font-family: var(--al-sans);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3741,7 +3743,7 @@ body[data-page="impostazioni"] .al-footer .text-ink-mute { color: rgba(244,239,2
 }
 .antro-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px 14px;
 }
 .antro-grid.is-single { grid-template-columns: minmax(0, 1fr); }
@@ -3772,6 +3774,19 @@ body[data-page="impostazioni"] .al-footer .text-ink-mute { color: rgba(244,239,2
   font-size: 11px; font-weight: 600; color: var(--al-ink-line);
   text-transform: none; letter-spacing: 0;
 }
+/* Arti con entrambi i lati: una sola riga con due input DX | SX. */
+.antro-field.is-pair { grid-column: 1 / -1; }
+.antro-pair { display: flex; gap: 10px; }
+.antro-pair .antro-input { flex: 1 1 0; min-width: 0; }
+.antro-side-tag {
+  flex: 0 0 auto;
+  font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  color: var(--al-bronze);
+}
+/* Stato fuori-range (validazione input). */
+.antro-input.is-invalid { border-color: #c0392b; background: rgba(192,57,43,.04); }
+.antro-input.is-invalid input { color: #c0392b; }
+.antro-err { font-size: 10px; font-weight: 600; color: #c0392b; margin-top: 1px; }
 @media (max-width: 520px) {
   .antro-grid { grid-template-columns: minmax(0, 1fr); }
 }

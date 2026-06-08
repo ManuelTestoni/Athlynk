@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Athlynk Coach — companion app for coaches, trainers and nutritionists.
+	     Shares the Athlynk design system + networking layer (see Shared/).
+
+	     DEV ONLY: talks to the Django backend over plain HTTP on
+	     http://localhost:8000. App Transport Security blocks cleartext by
+	     default, so we open an exception scoped to localhost. Tighten before
+	     shipping an HTTPS production build.
+
+	     This file lives at the project root (NOT inside the AthlynkCoach/
+	     synchronized group) so it is consumed only as INFOPLIST_FILE and never
+	     auto-added to Copy Bundle Resources. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Consenti l'accesso alle foto per impostare la tua immagine del profilo.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+</dict>
+</plist>

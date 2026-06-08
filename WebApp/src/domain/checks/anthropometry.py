@@ -10,36 +10,53 @@ Una domanda `antropometria` raggruppa in modo ordinato tre sezioni:
 Le circonferenze degli arti (`is_limb=True`) si compilano per lato: le chiavi
 memorizzate sono suffissate `_l` (sinistra) / `_r` (destra). Le pliche sono
 sempre un valore singolo (mai lati).
+
+Ogni misura porta due metadati numerici, condivisi fra validazione input e
+grafici:
+    - `range` (lo, hi): intervallo plausibile per un adulto; valori fuori da qui
+      vengono rifiutati in compilazione (web + app). cm per circonferenze, mm
+      per pliche, kg per il peso.
+    - `pad`: semi-ampiezza (± attorno a min/max dei dati) usata per impostare
+      l'asse Y dei grafici di andamento, così la linea non parte da zero ed è
+      leggibile. Tarata sulla parte anatomica (es. polso ±2 cm, vita ±6 cm).
 """
 
 # ──────────────────────────────────────────────────────────────────────────
 # Catalogo (ordine = ordine di presentazione)
 # ──────────────────────────────────────────────────────────────────────────
 
+# Peso corporeo (kg): intervallo plausibile + padding asse Y dei grafici.
+WEIGHT_RANGE = (20.0, 400.0)
+WEIGHT_PAD = 10.0
+
 CIRCUMFERENCES = [
-    {'key': 'head',        'it': 'Testa',                      'en': 'Head girth',                  'isak': 'Massima circonferenza del capo, sopra glabella e occipite.',          'position': 'Testa; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': False},
-    {'key': 'neck',        'it': 'Collo',                      'en': 'Neck girth',                  'isak': 'Minima circonferenza del collo, sotto la laringe.',                   'position': 'Collo; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': False},
-    {'key': 'chest',       'it': 'Torace',                     'en': 'Chest girth',                 'isak': 'Circonferenza toracica al livello di riferimento ISAK.',              'position': 'Torace; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': False},
-    {'key': 'arm_relaxed', 'it': 'Braccio rilassato',          'en': 'Arm girth, relaxed',          'isak': 'Massima circonferenza del braccio rilassato.',                        'position': 'Braccio; fascia orizzontale, perpendicolare all’asse longitudinale.',         'is_limb': True},
-    {'key': 'arm_flexed',  'it': 'Braccio flesso e contratto', 'en': 'Arm girth, flexed and tensed','isak': 'Massima circonferenza del braccio in flessione.',                     'position': 'Braccio; fascia orizzontale, perpendicolare all’asse longitudinale.',         'is_limb': True},
-    {'key': 'forearm',     'it': 'Avambraccio',                'en': 'Forearm girth',               'isak': 'Massima circonferenza dell’avambraccio.',                             'position': 'Avambraccio; fascia orizzontale, perpendicolare all’asse longitudinale.',     'is_limb': True},
-    {'key': 'wrist',       'it': 'Polso',                      'en': 'Wrist girth',                 'isak': 'Minima circonferenza sopra i processi stiloidei.',                    'position': 'Polso; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': True},
-    {'key': 'waist',       'it': 'Vita',                       'en': 'Waist girth',                 'isak': 'Minima circonferenza del tronco tra coste e cresta iliaca.',          'position': 'Addome/torace inferiore; fascia orizzontale.',                                 'is_limb': False},
-    {'key': 'gluteal',     'it': 'Gluteo / Fianchi',           'en': 'Gluteal girth',               'isak': 'Massima circonferenza di glutei e anche.',                            'position': 'Bacino; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': False},
-    {'key': 'thigh',       'it': 'Coscia',                     'en': 'Thigh girth',                 'isak': 'Massima circonferenza della coscia.',                                 'position': 'Coscia; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': True},
-    {'key': 'calf',        'it': 'Polpaccio',                  'en': 'Calf girth',                  'isak': 'Massima circonferenza del polpaccio.',                                'position': 'Gamba; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': True},
-    {'key': 'ankle',       'it': 'Caviglia',                   'en': 'Ankle girth',                 'isak': 'Minima circonferenza sopra i malleoli.',                              'position': 'Caviglia; fascia orizzontale, perpendicolare all’asse longitudinale.',        'is_limb': True},
+    {'key': 'head',        'it': 'Testa',                      'en': 'Head girth',                  'isak': 'Massima circonferenza del capo, sopra glabella e occipite.',          'position': 'Testa; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': False, 'range': (40.0, 65.0),  'pad': 3.0},
+    {'key': 'neck',        'it': 'Collo',                      'en': 'Neck girth',                  'isak': 'Minima circonferenza del collo, sotto la laringe.',                   'position': 'Collo; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': False, 'range': (25.0, 60.0),  'pad': 3.0},
+    {'key': 'chest',       'it': 'Torace',                     'en': 'Chest girth',                 'isak': 'Circonferenza toracica al livello di riferimento ISAK.',              'position': 'Torace; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': False, 'range': (55.0, 170.0), 'pad': 6.0},
+    {'key': 'arm_relaxed', 'it': 'Braccio rilassato',          'en': 'Arm girth, relaxed',          'isak': 'Massima circonferenza del braccio rilassato.',                        'position': 'Braccio; fascia orizzontale, perpendicolare all’asse longitudinale.',         'is_limb': True,  'range': (15.0, 60.0),  'pad': 4.0},
+    {'key': 'arm_flexed',  'it': 'Braccio flesso e contratto', 'en': 'Arm girth, flexed and tensed','isak': 'Massima circonferenza del braccio in flessione.',                     'position': 'Braccio; fascia orizzontale, perpendicolare all’asse longitudinale.',         'is_limb': True,  'range': (15.0, 65.0),  'pad': 4.0},
+    {'key': 'forearm',     'it': 'Avambraccio',                'en': 'Forearm girth',               'isak': 'Massima circonferenza dell’avambraccio.',                             'position': 'Avambraccio; fascia orizzontale, perpendicolare all’asse longitudinale.',     'is_limb': True,  'range': (12.0, 50.0),  'pad': 3.0},
+    {'key': 'wrist',       'it': 'Polso',                      'en': 'Wrist girth',                 'isak': 'Minima circonferenza sopra i processi stiloidei.',                    'position': 'Polso; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': True,  'range': (10.0, 25.0),  'pad': 2.0},
+    {'key': 'waist',       'it': 'Vita',                       'en': 'Waist girth',                 'isak': 'Minima circonferenza del tronco tra coste e cresta iliaca.',          'position': 'Addome/torace inferiore; fascia orizzontale.',                                 'is_limb': False, 'range': (45.0, 200.0), 'pad': 6.0},
+    {'key': 'gluteal',     'it': 'Gluteo / Fianchi',           'en': 'Gluteal girth',               'isak': 'Massima circonferenza di glutei e anche.',                            'position': 'Bacino; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': False, 'range': (55.0, 190.0), 'pad': 6.0},
+    {'key': 'thigh',       'it': 'Coscia',                     'en': 'Thigh girth',                 'isak': 'Massima circonferenza della coscia.',                                 'position': 'Coscia; fascia orizzontale, perpendicolare all’asse longitudinale.',          'is_limb': True,  'range': (25.0, 100.0), 'pad': 5.0},
+    {'key': 'calf',        'it': 'Polpaccio',                  'en': 'Calf girth',                  'isak': 'Massima circonferenza del polpaccio.',                                'position': 'Gamba; fascia orizzontale, perpendicolare all’asse longitudinale.',           'is_limb': True,  'range': (20.0, 65.0),  'pad': 4.0},
+    {'key': 'ankle',       'it': 'Caviglia',                   'en': 'Ankle girth',                 'isak': 'Minima circonferenza sopra i malleoli.',                              'position': 'Caviglia; fascia orizzontale, perpendicolare all’asse longitudinale.',        'is_limb': True,  'range': (15.0, 40.0),  'pad': 2.0},
 ]
 
+# Pliche (mm): intervallo plausibile uniforme + padding asse Y.
+SKIN_RANGE = (1.0, 80.0)
+SKIN_PAD = 5.0
+
 SKINFOLDS = [
-    {'key': 'biceps',      'it': 'Bicipitale',       'en': 'Biceps skinfold',      'isak': 'Faccia anteriore del braccio, sul punto medio tra acromion e radiale.',            'position': 'Braccio superiore; verticale.'},
-    {'key': 'triceps',     'it': 'Tricipitale',      'en': 'Triceps skinfold',     'isak': 'Faccia posteriore del braccio, sul punto medio tra acromion e radiale.',           'position': 'Braccio superiore; verticale.'},
-    {'key': 'subscapular', 'it': 'Sottoscapolare',   'en': 'Subscapular skinfold', 'isak': 'Sotto l’angolo inferiore della scapola.',                                          'position': 'Regione scapolare; diagonale discendente.'},
-    {'key': 'supraspinale','it': 'Sopraspinale',     'en': 'Supraspinale skinfold','isak': 'Sopra la cresta iliaca, lungo la linea verso la spina iliaca antero-superiore.',    'position': 'Fianchi/anca; diagonale discendente.'},
-    {'key': 'suprailiac',  'it': 'Soprailiaca',      'en': 'Suprailiac skinfold',  'isak': 'Sopra la cresta iliaca, in prossimità della linea ascellare anteriore.',           'position': 'Fianco; diagonale ascendente.'},
-    {'key': 'abdominal',   'it': 'Addominale',       'en': 'Abdominal skinfold',   'isak': 'A circa 2 cm a destra dell’ombelico.',                                             'position': 'Addome; verticale.'},
-    {'key': 'front_thigh', 'it': 'Coscia anteriore', 'en': 'Front thigh skinfold', 'isak': 'Faccia anteriore della coscia, nel punto medio del segmento.',                      'position': 'Coscia; verticale.'},
-    {'key': 'medial_calf', 'it': 'Polpaccio mediale','en': 'Medial calf skinfold', 'isak': 'Faccia mediale del polpaccio, nel punto di massimo sviluppo del gastrocnemio.',      'position': 'Gamba; verticale.'},
+    {'key': 'biceps',      'it': 'Bicipitale',       'en': 'Biceps skinfold',      'isak': 'Faccia anteriore del braccio, sul punto medio tra acromion e radiale.',            'position': 'Braccio superiore; verticale.',          'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'triceps',     'it': 'Tricipitale',      'en': 'Triceps skinfold',     'isak': 'Faccia posteriore del braccio, sul punto medio tra acromion e radiale.',           'position': 'Braccio superiore; verticale.',          'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'subscapular', 'it': 'Sottoscapolare',   'en': 'Subscapular skinfold', 'isak': 'Sotto l’angolo inferiore della scapola.',                                          'position': 'Regione scapolare; diagonale discendente.','range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'supraspinale','it': 'Sopraspinale',     'en': 'Supraspinale skinfold','isak': 'Sopra la cresta iliaca, lungo la linea verso la spina iliaca antero-superiore.',    'position': 'Fianchi/anca; diagonale discendente.',   'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'suprailiac',  'it': 'Soprailiaca',      'en': 'Suprailiac skinfold',  'isak': 'Sopra la cresta iliaca, in prossimità della linea ascellare anteriore.',           'position': 'Fianco; diagonale ascendente.',          'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'abdominal',   'it': 'Addominale',       'en': 'Abdominal skinfold',   'isak': 'A circa 2 cm a destra dell’ombelico.',                                             'position': 'Addome; verticale.',                     'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'front_thigh', 'it': 'Coscia anteriore', 'en': 'Front thigh skinfold', 'isak': 'Faccia anteriore della coscia, nel punto medio del segmento.',                      'position': 'Coscia; verticale.',                     'range': SKIN_RANGE, 'pad': SKIN_PAD},
+    {'key': 'medial_calf', 'it': 'Polpaccio mediale','en': 'Medial calf skinfold', 'isak': 'Faccia mediale del polpaccio, nel punto di massimo sviluppo del gastrocnemio.',      'position': 'Gamba; verticale.',                      'range': SKIN_RANGE, 'pad': SKIN_PAD},
 ]
 
 _CIRC_BY_KEY = {c['key']: c for c in CIRCUMFERENCES}
@@ -109,6 +126,30 @@ def skin_label(stored_key):
     return _LEGACY_SKIN_LABELS.get(stored_key, stored_key)
 
 
+def circ_range(stored_key):
+    """Intervallo plausibile (lo, hi) in cm per una chiave circonferenza
+    memorizzata (lato incluso). None se chiave sconosciuta (es. legacy)."""
+    base, _ = _split_side(stored_key)
+    item = _CIRC_BY_KEY.get(base)
+    return item['range'] if item else None
+
+
+def circ_pad(stored_key):
+    base, _ = _split_side(stored_key)
+    item = _CIRC_BY_KEY.get(base)
+    return item['pad'] if item else 5.0
+
+
+def skin_range(key):
+    item = _SKIN_BY_KEY.get(key)
+    return item['range'] if item else SKIN_RANGE
+
+
+def skin_pad(key):
+    item = _SKIN_BY_KEY.get(key)
+    return item['pad'] if item else SKIN_PAD
+
+
 def circ_side_keys(key):
     """Chiavi memorizzate per una circonferenza: [_l,_r] se arto, altrimenti [key]."""
     item = _CIRC_BY_KEY.get(key)
@@ -133,4 +174,5 @@ def catalog_json():
     return {
         'circumferences': CIRCUMFERENCES,
         'skinfolds': SKINFOLDS,
+        'weight': {'range': WEIGHT_RANGE, 'pad': WEIGHT_PAD},
     }

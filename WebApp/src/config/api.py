@@ -38,7 +38,9 @@ from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSetLog,
 )
 
-from domain.checks.anthropometry import circ_label, skin_label
+from domain.checks.anthropometry import (
+    circ_label, skin_label, circ_range, skin_range, WEIGHT_RANGE,
+)
 from .session_utils import get_active_relationships
 from .services import ratelimit
 from .services.images import is_image, to_webp
@@ -254,6 +256,23 @@ def me(request, user):
             'primary_goal': client.primary_goal,
             'activity_level': client.activity_level,
             'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
+        }
+    coach = getattr(user, 'coach_profile', None)
+    if coach:
+        # The coach app reads `profile.profile_image_url` for its header avatar,
+        # the same shape the athlete app expects.
+        img = _abs_media(request, coach.profile_image.url) if coach.profile_image else coach.profile_image_url
+        payload['coach_profile'] = {
+            'id': coach.id,
+            'professional_type': coach.professional_type,
+            'specialization': coach.specialization,
+            'city': coach.city,
+        }
+        payload['profile'] = {
+            'height_cm': None,
+            'primary_goal': coach.specialization,
+            'activity_level': None,
+            'profile_image_url': img,
         }
     return JsonResponse(payload)
 
@@ -511,18 +530,19 @@ def journey(request, user):
         rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
     else:
         rel_start = (today - timedelta(days=365)).replace(day=1)
-    window_end = today
-    one_year_later = rel_start.replace(year=rel_start.year + 1)
-    if window_end < one_year_later:
-        window_end = one_year_later
-
-    from .views_client import _build_percorso_events, _serialize_phases
-    events = _build_percorso_events(client, rel.coach, rel_start, window_end)
+    from .views_client import _build_percorso_events, _serialize_phases, _one_year_after_month
+    events = _build_percorso_events(client, rel.coach, rel_start, today)
     phases = _serialize_phases(client, rel.coach)
+
+    # Open-ended forward bound: one year past the latest activity (event or phase end).
+    last_activity = today
+    if events:
+        last_activity = max(last_activity, date.fromisoformat(events[-1]['date']))
     for ph in phases:
         ph_end = date.fromisoformat(ph['end'])
-        if ph_end > window_end:
-            window_end = ph_end
+        if ph_end > last_activity:
+            last_activity = ph_end
+    window_end = _one_year_after_month(last_activity)
     return JsonResponse({
         'events': events,
         'phases': phases,
@@ -1345,11 +1365,11 @@ def check_submit(request, user, instance_id):
         if key in _CHECK_BOUNDS:
             return _CHECK_BOUNDS[key]
         if key == 'peso_corporeo':
-            return (20.0, 400.0)
+            return WEIGHT_RANGE
         if key.startswith('circ::'):
-            return (5.0, 250.0)
+            return circ_range(key[len('circ::'):]) or (5.0, 250.0)
         if key.startswith('pl::'):
-            return (1.0, 100.0)
+            return skin_range(key[len('pl::'):])
         return None
     for key, raw in answers.items():
         bounds = _bounds_for(key)

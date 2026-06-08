@@ -27,6 +27,7 @@
 		63C9E6FC2FCE296100BDF624 /* Athlynk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Athlynk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		63C9E7092FCE296200BDF624 /* AthlynkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AthlynkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		63C9E7132FCE296200BDF624 /* AthlynkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AthlynkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0AC00000000000000000002 /* AthlynkCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AthlynkCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +44,16 @@
 		63C9E7162FCE296200BDF624 /* AthlynkUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AthlynkUITests;
+			sourceTree = "<group>";
+		};
+		C0AC00000000000000000050 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		C0AC00000000000000000051 /* AthlynkCoach */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AthlynkCoach;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,13 +80,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0AC00000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		63C9E6F32FCE296100BDF624 = {
 			isa = PBXGroup;
 			children = (
+				C0AC00000000000000000050 /* Shared */,
 				63C9E6FE2FCE296100BDF624 /* Athlynk */,
+				C0AC00000000000000000051 /* AthlynkCoach */,
 				63C9E70C2FCE296200BDF624 /* AthlynkTests */,
 				63C9E7162FCE296200BDF624 /* AthlynkUITests */,
 				63C9E6FD2FCE296100BDF624 /* Products */,
@@ -86,6 +106,7 @@
 			isa = PBXGroup;
 			children = (
 				63C9E6FC2FCE296100BDF624 /* Athlynk.app */,
+				C0AC00000000000000000002 /* AthlynkCoach.app */,
 				63C9E7092FCE296200BDF624 /* AthlynkTests.xctest */,
 				63C9E7132FCE296200BDF624 /* AthlynkUITests.xctest */,
 			);
@@ -109,12 +130,36 @@
 			);
 			fileSystemSynchronizedGroups = (
 				63C9E6FE2FCE296100BDF624 /* Athlynk */,
+				C0AC00000000000000000050 /* Shared */,
 			);
 			name = Athlynk;
 			packageProductDependencies = (
 			);
 			productName = Athlynk;
 			productReference = 63C9E6FC2FCE296100BDF624 /* Athlynk.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C0AC00000000000000000001 /* AthlynkCoach */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */;
+			buildPhases = (
+				C0AC00000000000000000003 /* Sources */,
+				C0AC00000000000000000004 /* Frameworks */,
+				C0AC00000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0AC00000000000000000051 /* AthlynkCoach */,
+				C0AC00000000000000000050 /* Shared */,
+			);
+			name = AthlynkCoach;
+			packageProductDependencies = (
+			);
+			productName = AthlynkCoach;
+			productReference = C0AC00000000000000000002 /* AthlynkCoach.app */;
 			productType = "com.apple.product-type.application";
 		};
 		63C9E7082FCE296200BDF624 /* AthlynkTests */ = {
@@ -176,6 +221,9 @@
 					63C9E6FB2FCE296100BDF624 = {
 						CreatedOnToolsVersion = 26.5;
 					};
+					C0AC00000000000000000001 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					63C9E7082FCE296200BDF624 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 63C9E6FB2FCE296100BDF624;
@@ -201,6 +249,7 @@
 			projectRoot = "";
 			targets = (
 				63C9E6FB2FCE296100BDF624 /* Athlynk */,
+				C0AC00000000000000000001 /* AthlynkCoach */,
 				63C9E7082FCE296200BDF624 /* AthlynkTests */,
 				63C9E7122FCE296200BDF624 /* AthlynkUITests */,
 			);
@@ -229,6 +278,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0AC00000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -247,6 +303,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		63C9E70F2FCE296200BDF624 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0AC00000000000000000003 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -540,6 +603,76 @@
 			};
 			name = Release;
 		};
+		C0AC00000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QQ3QJFBL6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AthlynkCoachInfo.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Athlynk Coach";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = it.Atlynk.Athlynk.coach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C0AC00000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QQ3QJFBL6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AthlynkCoachInfo.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Athlynk Coach";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = it.Atlynk.Athlynk.coach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -557,6 +690,15 @@
 			buildConfigurations = (
 				63C9E71E2FCE296200BDF624 /* Debug */,
 				63C9E71F2FCE296200BDF624 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0AC00000000000000000007 /* Debug */,
+				C0AC00000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -43,7 +43,7 @@ final class APIClient {
 
     // MARK: Core request
 
-    private func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+    func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
         guard let url = URL(string: baseURL + path) else { throw APIError.badURL }
         var req = URLRequest(url: url)
         req.httpMethod = method
@@ -71,7 +71,7 @@ final class APIClient {
         return data
     }
 
-    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+    func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         do { return try decoder.decode(T.self, from: data) }
         catch { throw APIError.decoding(String(describing: error)) }
     }

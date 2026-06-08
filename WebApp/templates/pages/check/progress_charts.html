@@ -354,8 +354,27 @@ function firstNonNull(arr){
   return null;
 }
 
-function baseOptions(yLabel, color){
-  return {
+// Trim leading/trailing empty points so the x-axis (time) starts at the first
+// real measurement of THIS metric and ends at the last — circ/pliche misurate
+// più tardi non trascinano una coda vuota dall'inizio dello storico.
+function trimSeries(labels, data){
+  let lo = 0, hi = data.length - 1;
+  while (lo < data.length && (data[lo] === null || data[lo] === undefined)) lo++;
+  while (hi >= 0 && (data[hi] === null || data[hi] === undefined)) hi--;
+  if (lo > hi) return { labels: [...labels], data: [...data] };
+  return { labels: labels.slice(lo, hi + 1), data: data.slice(lo, hi + 1) };
+}
+
+// Y-axis window = [min-pad, max+pad] (mai sotto 0) → niente partenza da zero.
+function yBounds(data, pad){
+  const vals = data.filter(v => v !== null && v !== undefined);
+  if (!vals.length) return null;
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  return { min: Math.max(0, Math.floor(lo - pad)), max: Math.ceil(hi + pad) };
+}
+
+function baseOptions(yLabel, color, yb){
+  const o = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
@@ -407,6 +426,8 @@ function baseOptions(yLabel, color){
       }
     }
   };
+  if (yb) { o.scales.y.min = yb.min; o.scales.y.max = yb.max; }
+  return o;
 }
 
 function gradientFill(ctx, area, color){
@@ -516,13 +537,11 @@ function progressCharts(){
     buildWeightChart(){
       const el = document.getElementById('weightChart');
       if (!el) return;
+      const s = trimSeries(_chartData.labels, _chartData.weight || []);
       _inst.weight = new Chart(el, {
         type: 'line',
-        data: {
-          labels: _chartData.labels,
-          datasets: [ lineDataset('Peso', _chartData.weight, AL_BRONZE) ]
-        },
-        options: baseOptions('kg', AL_BRONZE)
+        data: { labels: s.labels, datasets: [ lineDataset('Peso', s.data, AL_BRONZE) ] },
+        options: baseOptions('kg', AL_BRONZE, yBounds(s.data, _chartData.weight_pad ?? 10))
       });
       this.charts.weight = true;
     },
@@ -530,14 +549,11 @@ function progressCharts(){
     buildCircChart(){
       const el = document.getElementById('circChart');
       if (!el) return;
+      const s = trimSeries(_chartData.labels, _chartData.circumferences[this.activeCirc] || []);
       _inst.circ = new Chart(el, {
         type: 'line',
-        data: {
-          labels: _chartData.labels,
-          datasets: [ lineDataset(CIRC_LABELS[this.activeCirc],
-            _chartData.circumferences[this.activeCirc] || [], AL_AEGEAN) ]
-        },
-        options: baseOptions('cm', AL_AEGEAN)
+        data: { labels: s.labels, datasets: [ lineDataset(CIRC_LABELS[this.activeCirc], s.data, AL_AEGEAN) ] },
+        options: baseOptions('cm', AL_AEGEAN, yBounds(s.data, (_chartData.circ_pad || {})[this.activeCirc] ?? 5))
       });
       this.charts.circ = true;
     },
@@ -545,14 +561,11 @@ function progressCharts(){
     buildSkinChart(){
       const el = document.getElementById('skinChart');
       if (!el) return;
+      const s = trimSeries(_chartData.labels, _chartData.skinfolds[this.activeSkin] || []);
       _inst.skin = new Chart(el, {
         type: 'line',
-        data: {
-          labels: _chartData.labels,
-          datasets: [ lineDataset(SKIN_LABELS[this.activeSkin],
-            _chartData.skinfolds[this.activeSkin] || [], AL_BRONZE) ]
-        },
-        options: baseOptions('mm', AL_BRONZE)
+        data: { labels: s.labels, datasets: [ lineDataset(SKIN_LABELS[this.activeSkin], s.data, AL_BRONZE) ] },
+        options: baseOptions('mm', AL_BRONZE, yBounds(s.data, (_chartData.skin_pad || {})[this.activeSkin] ?? 5))
       });
       this.charts.skin = true;
     },
@@ -560,18 +573,26 @@ function progressCharts(){
     updateCircChart(){
       this.recalcStats();
       if (!_inst.circ) return;
-      const data = _chartData.circumferences[this.activeCirc] || [];
+      const s = trimSeries(_chartData.labels, _chartData.circumferences[this.activeCirc] || []);
+      const yb = yBounds(s.data, (_chartData.circ_pad || {})[this.activeCirc] ?? 5);
+      _inst.circ.data.labels = s.labels;
       _inst.circ.data.datasets[0].label = CIRC_LABELS[this.activeCirc];
-      _inst.circ.data.datasets[0].data = [...data];
+      _inst.circ.data.datasets[0].data = s.data;
+      _inst.circ.options.scales.y.min = yb ? yb.min : undefined;
+      _inst.circ.options.scales.y.max = yb ? yb.max : undefined;
       _inst.circ.update();
     },
 
     updateSkinChart(){
       this.recalcStats();
       if (!_inst.skin) return;
-      const data = _chartData.skinfolds[this.activeSkin] || [];
+      const s = trimSeries(_chartData.labels, _chartData.skinfolds[this.activeSkin] || []);
+      const yb = yBounds(s.data, (_chartData.skin_pad || {})[this.activeSkin] ?? 5);
+      _inst.skin.data.labels = s.labels;
       _inst.skin.data.datasets[0].label = SKIN_LABELS[this.activeSkin];
-      _inst.skin.data.datasets[0].data = [...data];
+      _inst.skin.data.datasets[0].data = s.data;
+      _inst.skin.options.scales.y.min = yb ? yb.min : undefined;
+      _inst.skin.options.scales.y.max = yb ? yb.max : undefined;
       _inst.skin.update();
     }
   };

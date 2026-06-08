@@ -138,11 +138,13 @@
                                     <div class="antro-grid is-single">
                                         <label class="antro-field">
                                             <span class="antro-field-label">Peso</span>
-                                            <span class="antro-input">
-                                                <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
-                                                       :value="answers['peso_corporeo'] ?? ''" @input="answers['peso_corporeo'] = $event.target.value">
+                                            <span class="antro-input" :class="{'is-invalid': rangeErr['peso_corporeo']}">
+                                                <input type="number" step="0.1" :min="weightBounds[0]" :max="weightBounds[1]" inputmode="decimal" placeholder="0.0"
+                                                       :value="answers['peso_corporeo'] ?? ''"
+                                                       @input="answers['peso_corporeo']=$event.target.value; validateRange('peso_corporeo', weightBounds)">
                                                 <span class="antro-unit">kg</span>
                                             </span>
+                                            <span class="antro-err" x-show="rangeErr['peso_corporeo']" x-text="rangeErr['peso_corporeo']"></span>
                                         </label>
                                     </div>
                                 </div>
@@ -155,15 +157,44 @@
                                         <span class="antro-phase-count" x-text="q.circumferences.length + ' voci'"></span>
                                     </div>
                                     <div class="antro-grid">
-                                        <template x-for="key in q.circumferences" :key="key">
-                                            <label class="antro-field">
-                                                <span class="antro-field-label" x-text="circLabel(key)"></span>
-                                                <span class="antro-input">
-                                                    <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
-                                                           :value="answers['circ::' + key] ?? ''" @input="answers['circ::' + key] = $event.target.value">
-                                                    <span class="antro-unit">cm</span>
-                                                </span>
-                                            </label>
+                                        <template x-for="row in circRows(q.circumferences)" :key="row.id">
+                                            <div>
+                                                <template x-if="row.kind === 'single'">
+                                                    <label class="antro-field">
+                                                        <span class="antro-field-label" x-text="row.label"></span>
+                                                        <span class="antro-input" :class="{'is-invalid': rangeErr['circ::'+row.key]}">
+                                                            <input type="number" step="0.1" :min="circBounds(row.key)[0]" :max="circBounds(row.key)[1]" inputmode="decimal" placeholder="0.0"
+                                                                   :value="answers['circ::'+row.key] ?? ''"
+                                                                   @input="answers['circ::'+row.key]=$event.target.value; validateRange('circ::'+row.key, circBounds(row.key))">
+                                                            <span class="antro-unit">cm</span>
+                                                        </span>
+                                                        <span class="antro-err" x-show="rangeErr['circ::'+row.key]" x-text="rangeErr['circ::'+row.key]"></span>
+                                                    </label>
+                                                </template>
+                                                <template x-if="row.kind === 'pair'">
+                                                    <label class="antro-field is-pair">
+                                                        <span class="antro-field-label" x-text="row.label"></span>
+                                                        <span class="antro-pair">
+                                                            <span class="antro-input" :class="{'is-invalid': rangeErr['circ::'+row.rKey]}">
+                                                                <span class="antro-side-tag">DX</span>
+                                                                <input type="number" step="0.1" :min="circBounds(row.rKey)[0]" :max="circBounds(row.rKey)[1]" inputmode="decimal" placeholder="0.0"
+                                                                       :value="answers['circ::'+row.rKey] ?? ''"
+                                                                       @input="answers['circ::'+row.rKey]=$event.target.value; validateRange('circ::'+row.rKey, circBounds(row.rKey))">
+                                                                <span class="antro-unit">cm</span>
+                                                            </span>
+                                                            <span class="antro-input" :class="{'is-invalid': rangeErr['circ::'+row.lKey]}">
+                                                                <span class="antro-side-tag">SX</span>
+                                                                <input type="number" step="0.1" :min="circBounds(row.lKey)[0]" :max="circBounds(row.lKey)[1]" inputmode="decimal" placeholder="0.0"
+                                                                       :value="answers['circ::'+row.lKey] ?? ''"
+                                                                       @input="answers['circ::'+row.lKey]=$event.target.value; validateRange('circ::'+row.lKey, circBounds(row.lKey))">
+                                                                <span class="antro-unit">cm</span>
+                                                            </span>
+                                                        </span>
+                                                        <span class="antro-err" x-show="rangeErr['circ::'+row.rKey] || rangeErr['circ::'+row.lKey]"
+                                                              x-text="rangeErr['circ::'+row.rKey] || rangeErr['circ::'+row.lKey]"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
                                         </template>
                                     </div>
                                 </div>
@@ -179,11 +210,13 @@
                                         <template x-for="key in q.skinfolds" :key="key">
                                             <label class="antro-field">
                                                 <span class="antro-field-label" x-text="skinLabel(key)"></span>
-                                                <span class="antro-input">
-                                                    <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
-                                                           :value="answers['pl::' + key] ?? ''" @input="answers['pl::' + key] = $event.target.value">
+                                                <span class="antro-input" :class="{'is-invalid': rangeErr['pl::'+key]}">
+                                                    <input type="number" step="0.1" :min="skinBounds(key)[0]" :max="skinBounds(key)[1]" inputmode="decimal" placeholder="0.0"
+                                                           :value="answers['pl::' + key] ?? ''"
+                                                           @input="answers['pl::'+key]=$event.target.value; validateRange('pl::'+key, skinBounds(key))">
                                                     <span class="antro-unit">mm</span>
                                                 </span>
+                                                <span class="antro-err" x-show="rangeErr['pl::'+key]" x-text="rangeErr['pl::'+key]"></span>
                                             </label>
                                         </template>
                                     </div>
@@ -299,6 +332,36 @@ function _skinLabel(key) {
     const s = CATALOG.skinfolds.find(x => x.key === key);
     return s ? s.it : key;
 }
+// Intervalli plausibili dal catalogo ISAK (validazione input).
+const WEIGHT_BOUNDS = (CATALOG.weight && CATALOG.weight.range) || [20, 400];
+function _circBounds(key) {
+    const base = key.replace(/_(l|r)$/, '');
+    const c = CATALOG.circumferences.find(x => x.key === base);
+    return (c && c.range) || [5, 250];
+}
+function _skinBounds(key) {
+    const s = CATALOG.skinfolds.find(x => x.key === key);
+    return (s && s.range) || [1, 80];
+}
+// Raggruppa gli arti: entrambi i lati → una riga (DX | SX); un lato solo → riga singola.
+function _circRows(keys) {
+    const rows = [], seen = new Set();
+    for (const key of keys) {
+        const isLimb = /_(l|r)$/.test(key);
+        if (!isLimb) { rows.push({ id: key, kind: 'single', label: _circLabel(key), key }); continue; }
+        const base = key.replace(/_(l|r)$/, '');
+        if (seen.has(base)) continue;
+        const r = keys.includes(base + '_r'), l = keys.includes(base + '_l');
+        if (r && l) {
+            seen.add(base);
+            const c = CATALOG.circumferences.find(x => x.key === base);
+            rows.push({ id: base, kind: 'pair', label: c ? c.it : base, rKey: base + '_r', lKey: base + '_l' });
+        } else {
+            rows.push({ id: key, kind: 'single', label: _circLabel(key), key });
+        }
+    }
+    return rows;
+}
 
 function fillCheck() {
     // Build initial answers from prefill
@@ -321,9 +384,21 @@ function fillCheck() {
         visibleSteps,
         answers: initAnswers,
         submitErrors: [],
+        rangeErr: {},
+        weightBounds: WEIGHT_BOUNDS,
 
         circLabel: _circLabel,
         skinLabel: _skinLabel,
+        circRows: _circRows,
+        circBounds: _circBounds,
+        skinBounds: _skinBounds,
+        validateRange(key, bounds) {
+            const raw = this.answers[key];
+            if (raw === '' || raw === undefined || raw === null) { this.rangeErr[key] = ''; return; }
+            const v = parseFloat(String(raw).replace(',', '.'));
+            if (isNaN(v)) { this.rangeErr[key] = 'Numero non valido'; return; }
+            this.rangeErr[key] = (v < bounds[0] || v > bounds[1]) ? `Atteso ${bounds[0]}–${bounds[1]}` : '';
+        },
         stepQuestions(sid) { return FCK_QUESTIONS.filter(q => q.step_id === sid); },
         stepHasRequired(sid) { return FCK_QUESTIONS.some(q => q.step_id === sid && q.required); },
         stepIdx() { return this.visibleSteps.findIndex(s => s.id === this.step); },
@@ -349,6 +424,16 @@ function fillCheck() {
                     }
                 }
             });
+            // Re-valida tutte le misure antropometriche contro gli intervalli plausibili.
+            FCK_QUESTIONS.forEach(q => {
+                if (q.type !== 'antropometria') return;
+                if (q.weight !== false) this.validateRange('peso_corporeo', this.weightBounds);
+                (q.circumferences || []).forEach(k => this.validateRange('circ::' + k, this.circBounds(k)));
+                (q.skinfolds || []).forEach(k => this.validateRange('pl::' + k, this.skinBounds(k)));
+            });
+            if (Object.values(this.rangeErr).some(Boolean)) {
+                this.submitErrors.push('Alcune misure sono fuori dagli intervalli plausibili.');
+            }
             if (this.submitErrors.length > 0) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;

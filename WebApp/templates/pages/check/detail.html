@@ -90,6 +90,11 @@
             <a href="{% url 'check_client_history' response.client.id %}" class="al-btn al-btn-ghost">
                 <i class="ph ph-clock-counter-clockwise"></i><span>Storico atleta</span>
             </a>
+            {% if response.questionnaire_template %}
+            <a href="{% url 'check_edit' response.id %}" class="al-btn al-btn-ghost">
+                <i class="ph ph-pencil-simple"></i><span>Modifica dati</span>
+            </a>
+            {% endif %}
             {% if has_notes_tab %}
             <button type="button" @click="activeTab = 'note'"
                     class="al-btn al-btn-bronze">
@@ -205,6 +210,27 @@
                                     </span>
                                     {% endif %}
                                 </div>
+                            </div>
+                        </div>
+
+                        {# ── METRICA_PAIR: arto con entrambi i lati su una riga (DX | SX) ── #}
+                        {% elif q.type == 'metrica_pair' %}
+                        <div class="al-card al-card-warm al-card-flush" style="padding: 16px;">
+                            <p class="al-eyebrow" style="color: var(--al-ink-mute);">{{ q.label }}</p>
+                            <div class="flex flex-wrap gap-x-10 gap-y-2 mt-1">
+                                {% for s in q.sides %}
+                                <div class="flex items-baseline gap-2">
+                                    <span class="al-tag" style="color: var(--al-bronze); font-weight: 700;">{{ s.tag }}</span>
+                                    <span class="al-display font-mono" style="font-size: 22px; line-height: 1.15; color: var(--al-ink);">
+                                        {{ s.value }}{% if q.unit %}<span class="text-xs font-medium text-ink-mute"> {{ q.unit }}</span>{% endif %}
+                                    </span>
+                                    {% if s.delta is not None %}
+                                    <span class="al-pill" style="{% if s.delta < 0 %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% elif s.delta > 0 %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
+                                        {% if s.delta > 0 %}<i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ s.delta }}{% elif s.delta < 0 %}<i class="ph-bold ph-arrow-down-right mr-0.5"></i>{{ s.delta }}{% else %}= 0{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
 

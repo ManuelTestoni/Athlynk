@@ -41,6 +41,7 @@ from . import views_legal
 from . import views_consent
 from . import views_chiron
 from . import api as mobile_api
+from . import api_coach as coach_api
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -222,6 +223,7 @@ urlpatterns = [
     path('check/comparatore/', views_check.check_comparator_view, name='check_comparator'),
     path('check/comparatore/<int:client_id>/', views_check.check_comparator_view, name='check_comparator_client'),
     path('check/cliente/<int:client_id>/', views_check.client_check_history_view, name='check_client_history'),
+    path('check/<int:response_id>/modifica/', views_check.check_edit_view, name='check_edit'),
     path('check/<int:response_id>/', views_check.check_detail_view, name='check_detail'),
     path('api/check/trova-coach/', views_client.find_coach_api, name='check_coach_api'),
     path('api/check/cerca-cliente/', views_check.api_check_search, name='check_search_api'),
@@ -304,4 +306,23 @@ urlpatterns = [
     path('api/v1/sessions/<int:session_id>/finish', mobile_api.session_finish, name='api_v1_session_finish'),
     path('api/v1/checks/<int:instance_id>/submit', mobile_api.check_submit, name='api_v1_check_submit'),
     path('api/v1/anamnesis', mobile_api.anamnesis, name='api_v1_anamnesis'),
+
+    # --- Coach app (Athlynk Coach) ---------------------------------------
+    path('api/v1/coach/dashboard', coach_api.dashboard, name='api_v1_coach_dashboard'),
+    path('api/v1/coach/agenda', coach_api.agenda, name='api_v1_coach_agenda'),
+    path('api/v1/coach/clients', coach_api.clients, name='api_v1_coach_clients'),
+    path('api/v1/coach/clients/<int:client_id>', coach_api.client_detail, name='api_v1_coach_client_detail'),
+    path('api/v1/coach/checks', coach_api.checks_review, name='api_v1_coach_checks'),
+    path('api/v1/coach/checks/<int:response_id>', coach_api.check_detail, name='api_v1_coach_check_detail'),
+    path('api/v1/coach/checks/<int:response_id>/feedback', coach_api.check_feedback, name='api_v1_coach_check_feedback'),
+    path('api/v1/coach/workouts', coach_api.workouts, name='api_v1_coach_workouts'),
+    path('api/v1/coach/nutrition', coach_api.nutrition, name='api_v1_coach_nutrition'),
+    path('api/v1/coach/subscriptions', coach_api.subscriptions, name='api_v1_coach_subscriptions'),
+    path('api/v1/coach/resources', coach_api.resources, name='api_v1_coach_resources'),
+    path('api/v1/coach/analytics', coach_api.analytics, name='api_v1_coach_analytics'),
+    path('api/v1/coach/conversations', coach_api.conversations, name='api_v1_coach_conversations'),
+    path('api/v1/coach/conversations/<int:conversation_id>/messages', coach_api.messages, name='api_v1_coach_messages'),
+    path('api/v1/coach/conversations/<int:conversation_id>/send', coach_api.send_message, name='api_v1_coach_send_message'),
+    path('api/v1/coach/profile', coach_api.profile, name='api_v1_coach_profile'),
+    path('api/v1/coach/profile/photo', coach_api.profile_photo, name='api_v1_coach_profile_photo'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

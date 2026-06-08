@@ -980,36 +980,49 @@ def api_client_my_percorso(request):
     return _percorso_response(request, client, rel.coach, rel.start_date)
 
 
+def _one_year_after_month(d):
+    """First day of the month one year + one month past d — a trailing year of
+    scroll room past the latest activity, snapped to a clean month boundary."""
+    import datetime
+    base = d.replace(day=1)
+    plus = base.replace(year=base.year + 1)
+    if plus.month == 12:
+        return datetime.date(plus.year + 1, 1, 1)
+    return datetime.date(plus.year, plus.month + 1, 1)
+
+
 def _percorso_response(request, client, coach, relationship_start=None):
     import datetime
     from datetime import date as date_type
 
     today = date_type.today()
 
-    # Relationship start: floor to first of that month
+    # Relationship start: floor to first of that month. This is the backward
+    # bound — the track never scrolls before it.
     if relationship_start:
         rel_start = relationship_start if isinstance(relationship_start, date_type) else relationship_start.date()
         rel_start = rel_start.replace(day=1)
     else:
         rel_start = (today - datetime.timedelta(days=365)).replace(day=1)
 
-    # The timeline always spans at least one full year. The whole span is
-    # returned in a single response — the client controls how many months
-    # fit in the viewport (Anno / Semestre / Mese) and scrolls horizontally.
     window_start = rel_start
-    window_end = today
-    one_year_later = rel_start.replace(year=rel_start.year + 1)
-    if window_end < one_year_later:
-        window_end = one_year_later
 
-    events = _build_percorso_events(client, coach, window_start, window_end)
+    # All recorded activity is past-dated, so collect everything up to today;
+    # phases may reach into the future and are folded in below.
+    events = _build_percorso_events(client, coach, window_start, today)
     phases = _serialize_phases(client, coach)
 
-    # The track must always reach at least the end of the latest phase.
+    # Forward bound is open-ended: one year past the latest activity (last event
+    # or phase end), not a fixed one-year window. The span grows with the
+    # athlete's history and planned phases; the client scrolls horizontally.
+    last_activity = today
+    if events:
+        last_activity = max(last_activity, date_type.fromisoformat(events[-1]['date']))
     for ph in phases:
         ph_end = date_type.fromisoformat(ph['end'])
-        if ph_end > window_end:
-            window_end = ph_end
+        if ph_end > last_activity:
+            last_activity = ph_end
+    window_end = _one_year_after_month(last_activity)
 
     return JsonResponse({
         'events': events,

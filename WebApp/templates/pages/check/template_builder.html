@@ -81,6 +81,48 @@
 .tb-step-edit-input { background: rgba(255,255,255,.18); border: 1px solid currentColor; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: inherit; max-width: 140px; }
 .tb-antro-group { background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm); padding: 12px 14px; }
 .tb-antro-group .text-ink { cursor: default; }
+
+/* ── Selezione misure: riga toggle elegante (no testo "includi") ── */
+.tb-msel {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 7px 10px; border-radius: 9px;
+    border: 1px solid transparent; cursor: pointer;
+    transition: background 140ms var(--al-ease), border-color 140ms var(--al-ease);
+}
+.tb-msel:hover { background: rgba(138,106,58,.05); }
+.tb-msel.is-on { background: rgba(138,106,58,.09); border-color: rgba(138,106,58,.28); }
+.tb-msel.is-locked { opacity: .38; cursor: not-allowed; }
+.tb-msel.is-locked:hover { background: transparent; }
+.tb-msel-name { font-size: 13px; color: var(--al-ink); }
+.tb-check {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; flex-shrink: 0;
+    border: 1.5px solid var(--al-rule-strong); border-radius: 5px;
+    background: var(--al-parchment);
+    display: inline-grid; place-content: center;
+    cursor: pointer; transition: background 140ms var(--al-ease), border-color 140ms var(--al-ease);
+}
+.tb-check::after {
+    content: ''; width: 9px; height: 9px; border-radius: 1px;
+    transform: scale(0); transition: transform 130ms var(--al-ease);
+    background: var(--al-parchment);
+    clip-path: polygon(14% 47%, 0 60%, 39% 100%, 100% 22%, 86% 9%, 39% 71%);
+}
+.tb-check:checked { background: var(--al-bronze); border-color: var(--al-bronze); }
+.tb-check:checked::after { transform: scale(1); }
+.tb-check:disabled { cursor: not-allowed; }
+.tb-side-group { display: inline-flex; gap: 8px; align-items: center; }
+.tb-side { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--al-ink-mute); cursor: pointer; user-select: none; }
+.tb-side.is-locked { opacity: .38; cursor: not-allowed; }
+.tb-side .tb-check { width: 16px; height: 16px; }
+.tb-locked-tag { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--al-ink-line); }
+
+/* ── Anteprima antropometria nella card (misure raggruppate) ── */
+.tb-antro-prev { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.tb-prev-grp { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; }
+.tb-prev-h { font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--al-bronze); }
+.tb-prev-items { font-size: 12px; color: var(--al-ink-mute); }
+.tb-prev-u { font-size: 10px; opacity: .7; }
 </style>
 
 <form id="tb-form" method="POST" action="{% if template %}{% url 'check_template_edit' template_id=template.id %}{% else %}{% url 'check_template_new' %}{% endif %}">
@@ -252,7 +294,34 @@
                         </button>
                     </div>
                 </div>
-                <div class="text-xs" style="color: var(--al-ink-mute);" x-html="previewSummary(q)"></div>
+                <template x-if="q.type === 'antropometria'">
+                    <div class="tb-antro-prev">
+                        <template x-if="q.weight !== false">
+                            <div class="tb-prev-grp">
+                                <span class="tb-prev-h">Peso corporeo</span>
+                                <span class="tb-prev-items">Peso <span class="tb-prev-u">kg</span></span>
+                            </div>
+                        </template>
+                        <template x-if="antroCirc(q).length">
+                            <div class="tb-prev-grp">
+                                <span class="tb-prev-h">Circonferenze</span>
+                                <span class="tb-prev-items" x-text="antroCirc(q).join(' · ')"></span>
+                            </div>
+                        </template>
+                        <template x-if="antroSkin(q).length">
+                            <div class="tb-prev-grp">
+                                <span class="tb-prev-h">Pliche</span>
+                                <span class="tb-prev-items" x-text="antroSkin(q).join(' · ')"></span>
+                            </div>
+                        </template>
+                        <template x-if="q.weight === false && !antroCirc(q).length && !antroSkin(q).length">
+                            <span class="text-xs" style="color: var(--al-ink-mute);">Nessuna misura selezionata</span>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="q.type !== 'antropometria'">
+                    <div class="text-xs" style="color: var(--al-ink-mute);" x-html="previewSummary(q)"></div>
+                </template>
             </div>
         </template>
 
@@ -392,48 +461,66 @@
 
                     <template x-if="form.type === 'antropometria'">
                         <div class="space-y-4">
+                            <p class="al-small" style="color: var(--al-ink-mute); margin-top:-4px;">
+                                Le misure già usate in un altro blocco antropometria appaiono in trasparenza e non sono riselezionabili.
+                            </p>
+
                             <!-- Peso corporeo -->
                             <div class="tb-antro-group">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" x-model="form.weight" style="accent-color: var(--al-bronze);">
-                                    <span class="font-semibold text-sm text-ink">Peso corporeo</span>
-                                    <span class="al-tag text-xs">kg</span>
+                                <p class="al-label" style="margin-bottom:6px;">Peso corporeo</p>
+                                <label class="tb-msel" :class="{'is-on': form.weight, 'is-locked': weightUsed()}"
+                                       :title="weightUsed() ? 'Già incluso in un altro blocco antropometria' : ''">
+                                    <span class="tb-msel-name">Peso <span class="tb-prev-u">kg</span></span>
+                                    <span class="flex items-center gap-2">
+                                        <span class="tb-locked-tag" x-show="weightUsed()">incluso</span>
+                                        <input type="checkbox" class="tb-check" x-model="form.weight" :disabled="weightUsed()">
+                                    </span>
                                 </label>
                             </div>
 
                             <!-- Circonferenze -->
                             <div class="tb-antro-group">
-                                <p class="al-label" style="margin-bottom:6px;">Circonferenze <span style="color:var(--al-ink-mute);font-weight:400;">(cm · arti DX+SX di default)</span></p>
-                                <div class="space-y-1.5">
+                                <p class="al-label" style="margin-bottom:6px;">Circonferenze <span style="color:var(--al-ink-mute);font-weight:400;">(cm)</span></p>
+                                <div class="space-y-1">
                                     <template x-for="c in CATALOG.circumferences" :key="c.key">
-                                        <div class="flex items-center justify-between gap-3 py-1" :title="c.isak + ' — ' + c.position">
-                                            <span class="text-sm text-ink" x-text="c.it"></span>
-                                            <div class="flex items-center gap-3 shrink-0">
-                                                <template x-if="!c.is_limb">
-                                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                                        <input type="checkbox" style="accent-color: var(--al-bronze);"
+                                        <div>
+                                            <template x-if="!c.is_limb">
+                                                <label class="tb-msel"
+                                                       :class="{'is-on': form.circumferences.includes(c.key), 'is-locked': circUsed(c.key)}"
+                                                       :title="circUsed(c.key) ? 'Già inclusa in un altro blocco antropometria' : (c.isak + ' — ' + c.position)">
+                                                    <span class="tb-msel-name" x-text="c.it"></span>
+                                                    <span class="flex items-center gap-2">
+                                                        <span class="tb-locked-tag" x-show="circUsed(c.key)">inclusa</span>
+                                                        <input type="checkbox" class="tb-check"
                                                                :checked="form.circumferences.includes(c.key)"
+                                                               :disabled="circUsed(c.key)"
                                                                @change="toggleCirc(c.key, $event.target.checked)">
-                                                        <span class="al-tag text-xs">includi</span>
-                                                    </label>
-                                                </template>
-                                                <template x-if="c.is_limb">
-                                                    <div class="flex items-center gap-3">
-                                                        <label class="flex items-center gap-1.5 cursor-pointer">
-                                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
-                                                                   :checked="form.circumferences.includes(c.key + '_r')"
-                                                                   @change="toggleCirc(c.key + '_r', $event.target.checked)">
-                                                            <span class="al-tag text-xs">DX</span>
+                                                    </span>
+                                                </label>
+                                            </template>
+                                            <template x-if="c.is_limb">
+                                                <div class="tb-msel" style="cursor:default;"
+                                                     :class="{'is-on': form.circumferences.includes(c.key+'_r') || form.circumferences.includes(c.key+'_l')}"
+                                                     :title="c.isak + ' — ' + c.position">
+                                                    <span class="tb-msel-name" x-text="c.it"></span>
+                                                    <span class="tb-side-group">
+                                                        <label class="tb-side" :class="{'is-locked': circUsed(c.key+'_r')}">
+                                                            <input type="checkbox" class="tb-check"
+                                                                   :checked="form.circumferences.includes(c.key+'_r')"
+                                                                   :disabled="circUsed(c.key+'_r')"
+                                                                   @change="toggleCirc(c.key+'_r', $event.target.checked)">
+                                                            <span>DX</span>
                                                         </label>
-                                                        <label class="flex items-center gap-1.5 cursor-pointer">
-                                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
-                                                                   :checked="form.circumferences.includes(c.key + '_l')"
-                                                                   @change="toggleCirc(c.key + '_l', $event.target.checked)">
-                                                            <span class="al-tag text-xs">SX</span>
+                                                        <label class="tb-side" :class="{'is-locked': circUsed(c.key+'_l')}">
+                                                            <input type="checkbox" class="tb-check"
+                                                                   :checked="form.circumferences.includes(c.key+'_l')"
+                                                                   :disabled="circUsed(c.key+'_l')"
+                                                                   @change="toggleCirc(c.key+'_l', $event.target.checked)">
+                                                            <span>SX</span>
                                                         </label>
-                                                    </div>
-                                                </template>
-                                            </div>
+                                                    </span>
+                                                </div>
+                                            </template>
                                         </div>
                                     </template>
                                 </div>
@@ -442,13 +529,19 @@
                             <!-- Pliche -->
                             <div class="tb-antro-group">
                                 <p class="al-label" style="margin-bottom:6px;">Pliche cutanee <span style="color:var(--al-ink-mute);font-weight:400;">(mm · valore singolo)</span></p>
-                                <div class="space-y-1.5">
+                                <div class="space-y-1">
                                     <template x-for="s in CATALOG.skinfolds" :key="s.key">
-                                        <label class="flex items-center justify-between gap-3 py-1 cursor-pointer" :title="s.isak + ' — ' + s.position">
-                                            <span class="text-sm text-ink" x-text="s.it"></span>
-                                            <input type="checkbox" style="accent-color: var(--al-bronze);"
-                                                   :checked="form.skinfolds.includes(s.key)"
-                                                   @change="toggleSkin(s.key, $event.target.checked)">
+                                        <label class="tb-msel"
+                                               :class="{'is-on': form.skinfolds.includes(s.key), 'is-locked': skinUsed(s.key)}"
+                                               :title="skinUsed(s.key) ? 'Già inclusa in un altro blocco antropometria' : (s.isak + ' — ' + s.position)">
+                                            <span class="tb-msel-name" x-text="s.it"></span>
+                                            <span class="flex items-center gap-2">
+                                                <span class="tb-locked-tag" x-show="skinUsed(s.key)">inclusa</span>
+                                                <input type="checkbox" class="tb-check"
+                                                       :checked="form.skinfolds.includes(s.key)"
+                                                       :disabled="skinUsed(s.key)"
+                                                       @change="toggleSkin(s.key, $event.target.checked)">
+                                            </span>
                                         </label>
                                     </template>
                                 </div>
@@ -717,21 +810,64 @@ function templateBuilder() {
             this.form.type = type;
             if (type === 'antropometria') {
                 if (!this.form.label.trim()) this.form.label = 'Antropometria';
-                this.form.weight = true;
+                // Se un altro blocco include già il peso, parti senza (evita doppione).
+                this.form.weight = !this.otherAntroKeys.weight;
                 this.form.circumferences = [];
                 this.form.skinfolds = [];
             }
             this.modalStep = 1;
         },
+        // Misure (circ/pliche/peso) già usate da ALTRI blocchi antropometria,
+        // così la stessa misura non può finire in due blocchi (req: no doppioni).
+        get otherAntroKeys() {
+            const circ = new Set(), skin = new Set();
+            let weight = false;
+            for (const q of this.questions) {
+                if (q.type !== 'antropometria' || q.id === this.editingQuestionId) continue;
+                (q.circumferences || []).forEach(k => circ.add(k));
+                (q.skinfolds || []).forEach(k => skin.add(k));
+                if (q.weight !== false) weight = true;
+            }
+            return { circ, skin, weight };
+        },
+        circUsed(storedKey) { return this.otherAntroKeys.circ.has(storedKey); },
+        skinUsed(key)       { return this.otherAntroKeys.skin.has(key); },
+        weightUsed()        { return this.otherAntroKeys.weight; },
+
         toggleCirc(key, on) {
+            if (on && this.circUsed(key)) return;   // bloccata: già in un altro blocco
             const set = new Set(this.form.circumferences);
             on ? set.add(key) : set.delete(key);
             this.form.circumferences = _orderBy([...set], CIRC_ORDER);
         },
         toggleSkin(key, on) {
+            if (on && this.skinUsed(key)) return;
             const set = new Set(this.form.skinfolds);
             on ? set.add(key) : set.delete(key);
             this.form.skinfolds = _orderBy([...set], SKIN_ORDER);
+        },
+
+        // Etichette raggruppate per la card: arti con entrambi i lati → una riga
+        // "Nome DX+SX"; un solo lato → "Nome DX" / "Nome SX" (req: riga unica).
+        antroCirc(q) {
+            const out = [], seen = new Set(), keys = q.circumferences || [];
+            for (const stored of keys) {
+                const base = stored.replace(/_(l|r)$/, '');
+                if (seen.has(base)) continue;
+                seen.add(base);
+                const c = CATALOG.circumferences.find(x => x.key === base);
+                const name = c ? c.it : base;
+                if (!c || !c.is_limb) { out.push(name); continue; }
+                const r = keys.includes(base + '_r'), l = keys.includes(base + '_l');
+                out.push(name + (r && l ? ' DX+SX' : r ? ' DX' : ' SX'));
+            }
+            return out;
+        },
+        antroSkin(q) {
+            return (q.skinfolds || []).map(k => {
+                const s = CATALOG.skinfolds.find(x => x.key === k);
+                return s ? s.it : k;
+            });
         },
         openEditModal(id) {
             const q = this.questions.find(q => q.id === id);

@@ -68,7 +68,7 @@
   </div>
 
   <!-- Loading skeleton -->
-  <div x-show="loading" class="al-timeline-empty" style="min-height: 360px;">
+  <div x-show="loading" class="al-timeline-empty" :style="`min-height:${trackHeight}px;`">
     <div style="width:32px;height:32px;border:2.5px solid var(--al-rule-strong);border-top-color:var(--al-bronze);border-radius:50%;animation:spin 0.8s linear infinite;opacity:.6;"></div>
     <p>Caricamento percorso…</p>
   </div>
@@ -98,7 +98,7 @@
           <!-- vertical dashed month line — January gets a stronger rule -->
           <div :style="`position:absolute; left:${m.x}px; top:0; bottom:0; width:1px; background:repeating-linear-gradient(to bottom, ${m.isJan ? 'var(--al-rule)' : 'var(--al-rule-faint)'} 0, ${m.isJan ? 'var(--al-rule)' : 'var(--al-rule-faint)'} 4px, transparent 4px, transparent 7px); pointer-events:none;`"></div>
           <!-- month label on the axis -->
-          <div :style="`position:absolute; left:${m.x + 6}px; top:${axisY + 12}px; font-family:'Bodoni Moda',serif; font-style:italic; font-size:${m.isJan ? '12.5px' : '11px'}; font-weight:${m.isJan ? '600' : '400'}; color:var(--al-bronze); white-space:nowrap; pointer-events:none; user-select:none;`"
+          <div :style="`position:absolute; left:${m.x + 6}px; top:${axisY + 16}px; font-family:'Bodoni Moda',serif; font-style:italic; font-size:${m.isJan ? '14px' : '12.5px'}; font-weight:${m.isJan ? '600' : '400'}; color:var(--al-bronze); white-space:nowrap; pointer-events:none; user-select:none;`"
                x-text="m.label"></div>
         </div>
       </template>
@@ -119,14 +119,14 @@
       </template>
 
       <!-- Central horizontal axis -->
-      <div class="al-tl-axis-line" :style="`position:absolute; left:0; right:0; top:${axisY}px; height:2px; background:var(--al-rule-strong); pointer-events:none;`"></div>
+      <div class="al-tl-axis-line" :style="`position:absolute; left:0; right:0; top:${axisY}px; height:3px; background:var(--al-rule-strong); pointer-events:none;`"></div>
 
       <!-- Event dots — collapsed by default, sitting ON the axis -->
       <template x-for="(ev, evIndex) in placedEvents" :key="ev.id">
         <button type="button"
                 class="al-tl-dot al-tl-enter"
                 :class="`type-${ev.type}` + (isOpen(ev) ? ' is-open' : '')"
-                :style="`left:${ev.x - 11}px; top:${axisY - 11}px; --i:${evIndex};`"
+                :style="`left:${ev.x - 14}px; top:${axisY - 14}px; --i:${evIndex};`"
                 :title="ev.title"
                 :aria-label="ev.meta.label + ': ' + ev.title"
                 @click="toggle(ev)">

@@ -14,6 +14,7 @@ from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, P
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import (
     circ_label, skin_label, order_circ_keys, order_skin_keys, catalog_json,
+    circ_pad, skin_pad, WEIGHT_PAD,
 )
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
@@ -127,7 +128,30 @@ def _antropometria_rows(q, response, prev_response):
             rows.append({**_measure_row('Peso corporeo', 'kg', val, prev), 'id': 'peso_corporeo'})
     curr_c = response.body_circumferences or {}
     prev_c = (prev_response.body_circumferences or {}) if prev_response else {}
-    for key in q.get('circumferences') or []:
+    q_circ = q.get('circumferences') or []
+    done = set()
+    for key in q_circ:
+        if key in done:
+            continue
+        # Arto con entrambi i lati nella domanda → riga doppia (DX | SX).
+        if key[-2:] in ('_l', '_r'):
+            base = key[:-2]
+            rkey, lkey = base + '_r', base + '_l'
+            if rkey in q_circ and lkey in q_circ:
+                done.update((rkey, lkey))
+                rv, lv = curr_c.get(rkey), curr_c.get(lkey)
+                has_r, has_l = rv not in (None, ''), lv not in (None, '')
+                if has_r and has_l:
+                    r = _measure_row('', 'cm', rv, prev_c.get(rkey)); r['tag'] = 'DX'
+                    l = _measure_row('', 'cm', lv, prev_c.get(lkey)); l['tag'] = 'SX'
+                    rows.append({'type': 'metrica_pair', 'id': 'circ::' + base,
+                                 'label': circ_label(base), 'unit': 'cm', 'sides': [r, l]})
+                    continue
+                # un solo lato compilato → riga singola per quel lato
+                side = rkey if has_r else lkey
+                if has_r or has_l:
+                    rows.append({**_measure_row(circ_label(side), 'cm', curr_c.get(side), prev_c.get(side)), 'id': 'circ::' + side})
+                continue
         val = curr_c.get(key)
         if val in (None, ''):
             continue
@@ -186,6 +210,10 @@ def _build_chart_data(target_client):
         'skin_keys': skin_keys,
         'circ_labels': {k: circ_label(k) for k in circ_keys},
         'skin_labels': {k: skin_label(k) for k in skin_keys},
+        # Semi-ampiezza asse Y per ogni metrica (grafici: niente partenza da 0).
+        'weight_pad': WEIGHT_PAD,
+        'circ_pad': {k: circ_pad(k) for k in circ_keys},
+        'skin_pad': {k: skin_pad(k) for k in skin_keys},
     }
 
 
@@ -747,6 +775,139 @@ def check_detail_view(request, response_id):
         'default_tab': default_tab,
     }
     return render(request, 'pages/check/detail.html', context)
+
+
+_BENESSERE_ALIASES = {
+    'benessere_umore':   'mood',
+    'benessere_dieta':   'diet_adherence',
+    'benessere_workout': 'workout_adherence',
+}
+_NOTE_FIELD_MAP = {
+    'note_messaggio':   'notes',
+    'note_infortuni':   'injuries',
+    'note_limitazioni': 'limitations',
+}
+
+
+def _build_prefill(response):
+    """Reverse a stored response back into raw_answers form (keyed as the
+    builder expects) so the coach edit form renders pre-filled. Walks the
+    template's questions_config — the source of truth for what's rendered.
+    Attachments are not re-editable here, so `allegato` is skipped."""
+    template = response.questionnaire_template
+    aj = response.answers_json or {}
+    circ = response.body_circumferences or {}
+    skin = response.skinfolds or {}
+    prefill = {}
+    for q in (template.questions_config or []):
+        qid = q.get('id')
+        qtype = q.get('type')
+        if qtype == 'antropometria':
+            if q.get('weight') and response.weight_kg not in (None, ''):
+                prefill['peso_corporeo'] = float(response.weight_kg)
+            for key in q.get('circumferences') or []:
+                v = circ.get(key)
+                if v not in (None, ''):
+                    prefill['circ::' + key] = v
+            for key in q.get('skinfolds') or []:
+                v = skin.get(key)
+                if v not in (None, ''):
+                    prefill['pl::' + key] = v
+            continue
+        if qtype == 'allegato':
+            continue
+        if qid in _BENESSERE_ALIASES:
+            v = aj.get(qid, aj.get(_BENESSERE_ALIASES[qid]))
+        elif qid in _NOTE_FIELD_MAP:
+            v = getattr(response, _NOTE_FIELD_MAP[qid], None)
+        elif qid in RESERVED_FIELD_MAP:
+            v = _get_q_value(qid, response)
+        else:
+            v = aj.get(qid)
+        if v not in (None, ''):
+            prefill[qid] = v
+    return prefill
+
+
+def check_edit_view(request, response_id):
+    """Coach edits the athlete-filled data of an existing response.
+
+    The check date (`submitted_at`) is intentionally never modified — it
+    orients the time-series in the progress charts — only the compiled
+    values are altered. Review status is left untouched."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+    try:
+        response = QuestionnaireResponse.objects.select_related(
+            'client', 'coach', 'questionnaire_template'
+        ).get(id=response_id, coach=coach)
+    except QuestionnaireResponse.DoesNotExist:
+        return redirect('check_dashboard')
+
+    template = response.questionnaire_template
+    if not template:
+        return redirect('check_detail', response_id=response.id)
+
+    if request.method == 'GET':
+        return render(request, 'pages/check/builder.html', {
+            'client': response.client,
+            'coach': coach,
+            'template': template,
+            'response': response,
+            'is_edit': True,
+            'check_title': template.title,
+            'questions_config_json': json.dumps(template.questions_config or []),
+            'steps_config_json': json.dumps(template.steps_config or []),
+            'catalog_json': json.dumps(catalog_json()),
+            'prefill_json': json.dumps(_build_prefill(response)),
+        })
+
+    # ── POST ───────────────────────────────────────────────────────
+    try:
+        raw_answers = json.loads(request.POST.get('answers_json', '{}'))
+    except json.JSONDecodeError:
+        return redirect('check_detail', response_id=response.id)
+
+    questions_config = template.questions_config or []
+
+    def _parse_metric(val):
+        try:
+            v = float(val or 0)
+            return str(round(v, 1)) if v > 0 else ''
+        except (ValueError, TypeError):
+            return ''
+
+    weight_kg, body_circumferences, skinfolds = build_measurements(
+        raw_answers, questions_config, _parse_metric)
+
+    answers_json = {
+        'mood': raw_answers.get('benessere_umore', ''),
+        'diet_adherence': raw_answers.get('benessere_dieta', ''),
+        'workout_adherence': raw_answers.get('benessere_workout', ''),
+    }
+    for k, v in raw_answers.items():
+        if k == 'peso_corporeo' or k in RESERVED_FIELD_MAP \
+                or k.startswith('circ::') or k.startswith('pl::'):
+            continue
+        answers_json.setdefault(k, v)
+
+    response.weight_kg = weight_kg
+    response.body_circumferences = body_circumferences
+    response.skinfolds = skinfolds
+    response.answers_json = answers_json
+    response.injuries = raw_answers.get('note_infortuni', '')
+    response.limitations = raw_answers.get('note_limitazioni', '')
+    response.notes = raw_answers.get('note_messaggio', '')
+    # submitted_at intentionally NOT updated — it anchors the chart timeline.
+    response.save(update_fields=[
+        'weight_kg', 'body_circumferences', 'skinfolds', 'answers_json',
+        'injuries', 'limitations', 'notes', 'updated_at',
+    ])
+    return redirect('check_detail', response_id=response.id)
 
 
 def client_check_history_view(request, client_id):

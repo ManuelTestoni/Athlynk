@@ -31,7 +31,7 @@
   const DOT_GAP     = 18;   // min px between dots before nudging
   const CARD_W      = 220;  // expanded card width
   const PHASE_MIN_W = 26;   // minimum visible width of a phase band (px)
-  const PHASE_H     = 74;   // height of a phase band, centred on the axis
+  const PHASE_H     = 132;  // height of a phase band, centred on the axis
 
   window.percorsoTimeline = function (opts) {
     return {
@@ -53,8 +53,8 @@
       loading:      false,
       saving:       false,
       trackWidth:   800,
-      trackHeight:  320,
-      axisY:        160,
+      trackHeight:  198,
+      axisY:        92,
       popPos:       { left: 0, bottom: 0 },   // viewport coords for the teleported popover
 
       /* ── add-phase form ── */
@@ -70,7 +70,7 @@
 
       /* ── lifecycle ── */
       init() {
-        this.axisY = Math.round(this.trackHeight / 2);
+        this._computeHeight();
         this.fetchEvents();
         this.$nextTick(() => this._initDragScroll());
         // close the open card / phase / form on Esc
@@ -165,7 +165,7 @@
         if (this._moved) return;
         this.openId = null;
         this.openPhaseId = this.openPhaseId === ph.id ? null : ph.id;
-        if (this.openPhaseId) this.$nextTick(() => this._setPopPos(ph.x + ph.w / 2, PHASE_H / 2 + 10));
+        if (this.openPhaseId) this.$nextTick(() => this._setPopPos(ph.x + ph.w / 2, this.phaseHeight() / 2 + 10));
       },
 
       /* position the body-teleported popover above its anchor, in viewport
@@ -194,8 +194,15 @@
         const el = this.$refs.scrollContainer;
         const viewportW = (el && el.clientWidth) ? el.clientWidth : 1000;
 
+        this._computeHeight();
+
         const wStart = new Date(this.windowStart);
-        const wEnd   = new Date(this.windowEnd);
+        let   wEnd   = new Date(this.windowEnd);
+        // The scroll horizon always reaches one year past the latest activity.
+        // A phase added live (or its end date) pushes the horizon out right
+        // away, without waiting for a reload.
+        const plusYear = (iso) => { const d = new Date(iso); d.setFullYear(d.getFullYear() + 1); return d; };
+        this.phases.forEach((p) => { const e = plusYear(p.end); if (e > wEnd) wEnd = e; });
         const totalDays = Math.max(1, (wEnd - wStart) / 86400000);
 
         // px/day so that MONTHS_PER_VIEW months exactly fill the viewport.
@@ -267,8 +274,19 @@
         return d.getDate() + ' ' + MONTH_NAMES_IT[d.getMonth()] + ' ' + d.getFullYear();
       },
 
-      phaseTop()  { return this.axisY - PHASE_H / 2; },
+      phaseTop()  { return this.axisY - this.phaseHeight() / 2; },
       phaseHeight() { return PHASE_H; },
+
+      /* track height is content-driven (not viewport-driven), so the container
+         hugs the timeline exactly — no dead band of page background below it.
+         room above the axis clears the phase flag + dots; room below clears the
+         phase band + month labels. */
+      _computeHeight() {
+        const phaseH = this.phaseHeight();
+        const labelRoom = 40;                              // month labels below the axis
+        this.axisY = Math.round(phaseH / 2 + 26);          // clearance above
+        this.trackHeight = this.axisY + Math.round(phaseH / 2) + labelRoom;
+      },
       durationLabel(ph) {
         const u = ph.duration_unit === 'MONTHS'
           ? (ph.duration_value === 1 ? 'mese' : 'mesi')
@@ -327,7 +345,7 @@
           this.$nextTick(() => {
             this.openPhaseId = d.id;
             const ph = this.openPhase();
-            if (ph) this._setPopPos(ph.x + ph.w / 2, PHASE_H / 2 + 10);
+            if (ph) this._setPopPos(ph.x + ph.w / 2, this.phaseHeight() / 2 + 10);
           });
         } catch (err) {
           this.formError = 'Errore di rete. Riprova.';
