@@ -1,0 +1,7 @@
+// Production build configuration. Use the PRODUCTION PostHog project key — never
+// share it with Debug/Staging, so test traffic stays out of production analytics.
+
+API_BASE_URL = https:$()//api.athlynk.app
+POSTHOG_API_KEY =
+POSTHOG_HOST = https:$()//eu.i.posthog.com
+ENVIRONMENT = production

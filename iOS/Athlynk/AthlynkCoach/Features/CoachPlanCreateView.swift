@@ -246,6 +246,7 @@ struct CoachPlanCreateView: View {
                 if let k = Int(kcal) { payload["daily_kcal"] = k }
                 _ = try await APIClient.shared.coachCreateNutrition(payload)
             }
+            Analytics.shared.capture(.planUpdated, ["kind": kind == .workout ? "workout" : "nutrition"])
             flash.success("Bozza creata")
             try? await Task.sleep(for: .seconds(1.2))
             dismiss()

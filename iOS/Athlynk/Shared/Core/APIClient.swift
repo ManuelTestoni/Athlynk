@@ -28,8 +28,9 @@ enum APIError: LocalizedError {
 final class APIClient {
     static let shared = APIClient()
 
-    /// Override-able so a physical device can point at the host's LAN IP.
-    var baseURL = "http://localhost:8000"
+    /// Resolved per build config from Info.plist (see AppConfig). Override-able
+    /// so a physical device can point at the host's LAN IP.
+    var baseURL = AppConfig.apiBaseURL
     var token: String?
 
     private let session: URLSession = {

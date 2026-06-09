@@ -708,3 +708,87 @@ struct CoachStartConversationResponse: Codable {
 }
 
 struct CoachAppointmentResponse: Codable { let appointment: CoachAgendaItem }
+
+// MARK: - Business analytics + churn risk
+
+/// KPI snapshot. All values optional Doubles (counts decode from JSON ints too)
+/// so a not-yet-computed metric renders as a dash rather than failing decode.
+struct CoachBusinessKPIs: Codable {
+    let activeClientsCount: Double?
+    let atRiskClientsCount: Double?
+    let renewalsDue7d: Double?
+    let churnRate30d: Double?
+    let monthlyRevenue: Double?
+    let revenuePerActiveClient: Double?
+    let slaAdherenceRate: Double?
+    let backlogOpenReviews: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case activeClientsCount = "active_clients_count"
+        case atRiskClientsCount = "at_risk_clients_count"
+        case renewalsDue7d = "renewals_due_7d"
+        case churnRate30d = "churn_rate_30d"
+        case monthlyRevenue = "monthly_revenue"
+        case revenuePerActiveClient = "revenue_per_active_client"
+        case slaAdherenceRate = "sla_adherence_rate"
+        case backlogOpenReviews = "backlog_open_reviews"
+    }
+}
+
+struct CoachMetricPoint: Codable, Identifiable {
+    var id: String { snapshotDate }
+    let snapshotDate: String
+    let atRiskClientsCount: Int
+    let avgRiskScore: Double
+
+    enum CodingKeys: String, CodingKey {
+        case snapshotDate = "snapshot_date"
+        case atRiskClientsCount = "at_risk_clients_count"
+        case avgRiskScore = "avg_risk_score"
+    }
+}
+
+struct CoachBusinessDTO: Codable {
+    let snapshotDate: String?
+    let kpis: CoachBusinessKPIs
+    let series: [CoachMetricPoint]
+    enum CodingKeys: String, CodingKey {
+        case snapshotDate = "snapshot_date"
+        case kpis, series
+    }
+}
+
+struct CoachRiskReason: Codable, Identifiable, Hashable {
+    var id: String { code }
+    let code: String
+    let label: String
+}
+
+struct CoachRiskClient: Codable, Identifiable {
+    let id: Int
+    let displayName: String
+    let profileImageUrl: String?
+    let riskScore: Int
+    let riskClass: String
+    let riskProbabilityMl: Double?
+    let reasons: [CoachRiskReason]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+        case profileImageUrl = "profile_image_url"
+        case riskScore = "risk_score"
+        case riskClass = "risk_class"
+        case riskProbabilityMl = "risk_probability_ml"
+        case reasons
+    }
+}
+
+struct CoachRiskResponse: Codable {
+    let snapshotDate: String?
+    let clients: [CoachRiskClient]
+    enum CodingKeys: String, CodingKey {
+        case snapshotDate = "snapshot_date"
+        case clients
+    }
+}

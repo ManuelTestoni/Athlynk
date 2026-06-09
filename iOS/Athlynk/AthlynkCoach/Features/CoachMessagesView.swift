@@ -185,6 +185,7 @@ struct CoachThreadView: View {
             } else if let res = try? await APIClient.shared.coachMessages(conversation: conversation.id) {
                 messages = res.messages
             }
+            Analytics.shared.capture(.messageSent, ["conversation_id": conversation.id])
             Haptics.tap()
         } catch { Haptics.error(); draft = body }
     }

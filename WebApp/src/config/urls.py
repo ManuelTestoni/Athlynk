@@ -69,6 +69,7 @@ urlpatterns = [
     path('api/newsletter/toggle/', views_newsletter.toggle_subscription, name='newsletter_toggle'),
     
     path('', views.dashboard_view, name='dashboard'),
+    path('analisi/', views.coach_analytics_view, name='analytics_business_page'),
 
     # Clienti (coach)
     path('clienti/', views_client.coach_clients_list_view, name='clienti_list'),
@@ -329,6 +330,9 @@ urlpatterns = [
     path('api/v1/coach/subscriptions', coach_api.subscriptions, name='api_v1_coach_subscriptions'),
     path('api/v1/coach/resources', coach_api.resources, name='api_v1_coach_resources'),
     path('api/v1/coach/analytics', coach_api.analytics, name='api_v1_coach_analytics'),
+    path('api/v1/coach/analytics/business', coach_api.analytics_business, name='api_v1_coach_analytics_business'),
+    path('api/v1/coach/analytics/risk', coach_api.analytics_risk, name='api_v1_coach_analytics_risk'),
+    path('api/v1/coach/analytics/client/<int:client_id>/risk', coach_api.analytics_client_risk, name='api_v1_coach_analytics_client_risk'),
     path('api/v1/coach/auto-messages', coach_api.auto_messages, name='api_v1_coach_auto_messages'),
     path('api/v1/coach/messageable-clients', coach_api.messageable_clients, name='api_v1_coach_messageable_clients'),
     path('api/v1/coach/conversations/start', coach_api.start_conversation, name='api_v1_coach_start_conversation'),

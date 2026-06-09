@@ -64,6 +64,15 @@ extension APIClient {
         try decode(CoachAnalyticsDTO.self, from: try await request("/api/v1/coach/analytics"))
     }
 
+    func coachAnalyticsBusiness() async throws -> CoachBusinessDTO {
+        try decode(CoachBusinessDTO.self, from: try await request("/api/v1/coach/analytics/business"))
+    }
+
+    func coachAnalyticsRisk(riskClass: String = "all") async throws -> CoachRiskResponse {
+        try decode(CoachRiskResponse.self,
+                   from: try await request("/api/v1/coach/analytics/risk?class=\(riskClass)"))
+    }
+
     func coachConversations() async throws -> [CoachConversation] {
         try decode(CoachConversationsResponse.self, from: try await request("/api/v1/coach/conversations")).conversations
     }

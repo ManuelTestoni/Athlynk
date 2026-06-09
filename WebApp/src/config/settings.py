@@ -26,6 +26,27 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv(
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 CONSENT_VERSION = config('CONSENT_VERSION', default='2026-05-13.v1')
 
+# --- Analytics / PostHog / churn-prediction ---------------------------------
+# Behavioural analytics + the coach risk dashboard. Everything degrades to a
+# safe no-op when the keys are unset, so this ships dark until configured.
+#   ANALYTICS_ENVIRONMENT  development | staging | production (tags every row/event)
+#   POSTHOG_KEY            project write key; empty -> client + server capture off
+#   POSTHOG_HOST          EU cloud by default
+#   POSTHOG_PERSONAL_API_KEY  read key for HogQL feature enrichment; empty -> DB proxies
+#   ANALYTICS_SLA_MINUTES  coach first-response SLA (rule engine + KPI), default 24h
+#   TEST_ACCOUNT_EMAILS / INTERNAL_EMAIL_DOMAINS  governance allowlists
+ANALYTICS_ENVIRONMENT = config('ANALYTICS_ENVIRONMENT', default='development')
+POSTHOG_KEY = config('POSTHOG_KEY', default='')
+POSTHOG_HOST = config('POSTHOG_HOST', default='https://eu.i.posthog.com')
+POSTHOG_PERSONAL_API_KEY = config('POSTHOG_PERSONAL_API_KEY', default='')
+POSTHOG_PROJECT_ID = config('POSTHOG_PROJECT_ID', default='')
+ANALYTICS_SLA_MINUTES = config('ANALYTICS_SLA_MINUTES', default=1440, cast=int)
+ANALYTICS_APP_VERSION = config('ANALYTICS_APP_VERSION', default='web')
+TEST_ACCOUNT_EMAILS = config('TEST_ACCOUNT_EMAILS', default='', cast=Csv())
+INTERNAL_EMAIL_DOMAINS = config('INTERNAL_EMAIL_DOMAINS', default='', cast=Csv())
+# Where trained model artifacts live (gitignored).
+ANALYTICS_MODELS_DIR = BASE_DIR / 'analytics_models'
+
 # --- Apple Push Notifications (APNs) ----------------------------------------
 # All optional. When the auth key / IDs are unset, push delivery is a silent
 # no-op (see config.services.push) so the app runs untouched until the real
@@ -87,6 +108,7 @@ INSTALLED_APPS = [
     'domain.newsletter',
     'domain.consent',
     'domain.chiron',
+    'domain.analytics',
 ]
 
 MIDDLEWARE = [
@@ -114,6 +136,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'config.context_processors.identity_context',
+                'config.context_processors.posthog',
             ],
         },
     },

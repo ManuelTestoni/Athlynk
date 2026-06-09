@@ -1,0 +1,11 @@
+// Debug (local development) build configuration.
+// Assign in Xcode: Project ▸ Info ▸ Configurations ▸ Debug → these files, then
+// reference the keys from each target's Info.plist (see Config/README.md).
+//
+// Note: '//' inside values must be escaped as '$()//' in xcconfig. The base URL
+// below uses the escape so the scheme isn't truncated.
+
+API_BASE_URL = http:$()//localhost:8000
+POSTHOG_API_KEY =
+POSTHOG_HOST = https:$()//eu.i.posthog.com
+ENVIRONMENT = development

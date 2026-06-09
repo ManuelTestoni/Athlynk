@@ -122,3 +122,15 @@ def dashboard_view(request):
         return render(request, 'pages/dashboard_client.html', context)
 
     return redirect('login')
+
+
+def coach_analytics_view(request):
+    """Business analytics + churn-risk dashboard. Data is fetched client-side
+    from /api/v1/coach/analytics/* (see static/js/coach_business_analytics.js)."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('dashboard')
+    return render(request, 'pages/analytics/business.html', {'coach': coach})

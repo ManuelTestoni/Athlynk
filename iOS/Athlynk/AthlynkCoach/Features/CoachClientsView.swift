@@ -53,7 +53,7 @@ struct CoachClientsView: View {
                 }
             }
             .navigationDestination(for: Int.self) { CoachClientDetailView(clientId: $0) }
-            .task { await load() }
+            .task { Analytics.shared.capture(.clientListViewed); await load() }
             .onRemoteChange { Task { await load() } }
             .refreshable { await load() }
         }

@@ -105,6 +105,7 @@
             }
         }
     </script>
+    {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
 </head>
 <body x-data="{ sidebarOpen: false }" class="h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}">
@@ -191,6 +192,12 @@
                    class="al-nav-link {% if s == 'abbonamenti' %}is-active{% endif %}">
                     <i class="ph ph-credit-card"></i>
                     <span>Abbonamenti</span>
+                </a>
+
+                <a href="{% url 'analytics_business_page' %}"
+                   class="al-nav-link {% if s == 'analisi' %}is-active{% endif %}">
+                    <i class="ph ph-chart-pie-slice"></i>
+                    <span>Analisi</span>
                 </a>
 
                 {% elif is_client %}
@@ -288,7 +295,7 @@
                         <p class="al-tag" style="color: rgba(244,239,228,0.4); font-size: 9px;">{% if is_client %}Atleta{% elif is_coach %}{% if coach.professional_type == 'ALLENATORE' %}Allenatore{% elif coach.professional_type == 'NUTRIZIONISTA' %}Nutrizionista{% else %}Coach{% endif %}{% else %}Guest{% endif %}</p>
                     </div>
                 </a>
-                <a href="{% url 'logout' %}" class="text-parchment/30 hover:text-bronze-light p-1.5 transition-colors" title="Esci">
+                <a href="{% url 'logout' %}" onclick="if(window.athlynkPosthogReset)window.athlynkPosthogReset();" class="text-parchment/30 hover:text-bronze-light p-1.5 transition-colors" title="Esci">
                     <i class="ph ph-sign-out text-lg"></i>
                 </a>
             </div>

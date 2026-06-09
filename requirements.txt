@@ -1,3 +1,13 @@
+# --- Coach analytics + churn prediction (domain.analytics) ---
+# Server-side PostHog capture + the XGBoost risk pipeline. The app degrades to a
+# no-op without POSTHOG_KEY, and the ML commands import these lazily, so the web
+# app still boots if they are absent — but production should install them.
+posthog==3.7.0
+pandas==2.2.3
+scikit-learn==1.5.2
+xgboost==2.1.2
+joblib==1.4.2
+# --- end analytics deps ---
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.5
 aiosignal==1.4.0

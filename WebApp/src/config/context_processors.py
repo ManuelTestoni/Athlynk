@@ -32,6 +32,8 @@ def _get_current_section(path):
         return 'check'
     if path.startswith('/abbonamenti'):
         return 'abbonamenti'
+    if path.startswith('/analisi'):
+        return 'analisi'
     if path.startswith('/il-mio-percorso'):
         return 'percorso'
     if path.startswith('/il-mio-coach') or path.startswith('/il-mio-specialista'):
@@ -57,6 +59,49 @@ def identity_context(request):
     ctx['CONSENT_VERSION'] = getattr(settings, 'CONSENT_VERSION', '')
     ctx['cookie_consent_needed'] = _cookie_consent_needed(request, user)
     ctx['ASSET_VERSION'] = _asset_version()
+    return ctx
+
+
+def posthog(request):
+    """Expose PostHog config + the identify payload to templates.
+
+    The snippet (templates/partials/posthog.html) only initialises when
+    ``posthog_enabled`` is true (a key is set) AND the user granted analytics
+    consent. Internal/test users are tagged via super-properties so they can be
+    filtered/excluded downstream. Everything is empty/false when unconfigured,
+    so the app ships dark until keys are added.
+    """
+    key = getattr(settings, 'POSTHOG_KEY', '')
+    ctx = {
+        'posthog_enabled': bool(key),
+        'posthog_key': key,
+        'posthog_host': getattr(settings, 'POSTHOG_HOST', 'https://eu.i.posthog.com'),
+        'posthog_identify': None,
+    }
+    if not key:
+        return ctx
+
+    user = get_session_user(request)
+    if user is None:
+        return ctx
+
+    from domain.analytics.events import EVENT_VERSION
+    from domain.analytics.services.identity import current_environment, resolve_flags
+    flags = resolve_flags(user)
+    coach = getattr(user, 'coach_profile', None)
+    ctx['posthog_identify'] = {
+        'distinct_id': f'user:{user.id}',
+        'props': {
+            'event_version': EVENT_VERSION,
+            'environment': current_environment(),
+            'platform': 'web',
+            'app_version': getattr(settings, 'ANALYTICS_APP_VERSION', 'web'),
+            'role': user.role,
+            'coach_id': coach.id if coach else None,
+            'is_internal_user': flags['is_internal_user'],
+            'is_test_account': flags['is_test_account'],
+        },
+    }
     return ctx
 
 

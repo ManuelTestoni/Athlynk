@@ -35,6 +35,7 @@ from domain.workouts.models import (
 
 from .api import (
     api_view, _body, _iso, _abs_media, _coach_dict, _message_dict,
+    coach_dual_auth, _request_coach,
 )
 from .session_utils import can_manage_nutrition, can_manage_workouts
 
@@ -1220,3 +1221,110 @@ def start_conversation(request, user):
         title=f'Nuovo messaggio da {coach.first_name}', body=body[:140], link_url='/chat/',
     )
     return JsonResponse({'conversation_id': conv.id, 'message_id': msg.id}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Business analytics + churn risk (coach dashboard)
+#
+# Dual-auth: the same endpoints serve the iOS coach app (Bearer token) and the
+# web dashboard (session cookie) via ``coach_dual_auth`` + ``_request_coach``.
+# Numbers come from the nightly rollups (``domain.analytics``); this layer only
+# reads and shapes them for the UI.
+# ---------------------------------------------------------------------------
+
+from domain.analytics.models import (  # noqa: E402
+    CoachBusinessMetricsDaily, DailyFeatureStore, RiskScoreDaily,
+)
+from domain.analytics.services import rules_engine as _rules  # noqa: E402
+
+_BUSINESS_FIELDS = [
+    'active_clients_count', 'renewals_due_7d', 'renewals_completed_30d',
+    'churn_rate_30d', 'avg_first_response_minutes', 'sla_adherence_rate',
+    'backlog_open_reviews', 'payment_failure_rate', 'at_risk_clients_count',
+    'avg_risk_score', 'monthly_revenue', 'revenue_per_active_client',
+]
+
+
+def _reasons_payload(codes):
+    return [{'code': c, 'label': _rules.label_for(c)} for c in (codes or [])]
+
+
+@coach_dual_auth
+def analytics_business(request):
+    """Latest KPI snapshot + a 30-day trend series for the acting coach."""
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+
+    latest = (CoachBusinessMetricsDaily.objects
+              .filter(coach=coach).order_by('-snapshot_date').first())
+    kpis = {f: None for f in _BUSINESS_FIELDS}
+    snapshot = None
+    if latest:
+        snapshot = latest.snapshot_date.isoformat()
+        for f in _BUSINESS_FIELDS:
+            v = getattr(latest, f)
+            kpis[f] = float(v) if hasattr(v, 'is_finite') or isinstance(v, float) else v
+
+    series = list(
+        CoachBusinessMetricsDaily.objects
+        .filter(coach=coach).order_by('-snapshot_date')[:30]
+        .values('snapshot_date', 'active_clients_count', 'at_risk_clients_count',
+                'avg_risk_score', 'monthly_revenue')
+    )[::-1]
+    for p in series:
+        p['snapshot_date'] = p['snapshot_date'].isoformat()
+        p['monthly_revenue'] = float(p['monthly_revenue'])
+
+    return JsonResponse({'snapshot_date': snapshot, 'kpis': kpis, 'series': series})
+
+
+@coach_dual_auth
+def analytics_risk(request):
+    """At-risk clients from the latest scored day. ?class=high|medium|all (default all)."""
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+
+    latest_day = (RiskScoreDaily.objects.filter(coach=coach)
+                  .order_by('-snapshot_date').values_list('snapshot_date', flat=True).first())
+    if not latest_day:
+        return JsonResponse({'snapshot_date': None, 'clients': []})
+
+    rows = (RiskScoreDaily.objects
+            .filter(coach=coach, snapshot_date=latest_day)
+            .select_related('client', 'client__user').order_by('-risk_score_rule_based'))
+
+    wanted = (request.GET.get('class') or 'all').lower()
+    if wanted in ('high', 'medium', 'low'):
+        rows = rows.filter(risk_class=wanted)
+
+    out = []
+    for r in rows:
+        brief = _client_brief(request, r.client)
+        brief.update({
+            'risk_score': r.risk_score_rule_based,
+            'risk_class': r.risk_class,
+            'risk_probability_ml': r.risk_probability_ml,
+            'model_version': r.model_version or None,
+            'reasons': _reasons_payload(r.top_reason_codes),
+        })
+        out.append(brief)
+    return JsonResponse({'snapshot_date': latest_day.isoformat(), 'clients': out})
+
+
+@coach_dual_auth
+def analytics_client_risk(request, client_id):
+    """Per-client risk history (sparkline) for the acting coach."""
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+
+    history = list(
+        RiskScoreDaily.objects
+        .filter(coach=coach, client_id=client_id).order_by('snapshot_date')
+        .values('snapshot_date', 'risk_score_rule_based', 'risk_class', 'risk_probability_ml')
+    )
+    for h in history:
+        h['snapshot_date'] = h['snapshot_date'].isoformat()
+    return JsonResponse({'client_id': client_id, 'history': history})

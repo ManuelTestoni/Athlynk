@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Analisi{% endblock %}
+{% block page_id %}analisi{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" x-data="coachBusinessAnalytics()" x-init="init()">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-5 mb-10">
+        <div>
+            <p class="al-eyebrow mb-3">Studio &middot; Analisi &amp; Rischio</p>
+            <h1 class="al-h-1">Andamento dello <span class="al-display-i">studio</span></h1>
+            <p class="al-body mt-2 max-w-xl">KPI di business, aderenza al servizio e clienti a rischio di abbandono, con il motivo del rischio spiegato.</p>
+            <div class="al-rule-bronze mt-5"></div>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+            <span class="al-mono text-ink-mute text-xs" x-show="snapshotDate" x-cloak>
+                Aggiornato al <span x-text="snapshotDate"></span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Empty state: no rollup yet -->
+    <div x-show="!loading && !hasData" x-cloak class="al-card al-card-aegean p-10 text-center mb-10">
+        <i class="ph ph-chart-pie-slice text-4xl text-bronze-light"></i>
+        <h3 class="al-h-3 mt-4">Nessun dato ancora</h3>
+        <p class="al-body mt-2 max-w-md mx-auto">Le metriche vengono calcolate dal job notturno.
+            Esegui <code class="al-mono">python manage.py run_daily_analytics</code> per popolare la dashboard.</p>
+    </div>
+
+    <!-- KPI grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12" x-show="hasData" x-cloak>
+        <template x-for="kpi in kpiCards" :key="kpi.key">
+            <div class="al-kpi">
+                <div class="al-kpi-label" x-text="kpi.label"></div>
+                <div class="al-kpi-num" x-text="kpi.value"></div>
+                <div class="al-kpi-meta flex items-center gap-2">
+                    <i class="ph" :class="kpi.icon"></i>
+                    <span x-text="kpi.meta"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Trend + risk split -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-show="hasData" x-cloak>
+
+        <!-- Trend chart -->
+        <div class="al-card lg:col-span-2">
+            <div class="al-card-head">
+                <h3 class="al-h-3">Andamento (30 giorni)</h3>
+                <div class="flex gap-2">
+                    <button class="al-chip" :class="trendMetric==='at_risk_clients_count' && 'is-active'"
+                            @click="setTrend('at_risk_clients_count')">A rischio</button>
+                    <button class="al-chip" :class="trendMetric==='active_clients_count' && 'is-active'"
+                            @click="setTrend('active_clients_count')">Attivi</button>
+                    <button class="al-chip" :class="trendMetric==='avg_risk_score' && 'is-active'"
+                            @click="setTrend('avg_risk_score')">Risk score</button>
+                </div>
+            </div>
+            <div class="al-card-body">
+                <div style="position:relative; height:280px;"><canvas id="businessTrendChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Risk class breakdown -->
+        <div class="al-card al-card-dark">
+            <div class="al-card-head"><h3 class="al-h-3">Rischio clienti</h3></div>
+            <div class="al-card-body space-y-4">
+                <template x-for="b in riskBreakdown" :key="b.cls">
+                    <button class="w-full flex items-center justify-between p-3 rounded-al-md transition"
+                            :class="riskFilter===b.cls ? 'bg-bronze/15' : 'hover:bg-parchment/5'"
+                            @click="setRiskFilter(b.cls)">
+                        <span class="flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 rounded-full" :class="b.dot"></span>
+                            <span class="al-body" x-text="b.label"></span>
+                        </span>
+                        <span class="al-display text-2xl" x-text="b.count"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- At-risk client table -->
+    <div class="al-card mt-6" x-show="hasData" x-cloak>
+        <div class="al-card-head">
+            <h3 class="al-h-3">Clienti a rischio
+                <span class="al-mono text-ink-mute text-xs" x-show="riskFilter!=='all'"
+                      x-text="'· ' + riskFilterLabel"></span>
+            </h3>
+        </div>
+        <div class="al-card-body">
+            <div x-show="riskClients.length===0" class="al-body text-ink-mute py-6 text-center">
+                Nessun cliente in questa fascia di rischio. Ottimo lavoro.
+            </div>
+            <table class="al-table" x-show="riskClients.length>0">
+                <thead>
+                    <tr>
+                        <th>Atleta</th>
+                        <th>Rischio</th>
+                        <th>Motivi</th>
+                        <th class="al-table-num">Score</th>
+                        <th class="al-table-num">ML</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="c in riskClients" :key="c.id">
+                        <tr>
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <span class="al-avatar al-avatar-sm" x-text="initials(c.display_name)"></span>
+                                    <span class="al-body font-medium" x-text="c.display_name"></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span :class="riskTagClass(c.risk_class)" x-text="riskLabel(c.risk_class)"></span>
+                            </td>
+                            <td>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <template x-for="r in c.reasons" :key="r.code">
+                                        <span class="al-chip" x-text="r.label"></span>
+                                    </template>
+                                </div>
+                            </td>
+                            <td class="al-table-num al-display" x-text="c.risk_score"></td>
+                            <td class="al-table-num al-mono" x-text="c.risk_probability_ml!==null ? Math.round(c.risk_probability_ml*100)+'%' : '—'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/coach_business_analytics.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endblock %}

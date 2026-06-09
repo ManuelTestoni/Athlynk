@@ -68,6 +68,10 @@ struct CoachMainTabView: View {
                 .opacity(app.tabBarHidden ? 0 : 1)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
         }
+        .task { Analytics.shared.screen("coach_\(tab.title.lowercased())") }
+        .onChange(of: tab) { _, newTab in
+            Analytics.shared.screen("coach_\(newTab.title.lowercased())")
+        }
     }
 
     private var tabPalette: [Color] {

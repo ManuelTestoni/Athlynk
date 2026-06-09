@@ -42,6 +42,9 @@ final class AppState: ObservableObject {
             self.avatarUrl = me.profile?.imageUrl
             showChiron = me.user.needsChironIntro
             phase = .app
+            Analytics.shared.configure()
+            Analytics.shared.identify(userId: me.user.id, role: me.user.role, coachId: nil)
+            Analytics.shared.capture(.appOpened)
             enablePushNotifications()
         } catch {
             // Token stale / server down → back to login.
@@ -63,7 +66,13 @@ final class AppState: ObservableObject {
             me = try? await api.me()
             avatarUrl = me?.profile?.imageUrl
             // Prefer the richer /me payload, but fall back to the login user.
-            showChiron = (me?.user ?? res.user).needsChironIntro
+            let identified = me?.user ?? res.user
+            showChiron = identified.needsChironIntro
+            Analytics.shared.configure()
+            Analytics.shared.identify(userId: identified.id, role: identified.role, coachId: nil)
+            if identified.role.uppercased() == "COACH" {
+                Analytics.shared.capture(.coachLoggedIn)
+            }
             Haptics.success()
             withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) { phase = .app }
             enablePushNotifications()
@@ -74,6 +83,7 @@ final class AppState: ObservableObject {
     }
 
     func logout() {
+        Analytics.shared.reset()
         api.token = nil
         Keychain.delete(tokenKey)
         user = nil

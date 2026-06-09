@@ -9,6 +9,11 @@ class User(models.Model):
     email_verification_token = models.CharField(max_length=128, blank=True, default='', db_index=True)
     email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
+    # Analytics governance: keep staff/test traffic out of production numbers and
+    # PostHog. Either flag (or an env allowlist match) excludes the user from the
+    # ML dataset and KPI rollups and tags their events. See domain.analytics.
+    is_internal_user = models.BooleanField(default=False)
+    is_test_account = models.BooleanField(default=False)
     # First-login mascot tutorial: True once the client has met Chiron. Shown once.
     chiron_intro_seen = models.BooleanField(default=False)
     # Per-notification opt-in flags. Settings page exposes one toggle per key.

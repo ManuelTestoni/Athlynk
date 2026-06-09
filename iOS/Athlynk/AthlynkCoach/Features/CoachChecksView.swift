@@ -102,7 +102,11 @@ struct CoachCheckDetailView: View {
         .statusOverlay(flash)
         .onAppear { app.tabBarHidden = true }
         .onDisappear { app.tabBarHidden = false }
-        .task { await load() }
+        .task {
+            Analytics.shared.capture(.checkinOpened, ["check_id": responseId])
+            Analytics.shared.capture(.checkinReviewStarted, ["check_id": responseId])
+            await load()
+        }
     }
 
     private func clientHeader(_ d: CoachCheckDetailDTO) -> some View {
@@ -231,6 +235,7 @@ struct CoachCheckDetailView: View {
             try await APIClient.shared.coachSendFeedback(
                 checkId: responseId, feedback: feedback, privateNotes: privateNotes)
             Haptics.success(); sent = true
+            Analytics.shared.capture(.checkinReviewCompleted, ["check_id": responseId])
             flash.success("Feedback inviato")
         } catch {
             Haptics.error()
