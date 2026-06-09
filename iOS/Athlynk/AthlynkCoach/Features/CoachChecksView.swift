@@ -75,6 +75,8 @@ struct CoachChecksView: View {
 struct CoachCheckDetailView: View {
     let responseId: Int
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var app: AppState
+    @StateObject private var flash = StatusFlash()
     @State private var data: CoachCheckDetailDTO?
     @State private var loading = true
     @State private var feedback = ""
@@ -97,6 +99,9 @@ struct CoachCheckDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .statusOverlay(flash)
+        .onAppear { app.tabBarHidden = true }
+        .onDisappear { app.tabBarHidden = false }
         .task { await load() }
     }
 
@@ -226,6 +231,10 @@ struct CoachCheckDetailView: View {
             try await APIClient.shared.coachSendFeedback(
                 checkId: responseId, feedback: feedback, privateNotes: privateNotes)
             Haptics.success(); sent = true
-        } catch { Haptics.error() }
+            flash.success("Feedback inviato")
+        } catch {
+            Haptics.error()
+            flash.failure("Invio non riuscito")
+        }
     }
 }

@@ -9,6 +9,7 @@ import SwiftUI
 struct CoachWorkoutsView: View {
     @State private var data: CoachWorkoutsResponse?
     @State private var loading = true
+    @State private var creating = false
 
     var body: some View {
         ScreenScroll {
@@ -22,10 +23,13 @@ struct CoachWorkoutsView: View {
                     EmptyPanel(icon: "dumbbell", text: "Nessuna scheda creata.")
                 } else {
                     ForEach(d.plans) { p in
-                        planCard(title: p.title,
-                                 subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
-                                 meta: p.durationWeeks.map { "\($0) sett." },
-                                 assigned: p.assignedCount, accent: Palette.cyan)
+                        NavigationLink(value: CoachPlanRoute.workout(p.id)) {
+                            planCard(title: p.title,
+                                     subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
+                                     meta: p.durationWeeks.map { "\($0) sett." },
+                                     assigned: p.assignedCount, accent: Palette.cyan)
+                        }
+                        .buttonStyle(PressableButtonStyle())
                     }
                 }
                 if !d.assignments.isEmpty {
@@ -35,6 +39,18 @@ struct CoachWorkoutsView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) {
+            Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
+        } }
+        .navigationDestination(for: CoachPlanRoute.self) { route in
+            switch route {
+            case .workout(let id): CoachWorkoutDetailView(planId: id)
+            case .nutrition(let id): CoachNutritionDetailView(planId: id)
+            }
+        }
+        .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
+            CoachPlanCreateView(kind: .workout)
+        }
         .task { await load() }
         .refreshable { await load() }
     }
@@ -46,6 +62,7 @@ struct CoachWorkoutsView: View {
 struct CoachNutritionView: View {
     @State private var data: CoachNutritionResponse?
     @State private var loading = true
+    @State private var creating = false
 
     var body: some View {
         ScreenScroll {
@@ -59,10 +76,13 @@ struct CoachNutritionView: View {
                     EmptyPanel(icon: "flame", text: "Nessun piano creato.")
                 } else {
                     ForEach(d.plans) { p in
-                        planCard(title: p.title,
-                                 subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
-                                 meta: p.dailyKcal.map { "\($0) kcal" },
-                                 assigned: p.assignedCount, accent: Palette.lime)
+                        NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {
+                            planCard(title: p.title,
+                                     subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
+                                     meta: p.dailyKcal.map { "\($0) kcal" },
+                                     assigned: p.assignedCount, accent: Palette.lime)
+                        }
+                        .buttonStyle(PressableButtonStyle())
                     }
                 }
                 if !d.assignments.isEmpty {
@@ -72,6 +92,18 @@ struct CoachNutritionView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) {
+            Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)
+        } }
+        .navigationDestination(for: CoachPlanRoute.self) { route in
+            switch route {
+            case .workout(let id): CoachWorkoutDetailView(planId: id)
+            case .nutrition(let id): CoachNutritionDetailView(planId: id)
+            }
+        }
+        .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
+            CoachPlanCreateView(kind: .nutrition)
+        }
         .task { await load() }
         .refreshable { await load() }
     }
