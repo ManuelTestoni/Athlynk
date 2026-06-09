@@ -27,7 +27,7 @@ struct CoachProfileView: View {
                 if let s = settings { settingsCard(s) }
                 accountCard
             } else if loading {
-                LoadingPanel()
+                CoachProfileSkeleton()
             } else {
                 EmptyPanel(icon: "person.crop.circle.badge.exclamationmark", text: "Profilo non disponibile.")
             }

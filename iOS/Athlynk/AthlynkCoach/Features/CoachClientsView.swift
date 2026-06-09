@@ -42,7 +42,7 @@ struct CoachClientsView: View {
                 }
 
                 if loading && rows.isEmpty {
-                    LoadingPanel()
+                    AvatarRowsSkeleton(accent: Palette.cyan)
                 } else if rows.isEmpty {
                     EmptyPanel(icon: "person.2", text: "Nessun atleta trovato.")
                 } else {
@@ -128,7 +128,7 @@ struct CoachClientDetailView: View {
                 assignmentsSection(d)
                 checksSection(d)
             } else if loading {
-                LoadingPanel()
+                CoachClientDetailSkeleton()
             } else {
                 EmptyPanel(icon: "person.crop.circle.badge.exclamationmark", text: "Atleta non disponibile.")
             }

@@ -611,6 +611,420 @@ struct PricingSkeleton: View {
     }
 }
 
+// MARK: - Coach page skeletons
+
+/// Coach dashboard: 2×2 KPI grid + quick actions + agenda rows + insight + activity stream.
+struct CoachDashboardSkeleton: View {
+    @State private var appear = false
+    private func statTile() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { SkelDot(size: 18); Spacer() }
+            SkelBlock(width: 56, height: 36)
+            SkelBlock(width: 100, height: 9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16).voltPanel()
+    }
+
+    var body: some View {
+        Group {
+            HStack(spacing: 14) { statTile(); statTile() }.revealUp(appear, index: 0)
+            HStack(spacing: 14) { statTile(); statTile() }.revealUp(appear, index: 1)
+
+            HStack(spacing: 12) {
+                ForEach(0..<4, id: \.self) { _ in
+                    VStack(spacing: 8) {
+                        SkelDot(size: 24)
+                        SkelBlock(width: 46, height: 8, radius: 4)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                    .padding(.vertical, 12)
+                    .voltPanel(radius: 14)
+                }
+            }
+            .revealUp(appear, index: 2)
+
+            SkelEyebrow(width: 60).revealUp(appear, index: 3)
+            ForEach(0..<2, id: \.self) { i in
+                HStack(spacing: 14) {
+                    SkelBlock(width: 54, height: 42, radius: 8)
+                    Rectangle().fill(Palette.line).frame(width: 2, height: 36)
+                    VStack(alignment: .leading, spacing: 5) {
+                        SkelBlock(width: 140, height: 14)
+                        SkelBlock(width: 100, height: 10)
+                    }
+                    Spacer()
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 4)
+            }
+
+            HStack(alignment: .top, spacing: 14) {
+                SkelDot(size: 24)
+                VStack(alignment: .leading, spacing: 7) {
+                    SkelBlock(width: 130, height: 9)
+                    SkelBlock(height: 13)
+                    SkelBlock(width: 190, height: 13)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18).voltPanel()
+            .revealUp(appear, index: 6)
+
+            SkelEyebrow(width: 120).revealUp(appear, index: 7)
+            VStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { i in
+                    HStack(spacing: 12) {
+                        SkelDot(size: 26)
+                        VStack(alignment: .leading, spacing: 4) {
+                            SkelBlock(width: 160, height: 13)
+                            SkelBlock(width: 200, height: 10)
+                        }
+                        Spacer()
+                        SkelBlock(width: 34, height: 8)
+                    }
+                    .padding(.vertical, 10)
+                    if i < 2 { Divider().background(Palette.line) }
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 4).voltPanel()
+            .revealUp(appear, index: 8)
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Coach client detail: avatar hero + 3-col stats + chart card + assignments + checks list.
+struct CoachClientDetailSkeleton: View {
+    @State private var appear = false
+    var body: some View {
+        Group {
+            VStack(spacing: 12) {
+                SkelDot(size: 92)
+                SkelBlock(width: 180, height: 32)
+                SkelBlock(width: 110, height: 10)
+                SkelBlock(width: 80, height: 22, radius: 11)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .revealUp(appear, index: 0)
+
+            SkelMetricsRow(count: 3).revealUp(appear, index: 1)
+
+            SkelEyebrow(width: 80).revealUp(appear, index: 2)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack { SkelBlock(width: 70, height: 10); Spacer(); SkelBlock(width: 80, height: 12) }
+                SkelBlock(height: 130, radius: 10)
+                HStack { SkelBlock(width: 60, height: 8); Spacer(); SkelBlock(width: 60, height: 9) }
+            }
+            .padding(16).voltPanel()
+            .revealUp(appear, index: 3)
+
+            SkelEyebrow(width: 130).revealUp(appear, index: 4)
+            ForEach(0..<3, id: \.self) { i in
+                HStack(spacing: 14) {
+                    SkelDot(size: 28)
+                    VStack(alignment: .leading, spacing: 3) {
+                        SkelBlock(width: 80, height: 9)
+                        SkelBlock(width: 150, height: 14)
+                    }
+                    Spacer()
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 5)
+            }
+
+            SkelEyebrow(width: 110).revealUp(appear, index: 8)
+            ForEach(0..<2, id: \.self) { i in
+                HStack(spacing: 12) {
+                    SkelDot(size: 20)
+                    VStack(alignment: .leading, spacing: 3) {
+                        SkelBlock(width: 160, height: 14)
+                        SkelBlock(width: 80, height: 9)
+                    }
+                    Spacer()
+                    SkelBlock(width: 56, height: 11)
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 9)
+            }
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Plan library (workouts or nutrition): plan cards + assignment rows.
+struct CoachPlanLibrarySkeleton: View {
+    var accent: Color
+    var count: Int = 3
+    @State private var appear = false
+    var body: some View {
+        Group {
+            SkelEyebrow(width: 120).revealUp(appear, index: 0)
+            ForEach(0..<count, id: \.self) { i in
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        SkelBlock(width: 160, height: 16)
+                        SkelBlock(width: 110, height: 11)
+                        SkelBlock(width: 70, height: 9)
+                    }
+                    Spacer()
+                    VStack(spacing: 3) {
+                        SkelBlock(width: 38, height: 26)
+                        SkelBlock(width: 32, height: 8)
+                    }
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 1)
+            }
+            SkelEyebrow(width: 100).revealUp(appear, index: count + 1)
+            ForEach(0..<2, id: \.self) { i in
+                HStack(spacing: 12) {
+                    SkelDot(size: 40)
+                    VStack(alignment: .leading, spacing: 3) {
+                        SkelBlock(width: 140, height: 14)
+                        SkelBlock(width: 100, height: 11)
+                    }
+                    Spacer()
+                    SkelDot(size: 8)
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + count + 2)
+            }
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Coach analytics: 2 stat tiles + review-rate ring card + bar chart card.
+struct CoachAnalyticsSkeleton: View {
+    @State private var appear = false
+    private let barHeights: [CGFloat] = [30, 50, 40, 70, 55, 80, 45, 62]
+    var body: some View {
+        Group {
+            HStack(spacing: 14) {
+                ForEach(0..<2, id: \.self) { _ in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack { SkelDot(size: 18); Spacer() }
+                        SkelBlock(width: 50, height: 36)
+                        SkelBlock(width: 90, height: 9)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16).voltPanel()
+                }
+            }
+            .revealUp(appear, index: 0)
+
+            HStack(spacing: 18) {
+                SkelDot(size: 96)
+                VStack(alignment: .leading, spacing: 8) {
+                    SkelBlock(width: 130, height: 9)
+                    SkelBlock(height: 13)
+                    SkelBlock(width: 160, height: 13)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(18).voltPanel()
+            .revealUp(appear, index: 1)
+
+            VStack(alignment: .leading, spacing: 14) {
+                SkelEyebrow(width: 90)
+                HStack(alignment: .bottom, spacing: 8) {
+                    ForEach(Array(barHeights.enumerated()), id: \.offset) { i, h in
+                        VStack(spacing: 6) {
+                            SkelBlock(height: h, radius: 4)
+                            SkelBlock(height: 8, radius: 3)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 110)
+            }
+            .padding(16).voltPanel()
+            .revealUp(appear, index: 2)
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Coach subscriptions: 2 stat tiles + plan rows + subscriber rows.
+struct CoachSubscriptionsSkeleton: View {
+    @State private var appear = false
+    var body: some View {
+        Group {
+            HStack(spacing: 14) {
+                ForEach(0..<2, id: \.self) { _ in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack { SkelDot(size: 18); Spacer() }
+                        SkelBlock(width: 66, height: 36)
+                        SkelBlock(width: 90, height: 9)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16).voltPanel()
+                }
+            }
+            .revealUp(appear, index: 0)
+
+            SkelEyebrow(width: 80).revealUp(appear, index: 1)
+            ForEach(0..<2, id: \.self) { i in
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SkelBlock(width: 150, height: 15)
+                        SkelBlock(width: 110, height: 11)
+                    }
+                    Spacer()
+                    VStack(spacing: 3) {
+                        SkelBlock(width: 36, height: 24)
+                        SkelBlock(width: 30, height: 8)
+                    }
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 2)
+            }
+
+            SkelEyebrow(width: 110).revealUp(appear, index: 4)
+            ForEach(0..<3, id: \.self) { i in
+                HStack(spacing: 12) {
+                    SkelDot(size: 40)
+                    VStack(alignment: .leading, spacing: 3) {
+                        SkelBlock(width: 140, height: 14)
+                        SkelBlock(width: 100, height: 11)
+                    }
+                    Spacer()
+                    SkelBlock(width: 58, height: 20, radius: 10)
+                }
+                .padding(14).voltPanel()
+                .revealUp(appear, index: i + 5)
+            }
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Coach profile: avatar hero + bio section + details card + settings toggles.
+struct CoachProfileSkeleton: View {
+    @State private var appear = false
+    var body: some View {
+        Group {
+            VStack(spacing: 12) {
+                SkelDot(size: 100)
+                SkelBlock(width: 200, height: 34)
+                SkelBlock(width: 130, height: 10)
+                SkelBlock(width: 160, height: 12)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .revealUp(appear, index: 0)
+
+            SkelSection(accent: Palette.bronze, lines: 3).revealUp(appear, index: 1)
+
+            VStack(alignment: .leading, spacing: 12) {
+                SkelBlock(width: 90, height: 9)
+                ForEach(0..<4, id: \.self) { _ in
+                    HStack { SkelDot(size: 16); SkelBlock(width: 180, height: 13); Spacer() }
+                }
+            }
+            .padding(18).voltPanel()
+            .revealUp(appear, index: 2)
+
+            VStack(alignment: .leading, spacing: 12) {
+                SkelBlock(width: 110, height: 9)
+                ForEach(0..<3, id: \.self) { _ in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            SkelBlock(width: 130, height: 13)
+                            SkelBlock(width: 180, height: 9)
+                        }
+                        Spacer()
+                        SkelBlock(width: 44, height: 26, radius: 13)
+                    }
+                }
+            }
+            .padding(18).voltPanel()
+            .revealUp(appear, index: 3)
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Coach check detail: client header + metrics + photo grid + feedback composer.
+struct CoachCheckDetailSkeleton: View {
+    @State private var appear = false
+    var body: some View {
+        Group {
+            HStack(spacing: 14) {
+                SkelDot(size: 56)
+                VStack(alignment: .leading, spacing: 6) {
+                    SkelBlock(width: 160, height: 20)
+                    SkelBlock(width: 110, height: 10)
+                    SkelBlock(width: 80, height: 20, radius: 10)
+                }
+                Spacer()
+            }
+            .padding(16).voltPanel()
+            .revealUp(appear, index: 0)
+
+            SkelMetricsRow(count: 4).revealUp(appear, index: 1)
+
+            VStack(alignment: .leading, spacing: 10) {
+                SkelBlock(width: 80, height: 9)
+                let cols = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8)]
+                LazyVGrid(columns: cols, spacing: 8) {
+                    ForEach(0..<3, id: \.self) { _ in SkelBlock(height: 90, radius: 10) }
+                }
+            }
+            .padding(16).voltPanel()
+            .revealUp(appear, index: 2)
+
+            SkelSection(accent: Palette.bronze, lines: 3).revealUp(appear, index: 3)
+            SkelBlock(height: 100, radius: 12).revealUp(appear, index: 4)
+            SkelBlock(height: 52, radius: 26).revealUp(appear, index: 5)
+        }
+        .onAppear { appear = true }
+    }
+}
+
+/// Plan detail (workout or nutrition): header chips + note card + day/meal cards.
+struct CoachPlanDetailSkeleton: View {
+    var accent: Color
+    var count: Int = 3
+    @State private var appear = false
+    var body: some View {
+        Group {
+            VStack(alignment: .leading, spacing: 12) {
+                SkelBlock(width: 200, height: 28)
+                SkelBlock(width: 150, height: 11)
+                HStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { _ in SkelBlock(width: 80, height: 26, radius: 13) }
+                }
+            }
+            .revealUp(appear, index: 0)
+
+            SkelSection(accent: accent, lines: 2).revealUp(appear, index: 1)
+
+            ForEach(0..<count, id: \.self) { i in
+                VStack(alignment: .leading, spacing: 12) {
+                    SkelBlock(width: 130, height: 16)
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack(alignment: .top, spacing: 12) {
+                            SkelDot(size: 6).padding(.top, 7)
+                            VStack(alignment: .leading, spacing: 3) {
+                                SkelBlock(width: 160, height: 14)
+                                SkelBlock(width: 100, height: 10)
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+                .revealUp(appear, index: i + 2)
+            }
+        }
+        .onAppear { appear = true }
+    }
+}
+
 /// Active training session: header + exercise blocks with set rows.
 struct ActiveSessionSkeleton: View {
     @State private var appear = false

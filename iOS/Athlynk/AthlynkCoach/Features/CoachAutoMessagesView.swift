@@ -39,7 +39,7 @@ struct CoachAutoMessagesView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if loading {
-                        LoadingPanel()
+                        FormSkeleton(accent: Palette.bronze, count: 3)
                     } else {
                         ForEach($messages) { $m in card($m) }
                         NeonButton(title: "Salva", icon: "checkmark", color: Palette.bronze, loading: saving) {

@@ -16,7 +16,7 @@ struct CoachResourcesView: View {
             ScreenHeader(eyebrow: "Studio", title: "Risorse",
                          subtitle: "I tuoi modelli riutilizzabili", accent: Palette.violet)
             if loading && sections.isEmpty {
-                LoadingPanel()
+                ForEach(0..<4, id: \.self) { _ in SkelLinkRow(accent: Palette.violet) }
             } else {
                 ForEach(Array(sections.enumerated()), id: \.element.id) { i, s in
                     section(s, accent: Palette.accent(i))

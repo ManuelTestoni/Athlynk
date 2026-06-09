@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Combine
 
 enum StatusKind: Equatable {
     case success(String)

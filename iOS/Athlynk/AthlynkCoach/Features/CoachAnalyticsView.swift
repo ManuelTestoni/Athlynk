@@ -15,7 +15,7 @@ struct CoachAnalyticsView: View {
             ScreenHeader(eyebrow: "Studio", title: "Analisi",
                          subtitle: "L'andamento del tuo lavoro", accent: Palette.cyan)
             if loading && data == nil {
-                LoadingPanel()
+                CoachAnalyticsSkeleton()
             } else if let d = data {
                 HStack(spacing: 14) {
                     CoachStatTile(value: "\(d.activeClients)", label: "Atleti attivi",

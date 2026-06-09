@@ -28,7 +28,7 @@ struct CoachAgendaView: View {
                 .buttonStyle(PressableButtonStyle())
 
                 if loading && items.isEmpty {
-                    LoadingPanel()
+                    DateCardsSkeleton(accent: Palette.amber)
                 } else if items.isEmpty {
                     EmptyPanel(icon: "calendar.badge.exclamationmark", text: "Nessun appuntamento in programma.")
                 } else {

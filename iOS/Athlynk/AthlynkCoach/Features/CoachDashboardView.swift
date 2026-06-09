@@ -17,7 +17,7 @@ struct CoachDashboardView: View {
             header
 
             if loading && data == nil {
-                LoadingPanel(text: "Carico lo studio…")
+                CoachDashboardSkeleton()
             } else if let data {
                 statsGrid(data.stats)
                 quickActions

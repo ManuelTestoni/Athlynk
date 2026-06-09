@@ -16,7 +16,7 @@ struct CoachWorkoutsView: View {
             ScreenHeader(eyebrow: "Programmazione", title: "Allenamenti",
                          subtitle: "Le tue schede e assegnazioni", accent: Palette.cyan)
             if loading && data == nil {
-                LoadingPanel()
+                CoachPlanLibrarySkeleton(accent: Palette.cyan)
             } else if let d = data {
                 CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(d.plans.count))", accent: Palette.cyan)
                 if d.plans.isEmpty {
@@ -69,7 +69,7 @@ struct CoachNutritionView: View {
             ScreenHeader(eyebrow: "Programmazione", title: "Nutrizione",
                          subtitle: "I tuoi piani alimentari", accent: Palette.lime)
             if loading && data == nil {
-                LoadingPanel()
+                CoachPlanLibrarySkeleton(accent: Palette.lime)
             } else if let d = data {
                 CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(d.plans.count))", accent: Palette.lime)
                 if d.plans.isEmpty {

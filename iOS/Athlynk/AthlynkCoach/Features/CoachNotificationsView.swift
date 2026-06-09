@@ -15,7 +15,7 @@ struct CoachNotificationsView: View {
             ScreenHeader(eyebrow: "Aggiornamenti", title: "Notifiche",
                          subtitle: "Tutto ciò che accade nello studio", accent: Palette.phase)
             if loading && items.isEmpty {
-                LoadingPanel()
+                AvatarRowsSkeleton(accent: Palette.phase)
             } else if items.isEmpty {
                 EmptyPanel(icon: "bell.slash", text: "Nessuna notifica.")
             } else {

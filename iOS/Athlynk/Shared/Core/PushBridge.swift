@@ -44,27 +44,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// Background/foreground data push (content-available): refetch the changed
     /// slice without the user opening the app.
-    func application(_ application: UIApplication,
-                     didReceiveRemoteNotification userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
-        broadcast(userInfo)
+    nonisolated func application(_ application: UIApplication,
+                                 didReceiveRemoteNotification userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
+        let type = userInfo["type"] as? String ?? ""
+        await broadcast(type: type)
         return .newData
     }
 
     /// Alert arriving while the app is foregrounded: still show it, and refresh.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        broadcast(notification.request.content.userInfo)
+        broadcast(type: notification.request.content.userInfo["type"] as? String ?? "")
         return [.banner, .sound, .badge]
     }
 
     /// User tapped the notification: refresh so the destination is up to date.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
-        broadcast(response.notification.request.content.userInfo)
+        broadcast(type: response.notification.request.content.userInfo["type"] as? String ?? "")
     }
 
-    private func broadcast(_ userInfo: [AnyHashable: Any]) {
-        let type = userInfo["type"] as? String ?? ""
+    private func broadcast(type: String) {
         NotificationCenter.default.post(name: .athlynkRemoteChange, object: nil,
                                         userInfo: ["type": type])
     }

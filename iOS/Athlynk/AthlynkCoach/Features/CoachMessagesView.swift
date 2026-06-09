@@ -31,7 +31,7 @@ struct CoachMessagesView: View {
                 .buttonStyle(PressableButtonStyle())
 
                 if loading && convos.isEmpty {
-                    LoadingPanel()
+                    AvatarRowsSkeleton(accent: Palette.violet)
                 } else if convos.isEmpty {
                     EmptyPanel(icon: "bubble.left.and.bubble.right",
                                text: "Nessuna conversazione attiva.\nUsa “Nuovo messaggio” per scrivere a un atleta.")
@@ -242,7 +242,7 @@ struct CoachNewMessageView: View {
                 .padding(.horizontal, 16).padding(.vertical, 13).voltPanel(radius: 14)
 
                 if loading {
-                    LoadingPanel()
+                    AvatarRowsSkeleton(accent: Palette.violet, count: 4)
                 } else if filtered.isEmpty {
                     EmptyPanel(icon: "person.2", text: "Nessun atleta disponibile.")
                 } else {

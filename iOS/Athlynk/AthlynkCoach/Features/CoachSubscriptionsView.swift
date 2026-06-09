@@ -14,7 +14,7 @@ struct CoachSubscriptionsView: View {
             ScreenHeader(eyebrow: "Ricavi", title: "Abbonamenti",
                          subtitle: "Piani e clienti paganti", accent: Palette.amber)
             if loading && data == nil {
-                LoadingPanel()
+                CoachSubscriptionsSkeleton()
             } else if let d = data {
                 HStack(spacing: 14) {
                     CoachStatTile(value: "€\(Int(d.monthlyRevenue))", label: "Ricavo attivo",

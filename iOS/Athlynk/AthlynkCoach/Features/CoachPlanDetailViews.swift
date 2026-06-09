@@ -35,7 +35,7 @@ struct CoachWorkoutDetailView: View {
                     ForEach(p.days) { day in dayCard(day) }
                 }
             } else if loading {
-                LoadingPanel()
+                CoachPlanDetailSkeleton(accent: Palette.cyan)
             } else {
                 EmptyPanel(icon: "exclamationmark.triangle", text: "Scheda non disponibile.")
             }
@@ -96,7 +96,7 @@ struct CoachNutritionDetailView: View {
                     ForEach(p.meals) { meal in mealCard(meal) }
                 }
             } else if loading {
-                LoadingPanel()
+                CoachPlanDetailSkeleton(accent: Palette.lime)
             } else {
                 EmptyPanel(icon: "exclamationmark.triangle", text: "Piano non disponibile.")
             }

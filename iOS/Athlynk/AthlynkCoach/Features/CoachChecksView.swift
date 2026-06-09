@@ -26,7 +26,7 @@ struct CoachChecksView: View {
                 .onChange(of: filter) { _, _ in Task { await load() } }
 
                 if loading && checks.isEmpty {
-                    LoadingPanel()
+                    AvatarRowsSkeleton(accent: Palette.bronze)
                 } else if checks.isEmpty {
                     EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
                                ? "Nessun check da revisionare. Ottimo lavoro!"
@@ -93,7 +93,7 @@ struct CoachCheckDetailView: View {
                 if hasNotes(d) { notes(d) }
                 feedbackComposer(d)
             } else if loading {
-                LoadingPanel()
+                CoachCheckDetailSkeleton()
             } else {
                 EmptyPanel(icon: "doc.questionmark", text: "Check non disponibile.")
             }
