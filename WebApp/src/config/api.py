@@ -109,6 +109,46 @@ def api_view(methods):
     return decorator
 
 
+def _request_coach(request):
+    """Resolve the acting coach from either a mobile Bearer token or the web
+    session. Returns a CoachProfile or None. Lets a single view serve both the
+    iOS coach app and the browser without duplicating its body."""
+    coach = getattr(request, '_mobile_coach', None)
+    if coach is not None:
+        return coach
+    bearer = _bearer(request)
+    if bearer:
+        user = _user_from_token(bearer)
+        coach = getattr(user, 'coach_profile', None) if user else None
+        request._mobile_coach = coach
+        return coach
+    from .session_utils import get_session_coach
+    return get_session_coach(request)
+
+
+def coach_dual_auth(view):
+    """Make an existing session-auth coach view also accept the mobile Bearer
+    token. Bearer requests skip CSRF (token auth is not cookie-based and so is
+    not CSRF-exposed); cookie/session requests still go through Django's CSRF
+    check, so web security is unchanged. The wrapped view keeps using
+    ``_request_coach(request)`` for the acting coach."""
+    from django.middleware.csrf import CsrfViewMiddleware
+    from django.views.decorators.csrf import csrf_exempt
+
+    @csrf_exempt
+    def wrapper(request, *args, **kwargs):
+        if _bearer(request):
+            return view(request, *args, **kwargs)
+        # No token → this is a browser/session request: enforce CSRF as usual.
+        reason = CsrfViewMiddleware(lambda r: None).process_view(request, view, args, kwargs)
+        if reason is not None:
+            return reason
+        return view(request, *args, **kwargs)
+
+    wrapper.__name__ = getattr(view, '__name__', 'coach_dual_auth_view')
+    return wrapper
+
+
 def _body(request):
     try:
         return json.loads(request.body or b'{}')

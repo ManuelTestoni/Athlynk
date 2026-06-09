@@ -54,6 +54,8 @@ class SessionSecurityMiddleware:
 _API_FORM_EXEMPT_PREFIXES = (
     '/api/nutrizione/import/excel/',
     '/api/nutrizione/import/pdf/',
+    '/api/allenamenti/import/excel/',
+    '/api/allenamenti/import/pdf/',
 )
 
 

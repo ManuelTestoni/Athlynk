@@ -5,6 +5,13 @@ from domain.coaching.models import CoachingRelationship
 def get_session_user(request):
     user_id = request.session.get('user_id')
     if not user_id:
+        # Mobile fallback: the iOS apps authenticate with a signed Bearer token
+        # instead of the session cookie. Resolving it here lets the existing
+        # coach web views (import, assign, …) serve both clients unchanged.
+        from config.api import _bearer, _user_from_token
+        bearer = _bearer(request)
+        if bearer:
+            return _user_from_token(bearer)
         return None
 
     try:

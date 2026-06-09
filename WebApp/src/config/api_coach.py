@@ -13,23 +13,30 @@ account deletion) are reused from the athlete API and are not duplicated here.
 
 from datetime import date, timedelta
 
+from django.db import transaction
 from django.db.models import Q, Max, Count
 from django.http import JsonResponse
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 
 from domain.accounts.models import ClientProfile, CoachProfile
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
-from domain.chat.models import Conversation, Message, Notification
+from domain.chat.models import AutomaticMessageTemplate, Conversation, Message, Notification
 from domain.checks.models import QuestionnaireResponse, QuestionnaireTemplate
 from domain.coaching.models import ClientAnamnesis, CoachingRelationship
-from domain.nutrition.models import NutritionAssignment, NutritionPlan, SupplementAssignment, SupplementSheet
-from domain.workouts.models import WorkoutAssignment, WorkoutPlan
+from domain.nutrition.models import (
+    DietDay, Food, Meal, MealItem,
+    NutritionAssignment, NutritionPlan, SupplementAssignment, SupplementSheet,
+)
+from domain.workouts.models import (
+    Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutPlan,
+)
 
 from .api import (
     api_view, _body, _iso, _abs_media, _coach_dict, _message_dict,
 )
+from .session_utils import can_manage_nutrition, can_manage_workouts
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -658,6 +665,10 @@ def conversations(request, user):
         .order_by('-last_message_at')
     ):
         last = conv.messages.order_by('-sent_at').first()
+        # Skip empty threads — only real conversations belong in the list. New
+        # threads are started explicitly via /messageable-clients + /start.
+        if last is None:
+            continue
         unread = conv.messages.filter(read_at__isnull=True).exclude(sender_user=coach.user).count()
         out.append({
             'id': conv.id,
@@ -770,3 +781,442 @@ def profile_photo(request, user):
         return JsonResponse({'error': 'Immagine non valida'}, status=400)
     coach.profile_image.save(webp.name, webp, save=True)
     return JsonResponse({'profile_image_url': _coach_avatar(request, coach)})
+
+
+# ---------------------------------------------------------------------------
+# Client progress / charts — the coach reads a single athlete's check history
+# (weight + measurements series, photos, feedback) for the in-app charts.
+# Mirrors the athlete ``progress`` endpoint, scoped to the coach's own client.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def client_progress(request, user, client_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    responses = (
+        QuestionnaireResponse.objects
+        .filter(client_id=client_id, coach=coach, submitted_at__isnull=False)
+        .prefetch_related('photos')
+        .order_by('-submitted_at')
+    )
+    entries = [{
+        'id': r.id,
+        'submitted_at': _iso(r.submitted_at),
+        'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
+        'measurements': _measurements(r),
+        'coach_feedback': r.coach_feedback,
+        'notes': r.notes,
+        'photos': [{
+            'id': p.id,
+            'url': _abs_media(request, p.file_url),
+            'type': p.photo_type,
+            'captured_at': _iso(p.captured_at),
+        } for p in r.photos.all()],
+    } for r in responses]
+    return JsonResponse({'entries': entries})
+
+
+# ---------------------------------------------------------------------------
+# Agenda CRUD — the coach books, edits and cancels appointments from mobile.
+# Mirrors config/views_agenda.py (the web calendar) for consistent behaviour.
+# ---------------------------------------------------------------------------
+
+_APPT_TYPES = {'check', 'prima_visita', 'visita', 'consulenza'}
+
+
+def _appointment_dict(request, a):
+    return {
+        'id': a.id,
+        'title': a.title,
+        'type': a.appointment_type,
+        'description': a.description or '',
+        'start': _iso(a.start_datetime),
+        'end': _iso(a.end_datetime),
+        'duration_minutes': a.duration_minutes,
+        'location': a.location,
+        'meeting_url': a.meeting_url or '',
+        'status': a.status,
+        'client': _client_brief(request, a.client) if a.client_id else None,
+    }
+
+
+@api_view(['POST'])
+def agenda_create(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    data = _body(request)
+    title = (data.get('title') or '').strip()
+    appt_type = (data.get('appointment_type') or 'visita').strip().lower()
+    start = parse_datetime(data.get('start_datetime') or '')
+    try:
+        duration = int(data.get('duration_minutes') or 60)
+    except (TypeError, ValueError):
+        duration = 60
+    client_id = data.get('client_id')
+
+    if not title or not start or not client_id:
+        return JsonResponse({'error': 'Campi obbligatori mancanti'}, status=400)
+    if appt_type not in _APPT_TYPES:
+        appt_type = 'visita'
+    if duration < 1:
+        return JsonResponse({'error': 'Durata non valida'}, status=400)
+
+    client = ClientProfile.objects.filter(
+        id=client_id, coaching_relationships_as_client__coach=coach
+    ).first()
+    if not client:
+        return JsonResponse({'error': 'Atleta non trovato'}, status=400)
+
+    appt = Appointment.objects.create(
+        coach=coach, client=client, title=title, appointment_type=appt_type,
+        start_datetime=start, duration_minutes=duration,
+        description=(data.get('description') or '').strip(),
+        meeting_url=(data.get('meeting_url') or '').strip() if appt_type == 'consulenza' else '',
+        status='SCHEDULED',
+    )
+    return JsonResponse({'appointment': _appointment_dict(request, appt)}, status=201)
+
+
+@api_view(['PATCH', 'DELETE'])
+def agenda_detail(request, user, appointment_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    appt = (Appointment.objects.select_related('client', 'client__user')
+            .filter(id=appointment_id, coach=coach).first())
+    if not appt:
+        return JsonResponse({'error': 'Appuntamento non trovato'}, status=404)
+
+    if request.method == 'DELETE':
+        appt.delete()
+        return JsonResponse({'ok': True})
+
+    data = _body(request)
+    if 'title' in data:
+        appt.title = (data.get('title') or '').strip() or appt.title
+    if 'appointment_type' in data:
+        t = (data.get('appointment_type') or '').strip().lower()
+        if t in _APPT_TYPES:
+            appt.appointment_type = t
+    if 'start_datetime' in data:
+        start = parse_datetime(data.get('start_datetime') or '')
+        if start:
+            appt.start_datetime = start
+    if 'duration_minutes' in data:
+        try:
+            appt.duration_minutes = max(1, int(data.get('duration_minutes')))
+        except (TypeError, ValueError):
+            pass
+    if 'description' in data:
+        appt.description = (data.get('description') or '').strip()
+    if 'meeting_url' in data:
+        appt.meeting_url = (data.get('meeting_url') or '').strip()
+    if 'status' in data and data.get('status'):
+        appt.status = data['status']
+    if 'client_id' in data and data.get('client_id'):
+        c = ClientProfile.objects.filter(
+            id=data['client_id'], coaching_relationships_as_client__coach=coach
+        ).first()
+        if c:
+            appt.client = c
+    appt.save()
+    return JsonResponse({'appointment': _appointment_dict(request, appt)})
+
+
+# ---------------------------------------------------------------------------
+# Plan detail — full structure of a workout / nutrition plan, for the in-app
+# detail views. Read-only projections of the same models the web renders.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def workout_detail(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = (WorkoutPlan.objects.filter(id=plan_id, coach=coach)
+            .prefetch_related('days__exercises__exercise').first())
+    if not plan:
+        return JsonResponse({'error': 'Scheda non trovata'}, status=404)
+    days = [{
+        'id': d.id,
+        'name': d.day_name or d.title or f'Giorno {d.day_order}',
+        'order': d.day_order,
+        'focus': d.focus_area,
+        'notes': d.notes,
+        'exercises': [{
+            'id': we.id,
+            'name': we.exercise.name,
+            'sets': we.set_count,
+            'reps': we.rep_count,
+            'rep_range': we.rep_range,
+            'rir': we.rir,
+            'rpe': we.rpe,
+            'recovery_seconds': we.recovery_seconds,
+            'tempo': we.tempo,
+            'notes': getattr(we, 'notes', None),
+        } for we in d.exercises.order_by('order_index')],
+    } for d in plan.days.order_by('day_order')]
+    return JsonResponse({'plan': {
+        'id': plan.id, 'title': plan.title, 'goal': plan.goal, 'level': plan.level,
+        'duration_weeks': plan.duration_weeks, 'frequency_per_week': plan.frequency_per_week,
+        'plan_kind': plan.plan_kind, 'description': plan.description, 'status': plan.status,
+        'days': days,
+    }})
+
+
+def _food_macros(item):
+    """kcal/protein/carb/fat for a MealItem from its Food per-100g values."""
+    f = item.food
+    if not f:
+        return {'kcal': None, 'protein': None, 'carb': None, 'fat': None,
+                'name': item.raw_name or 'Alimento'}
+    factor = (item.quantity_g or 0) / 100.0
+    return {
+        'name': f.nome_alimento,
+        'kcal': round(f.energia_kcal * factor, 1),
+        'protein': round(f.proteine_g * factor, 1),
+        'carb': round(f.carboidrati_g * factor, 1),
+        'fat': round(f.lipidi_g * factor, 1),
+    }
+
+
+@api_view(['GET'])
+def nutrition_detail(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = (NutritionPlan.objects.filter(id=plan_id, coach=coach)
+            .prefetch_related('meals__items__food', 'days').first())
+    if not plan:
+        return JsonResponse({'error': 'Piano non trovato'}, status=404)
+
+    def meal_dict(m):
+        items = [{
+            'id': it.id,
+            'quantity_g': it.quantity_g,
+            **_food_macros(it),
+        } for it in m.items.all()]
+        return {'id': m.id, 'name': m.name, 'order': m.order,
+                'notes': m.notes, 'items': items}
+
+    meals = [meal_dict(m) for m in plan.meals.order_by('order')]
+    total = {'kcal': 0.0, 'protein': 0.0, 'carb': 0.0, 'fat': 0.0}
+    for m in meals:
+        for it in m['items']:
+            for k in total:
+                total[k] += it.get(k) or 0
+    return JsonResponse({'plan': {
+        'id': plan.id, 'title': plan.title, 'plan_mode': plan.plan_mode,
+        'plan_kind': plan.plan_kind, 'daily_kcal': plan.daily_kcal,
+        'description': plan.description, 'status': plan.status,
+        'meals': meals,
+        'totals': {k: round(v, 1) for k, v in total.items()},
+    }})
+
+
+# ---------------------------------------------------------------------------
+# Lightweight manual builders — quick from-scratch plans on mobile. The full
+# multi-week / food-DB builder stays on the web; Chiron import covers the rest.
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def workout_create(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if not can_manage_workouts(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    data = _body(request)
+    title = (data.get('title') or '').strip()[:200]
+    if not title:
+        return JsonResponse({'error': 'Titolo obbligatorio'}, status=400)
+    days_in = data.get('days') or []
+
+    with transaction.atomic():
+        plan = WorkoutPlan.objects.create(
+            coach=coach, title=title,
+            goal=(data.get('goal') or '').strip()[:200] or None,
+            level=(data.get('level') or '').strip()[:50] or None,
+            status=WorkoutPlan.STATUS_DRAFT, is_template=False,
+        )
+        for d_idx, day in enumerate(days_in):
+            wd = WorkoutDay.objects.create(
+                workout_plan=plan, day_order=d_idx + 1,
+                day_name=(day.get('name') or f'Giorno {d_idx + 1}')[:100],
+                notes=(day.get('notes') or '').strip() or None,
+            )
+            for e_idx, ex in enumerate(day.get('exercises') or []):
+                exercise = Exercise.objects.filter(id=ex.get('exercise_id')).first()
+                if not exercise:
+                    continue
+                WorkoutExercise.objects.create(
+                    workout_day=wd, exercise=exercise, order_index=e_idx,
+                    set_count=ex.get('sets'), rep_count=ex.get('reps'),
+                    rep_range=(ex.get('rep_range') or None),
+                    recovery_seconds=ex.get('recovery_seconds'),
+                )
+    return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
+
+
+@api_view(['POST'])
+def nutrition_create(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    data = _body(request)
+    title = (data.get('title') or '').strip()[:200]
+    if not title:
+        return JsonResponse({'error': 'Titolo obbligatorio'}, status=400)
+    meals_in = data.get('meals') or []
+
+    with transaction.atomic():
+        plan = NutritionPlan.objects.create(
+            coach=coach, title=title, plan_kind='DAILY', plan_mode='FOOD',
+            daily_kcal=data.get('daily_kcal') or None,
+            status='DRAFT', is_template=False,
+        )
+        for m_idx, meal in enumerate(meals_in):
+            meal_obj = Meal.objects.create(
+                plan=plan, name=(meal.get('name') or f'Pasto {m_idx + 1}')[:100],
+                order=m_idx, notes=(meal.get('notes') or '').strip() or None,
+            )
+            for food in meal.get('items') or []:
+                food_obj = Food.objects.filter(id=food.get('food_id')).first()
+                try:
+                    qty = float(food.get('quantity_g') or 0)
+                except (TypeError, ValueError):
+                    qty = 0.0
+                MealItem.objects.create(
+                    meal=meal_obj, food=food_obj, quantity_g=qty,
+                    raw_name=(food.get('name') or None) if not food_obj else None,
+                    uncertain=food_obj is None,
+                )
+    return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
+
+
+@api_view(['POST'])
+def workout_assign(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = WorkoutPlan.objects.filter(id=plan_id, coach=coach).first()
+    if not plan:
+        return JsonResponse({'error': 'Scheda non trovata'}, status=404)
+    data = _body(request)
+    client = ClientProfile.objects.filter(
+        id=data.get('client_id'),
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    ).first()
+    if not client:
+        return JsonResponse({'error': 'Atleta non associato'}, status=403)
+
+    WorkoutAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
+    a = WorkoutAssignment.objects.create(
+        workout_plan=plan, client=client, coach=coach,
+        start_date=data.get('start_date') or date.today(), status='ACTIVE',
+    )
+    Notification.objects.create(
+        target_user=client.user, notification_type='WORKOUT_ASSIGNED',
+        title='Nuova scheda di allenamento',
+        body=f'Ti è stata assegnata la scheda "{plan.title}".',
+        link_url='/allenamenti/',
+    )
+    return JsonResponse({'ok': True, 'assignment_id': a.id})
+
+
+# ---------------------------------------------------------------------------
+# Automatic chat replies — per-event canned messages the coach can edit from
+# mobile. Same model the web "Messaggi automatici" settings page writes.
+# ---------------------------------------------------------------------------
+
+_AUTO_MSG_LABELS = dict(AutomaticMessageTemplate.EVENT_TYPES)
+
+
+@api_view(['GET', 'PATCH'])
+def auto_messages(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if request.method == 'PATCH':
+        for entry in (_body(request).get('messages') or []):
+            event_type = entry.get('event_type')
+            if event_type not in _AUTO_MSG_LABELS:
+                continue
+            tpl, _ = AutomaticMessageTemplate.objects.get_or_create(coach=coach, event_type=event_type)
+            if 'body' in entry:
+                tpl.body = (entry.get('body') or '')[:2000]
+            if 'is_enabled' in entry:
+                tpl.is_enabled = bool(entry.get('is_enabled'))
+            tpl.save()
+
+    existing = {t.event_type: t for t in AutomaticMessageTemplate.objects.filter(coach=coach)}
+    out = []
+    for event_type, label in AutomaticMessageTemplate.EVENT_TYPES:
+        tpl = existing.get(event_type)
+        out.append({
+            'event_type': event_type,
+            'label': label,
+            'body': tpl.body if tpl else '',
+            'is_enabled': tpl.is_enabled if tpl else False,
+            'attachment_url': _abs_media(request, tpl.attachment.url) if (tpl and tpl.attachment) else None,
+        })
+    return JsonResponse({'messages': out})
+
+
+# ---------------------------------------------------------------------------
+# New conversation — start a thread with an athlete the coach has never written
+# to. Lists messageable clients, then creates the conversation on first send.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def messageable_clients(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rels = (CoachingRelationship.objects.filter(coach=coach, status='ACTIVE')
+            .select_related('client', 'client__user'))
+    convo_client_ids = set(
+        Conversation.objects.filter(coach=coach, messages__isnull=False)
+        .values_list('client_id', flat=True)
+    )
+    out = [{
+        **_client_brief(request, r.client),
+        'has_conversation': r.client_id in convo_client_ids,
+    } for r in rels]
+    return JsonResponse({'clients': out})
+
+
+@api_view(['POST'])
+def start_conversation(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    data = _body(request)
+    body = (data.get('body') or '').strip()
+    if not body:
+        return JsonResponse({'error': 'Messaggio vuoto'}, status=400)
+    client = ClientProfile.objects.filter(
+        id=data.get('client_id'),
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    ).select_related('user').first()
+    if not client:
+        return JsonResponse({'error': 'Atleta non associato'}, status=403)
+
+    conv, _ = Conversation.objects.get_or_create(coach=coach, client=client)
+    msg = Message.objects.create(conversation=conv, sender_user=user, body=body, message_type='TEXT')
+    conv.last_message_at = msg.sent_at
+    conv.save(update_fields=['last_message_at'])
+    Notification.objects.create(
+        target_user=client.user, notification_type='MESSAGE',
+        title=f'Nuovo messaggio da {coach.first_name}', body=body[:140], link_url='/chat/',
+    )
+    return JsonResponse({'conversation_id': conv.id, 'message_id': msg.id}, status=201)
