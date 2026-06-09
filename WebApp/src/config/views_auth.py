@@ -54,8 +54,12 @@ def login_view(request):
                 return render(request, 'pages/auth/login.html', {'error': 'Password non corretta'})
             if not user.is_verified:
                 return render(request, 'pages/auth/email_not_verified.html', {'email': user.email})
+            # Rotate the session id on privilege change to defeat fixation, then
+            # stamp the login time for the absolute-timeout enforced in middleware.
+            request.session.cycle_key()
             request.session['user_id'] = user.id
             request.session['user_role'] = user.role
+            request.session['auth_at'] = timezone.now().timestamp()
             user.last_login_at = timezone.now()
             user.save(update_fields=['last_login_at'])
             ratelimit.reset('login_ip', ip, LOGIN_RATE_WINDOW_SECONDS)

@@ -16,12 +16,36 @@ this middleware only catches the universally-hostile cases.
 """
 
 import logging
+import time
 
 from django.conf import settings
 from django.http import JsonResponse
 
 
 logger = logging.getLogger(__name__)
+
+
+class SessionSecurityMiddleware:
+    """Enforce an *absolute* lifetime on authenticated browser sessions.
+
+    Django's SESSION_COOKIE_AGE only gives an idle (sliding) timeout: an active
+    user could in principle stay logged in forever. This caps total session age
+    at SESSION_ABSOLUTE_TIMEOUT seconds from the recorded login time, flushing
+    the session once exceeded. Only sessions that carry our custom `user_id`
+    are touched, so the iOS Bearer-token API (which never sets it) is unaffected.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.max_age = int(getattr(settings, 'SESSION_ABSOLUTE_TIMEOUT', 0) or 0)
+
+    def __call__(self, request):
+        if self.max_age and request.session.get('user_id'):
+            auth_at = request.session.get('auth_at')
+            if auth_at and (time.time() - float(auth_at)) > self.max_age:
+                logger.info('session.absolute_timeout user_id=%s', request.session.get('user_id'))
+                request.session.flush()
+        return self.get_response(request)
 
 
 # Endpoints that send `application/x-www-form-urlencoded` or multipart even

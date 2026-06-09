@@ -97,6 +97,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.middleware.SessionSecurityMiddleware',
     'config.middleware.SanitizationMiddleware',
 ]
 
@@ -225,6 +226,25 @@ STATICFILES_DIRS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR.parent / 'media'
+
+
+# --- Web session security ---------------------------------------------------
+# Browser sessions are short-lived and *sliding*: 30 minutes of inactivity logs
+# the user out. SESSION_SAVE_EVERY_REQUEST renews the cookie on every request,
+# so an actively-working user is never interrupted, while a forgotten tab is
+# reaped quickly. SESSION_ABSOLUTE_TIMEOUT (enforced in
+# config.middleware.SessionSecurityMiddleware) caps total lifetime regardless of
+# activity, and login rotates the session key to defeat fixation.
+#
+# The iOS apps authenticate with signed Bearer tokens (see config/api.py),
+# never the session cookie, so none of this touches them — athletes and coaches
+# stay logged in on mobile until they sign out.
+SESSION_COOKIE_AGE = 30 * 60                  # 30 min idle timeout
+SESSION_SAVE_EVERY_REQUEST = True             # sliding window: renew on activity
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True                # JS can never read the cookie
+SESSION_COOKIE_SAMESITE = 'Lax'              # blocks cross-site cookie sends
+SESSION_ABSOLUTE_TIMEOUT = 7 * 24 * 60 * 60   # 7-day hard ceiling per login
 
 
 # --- Production transport security -----------------------------------------
