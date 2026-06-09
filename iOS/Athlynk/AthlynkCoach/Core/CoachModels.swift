@@ -504,3 +504,207 @@ struct CoachMessagesResponse: Codable {
     let client: CoachClient?
     enum CodingKeys: String, CodingKey { case messages, client; case hasMore = "has_more" }
 }
+
+// MARK: - Client progress / charts
+
+struct CoachProgressEntry: Codable, Identifiable, Hashable {
+    let id: Int
+    let submittedAt: String?
+    let weightKg: Double?
+    let measurements: [String: String]
+    let coachFeedback: String?
+    let notes: String?
+    let photos: [CoachCheckPhoto]
+
+    enum CodingKeys: String, CodingKey {
+        case id, measurements, notes, photos
+        case submittedAt = "submitted_at"
+        case weightKg = "weight_kg"
+        case coachFeedback = "coach_feedback"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        submittedAt = try? c.decodeIfPresent(String.self, forKey: .submittedAt)
+        weightKg = try? c.decodeIfPresent(Double.self, forKey: .weightKg)
+        measurements = (try? c.decode([String: String].self, forKey: .measurements)) ?? [:]
+        coachFeedback = try? c.decodeIfPresent(String.self, forKey: .coachFeedback)
+        notes = try? c.decodeIfPresent(String.self, forKey: .notes)
+        photos = (try? c.decode([CoachCheckPhoto].self, forKey: .photos)) ?? []
+    }
+}
+
+struct CoachProgressResponse: Codable { let entries: [CoachProgressEntry] }
+
+// MARK: - Plan detail (workout)
+
+struct CoachWorkoutExerciseDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let sets: Int?
+    let reps: Int?
+    let repRange: String?
+    let rir: Int?
+    let rpe: Int?
+    let recoverySeconds: Int?
+    let tempo: String?
+    let notes: String?
+    enum CodingKeys: String, CodingKey {
+        case id, name, sets, reps, rir, rpe, tempo, notes
+        case repRange = "rep_range"
+        case recoverySeconds = "recovery_seconds"
+    }
+    var prescription: String {
+        var parts: [String] = []
+        if let sets { parts.append("\(sets)") }
+        if let repRange, !repRange.isEmpty { parts.append(repRange) }
+        else if let reps { parts.append("\(reps)") }
+        let core = parts.joined(separator: " × ")
+        var extra: [String] = []
+        if let rir { extra.append("RIR \(rir)") }
+        if let rpe { extra.append("RPE \(rpe)") }
+        if let recoverySeconds { extra.append("\(recoverySeconds)s rec") }
+        return ([core] + extra).filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+struct CoachWorkoutDayDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let order: Int
+    let focus: String?
+    let notes: String?
+    let exercises: [CoachWorkoutExerciseDTO]
+}
+
+struct CoachWorkoutDetailDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let goal: String?
+    let level: String?
+    let durationWeeks: Int?
+    let frequencyPerWeek: Int?
+    let planKind: String?
+    let description: String?
+    let status: String?
+    let days: [CoachWorkoutDayDTO]
+    enum CodingKeys: String, CodingKey {
+        case id, title, goal, level, description, status, days
+        case durationWeeks = "duration_weeks"
+        case frequencyPerWeek = "frequency_per_week"
+        case planKind = "plan_kind"
+    }
+}
+
+struct CoachWorkoutDetailResponse: Codable { let plan: CoachWorkoutDetailDTO }
+
+// MARK: - Plan detail (nutrition)
+
+struct CoachMacros: Codable, Hashable {
+    let kcal: Double
+    let protein: Double
+    let carb: Double
+    let fat: Double
+}
+
+struct CoachMealItemDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let quantityG: Double?
+    let kcal: Double?
+    let protein: Double?
+    let carb: Double?
+    let fat: Double?
+    enum CodingKeys: String, CodingKey {
+        case id, name, kcal, protein, carb, fat
+        case quantityG = "quantity_g"
+    }
+}
+
+struct CoachMealDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let order: Int
+    let notes: String?
+    let items: [CoachMealItemDTO]
+}
+
+struct CoachNutritionDetailDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let planMode: String?
+    let planKind: String?
+    let dailyKcal: Int?
+    let description: String?
+    let status: String?
+    let meals: [CoachMealDTO]
+    let totals: CoachMacros
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, status, meals, totals
+        case planMode = "plan_mode"
+        case planKind = "plan_kind"
+        case dailyKcal = "daily_kcal"
+    }
+}
+
+struct CoachNutritionDetailResponse: Codable { let plan: CoachNutritionDetailDTO }
+
+// MARK: - Automatic replies
+
+struct CoachAutoMessage: Codable, Identifiable, Hashable {
+    let eventType: String
+    let label: String
+    var body: String
+    var isEnabled: Bool
+    let attachmentUrl: String?
+    var id: String { eventType }
+    enum CodingKeys: String, CodingKey {
+        case label, body
+        case eventType = "event_type"
+        case isEnabled = "is_enabled"
+        case attachmentUrl = "attachment_url"
+    }
+}
+
+struct CoachAutoMessagesResponse: Codable { let messages: [CoachAutoMessage] }
+
+// MARK: - New conversation
+
+struct CoachMessageableClient: Codable, Identifiable, Hashable {
+    let id: Int
+    let displayName: String
+    let firstName: String
+    let lastName: String
+    let profileImageUrl: String?
+    let primaryGoal: String?
+    let sport: String?
+    let hasConversation: Bool
+
+    var initials: String {
+        let s = ((firstName.first.map(String.init) ?? "") + (lastName.first.map(String.init) ?? "")).uppercased()
+        return s.isEmpty ? "A" : s
+    }
+    enum CodingKeys: String, CodingKey {
+        case id, sport
+        case displayName = "display_name"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case profileImageUrl = "profile_image_url"
+        case primaryGoal = "primary_goal"
+        case hasConversation = "has_conversation"
+    }
+}
+
+struct CoachMessageableClientsResponse: Codable { let clients: [CoachMessageableClient] }
+
+struct CoachStartConversationResponse: Codable {
+    let conversationId: Int
+    let messageId: Int
+    enum CodingKeys: String, CodingKey {
+        case conversationId = "conversation_id"
+        case messageId = "message_id"
+    }
+}
+
+struct CoachAppointmentResponse: Codable { let appointment: CoachAgendaItem }
