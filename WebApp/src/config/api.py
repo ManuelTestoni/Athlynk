@@ -137,9 +137,14 @@ def coach_dual_auth(view):
 
     @csrf_exempt
     def wrapper(request, *args, **kwargs):
-        if _bearer(request):
+        # Skip CSRF only for a request that a *valid* token authenticates and
+        # that carries no session cookie. The mere presence of an (unverified)
+        # Authorization header must never disable CSRF for a cookie-auth request.
+        bearer = _bearer(request)
+        token_user = _user_from_token(bearer) if bearer else None
+        if token_user is not None and not request.session.get('user_id'):
             return view(request, *args, **kwargs)
-        # No token → this is a browser/session request: enforce CSRF as usual.
+        # Browser/session request → enforce CSRF as usual.
         reason = CsrfViewMiddleware(lambda r: None).process_view(request, view, args, kwargs)
         if reason is not None:
             return reason

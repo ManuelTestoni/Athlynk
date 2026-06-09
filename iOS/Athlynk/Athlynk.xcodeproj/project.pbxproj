@@ -139,29 +139,6 @@
 			productReference = 63C9E6FC2FCE296100BDF624 /* Athlynk.app */;
 			productType = "com.apple.product-type.application";
 		};
-		C0AC00000000000000000001 /* AthlynkCoach */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */;
-			buildPhases = (
-				C0AC00000000000000000003 /* Sources */,
-				C0AC00000000000000000004 /* Frameworks */,
-				C0AC00000000000000000005 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				C0AC00000000000000000051 /* AthlynkCoach */,
-				C0AC00000000000000000050 /* Shared */,
-			);
-			name = AthlynkCoach;
-			packageProductDependencies = (
-			);
-			productName = AthlynkCoach;
-			productReference = C0AC00000000000000000002 /* AthlynkCoach.app */;
-			productType = "com.apple.product-type.application";
-		};
 		63C9E7082FCE296200BDF624 /* AthlynkTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 63C9E7202FCE296200BDF624 /* Build configuration list for PBXNativeTarget "AthlynkTests" */;
@@ -208,6 +185,29 @@
 			productReference = 63C9E7132FCE296200BDF624 /* AthlynkUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		C0AC00000000000000000001 /* AthlynkCoach */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */;
+			buildPhases = (
+				C0AC00000000000000000003 /* Sources */,
+				C0AC00000000000000000004 /* Frameworks */,
+				C0AC00000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C0AC00000000000000000050 /* Shared */,
+				C0AC00000000000000000051 /* AthlynkCoach */,
+			);
+			name = AthlynkCoach;
+			packageProductDependencies = (
+			);
+			productName = AthlynkCoach;
+			productReference = C0AC00000000000000000002 /* AthlynkCoach.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -221,9 +221,6 @@
 					63C9E6FB2FCE296100BDF624 = {
 						CreatedOnToolsVersion = 26.5;
 					};
-					C0AC00000000000000000001 = {
-						CreatedOnToolsVersion = 26.5;
-					};
 					63C9E7082FCE296200BDF624 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 63C9E6FB2FCE296100BDF624;
@@ -231,6 +228,9 @@
 					63C9E7122FCE296200BDF624 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 63C9E6FB2FCE296100BDF624;
+					};
+					C0AC00000000000000000001 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -694,15 +694,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				C0AC00000000000000000007 /* Debug */,
-				C0AC00000000000000000008 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		63C9E7202FCE296200BDF624 /* Build configuration list for PBXNativeTarget "AthlynkTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -717,6 +708,15 @@
 			buildConfigurations = (
 				63C9E7242FCE296200BDF624 /* Debug */,
 				63C9E7252FCE296200BDF624 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0AC00000000000000000006 /* Build configuration list for PBXNativeTarget "AthlynkCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0AC00000000000000000007 /* Debug */,
+				C0AC00000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

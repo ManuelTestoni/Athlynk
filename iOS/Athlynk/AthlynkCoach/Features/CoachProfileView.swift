@@ -13,6 +13,9 @@ struct CoachProfileView: View {
     @State private var loading = true
     @State private var editing = false
     @State private var showLogoutConfirm = false
+    @State private var showDeleteConfirm = false
+    @State private var showAutoReplies = false
+    @State private var deleting = false
 
     var body: some View {
         ScreenScroll {
@@ -46,6 +49,16 @@ struct CoachProfileView: View {
             Button("Esci", role: .destructive) { app.logout() }
             Button("Annulla", role: .cancel) {}
         }
+        .confirmationDialog("Eliminare l'account?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Elimina definitivamente", role: .destructive) {
+                deleting = true
+                Task { await app.deleteAccount() }
+            }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("Il tuo account verrà disattivato e verrai disconnesso da tutti i dispositivi. Questa azione non è reversibile.")
+        }
+        .sheet(isPresented: $showAutoReplies) { CoachAutoMessagesView() }
     }
 
     private func header(_ p: CoachProfileDTO) -> some View {
@@ -132,8 +145,37 @@ struct CoachProfileView: View {
 
     private var accountCard: some View {
         VStack(spacing: 12) {
-            NeonButton(title: "Esci dallo studio", icon: "rectangle.portrait.and.arrow.right",
+            Button { Haptics.tap(); showAutoReplies = true } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.violet).frame(width: 26)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Risposte automatiche").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                        Text("Messaggi inviati in automatico").font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
+                }
+                .padding(14).voltPanel()
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            NeonButton(title: "Esci", icon: "rectangle.portrait.and.arrow.right",
                        color: Palette.bronze, filled: false) { showLogoutConfirm = true }
+
+            Button(role: .destructive) { Haptics.tap(); showDeleteConfirm = true } label: {
+                HStack(spacing: 8) {
+                    if deleting { ProgressView().tint(Palette.crimson) }
+                    Image(systemName: "trash")
+                    Text("Elimina account").font(Typo.body(14, .semibold))
+                }
+                .foregroundStyle(Palette.crimson)
+                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Palette.crimson.opacity(0.5), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(deleting)
         }
         .padding(.top, 8)
     }

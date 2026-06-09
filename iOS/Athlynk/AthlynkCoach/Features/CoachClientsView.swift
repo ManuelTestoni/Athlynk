@@ -112,6 +112,7 @@ struct CoachClientsView: View {
 struct CoachClientDetailView: View {
     let clientId: Int
     @State private var data: CoachClientDetailDTO?
+    @State private var progress: [CoachProgressEntry] = []
     @State private var loading = true
 
     var body: some View {
@@ -123,6 +124,7 @@ struct CoachClientDetailView: View {
                         .font(Typo.mono(11)).foregroundStyle(Palette.textLow)
                 }
                 statRow(d)
+                chartsSection
                 assignmentsSection(d)
                 checksSection(d)
             } else if loading {
@@ -229,9 +231,96 @@ struct CoachClientDetailView: View {
         .navigationDestination(for: CheckRoute.self) { CoachCheckDetailView(responseId: $0.id) }
     }
 
+    // MARK: Charts (weight + measurement trend from the athlete's checks)
+
+    private var weightPoints: [Double] {
+        progress.reversed().compactMap { $0.weightKg }   // oldest → newest
+    }
+
+    @ViewBuilder private var chartsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            CoachSectionTitle(eyebrow: "Andamento", title: "Grafici", accent: Palette.cyan)
+            if weightPoints.count >= 2 {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("PESO").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                        Spacer()
+                        if let last = weightPoints.last {
+                            Text("\(String(format: "%.1f", last)) kg")
+                                .font(Typo.mono(13, .bold)).foregroundStyle(Palette.cyan)
+                        }
+                    }
+                    CoachTrendChart(values: weightPoints, accent: Palette.cyan)
+                        .frame(height: 130)
+                    HStack {
+                        Text("\(weightPoints.count) check").font(Typo.mono(9)).foregroundStyle(Palette.textLow)
+                        Spacer()
+                        if let first = weightPoints.first, let last = weightPoints.last {
+                            let delta = last - first
+                            Text(String(format: "%+.1f kg", delta))
+                                .font(Typo.mono(10, .bold))
+                                .foregroundStyle(delta <= 0 ? Palette.lime : Palette.amber)
+                        }
+                    }
+                }
+                .padding(16).voltPanel()
+            } else {
+                EmptyPanel(icon: "chart.xyaxis.line", text: "Servono almeno 2 check con il peso\nper mostrare i grafici.")
+            }
+        }
+    }
+
     private func load() async {
         loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachClient(id: clientId)
+        async let detail = APIClient.shared.coachClient(id: clientId)
+        async let prog = APIClient.shared.coachClientProgress(clientId: clientId)
+        data = try? await detail
+        progress = (try? await prog) ?? []
+    }
+}
+
+// MARK: - Compact line/area trend chart (volt style, no external deps)
+
+struct CoachTrendChart: View {
+    let values: [Double]
+    var accent: Color = Palette.cyan
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let lo = values.min() ?? 0, hi = values.max() ?? 1
+            let span = max(hi - lo, 0.0001)
+            let pts: [CGPoint] = values.enumerated().map { i, v in
+                let x = values.count > 1 ? CGFloat(i) / CGFloat(values.count - 1) * w : 0
+                let y = h - CGFloat((v - lo) / span) * (h - 16) - 8
+                return CGPoint(x: x, y: y)
+            }
+            ZStack {
+                // Area fill
+                Path { p in
+                    guard let first = pts.first else { return }
+                    p.move(to: CGPoint(x: first.x, y: h))
+                    p.addLine(to: first)
+                    for pt in pts.dropFirst() { p.addLine(to: pt) }
+                    if let last = pts.last { p.addLine(to: CGPoint(x: last.x, y: h)) }
+                    p.closeSubpath()
+                }
+                .fill(LinearGradient(colors: [accent.opacity(0.28), accent.opacity(0.02)],
+                                     startPoint: .top, endPoint: .bottom))
+                // Line
+                Path { p in
+                    guard let first = pts.first else { return }
+                    p.move(to: first)
+                    for pt in pts.dropFirst() { p.addLine(to: pt) }
+                }
+                .stroke(accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                // Endpoint dot
+                if let last = pts.last {
+                    Circle().fill(accent).frame(width: 8, height: 8)
+                        .neonGlow(accent, radius: 6).position(last)
+                }
+            }
+        }
     }
 }
 
