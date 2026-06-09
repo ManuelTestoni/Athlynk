@@ -800,20 +800,50 @@ struct CoachPlanLibrarySkeleton: View {
 struct CoachAnalyticsSkeleton: View {
     @State private var appear = false
     private let barHeights: [CGFloat] = [30, 50, 40, 70, 55, 80, 45, 62]
+
+    private func kpiTile() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { SkelDot(size: 18); Spacer() }
+            SkelBlock(width: 56, height: 30)
+            SkelBlock(width: 80, height: 9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16).voltPanel()
+    }
+
+    private func riskCard() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                SkelDot(size: 42)
+                VStack(alignment: .leading, spacing: 5) {
+                    SkelBlock(width: 150, height: 15)
+                    SkelBlock(width: 90, height: 9)
+                }
+                Spacer()
+                SkelBlock(width: 40, height: 26)
+            }
+            HStack(spacing: 8) {
+                SkelBlock(width: 110, height: 18, radius: 9)
+                SkelBlock(width: 80, height: 18, radius: 9)
+            }
+        }
+        .padding(14).voltPanel()
+    }
+
     var body: some View {
         Group {
-            HStack(spacing: 14) {
-                ForEach(0..<2, id: \.self) { _ in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack { SkelDot(size: 18); Spacer() }
-                        SkelBlock(width: 50, height: 36)
-                        SkelBlock(width: 90, height: 9)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16).voltPanel()
-                }
-            }
-            .revealUp(appear, index: 0)
+            // Business KPI grid (2×2)
+            SkelEyebrow(width: 110).revealUp(appear, index: 0)
+            HStack(spacing: 14) { kpiTile(); kpiTile() }.revealUp(appear, index: 1)
+            HStack(spacing: 14) { kpiTile(); kpiTile() }.revealUp(appear, index: 2)
+
+            // At-risk clients
+            SkelEyebrow(width: 130).revealUp(appear, index: 3)
+            riskCard().revealUp(appear, index: 4)
+            riskCard().revealUp(appear, index: 5)
+
+            // Practice stats + review ring + 8-week bars
+            HStack(spacing: 14) { kpiTile(); kpiTile() }.revealUp(appear, index: 6)
 
             HStack(spacing: 18) {
                 SkelDot(size: 96)
@@ -825,12 +855,12 @@ struct CoachAnalyticsSkeleton: View {
                 Spacer(minLength: 0)
             }
             .padding(18).voltPanel()
-            .revealUp(appear, index: 1)
+            .revealUp(appear, index: 7)
 
             VStack(alignment: .leading, spacing: 14) {
                 SkelEyebrow(width: 90)
                 HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(Array(barHeights.enumerated()), id: \.offset) { i, h in
+                    ForEach(Array(barHeights.enumerated()), id: \.offset) { _, h in
                         VStack(spacing: 6) {
                             SkelBlock(height: h, radius: 4)
                             SkelBlock(height: 8, radius: 3)
@@ -841,7 +871,7 @@ struct CoachAnalyticsSkeleton: View {
                 .frame(height: 110)
             }
             .padding(16).voltPanel()
-            .revealUp(appear, index: 2)
+            .revealUp(appear, index: 8)
         }
         .onAppear { appear = true }
     }

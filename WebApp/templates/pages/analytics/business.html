@@ -22,6 +22,39 @@
         </div>
     </div>
 
+    <!-- Loading skeleton: mirrors the KPI grid + trend/risk split + table -->
+    <div x-show="loading" class="mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+            <template x-for="i in 8" :key="i">
+                <div class="al-kpi">
+                    <div class="al-skel al-skel-line al-skel-w-1/2"></div>
+                    <div class="al-skel al-skel-line-lg al-skel-w-2/3" style="margin:14px 0;"></div>
+                    <div class="al-skel al-skel-line-sm al-skel-w-1/3"></div>
+                </div>
+            </template>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="al-card lg:col-span-2 al-card-body">
+                <div class="al-skel al-skel-card" style="height:280px;"></div>
+            </div>
+            <div class="al-card al-card-dark al-card-body space-y-4">
+                <template x-for="i in 4" :key="i">
+                    <div class="al-skel al-skel-line" style="height:38px;"></div>
+                </template>
+            </div>
+        </div>
+        <div class="al-card al-card-body space-y-3">
+            <template x-for="i in 5" :key="i">
+                <div class="flex items-center gap-4">
+                    <div class="al-skel al-skel-circle al-skel-circle-sm"></div>
+                    <div class="al-skel al-skel-line al-skel-w-1/3"></div>
+                    <div class="al-skel al-skel-line al-skel-w-1/2"></div>
+                    <div class="al-skel al-skel-line-sm" style="width:48px; margin-left:auto;"></div>
+                </div>
+            </template>
+        </div>
+    </div>
+
     <!-- Empty state: no rollup yet -->
     <div x-show="!loading && !hasData" x-cloak class="al-card al-card-aegean p-10 text-center mb-10">
         <i class="ph ph-chart-pie-slice text-4xl text-bronze-light"></i>
