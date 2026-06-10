@@ -1,16 +1,17 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}Piani Alimentari{% endblock %}
 
 {% block content %}
 <script>
   window.NUTRITION_LIBRARY_INIT = {
-    plans: {{ plans_json|safe }},
-    folders: {{ folders_json|safe }},
-    clients: {{ clients_json|safe }},
+    plans: {{ plans_json|json_js }},
+    folders: {{ folders_json|json_js }},
+    clients: {{ clients_json|json_js }},
     urls: {
       folders: "{% url 'api_nutrition_folders' %}",
+      foldersReorder: "{% url 'api_nutrition_folders_reorder' %}",
       folderDetail: "/api/nutrizione/cartelle/__ID__/",
       planFolder: "/api/nutrizione/piani/__ID__/cartella/",
       planCreate: "{% url 'nutrizione_piano_create' %}",
@@ -102,7 +103,7 @@
              @click="selectedFolderId = 'unfiled'"
              @dragover.prevent="dropTargetId = 'unfiled'"
              @dragleave="dropTargetId = null"
-             @drop.prevent="dropPlanOnFolder(null)">
+             @drop.prevent="handleFolderDrop(null)">
           <i class="ph ph-folder-dashed"></i>
           <span>Senza cartella</span>
           <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
@@ -111,11 +112,15 @@
         <!-- User folders -->
         <template x-for="folder in folders" :key="folder.id">
           <div class="wb-folder-item"
-               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id }"
+               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id, 'is-dragging': draggedFolderId === folder.id }"
+               :draggable="editingFolderId !== folder.id"
+               title="Trascina per riordinare"
                @click="selectFolder(folder.id)"
+               @dragstart="draggedFolderId = folder.id"
+               @dragend="draggedFolderId = null; dropTargetId = null"
                @dragover.prevent="dropTargetId = folder.id"
                @dragleave="dropTargetId = null"
-               @drop.prevent="dropPlanOnFolder(folder.id)">
+               @drop.prevent="handleFolderDrop(folder.id)">
             <span class="wb-folder-label-dot"
                   :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
                   :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>

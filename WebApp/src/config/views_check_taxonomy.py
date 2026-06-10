@@ -12,7 +12,6 @@ import json
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 
 from domain.checks.models import CheckFolder, QuestionnaireTemplate
 
@@ -59,7 +58,6 @@ def _parse_body(request):
         return None, JsonResponse({'error': 'invalid json'}, status=400)
 
 
-@csrf_exempt
 def api_check_folders(request):
     coach, err = _require_coach(request)
     if err:
@@ -97,7 +95,6 @@ def api_check_folders(request):
     return JsonResponse({'error': 'method not allowed'}, status=405)
 
 
-@csrf_exempt
 def api_check_folder_detail(request, folder_id):
     coach, err = _require_coach(request)
     if err:
@@ -158,7 +155,28 @@ def api_check_folder_detail(request, folder_id):
     return JsonResponse({'error': 'method not allowed'}, status=405)
 
 
-@csrf_exempt
+def api_check_folders_reorder(request):
+    """POST {ids: [...]} → persiste l'ordine manuale delle cartelle del coach."""
+    coach, err = _require_coach(request)
+    if err:
+        return err
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    data, perr = _parse_body(request)
+    if perr:
+        return perr
+    ids = data.get('ids')
+    if not isinstance(ids, list) or not ids:
+        return JsonResponse({'error': 'ids richiesto.'}, status=400)
+    folders = {f.id: f for f in CheckFolder.objects.filter(coach=coach, id__in=ids)}
+    for idx, fid in enumerate(ids):
+        folder = folders.get(fid)
+        if folder and folder.order != idx + 1:
+            folder.order = idx + 1
+            folder.save(update_fields=['order', 'updated_at'])
+    return JsonResponse({'status': 'ok'})
+
+
 def api_check_template_folder(request, template_id):
     """Lightweight PATCH to move a (custom) QuestionnaireTemplate in/out of a folder."""
     coach, err = _require_coach(request)

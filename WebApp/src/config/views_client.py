@@ -611,6 +611,20 @@ def assign_plan_to_client_view(request, plan_id):
     return JsonResponse({'success': True})
 
 
+@require_http_methods(['POST'])
+def api_subscription_mark_paid(request, subscription_id):
+    """Azione rapida coach: marca PAID lo stato pagamento di un'iscrizione."""
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    sub = get_object_or_404(
+        ClientSubscription, id=subscription_id, subscription_plan__coach=coach,
+    )
+    sub.payment_status = 'PAID'
+    sub.save(update_fields=['payment_status', 'updated_at'])
+    return JsonResponse({'success': True})
+
+
 def abbonamenti_dashboard_view(request):
     user = get_session_user(request)
     if not user:
@@ -636,10 +650,19 @@ def abbonamenti_dashboard_view(request):
     if not coach:
         return redirect('login')
 
-    plans = SubscriptionPlan.objects.filter(coach=coach).order_by('-created_at')
+    plans = (
+        SubscriptionPlan.objects.filter(coach=coach)
+        .annotate(active_subscribers=Count(
+            'client_subscriptions',
+            filter=Q(client_subscriptions__status='ACTIVE'),
+            distinct=True,
+        ))
+        .order_by('-is_active', '-created_at')
+    )
     subscriptions = ClientSubscription.objects.filter(subscription_plan__coach=coach).select_related('client', 'subscription_plan').order_by('-created_at')
     active_subs = subscriptions.filter(status='ACTIVE').count()
     total_revenue = sum(s.subscription_plan.price for s in subscriptions.filter(status='ACTIVE'))
+    pending_payments = subscriptions.filter(status='ACTIVE', payment_status='PENDING').count()
 
     # Clients available for manual plan assignment
     coach_clients = list(
@@ -661,6 +684,7 @@ def abbonamenti_dashboard_view(request):
         'subscriptions': subscriptions,
         'active_subs': active_subs,
         'total_revenue': total_revenue,
+        'pending_payments': pending_payments,
         'coach_clients_json': json.dumps(coach_clients),
         'already_subscribed_ids_json': json.dumps(already_subscribed_ids),
     })

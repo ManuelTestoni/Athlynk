@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 {% block title %}Compila Check – {{ assignment.template.title }}{% endblock %}
 
 {% block content %}
@@ -19,7 +20,7 @@
 .fck-required { color: #c0392b; font-size: 11px; font-weight: 700; margin-left: 4px; }
 </style>
 
-<form id="fck-form" method="POST" action="{% url 'fill_assigned_check' instance.id %}">
+<form id="fck-form" method="POST" action="{% url 'fill_assigned_check' instance.id %}" enctype="multipart/form-data">
     {% csrf_token %}
     <input type="hidden" name="answers_json" id="fck-answers-json">
 </form>
@@ -278,6 +279,50 @@
                         </div>
                     </template>
 
+                    <template x-if="q.type === 'checkbox'">
+                        <div class="space-y-2">
+                            <template x-for="opt in (q.options||[])" :key="opt">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" :value="opt" style="accent-color:var(--al-bronze);"
+                                           :checked="(answers[q.id] || []).includes(opt)"
+                                           @change="toggleCheckbox(q.id, opt, $event.target.checked)">
+                                    <span class="text-sm text-ink" x-text="opt"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="q.type === 'allegato'">
+                        <div>
+                            <label class="flex items-center gap-3 p-4 cursor-pointer"
+                                   style="border: 2px dashed var(--al-rule-strong); border-radius: var(--al-r-sm);"
+                                   :for="'file_' + q.id">
+                                <i class="ph ph-paperclip text-2xl" style="color: var(--al-bronze);"></i>
+                                <span class="flex flex-col">
+                                    <span class="text-sm font-semibold text-ink">
+                                        <template x-if="(fileNames[q.id]||[]).length === 0"><span>Carica file</span></template>
+                                        <template x-if="(fileNames[q.id]||[]).length > 0">
+                                            <span x-text="(fileNames[q.id]||[]).length + ' file selezionati'"></span>
+                                        </template>
+                                    </span>
+                                    <span class="al-tag" style="font-size: 11px;">Immagini, PDF, qualsiasi formato</span>
+                                </span>
+                            </label>
+                            <input type="file" multiple :id="'file_' + q.id" :name="'attachment_' + q.id"
+                                   form="fck-form" class="sr-only"
+                                   @change="onFileChange(q.id, $event.target.files)">
+                            <template x-if="(fileNames[q.id]||[]).length > 0">
+                                <ul class="mt-2 space-y-1 text-xs" style="color: var(--al-ink-mute);">
+                                    <template x-for="(n, i) in (fileNames[q.id]||[])" :key="i">
+                                        <li class="flex items-center gap-1.5">
+                                            <i class="ph ph-file text-xs"></i><span x-text="n"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </template>
+
                     <template x-if="q.type === 'elenco'">
                         <select class="al-select" @change="answers[q.id]=$event.target.value">
                             <option value="">Seleziona...</option>
@@ -318,9 +363,9 @@
 </div>
 
 <script>
-const FCK_QUESTIONS = {{ questions_config_json|safe }};
-const FCK_STEPS     = {{ steps_config_json|safe }};
-const FCK_PREFILL   = {% if prefill_json %}{{ prefill_json|safe }}{% else %}{}{% endif %};
+const FCK_QUESTIONS = {{ questions_config_json|json_js }};
+const FCK_STEPS     = {{ steps_config_json|json_js }};
+const FCK_PREFILL   = {% if prefill_json %}{{ prefill_json|json_js }}{% else %}{}{% endif %};
 const CATALOG       = JSON.parse('{{ catalog_json|escapejs }}' || '{"circumferences":[],"skinfolds":[]}');
 function _circLabel(key) {
     const side = key.endsWith('_r') ? ' DX' : key.endsWith('_l') ? ' SX' : '';
@@ -383,9 +428,23 @@ function fillCheck() {
         step: visibleSteps[0].id,
         visibleSteps,
         answers: initAnswers,
+        fileNames: {},
         submitErrors: [],
         rangeErr: {},
         weightBounds: WEIGHT_BOUNDS,
+
+        toggleCheckbox(qId, opt, checked) {
+            const cur = Array.isArray(this.answers[qId]) ? [...this.answers[qId]] : [];
+            if (checked && !cur.includes(opt)) cur.push(opt);
+            if (!checked) {
+                const i = cur.indexOf(opt);
+                if (i !== -1) cur.splice(i, 1);
+            }
+            this.answers[qId] = cur;
+        },
+        onFileChange(qId, files) {
+            this.fileNames[qId] = Array.from(files).map(f => f.name);
+        },
 
         circLabel: _circLabel,
         skinLabel: _skinLabel,
@@ -417,11 +476,14 @@ function fillCheck() {
         submitForm() {
             this.submitErrors = [];
             FCK_QUESTIONS.forEach(q => {
-                if (q.required && q.type !== 'antropometria') {
-                    const val = this.answers[q.id];
-                    if (val === undefined || val === null || String(val).trim() === '') {
-                        this.submitErrors.push(`«${q.label}» è obbligatoria`);
-                    }
+                if (!q.required || q.type === 'antropometria') return;
+                const val = this.answers[q.id];
+                if (q.type === 'checkbox') {
+                    if (!Array.isArray(val) || val.length === 0) this.submitErrors.push(`«${q.label}» è obbligatoria`);
+                } else if (q.type === 'allegato') {
+                    if (!(this.fileNames[q.id] || []).length) this.submitErrors.push(`«${q.label}» è obbligatoria`);
+                } else if (val === undefined || val === null || String(val).trim() === '') {
+                    this.submitErrors.push(`«${q.label}» è obbligatoria`);
                 }
             });
             // Re-valida tutte le misure antropometriche contro gli intervalli plausibili.

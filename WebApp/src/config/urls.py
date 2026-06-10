@@ -102,6 +102,7 @@ urlpatterns = [
     path('api/nutrizione/piani/<int:plan_id>/assegna/', coach_dual_auth(views_nutrition.api_piano_assign), name='nutrizione_piano_assign'),
     path('api/nutrizione/piani/<int:plan_id>/elimina/', views_nutrition.nutrizione_piano_delete_view, name='nutrizione_piano_delete'),
     path('api/nutrizione/cartelle/', views_nutrition_taxonomy.api_nutrition_folders, name='api_nutrition_folders'),
+    path('api/nutrizione/cartelle/riordina/', views_nutrition_taxonomy.api_nutrition_folders_reorder, name='api_nutrition_folders_reorder'),
     path('api/nutrizione/cartelle/<int:folder_id>/', views_nutrition_taxonomy.api_nutrition_folder_detail, name='api_nutrition_folder_detail'),
     path('api/nutrizione/piani/<int:plan_id>/cartella/', views_nutrition_taxonomy.api_nutrition_plan_folder, name='api_nutrition_plan_folder'),
     # Wizard CRUD endpoints (Sezione 9.3)
@@ -180,6 +181,7 @@ urlpatterns = [
 
     # Workouts redesign — Iterazione 1 foundation APIs
     path('api/allenamenti/cartelle/', views_workouts_taxonomy.api_folders, name='api_workout_folders'),
+    path('api/allenamenti/cartelle/riordina/', views_workouts_taxonomy.api_folders_reorder, name='api_workout_folders_reorder'),
     path('api/allenamenti/cartelle/<int:folder_id>/', views_workouts_taxonomy.api_folder_detail, name='api_workout_folder_detail'),
     path('api/allenamenti/sport/', views_workouts_taxonomy.api_sports, name='api_workout_sports'),
     path('api/muscle-groups/', views_workouts_taxonomy.api_muscle_groups, name='api_muscle_groups'),
@@ -205,6 +207,7 @@ urlpatterns = [
     path('abbonamenti/piano/<int:plan_id>/modifica/', views_client.subscription_plan_edit_view, name='subscription_plan_edit'),
     path('api/abbonamenti/piano/<int:plan_id>/elimina/', views_client.subscription_plan_delete_view, name='subscription_plan_delete'),
     path('api/abbonamenti/piano/<int:plan_id>/assegna/', views_client.assign_plan_to_client_view, name='subscription_plan_assign'),
+    path('api/abbonamenti/iscrizioni/<int:subscription_id>/pagato/', views_client.api_subscription_mark_paid, name='subscription_mark_paid'),
     path('abbonamenti/piano/<int:plan_id>/clienti/', views_client.subscription_plan_detail_view, name='subscription_plan_detail'),
     
     # Check Progressi
@@ -217,6 +220,7 @@ urlpatterns = [
     path('api/check/modelli/<int:template_id>/duplica/', views_check.api_check_template_duplicate, name='api_check_template_duplicate'),
     path('api/check/modelli/<int:template_id>/elimina/', views_check.api_check_template_delete, name='api_check_template_delete'),
     path('api/check/cartelle/', views_check_taxonomy.api_check_folders, name='api_check_folders'),
+    path('api/check/cartelle/riordina/', views_check_taxonomy.api_check_folders_reorder, name='api_check_folders_reorder'),
     path('api/check/cartelle/<int:folder_id>/', views_check_taxonomy.api_check_folder_detail, name='api_check_folder_detail'),
     path('api/check/modelli/<int:template_id>/cartella/', views_check_taxonomy.api_check_template_folder, name='api_check_template_folder'),
     path('check/trova-coach/', views_client.find_coach_list_view, name='check_coach_directory'),

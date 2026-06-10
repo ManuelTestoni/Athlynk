@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Check Progressi{% endblock %}
 
 {% block content %}
 <script>
-window._coachClients   = {{ coach_clients_json|safe }};
-window._coachTemplates = {{ coach_templates_json|safe }};
+window._coachClients   = {{ coach_clients_json|json_js }};
+window._coachTemplates = {{ coach_templates_json|json_js }};
 </script>
 
 <div class="max-w-7xl mx-auto" x-data="{

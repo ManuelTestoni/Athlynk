@@ -19,7 +19,6 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
-from django.views.decorators.csrf import csrf_exempt
 
 from domain.workouts.models import (
     Exercise, MuscleGroup, Sport, WorkoutExercise,
@@ -116,7 +115,6 @@ def _parse_body(request):
 # Folders
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_folders(request):
     coach, err = _require_coach(request)
     if err:
@@ -152,7 +150,6 @@ def api_folders(request):
     return JsonResponse({'error': 'method not allowed'}, status=405)
 
 
-@csrf_exempt
 def api_folder_detail(request, folder_id):
     coach, err = _require_coach(request)
     if err:
@@ -213,11 +210,32 @@ def api_folder_detail(request, folder_id):
     return JsonResponse({'error': 'method not allowed'}, status=405)
 
 
+def api_folders_reorder(request):
+    """POST {ids: [...]} → persiste l'ordine manuale delle cartelle del coach."""
+    coach, err = _require_coach(request)
+    if err:
+        return err
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    data, perr = _parse_body(request)
+    if perr:
+        return perr
+    ids = data.get('ids')
+    if not isinstance(ids, list) or not ids:
+        return JsonResponse({'error': 'ids richiesto.'}, status=400)
+    folders = {f.id: f for f in WorkoutFolder.objects.filter(coach=coach, id__in=ids)}
+    for idx, fid in enumerate(ids):
+        folder = folders.get(fid)
+        if folder and folder.order != idx + 1:
+            folder.order = idx + 1
+            folder.save(update_fields=['order', 'updated_at'])
+    return JsonResponse({'status': 'ok'})
+
+
 # ---------------------------------------------------------------------------
 # Sports
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_sports(request):
     coach, err = _require_coach(request)
     if err:
@@ -299,7 +317,6 @@ def _exercise_payload_apply(ex, data, coach):
         ex.secondary_muscles.set(MuscleGroup.objects.filter(id__in=ids))
 
 
-@csrf_exempt
 def api_custom_exercises(request):
     coach, err = _require_coach(request)
     if err:
@@ -337,7 +354,6 @@ def api_custom_exercises(request):
     return JsonResponse({'error': 'method not allowed'}, status=405)
 
 
-@csrf_exempt
 def api_custom_exercise_detail(request, exercise_id):
     coach, err = _require_coach(request)
     if err:

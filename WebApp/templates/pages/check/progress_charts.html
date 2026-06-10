@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Andamento{% endblock %}
 
@@ -318,7 +319,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
-const _chartData = {{ chart_data_json|safe }};
+const _chartData = {{ chart_data_json|json_js }};
 
 const CIRC_LABELS = _chartData.circ_labels || {};
 const SKIN_LABELS = _chartData.skin_labels || {};

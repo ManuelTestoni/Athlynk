@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}{{ plan.title }} — Dettaglio{% endblock %}
 
 {% block content %}
 <script>
   window.CLIENT_DETAIL = {
-    days: {{ days_json|safe }},
+    days: {{ days_json|json_js }},
     assignment_id: {{ assignment.id }},
     plan_title: "{{ plan.title|escapejs }}"
   };

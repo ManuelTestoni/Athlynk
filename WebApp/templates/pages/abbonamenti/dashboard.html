@@ -1,8 +1,57 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Abbonamenti{% endblock %}
 
 {% block content %}
+<style>
+/* ── Plan card (listino) ── */
+.ab-plan {
+    background: var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    transition: border-color 180ms var(--al-ease), transform 180ms var(--al-ease), box-shadow 180ms var(--al-ease);
+}
+.ab-plan:hover { border-color: var(--al-bronze-soft); transform: translateY(-2px); box-shadow: var(--al-shadow-2, 0 12px 32px -16px rgba(20,17,13,0.18)); }
+.ab-plan::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--al-bronze-l), transparent);
+    opacity: 0; transition: opacity 180ms var(--al-ease);
+}
+.ab-plan:hover::before { opacity: 1; }
+.ab-plan.is-inactive { opacity: .62; }
+.ab-plan.is-inactive:hover { opacity: .85; }
+.ab-plan-head { padding: 20px 22px 16px; }
+.ab-plan-price { display: flex; align-items: baseline; gap: 6px; margin-top: 14px; }
+.ab-plan-price .num { font-family: var(--al-display); font-size: 38px; line-height: 1; color: var(--al-ink); }
+.ab-plan-body { padding: 16px 22px; flex: 1; border-top: 1px solid var(--al-rule-faint); }
+.ab-plan-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--al-rule-faint); }
+.ab-plan-meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--al-ink-mute); }
+.ab-plan-meta-item i { color: var(--al-bronze); }
+.ab-plan-meta-item b { font-family: var(--al-mono); font-weight: 600; color: var(--al-ink); }
+.ab-plan-foot { padding: 12px 18px; border-top: 1px solid var(--al-rule); display: flex; gap: 8px; background: var(--al-marble-warm); }
+
+/* ── KPI hero (ricavo ricorrente) ── */
+.ab-hero {
+    background: var(--al-ink);
+    color: var(--al-parchment);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--al-r-md);
+    padding: 20px 22px;
+    position: relative; overflow: hidden;
+}
+.ab-hero::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--al-bronze-l), transparent);
+}
+.ab-hero .label { font-family: var(--al-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(244,239,228,.55); }
+.ab-hero .num { font-family: var(--al-display); font-size: 34px; line-height: 1.1; margin-top: 10px; color: var(--al-parchment); }
+.ab-hero .meta { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; color: rgba(244,239,228,.6); }
+.ab-hero .meta i { color: var(--al-bronze-l); }
+</style>
+
 <div class="max-w-7xl mx-auto h-full flex flex-col">
 
     <!-- Header -->
@@ -10,24 +59,21 @@
         <div>
             <p class="al-eyebrow mb-3">Studio &middot; Billing</p>
             <h1 class="al-h-1">Gestione <span class="al-display-i">abbonamenti</span></h1>
-            <p class="al-body mt-2">Piani, ricavi e stato pagamenti degli atleti.</p>
+            <p class="al-body mt-2">Listino, iscrizioni e stato pagamenti degli atleti.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
-        <a href="{% url 'subscription_plan_create' %}" class="al-btn">
+        <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-bronze">
             <i class="ph ph-plus text-sm"></i>
             <span>Crea Piano</span>
         </a>
     </div>
 
     <!-- KPI -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8 flex-shrink-0">
-        <div class="al-kpi al-reveal" style="--d:0ms;">
-            <div class="al-kpi-label">Ricavi Totali</div>
-            <div class="al-kpi-num">€{{ total_revenue|default:"0"|floatformat:2 }}</div>
-            <div class="al-kpi-meta flex items-center gap-2">
-                <i class="ph ph-currency-eur text-bronze"></i>
-                <span>Cumulati</span>
-            </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 flex-shrink-0">
+        <div class="ab-hero al-reveal" style="--d:0ms;">
+            <div class="label">Ricavo ricorrente</div>
+            <div class="num">€{{ total_revenue|default:"0"|floatformat:2 }}</div>
+            <div class="meta"><i class="ph ph-currency-eur"></i><span>Abbonamenti attivi / ciclo</span></div>
         </div>
 
         <div class="al-kpi al-reveal" style="--d:60ms;">
@@ -39,8 +85,17 @@
             </div>
         </div>
 
-        <div class="al-kpi al-reveal" style="--d:120ms;">
-            <div class="al-kpi-label">Piani Disponibili</div>
+        <div class="al-kpi al-reveal" style="--d:120ms;{% if pending_payments %} border-color: rgba(166,128,43,0.45);{% endif %}">
+            <div class="al-kpi-label">Pagamenti in sospeso</div>
+            <div class="al-kpi-num" data-countup="{{ pending_payments|default:0 }}" {% if pending_payments %}style="color: var(--al-warn);"{% endif %}>{{ pending_payments }}</div>
+            <div class="al-kpi-meta flex items-center gap-2">
+                <i class="ph ph-hourglass-medium text-bronze"></i>
+                <span>{% if pending_payments %}Da incassare{% else %}Tutto regolare{% endif %}</span>
+            </div>
+        </div>
+
+        <div class="al-kpi al-reveal" style="--d:180ms;">
+            <div class="al-kpi-label">Piani a Listino</div>
             <div class="al-kpi-num" data-countup="{{ subscription_plans.count|default:0 }}">{{ subscription_plans.count }}</div>
             <div class="al-kpi-meta flex items-center gap-2">
                 <i class="ph ph-list-dashes text-bronze"></i>
@@ -54,8 +109,8 @@
     function planAssignModal() {
         return {
             show: false, planId: null, planName: '',
-            clients: {{ coach_clients_json|safe }},
-            subscribedIds: {{ already_subscribed_ids_json|safe }},
+            clients: {{ coach_clients_json|json_js }},
+            subscribedIds: {{ already_subscribed_ids_json|json_js }},
             eligibleClients: [],
             selectedClientId: '', paymentNotes: '',
             loading: false, errorMsg: '',
@@ -146,70 +201,90 @@
         </div>
 
         <!-- Tabs container -->
-        <div x-data="{ tab: 'piani' }" class="al-card al-card-flush flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div x-data="{
+                tab: 'piani',
+                payFilter: 'all',
+                async markPaid(subId) {
+                    if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-currency-eur', title: 'Segnare come\npagato?', subtitle: 'Lo stato pagamento passerà a Pagato.', confirmLabel: 'Sì, segna pagato' })) return;
+                    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+                        || document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+                    try {
+                        const res = await fetch('/api/abbonamenti/iscrizioni/' + subId + '/pagato/', {
+                            method: 'POST', headers: { 'X-CSRFToken': csrf },
+                        });
+                        if (res.ok) { window.location.reload(); }
+                        else { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore nel salvataggio.' }); }
+                    } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+                }
+             }" class="flex-1 flex flex-col min-h-0">
 
             <!-- Tab nav -->
-            <div class="px-6 pt-5 pb-2" style="background: var(--al-marble-warm); border-bottom: 1px solid var(--al-rule);">
+            <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
                 <div class="al-filter" role="tablist" aria-label="Vista abbonamenti">
                     <button @click="tab = 'piani'" type="button" role="tab" class="al-filter-chip"
                             :class="{ 'is-active': tab === 'piani' }" :aria-selected="tab === 'piani'">
-                        <i class="ph ph-list-dashes"></i>Listino
+                        <i class="ph ph-list-dashes"></i>Listino · {{ subscription_plans.count|default:0 }}
                     </button>
                     <button @click="tab = 'iscritti'" type="button" role="tab" class="al-filter-chip"
                             :class="{ 'is-active': tab === 'iscritti' }" :aria-selected="tab === 'iscritti'">
-                        <i class="ph ph-users"></i>Iscritti
+                        <i class="ph ph-users"></i>Iscritti · {{ subscriptions|length }}
                     </button>
                 </div>
             </div>
 
             <!-- Tab: Listino -->
-            <div x-show="tab === 'piani'" class="flex-1 p-6 overflow-y-auto">
+            <div x-show="tab === 'piani'" class="flex-1">
                 {% if subscription_plans %}
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {% for plan in subscription_plans %}
-                    <div class="al-card al-card-flush al-interactive flex flex-col">
-                        <div class="p-6 border-b" style="border-color: var(--al-rule);">
-                            <div class="flex justify-between items-start mb-3">
-                                <span class="al-badge {% if plan.is_active %}al-badge-success{% endif %}">
+                    <div class="ab-plan al-reveal {% if not plan.is_active %}is-inactive{% endif %}" style="--d:{{ forloop.counter0|add:1 }}0ms;">
+                        <div class="ab-plan-head">
+                            <div class="flex justify-between items-start gap-3">
+                                <h3 class="al-h-2">{{ plan.name }}</h3>
+                                <span class="al-badge {% if plan.is_active %}al-badge-success{% endif %} shrink-0">
                                     <span class="dot"></span>{% if plan.is_active %}Attivo{% else %}Inattivo{% endif %}
                                 </span>
                             </div>
-                            <h3 class="al-h-2">{{ plan.name }}</h3>
-                            <p class="al-tag mt-2">{{ plan.plan_type }}</p>
-                            <div class="mt-4 flex items-baseline gap-1">
-                                <span class="al-display" style="font-size: 36px;">€{{ plan.price }}</span>
+                            {% if plan.plan_type %}<p class="al-tag mt-1">{{ plan.plan_type }}</p>{% endif %}
+                            <div class="ab-plan-price">
+                                <span class="num">€{{ plan.price }}</span>
                                 <span class="al-tag">/ {{ plan.billing_interval|default:"mese" }}</span>
                             </div>
                         </div>
 
-                        <div class="p-6 flex-1" style="background: var(--al-marble-warm);">
-                            <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Descrizione</p>
-                            <p class="al-body line-clamp-3">{{ plan.description|truncatewords:20 }}</p>
+                        <div class="ab-plan-body">
+                            {% if plan.description %}
+                            <p class="al-body line-clamp-3">{{ plan.description|truncatewords:24 }}</p>
+                            {% else %}
+                            <p class="al-small" style="color: var(--al-ink-line); font-style: italic;">Nessuna descrizione.</p>
+                            {% endif %}
 
-                            <div class="mt-5 pt-4 border-t space-y-2" style="border-color: var(--al-rule);">
-                                <div class="flex justify-between al-small">
-                                    <span>Durata</span>
-                                    <span class="font-mono text-ink">{{ plan.duration_days|default:"N/A" }} giorni</span>
-                                </div>
-                                <div class="flex justify-between al-small">
-                                    <span>Valuta</span>
-                                    <span class="font-mono text-ink">{{ plan.currency }}</span>
-                                </div>
-                            </div>
-
-                            <div class="pt-4 mt-4 border-t flex justify-between items-center" style="border-color: var(--al-rule);">
-                                <span class="al-tag"><b class="text-ink font-mono">{{ plan.clientsubscription_set.count }}</b> iscritti</span>
+                            <div class="ab-plan-meta">
+                                <span class="ab-plan-meta-item">
+                                    <i class="ph ph-users"></i>
+                                    <b>{{ plan.active_subscribers|default:0 }}</b> iscritt{{ plan.active_subscribers|pluralize:"o,i" }} attiv{{ plan.active_subscribers|pluralize:"o,i" }}
+                                </span>
+                                {% if plan.duration_days %}
+                                <span class="ab-plan-meta-item">
+                                    <i class="ph ph-clock"></i>
+                                    <b>{{ plan.duration_days }}</b> giorni
+                                </span>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <div class="px-5 py-3 border-t flex gap-2" style="border-color: var(--al-rule);">
-                            <button @click="open({{ plan.id }}, '{{ plan.name|escapejs }}')" type="button" class="al-btn al-btn-bronze al-btn-sm flex-1">
+                        <div class="ab-plan-foot">
+                            <button @click="open({{ plan.id }}, '{{ plan.name|escapejs }}')" type="button"
+                                    class="al-btn al-btn-bronze al-btn-sm flex-1" {% if not plan.is_active %}disabled title="Piano inattivo"{% endif %}>
                                 <i class="ph ph-user-plus text-xs"></i>
                                 <span>Assegna</span>
                             </button>
-                            <a href="{% url 'subscription_plan_edit' plan.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1">
+                            <a href="{% url 'subscription_plan_detail' plan.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1">
+                                <i class="ph ph-eye text-xs"></i>
+                                <span>Dettagli</span>
+                            </a>
+                            <a href="{% url 'subscription_plan_edit' plan.id %}" class="al-btn al-btn-ghost al-btn-sm" title="Modifica piano">
                                 <i class="ph ph-pencil text-xs"></i>
-                                <span>Modifica</span>
                             </a>
                         </div>
                     </div>
@@ -229,8 +304,22 @@
             </div>
 
             <!-- Tab: Iscritti -->
-            <div x-show="tab === 'iscritti'" x-cloak class="flex-1 p-6 overflow-y-auto">
+            <div x-show="tab === 'iscritti'" x-cloak class="flex-1">
                 {% if subscriptions %}
+                <div class="al-filter mb-4" role="tablist" aria-label="Filtro stato pagamento">
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': payFilter === 'all' }" :aria-selected="payFilter === 'all'"
+                            @click="payFilter = 'all'">Tutti</button>
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': payFilter === 'PAID' }" :aria-selected="payFilter === 'PAID'"
+                            @click="payFilter = 'PAID'">Pagato</button>
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': payFilter === 'PENDING' }" :aria-selected="payFilter === 'PENDING'"
+                            @click="payFilter = 'PENDING'">In sospeso</button>
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': payFilter === 'OTHER' }" :aria-selected="payFilter === 'OTHER'"
+                            @click="payFilter = 'OTHER'">Mancato</button>
+                </div>
                 <div class="overflow-x-auto al-card al-card-flush">
                     <table class="al-table">
                         <thead>
@@ -238,6 +327,7 @@
                                 <th>Atleta</th>
                                 <th>Piano</th>
                                 <th>Inizio</th>
+                                <th>Scadenza</th>
                                 <th>Stato</th>
                                 <th>Pagamento</th>
                                 <th class="text-right">&nbsp;</th>
@@ -245,7 +335,9 @@
                         </thead>
                         <tbody>
                             {% for sub in subscriptions %}
-                            <tr>
+                            <tr x-show="payFilter === 'all'
+                                        || payFilter === '{{ sub.payment_status|escapejs }}'
+                                        || (payFilter === 'OTHER' && '{{ sub.payment_status|escapejs }}' !== 'PAID' && '{{ sub.payment_status|escapejs }}' !== 'PENDING')">
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <div class="al-avatar al-avatar-sm al-avatar-sq">
@@ -259,9 +351,16 @@
                                 </td>
                                 <td>
                                     <p class="font-medium text-ink">{{ sub.subscription_plan.name }}</p>
-                                    <p class="al-tag" style="font-size:9px;">€{{ sub.subscription_plan.price }}</p>
+                                    <p class="al-tag" style="font-size:9px;">€{{ sub.subscription_plan.price }} / {{ sub.subscription_plan.billing_interval|default:"mese" }}</p>
                                 </td>
                                 <td><span class="al-table-num">{{ sub.start_date|date:"d/m/Y" }}</span></td>
+                                <td>
+                                    {% if sub.end_date %}
+                                    <span class="al-table-num">{{ sub.end_date|date:"d/m/Y" }}</span>
+                                    {% else %}
+                                    <span class="al-tag" style="color: var(--al-ink-line);">—</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if sub.status == 'ACTIVE' %}
                                     <span class="al-badge al-badge-success"><span class="dot"></span>Attivo</span>
@@ -281,9 +380,17 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-right">
-                                    <a href="{% url 'subscription_plan_detail' sub.subscription_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">
-                                        Apri <i class="ph ph-arrow-right text-xs"></i>
-                                    </a>
+                                    <div class="flex items-center justify-end gap-3">
+                                        {% if sub.payment_status != 'PAID' %}
+                                        <button type="button" @click="markPaid({{ sub.id }})"
+                                                class="al-btn al-btn-ghost al-btn-sm" title="Segna come pagato">
+                                            <i class="ph ph-currency-eur text-xs"></i><span>Segna pagato</span>
+                                        </button>
+                                        {% endif %}
+                                        <a href="{% url 'subscription_plan_detail' sub.subscription_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">
+                                            Apri <i class="ph ph-arrow-right text-xs"></i>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}

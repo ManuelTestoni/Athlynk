@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}{% if sheet %}Modifica Scheda Integrazione{% else %}Nuova Scheda Integrazione{% endif %}{% endblock %}
 
 {% block content %}
 <script>
-window._sheetItems = {{ items_json|safe }};
-window._suppClients = {{ clients_json|safe }};
+window._sheetItems = {{ items_json|json_js }};
+window._suppClients = {{ clients_json|json_js }};
 </script>
 
 <div class="max-w-5xl mx-auto"

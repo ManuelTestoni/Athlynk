@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}Libreria allenamenti{% endblock %}
 
 {% block content %}
 <script>
   window.LIBRARY_INIT = {
-    plans: {{ plans_json|safe }},
-    folders: {{ folders_json|safe }},
+    plans: {{ plans_json|json_js }},
+    folders: {{ folders_json|json_js }},
     urls: {
       folders: "{% url 'api_workout_folders' %}",
+      foldersReorder: "{% url 'api_workout_folders_reorder' %}",
       folderDetail: "/api/allenamenti/cartelle/__ID__/",
       wizardNew: "{% url 'allenamenti_wizard' %}",
       importExcel: "{% url 'allenamenti_import' %}",
@@ -80,7 +81,7 @@
              @click="selectedFolderId = 'unfiled'"
              @dragover.prevent="dropTargetId = 'unfiled'"
              @dragleave="dropTargetId = null"
-             @drop.prevent="dropPlanOnFolder(null)">
+             @drop.prevent="handleFolderDrop(null)">
           <i class="ph ph-folder-dashed"></i>
           <span>Senza cartella</span>
           <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
@@ -89,11 +90,15 @@
         <!-- User folders -->
         <template x-for="folder in folders" :key="folder.id">
           <div class="wb-folder-item"
-               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id }"
+               :class="{ 'is-active': selectedFolderId === folder.id, 'is-drop-target': dropTargetId === folder.id, 'is-dragging': draggedFolderId === folder.id }"
+               :draggable="editingFolderId !== folder.id"
+               title="Trascina per riordinare"
                @click="selectFolder(folder.id)"
+               @dragstart="draggedFolderId = folder.id"
+               @dragend="draggedFolderId = null; dropTargetId = null"
                @dragover.prevent="dropTargetId = folder.id"
                @dragleave="dropTargetId = null"
-               @drop.prevent="dropPlanOnFolder(folder.id)">
+               @drop.prevent="handleFolderDrop(folder.id)">
             <span class="wb-folder-label-dot"
                   :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
                   :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
@@ -489,6 +494,7 @@ function workoutLibrary() {
     /* drag */
     draggedPlanId: null,
     dropTargetId: null,
+    draggedFolderId: null,
 
     /* folder edit */
     editingFolderId: null,
@@ -662,6 +668,34 @@ function workoutLibrary() {
     },
 
     /* === drag & drop === */
+    /* Drop su una cartella: o sto riordinando le cartelle (drag della voce
+       sidebar) o sto archiviando una scheda (drag della card). */
+    handleFolderDrop(folderId) {
+      if (this.draggedFolderId) {
+        if (folderId && this.draggedFolderId !== folderId) this.reorderFolders(folderId);
+        this.draggedFolderId = null;
+        this.dropTargetId = null;
+        return;
+      }
+      this.dropPlanOnFolder(folderId);
+    },
+    async reorderFolders(targetId) {
+      const srcIdx = this.folders.findIndex(f => f.id === this.draggedFolderId);
+      const tgtIdx = this.folders.findIndex(f => f.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+      const moved = this.folders.splice(srcIdx, 1)[0];
+      this.folders.splice(tgtIdx, 0, moved);
+      try {
+        const res = await fetch(this.urls.foldersReorder, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ ids: this.folders.map(f => f.id) }),
+        });
+        if (!res.ok) throw new Error('save');
+      } catch (e) {
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Riordino non salvato. Riprova.' });
+      }
+    },
     async dropPlanOnFolder(folderId) {
       this.dropTargetId = null;
       const pid = this.draggedPlanId;

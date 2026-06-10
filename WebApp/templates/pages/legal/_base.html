@@ -12,22 +12,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="{% static 'css/tailwind.css' %}?v={{ ASSET_VERSION }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
+            integrity="sha384-pb6hrQvo4s23cEUFtj0CZkzGE3jyK3pj26RIupXXxhSrrcUA/Cn0lZgcCrGH0t6L" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.2/src/index.js"
+            integrity="sha384-J7cw2fbG1T4C5MirTVUxsZGaMfw2m0XsCgOQEqUvB1OF9VIsHWuZF1GmyVRzs7eu" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/athlynk.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
-    <script>
-      tailwind.config = { theme: { extend: {
-        colors: {
-          ink:'#14110d','ink-soft':'#2a2620','ink-mute':'#5b554a','ink-line':'#8a8270',
-          parchment:'#f4efe4', marble:'#ece5d6','marble-warm':'#e7dfcb', stone:'#d8cfba',
-          aegean:'#1c4a52', bronze:'#8a6a3a','bronze-soft':'#a78554','bronze-light':'#c8a774',
-        },
-        fontFamily: { display:['"Bodoni Moda"','Georgia','serif'], sans:['Inter','system-ui','sans-serif'], mono:['"JetBrains Mono"','monospace'] }
-      }}};
-    </script>
 </head>
 <body class="font-sans text-ink" style="background: var(--al-parchment); min-height: 100vh;">
   <header style="border-bottom: 1px solid var(--al-rule);">

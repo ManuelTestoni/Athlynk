@@ -58,6 +58,11 @@ class QuestionnaireResponse(models.Model):
     injuries = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     answers_json = models.JSONField(null=True, blank=True)
+    # Snapshot della config domande/step al momento della compilazione: il
+    # dettaglio renderizza da qui, così le modifiche successive al modello
+    # non alterano la visualizzazione dei check storici.
+    questions_snapshot = models.JSONField(null=True, blank=True)
+    steps_snapshot = models.JSONField(null=True, blank=True)
     coach_feedback = models.TextField(null=True, blank=True)
     coach_private_notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

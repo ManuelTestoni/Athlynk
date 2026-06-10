@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Il mio allenamento{% endblock %}
 
@@ -322,7 +323,7 @@
 </style>
 
 <div class="max-w-7xl mx-auto" x-data="workoutClient({
-       initial: {{ past_data_json|safe }},
+       initial: {{ past_data_json|json_js }},
        hasMore: {{ past_has_more|yesno:'true,false' }},
        total: {{ past_total }},
        initialCount: {{ past_initial_count }},
@@ -377,7 +378,7 @@
               <i class="ph ph-play-circle"></i> Inizia sessione
             </a>
             {% else %}
-            <button @click='pickDay = { aid: {{ a.id }}, title: "{{ plan.title|escapejs }}", days: {{ a.days_json|safe }} }' class="ma-cta">
+            <button @click='pickDay = { aid: {{ a.id }}, title: "{{ plan.title|escapejs }}", days: {{ a.days_json|json_js }} }' class="ma-cta">
               <i class="ph ph-play-circle"></i> Inizia sessione
             </button>
             {% endif %}

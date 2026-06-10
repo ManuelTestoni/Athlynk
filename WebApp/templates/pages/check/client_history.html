@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Storico check – {{ target_client.first_name }} {{ target_client.last_name }}{% endblock %}
 
@@ -418,7 +419,7 @@
         integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY"
         crossorigin="anonymous"></script>
 <script>
-const _chartData = {{ chart_data_json|safe }};
+const _chartData = {{ chart_data_json|json_js }};
 
 // Labels & key order are computed server-side from the measurements actually
 // stored for this athlete (ISAK catalog + legacy fallback).

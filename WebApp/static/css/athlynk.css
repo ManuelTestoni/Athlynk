@@ -263,6 +263,26 @@ body {
   background: linear-gradient(90deg, transparent, var(--al-bronze-l), transparent);
 }
 
+/* Dark/aegean cards: re-tint typography + card head, otherwise i testi
+   ink-based (al-h-*, al-body, al-tag...) risultano neri su sfondo scuro. */
+.al-card-dark .al-card-head,
+.al-card-aegean .al-card-head {
+  background: rgba(255,255,255,0.04);
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+.al-card-dark .al-h-3, .al-card-dark .al-h-4,
+.al-card-aegean .al-h-3, .al-card-aegean .al-h-4 {
+  color: var(--al-parchment);
+}
+.al-card-dark .al-body,
+.al-card-aegean .al-body {
+  color: rgba(244,239,228,0.85);
+}
+.al-card-dark .al-tag,
+.al-card-aegean .al-tag {
+  color: rgba(244,239,228,0.55);
+}
+
 /* Card header */
 .al-card-head {
   display: flex;
@@ -870,7 +890,7 @@ body[data-page="chat"] .al-search { display: none !important; }
   justify-content: flex-end;
   gap: var(--al-s-3);
 }
-ing
+
 /* ---------- Confirm/Alert dialog (dark, animated) ----------
    Riusabile via window.alConfirm / window.alAlert (static/js/confirm.js).
    Default = variante danger (rosso). Modificatore --neutral per conferme
@@ -3541,143 +3561,6 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-bronze); }
 }
 .al-timeline-empty i { font-size: 32px; opacity: 0.35; }
 .al-timeline-empty p { font-size: 13px; margin: 0; }
-
-/* ============================================================
-   TEMA DARK — pilota: Impostazioni  (scoped via body[data-page])
-   I token semantici sono rimappati sul solo .al-canvas: la pagina
-   eredita il dark senza editare i singoli elementi. La sidebar
-   (già dark, usa --al-parchment per il testo) resta intatta perché
-   il remap NON avviene a livello body.
-   Palette coerente col dialogo .al-dlg-* e con la sidebar (ink+bronze).
-   ============================================================ */
-body[data-page="impostazioni"] {
-  background: #0a0604;
-  background-image:
-    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(28,74,82,0.16), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 100% 112%, rgba(138,106,58,0.12), transparent 62%);
-}
-body[data-page="impostazioni"] .al-canvas {
-  --al-parchment:   #0f0b07;
-  --al-marble:      #15100a;
-  --al-marble-w:    #1a140d;
-  --al-marble-warm: #1a140d;
-  --al-stone:       #221a11;
-  --al-stone-d:     #2c2216;
-  --al-ink:         #f4efe4;
-  --al-ink-soft:    rgba(244,239,228,0.80);
-  --al-ink-mute:    rgba(244,239,228,0.50);
-  --al-ink-line:    rgba(244,239,228,0.30);
-  --al-rule:        rgba(244,239,228,0.10);
-  --al-rule-strong: rgba(244,239,228,0.20);
-  --al-rule-faint:  rgba(244,239,228,0.06);
-  color: var(--al-ink);
-}
-/* ── Trattamento "popup" (.al-dlg-) portato sui pannelli della pagina ──
-   Pannello hero = la card principale: dark profondo, angoli 22px, ombra con
-   alone bronze, filo-accento sopra E sotto (::before/::after), entrata spring. */
-body[data-page="impostazioni"] .al-canvas .al-card-flush {
-  background: #0f0b07;
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 22px;
-  overflow: hidden;
-  position: relative;
-  box-shadow:
-    0 32px 80px -16px rgba(0,0,0,0.70),
-    0 0 0 1px rgba(138,106,58,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.045);
-  animation: al-dlg-panel-in .5s cubic-bezier(.16,1,.3,1) both;
-}
-body[data-page="impostazioni"] .al-canvas .al-card-flush::before,
-body[data-page="impostazioni"] .al-canvas .al-card-flush::after {
-  content: '';
-  position: absolute; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(138,106,58,0.40), transparent);
-  pointer-events: none;
-}
-body[data-page="impostazioni"] .al-canvas .al-card-flush::before { top: 0; }
-body[data-page="impostazioni"] .al-canvas .al-card-flush::after  { bottom: 0; }
-
-/* Card secondarie (info box "warm"): versione contenuta dello stesso linguaggio */
-body[data-page="impostazioni"] .al-canvas .al-card {
-  background: linear-gradient(180deg, #16100a 0%, #120d08 100%);
-  border-color: rgba(244,239,228,0.09);
-  border-radius: 14px;
-  box-shadow: 0 18px 44px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.035);
-}
-
-/* Header di sezione (01–04): titolo Bodoni con slide-up come il popup */
-body[data-page="impostazioni"] .al-canvas .al-section-head h2 {
-  animation: al-dlg-slide-up .42s ease .06s both;
-}
-body[data-page="impostazioni"] .al-canvas .al-section-head .al-eyebrow {
-  color: var(--al-bronze-l) !important;
-  letter-spacing: 0.26em;
-}
-
-/* Bottoni primari → riempimento bronze che scorre da sinistra + glow (come .al-dlg-btn-confirm) */
-body[data-page="impostazioni"] .al-canvas .al-btn-bronze {
-  background: transparent;
-  border-color: rgba(200,167,116,0.50);
-  color: var(--al-bronze-l);
-}
-body[data-page="impostazioni"] .al-canvas .al-btn-bronze::after {
-  background: linear-gradient(135deg, #a78554, #8a6a3a);
-  transform: translateX(-101%);
-  transition: transform .34s cubic-bezier(.16,1,.3,1);
-}
-body[data-page="impostazioni"] .al-canvas .al-btn-bronze:hover {
-  color: #0f0b07;
-  border-color: transparent;
-  box-shadow: 0 0 32px rgba(138,106,58,0.30);
-}
-body[data-page="impostazioni"] .al-canvas .al-btn-bronze:hover::after { transform: translateX(0); }
-/* Input/select/textarea: il bg era rgba parchment literal → override dark */
-body[data-page="impostazioni"] .al-canvas .al-input,
-body[data-page="impostazioni"] .al-canvas .al-select,
-body[data-page="impostazioni"] .al-canvas .al-textarea {
-  background: rgba(244,239,228,0.045);
-  color: var(--al-ink);
-  border-color: rgba(244,239,228,0.14);
-}
-body[data-page="impostazioni"] .al-canvas .al-input:hover,
-body[data-page="impostazioni"] .al-canvas .al-select:hover,
-body[data-page="impostazioni"] .al-canvas .al-textarea:hover,
-body[data-page="impostazioni"] .al-canvas .al-input:focus,
-body[data-page="impostazioni"] .al-canvas .al-select:focus,
-body[data-page="impostazioni"] .al-canvas .al-textarea:focus {
-  background: rgba(244,239,228,0.075);
-  border-color: var(--al-bronze-l);
-}
-/* Toast in-pagina (saved/error): bg era var(--al-ink) → tienilo scuro/leggibile */
-body[data-page="impostazioni"] .al-canvas .al-toast {
-  background: #15100a;
-  color: var(--al-ink);
-}
-/* Vtab attiva: leggera evidenziazione su dark */
-body[data-page="impostazioni"] .al-canvas .al-vtab.is-active {
-  background: rgba(244,239,228,0.06);
-  color: var(--al-ink) !important;
-}
-/* Disabled "In arrivo": text-ink-line Tailwind è statico → schiarisci */
-body[data-page="impostazioni"] .al-canvas .text-ink-line { color: rgba(244,239,228,0.28) !important; }
-
-/* --- Chrome scoped al pilota (sidebar è già dark) --- */
-body[data-page="impostazioni"] .al-topbar {
-  background: rgba(15,11,7,0.82);
-  border-bottom-color: rgba(244,239,228,0.08);
-}
-body[data-page="impostazioni"] .al-topbar .text-ink-mute { color: rgba(244,239,228,0.55); }
-body[data-page="impostazioni"] .al-topbar .al-input {
-  background: rgba(244,239,228,0.05);
-  color: #f4efe4;
-  border-color: rgba(244,239,228,0.12);
-}
-body[data-page="impostazioni"] .al-footer {
-  background: rgba(10,6,4,0.92) !important;
-  border-top-color: rgba(244,239,228,0.07) !important;
-}
-body[data-page="impostazioni"] .al-footer .al-small,
-body[data-page="impostazioni"] .al-footer .text-ink-mute { color: rgba(244,239,228,0.45); }
 
 /* ============================================================
    MOTION v4 — staggered reveal for repeated content

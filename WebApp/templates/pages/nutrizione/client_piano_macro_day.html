@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}{{ date_display_day }}, {{ date_display_full }} — {{ plan.title }}{% endblock %}
 
 {% block content %}
 <script>
   window.MACRO_LOG_DAY_INIT = {
-    entries: {{ log_json|safe }},
-    target:  {{ day_target_json|safe }},
+    entries: {{ log_json|json_js }},
+    target:  {{ day_target_json|json_js }},
   };
 </script>
 

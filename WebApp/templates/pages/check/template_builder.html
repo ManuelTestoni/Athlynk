@@ -63,10 +63,14 @@
 .tb-add-q:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
 .tb-type-card {
     cursor: pointer; border: 2px solid var(--al-rule);
-    border-radius: var(--al-r-sm); padding: 14px 10px; text-align: center;
+    border-radius: var(--al-r-sm); padding: 9px 12px; text-align: left;
     background: var(--al-parchment); transition: all 140ms var(--al-ease);
+    display: flex; align-items: center; gap: 10px; min-width: 0;
 }
 .tb-type-card:hover { border-color: var(--al-bronze); background: var(--al-marble); transform: translateY(-1px); }
+.tb-type-card i { font-size: 20px; color: var(--al-bronze); flex-shrink: 0; }
+.tb-type-card .tb-type-name { font-size: 13px; font-weight: 600; color: var(--al-ink); line-height: 1.2; }
+.tb-type-card .tb-type-desc { font-size: 11px; color: var(--al-ink-mute); line-height: 1.3; margin-top: 1px; }
 .tb-type-badge {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 8px; border-radius: 999px;
@@ -378,46 +382,62 @@
                     </button>
                 </div>
                 <div class="al-modal-body">
-                    <div class="grid grid-cols-2 gap-3">
-                        <button @click="pickType('antropometria')" type="button" class="tb-type-card" style="grid-column: span 2;">
-                            <i class="ph ph-ruler text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Antropometria</p>
-                            <p class="al-tag text-xs mt-1">Peso, circonferenze e pliche (ISAK)</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button @click="pickType('antropometria')" type="button" class="tb-type-card" style="grid-column: 1 / -1;">
+                            <i class="ph ph-ruler"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Antropometria</span>
+                                <span class="tb-type-desc block">Peso, circonferenze e pliche (ISAK)</span>
+                            </span>
                         </button>
                         <button @click="pickType('metrica')" type="button" class="tb-type-card">
-                            <i class="ph ph-hash text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Numero con unità</p>
-                            <p class="al-tag text-xs mt-1">Es. 65 %, 8 h</p>
+                            <i class="ph ph-hash"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Numero con unità</span>
+                                <span class="tb-type-desc block">Es. 65 %, 8 h</span>
+                            </span>
                         </button>
                         <button @click="pickType('media')" type="button" class="tb-type-card">
-                            <i class="ph ph-sliders text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Scala</p>
-                            <p class="al-tag text-xs mt-1">Da min a max</p>
+                            <i class="ph ph-sliders"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Scala</span>
+                                <span class="tb-type-desc block">Da min a max</span>
+                            </span>
                         </button>
                         <button @click="pickType('si_no')" type="button" class="tb-type-card">
-                            <i class="ph ph-toggle-left text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Sì / No</p>
-                            <p class="al-tag text-xs mt-1">Binaria</p>
+                            <i class="ph ph-toggle-left"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Sì / No</span>
+                                <span class="tb-type-desc block">Binaria</span>
+                            </span>
                         </button>
                         <button @click="pickType('radio')" type="button" class="tb-type-card">
-                            <i class="ph ph-radio-button text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Scelta singola</p>
-                            <p class="al-tag text-xs mt-1">Una sola opzione</p>
+                            <i class="ph ph-radio-button"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Scelta singola</span>
+                                <span class="tb-type-desc block">Una sola opzione</span>
+                            </span>
                         </button>
                         <button @click="pickType('checkbox')" type="button" class="tb-type-card">
-                            <i class="ph ph-check-square text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Scelta multipla</p>
-                            <p class="al-tag text-xs mt-1">Più opzioni</p>
+                            <i class="ph ph-check-square"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Scelta multipla</span>
+                                <span class="tb-type-desc block">Più opzioni</span>
+                            </span>
                         </button>
                         <button @click="pickType('aperta')" type="button" class="tb-type-card">
-                            <i class="ph ph-text-aa text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Risposta aperta</p>
-                            <p class="al-tag text-xs mt-1">Testo libero</p>
+                            <i class="ph ph-text-aa"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Risposta aperta</span>
+                                <span class="tb-type-desc block">Testo libero</span>
+                            </span>
                         </button>
-                        <button @click="pickType('allegato')" type="button" class="tb-type-card" style="grid-column: span 2;">
-                            <i class="ph ph-paperclip text-2xl mb-2 block" style="color: var(--al-bronze);"></i>
-                            <p class="font-semibold text-sm text-ink">Foto o allegati</p>
-                            <p class="al-tag text-xs mt-1">Upload file (immagini, PDF, ecc.)</p>
+                        <button @click="pickType('allegato')" type="button" class="tb-type-card">
+                            <i class="ph ph-paperclip"></i>
+                            <span class="min-w-0">
+                                <span class="tb-type-name block">Foto o allegati</span>
+                                <span class="tb-type-desc block">Upload file</span>
+                            </span>
                         </button>
                     </div>
                 </div>

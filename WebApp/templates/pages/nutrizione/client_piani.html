@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}La mia nutrizione{% endblock %}
 
@@ -385,7 +386,7 @@
 
 <div class="max-w-7xl mx-auto"
      x-data="nutritionClient({
-       initial: {{ past_data_json|safe }},
+       initial: {{ past_data_json|json_js }},
        hasMore: {{ past_has_more|yesno:'true,false' }},
        total: {{ past_total }},
        initialCount: {{ past_initial_count }},

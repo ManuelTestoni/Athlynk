@@ -1,7 +1,6 @@
 """Real-time workout session + progress tracking views & APIs."""
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Count, Sum
 from datetime import timedelta
@@ -204,7 +203,6 @@ def client_assignment_volume_view(request, assignment_id):
     })
 
 
-@csrf_exempt
 def api_assignment_sessions_list(request, assignment_id):
     if request.method != 'GET':
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -306,7 +304,6 @@ def client_session_active_view(request, assignment_id, day_id):
 # Session APIs (start/log set/finish/media)
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_session_start(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -381,7 +378,6 @@ def api_session_start(request):
     })
 
 
-@csrf_exempt
 def api_session_log_set(request, session_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -435,7 +431,6 @@ def api_session_log_set(request, session_id):
     return JsonResponse({'set_id': log.id, 'success': True})
 
 
-@csrf_exempt
 def api_session_finish(request, session_id):
     if request.method not in ('POST', 'PATCH'):
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -491,7 +486,6 @@ def api_session_finish(request, session_id):
     })
 
 
-@csrf_exempt
 def api_session_upload_media(request, session_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -850,7 +844,6 @@ def api_session_detail(request, session_id):
     return JsonResponse(_serialize_session_full(session))
 
 
-@csrf_exempt
 def api_session_coach_note(request, session_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -905,7 +898,6 @@ def api_progress_media_gallery(request, client_id):
     return JsonResponse(data, safe=False)
 
 
-@csrf_exempt
 def api_media_comment(request, media_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'method not allowed'}, status=405)

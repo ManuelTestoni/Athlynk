@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}Progressi — {{ client.first_name }} {{ client.last_name }}{% endblock %}
 
@@ -7,7 +7,7 @@
 <script>
   window.PROGRESS_INIT = {
     client_id: {{ client.id }},
-    exercises_in_program: {{ exercises_in_program_json|safe }},
+    exercises_in_program: {{ exercises_in_program_json|json_js }},
     urls: {
       kpi: "/api/coach/clienti/{{ client.id }}/progressi/kpi/",
       loads: "/api/coach/clienti/{{ client.id }}/progressi/carichi/",

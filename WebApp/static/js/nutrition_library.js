@@ -36,6 +36,7 @@ function nutritionLibrary() {
     /* drag */
     draggedPlanId: null,
     dropTargetId: null,
+    draggedFolderId: null,
 
     /* folder edit */
     editingFolderId: null,
@@ -264,6 +265,34 @@ function nutritionLibrary() {
     },
 
     /* === drag & drop === */
+    /* Drop su una cartella: o sto riordinando le cartelle (drag della voce
+       sidebar) o sto archiviando un piano (drag della card). */
+    handleFolderDrop(folderId) {
+      if (this.draggedFolderId) {
+        if (folderId && this.draggedFolderId !== folderId) this.reorderFolders(folderId);
+        this.draggedFolderId = null;
+        this.dropTargetId = null;
+        return;
+      }
+      this.dropPlanOnFolder(folderId);
+    },
+    async reorderFolders(targetId) {
+      const srcIdx = this.folders.findIndex(f => f.id === this.draggedFolderId);
+      const tgtIdx = this.folders.findIndex(f => f.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+      const moved = this.folders.splice(srcIdx, 1)[0];
+      this.folders.splice(tgtIdx, 0, moved);
+      try {
+        const res = await fetch(this.urls.foldersReorder, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': nutCsrfToken() },
+          body: JSON.stringify({ ids: this.folders.map(f => f.id) }),
+        });
+        if (!res.ok) throw new Error('save');
+      } catch (e) {
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Riordino non salvato. Riprova.' });
+      }
+    },
     async dropPlanOnFolder(folderId) {
       this.dropTargetId = null;
       const pid = this.draggedPlanId;

@@ -2,7 +2,6 @@ import json
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 
 from domain.workouts.models import (
@@ -56,7 +55,6 @@ def _cell_to_json(cell):
     }
 
 
-@csrf_exempt
 def api_progression_preview(request, plan_id):
     """Pure preview: compute weekly values for a single exercise from draft rules.
 
@@ -118,7 +116,6 @@ def api_progression_preview(request, plan_id):
     })
 
 
-@csrf_exempt
 def api_progression_special_week(request, plan_id, week_number):
     """Update WeekDefinition.week_type/preset for a single week, then recompute."""
     plan, err = _coach_plan_or_403(request, plan_id)
@@ -167,7 +164,6 @@ def api_progression_special_week(request, plan_id, week_number):
     })
 
 
-@csrf_exempt
 def api_progression_day_grid(request, plan_id, day_id):
     """Per-day grid for the new Step 3 UI: every exercise's effective values
     across all weeks, with forward-fill from WeeklyOverride records."""
@@ -183,7 +179,6 @@ def api_progression_day_grid(request, plan_id, day_id):
     return JsonResponse({'status': 'ok', 'grid': grid})
 
 
-@csrf_exempt
 def api_progression_cell(request, plan_id):
     """Upsert/clear a single (exercise, week, metric) override. Forward-propagation
     is handled by compute_day_grid: subsequent weeks inherit until a later
@@ -239,7 +234,6 @@ def api_progression_cell(request, plan_id):
     return JsonResponse({'status': 'ok', 'computed': computed})
 
 
-@csrf_exempt
 def api_progression_delete_cell(request, plan_id, exercise_id):
     """Remove a workout exercise from a specific week onward, or just at that
     single week. Body: { mode: 'single' | 'forward', week_number }.
@@ -304,7 +298,6 @@ def api_progression_delete_cell(request, plan_id, exercise_id):
     return JsonResponse({'status': 'ok', 'deleted': False})
 
 
-@csrf_exempt
 def api_progression_add_exercise(request, plan_id):
     """Create a new WorkoutExercise on a day, active from `starts_at_week`
     onward. Used by the "+ Aggiungi" button under each week column."""

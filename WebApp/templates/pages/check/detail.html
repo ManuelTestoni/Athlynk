@@ -276,8 +276,8 @@
                             </span>
                         </div>
 
-                        {# ── RADIO / ELENCO / TEMPO ── #}
-                        {% elif q.type == 'radio' or q.type == 'elenco' or q.type == 'tempo' %}
+                        {# ── RADIO / CHECKBOX / ELENCO / TEMPO ── #}
+                        {% elif q.type == 'radio' or q.type == 'checkbox' or q.type == 'elenco' or q.type == 'tempo' %}
                         <div class="flex items-center justify-between gap-3">
                             <span class="al-body">{{ q.label }}</span>
                             <span class="al-tag font-mono" style="background: var(--al-marble); color: var(--al-ink);">{{ q.value }}</span>

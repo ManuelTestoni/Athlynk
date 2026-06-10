@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}{{ plan.title }} — Builder{% endblock %}
 
 {% block content %}
 <script>
-window.WORKOUT_PLAN = {{ plan_data|safe }};
+window.WORKOUT_PLAN = {{ plan_data|json_js }};
 window.WORKOUT_BUILDER_URLS = {
   save: "{% url 'allenamenti_plan_builder' plan.id %}",
   duplicate_day: "/api/allenamenti/{{ plan.id }}/giorni/__DAY_ID__/duplica/",

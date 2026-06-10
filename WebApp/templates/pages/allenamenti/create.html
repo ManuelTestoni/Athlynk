@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Scheda Allenamento{% endblock %}
 
 {% block content %}
 {% if edit_mode %}
 <script>
-window.WORKOUT_DATA = {{ plan_data|safe }};
+window.WORKOUT_DATA = {{ plan_data|json_js }};
 window.WORKOUT_EDIT_URL = "{% url 'allenamenti_edit' assignment_id %}";
 </script>
 {% endif %}

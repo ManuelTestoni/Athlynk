@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}Wizard scheda{% endblock %}
 
 {% block content %}
 <script>
-  window.WIZARD_INIT = {{ plan_data_json|safe }};
+  window.WIZARD_INIT = {{ plan_data_json|json_js }};
   window.WIZARD_URLS = {
     save_new: "{% url 'api_plan_save_new' %}",
     save: "/api/allenamenti/__ID__/save/",

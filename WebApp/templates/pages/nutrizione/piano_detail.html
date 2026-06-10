@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}{{ plan.title }} · Piano alimentare{% endblock %}
 
 {% block content %}
 <script>
-  window._detailClients = {{ clients_json|safe }};
+  window._detailClients = {{ clients_json|json_js }};
 </script>
 
 <div class="max-w-6xl mx-auto"

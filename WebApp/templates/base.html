@@ -12,21 +12,28 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 
-    <!-- Tailwind (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js + plugins (plugins must load before core) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Tailwind (build locale: vedi tailwind.config.js in radice WebApp) -->
+    <link rel="stylesheet" href="{% static 'css/tailwind.css' %}?v={{ ASSET_VERSION }}">
+    <!-- Alpine.js + plugins (plugins must load before core) — versioni pinnate + SRI -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.15.12/dist/cdn.min.js"
+            integrity="sha384-NArNwzWsUSF+kY2lgW4YriEkjLqi+J+za6HrENUn/3nZqkBnWbxV22kCJEK5Uu6n" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
+            integrity="sha384-pb6hrQvo4s23cEUFtj0CZkzGE3jyK3pj26RIupXXxhSrrcUA/Cn0lZgcCrGH0t6L" crossorigin="anonymous"></script>
     <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.2/src/index.js"
+            integrity="sha384-J7cw2fbG1T4C5MirTVUxsZGaMfw2m0XsCgOQEqUvB1OF9VIsHWuZF1GmyVRzs7eu" crossorigin="anonymous"></script>
 
     <!-- Flatpickr (modern date/time picker) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"
+          integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"
+            integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js"
+            integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ" crossorigin="anonymous"></script>
 
     <!-- Chart.js (shared across analytics views) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
+            integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY" crossorigin="anonymous"></script>
 
     <!-- Pre-set the footer-height CSS variable BEFORE first paint so layout never
          flashes a stale value (the precise px is re-measured by JS later). The
@@ -53,58 +60,6 @@
     <link rel="stylesheet" href="{% static 'css/workouts.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        /* Athlynk palette */
-                        ink:        '#14110d',
-                        'ink-soft': '#2a2620',
-                        'ink-mute': '#5b554a',
-                        'ink-line': '#8a8270',
-
-                        parchment:    '#f4efe4',
-                        marble:       '#ece5d6',
-                        'marble-warm':'#e7dfcb',
-                        stone:        '#d8cfba',
-                        'stone-deep': '#c4b89c',
-
-                        aegean:       '#1c4a52',
-                        'aegean-deep':'#0e2f36',
-                        'aegean-tint':'#2a6a72',
-
-                        bronze:        '#8a6a3a',
-                        'bronze-soft': '#a78554',
-                        'bronze-light':'#c8a774',
-
-                        /* Legacy aliases (do not break old templates) */
-                        primary: '#14110d',
-                        accent:  '#1c4a52',
-                        surface: '#f4efe4',
-                        brand:   '#8a6a3a',
-                    },
-                    fontFamily: {
-                        display: ['"Bodoni Moda"', 'Didot', 'Georgia', 'serif'],
-                        sans:    ['Inter', 'system-ui', 'sans-serif'],
-                        mono:    ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
-                    },
-                    boxShadow: {
-                        'al-1': '0 1px 0 rgba(20,17,13,0.04)',
-                        'al-2': '0 12px 32px -16px rgba(20,17,13,0.18)',
-                        'al-3': '0 30px 80px -30px rgba(20,17,13,0.35)',
-                    },
-                    borderRadius: {
-                        'al-sm': '10px',
-                        'al-md': '16px',
-                        'al-lg': '22px',
-                        'al-xl': '28px',
-                        'al-pill': '999px',
-                    },
-                }
-            }
-        }
-    </script>
     {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
 </head>

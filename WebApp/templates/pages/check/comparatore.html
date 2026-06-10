@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Comparatore foto{% endblock %}
 
@@ -406,7 +407,7 @@
 </style>
 
 <script>
-const _photos = {{ photos_json|safe }};
+const _photos = {{ photos_json|json_js }};
 
 function comparatore() {
     return {

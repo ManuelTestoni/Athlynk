@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}Volume — {{ plan.title }}{% endblock %}
 
 {% block content %}
 <script>
-  window.VOLUME_INIT = { days: {{ days_json|safe }} };
+  window.VOLUME_INIT = { days: {{ days_json|json_js }} };
 </script>
 
 <div class="max-w-5xl mx-auto" x-data="volumeView()" x-init="init()">

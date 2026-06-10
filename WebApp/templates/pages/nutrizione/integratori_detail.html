@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}{{ sheet.title }}{% endblock %}
 
 {% block content %}
-<script>window._suppClients = {{ clients_json|safe }};</script>
+<script>window._suppClients = {{ clients_json|json_js }};</script>
 
 <div class="max-w-5xl mx-auto"
      x-data="{

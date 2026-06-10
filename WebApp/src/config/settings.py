@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     'domain.consent',
     'domain.chiron',
     'domain.analytics',
+    'domain.shared',
 ]
 
 MIDDLEWARE = [

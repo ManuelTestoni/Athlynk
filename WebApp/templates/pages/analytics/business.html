@@ -84,12 +84,18 @@
         <div class="al-card lg:col-span-2">
             <div class="al-card-head">
                 <h3 class="al-h-3">Andamento (30 giorni)</h3>
-                <div class="flex gap-2">
-                    <button class="al-chip" :class="trendMetric==='at_risk_clients_count' && 'is-active'"
+                <div class="al-filter" role="tablist" aria-label="Metrica andamento">
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': trendMetric==='at_risk_clients_count' }"
+                            :aria-selected="trendMetric==='at_risk_clients_count'"
                             @click="setTrend('at_risk_clients_count')">A rischio</button>
-                    <button class="al-chip" :class="trendMetric==='active_clients_count' && 'is-active'"
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': trendMetric==='active_clients_count' }"
+                            :aria-selected="trendMetric==='active_clients_count'"
                             @click="setTrend('active_clients_count')">Attivi</button>
-                    <button class="al-chip" :class="trendMetric==='avg_risk_score' && 'is-active'"
+                    <button type="button" role="tab" class="al-filter-chip"
+                            :class="{ 'is-active': trendMetric==='avg_risk_score' }"
+                            :aria-selected="trendMetric==='avg_risk_score'"
                             @click="setTrend('avg_risk_score')">Risk score</button>
                 </div>
             </div>
@@ -103,14 +109,19 @@
             <div class="al-card-head"><h3 class="al-h-3">Rischio clienti</h3></div>
             <div class="al-card-body space-y-4">
                 <template x-for="b in riskBreakdown" :key="b.cls">
-                    <button class="w-full flex items-center justify-between p-3 rounded-al-md transition"
-                            :class="riskFilter===b.cls ? 'bg-bronze/15' : 'hover:bg-parchment/5'"
+                    <button class="w-full flex items-center justify-between p-3 rounded-al-md transition border"
+                            :class="riskFilter===b.cls
+                                ? 'bg-bronze/20 border-bronze-light/40'
+                                : 'border-transparent hover:bg-parchment/5'"
                             @click="setRiskFilter(b.cls)">
                         <span class="flex items-center gap-3">
-                            <span class="w-2.5 h-2.5 rounded-full" :class="b.dot"></span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + b.dot"></span>
                             <span class="al-body" x-text="b.label"></span>
                         </span>
-                        <span class="al-display text-2xl" x-text="b.count"></span>
+                        <span class="flex items-center gap-2">
+                            <span class="al-display text-2xl" x-text="b.count"></span>
+                            <i class="ph ph-check-circle text-bronze-light" x-show="riskFilter===b.cls" x-cloak></i>
+                        </span>
                     </button>
                 </template>
             </div>
@@ -154,7 +165,7 @@
                             <td>
                                 <div class="flex flex-wrap gap-1.5">
                                     <template x-for="r in c.reasons" :key="r.code">
-                                        <span class="al-chip" x-text="r.label"></span>
+                                        <span class="al-badge" x-text="r.label"></span>
                                     </template>
                                 </div>
                             </td>

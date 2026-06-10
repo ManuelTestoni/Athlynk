@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block content %}
 {# Render the coaches payload as a script-tag JSON island so apostrophes / quotes
    inside coach names can't break the x-data attribute (root cause of the
    leaking-source bug). #}
-<script id="coach-finder-data" type="application/json">{{ coaches|safe }}</script>
+<script id="coach-finder-data" type="application/json">{{ coaches|json_js }}</script>
 <script>
   window.coachFinder = function () {
     return {

@@ -20,7 +20,7 @@
             <a href="{% url 'check_progress_charts' %}" class="al-btn al-btn-ghost">
                 <i class="ph ph-chart-line text-sm"></i><span>Andamento</span>
             </a>
-            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze">
+            <a href="{% url 'client_assigned_checks' %}" class="al-btn al-btn-bronze">
                 <i class="ph ph-plus-circle text-sm"></i><span>Nuovo check</span>
             </a>
         </div>
@@ -44,7 +44,7 @@
                 <p class="al-small mt-2">{{ upcoming_check.description }}</p>
                 {% endif %}
             </div>
-            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze shrink-0">
+            <a href="{% url 'client_assigned_checks' %}" class="al-btn al-btn-bronze shrink-0">
                 <i class="ph ph-paper-plane-tilt text-sm"></i><span>Compila ora</span>
             </a>
         </div>
@@ -165,7 +165,7 @@
             <i class="ph ph-clipboard-text al-empty-icon"></i>
             <h3>Nessun check ancora</h3>
             <p>Compila il tuo primo check per inviare le tue misurazioni al coach.</p>
-            <a href="{% url 'check_create' %}" class="al-btn al-btn-bronze">
+            <a href="{% url 'client_assigned_checks' %}" class="al-btn al-btn-bronze">
                 <i class="ph ph-plus-circle"></i><span>Compila il primo check</span>
             </a>
         </div>

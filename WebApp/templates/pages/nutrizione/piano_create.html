@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}{% if plan %}Modifica piano{% else %}Nuovo piano{% endif %} · Nutrizione{% endblock %}
 
@@ -22,11 +22,11 @@ window.NUTRITION_WIZARD_INIT = {
   }{% else %}null{% endif %},
   planKind: "{{ plan_kind }}",
   planMode: "{{ plan_mode }}",
-  meals: {{ meals_json|safe }},
-  dayTargets: {{ day_targets_json|safe }},
-  clients: {{ clients_json|safe }},
-  folders: {{ folders_json|safe }},
-  supplements: {{ supplements_json|safe }},
+  meals: {{ meals_json|json_js }},
+  dayTargets: {{ day_targets_json|json_js }},
+  clients: {{ clients_json|json_js }},
+  folders: {{ folders_json|json_js }},
+  supplements: {{ supplements_json|json_js }},
   initialFolderId: {{ initial_folder_id|default:"null" }},
   csrf: "{{ csrf_token }}",
   urls: {

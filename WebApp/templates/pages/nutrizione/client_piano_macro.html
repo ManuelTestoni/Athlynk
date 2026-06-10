@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 
 {% block title %}{{ plan.title }} — Obiettivo macro{% endblock %}
 
@@ -7,9 +7,9 @@
 <script>
   window.MACRO_LOG_INIT = {
     isWeekly: {{ is_weekly|yesno:"true,false" }},
-    targets: {{ targets_json|safe }},
-    entries: {{ log_json|safe }},
-    weekDays: {{ week_days_json|safe }},
+    targets: {{ targets_json|json_js }},
+    entries: {{ log_json|json_js }},
+    weekDays: {{ week_days_json|json_js }},
     csrf: "{{ csrf_token }}",
     urls: {
       foodSearch: "{% url 'nutrizione_food_search' %}",

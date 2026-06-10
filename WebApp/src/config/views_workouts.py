@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q, Count
 from datetime import date, timedelta
@@ -771,7 +770,6 @@ def _apply_progression_payload(plan, payload, ex_local_to_pk):
             ov.delete()
 
 
-@csrf_exempt
 def api_plan_save(request, plan_id=None):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):
@@ -813,7 +811,6 @@ def api_plan_save(request, plan_id=None):
 # Finalize: assign / save as template
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_plan_finalize(request, plan_id):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):
@@ -911,7 +908,6 @@ def api_plan_finalize(request, plan_id):
 # Delete plan
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_plan_delete(request, plan_id):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):
@@ -928,7 +924,6 @@ def api_plan_delete(request, plan_id):
 # Duplicate plan
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 def api_plan_duplicate(request, plan_id):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):

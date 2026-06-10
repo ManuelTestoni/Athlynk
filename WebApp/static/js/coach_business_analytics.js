@@ -91,11 +91,12 @@
 
       get riskBreakdown() {
         const count = (cls) => this.allRiskClients.filter(c => c.risk_class === cls).length;
+        // Colori espliciti: bg-danger/warn/success non esistono nella config Tailwind.
         return [
-          { cls: 'all', label: 'Tutti', count: this.allRiskClients.length, dot: 'bg-ink-mute' },
-          { cls: 'high', label: 'Alto', count: count('high'), dot: 'bg-danger' },
-          { cls: 'medium', label: 'Medio', count: count('medium'), dot: 'bg-warn' },
-          { cls: 'low', label: 'Basso', count: count('low'), dot: 'bg-success' },
+          { cls: 'all', label: 'Tutti', count: this.allRiskClients.length, dot: '#8a8270' },
+          { cls: 'high', label: 'Alto', count: count('high'), dot: '#ef4444' },
+          { cls: 'medium', label: 'Medio', count: count('medium'), dot: '#f59e0b' },
+          { cls: 'low', label: 'Basso', count: count('low'), dot: '#4ade80' },
         ];
       },
 
