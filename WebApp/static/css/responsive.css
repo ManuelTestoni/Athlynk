@@ -1,0 +1,149 @@
+/* =====================================================================
+   Athlynk — Global responsive layer
+   ---------------------------------------------------------------------
+   Loaded LAST (after tailwind.css, athlynk.css, workouts.css, …) so it can
+   adapt the design system + Tailwind utilities on phones and tablets without
+   editing every template. Page-scoped <style> blocks add their own finer
+   breakpoints on top of this; this file owns the cross-cutting behaviour:
+
+     0. Overflow guard            — nothing pushes the layout sideways
+     1. Media elements            — images / canvases / iframes stay contained
+     2. Table scroll wrappers     — wide tables scroll instead of squishing
+     3. Overlays                  — modals / dialogs / popovers fit the viewport
+     4. Tablet  (<= 1024px)
+     5. Phone   (<= 640px)
+     6. Small phone (<= 420px)
+
+   Breakpoints mirror Tailwind: sm 640, md 768, lg 1024, xl 1280.
+   ===================================================================== */
+
+/* ---- 0. Overflow guard ------------------------------------------------ */
+/* The content scroller (main.al-canvas) declares overflow-y:auto; per the CSS
+   spec that makes its overflow-x compute to `auto` too, so any too-wide child
+   produces the classic mobile horizontal "wiggle". Pin overflow-x to hidden:
+   vertical scroll is unaffected, and children that genuinely need to scroll
+   sideways (.al-tbl-scroll, calendars) own their own scroll container, so they
+   are untouched. Sticky headers keep working — main stays the scroll context. */
+html, body { max-width: 100%; }
+.al-canvas { max-width: 100%; }
+main.al-canvas { overflow-x: hidden; }
+.al-page   { max-width: 100%; }
+
+/* Long unbroken strings (URLs, tokens, emails) shouldn't force width. */
+.al-page .al-break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+/* ---- 1. Replaced / embedded media ------------------------------------ */
+.al-page img,
+.al-page video,
+.al-page svg,
+.al-page iframe { max-width: 100%; }
+/* Chart.js manages its canvas dimensions via inline styles (responsive:true);
+   we only keep it from forcing the box wider than the viewport. */
+.al-page canvas:not(.al-allow-wide) { max-width: 100%; }
+
+/* ---- 2. Table scroll wrappers ---------------------------------------- */
+/* base.html wraps every content <table> in .al-tbl-scroll on load. The
+   wrapper owns horizontal scroll; below md the table sizes to its content
+   (min-width:100% so it still fills when narrow) instead of squishing. */
+.al-tbl-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* faint edge hint that there's more to scroll */
+  scrollbar-width: thin;
+}
+@media (max-width: 768px) {
+  .al-tbl-scroll > table,
+  .al-tbl-scroll > .al-table { width: auto; min-width: 100%; }
+}
+
+/* ---- 3. Overlays: modals, dialogs, popovers -------------------------- */
+/* Many panels carry an inline max-width (e.g. style="max-width:820px"); on a
+   phone that still overflows, so cap to the viewport with a comfortable
+   gutter regardless of the inline value. */
+@media (max-width: 640px) {
+  .al-modal-panel {
+    max-width: calc(100vw - 1.5rem) !important;
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+  }
+  /* notification + search dropdowns are absolute right-anchored */
+  .al-notif-pop {
+    width: calc(100vw - 1.5rem) !important;
+    max-width: calc(100vw - 1.5rem);
+  }
+  .al-search-dropdown { max-width: calc(100vw - 1.5rem); }
+}
+
+/* ---- 3b. Sidebar drawer fix (CRITICAL) ------------------------------- */
+/* base.html marks the sidebar `fixed lg:static` so it is an off-canvas drawer
+   below lg. But athlynk.css `.al-sidebar { position: relative }` loads AFTER
+   Tailwind and wins, so on phones/tablets the drawer still sits IN FLOW and
+   reserves its full 16rem — crushing the main content into the leftover sliver
+   (~100px on a 360px phone). Re-assert the drawer below lg so the content area
+   gets the full viewport width. At lg+ the sidebar stays in flow (desktop). */
+@media (max-width: 1023.98px) {
+  .al-sidebar {
+    position: fixed !important;
+    flex: none !important;       /* not a flex item when out of flow */
+  }
+}
+
+/* ---- 4. Tablet (<= 1024px, i.e. below Tailwind lg) ------------------- */
+/* The sidebar is already a slide-in drawer below lg (see base.html). Tame the
+   common 2-column "main + rail" page layouts that authors wrote with fixed
+   side rails so they stack on tablet. Pages keep their own finer rules. */
+@media (max-width: 1024px) {
+  /* Tailwind 12-col dashboards: let spanned children go full width. */
+  .al-page .lg\:grid-cols-12 > [class*="col-span-"] { grid-column: auto / span 12; }
+}
+
+/* ---- 5. Phone (<= 640px) -------------------------------------------- */
+@media (max-width: 640px) {
+  /* Tighter component gutters so content keeps breathing room at p-4. */
+  .al-card-head { padding-left: 1.1rem; padding-right: 1.1rem; }
+  .al-card-body { padding-left: 1.1rem; padding-right: 1.1rem; }
+  .al-modal-head, .al-modal-body, .al-modal-foot {
+    padding-left: 1.1rem; padding-right: 1.1rem;
+  }
+
+  /* Denser table cells reclaim horizontal room before scroll kicks in. */
+  .al-table thead th, .al-table tbody td { padding-top: 11px; padding-bottom: 11px; }
+  .al-table thead th:first-child, .al-table tbody td:first-child { padding-left: 1.1rem; }
+  .al-table thead th:last-child,  .al-table tbody td:last-child  { padding-right: 1.1rem; }
+
+  /* KPI numbers were tuned for desktop; shrink so 2-up KPI rows fit. */
+  .al-kpi { padding: 1.1rem; }
+  .al-kpi-num { font-size: clamp(26px, 8vw, 36px); }
+
+  /* Bare Tailwind grids (no responsive prefix) that would stay 4-up. */
+  .al-page .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Dialog buttons stack full-width for easier tapping. */
+  .al-dlg-actions { flex-direction: column-reverse; }
+  .al-dlg-actions > * { width: 100%; }
+  .al-modal-foot { flex-wrap: wrap; }
+
+  /* Tab strips scroll horizontally rather than wrapping into a tall block.
+     max-width:100% constrains the inline-flex pill so overflow-x can scroll. */
+  .al-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .al-tabs::-webkit-scrollbar { display: none; }
+  .al-tabs button { white-space: nowrap; flex: 0 0 auto; }
+
+  /* Touch targets: nav + icon buttons reach the 40px comfort floor. */
+  .al-btn-icon { min-width: 40px; min-height: 40px; }
+}
+
+/* ---- 6. Small phone (<= 420px) -------------------------------------- */
+@media (max-width: 420px) {
+  /* Even 3-up bare grids get cramped on the smallest devices. */
+  .al-page .grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Display hero headings: keep them bold but inside the frame. */
+  .al-h-display { font-size: clamp(30px, 10vw, 44px); }
+}

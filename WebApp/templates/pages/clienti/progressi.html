@@ -78,7 +78,7 @@
   <div class="flex gap-2 border-b mb-4 overflow-x-auto" style="border-color: var(--al-rule-faint);">
     <template x-for="t in tabs" :key="t.key">
       <button @click="activeTab = t.key; loadTab(t.key)" type="button"
-              class="px-4 py-2 whitespace-nowrap"
+              class="px-4 py-2 whitespace-nowrap shrink-0"
               :style="activeTab === t.key ? 'border-bottom: 2px solid var(--al-bronze); font-weight: 700;' : 'color: var(--al-ink-faint);'"
               x-text="t.label"></button>
     </template>

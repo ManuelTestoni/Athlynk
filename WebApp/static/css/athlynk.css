@@ -2996,14 +2996,14 @@ body[data-scrolled="1"] .al-sidebar-top {
   flex: 1 1 0;
   text-align: center;
   white-space: nowrap;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border: none;
   background: transparent;
   cursor: pointer;
   font-family: var(--al-sans);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--al-ink-mute);
   border-radius: var(--al-r-pill);
@@ -3026,6 +3026,16 @@ body[data-scrolled="1"] .al-sidebar-top {
 .al-tl-zoom-marker.z-0 { transform: translateX(0); }
 .al-tl-zoom-marker.z-1 { transform: translateX(100%); }
 .al-tl-zoom-marker.z-2 { transform: translateX(200%); }
+
+/* The filter row squeezes the zoom control thin enough to clip its widest
+   label ("Semestre"). Phones: let it span the full line. Tablets/desktop:
+   guarantee a minimum width so each equal third fits (marker tracks 1/3 steps). */
+@media (max-width: 640px) {
+  .al-tl-zoom { width: 100%; flex-basis: 100%; }
+}
+@media (min-width: 641px) {
+  .al-tl-zoom { min-width: 282px; }
+}
 
 .al-tl-filter {
   display: inline-flex;

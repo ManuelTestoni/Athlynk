@@ -21,16 +21,16 @@
       <div class="al-rule-bronze mt-5"></div>
     </div>
     {% if can_manage_agenda %}
-    <div class="flex items-center gap-2" x-data="{ syncOpen: false, copied: false, copy(){ navigator.clipboard.writeText('{{ calendar_feed_url|escapejs }}'); this.copied=true; setTimeout(()=>this.copied=false,1600); } }" @keydown.escape.window="syncOpen=false">
-      <div class="relative">
-        <button @click="syncOpen = !syncOpen" type="button" class="al-btn al-btn-ghost" :class="syncOpen ? 'border-bronze' : ''">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-2" x-data="{ syncOpen: false, copied: false, copy(){ navigator.clipboard.writeText('{{ calendar_feed_url|escapejs }}'); this.copied=true; setTimeout(()=>this.copied=false,1600); } }" @keydown.escape.window="syncOpen=false">
+      <div class="relative w-full sm:w-auto">
+        <button @click="syncOpen = !syncOpen" type="button" class="al-btn al-btn-ghost w-full sm:w-auto justify-center" :class="syncOpen ? 'border-bronze' : ''">
           <i class="ph ph-calendar-plus text-sm"></i>
           <span>Collega calendario</span>
           <i class="ph text-xs" :class="syncOpen ? 'ph-caret-up' : 'ph-caret-down'"></i>
         </button>
         <div x-show="syncOpen" x-cloak @click.outside="syncOpen=false"
              x-transition.origin.top.right
-             class="absolute right-0 top-full mt-2 z-40 w-[340px]"
+             class="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 z-40 w-[min(340px,calc(100vw-2rem))]"
              style="background: var(--al-parchment); border: 1px solid var(--al-rule-strong); border-radius: 14px; box-shadow: var(--al-shadow-3); padding: 16px;">
           <p class="al-eyebrow mb-2">Sincronizza la tua agenda</p>
           <p class="al-small mb-3" style="color: var(--al-ink-mute); line-height: 1.5;">
@@ -86,7 +86,7 @@
           </div>
         </div>
       </div>
-      <button @click="openCreate(null)" type="button" class="al-btn">
+      <button @click="openCreate(null)" type="button" class="al-btn w-full sm:w-auto justify-center">
         <i class="ph ph-plus text-sm"></i>
         <span>Nuovo appuntamento</span>
       </button>

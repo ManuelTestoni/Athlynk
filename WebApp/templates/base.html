@@ -59,6 +59,8 @@
     <link rel="stylesheet" href="{% static 'css/pickers.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/workouts.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
+    <!-- Global responsive layer — must load LAST so it can adapt the design system + Tailwind utilities on phones/tablets -->
+    <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v={{ ASSET_VERSION }}">
 
     {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
@@ -449,6 +451,33 @@
         </div>
       </div>
     </div>
+
+    <!-- Responsive table wrapper: wrap every content <table> in a horizontal
+         scroll container so wide tables scroll on phones instead of squishing
+         or breaking the layout. Idempotent; also covers DOM injected later. -->
+    <script>
+      (function () {
+        function wrap(t) {
+          if (!t || t.dataset.noWrap === '1' || t.closest('.al-tbl-scroll')) return;
+          var p = t.parentNode;
+          if (!p) return;
+          var w = document.createElement('div');
+          w.className = 'al-tbl-scroll';
+          p.insertBefore(w, t);
+          w.appendChild(t);
+        }
+        function wrapAll(root) {
+          (root || document).querySelectorAll('main.al-canvas table').forEach(wrap);
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function () { wrapAll(); });
+        } else {
+          wrapAll();
+        }
+        // Re-run after Alpine renders any deferred tables.
+        document.addEventListener('alpine:initialized', function () { wrapAll(); });
+      })();
+    </script>
 
     <!-- Reveal-on-scroll observer -->
     <script>

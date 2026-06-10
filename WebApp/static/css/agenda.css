@@ -187,8 +187,9 @@
 }
 .agenda-nav button:hover { background: var(--al-marble); color: var(--al-ink); }
 .agenda-nav-today {
-  padding: 0 12px !important;
+  padding: 0 15px !important;
   width: auto !important;
+  min-width: max-content;
   font-size: 11px !important;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -571,3 +572,41 @@
 }
 .agenda-dur-end i { color: var(--al-bronze); font-size: 14px; }
 .agenda-dur-end strong { color: var(--al-ink); font-weight: 600; }
+
+/* ============================================================
+   Responsive — calendar views on tablets & phones
+   ============================================================ */
+
+/* Week view: 7 day columns are unusable squished, so below md the grid keeps
+   legible column widths and the wrapper scrolls horizontally (head + body
+   scroll together since they share the wrapper). */
+@media (max-width: 768px) {
+  .agenda-week-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .agenda-week-headrow,
+  .agenda-week-body {
+    grid-template-columns: 46px repeat(7, minmax(92px, 1fr));
+    min-width: 690px;
+  }
+  .agenda-week-hour { font-size: 9px; padding-right: 5px; }
+
+  /* Month view: shorter rows + tighter cells so a full month fits the screen. */
+  .agenda-month-grid { grid-auto-rows: minmax(74px, 1fr); }
+  .agenda-month-cell { min-height: 74px; padding: 4px; gap: 2px; }
+  .agenda-month-num { font-size: 11px; }
+  .agenda-month-pill { font-size: 9px; padding: 1px 4px; border-left-width: 2px; }
+  .agenda-month-dow { font-size: 9px; padding: 7px 4px; }
+}
+
+/* Smallest phones: month event pills become thin colour bars (text would be
+   illegible at this width) — the standard compact phone-calendar pattern. */
+@media (max-width: 480px) {
+  .agenda-month-grid { grid-auto-rows: minmax(58px, 1fr); }
+  .agenda-month-cell { min-height: 58px; padding: 3px; }
+  .agenda-month-dow { font-size: 8px; padding: 6px 2px; letter-spacing: 0.06em; }
+  .agenda-month-pill {
+    height: 5px; width: 100%;
+    padding: 0; font-size: 0; line-height: 0;
+    border-left: 0; border-radius: 2px;
+  }
+  .agenda-month-more { font-size: 8px; }
+}

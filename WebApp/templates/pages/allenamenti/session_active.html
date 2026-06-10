@@ -433,6 +433,18 @@
   }
 
   [x-cloak] { display: none !important; }
+
+  /* Narrow phones: reclaim horizontal room so the set inputs stay tappable */
+  @media (max-width: 480px) {
+    .ss-section { padding-left: .9rem; padding-right: .9rem; }
+    .ss-header  { padding-left: 1rem; padding-right: 1rem; }
+    .ss-sets-head, .ss-set-row {
+      grid-template-columns: 30px 1fr 1fr 1fr 1.1fr 34px;
+      gap: .3rem;
+    }
+    .ss-set-input { font-size: 16px; padding: .5rem .25rem; }
+    .ss-bottom { padding-left: 1rem; padding-right: 1rem; }
+  }
 </style>
 
 <div class="session-shell" x-data="sessionRunner()" x-init="init()">

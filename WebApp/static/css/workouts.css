@@ -257,6 +257,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   color: var(--al-ink);
   margin: 0;
   letter-spacing: -0.005em;
+  overflow-wrap: anywhere;   /* long unbroken titles wrap instead of overflowing */
 }
 
 .wb-card-meta {
@@ -1528,6 +1529,10 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 
 @media (max-width: 640px) {
   .va-drawer { max-width: 100vw; }
+  /* Drawer footers carry up to 3 actions (Annulla / Salva / Salva e aggiungi);
+     on phone-width drawers they squish and clip — let them wrap & share width. */
+  .wb-drawer-foot { flex-wrap: wrap; }
+  .wb-drawer-foot > .al-btn { flex: 1 1 auto; justify-content: center; }
 }
 
 /* --------- Drag affordances ------------------------------- */

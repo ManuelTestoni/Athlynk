@@ -590,6 +590,14 @@
   .prg-grid-cols.cols-2 { grid-template-columns: 1fr 1fr; }
   .prg-grid-cols.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 
+  /* Phones: stack the week columns of the progression editor — side-by-side
+     weeks are unreadable below ~720px. The per-set field grid stays 3-up
+     (compact weight/reps/RIR inputs). */
+  @media (max-width: 720px) {
+    .prg-grid-cols.cols-2,
+    .prg-grid-cols.cols-3 { grid-template-columns: 1fr; }
+  }
+
   .prg-wcol {
     display: flex; flex-direction: column; gap: 12px;
     background:
