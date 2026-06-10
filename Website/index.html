@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athlynk — Il corpo è l'opera</title>
+<meta name="description" content="Athlynk unisce allenamento, nutrizione e dati in un unico metodo. Disciplina come cultura, performance come identità.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z' fill='%23c9a96a'/%3E%3Crect x='11' y='21' width='10' height='2' fill='%23c9a96a'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<!-- grain overlay -->
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ====================== HEADER ====================== -->
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a href="#hero" class="brand" aria-label="Athlynk — home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
+        <rect x="11" y="21" width="10" height="2"/>
+      </svg>
+      <span class="brand-name">Athlynk</span>
+    </a>
+    <nav class="main-nav" id="mainNav" aria-label="Navigazione principale">
+      <a href="#hero" class="nav-link">Home</a>
+      <a href="#chiron" class="nav-link">Chiron</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
+      <a href="#about" class="nav-link">About</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+    </nav>
+    <div class="header-actions">
+      <a href="#pricing" class="btn btn-bronze btn-sm">Inizia il percorso</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Apri menu" aria-expanded="false">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ====================== HERO ====================== -->
+<section class="hero" id="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-light" data-parallax="0.06"></div>
+    <div class="hero-marble"></div>
+    <div class="hero-ring" data-parallax="0.10"></div>
+    <div class="hero-column hero-column-l" data-parallax="0.04"></div>
+    <div class="hero-column hero-column-r" data-parallax="0.05"></div>
+
+    <!-- statua: studio anatomico in linea continua -->
+    <svg class="hero-figure" data-parallax="0.12" viewBox="0 0 600 760" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e6cf9a"/>
+          <stop offset="0.55" stop-color="#c9a96a"/>
+          <stop offset="1" stop-color="#6e5630"/>
+        </linearGradient>
+      </defs>
+      <g stroke="url(#gold)" stroke-linecap="round">
+        <!-- collo / trapezi -->
+        <path class="fline" d="M232 96 C238 152 226 176 196 208 C166 240 118 256 84 300" stroke-width="2.4"/>
+        <path class="fline" d="M348 92 C344 150 356 174 388 206 C420 238 470 254 506 298" stroke-width="2.4"/>
+        <!-- deltoidi -->
+        <path class="fline" d="M84 300 C56 340 48 392 60 444 C66 472 80 492 100 504" stroke-width="2"/>
+        <path class="fline" d="M506 298 C536 338 546 390 534 442 C528 470 514 490 494 502" stroke-width="2"/>
+        <!-- clavicole -->
+        <path class="fline" d="M148 286 C200 270 250 266 296 270 C342 266 392 270 444 286" stroke-width="1.6" opacity="0.8"/>
+        <!-- pettorali -->
+        <path class="fline" d="M120 330 C150 392 212 420 290 414" stroke-width="2.2"/>
+        <path class="fline" d="M472 328 C442 390 380 418 302 412" stroke-width="2.2"/>
+        <path class="fline" d="M150 318 C180 362 228 386 288 384" stroke-width="1.3" opacity="0.55"/>
+        <path class="fline" d="M442 316 C412 360 364 384 304 382" stroke-width="1.3" opacity="0.55"/>
+        <!-- linea alba -->
+        <path class="fline" d="M296 272 C296 330 294 420 296 520 C297 580 294 640 296 700" stroke-width="1.6" opacity="0.7"/>
+        <!-- addominali -->
+        <path class="fline" d="M232 452 C272 444 320 444 360 452" stroke-width="1.5" opacity="0.7"/>
+        <path class="fline" d="M236 512 C274 504 318 504 356 512" stroke-width="1.5" opacity="0.65"/>
+        <path class="fline" d="M242 572 C278 564 314 564 350 572" stroke-width="1.5" opacity="0.6"/>
+        <path class="fline" d="M250 632 C282 624 310 624 342 632" stroke-width="1.5" opacity="0.5"/>
+        <!-- obliqui -->
+        <path class="fline" d="M150 430 C168 510 188 580 226 660 C240 690 252 712 260 736" stroke-width="2"/>
+        <path class="fline" d="M442 428 C424 508 404 578 366 658 C352 688 340 710 332 734" stroke-width="2"/>
+        <!-- serratus -->
+        <path class="fline" d="M168 452 C190 470 206 488 214 510" stroke-width="1.2" opacity="0.5"/>
+        <path class="fline" d="M424 450 C402 468 386 486 378 508" stroke-width="1.2" opacity="0.5"/>
+      </g>
+    </svg>
+
+    <div class="hero-meander" aria-hidden="true"></div>
+  </div>
+
+  <div class="hero-content">
+    <p class="eyebrow hero-eyebrow"><span class="eyebrow-rule"></span>Athlynk — Training · Nutrizione · Metodo</p>
+    <h1 class="hero-title">
+      <span class="hero-line"><span>Il corpo</span></span>
+      <span class="hero-line"><span>è <em>l'opera.</em></span></span>
+    </h1>
+    <p class="hero-sub">Allenamento, nutrizione e dati uniti in un unico metodo. Athlynk è la disciplina dei moderni: costruita sulla scienza, misurata sulla performance, scolpita giorno dopo giorno.</p>
+    <div class="hero-cta">
+      <a href="#pricing" class="btn btn-bronze">Inizia il percorso</a>
+      <a href="#demos" class="btn btn-ghost">Guarda le demo<span class="btn-arrow">→</span></a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><strong data-count="12">0</strong><span>settimane per ciclo</span></div>
+      <div class="hero-stat"><strong data-count="94">0</strong><span>% aderenza media</span></div>
+      <div class="hero-stat"><strong data-count="3">0</strong><span>pilastri, un metodo</span></div>
+    </div>
+  </div>
+
+  <a href="#demos" class="hero-scroll" aria-label="Scorri alla sezione demo">
+    <span class="hero-scroll-line"></span>
+    <span class="hero-scroll-text">Scorri</span>
+  </a>
+</section>
+
+<!-- ====================== MARQUEE ====================== -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Disciplina</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Proporzione</span><i>◆</i><span>Longevità</span><i>◆</i>
+    <span>Disciplina</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Proporzione</span><i>◆</i><span>Longevità</span><i>◆</i>
+  </div>
+</div>
+
+<!-- ====================== DEMOS ====================== -->
+<section class="demos section" id="demos">
+  <div class="container">
+    <header class="section-head reveal">
+      <p class="eyebrow"><span class="eyebrow-rule"></span>Atlante — le demo</p>
+      <h2 class="section-title">Il metodo,<br><em>in movimento.</em></h2>
+      <p class="section-lede">Tre anteprime dell'ecosistema Athlynk. Non funzionalità: strumenti di un'unica pratica.</p>
+    </header>
+
+    <div class="demo-grid">
+      <!-- Demo 01 — Allenamento -->
+      <article class="demo-card reveal" data-demo="training" tabindex="0" role="button" aria-label="Apri demo: Allenamento">
+        <div class="demo-frame">
+          <div class="demo-scene scene-training" aria-hidden="true">
+            <div class="scene-head"><span class="scene-dot"></span>Sessione — Lower A</div>
+            <div class="scene-bars">
+              <div class="sbar" style="--h:46%; --d:0s"><i></i></div>
+              <div class="sbar" style="--h:62%; --d:.15s"><i></i></div>
+              <div class="sbar" style="--h:54%; --d:.3s"><i></i></div>
+              <div class="sbar" style="--h:78%; --d:.45s"><i></i></div>
+              <div class="sbar" style="--h:70%; --d:.6s"><i></i></div>
+              <div class="sbar" style="--h:92%; --d:.75s"><i></i></div>
+            </div>
+            <div class="scene-row"><span>Squat — 5×3</span><b>+7,5 kg</b></div>
+            <div class="scene-row"><span>RPE medio</span><b>8.0</b></div>
+          </div>
+          <span class="demo-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </div>
+        <div class="demo-meta">
+          <span class="demo-num">Ⅰ</span>
+          <div>
+            <h3 class="demo-title">Allenamento — la pratica</h3>
+            <p class="demo-desc">Programmazione progressiva, carichi suggeriti, ogni serie registrata. Il lavoro diventa traiettoria.</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- Demo 02 — Nutrizione -->
+      <article class="demo-card demo-card-offset reveal" data-demo="nutrition" tabindex="0" role="button" aria-label="Apri demo: Nutrizione">
+        <div class="demo-frame">
+          <div class="demo-scene scene-nutrition" aria-hidden="true">
+            <div class="scene-head"><span class="scene-dot"></span>Giorno — Surplus</div>
+            <div class="scene-ring">
+              <svg viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" class="ring-bg"/>
+                <circle cx="60" cy="60" r="50" class="ring-val ring-gold"/>
+                <circle cx="60" cy="60" r="38" class="ring-bg"/>
+                <circle cx="60" cy="60" r="38" class="ring-val ring-aegean"/>
+              </svg>
+              <div class="ring-center"><b>2.840</b><span>kcal</span></div>
+            </div>
+            <div class="scene-row"><span>Proteine</span><b>196 g</b></div>
+            <div class="scene-row"><span>Timing</span><b>4 pasti</b></div>
+          </div>
+          <span class="demo-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </div>
+        <div class="demo-meta">
+          <span class="demo-num">Ⅱ</span>
+          <div>
+            <h3 class="demo-title">Nutrizione — la strategia</h3>
+            <p class="demo-desc">Macro periodizzati sul ciclo di allenamento. Non una dieta: un piano energetico al servizio del lavoro.</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- Demo 03 — Dati -->
+      <article class="demo-card reveal" data-demo="data" tabindex="0" role="button" aria-label="Apri demo: Progressione">
+        <div class="demo-frame">
+          <div class="demo-scene scene-data" aria-hidden="true">
+            <div class="scene-head"><span class="scene-dot"></span>Progressione — 12 sett.</div>
+            <svg class="scene-chart" viewBox="0 0 280 120" preserveAspectRatio="none">
+              <path class="chart-area" d="M0 96 C40 90 60 78 90 74 C120 70 140 56 180 48 C215 42 245 30 280 22 L280 120 L0 120 Z"/>
+              <path class="chart-line" d="M0 96 C40 90 60 78 90 74 C120 70 140 56 180 48 C215 42 245 30 280 22"/>
+              <circle class="chart-dot" cx="280" cy="22" r="3.5"/>
+            </svg>
+            <div class="scene-row"><span>Massa magra</span><b>+2,4 kg</b></div>
+            <div class="scene-row"><span>Tonnellaggio</span><b>+18%</b></div>
+          </div>
+          <span class="demo-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </div>
+        <div class="demo-meta">
+          <span class="demo-num">Ⅲ</span>
+          <div>
+            <h3 class="demo-title">Dati — la prova</h3>
+            <p class="demo-desc">Ogni variabile tracciata e leggibile. La trasformazione smette di essere una sensazione: diventa evidenza.</p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== MANIFESTO ====================== -->
+<section class="manifesto section" id="manifesto">
+  <div class="manifesto-marble" aria-hidden="true"></div>
+  <div class="container container-narrow">
+    <p class="eyebrow eyebrow-center reveal"><span class="eyebrow-rule"></span>Il manifesto<span class="eyebrow-rule"></span></p>
+    <div class="manifesto-lines">
+      <p class="manifesto-line reveal">Il corpo come <em>progetto.</em></p>
+      <p class="manifesto-line reveal">La disciplina come <em>metodo.</em></p>
+      <p class="manifesto-line reveal">La nutrizione come <em>strategia.</em></p>
+      <p class="manifesto-line reveal">L'allenamento come <em>cultura.</em></p>
+      <p class="manifesto-line reveal">Il dato come <em>prova.</em></p>
+    </div>
+    <p class="manifesto-close reveal">Gli antichi scolpivano nel marmo l'idea di un corpo perfetto.<br>Noi la scolpiamo nel tempo, una sessione alla volta.</p>
+  </div>
+</section>
+
+<!-- ====================== CHIRON ====================== -->
+<section class="chiron section" id="chiron">
+  <div class="chiron-bg" aria-hidden="true">
+    <div class="chiron-rings" data-parallax="0.06">
+      <span></span><span></span><span></span><span></span>
+      <i class="chiron-core"></i>
+    </div>
+  </div>
+  <div class="container">
+    <div class="chiron-layout">
+      <div class="chiron-text">
+        <p class="eyebrow reveal"><span class="eyebrow-rule"></span>Il protocollo</p>
+        <h2 class="section-title reveal">Chiron.<br><em>Il maestro</em><br>dentro il metodo.</h2>
+        <p class="chiron-lede reveal">Chirone addestrava gli eroi. Il nostro Chiron è il nucleo adattivo di Athlynk: legge il tuo lavoro, la tua nutrizione e il tuo recupero — e ricalibra il percorso prima che tu debba chiederlo.</p>
+        <ul class="chiron-points">
+          <li class="reveal"><span class="point-num">01</span><div><h4>Precisione</h4><p>Carichi, volumi e macro regolati sul dato reale, non sulla media.</p></div></li>
+          <li class="reveal"><span class="point-num">02</span><div><h4>Adattamento</h4><p>Il protocollo evolve a ogni check: stallo, surplus, deload. Sempre un passo avanti.</p></div></li>
+          <li class="reveal"><span class="point-num">03</span><div><h4>Guida</h4><p>Tecnologia al servizio del coach, mai al suo posto. La macchina calcola, l'uomo decide.</p></div></li>
+        </ul>
+        <a href="#pricing" class="btn btn-bronze reveal">Accedi a Chiron Pro</a>
+      </div>
+      <div class="chiron-visual reveal" aria-hidden="true">
+        <div class="chiron-panel">
+          <div class="chiron-panel-head"><span class="scene-dot scene-dot-gold"></span>Chiron — ricalibrazione</div>
+          <div class="chiron-readout">
+            <div class="readout-row"><span>Recupero</span><div class="readout-bar"><i style="--w:72%"></i></div><b>72</b></div>
+            <div class="readout-row"><span>Carico interno</span><div class="readout-bar"><i style="--w:58%"></i></div><b>58</b></div>
+            <div class="readout-row"><span>Aderenza</span><div class="readout-bar"><i style="--w:91%"></i></div><b>91</b></div>
+          </div>
+          <div class="chiron-verdict">
+            <span class="verdict-label">Direttiva</span>
+            <p class="verdict-text">Volume +6% su lower body.<br>Carboidrati +40 g nei giorni di seduta.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== PRICING ====================== -->
+<section class="pricing section" id="pricing">
+  <div class="container">
+    <header class="section-head section-head-center reveal">
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Kanon — i piani<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Un solo standard:<br><em>il più alto.</em></h2>
+      <p class="section-lede">Come il Canone di Policleto: misura, proporzione, nessun ornamento superfluo.</p>
+    </header>
+
+    <div class="pricing-grid">
+      <!-- Base -->
+      <article class="price-card reveal">
+        <div class="price-head">
+          <h3 class="price-name">Athlynk</h3>
+          <p class="price-tag">La pratica quotidiana</p>
+        </div>
+        <div class="price-amount"><span class="price-cur">€</span><span class="price-num">29</span><span class="price-per">/ mese</span></div>
+        <ul class="price-features">
+          <li>Programmazione di allenamento su misura</li>
+          <li>Tracking di serie, carichi e progressi</li>
+          <li>Linee guida nutrizionali essenziali</li>
+          <li>App mobile sincronizzata</li>
+          <li>Storico completo delle sessioni</li>
+        </ul>
+        <a href="#" class="btn btn-ghost btn-full">Inizia con Athlynk</a>
+      </article>
+
+      <!-- Chiron Pro -->
+      <article class="price-card price-card-pro reveal">
+        <span class="price-badge">Per atleti seri</span>
+        <div class="price-head">
+          <h3 class="price-name">Chiron <em>Pro</em></h3>
+          <p class="price-tag">Il protocollo completo</p>
+        </div>
+        <div class="price-amount"><span class="price-cur">€</span><span class="price-num">79</span><span class="price-per">/ mese</span></div>
+        <ul class="price-features">
+          <li><b>Tutto il piano Athlynk, più:</b></li>
+          <li>Protocollo adattivo Chiron a ogni check</li>
+          <li>Nutrizione periodizzata sul ciclo di carico</li>
+          <li>Analisi avanzata di recupero e carico interno</li>
+          <li>Check-in video e priorità con il coach</li>
+          <li>Accesso anticipato a ogni nuovo modulo</li>
+        </ul>
+        <a href="#" class="btn btn-bronze btn-full">Entra in Chiron Pro</a>
+        <p class="price-note">Posti limitati per garantire qualità del coaching.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== ABOUT ====================== -->
+<section class="about section" id="about">
+  <div class="container">
+    <div class="about-layout">
+      <div class="about-side reveal" aria-hidden="true">
+        <div class="about-emblem">
+          <svg viewBox="0 0 32 32"><path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z" fill="currentColor"/><rect x="11" y="21" width="10" height="2" fill="currentColor"/></svg>
+        </div>
+        <div class="about-rule"></div>
+        <p class="about-side-word">Athlos<br>+<br>Link</p>
+      </div>
+      <div class="about-body">
+        <p class="eyebrow reveal"><span class="eyebrow-rule"></span>Origine</p>
+        <h2 class="section-title reveal">Nati dove la scienza<br>incontra <em>la scultura.</em></h2>
+        <p class="about-text reveal"><span class="about-dropcap">A</span>thlynk nasce da una convinzione semplice: il miglioramento fisico non è una moda, è una cultura. Una cultura che gli antichi avevano già codificato — proporzione, misura, esercizio come educazione — e che la scienza moderna ha finalmente reso esatta.</p>
+        <p class="about-text reveal">Uniamo biomeccanica e programmazione, nutrizione quantificata e coaching umano, in un ecosistema dove ogni scelta ha una ragione e ogni progresso una prova. Non promettiamo trasformazioni in trenta giorni: costruiamo atleti che durano trent'anni.</p>
+        <div class="about-pillars">
+          <div class="pillar reveal"><h4>Scienza del movimento</h4><p>Ogni programma parte dalla meccanica del corpo, non dal trend del momento.</p></div>
+          <div class="pillar reveal"><h4>Nutrizione esatta</h4><p>L'energia come variabile di progetto: misurata, periodizzata, verificata.</p></div>
+          <div class="pillar reveal"><h4>Estetica della performance</h4><p>La forma segue la funzione. Un corpo capace è un corpo armonico.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FAQ ====================== -->
+<section class="faq section" id="faq">
+  <div class="container container-narrow">
+    <header class="section-head section-head-center reveal">
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Domande<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Tutto ciò che conta,<br><em>in chiaro.</em></h2>
+    </header>
+
+    <div class="faq-list">
+      <details class="faq-item reveal">
+        <summary><span>Cos'è Athlynk?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Athlynk è un ecosistema per il miglioramento fisico: programmazione di allenamento, nutrizione periodizzata e analisi dei dati, uniti in un unico metodo guidato dal coach. Non un'app di workout generici — un sistema costruito sul tuo lavoro reale.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>A chi si rivolge?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>A chi tratta il proprio corpo come un progetto serio: atleti, praticanti di forza e bodybuilding, sportivi che vogliono struttura e misura. Serve costanza, non un livello di partenza: il protocollo si adatta al punto in cui sei.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Cosa include Chiron Pro?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Tutto il piano base, più il protocollo adattivo Chiron: ricalibrazione di carichi e macro a ogni check, analisi di recupero e carico interno, nutrizione periodizzata sul ciclo, check-in video e priorità diretta con il coach.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>È adatto a sportivi avanzati?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>È pensato per loro. Più dati produci, più il sistema diventa preciso: gestione di deload, picchi di forza, periodizzazione su gare o obiettivi estetici. Gli avanzati sono il pubblico per cui Chiron rende di più.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Integra anche la nutrizione?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Sì, come parte del metodo e non come modulo separato. Macro e timing sono periodizzati sul ciclo di allenamento: surplus nei blocchi di costruzione, ricomposizione nei blocchi di definizione, sempre verificati sui check.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>I percorsi sono personalizzati?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Ogni percorso parte da un'anamnesi completa — storia di allenamento, misure, disponibilità, obiettivi — e viene costruito su di te. Da lì in avanti, ogni check lo raffina. Nessun template riciclato.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Come funzionano demo, coaching e programmi?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Le demo mostrano gli strumenti reali della piattaforma. Una volta dentro, il coach costruisce il tuo programma, l'app guida ogni sessione e i check periodici — misure, foto, sensazioni — alimentano le decisioni successive. Il ciclo si ripete, il corpo cambia.</p></div>
+      </details>
+    </div>
+
+    <div class="faq-cta reveal">
+      <p>Una domanda che non trovi qui?</p>
+      <a href="mailto:hello@athlynk.com" class="btn btn-ghost">Scrivici<span class="btn-arrow">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FOOTER ====================== -->
+<footer class="site-footer">
+  <div class="footer-meander" aria-hidden="true"></div>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="#hero" class="brand" aria-label="Athlynk — torna su">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
+            <rect x="11" y="21" width="10" height="2"/>
+          </svg>
+          <span class="brand-name">Athlynk</span>
+        </a>
+        <p class="footer-tagline">Il corpo è l'opera.</p>
+      </div>
+      <nav class="footer-nav" aria-label="Navigazione footer">
+        <a href="#hero">Home</a>
+        <a href="#chiron">Chiron</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#about">About</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Athlynk. Tutti i diritti riservati.</p>
+      <p class="footer-motto">Μέτρον ἄριστον — la misura è la cosa migliore.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ====================== DEMO MODAL ====================== -->
+<div class="modal" id="demoModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <button class="modal-close" data-close aria-label="Chiudi demo">✕</button>
+    <div class="modal-stage" id="modalStage"></div>
+    <div class="modal-caption">
+      <h3 id="modalTitle"></h3>
+      <p id="modalDesc"></p>
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>
