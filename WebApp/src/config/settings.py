@@ -114,6 +114,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -248,9 +249,40 @@ STATICFILES_DIRS = [
     BASE_DIR.parent / 'static',
 ]
 
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR.parent / 'media'
 
+# --- Media storage backend --------------------------------------------------
+# Local dev: filesystem (media/). Production: Supabase Storage (S3-compatible),
+# enabled only when SUPABASE_S3_ENDPOINT is set, so local runs stay on disk and
+# untouched. Every upload site already writes through default_storage / model
+# FileFields, so flipping the backend here routes all uploads to Supabase with
+# no view changes. Bucket is PRIVATE — progress/body photos are sensitive — and
+# .url() returns short-lived signed URLs (querystring_auth).
+SUPABASE_S3_ENDPOINT = config('SUPABASE_S3_ENDPOINT', default='')
+
+if SUPABASE_S3_ENDPOINT:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'endpoint_url': SUPABASE_S3_ENDPOINT,
+                'access_key': config('SUPABASE_S3_ACCESS_KEY'),
+                'secret_key': config('SUPABASE_S3_SECRET_KEY'),
+                'bucket_name': config('SUPABASE_S3_BUCKET', default='media'),
+                'region_name': config('SUPABASE_S3_REGION', default='eu-central-1'),
+                'addressing_style': 'path',     # Supabase requires path-style URLs
+                'signature_version': 's3v4',
+                'querystring_auth': True,        # private bucket -> signed URLs
+                'querystring_expire': 3600,      # 1h signed-URL lifetime
+                'file_overwrite': False,         # never clobber an existing key
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
 
 # --- Web session security ---------------------------------------------------
 # Browser sessions are short-lived and *sliding*: 30 minutes of inactivity logs
