@@ -8,6 +8,7 @@
   window.LIBRARY_INIT = {
     plans: {{ plans_json|json_js }},
     folders: {{ folders_json|json_js }},
+    clients: {{ clients_json|json_js }},
     urls: {
       folders: "{% url 'api_workout_folders' %}",
       foldersReorder: "{% url 'api_workout_folders_reorder' %}",
@@ -17,6 +18,8 @@
       importPdf: "{% url 'allenamenti_import_pdf' %}",
       wizardResume: "/allenamenti/wizard/__ID__/",
       planDetail: "/allenamenti/__ID__/",
+      planEdit: "/allenamenti/wizard/__ID__/",
+      planAssign: "/api/allenamenti/__ID__/finalize/",
       planSave: "{% url 'api_plan_save_new' %}",
       planUpdateSave: "/api/allenamenti/__ID__/save/",
       planDelete: "/api/allenamenti/__ID__/elimina/",
@@ -218,12 +221,11 @@
                    draggable="true"
                    @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null"
-                   :style="'animation-delay: ' + ($el.dataset.idx || 0) + 'ms;'"
-                   @click="window.location.href = urls.planDetail.replace('__ID__', plan.id)">
+                   :style="'animation-delay: ' + ($el.dataset.idx || 0) + 'ms;'">
             <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
 
             <div class="wb-card-header">
-              <div>
+              <div class="min-w-0">
                 <h3 class="wb-card-title" x-text="plan.title"></h3>
                 <p class="wb-card-meta mt-2">
                   <span x-show="plan.sport_name" x-text="plan.sport_name"></span>
@@ -242,19 +244,34 @@
                   </template>
                 </div>
               </div>
-              <div class="flex flex-col items-end gap-1">
-                <span class="wb-kind-badge"
-                      :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
-                      x-text="plan.plan_kind === 'PROGRAM' ? 'Programma' : 'Settimana'"></span>
-                <template x-if="plan.status === 'DRAFT'">
-                  <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-pencil-simple"></i>Bozza</span>
-                </template>
-                <template x-if="plan.status === 'TEMPLATE'">
-                  <span class="al-badge" style="background:#dbeafe;color:#1e40af;font-size:9px;"><i class="ph ph-bookmark-simple"></i>Template</span>
-                </template>
-                <template x-if="plan.status === 'ACTIVE'">
-                  <span class="al-badge" style="background:#d1fae5;color:#065f46;font-size:9px;"><i class="ph ph-check-circle"></i>Attiva</span>
-                </template>
+              <div class="flex flex-col items-end gap-1.5 shrink-0">
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                  <span class="wb-kind-badge"
+                        :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
+                        x-text="plan.plan_kind === 'PROGRAM' ? 'Programma' : 'Settimana'"></span>
+                  <template x-if="plan.status === 'DRAFT'">
+                    <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-pencil-simple"></i>Bozza</span>
+                  </template>
+                  <template x-if="plan.status === 'TEMPLATE'">
+                    <span class="al-badge" style="background:#dbeafe;color:#1e40af;font-size:9px;"><i class="ph ph-bookmark-simple"></i>Template</span>
+                  </template>
+                  <template x-if="plan.status === 'ACTIVE'">
+                    <span class="al-badge" style="background:#d1fae5;color:#065f46;font-size:9px;"><i class="ph ph-check-circle"></i>Attiva</span>
+                  </template>
+                </div>
+                <div class="flex items-center gap-1 mt-0.5" @click.stop>
+                  <a :href="urls.planEdit.replace('__ID__', plan.id)"
+                     class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
+                    <i class="ph ph-pencil text-sm"></i>
+                  </a>
+                  <button @click="deletePlan(plan.id, plan.title)" type="button"
+                          class="p-1 transition-colors" title="Elimina"
+                          style="color: var(--al-ink-line);"
+                          onmouseover="this.style.color='var(--al-danger)'"
+                          onmouseout="this.style.color='var(--al-ink-line)'">
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -262,9 +279,20 @@
                x-show="plan.description"
                x-text="plan.description.length > 110 ? plan.description.slice(0, 110) + '…' : plan.description"></p>
 
-            <div class="wb-card-foot">
-              <span><i class="ph ph-users"></i> <span x-text="plan.assignment_count"></span> assegn.</span>
-              <span x-text="relativeTime(plan.updated_at)"></span>
+            <div class="wb-card-foot" style="flex-wrap: wrap; gap: .5rem;">
+              <span class="flex items-center gap-1">
+                <i class="ph ph-users"></i> <span x-text="plan.assignment_count"></span> assegn.
+              </span>
+              <div class="flex items-center gap-2" @click.stop>
+                <a :href="urls.planDetail.replace('__ID__', plan.id)"
+                   class="al-link al-link-quiet text-[11px] uppercase tracking-widest">
+                  Dettaglio <i class="ph ph-arrow-right text-xs"></i>
+                </a>
+                <button @click="openAssign(plan.id, plan.title)" type="button" class="al-btn al-btn-sm al-btn-bronze">
+                  <i class="ph ph-user-plus text-xs"></i>
+                  <span>Assegna</span>
+                </button>
+              </div>
             </div>
           </article>
         </template>
@@ -471,6 +499,11 @@
     </div>
   </div>
   </template>
+
+  <!-- =================== ASSIGN MODAL (condiviso) =================== -->
+  {% with plan_label="Assegnazione · Allenamenti" %}
+  {% include 'pages/nutrizione/_assign_modal.html' %}
+  {% endwith %}
 </div>
 
 <script>
@@ -513,6 +546,21 @@ function workoutLibrary() {
     folderToDelete: null,
     deleteFolderAction: 'move_to_unfiled',
     deleteFolderTarget: '',
+
+    /* assign (modal condiviso con nutrizione) */
+    clients: window.LIBRARY_INIT.clients || [],
+    assignModal: false,
+    assignPlanId: null,
+    assignPlanName: '',
+    assignPlanKind: 'WEEKLY',
+    assignPlanWeeks: 1,
+    clientSearch: '',
+    selectedClient: null,
+    startDate: '',
+    endDate: '',
+    assignNotes: '',
+    saving: false,
+    successFlash: false,
 
     init() {},
 
@@ -628,6 +676,88 @@ function workoutLibrary() {
       this.deleteFolderAction = 'move_to_unfiled';
       this.deleteFolderTarget = '';
       this.menuFolder = null;
+    },
+    async deletePlan(id, title) {
+      if (!(await window.alConfirm({
+        icon: 'ph-trash',
+        title: 'Eliminare la\nscheda?',
+        subtitle: 'La scheda «' + title + '» verrà rimossa definitivamente. Operazione irreversibile.',
+        confirmLabel: 'Sì, elimina',
+      }))) return;
+      try {
+        const res = await fetch(this.urls.planDelete.replace('__ID__', id), {
+          method: 'POST', headers: { 'X-CSRFToken': csrfToken() },
+        });
+        if (!res.ok) {
+          Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore eliminazione.' });
+          return;
+        }
+        const plan = this.plans.find(p => p.id === id);
+        if (plan && plan.folder_id) {
+          const f = this.folders.find(f => f.id === plan.folder_id);
+          if (f) f.plan_count = Math.max(0, f.plan_count - 1);
+        }
+        this.plans = this.plans.filter(p => p.id !== id);
+      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+    },
+
+    /* === assign (stesso modal condiviso con nutrizione) === */
+    filteredClients() {
+      const q = (this.clientSearch || '').toLowerCase();
+      return this.clients.filter(c => !q || c.name.toLowerCase().includes(q));
+    },
+    openAssign(id, name) {
+      const plan = this.plans.find(p => p.id === id);
+      this.assignPlanId = id;
+      this.assignPlanName = name;
+      this.assignPlanKind = plan ? plan.plan_kind : 'WEEKLY';
+      this.assignPlanWeeks = plan && plan.plan_kind === 'PROGRAM' ? (plan.duration_weeks || 1) : 1;
+      this.clientSearch = ''; this.selectedClient = null;
+      this.assignNotes = '';
+      this.successFlash = false;
+      // Date di default: oggi → oggi + durata scheda
+      const today = new Date();
+      const end = new Date(today); end.setDate(end.getDate() + this.assignPlanWeeks * 7);
+      const iso = (d) => d.toISOString().slice(0, 10);
+      this.startDate = iso(today);
+      this.endDate = iso(end);
+      this.assignModal = true;
+    },
+    async submitAssign() {
+      if (!this.selectedClient) return;
+      this.saving = true;
+      // weeks: derivato dalle date scelte, fallback alla durata della scheda
+      let weeks = this.assignPlanWeeks;
+      if (this.startDate && this.endDate) {
+        const ms = new Date(this.endDate) - new Date(this.startDate);
+        const w = Math.round(ms / (7 * 24 * 3600 * 1000));
+        if (w >= 1) weeks = w;
+      }
+      try {
+        const res = await fetch(this.urls.planAssign.replace('__ID__', this.assignPlanId), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({
+            action: 'assign',
+            client_ids: [this.selectedClient.id],
+            weeks: weeks,
+            overwrite: false,
+          }),
+        });
+        this.saving = false;
+        if (res.ok) {
+          const plan = this.plans.find(p => p.id === this.assignPlanId);
+          if (plan) plan.assignment_count = (plan.assignment_count || 0) + 1;
+          this.successFlash = true;
+          setTimeout(() => { this.assignModal = false; this.successFlash = false; }, 700);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore durante l\'assegnazione.' });
+        }
+      } catch (e) {
+        this.saving = false;
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+      }
     },
     async executeFolderDelete() {
       if (!this.folderToDelete) return;

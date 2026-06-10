@@ -63,7 +63,7 @@
     {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
 </head>
-<body x-data="{ sidebarOpen: false }" class="h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}">
+<body x-data="{ sidebarOpen: false }" class="al-app-shell h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}">
 
     <!-- Mobile overlay -->
     <div x-show="sidebarOpen" x-transition.opacity x-cloak
@@ -77,11 +77,8 @@
         <div class="flex flex-col min-h-0 flex-1">
             <!-- Brand -->
             <a href="{% url 'dashboard' %}" class="al-sidebar-brand">
-                <!-- Athlynk hex mark -->
-                <svg width="26" height="26" viewBox="0 0 32 32" fill="none" class="shrink-0">
-                    <path d="M16 1.5 L29 9 L29 23 L16 30.5 L3 23 L3 9 Z" stroke="#c8a774" stroke-width="1.1"/>
-                    <path d="M16 7 L22 23 M16 7 L10 23 M12.5 18 H19.5" stroke="#c8a774" stroke-width="1.4"/>
-                </svg>
+                <!-- Athlynk app mark -->
+                <span class="al-mark shrink-0" style="height: 24px; color: #c8a774;"></span>
                 <span class="al-sidebar-brand-name">Athlynk</span>
             </a>
 
@@ -385,10 +382,7 @@
         <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(244,239,228,0.92); backdrop-filter: saturate(140%) blur(10px);">
             <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 al-small">
                 <div class="flex items-center gap-2">
-                    <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
-                        <path d="M16 1.5 L29 9 L29 23 L16 30.5 L3 23 L3 9 Z" stroke="#8a6a3a" stroke-width="1.2"/>
-                        <path d="M16 7 L22 23 M16 7 L10 23 M12.5 18 H19.5" stroke="#8a6a3a" stroke-width="1.4"/>
-                    </svg>
+                    <span class="al-mark" style="height: 15px; color: #8a6a3a;"></span>
                     <span>© Athlynk</span>
                     <span class="font-mono text-ink-mute">· {{ CONSENT_VERSION }}</span>
                 </div>

@@ -269,7 +269,16 @@ function checkLibrary() {
         else { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); }
       } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
     },
-    openDelete(id) { this.deleteTemplateId = id; this.deleteModal = true; },
+    async openDelete(id) {
+      if (!(await window.alConfirm({
+        icon: 'ph-trash',
+        title: 'Eliminare il\nmodello?',
+        subtitle: 'Verrà rimosso definitivamente. Operazione irreversibile.',
+        confirmLabel: 'Sì, elimina',
+      }))) return;
+      this.deleteTemplateId = id;
+      await this.confirmDelete();
+    },
     async confirmDelete() {
       const id = this.deleteTemplateId;
       try {

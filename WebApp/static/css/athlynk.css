@@ -904,6 +904,11 @@ body[data-page="chat"] .al-search { display: none !important; }
   padding: 1rem;
   /* nessun overlay scuro — il pannello galleggia sopra la pagina */
 }
+/* Centratura rispetto all'area contenuto (sidebar 16rem esclusa) su desktop */
+@media (min-width: 1024px) {
+  .al-app-shell .al-dlg-backdrop,
+  .al-dlg-backdrop.al-dlg-backdrop--inset { left: 16rem; }
+}
 
 .al-dlg-panel {
   --dlg-accent: 220,38,38;          /* danger (rgb, per rgba()) */
@@ -1055,6 +1060,38 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-dlg-btn-confirm:hover::before { transform: translateX(0); }
 .al-dlg-btn-confirm span,
 .al-dlg-btn-confirm i { position: relative; z-index: 1; }
+
+/* Campi input dentro un al-dlg-panel scuro (es. eliminazione account) */
+.al-dlg-fields {
+  display: flex; flex-direction: column; gap: .6rem;
+  margin: 0 0 1.5rem;
+  animation: al-dlg-slide-up .38s ease .2s both;
+}
+.al-dlg-input {
+  width: 100%;
+  padding: .72rem .9rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #f4efe4;
+  font-size: .875rem; letter-spacing: .01em;
+  transition: border-color .18s, background .18s;
+}
+.al-dlg-input::placeholder { color: rgba(244,239,228,.32); }
+.al-dlg-input:focus {
+  outline: none;
+  border-color: rgba(var(--dlg-accent),0.5);
+  background: rgba(255,255,255,0.06);
+}
+
+/* Marchio Athlynk (logo app) — tintabile via currentColor, mask da PNG */
+.al-mark {
+  display: inline-block;
+  aspect-ratio: 515 / 423;
+  background-color: currentColor;
+  -webkit-mask: url("../img/athlynk-mark.png") center / contain no-repeat;
+          mask: url("../img/athlynk-mark.png") center / contain no-repeat;
+}
 
 /* ---------- Tabs ---------- */
 .al-tabs {

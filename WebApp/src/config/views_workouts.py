@@ -234,9 +234,20 @@ def allenamenti_list_view(request):
         for f in folders
     ]
 
+    clients = (ClientProfile.objects
+               .filter(coaching_relationships_as_client__coach=coach,
+                       coaching_relationships_as_client__status='ACTIVE')
+               .select_related('user')
+               .distinct())
+    clients_data = [
+        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+        for c in clients
+    ]
+
     return render(request, 'pages/allenamenti/library.html', {
         'plans_json': json.dumps(plans_data),
         'folders_json': json.dumps(folders_data),
+        'clients_json': json.dumps(clients_data),
         'query': query,
         'filter_status': filter_status,
         'is_coach': True,

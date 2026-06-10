@@ -390,9 +390,75 @@
     text-transform: uppercase;
   }
 
+  /* ---- visit history rail ---- */
+  .av-history {
+    margin-top: 20px;
+    padding: 20px 24px;
+    background: #fff;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md);
+    box-shadow: var(--al-shadow-2);
+    animation: av-rise 0.55s var(--al-ease-out) 0.1s both;
+  }
+  .av-history-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; margin-bottom: 14px;
+  }
+  .av-history-head .av-eyebrow { display: inline-flex; align-items: center; gap: 8px; }
+  .av-history-head .av-eyebrow i { font-size: 14px; }
+  .av-history-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--al-ink-mute);
+    padding: 4px 10px;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-pill);
+  }
+  .av-history-rail {
+    display: flex; gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .av-history-item {
+    flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 16px;
+    min-width: 132px;
+    background: var(--al-marble-warm);
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    text-decoration: none;
+    transition: transform var(--al-d-fast) var(--al-ease-out),
+                border-color var(--al-d-fast) var(--al-ease-out),
+                box-shadow var(--al-d-fast) var(--al-ease-out);
+  }
+  .av-history-item:hover {
+    transform: translateY(-2px);
+    border-color: var(--al-bronze-soft);
+    box-shadow: var(--al-shadow-2);
+  }
+  .av-history-item.is-current {
+    background: var(--al-ink);
+    border-color: var(--al-ink);
+  }
+  .av-history-date {
+    font-family: 'Bodoni Moda', serif;
+    font-size: 16px; color: var(--al-ink);
+    line-height: 1.1;
+  }
+  .av-history-item.is-current .av-history-date { color: var(--al-parchment); }
+  .av-history-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--al-ink-mute);
+  }
+  .av-history-item.is-current .av-history-id { color: var(--al-bronze-l, #c8a774); }
+
   @media print {
     /* shell unwind, page setup + break rules live in athlynk.css */
     .av-toolbar { display: none !important; }
+    .av-history { display: none !important; }
   }
 </style>
 
@@ -462,6 +528,26 @@
     </div>
     <div class="av-hero-meander al-meander al-meander-bronze"></div>
   </section>
+
+  {# ────── VISIT HISTORY ────── #}
+  {% if history and history|length > 1 %}
+  <section class="av-history">
+    <div class="av-history-head">
+      <span class="av-eyebrow"><i class="ph ph-clock-counter-clockwise"></i> Storico prime visite</span>
+      <span class="av-history-count">{{ history|length }} visite</span>
+    </div>
+    <div class="av-history-rail">
+      {% for h in history %}
+      <a href="{% url 'nutrizione_anamnesi_detail' h.id %}"
+         class="av-history-item {% if h.id == anamnesis.id %}is-current{% endif %}"
+         title="Apri visita del {{ h.anamnesis_date|date:'d M Y' }}">
+        <span class="av-history-date">{{ h.anamnesis_date|date:"d M Y" }}</span>
+        <span class="av-history-id">N° {{ h.id|stringformat:"04d" }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   {# ────── VITALS ────── #}
   <section class="av-vitals" style="margin-top: 20px;">

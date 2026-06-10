@@ -479,7 +479,7 @@
   <!-- ============ LIST ============ -->
   <div class="pv-list">
     {% for cd in clients_data %}
-    {% with client=cd.client anamnesis=cd.anamnesis %}
+    {% with client=cd.client anamnesis=cd.anamnesis count=cd.anamnesis_count %}
     <article class="pv-card {% if anamnesis %}is-done{% else %}is-pending{% endif %}"
              x-show="visible('{{ client.first_name|escapejs }} {{ client.last_name|escapejs }}', {% if anamnesis %}true{% else %}false{% endif %})"
              x-transition.opacity>
@@ -492,6 +492,11 @@
         <div class="pv-sub">
           {% if anamnesis %}
             <span class="pv-pill done"><span class="dot"></span>Compilata</span>
+            {% if count > 1 %}
+            <span class="pv-pill done" style="color: var(--al-bronze, #8a6a3a); background: rgba(138,106,58,0.10); border-color: rgba(138,106,58,0.22);">
+              <i class="ph ph-clock-counter-clockwise" style="font-size:11px;"></i>{{ count }} visite
+            </span>
+            {% endif %}
             <span class="pv-date">
               <i class="ph ph-calendar-check" style="vertical-align:-2px; margin-right:3px;"></i>
               {{ anamnesis.anamnesis_date|date:"d M Y" }}

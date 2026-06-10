@@ -44,10 +44,12 @@ def anamnesi_view(request):
     clients_data = []
     for rel in relationships:
         c = rel.client
-        anamnesis = c.anamnesis.order_by('-anamnesis_date').first()
+        all_anamnesi = list(c.anamnesis.order_by('-anamnesis_date', '-id'))
+        anamnesis = all_anamnesi[0] if all_anamnesi else None
         clients_data.append({
             'client': c,
             'anamnesis': anamnesis,
+            'anamnesis_count': len(all_anamnesi),
         })
 
     return render(request, 'pages/nutrizione/anamnesi_list.html', {
@@ -121,8 +123,11 @@ def anamnesi_detail_view(request, anamnesis_id):
         if not client:
             return redirect('login')
         anamnesis = get_object_or_404(ClientAnamnesis, id=anamnesis_id, client=client)
+        history = list(ClientAnamnesis.objects.filter(client=client)
+                       .order_by('-anamnesis_date', '-id'))
         return render(request, 'pages/nutrizione/anamnesi_detail.html', {
             'anamnesis': anamnesis,
+            'history': history,
             'is_client': True,
         })
 
@@ -130,7 +135,10 @@ def anamnesi_detail_view(request, anamnesis_id):
     if not coach:
         return redirect('login')
     anamnesis = get_object_or_404(ClientAnamnesis, id=anamnesis_id, coach=coach)
+    history = list(ClientAnamnesis.objects.filter(client=anamnesis.client)
+                   .order_by('-anamnesis_date', '-id'))
     return render(request, 'pages/nutrizione/anamnesi_detail.html', {
         'anamnesis': anamnesis,
+        'history': history,
         'is_coach': True,
     })

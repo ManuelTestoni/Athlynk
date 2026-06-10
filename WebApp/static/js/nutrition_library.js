@@ -364,7 +364,16 @@ function nutritionLibrary() {
     },
 
     /* === delete plan === */
-    openDelete(id) { this.deletePlanId = id; this.deleteModal = true; },
+    async openDelete(id) {
+      if (!(await window.alConfirm({
+        icon: 'ph-trash',
+        title: 'Eliminare il\npiano?',
+        subtitle: 'Verranno eliminati tutti i pasti e gli alimenti associati. Operazione irreversibile.',
+        confirmLabel: 'Sì, elimina',
+      }))) return;
+      this.deletePlanId = id;
+      await this.confirmDelete();
+    },
     async confirmDelete() {
       const res = await fetch(this.urls.planDelete.replace('__ID__', this.deletePlanId), {
         method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}

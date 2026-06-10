@@ -253,12 +253,14 @@
                 </p>
               </div>
               <div class="flex flex-col items-end gap-1.5 shrink-0">
-                <span class="wb-kind-badge"
-                      :class="plan.plan_kind === 'WEEKLY' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
-                      x-text="plan.plan_kind === 'WEEKLY' ? 'Settimana' : 'Giorno'"></span>
-                <template x-if="plan.plan_mode === 'MACRO'">
-                  <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-chart-donut"></i>Macro</span>
-                </template>
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                  <span class="wb-kind-badge"
+                        :class="plan.plan_kind === 'WEEKLY' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
+                        x-text="plan.plan_kind === 'WEEKLY' ? 'Settimana' : 'Giorno'"></span>
+                  <template x-if="plan.plan_mode === 'MACRO'">
+                    <span class="al-badge" style="background:#fef3c7;color:#92400e;font-size:9px;"><i class="ph ph-chart-donut"></i>Macro</span>
+                  </template>
+                </div>
                 <div class="flex items-center gap-1 mt-0.5" @click.stop>
                   <a :href="urls.planEdit.replace('__ID__', plan.id)"
                      class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
@@ -311,24 +313,7 @@
   <!-- =================== ASSIGN MODAL (shared editorial) =================== -->
   {% include 'pages/nutrizione/_assign_modal.html' %}
 
-  <!-- =================== DELETE PLAN CONFIRM =================== -->
-  <div x-show="deleteModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="al-modal-backdrop" @click="deleteModal=false"></div>
-    <div class="al-modal-panel text-center" style="max-width: 380px;">
-      <div class="al-modal-body" style="padding-top: 32px;">
-        <div class="w-12 h-12 flex items-center justify-center mx-auto mb-4"
-             style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.25);">
-          <i class="ph ph-trash text-xl" style="color: var(--al-danger);"></i>
-        </div>
-        <h3 class="al-h-3">Elimina piano?</h3>
-        <p class="al-small mt-2 mb-2">Verranno eliminati tutti i pasti e gli alimenti associati.</p>
-      </div>
-      <div class="al-modal-foot">
-        <button @click="deleteModal=false" type="button" class="al-btn al-btn-ghost flex-1">Annulla</button>
-        <button @click="confirmDelete()" type="button" class="al-btn al-btn-danger flex-1">Elimina</button>
-      </div>
-    </div>
-  </div>
+  <!-- Eliminazione piano: banner centralizzato window.alConfirm (vedi openDelete) -->
 
   <!-- =================== DELETE FOLDER MODAL =================== -->
   <template x-teleport="body">

@@ -488,50 +488,36 @@
 
     <!-- ===================== MODALS (root-level) ===================== -->
 
-    <!-- Modal: conferma eliminazione account -->
+    <!-- Modal: conferma eliminazione account (stile banner "termina collaborazione") -->
     <div x-show="showDeleteModal" x-cloak
-         class="al-modal-backdrop"
-         x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end"
-         x-transition:leave="al-fade-leave" x-transition:leave-start="al-fade-leave-start" x-transition:leave-end="al-fade-leave-end"
+         class="al-dlg-backdrop"
          @click.self="showDeleteModal = false"
-         @keydown.escape.window="showDeleteModal = false">
-        <div class="al-modal-panel max-w-md w-full"
-             x-show="showDeleteModal"
-             x-transition:enter="al-pop-enter" x-transition:enter-start="al-pop-enter-start" x-transition:enter-end="al-pop-enter-end"
-             x-transition:leave="al-pop-leave" x-transition:leave-start="al-pop-leave-start" x-transition:leave-end="al-pop-leave-end">
-            <form method="POST" action="{% url 'delete_account' %}">
-                {% csrf_token %}
-                <div class="p-6 border-b" style="border-color: var(--al-rule);">
-                    <div class="flex items-center gap-3">
-                        <span class="w-10 h-10 flex items-center justify-center" style="background: #fef2f2; border-radius: var(--al-r-sm);">
-                            <i class="ph-fill ph-warning-octagon text-xl" style="color: #b91c1c;"></i>
-                        </span>
-                        <h3 class="al-h-3" style="color: #991b1b;">Conferma eliminazione</h3>
-                    </div>
-                    <p class="al-small mt-3">Per procedere inserisci la tua password attuale e digita <strong>ELIMINA</strong> nel campo di conferma.</p>
+         @keydown.escape.window="showDeleteModal && (showDeleteModal = false)">
+        <form method="POST" action="{% url 'delete_account' %}" class="al-dlg-panel">
+            {% csrf_token %}
+            <div class="al-dlg-icon-wrap">
+                <div class="al-dlg-icon">
+                    <span class="al-dlg-ring-2"></span>
+                    <span class="al-dlg-ring"></span>
+                    <div class="al-dlg-icon-core"><i class="ph ph-trash"></i></div>
                 </div>
-
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="al-label">Password attuale *</label>
-                        <input type="password" name="confirm_password" required autocomplete="current-password" class="al-input">
-                    </div>
-                    <div>
-                        <label class="al-label">Digita ELIMINA *</label>
-                        <input type="text" name="confirm_text" required placeholder="ELIMINA" class="al-input" autocomplete="off">
-                    </div>
-                </div>
-
-                <div class="p-6 border-t flex justify-end gap-3" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
-                    <button type="button" @click="showDeleteModal = false" class="al-btn al-btn-ghost">Annulla</button>
-                    <button type="submit" class="al-btn"
-                            style="background: #b91c1c; color: #fff; border-color: #b91c1c;">
-                        <i class="ph ph-trash text-sm"></i>
-                        <span>Elimina definitivamente</span>
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <h3 class="al-dlg-title">Eliminare<br>l'account?</h3>
+            <p class="al-dlg-subtitle">Operazione irreversibile. Inserisci la password attuale e digita <strong>ELIMINA</strong> per confermare.</p>
+            <div class="al-dlg-fields">
+                <input type="password" name="confirm_password" required autocomplete="current-password"
+                       class="al-dlg-input" placeholder="Password attuale">
+                <input type="text" name="confirm_text" required autocomplete="off"
+                       class="al-dlg-input" placeholder="Digita ELIMINA">
+            </div>
+            <div class="al-dlg-divider"></div>
+            <div class="al-dlg-actions">
+                <button type="submit" class="al-dlg-btn-confirm">
+                    <i class="ph ph-trash"></i><span>Elimina definitivamente</span>
+                </button>
+                <button type="button" class="al-dlg-btn-cancel" @click="showDeleteModal = false">Annulla</button>
+            </div>
+        </form>
     </div>
 
     <!-- Form nascosto: invio reset password (conferma via window.alConfirm) -->

@@ -52,7 +52,7 @@
 .ab-hero .meta i { color: var(--al-bronze-l); }
 </style>
 
-<div class="max-w-7xl mx-auto h-full flex flex-col">
+<div class="w-full h-full flex flex-col">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 flex-shrink-0">
@@ -235,7 +235,7 @@
             <!-- Tab: Listino -->
             <div x-show="tab === 'piani'" class="flex-1">
                 {% if subscription_plans %}
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                     {% for plan in subscription_plans %}
                     <div class="ab-plan al-reveal {% if not plan.is_active %}is-inactive{% endif %}" style="--d:{{ forloop.counter0|add:1 }}0ms;">
                         <div class="ab-plan-head">
