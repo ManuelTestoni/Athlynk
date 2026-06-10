@@ -243,3 +243,7 @@ WebApp/static/img/AthlynkLogo.png
 WebApp/static/img/favicon.png
 # Trained analytics/ML model artifacts
 WebApp/src/analytics_models/
+
+# Analytics contamination checklists
+CONTAMINATION_CHECKLIST.md
+**/CONTAMINATION*.md
