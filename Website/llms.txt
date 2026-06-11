@@ -1,0 +1,25 @@
+# Athlynk
+
+> Athlynk è un ecosistema per il miglioramento fisico: programmazione di allenamento, nutrizione periodizzata e analisi dei dati, uniti in un unico metodo guidato dal coach. Motto: "Il corpo è l'opera."
+
+## Cosa offre
+
+- **Allenamento**: programmazione progressiva su misura, carichi suggeriti, ogni serie registrata nell'app mobile.
+- **Nutrizione**: macro e timing periodizzati sul ciclo di allenamento — surplus nei blocchi di costruzione, ricomposizione in definizione.
+- **Dati**: ogni variabile tracciata (carichi, tonnellaggio, massa magra, aderenza); la trasformazione diventa evidenza misurabile.
+- **Chiron**: nucleo adattivo della piattaforma. Legge lavoro, nutrizione e recupero e ricalibra il protocollo a ogni check. La macchina calcola, il coach decide.
+
+## Piani
+
+- **Athlynk** — €29/mese: programmazione su misura, tracking completo, linee guida nutrizionali, app mobile.
+- **Chiron Pro** — €79/mese: tutto il piano base più protocollo adattivo Chiron, nutrizione periodizzata, analisi recupero/carico interno, check-in video col coach. Posti limitati.
+
+## A chi si rivolge
+
+Atleti, praticanti di forza e bodybuilding, sportivi che vogliono struttura e misura. Il protocollo si adatta al livello di partenza; rende di più con utenti avanzati.
+
+## Contatti
+
+- Sito: https://athlynk.com/
+- Email: hello@athlynk.com
+- Lingua: italiano

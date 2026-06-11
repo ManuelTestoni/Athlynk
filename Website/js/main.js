@@ -111,6 +111,33 @@
     }, { passive: true });
   }
 
+  /* ---------- anatomy: organo attivo + parallasse lungo il corpo ---------- */
+  const anatomy = document.querySelector(".anatomy");
+  if (anatomy) {
+    const figure = anatomy.querySelector(".anatomy-figure");
+    const chapters = [...anatomy.querySelectorAll(".anatomy-chapter")];
+    const organs = [...anatomy.querySelectorAll(".organ")];
+    const markers = [...anatomy.querySelectorAll(".organ-marker")];
+    // traslazione (% altezza figura) per portare ogni organo nella finestra sticky
+    const focusShift = { brain: 0, eyes: 0, heart: -9, lungs: -9, blood: -19 };
+
+    function setOrgan(name) {
+      organs.forEach((o) => o.classList.toggle("active", o.dataset.organ === name));
+      markers.forEach((m) => m.classList.toggle("active", m.dataset.organ === name));
+      chapters.forEach((c) => c.classList.toggle("active", c.dataset.organ === name));
+      if (!reduceMotion) figure.style.transform = `translateY(${focusShift[name] || 0}%)`;
+    }
+
+    const organSpy = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) setOrgan(entry.target.dataset.organ);
+      });
+    }, { rootMargin: "-45% 0px -45% 0px" });
+
+    chapters.forEach((c) => organSpy.observe(c));
+    setOrgan("brain");
+  }
+
   /* ---------- hero stat counters ---------- */
   const counters = [...document.querySelectorAll("[data-count]")];
   const counterObserver = new IntersectionObserver((entries) => {
