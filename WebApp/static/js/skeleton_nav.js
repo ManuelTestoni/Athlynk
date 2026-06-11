@@ -246,14 +246,31 @@
       panel(rep(row(), 8));
   }
 
-  /* ---- show ---------------------------------------------------------- */
+  /* ---- show / restore ------------------------------------------------ */
+  var saved = null;            // real .al-page HTML, stashed while a skeleton is up
+
   function show(variant) {
     var page = document.querySelector('.al-page');
     if (!page || shown) return;
     shown = true;
+    saved = page.innerHTML;    // keep the real content so a Back restore can put it back
     page.innerHTML = '<div class="al-pageskel al-pageskel-' + variant + '">' + build(variant) + '</div>';
     var main = document.querySelector('main.al-canvas');
     if (main) main.scrollTop = 0;
+  }
+
+  // Put the real content back and forget the skeleton. Critical before the page
+  // is frozen into the back/forward cache: Safari snapshots the *live* DOM, so a
+  // painted skeleton would be restored verbatim on Back — a loading shimmer that
+  // never resolves. Re-inserting the saved markup lets Alpine re-init the nodes.
+  function restore() {
+    clearTimeout(timer);
+    if (shown) {
+      var page = document.querySelector('.al-page');
+      if (page && saved != null) page.innerHTML = saved;
+    }
+    shown = false;
+    saved = null;
   }
 
   /* ---- click interception ------------------------------------------- */
@@ -285,6 +302,9 @@
     timer = setTimeout(function () { show(variant); }, DELAY);
   }, true);
 
-  // Cancel a pending skeleton if the page is being restored from bfcache.
-  window.addEventListener('pageshow', function () { clearTimeout(timer); shown = false; });
+  // Clean the skeleton up around back/forward-cache transitions. `pagehide`
+  // fires just before the page is frozen (or unloaded) — restoring there keeps
+  // the cached snapshot clean; `pageshow` covers the restore as a safety net.
+  window.addEventListener('pagehide', restore);
+  window.addEventListener('pageshow', restore);
 })();
