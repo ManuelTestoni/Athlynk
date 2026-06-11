@@ -104,7 +104,7 @@ struct CoachLoginView: View {
                     NeonButton(title: "Accedi", icon: "key.fill",
                                color: Palette.bronze, loading: app.isAuthenticating) {
                         focus = nil
-                        Task { await app.login(email: email, password: password) }
+                        Task { await app.login(email: email, password: password, role: "COACH") }
                     }
                     .revealUp(appear, index: 2)
                     .disabled(email.isEmpty || password.isEmpty)

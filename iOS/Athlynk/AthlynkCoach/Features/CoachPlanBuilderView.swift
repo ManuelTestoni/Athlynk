@@ -11,6 +11,7 @@ import SwiftUI
 
 struct WBExerciseDraft: Identifiable {
     let id = UUID()
+    var pk: Int? = nil           // server WorkoutExercise id (edit round-trip)
     let exerciseId: Int
     let name: String
     let muscle: String
@@ -18,19 +19,30 @@ struct WBExerciseDraft: Identifiable {
     var reps = 10
     var repRange = ""            // when set, wins over `reps`
     var recoverySeconds = 90
+    var loadValue: Double? = nil
+    var loadUnit = "KG"          // KG | PERCENT_1RM | BODYWEIGHT
     var rir: Int? = nil
+    var rpe: Int? = nil
+    var tempo = ""
     var notes = ""
 
     var summary: String {
         let r = repRange.isEmpty ? "\(reps)" : repRange
         var s = "\(sets)×\(r) · \(recoverySeconds)″"
+        if let loadValue {
+            let v = loadValue.truncatingRemainder(dividingBy: 1) == 0
+                ? "\(Int(loadValue))" : String(format: "%.1f", loadValue)
+            s += loadUnit == "PERCENT_1RM" ? " · \(v)%" : " · \(v)kg"
+        }
         if let rir { s += " · RIR \(rir)" }
+        if let rpe { s += " · RPE \(rpe)" }
         return s
     }
 }
 
 struct WBDayDraft: Identifiable {
     let id = UUID()
+    var pk: Int? = nil           // server WorkoutDay id (edit round-trip)
     var name: String
     var notes = ""
     var exercises: [WBExerciseDraft] = []
@@ -40,6 +52,10 @@ struct WBItemDraft: Identifiable {
     let id = UUID()
     let food: BuilderFood
     var grams: Double
+    var notes = ""
+    /// Substitutions built on the web, carried opaquely so a mobile save
+    /// doesn't drop them.
+    var substitutions: [[String: Any]] = []
 
     var kcal: Double { food.kcal * grams / 100 }
     var protein: Double { food.protein * grams / 100 }
@@ -51,6 +67,8 @@ struct WBMealDraft: Identifiable {
     let id = UUID()
     var name: String
     var time = ""
+    var notes = ""
+    var dayOfWeek: String? = nil // LUN…DOM, only for WEEKLY plans
     var items: [WBItemDraft] = []
 
     var kcal: Double { items.reduce(0) { $0 + $1.kcal } }
@@ -261,15 +279,61 @@ private struct WBExerciseRow: View {
                         WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
                                   range: 0...600, step: 15)
                         WBOptStepper(label: "RIR", value: $ex.rir, range: 0...6)
+                        WBOptStepper(label: "RPE", value: $ex.rpe, range: 1...10)
                     }
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("RANGE REPS (OPZ.)")
-                            .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                        TextField("", text: $ex.repRange,
-                                  prompt: Text("Es. 8-12").foregroundStyle(Palette.textLow))
-                            .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
-                            .padding(.horizontal, 12).padding(.vertical, 9)
-                            .voltPanel(radius: 10)
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("CARICO (OPZ.)")
+                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                            TextField("", value: $ex.loadValue, format: .number,
+                                      prompt: Text("Es. 60").foregroundStyle(Palette.textLow))
+                                .keyboardType(.decimalPad)
+                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .voltPanel(radius: 10)
+                        }
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("UNITÀ")
+                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                            Menu {
+                                Button("kg") { ex.loadUnit = "KG" }
+                                Button("% 1RM") { ex.loadUnit = "PERCENT_1RM" }
+                                Button("Corpo libero") { ex.loadUnit = "BODYWEIGHT" }
+                            } label: {
+                                HStack {
+                                    Text(ex.loadUnit == "PERCENT_1RM" ? "% 1RM"
+                                         : ex.loadUnit == "BODYWEIGHT" ? "Corpo" : "kg")
+                                        .font(Typo.body(14)).foregroundStyle(Palette.textHi)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(Palette.textLow)
+                                }
+                                .padding(.horizontal, 12).padding(.vertical, 11)
+                                .voltPanel(radius: 10)
+                            }
+                        }
+                        .frame(width: 110)
+                    }
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("RANGE REPS (OPZ.)")
+                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                            TextField("", text: $ex.repRange,
+                                      prompt: Text("Es. 8-12").foregroundStyle(Palette.textLow))
+                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .voltPanel(radius: 10)
+                        }
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("TEMPO (OPZ.)")
+                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                            TextField("", text: $ex.tempo,
+                                      prompt: Text("Es. 3-1-1").foregroundStyle(Palette.textLow))
+                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .voltPanel(radius: 10)
+                        }
                     }
                     VStack(alignment: .leading, spacing: 5) {
                         Text("NOTE TECNICHE (OPZ.)")

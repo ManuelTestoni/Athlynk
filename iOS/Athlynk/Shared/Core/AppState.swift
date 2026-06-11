@@ -54,12 +54,12 @@ final class AppState: ObservableObject {
         }
     }
 
-    func login(email: String, password: String) async {
+    func login(email: String, password: String, role: String) async {
         isAuthenticating = true
         loginError = nil
         defer { isAuthenticating = false }
         do {
-            let res = try await api.login(email: email, password: password)
+            let res = try await api.login(email: email, password: password, role: role)
             api.token = res.token
             Keychain.set(res.token, for: tokenKey)
             user = res.user

@@ -54,7 +54,7 @@ struct LoginView: View {
                     NeonButton(title: "Accedi", icon: "bolt.fill",
                                color: Palette.cyan, loading: app.isAuthenticating) {
                         focus = nil
-                        Task { await app.login(email: email, password: password) }
+                        Task { await app.login(email: email, password: password, role: "CLIENT") }
                     }
                     .revealUp(appear, index: 2)
                     .disabled(email.isEmpty || password.isEmpty)

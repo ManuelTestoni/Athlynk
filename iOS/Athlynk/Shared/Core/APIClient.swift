@@ -79,9 +79,11 @@ final class APIClient {
 
     // MARK: Endpoints
 
-    func login(email: String, password: String) async throws -> LoginResponse {
+    /// `role` declares which app is logging in ("CLIENT" | "COACH"): the server
+    /// only matches users with that role, so each app rejects the other's users.
+    func login(email: String, password: String, role: String) async throws -> LoginResponse {
         let data = try await request("/api/v1/auth/login", method: "POST",
-                                     body: ["email": email, "password": password])
+                                     body: ["email": email, "password": password, "role": role])
         return try decode(LoginResponse.self, from: data)
     }
 

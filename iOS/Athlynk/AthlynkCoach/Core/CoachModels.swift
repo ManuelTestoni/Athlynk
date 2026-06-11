@@ -626,8 +626,26 @@ struct CoachMealDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let order: Int
+    let dayOfWeek: String?
     let notes: String?
     let items: [CoachMealItemDTO]
+    enum CodingKeys: String, CodingKey {
+        case id, name, order, notes, items
+        case dayOfWeek = "day_of_week"
+    }
+}
+
+struct CoachDayTarget: Codable, Hashable, Identifiable {
+    let dayOfWeek: String
+    let kcal: Int?
+    let protein: Int?
+    let carb: Int?
+    let fat: Int?
+    var id: String { dayOfWeek }
+    enum CodingKeys: String, CodingKey {
+        case kcal, protein, carb, fat
+        case dayOfWeek = "day_of_week"
+    }
 }
 
 struct CoachNutritionDetailDTO: Codable, Identifiable, Hashable {
@@ -636,15 +654,23 @@ struct CoachNutritionDetailDTO: Codable, Identifiable, Hashable {
     let planMode: String?
     let planKind: String?
     let dailyKcal: Int?
+    let proteinTargetG: Int?
+    let carbTargetG: Int?
+    let fatTargetG: Int?
     let description: String?
     let status: String?
     let meals: [CoachMealDTO]
+    let dayTargets: [CoachDayTarget]?
     let totals: CoachMacros
     enum CodingKeys: String, CodingKey {
         case id, title, description, status, meals, totals
         case planMode = "plan_mode"
         case planKind = "plan_kind"
         case dailyKcal = "daily_kcal"
+        case proteinTargetG = "protein_target_g"
+        case carbTargetG = "carb_target_g"
+        case fatTargetG = "fat_target_g"
+        case dayTargets = "day_targets"
     }
 }
 
@@ -819,4 +845,31 @@ struct BuilderFood: Codable, Identifiable, Hashable {
 
 struct BuilderFoodSearchResponse: Codable {
     let results: [BuilderFood]
+}
+
+// MARK: - Assignable clients (wizard finalize step)
+
+struct CoachActiveAssignmentRef: Codable, Hashable {
+    let assignmentId: Int
+    let planId: Int
+    let planTitle: String
+    let endDate: String?
+    let weeksRemaining: Int?
+    enum CodingKeys: String, CodingKey {
+        case assignmentId = "assignment_id"
+        case planId = "plan_id"
+        case planTitle = "plan_title"
+        case endDate = "end_date"
+        case weeksRemaining = "weeks_remaining"
+    }
+}
+
+struct CoachAssignableClient: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let activeAssignment: CoachActiveAssignmentRef?
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case activeAssignment = "active_assignment"
+    }
 }

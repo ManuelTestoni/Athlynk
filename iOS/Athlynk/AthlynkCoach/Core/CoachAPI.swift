@@ -162,6 +162,58 @@ extension APIClient {
         return try coachJSONObject(data)["plan_id"] as? Int ?? 0
     }
 
+    // MARK: Full plan wizard (web save/finalize/delete endpoints via dual auth)
+
+    /// Edit-ready wizard payload of a workout plan (same shape the web wizard uses).
+    func coachWorkoutBuilder(planId: Int) async throws -> [String: Any] {
+        let data = try await request("/api/v1/coach/workouts/\(planId)/builder")
+        return try coachJSONObject(data)["plan"] as? [String: Any] ?? [:]
+    }
+
+    /// Create (planId == nil) or update a workout plan through the web wizard
+    /// save endpoint. Returns the saved plan dict (with server pks).
+    @discardableResult
+    func coachSaveWorkoutPlan(planId: Int?, payload: [String: Any]) async throws -> [String: Any] {
+        let path = planId.map { "/api/allenamenti/\($0)/save/" } ?? "/api/allenamenti/save/"
+        let data = try await request(path, method: "POST", body: payload)
+        return try coachJSONObject(data)["plan"] as? [String: Any] ?? [:]
+    }
+
+    /// action = "template" | "assign" (with client_ids, weeks, overwrite).
+    func coachFinalizeWorkoutPlan(planId: Int, payload: [String: Any]) async throws {
+        _ = try await request("/api/allenamenti/\(planId)/finalize/", method: "POST", body: payload)
+    }
+
+    func coachDeleteWorkoutPlan(planId: Int) async throws {
+        _ = try await request("/api/allenamenti/\(planId)/elimina/", method: "POST")
+    }
+
+    /// Edit-ready payload of a nutrition plan (meals/foods or macro targets).
+    func coachNutritionBuilder(planId: Int) async throws -> [String: Any] {
+        let data = try await request("/api/v1/coach/nutrition/\(planId)/builder")
+        return try coachJSONObject(data)["plan"] as? [String: Any] ?? [:]
+    }
+
+    /// Create (planId == nil) or update a nutrition plan through the web save
+    /// endpoint (handles FOOD/MACRO × DAILY/WEEKLY). Returns the plan id.
+    @discardableResult
+    func coachSaveNutritionPlan(planId: Int?, payload: [String: Any]) async throws -> Int {
+        let path = planId.map { "/nutrizione/piani/\($0)/modifica/" } ?? "/nutrizione/piani/crea/"
+        let data = try await request(path, method: "POST", body: payload)
+        return try coachJSONObject(data)["plan_id"] as? Int ?? 0
+    }
+
+    func coachDeleteNutritionPlan(planId: Int) async throws {
+        _ = try await request("/api/nutrizione/piani/\(planId)/elimina/", method: "POST")
+    }
+
+    /// Assignable athletes with their currently active plan (for overwrite warnings).
+    func coachAssignableClients(excludePlanId: Int? = nil) async throws -> [CoachAssignableClient] {
+        var path = "/api/clients/search/"
+        if let excludePlanId { path += "?exclude_plan_id=\(excludePlanId)" }
+        return try decode([CoachAssignableClient].self, from: try await request(path))
+    }
+
     func coachAssignWorkout(planId: Int, clientId: Int, startDate: String? = nil) async throws {
         var body: [String: Any] = ["client_id": clientId]
         if let startDate { body["start_date"] = startDate }

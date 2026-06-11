@@ -271,8 +271,15 @@ def login(request):
                        ip, email, ip_allowed, email_allowed)
         return JsonResponse({'error': 'Troppi tentativi di accesso. Riprova tra qualche minuto.'}, status=429)
 
+    # Each app declares the role it serves (CLIENT for the athlete app, COACH
+    # for the coach app): the lookup itself filters by role, so a coach can't
+    # log into the athlete app and vice versa — no extra logic downstream.
+    lookup = {'email__iexact': email}
+    expected_role = (data.get('role') or '').strip().upper()
+    if expected_role in ('CLIENT', 'COACH'):
+        lookup['role'] = expected_role
     try:
-        user = User.objects.get(email__iexact=email)
+        user = User.objects.get(**lookup)
     except User.DoesNotExist:
         return JsonResponse({'error': 'Credenziali non valide'}, status=401)
     if not check_password(password, user.password_hash):

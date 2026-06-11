@@ -992,9 +992,11 @@ def nutrition_detail(request, user, plan_id):
     if err:
         return err
     plan = (NutritionPlan.objects.filter(id=plan_id, coach=coach)
-            .prefetch_related('meals__items__food', 'days').first())
+            .prefetch_related('meals__items__food', 'meals__day', 'days').first())
     if not plan:
         return JsonResponse({'error': 'Piano non trovato'}, status=404)
+
+    from .views_nutrition import WEEKDAY_REVERSE
 
     def meal_dict(m):
         items = [{
@@ -1003,6 +1005,7 @@ def nutrition_detail(request, user, plan_id):
             **_food_macros(it),
         } for it in m.items.all()]
         return {'id': m.id, 'name': m.name, 'order': m.order,
+                'day_of_week': WEEKDAY_REVERSE.get(m.day.day_of_week) if m.day else None,
                 'notes': m.notes, 'items': items}
 
     meals = [meal_dict(m) for m in plan.meals.order_by('order')]
@@ -1011,12 +1014,113 @@ def nutrition_detail(request, user, plan_id):
         for it in m['items']:
             for k in total:
                 total[k] += it.get(k) or 0
+    day_targets = [{
+        'day_of_week': WEEKDAY_REVERSE.get(d.day_of_week, d.day_of_week),
+        'kcal': d.target_kcal,
+        'protein': d.target_protein_g,
+        'carb': d.target_carb_g,
+        'fat': d.target_fat_g,
+    } for d in plan.days.order_by('order')] if plan.plan_mode == 'MACRO' else []
     return JsonResponse({'plan': {
         'id': plan.id, 'title': plan.title, 'plan_mode': plan.plan_mode,
         'plan_kind': plan.plan_kind, 'daily_kcal': plan.daily_kcal,
+        'protein_target_g': plan.protein_target_g,
+        'carb_target_g': plan.carb_target_g,
+        'fat_target_g': plan.fat_target_g,
         'description': plan.description, 'status': plan.status,
         'meals': meals,
+        'day_targets': day_targets,
         'totals': {k: round(v, 1) for k, v in total.items()},
+    }})
+
+
+# ---------------------------------------------------------------------------
+# Builder payloads — edit-ready projections for the mobile plan builders. The
+# actual writes go through the web save endpoints (coach_dual_auth), so the
+# two clients share one code path; these GETs only prefill the mobile editor.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def workout_builder(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = WorkoutPlan.objects.filter(id=plan_id, coach=coach).first()
+    if not plan:
+        return JsonResponse({'error': 'Scheda non trovata'}, status=404)
+    from .views_workouts import _serialize_plan_for_wizard
+    return JsonResponse({'plan': _serialize_plan_for_wizard(plan)})
+
+
+@api_view(['GET'])
+def nutrition_builder(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = (
+        NutritionPlan.objects.filter(id=plan_id, coach=coach)
+        .prefetch_related('meals__day', 'meals__items__food',
+                          'meals__items__substitutions__food', 'days')
+        .first()
+    )
+    if not plan:
+        return JsonResponse({'error': 'Piano non trovato'}, status=404)
+
+    from .views_nutrition import WEEKDAY_REVERSE
+
+    meals = []
+    for meal in plan.meals.all():
+        items = []
+        for item in meal.items.all():
+            if not item.food:
+                continue
+            items.append({
+                'food_id': item.food_id,
+                'food_name': item.food.nome_alimento,
+                'quantity_g': item.quantity_g,
+                'kcal_per_100g': item.food.energia_kcal,
+                'protein_per_100g': item.food.proteine_g,
+                'carb_per_100g': item.food.carboidrati_g,
+                'fat_per_100g': item.food.lipidi_g,
+                'notes': item.notes or '',
+                # Round-tripped opaquely by the mobile editor so a save from
+                # mobile doesn't drop substitutions built on the web.
+                'substitutions': [{
+                    'food_id': s.food_id,
+                    'mode': s.mode,
+                    'quantity_g': s.quantity_g,
+                } for s in item.substitutions.all()],
+            })
+        meals.append({
+            'name': meal.name,
+            'time_of_day': meal.time_of_day or '',
+            'notes': meal.notes or '',
+            'day_of_week': WEEKDAY_REVERSE.get(meal.day.day_of_week) if meal.day else None,
+            'items': items,
+        })
+
+    day_targets = []
+    if plan.plan_mode == 'MACRO' and plan.plan_kind == 'WEEKLY':
+        day_targets = [{
+            'day_of_week': WEEKDAY_REVERSE.get(d.day_of_week, d.day_of_week),
+            'kcal': d.target_kcal,
+            'protein': d.target_protein_g,
+            'carb': d.target_carb_g,
+            'fat': d.target_fat_g,
+        } for d in plan.days.all()]
+
+    return JsonResponse({'plan': {
+        'id': plan.id,
+        'title': plan.title,
+        'description': plan.description or '',
+        'plan_kind': plan.plan_kind,
+        'plan_mode': plan.plan_mode,
+        'daily_kcal': plan.daily_kcal,
+        'protein_target_g': plan.protein_target_g,
+        'carb_target_g': plan.carb_target_g,
+        'fat_target_g': plan.fat_target_g,
+        'meals': meals,
+        'day_targets': day_targets,
     }})
 
 

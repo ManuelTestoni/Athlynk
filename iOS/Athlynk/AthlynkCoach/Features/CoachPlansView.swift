@@ -52,6 +52,7 @@ struct CoachWorkoutsView: View {
             CoachPlanCreateView(kind: .workout)
         }
         .task { await load() }
+        .onAppear { if data != nil { Task { await load() } } }   // refresh after edit/delete
         .refreshable { await load() }
     }
 
@@ -105,6 +106,7 @@ struct CoachNutritionView: View {
             CoachPlanCreateView(kind: .nutrition)
         }
         .task { await load() }
+        .onAppear { if data != nil { Task { await load() } } }   // refresh after edit/delete
         .refreshable { await load() }
     }
 
