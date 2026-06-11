@@ -327,5 +327,10 @@ if not DEBUG:
     if TRUSTED_PROXY_COUNT > 0:
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     # Hosts allowed to submit CSRF-protected forms (full https origins).
-    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+    CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://athlynk-production.up.railway.app',
+    cast=Csv()
+)
+
 
