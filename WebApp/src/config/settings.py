@@ -314,7 +314,7 @@ SESSION_ABSOLUTE_TIMEOUT = 7 * 24 * 60 * 60   # 7-day hard ceiling per login
 # production every response is HTTPS-only with HSTS, and the session/CSRF
 # cookies are marked Secure so they never travel in plaintext.
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False  # handled by Railway/Fly/Cloudflare TLS termination
     SECURE_HSTS_SECONDS = 31536000              # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
