@@ -2,7 +2,7 @@
 //  APIClient.swift
 //  Thin async wrapper over the Django /api/v1 backend.
 //
-//  Base URL is http://localhost:8000 in development (the running web app).
+//  Base URL is configurable via xcconfig and Info.plist.
 //  All authenticated calls attach `Authorization: Bearer <token>`.
 //
 

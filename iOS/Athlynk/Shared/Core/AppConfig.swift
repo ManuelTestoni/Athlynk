@@ -24,7 +24,7 @@ enum AppConfig {
 
     /// Backend base URL. Falls back to the local dev server.
     static var apiBaseURL: String {
-        string("API_BASE_URL") ?? "http://localhost:8000"
+        string("API_BASE_URL") ?? "https://athlynk-production.up.railway.app"
     }
 
     /// PostHog project key; empty/absent disables analytics entirely.
