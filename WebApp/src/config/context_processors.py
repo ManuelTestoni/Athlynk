@@ -59,6 +59,7 @@ def identity_context(request):
     ctx['CONSENT_VERSION'] = getattr(settings, 'CONSENT_VERSION', '')
     ctx['cookie_consent_needed'] = _cookie_consent_needed(request, user)
     ctx['ASSET_VERSION'] = _asset_version()
+    ctx['SITE_URL'] = getattr(settings, 'SITE_URL', '').rstrip('/')
     return ctx
 
 

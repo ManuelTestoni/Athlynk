@@ -24,7 +24,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
-CONSENT_VERSION = config('CONSENT_VERSION', default='2026-05-13.v1')
+CONSENT_VERSION = config('CONSENT_VERSION', default='2026-06-11.v1')
 
 # --- Analytics / PostHog / churn-prediction ---------------------------------
 # Behavioural analytics + the coach risk dashboard. Everything degrades to a
@@ -150,11 +150,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+_DATABASE_URL = config('DATABASE_URL')
 DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
+    'default': dj_database_url.parse(
+        _DATABASE_URL,
         conn_max_age=0,
-        ssl_require=True,
+        # sslmode è un'opzione solo Postgres: con un DATABASE_URL sqlite locale
+        # va omessa o la connessione fallisce.
+        ssl_require=_DATABASE_URL.startswith('postgres'),
     )
 }
 
@@ -162,7 +165,7 @@ DATABASES = {
 # transazione. Con psycopg3 vanno disabilitati i prepared statement server-side
 # (la connessione fisica cambia tra query → "prepared statement does not exist")
 # e i server-side cursor (named cursor assumono connessione stabile).
-if 'test' not in sys.argv:
+if 'test' not in sys.argv and 'postgresql' in DATABASES['default']['ENGINE']:
     DATABASES['default']['OPTIONS'] = {'prepare_threshold': None}
     DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 

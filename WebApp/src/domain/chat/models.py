@@ -85,6 +85,7 @@ class AutomaticMessageTemplate(models.Model):
         ('WELCOME', 'Benvenuto'),
         ('GOODBYE', 'Arrivederci'),
         ('SUBSCRIPTION_EXPIRING', 'Abbonamento in scadenza'),
+        ('PLAN_DELETED', 'Scheda eliminata'),
     ]
 
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='automatic_message_templates')

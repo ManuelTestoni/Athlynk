@@ -21,25 +21,62 @@
   var shown = false;
 
   /* ---- variant routing ----------------------------------------------
-     Order matters: most specific families first. */
+     Order matters: most specific families first. Where the same URL
+     renders a different page per role (coach vs client), the role is
+     read from <body data-role>. */
   function variantFor(path) {
+    var role = document.body.getAttribute('data-role') || '';
+
     // chat conversation — message bubbles + composer
     if (/^\/chat\/\d+/.test(path)) return 'chat';
 
-    // settings & simple stacked forms (before builder: anamnesi/crea is a form)
-    if (/^\/(impostazioni|profilo)(\/|$)/.test(path) ||
+    // agenda — mini-calendar sidebar + month canvas
+    if (/^\/agenda\/?$/.test(path)) return 'calendar';
+
+    // business analytics — KPI row + chart panels
+    if (/^\/analisi\/?$/.test(path)) return 'analytics';
+
+    // chart pages — filter toolbar + chart card grid
+    if (/^\/check\/(andamento|comparatore)/.test(path) ||
+        /\/progressi\/?$/.test(path) ||
+        /\/volume\/?$/.test(path)) return 'charts';
+
+    // settings hub — grid of preference panels
+    if (/^\/impostazioni\/?$/.test(path)) return 'settings';
+
+    // profile — main column + side rail
+    if (/^\/profilo\/?$/.test(path) ||
+        /^\/il-mio-coach\/?$/.test(path)) return 'profile';
+
+    // il mio percorso — stat trio + timeline rows
+    if (/^\/il-mio-percorso\/?$/.test(path)) return 'timeline';
+
+    // settings subpages & simple stacked forms (before builder:
+    // anamnesi/crea and piano abbonamento are forms)
+    if (/^\/impostazioni\//.test(path) ||
         /\/(registra|modifica)(\/|$)/.test(path) ||
-        /\/anamnesi\/crea/.test(path)) return 'form';
+        /\/anamnesi\/crea/.test(path) ||
+        /\/abbonamenti\/piano\/crea/.test(path) ||
+        /\/importa(-pdf)?(\/|$)/.test(path)) return 'form';
 
     // builders & wizards — sidebar list + canvas
     if (/\/(wizard|crea|builder)(\/|$)/.test(path) ||
         /\/modelli\/(nuovo|\d+)(\/|$)/.test(path) ||
         /\/sessione\/\d+/.test(path)) return 'builder';
 
-    // dashboards — KPI grid + two columns
-    if (path === '/' || /\/dashboard\/?$/.test(path) ||
-        /^\/agenda\/?$/.test(path) ||
-        path === '/check/' || /^\/check\/andamento/.test(path)) return 'dashboard';
+    // card-grid catalogues — filter chips + cards
+    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'list' : 'cards';
+    if (/^\/nutrizione\/(piani|integratori)\/?$/.test(path) ||
+        /^\/check\/(modelli|trova-coach)\/?$/.test(path)) return 'cards';
+    if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'cards' : 'cards-kpi';
+
+    // dashboards — KPI grid + two columns (client home is a card trio)
+    if (path === '/' || /\/dashboard\/?$/.test(path))
+      return role === 'client' ? 'cards' : 'dashboard';
+    if (/^\/check\/?$/.test(path)) return role === 'client' ? 'list' : 'dashboard';
+
+    // check history of one client — stacked rows, not a detail split
+    if (/^\/check\/cliente\/\d+/.test(path)) return 'list';
 
     // anything keyed by an id → two-column detail
     if (/\/\d+(\/|$)/.test(path)) return 'detail';
@@ -93,6 +130,20 @@
     return '<div class="al-pageskel-bubble al-pageskel-bubble-' + side + '">' +
              '<div class="al-skel"></div></div>';
   }
+  function chips() {
+    return '<div class="al-pageskel-chips">' +
+             rep('<div class="al-skel al-pageskel-chip"></div>', 4) + '</div>';
+  }
+  function chart() {
+    return '<div class="al-pageskel-panel al-pageskel-chart">' +
+             '<div class="al-skel"></div><div class="al-skel"></div></div>';
+  }
+  function setcard() {
+    return '<div class="al-pageskel-panel al-pageskel-setcard">' +
+             '<div class="al-skel al-skel-circle al-skel-circle-md"></div>' +
+             '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+           '</div>';
+  }
 
   function panel(inner) { return '<div class="al-pageskel-panel" style="padding:0">' + inner + '</div>'; }
 
@@ -123,6 +174,57 @@
           '<div class="al-pageskel-panel">' +
             '<div class="al-pageskel-grid">' + rep(card(), 4) + '</div></div>' +
         '</div>';
+    }
+    if (variant === 'calendar') {
+      return head(2) +
+        '<div class="al-pageskel-agenda">' +
+          '<div class="al-pageskel-panel al-pageskel-agendaside">' +
+            '<div class="al-skel al-pageskel-sidetitle"></div>' +
+            '<div class="al-pageskel-minical">' + rep('<div class="al-skel"></div>', 35) + '</div>' +
+            rep(row(), 3) +
+          '</div>' +
+          '<div class="al-pageskel-panel">' +
+            '<div class="al-pageskel-calhead"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+            '<div class="al-pageskel-calgrid">' + rep('<div class="al-skel"></div>', 35) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+    if (variant === 'analytics') {
+      return head(1) +
+        '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' +
+        '<div class="al-pageskel-chartgrid al-pageskel-chartgrid-2">' + rep(chart(), 2) + '</div>';
+    }
+    if (variant === 'charts') {
+      return head(1) +
+        '<div class="al-pageskel-toolbar"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+        '<div class="al-pageskel-chartgrid">' + rep(chart(), 3) + '</div>';
+    }
+    if (variant === 'cards' || variant === 'cards-kpi') {
+      return head(1) +
+        (variant === 'cards-kpi' ? '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' : '') +
+        chips() +
+        '<div class="al-pageskel-grid">' + rep(card(), 6) + '</div>';
+    }
+    if (variant === 'settings') {
+      return head(0) +
+        '<div class="al-pageskel-setgrid">' + rep(setcard(), 6) + '</div>';
+    }
+    if (variant === 'profile') {
+      return head(1) +
+        '<div class="al-pageskel-profile">' +
+          '<div class="al-pageskel-panel">' +
+            '<div class="al-pageskel-chatbar" style="margin-bottom:20px">' +
+              '<div class="al-skel al-skel-circle al-skel-circle-md"></div>' +
+              '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+            '</div>' + rep(field(), 4) +
+          '</div>' +
+          panel(rep(row(), 4)) +
+        '</div>';
+    }
+    if (variant === 'timeline') {
+      return head(0) +
+        '<div class="al-pageskel-kpis al-pageskel-kpis-3">' + rep(kpi(), 3) + '</div>' +
+        panel(rep(row(), 6));
     }
     if (variant === 'chat') {
       return '<div class="al-pageskel-chat">' +

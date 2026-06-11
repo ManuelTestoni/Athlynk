@@ -9,6 +9,20 @@
     <meta name="cookie-consent-needed" content="{{ cookie_consent_needed|yesno:'1,0' }}">
     <title>Athlynk | {% block legal_title %}Informativa{% endblock %}</title>
 
+    <!-- SEO -->
+    <meta name="description" content="{% block legal_description %}Informative legali di Athlynk, la piattaforma per coach e atleti.{% endblock %}">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ SITE_URL }}{{ request.path }}">
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <meta property="og:site_name" content="Athlynk">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Athlynk | {% block legal_og_title %}Informative legali{% endblock %}">
+    <meta property="og:url" content="{{ SITE_URL }}{{ request.path }}">
+    <meta property="og:image" content="{{ SITE_URL }}{% static 'img/AthlynkLogo.png' %}">
+    <meta property="og:locale" content="it_IT">
+    <meta name="twitter:card" content="summary">
+    {% include 'partials/seo_jsonld.html' %}
+
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -31,6 +45,7 @@
       <nav class="flex items-center gap-5 text-[13px]">
         <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
         <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
+        <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>
         <a href="{% url 'cookie_preferences' %}" class="al-link al-link-bronze">Preferenze</a>
       </nav>
     </div>
@@ -46,6 +61,7 @@
       <div class="flex items-center gap-4 al-small">
         <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
         <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
+        <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>
         <a href="#" onclick="window.cookieConsent && window.cookieConsent.open(); return false;" class="al-link al-link-bronze">Gestisci preferenze</a>
       </div>
     </div>

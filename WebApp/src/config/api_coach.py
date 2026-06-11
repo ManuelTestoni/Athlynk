@@ -1060,6 +1060,9 @@ def workout_create(request, user):
                     set_count=ex.get('sets'), rep_count=ex.get('reps'),
                     rep_range=(ex.get('rep_range') or None),
                     recovery_seconds=ex.get('recovery_seconds'),
+                    rir=ex.get('rir'), rpe=ex.get('rpe'),
+                    tempo=(ex.get('tempo') or None),
+                    technique_notes=(ex.get('notes') or '').strip() or None,
                 )
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
 
@@ -1087,6 +1090,7 @@ def nutrition_create(request, user):
             meal_obj = Meal.objects.create(
                 plan=plan, name=(meal.get('name') or f'Pasto {m_idx + 1}')[:100],
                 order=m_idx, notes=(meal.get('notes') or '').strip() or None,
+                time_of_day=(meal.get('time_of_day') or '').strip()[:10] or None,
             )
             for food in meal.get('items') or []:
                 food_obj = Food.objects.filter(id=food.get('food_id')).first()

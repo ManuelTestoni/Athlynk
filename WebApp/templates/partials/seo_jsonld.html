@@ -1,0 +1,38 @@
+{% load static %}{% comment %}
+Dati strutturati schema.org per pagine pubbliche (auth + legali).
+Organization + SoftwareApplication: aiutano motori di ricerca e AI search
+(Google AI Overviews, Perplexity, ChatGPT Search) a capire cos'è Athlynk.
+{% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "{{ SITE_URL }}/#organization",
+      "name": "Athlynk",
+      "url": "{{ SITE_URL }}/",
+      "logo": "{{ SITE_URL }}{% static 'img/AthlynkLogo.png' %}",
+      "description": "Piattaforma per coach, personal trainer e nutrizionisti: schede di allenamento, piani nutrizionali, check di avanzamento e chat con i propri atleti."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "{{ SITE_URL }}/#app",
+      "name": "Athlynk",
+      "url": "{{ SITE_URL }}/",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "Web, iOS",
+      "inLanguage": "it",
+      "publisher": { "@id": "{{ SITE_URL }}/#organization" },
+      "featureList": [
+        "Schede di allenamento con progressioni settimanali",
+        "Piani nutrizionali con tracking dei macro",
+        "Check di avanzamento con foto e misure",
+        "Chat coach-atleta e agenda appuntamenti",
+        "Assistente AI CHIRON per allenamento e nutrizione",
+        "Import automatico di diete e schede da PDF/Excel"
+      ]
+    }
+  ]
+}
+</script>

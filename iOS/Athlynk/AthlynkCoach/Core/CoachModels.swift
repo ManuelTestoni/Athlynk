@@ -792,3 +792,31 @@ struct CoachRiskResponse: Codable {
         case clients
     }
 }
+
+// MARK: - Builder search results (exercise DB + food DB)
+
+struct BuilderExercise: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let targetMuscleGroup: String?
+    let equipment: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, equipment
+        case targetMuscleGroup = "target_muscle_group"
+    }
+}
+
+struct BuilderFood: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let category: String?
+    let kcal: Double
+    let protein: Double
+    let carb: Double
+    let fat: Double
+}
+
+struct BuilderFoodSearchResponse: Codable {
+    let results: [BuilderFood]
+}

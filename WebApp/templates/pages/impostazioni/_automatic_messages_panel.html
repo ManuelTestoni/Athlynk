@@ -1,46 +1,19 @@
-{% extends 'base.html' %}
-
-{% block title %}Messaggi automatici · Impostazioni{% endblock %}
-
-{% block content %}
-<div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-
-  <div class="mb-7">
-    <a href="{% url 'impostazioni_dashboard' %}"
-       class="al-link al-link-quiet inline-flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-widest">
-      <i class="ph ph-arrow-left text-sm"></i> Impostazioni
-    </a>
-    <p class="al-eyebrow mb-2">Studio &middot; Impostazioni</p>
-    <h1 class="al-h-2">Messaggi <span class="al-display-i">automatici</span></h1>
-    <p class="al-body mt-2" style="color: var(--al-ink-mute);">
-      Messaggi inviati in chat ai tuoi atleti su eventi chiave. Scrivi il testo, aggiungi emoji o una
-      foto, e attiva ciò che vuoi inviare. Usa <code>{nome}</code> e <code>{cognome}</code> per
-      personalizzare con il nome dell'atleta.
+{# Pannello «Messaggi automatici» dentro Impostazioni (solo coach). #}
+<div class="al-section-head">
+    <p class="al-eyebrow" style="color: var(--al-ink-mute);">05</p>
+    <h2 class="al-h-2 mt-1">Messaggi automatici</h2>
+    <p class="al-small mt-2">
+        Messaggi inviati in chat ai tuoi atleti su eventi chiave. Usa <code>{nome}</code> e
+        <code>{cognome}</code> per personalizzare con il nome dell'atleta.
     </p>
-    <div class="al-rule-bronze mt-5"></div>
-  </div>
+</div>
 
-  {% if saved %}
-  <div class="al-toast is-success mb-6">
-    <i class="ph-fill ph-check-circle"></i>
-    <span>Messaggi automatici salvati.</span>
-  </div>
-  {% endif %}
-
-  {% if error %}
-  <div class="al-toast is-danger mb-6">
-    <i class="ph-fill ph-warning-circle"></i>
-    <span>{{ error }}</span>
-  </div>
-  {% endif %}
-
-  <form method="post" enctype="multipart/form-data" class="space-y-6">
+<form method="post" action="{% url 'settings_automatic_messages' %}" enctype="multipart/form-data" class="mt-6 space-y-6">
     {% csrf_token %}
 
-    {% for row in rows %}
-    <div class="al-card al-card-flush" x-data="{
+    {% for row in auto_msg_rows %}
+    <div class="al-card al-card-warm" style="padding: 0;" x-data="{
         enabled: {% if row.is_enabled %}true{% else %}false{% endif %},
-        initialUrl: '{{ row.attachment_url|escapejs }}',
         previewUrl: '{{ row.attachment_url|escapejs }}',
         objectUrl: null,
         removed: false,
@@ -59,13 +32,13 @@
             input.value = '';
         }
     }">
-      <div class="p-6 md:p-7">
+      <div class="p-5 md:p-6">
 
         <!-- Head + toggle -->
         <div class="flex items-start justify-between gap-4">
           <div>
             <p class="al-eyebrow" style="color: var(--al-ink-mute);">{{ row.num }}</p>
-            <h2 class="al-h-3 mt-1">{{ row.label }}</h2>
+            <h3 class="al-h-3 mt-1">{{ row.label }}</h3>
             <p class="al-small mt-1" style="color: var(--al-ink-mute);">{{ row.desc }}</p>
           </div>
           <label class="flex items-center gap-2 shrink-0 cursor-pointer" style="margin-top: 4px;">
@@ -121,16 +94,14 @@
     </div>
     {% endfor %}
 
-    <div class="flex justify-end">
+    <div class="flex justify-end pt-2 border-t" style="border-color: var(--al-rule);">
       <button type="submit" class="al-btn al-btn-bronze">
         <i class="ph ph-floppy-disk text-sm"></i><span>Salva modifiche</span>
       </button>
     </div>
-  </form>
+</form>
 
-  <p class="al-small mt-4" style="color: var(--al-ink-faint);">
+<p class="al-small mt-4" style="color: var(--al-ink-faint);">
     L'invio avviene automaticamente lato server. "Abbonamento in scadenza" parte qualche giorno
     prima della scadenza; gli altri al momento dell'evento.
-  </p>
-</div>
-{% endblock %}
+</p>

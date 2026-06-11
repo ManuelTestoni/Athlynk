@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Athlynk | {% block title %}Dashboard{% endblock %}</title>
+    <!-- Area applicativa riservata: mai indicizzata dai motori di ricerca -->
+    <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
 
     <!-- Fonts: Athlynk (Bodoni Moda + Inter + JetBrains Mono) -->
@@ -65,7 +67,7 @@
     {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
 </head>
-<body x-data="{ sidebarOpen: false }" class="al-app-shell h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}">
+<body x-data="{ sidebarOpen: false }" class="al-app-shell h-screen overflow-hidden flex text-ink" data-page="{% block page_id %}{% endblock %}" data-role="{% if is_coach %}coach{% elif is_client %}client{% endif %}">
 
     <!-- Mobile overlay -->
     <div x-show="sidebarOpen" x-transition.opacity x-cloak
@@ -391,6 +393,7 @@
                 <div class="flex items-center gap-4">
                     <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
                     <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
+                    <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>
                     <a href="{% url 'cookie_preferences' %}" onclick="if(window.cookieConsent){window.cookieConsent.open();return false;}" class="al-link al-link-bronze">Gestisci preferenze</a>
                 </div>
             </div>

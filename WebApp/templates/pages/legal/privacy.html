@@ -1,11 +1,13 @@
 {% extends 'pages/legal/_base.html' %}
 
 {% block legal_title %}Privacy Policy{% endblock %}
+{% block legal_og_title %}Privacy Policy{% endblock %}
+{% block legal_description %}Informativa privacy di Athlynk: quali dati trattiamo, perché, per quanto tempo e quali diritti hai ai sensi del GDPR (Reg. UE 2016/679).{% endblock %}
 
 {% block legal_content %}
 <article class="space-y-6">
   <header>
-    <p class="al-eyebrow">Informativa</p>
+    <p class="al-eyebrow">Informativa ex artt. 13-14 GDPR</p>
     <h1 class="al-h-1 mt-2">Privacy Policy</h1>
     <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
     <div class="al-rule-bronze mt-5"></div>
@@ -14,73 +16,240 @@
   <section class="space-y-3">
     <h2 class="al-h-3">1. Titolare del trattamento</h2>
     <p class="al-body">
-      <!-- TODO: inserire ragione sociale, indirizzo, P.IVA / C.F., email di contatto, eventuale DPO. -->
-      <em>[TODO: Titolare del trattamento — ragione sociale, indirizzo, contatti, eventuale DPO]</em>
+      Il titolare del trattamento è <strong>[Ragione sociale]</strong>, con sede in
+      [Indirizzo completo], P.IVA / C.F. [numero], contattabile all'indirizzo email
+      <a href="mailto:[email privacy]" class="al-link al-link-bronze">[email privacy]</a>
+      (di seguito, "Athlynk", "noi").
+    </p>
+    <p class="al-body">
+      Athlynk è una piattaforma che mette in contatto professionisti del fitness e della
+      nutrizione ("Coach") con i loro assistiti ("Atleti") per la gestione di programmi di
+      allenamento, piani nutrizionali, check di avanzamento e comunicazioni.
     </p>
   </section>
 
   <section class="space-y-3">
-    <h2 class="al-h-3">2. Dati raccolti</h2>
+    <h2 class="al-h-3">2. Categorie di dati trattati</h2>
+    <p class="al-body">Trattiamo le seguenti categorie di dati personali:</p>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        <strong>Dati di account</strong>: email, nome e cognome, ruolo (coach o atleta),
+        password (conservata esclusivamente in forma di hash, mai in chiaro), stato di
+        verifica dell'email.
+      </li>
+      <li>
+        <strong>Dati di profilo</strong>: foto profilo, città, biografia, specializzazioni
+        (per i coach), data di nascita.
+      </li>
+      <li>
+        <strong>Dati relativi alla salute (art. 9 GDPR)</strong>: per gli atleti — anamnesi
+        (condizioni fisiche, infortuni, patologie dichiarate, abitudini alimentari), peso,
+        misure corporee, foto di avanzamento ("check"), log degli allenamenti (carichi, RPE,
+        sensazioni), diario alimentare e macro giornaliere. Questi dati sono trattati solo
+        previo tuo <strong>consenso esplicito</strong> e sono visibili esclusivamente a te e
+        al coach con cui hai un rapporto attivo sulla piattaforma.
+      </li>
+      <li>
+        <strong>Contenuti e comunicazioni</strong>: messaggi di chat tra coach e atleta,
+        richieste di appuntamento, note del coach, conversazioni con l'assistente AI CHIRON
+        (vedi sezione 5), documenti caricati (es. PDF/Excel di diete e schede di allenamento).
+      </li>
+      <li>
+        <strong>Dati amministrativi</strong>: piani di abbonamento assegnati dal coach e
+        relativo stato dei pagamenti registrato manualmente dal coach. Athlynk non
+        processa direttamente pagamenti e non tratta dati di carte di credito.
+      </li>
+      <li>
+        <strong>Dati tecnici e di utilizzo</strong>: indirizzo IP, user agent del browser,
+        log di accesso, identificativi del dispositivo per le notifiche push (app iOS),
+        eventi di utilizzo della piattaforma in forma analitica (solo con consenso, vedi
+        Cookie Policy), registro dei consensi cookie (preferenze espresse, versione, IP,
+        user agent).
+      </li>
+      <li>
+        <strong>Newsletter</strong>: email e stato di iscrizione, con double opt-in.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">3. Finalità e basi giuridiche</h2>
+    <div class="overflow-x-auto mt-3">
+      <table class="w-full text-[13px]" style="border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--al-marble); text-align: left;">
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Finalità</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Base giuridica (art. 6 GDPR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Creazione e gestione dell'account, erogazione del servizio (piani, check, chat, agenda, abbonamenti)</td>
+            <td class="px-3 py-3">Esecuzione del contratto (art. 6.1.b)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Trattamento dei dati relativi alla salute (anamnesi, check, foto di avanzamento, diario alimentare)</td>
+            <td class="px-3 py-3">Consenso esplicito (art. 9.2.a)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Funzionalità basate su intelligenza artificiale (assistente CHIRON, estrazione automatica di diete e schede da documenti)</td>
+            <td class="px-3 py-3">Esecuzione del contratto (art. 6.1.b); per i dati salute, consenso esplicito (art. 9.2.a)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Email transazionali (verifica account, reset password, notifiche di assegnazione)</td>
+            <td class="px-3 py-3">Esecuzione del contratto (art. 6.1.b)</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Newsletter</td>
+            <td class="px-3 py-3">Consenso (art. 6.1.a), revocabile in ogni momento dal link in calce a ogni email</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Analytics di prodotto (PostHog)</td>
+            <td class="px-3 py-3">Consenso (art. 6.1.a), tramite banner cookie</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Sicurezza della piattaforma, prevenzione abusi, log tecnici</td>
+            <td class="px-3 py-3">Legittimo interesse (art. 6.1.f)</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-3">Conservazione del registro dei consensi e adempimenti di legge</td>
+            <td class="px-3 py-3">Obbligo legale (art. 6.1.c)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">4. Condivisione tra coach e atleta</h2>
     <p class="al-body">
-      <!-- TODO: elencare le categorie di dati: account (email, nome, ruolo, password hash),
-           profilo (foto, città, bio, dati di salute per gli atleti), uso piattaforma (logs, IP),
-           comunicazioni (chat, appuntamenti). -->
-      <em>[TODO: Categorie di dati personali trattati]</em>
+      Quando un atleta si collega a un coach sulla piattaforma, il coach accede ai dati
+      dell'atleta necessari a svolgere la propria attività professionale: profilo, anamnesi,
+      check e foto di avanzamento, log di allenamento e nutrizione, chat e appuntamenti.
+      Il coach agisce come autonomo professionista nel rapporto con l'atleta. La cessazione
+      del rapporto coach-atleta interrompe l'accesso del coach ai dati successivi.
     </p>
   </section>
 
   <section class="space-y-3">
-    <h2 class="al-h-3">3. Finalità e base giuridica</h2>
+    <h2 class="al-h-3">5. Funzionalità di intelligenza artificiale</h2>
     <p class="al-body">
-      <!-- TODO: per ogni finalità (esecuzione contratto, marketing, obblighi di legge, interesse legittimo)
-           specificare la base giuridica art. 6 GDPR. -->
-      <em>[TODO: Finalità del trattamento e base giuridica ex art. 6 GDPR]</em>
+      Athlynk integra funzionalità basate su modelli linguistici open-weight della famiglia
+      <strong>GPT-OSS</strong>, eseguiti su infrastruttura cloud di Ollama:
+    </p>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        <strong>CHIRON</strong> — assistente conversazionale che risponde a domande su
+        allenamento e nutrizione. I messaggi che invii a CHIRON vengono trasmessi al modello
+        per generare la risposta; la cronologia è salvata sul tuo account e puoi cancellarla
+        in autonomia. CHIRON può effettuare ricerche web (tramite Tavily o DuckDuckGo) per
+        arricchire le risposte: in tal caso solo la query di ricerca viene inviata al
+        provider di ricerca.
+      </li>
+      <li>
+        <strong>Analisi documenti</strong> — quando un coach importa una dieta o una scheda
+        di allenamento in PDF/Excel, il contenuto del documento viene elaborato dal modello
+        AI per estrarne la struttura (alimenti, macro, esercizi, serie). Il risultato è
+        sempre mostrato al coach per revisione e conferma prima del salvataggio.
+      </li>
+    </ul>
+    <p class="al-body">
+      I dati inviati ai modelli AI sono usati esclusivamente per generare la risposta
+      richiesta e <strong>non vengono utilizzati per addestrare i modelli</strong>.
+      Nessuna decisione produttiva di effetti giuridici o similmente significativi viene
+      presa in modo esclusivamente automatizzato (art. 22 GDPR): piani, diete e valutazioni
+      sono sempre decisi e validati da un coach umano. Per maggiori dettagli consulta la
+      pagina <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>.
     </p>
   </section>
 
   <section class="space-y-3">
-    <h2 class="al-h-3">4. Categorie di destinatari</h2>
+    <h2 class="al-h-3">6. Destinatari e responsabili del trattamento</h2>
     <p class="al-body">
-      <em>[TODO: Hosting provider, email provider (SMTP), strumenti analytics, eventuali responsabili esterni]</em>
+      I dati sono trattati da fornitori che agiscono come responsabili del trattamento
+      ex art. 28 GDPR:
     </p>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="al-h-3">5. Periodo di conservazione</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li><strong>Supabase</strong> — hosting del database e archiviazione file (media, foto) su storage privato.</li>
+      <li><strong>Ollama</strong> — esecuzione dei modelli AI (vedi sezione 5).</li>
+      <li><strong>Tavily</strong> — provider di ricerca web per l'assistente CHIRON (solo query di ricerca).</li>
+      <li><strong>PostHog</strong> — analytics di prodotto, su cloud europeo, solo previo consenso.</li>
+      <li><strong>Provider email (SMTP)</strong> — invio di email transazionali e newsletter.</li>
+      <li><strong>Apple</strong> — consegna delle notifiche push sull'app iOS (token dispositivo).</li>
+      <li><strong>Provider di hosting dell'applicazione</strong> — esecuzione dell'infrastruttura server.</li>
+    </ul>
     <p class="al-body">
-      <em>[TODO: Tempi di conservazione per categoria di dato. Esempio: account = vita del rapporto + 10 anni per obblighi fiscali]</em>
-    </p>
-  </section>
-
-  <section class="space-y-3">
-    <h2 class="al-h-3">6. Diritti dell'interessato</h2>
-    <p class="al-body">
-      Hai diritto di accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e reclamo
-      al Garante. Per esercitare questi diritti scrivi a <em>[TODO: email di contatto]</em>.
+      I dati non vengono venduti né ceduti a terzi per finalità di marketing. Possono essere
+      comunicati ad autorità competenti ove richiesto dalla legge.
     </p>
   </section>
 
   <section class="space-y-3">
     <h2 class="al-h-3">7. Trasferimenti extra-UE</h2>
     <p class="al-body">
-      <em>[TODO: Specificare se vengono trasferiti dati fuori dall'UE e su quali basi (SCC, adeguatezza)]</em>
+      Alcuni fornitori (in particolare Ollama, Tavily e Apple) hanno sede o infrastrutture
+      negli Stati Uniti. I trasferimenti verso gli USA avvengono sulla base della decisione
+      di adeguatezza EU-US Data Privacy Framework, ove il fornitore vi aderisca, oppure
+      delle Clausole Contrattuali Standard (SCC) approvate dalla Commissione Europea,
+      integrate ove necessario da misure supplementari. Il database e l'analytics risiedono
+      su infrastruttura europea.
     </p>
   </section>
 
   <section class="space-y-3">
-    <h2 class="al-h-3">8. Modifiche alla policy</h2>
+    <h2 class="al-h-3">8. Periodo di conservazione</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li><strong>Dati di account e contenuti</strong>: per tutta la durata dell'account. Puoi eliminare l'account in autonomia da Impostazioni → Elimina account (o dall'app iOS): i dati personali vengono cancellati o resi anonimi.</li>
+      <li><strong>Dati relativi alla salute</strong>: fino alla revoca del consenso o all'eliminazione dell'account.</li>
+      <li><strong>Cronologia CHIRON</strong>: fino a cancellazione manuale da parte tua o eliminazione dell'account.</li>
+      <li><strong>Registro consensi cookie</strong>: 24 mesi dalla raccolta.</li>
+      <li><strong>Log tecnici e di sicurezza</strong>: fino a 12 mesi.</li>
+      <li><strong>Dati amministrativi/contabili</strong>: fino a 10 anni, ove richiesto da obblighi fiscali.</li>
+      <li><strong>Newsletter</strong>: fino alla disiscrizione.</li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">9. Diritti dell'interessato</h2>
     <p class="al-body">
-      Ogni modifica sostanziale a questa informativa verrà notificata via email o tramite avviso in
-      piattaforma. La versione attuale è identificata da: <span class="font-mono">{{ consent_version }}</span>.
+      Ai sensi degli artt. 15-22 GDPR hai diritto di: accedere ai tuoi dati, rettificarli,
+      ottenerne la cancellazione, limitarne il trattamento, riceverli in formato portabile,
+      opporti al trattamento basato su legittimo interesse e revocare in qualsiasi momento i
+      consensi prestati (senza pregiudicare la liceità del trattamento precedente). Per
+      esercitare i tuoi diritti scrivi a
+      <a href="mailto:[email privacy]" class="al-link al-link-bronze">[email privacy]</a>.
+      Risponderemo entro 30 giorni. Hai inoltre diritto di proporre reclamo al Garante per
+      la Protezione dei Dati Personali (<a href="https://www.garanteprivacy.it" class="al-link al-link-bronze" rel="noopener" target="_blank">garanteprivacy.it</a>).
     </p>
   </section>
 
-  <div class="al-card al-card-warm mt-6" style="padding: 16px;">
-    <p class="al-tag mb-2" style="color: var(--al-bronze);">Nota</p>
-    <p class="al-small">
-      I testi di questa pagina sono placeholder strutturati. Prima della messa online vanno compilati
-      con i dati reali del titolare e revisionati da un consulente privacy.
+  <section class="space-y-3">
+    <h2 class="al-h-3">10. Minori</h2>
+    <p class="al-body">
+      Il servizio è riservato a utenti che abbiano compiuto 16 anni. Gli utenti tra 14 e 16
+      anni possono iscriversi solo con il consenso di chi esercita la responsabilità
+      genitoriale. Se ritieni che un minore ci abbia fornito dati senza autorizzazione,
+      contattaci e provvederemo alla rimozione.
     </p>
-  </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">11. Sicurezza</h2>
+    <p class="al-body">
+      Adottiamo misure tecniche e organizzative adeguate: cifratura in transito (HTTPS),
+      password salvate con hashing, controllo degli accessi basato sul ruolo e sul rapporto
+      coach-atleta, sessioni con scadenza automatica, storage media privato con URL firmati,
+      registro dei consensi.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">12. Modifiche alla policy</h2>
+    <p class="al-body">
+      Ogni modifica sostanziale a questa informativa verrà notificata via email o tramite
+      avviso in piattaforma. La versione attuale è identificata da:
+      <span class="font-mono">{{ consent_version }}</span>.
+    </p>
+  </section>
 </article>
 {% endblock %}

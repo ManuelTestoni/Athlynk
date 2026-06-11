@@ -20,7 +20,7 @@
         <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
       </a>
       {% include 'partials/_print_button.html' with print_label="Stampa scheda" %}
-      <button @click="window.alConfirm({ icon:'ph-trash', title:'Eliminare la\nscheda?', subtitle:'La scheda verrà rimossa definitivamente.', confirmLabel:'Sì, elimina' }).then(ok => { if(!ok) return; busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) })"
+      <button @click="window.alConfirm({ icon:'ph-trash', title:'Eliminare la\nscheda?', subtitle:{% with n=plan.assignments.count %}{% if n %}'Attenzione: la scheda è assegnata a {{ n }} atlet{{ n|pluralize:'a,i' }}. Verrà rimossa anche dal loro profilo e riceveranno un messaggio automatico in chat.'{% else %}'La scheda verrà rimossa definitivamente.'{% endif %}{% endwith %}, confirmLabel:'Sì, elimina' }).then(ok => { if(!ok) return; busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) })"
               type="button" class="al-btn-icon al-btn al-btn-ghost" :disabled="busy" title="Elimina">
         <i class="ph ph-trash" style="color: #b91c1c;"></i>
       </button>

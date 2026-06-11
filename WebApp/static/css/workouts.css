@@ -45,12 +45,14 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 /* --------- 2-col shell for the Library page ---------------------- */
 .wb-shell {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  /* minmax(0,…): senza, la colonna non può scendere sotto il min-content
+     (filtri/card) e su mobile il contenuto viene tagliato a destra. */
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: var(--al-s-6);
   align-items: start;
 }
 @media (max-width: 1023px) {
-  .wb-shell { grid-template-columns: 1fr; }
+  .wb-shell { grid-template-columns: minmax(0, 1fr); }
 }
 
 .wb-sidebar {
@@ -195,6 +197,42 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .wb-folder-chip--sand    { background: rgba(200,167,116,.20); color: #6d562f; }
 .wb-folder-chip--crimson { background: rgba(138,58,58,.18); color: #5d2727; }
 .wb-folder-chip--teal    { background: rgba(42,106,114,.18); color: #1d4347; }
+
+/* Su mobile il pannello cartelle diventa una strip orizzontale fissata in
+   alto (sticky dentro main.al-canvas, che è lo scroller): le cartelle si
+   scorrono in orizzontale e non seguono più la pagina lungo l'asse Y.
+   NB: deve stare DOPO le regole base .wb-folder-* (stessa specificità). */
+@media (max-width: 1023px) {
+  .wb-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    max-height: none;
+    overflow: visible;
+    padding: 10px 12px;
+    background: rgba(250, 247, 242, 0.92);
+    box-shadow: 0 10px 24px -18px rgba(20, 17, 13, 0.35);
+  }
+  .wb-sidebar-header { margin-bottom: 6px; }
+  .wb-folder-list {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .wb-folder-list::-webkit-scrollbar { display: none; }
+  .wb-folder-item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid var(--al-rule);
+    border-radius: 999px;
+    padding: 6px 12px;
+  }
+  .wb-folder-item.is-drop-target { border-color: var(--al-bronze); }
+}
 
 /* --------- Workout card grid ------------------------------------- */
 .wb-card-grid {

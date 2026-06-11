@@ -264,7 +264,7 @@
                      class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
                     <i class="ph ph-pencil text-sm"></i>
                   </a>
-                  <button @click="deletePlan(plan.id, plan.title)" type="button"
+                  <button @click="deletePlan(plan.id, plan.title, plan.assignment_count)" type="button"
                           class="p-1 transition-colors" title="Elimina"
                           style="color: var(--al-ink-line);"
                           onmouseover="this.style.color='var(--al-danger)'"
@@ -677,12 +677,16 @@ function workoutLibrary() {
       this.deleteFolderTarget = '';
       this.menuFolder = null;
     },
-    async deletePlan(id, title) {
+    async deletePlan(id, title, assignedCount) {
+      const assigned = (assignedCount || 0) > 0;
       if (!(await window.alConfirm({
         icon: 'ph-trash',
         title: 'Eliminare la\nscheda?',
-        subtitle: 'La scheda «' + title + '» verrà rimossa definitivamente. Operazione irreversibile.',
-        confirmLabel: 'Sì, elimina',
+        subtitle: assigned
+          ? 'Attenzione: «' + title + '» è assegnata a ' + assignedCount + (assignedCount === 1 ? ' atleta' : ' atleti')
+            + '. Verrà rimossa anche dal loro profilo e riceveranno un messaggio automatico in chat (personalizzabile da Impostazioni → Messaggi automatici).'
+          : 'La scheda «' + title + '» verrà rimossa definitivamente. Operazione irreversibile.',
+        confirmLabel: assigned ? 'Sì, elimina e avvisa' : 'Sì, elimina',
       }))) return;
       try {
         const res = await fetch(this.urls.planDelete.replace('__ID__', id), {

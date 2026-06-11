@@ -39,6 +39,7 @@ from . import views_search
 from . import views_newsletter
 from . import views_legal
 from . import views_consent
+from . import views_seo
 from . import views_chiron
 from . import api as mobile_api
 from . import api_coach as coach_api
@@ -61,7 +62,13 @@ urlpatterns = [
     path('privacy/', views_legal.privacy_view, name='privacy'),
     path('cookie/', views_legal.cookie_view, name='cookie_policy'),
     path('cookie/preferenze/', views_legal.cookie_preferences_view, name='cookie_preferences'),
+    path('ai-trasparenza/', views_legal.ai_transparency_view, name='ai_transparency'),
     path('api/consent/', views_consent.consent_api, name='api_consent'),
+
+    # SEO / AI discoverability
+    path('robots.txt', views_seo.robots_txt, name='robots_txt'),
+    path('sitemap.xml', views_seo.sitemap_xml, name='sitemap_xml'),
+    path('llms.txt', views_seo.llms_txt, name='llms_txt'),
 
     # Newsletter
     path('newsletter/conferma/<str:token>/', views_newsletter.confirm_subscription, name='newsletter_confirm'),

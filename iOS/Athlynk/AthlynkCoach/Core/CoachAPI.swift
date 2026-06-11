@@ -204,6 +204,20 @@ extension APIClient {
                                            body: ["client_id": clientId, "body": body])).conversationId
     }
 
+    // MARK: Builder search (reuses the web search endpoints via dual auth)
+
+    func coachSearchExercises(query: String) async throws -> [BuilderExercise] {
+        let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return try decode([BuilderExercise].self,
+                          from: try await request("/api/exercises/search/?q=\(q)"))
+    }
+
+    func coachSearchFoods(query: String) async throws -> [BuilderFood] {
+        let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return try decode(BuilderFoodSearchResponse.self,
+                          from: try await request("/api/nutrizione/alimenti/?q=\(q)")).results
+    }
+
     // MARK: Chiron AI import (reuses the web import endpoints via dual auth)
 
     /// Excel diet import → returns the parsed extraction payload (`extracted`,

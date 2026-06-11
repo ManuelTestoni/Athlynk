@@ -365,20 +365,31 @@ function nutritionLibrary() {
 
     /* === delete plan === */
     async openDelete(id) {
+      const plan = this.plans.find(p => p.id === id);
+      const assignedCount = plan ? (plan.assigned_count || 0) : 0;
+      const assigned = assignedCount > 0;
       if (!(await window.alConfirm({
         icon: 'ph-trash',
         title: 'Eliminare il\npiano?',
-        subtitle: 'Verranno eliminati tutti i pasti e gli alimenti associati. Operazione irreversibile.',
-        confirmLabel: 'Sì, elimina',
+        subtitle: assigned
+          ? 'Attenzione: il piano è assegnato a ' + assignedCount + (assignedCount === 1 ? ' atleta' : ' atleti')
+            + '. Verrà rimosso anche dal loro profilo e riceveranno un messaggio automatico in chat (personalizzabile da Impostazioni → Messaggi automatici).'
+          : 'Verranno eliminati tutti i pasti e gli alimenti associati. Operazione irreversibile.',
+        confirmLabel: assigned ? 'Sì, elimina e avvisa' : 'Sì, elimina',
       }))) return;
       this.deletePlanId = id;
       await this.confirmDelete();
     },
     async confirmDelete() {
-      const res = await fetch(this.urls.planDelete.replace('__ID__', this.deletePlanId), {
-        method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}
-      });
-      if (res.ok) {
+      try {
+        const res = await fetch(this.urls.planDelete.replace('__ID__', this.deletePlanId), {
+          method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore eliminazione.' });
+          return;
+        }
         const deletedId = this.deletePlanId;
         const plan = this.plans.find(p => p.id === deletedId);
         if (plan && plan.folder_id) {
@@ -387,6 +398,8 @@ function nutritionLibrary() {
         }
         this.plans = this.plans.filter(p => p.id !== deletedId);
         this.deleteModal = false;
+      } catch (e) {
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
       }
     },
 

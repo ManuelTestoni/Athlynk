@@ -3,8 +3,8 @@
 //  Create a workout / nutrition plan on mobile — two routes:
 //   • Chiron AI import: upload the same PDF / Excel formats the web supports,
 //     let Chiron parse them, review the summary, then save a draft plan.
-//   • Manual: a lightweight quick-create (title + essentials) that lands a draft
-//     in the library; the full structure is edited from the plan detail / web.
+//   • Builder: full in-app builder (CoachPlanBuilderView) — days/exercises from
+//     the exercise DB or meals/foods from the food DB with live macro totals.
 //
 
 import SwiftUI
@@ -20,11 +20,15 @@ struct CoachPlanCreateView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var flash = StatusFlash()
 
-    @State private var mode = 0            // 0 = Chiron import, 1 = manuale
+    @State private var mode = 0            // 0 = Chiron import, 1 = builder
     @State private var title = ""
     @State private var goal = ""
     @State private var kcal = ""
     @State private var busy = false
+
+    // Builder state
+    @State private var days: [WBDayDraft] = []
+    @State private var meals: [WBMealDraft] = []
 
     // Import state
     @State private var picking = false
@@ -39,13 +43,13 @@ struct CoachPlanCreateView: View {
                 VStack(spacing: 18) {
                     Picker("", selection: $mode) {
                         Text("Chiron AI").tag(0)
-                        Text("Manuale").tag(1)
+                        Text("Builder").tag(1)
                     }
                     .pickerStyle(.segmented)
 
                     field("Titolo", $title, placeholder: kind == .workout ? "Es. Upper/Lower" : "Es. Definizione 2000 kcal")
 
-                    if mode == 0 { importSection } else { manualSection }
+                    if mode == 0 { importSection } else { builderSection }
                 }
                 .padding(20)
             }
@@ -112,19 +116,19 @@ struct CoachPlanCreateView: View {
         }
     }
 
-    // MARK: Manual quick-create
+    // MARK: Builder
 
-    private var manualSection: some View {
+    private var builderSection: some View {
         VStack(spacing: 14) {
             if kind == .workout {
                 field("Obiettivo (facoltativo)", $goal, placeholder: "Es. Ipertrofia")
+                WorkoutBuilderSection(days: $days, accent: kind.accent)
             } else {
-                field("Kcal giornaliere (facoltativo)", $kcal, placeholder: "Es. 2000", keyboard: .numberPad)
+                field("Kcal target (facoltativo)", $kcal, placeholder: "Es. 2000", keyboard: .numberPad)
+                DietBuilderSection(meals: $meals, accent: kind.accent)
             }
-            Text("Crea una bozza con i dati essenziali. Aggiungi \(kind == .workout ? "giorni ed esercizi" : "pasti e alimenti") dal dettaglio del piano.")
-                .font(Typo.body(12)).foregroundStyle(Palette.textMid)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            NeonButton(title: "Crea bozza", icon: "plus", color: kind.accent, loading: busy) {
+            NeonButton(title: "Salva scheda", icon: "tray.and.arrow.down.fill",
+                       color: kind.accent, loading: busy) {
                 Task { await createManual() }
             }
         }
@@ -240,14 +244,39 @@ struct CoachPlanCreateView: View {
             if kind == .workout {
                 var payload: [String: Any] = ["title": title]
                 if !goal.isEmpty { payload["goal"] = goal }
+                payload["days"] = days.map { day -> [String: Any] in
+                    var d: [String: Any] = ["name": day.name]
+                    if !day.notes.isEmpty { d["notes"] = day.notes }
+                    d["exercises"] = day.exercises.map { ex -> [String: Any] in
+                        var e: [String: Any] = [
+                            "exercise_id": ex.exerciseId,
+                            "sets": ex.sets,
+                            "recovery_seconds": ex.recoverySeconds,
+                        ]
+                        if ex.repRange.isEmpty { e["reps"] = ex.reps }
+                        else { e["rep_range"] = ex.repRange }
+                        if let rir = ex.rir { e["rir"] = rir }
+                        if !ex.notes.isEmpty { e["notes"] = ex.notes }
+                        return e
+                    }
+                    return d
+                }
                 _ = try await APIClient.shared.coachCreateWorkout(payload)
             } else {
                 var payload: [String: Any] = ["title": title]
                 if let k = Int(kcal) { payload["daily_kcal"] = k }
+                payload["meals"] = meals.map { meal -> [String: Any] in
+                    var m: [String: Any] = ["name": meal.name]
+                    if !meal.time.isEmpty { m["time_of_day"] = meal.time }
+                    m["items"] = meal.items.map { item -> [String: Any] in
+                        ["food_id": item.food.id, "quantity_g": item.grams]
+                    }
+                    return m
+                }
                 _ = try await APIClient.shared.coachCreateNutrition(payload)
             }
             Analytics.shared.capture(.planUpdated, ["kind": kind == .workout ? "workout" : "nutrition"])
-            flash.success("Bozza creata")
+            flash.success("Scheda salvata")
             try? await Task.sleep(for: .seconds(1.2))
             dismiss()
         } catch {

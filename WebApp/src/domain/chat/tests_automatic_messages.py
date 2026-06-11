@@ -99,11 +99,13 @@ class AutomaticMessageTests(TestCase):
 
     def test_settings_page_renders_for_coach(self):
         self._login_coach()
-        resp = self.client.get('/impostazioni/messaggi-automatici/')
+        # The standalone page redirects to the settings dashboard tab.
+        resp = self.client.get('/impostazioni/messaggi-automatici/', follow=True)
         self.assertEqual(resp.status_code, 200)
-        self.assertTemplateUsed(resp, 'pages/impostazioni/automatic_messages.html')
+        self.assertTemplateUsed(resp, 'pages/impostazioni/dashboard.html')
         self.assertContains(resp, 'Benvenuto')
         self.assertContains(resp, 'Arrivederci')
+        self.assertContains(resp, 'Scheda eliminata')
 
     def test_settings_post_saves_template(self):
         self._login_coach()
@@ -113,7 +115,7 @@ class AutomaticMessageTests(TestCase):
             'body_GOODBYE': '',
             'body_SUBSCRIPTION_EXPIRING': '',
         })
-        self.assertRedirects(resp, '/impostazioni/messaggi-automatici/?saved=1')
+        self.assertRedirects(resp, '/impostazioni/?saved=messaggi_auto')
         tpl = AutomaticMessageTemplate.objects.get(coach=self.coach, event_type='WELCOME')
         self.assertTrue(tpl.is_enabled)
         self.assertEqual(tpl.body, 'Ciao {nome}!')

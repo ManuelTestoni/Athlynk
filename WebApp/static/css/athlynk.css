@@ -1347,6 +1347,85 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-pageskel-para .al-skel:nth-child(3) { width: 92%; }
 .al-pageskel-para .al-skel:nth-child(4) { width: 60%; }
 
+/* filter chip row (card-grid catalogues) */
+.al-pageskel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: var(--al-s-5, 20px);
+}
+.al-pageskel-chip { width: 92px; height: 34px; border-radius: var(--al-r-pill); }
+
+/* chart panels (analytics, andamento, progressi) */
+.al-pageskel-chartgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-5, 20px);
+}
+@media (min-width: 768px)  { .al-pageskel-chartgrid   { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1280px) { .al-pageskel-chartgrid:not(.al-pageskel-chartgrid-2) { grid-template-columns: repeat(3, 1fr); } }
+.al-pageskel-chart .al-skel:first-child { width: 38%; height: 13px; margin-bottom: 18px; }
+.al-pageskel-chart .al-skel:last-child  { width: 100%; height: 220px; border-radius: var(--al-r-md); }
+
+/* agenda — mini-calendar sidebar + month canvas (mirrors .agenda-shell) */
+.al-pageskel-agenda {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-6, 24px);
+  align-items: start;
+}
+@media (min-width: 901px) { .al-pageskel-agenda { grid-template-columns: 280px 1fr; } }
+.al-pageskel-sidetitle { width: 50%; height: 12px; margin-bottom: 14px; }
+.al-pageskel-minical {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: var(--al-s-5, 20px);
+}
+.al-pageskel-minical .al-skel { aspect-ratio: 1; border-radius: 6px; }
+.al-pageskel-agendaside .al-pageskel-row { padding-left: 0; padding-right: 0; }
+.al-pageskel-calhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--al-s-4, 16px);
+}
+.al-pageskel-calhead .al-skel:first-child { width: 160px; height: 18px; }
+.al-pageskel-calhead .al-skel:last-child  { width: 120px; height: 32px; border-radius: var(--al-r-pill); }
+.al-pageskel-calgrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.al-pageskel-calgrid .al-skel { height: 84px; border-radius: var(--al-r-sm); opacity: 0.7; }
+@media (max-width: 640px) { .al-pageskel-calgrid .al-skel { height: 48px; } }
+
+/* settings hub — two-column grid of preference panels */
+.al-pageskel-setgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-4, 16px);
+  max-width: 980px;
+}
+@media (min-width: 768px) { .al-pageskel-setgrid { grid-template-columns: repeat(2, 1fr); } }
+.al-pageskel-setcard {
+  display: flex;
+  align-items: center;
+  gap: var(--al-s-4, 16px);
+}
+
+/* profile — main column + narrow side rail */
+.al-pageskel-profile {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-6, 24px);
+  align-items: start;
+}
+@media (min-width: 1024px) { .al-pageskel-profile { grid-template-columns: 1fr 320px; } }
+
+/* stat trio (il mio percorso) */
+@media (min-width: 768px) { .al-pageskel-kpis.al-pageskel-kpis-3 { grid-template-columns: repeat(3, 1fr); } }
+
 /* ---------- Toast ---------- */
 .al-toast {
   background: var(--al-ink);

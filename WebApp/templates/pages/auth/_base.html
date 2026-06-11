@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Athlynk | {% block auth_title %}Accesso{% endblock %}</title>
 
+    <!-- SEO -->
+    <meta name="description" content="{% block auth_description %}Athlynk: la piattaforma per coach, personal trainer e nutrizionisti. Schede di allenamento, piani nutrizionali, check di avanzamento e chat con i tuoi atleti.{% endblock %}">
+    {# Solo login e registrazione sono indicizzabili; le pagine di servizio (reset, verifica) restano fuori dall'indice. #}
+    <meta name="robots" content="{% block auth_robots %}noindex, follow{% endblock %}">
+    <link rel="canonical" href="{{ SITE_URL }}{{ request.path }}">
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <meta property="og:site_name" content="Athlynk">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Athlynk | {% block auth_og_title %}Coach & Atleta{% endblock %}">
+    <meta property="og:description" content="La piattaforma per coach e atleti: allenamento, nutrizione, check e progressi in un unico posto.">
+    <meta property="og:url" content="{{ SITE_URL }}{{ request.path }}">
+    <meta property="og:image" content="{{ SITE_URL }}{% static 'img/AthlynkLogo.png' %}">
+    <meta property="og:locale" content="it_IT">
+    <meta name="twitter:card" content="summary">
+    {% include 'partials/seo_jsonld.html' %}
+
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">

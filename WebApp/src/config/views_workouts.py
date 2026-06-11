@@ -927,7 +927,17 @@ def api_plan_delete(request, plan_id):
         return JsonResponse({'error': 'method not allowed'}, status=405)
 
     plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
-    plan.delete()
+
+    # Atleti con la scheda assegnata: avvisali in chat dopo l'eliminazione.
+    from domain.accounts.models import ClientProfile
+    from domain.chat.services import send_plan_deleted_message
+    client_ids = list(plan.assignments.values_list('client_id', flat=True).distinct())
+    clients = list(ClientProfile.objects.filter(id__in=client_ids))
+
+    with transaction.atomic():
+        plan.delete()
+        transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
+
     return JsonResponse({'status': 'ok'})
 
 

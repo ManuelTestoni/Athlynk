@@ -1,0 +1,149 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Trasparenza AI{% endblock %}
+{% block legal_og_title %}Trasparenza AI (AI Act){% endblock %}
+{% block legal_description %}Come Athlynk usa l'intelligenza artificiale: modelli GPT-OSS per assistenza e analisi di diete e allenamenti, supervisione umana e obblighi di trasparenza ai sensi dell'AI Act (Reg. UE 2024/1689).{% endblock %}
+
+{% block legal_content %}
+<article class="space-y-6">
+  <header>
+    <p class="al-eyebrow">AI Act — Reg. UE 2024/1689</p>
+    <h1 class="al-h-1 mt-2">Trasparenza sull'uso dell'intelligenza artificiale</h1>
+    <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">1. Perché questa pagina</h2>
+    <p class="al-body">
+      Il Regolamento (UE) 2024/1689 ("AI Act") impone a chi mette a disposizione sistemi di
+      intelligenza artificiale obblighi di trasparenza verso gli utenti, in particolare
+      l'obbligo di informare le persone quando interagiscono con un sistema di IA
+      (art. 50). Questa pagina descrive quali funzionalità di Athlynk usano l'IA, con quali
+      modelli, con quali limiti e con quale supervisione umana.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">2. Sistemi di IA utilizzati</h2>
+    <div class="overflow-x-auto mt-3">
+      <table class="w-full text-[13px]" style="border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--al-marble); text-align: left;">
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Funzionalità</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Cosa fa</th>
+            <th class="px-3 py-2 al-tag" style="border-bottom: 1px solid var(--al-rule);">Modello</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3 font-medium">CHIRON — assistente conversazionale</td>
+            <td class="px-3 py-3">
+              Risponde a domande su allenamento, nutrizione e uso della piattaforma. Può
+              effettuare ricerche web per arricchire le risposte, citando le fonti.
+            </td>
+            <td class="px-3 py-3 font-mono">GPT-OSS (open-weight, OpenAI) su infrastruttura Ollama</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-3 font-medium">Analisi documenti — diete e allenamenti</td>
+            <td class="px-3 py-3">
+              Estrae la struttura da documenti PDF/Excel caricati dal coach (alimenti, macro,
+              esercizi, serie e ripetizioni) per convertirli in piani digitali. Il risultato
+              è sempre presentato al coach per revisione e conferma.
+            </td>
+            <td class="px-3 py-3 font-mono">GPT-OSS (open-weight, OpenAI) su infrastruttura Ollama</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="al-body">
+      I modelli della famiglia GPT-OSS sono modelli linguistici open-weight rilasciati da
+      OpenAI ed eseguiti tramite l'infrastruttura cloud di Ollama. I dati inviati ai modelli
+      sono usati esclusivamente per generare la risposta richiesta e
+      <strong>non vengono utilizzati per addestrare i modelli</strong>.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">3. Classificazione del rischio</h2>
+    <p class="al-body">
+      Abbiamo valutato i sistemi di IA di Athlynk rispetto alle categorie dell'AI Act:
+    </p>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        Non si tratta di <strong>pratiche vietate</strong> (art. 5): nessuna manipolazione,
+        social scoring o identificazione biometrica.
+      </li>
+      <li>
+        Non si tratta di <strong>sistemi ad alto rischio</strong> (art. 6 e Allegato III):
+        l'IA di Athlynk non prende decisioni su salute, accesso a servizi essenziali,
+        occupazione o credito. Non effettua diagnosi mediche né è un dispositivo medico.
+        Organizza informazioni e fornisce supporto informativo; ogni decisione su piani di
+        allenamento e nutrizione è presa da un coach umano qualificato.
+      </li>
+      <li>
+        Rientra negli obblighi di <strong>trasparenza</strong> (art. 50) applicabili ai
+        sistemi che interagiscono direttamente con le persone: per questo CHIRON è
+        chiaramente identificato come assistente AI nell'interfaccia, e questa pagina
+        documenta tutti gli usi dell'IA.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">4. Supervisione umana</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        Le diete e le schede estratte dai documenti vengono <strong>sempre revisionate e
+        confermate dal coach</strong> prima di essere salvate o assegnate a un atleta.
+      </li>
+      <li>
+        CHIRON fornisce supporto informativo: non assegna piani, non modifica dati e non
+        sostituisce il parere del coach o di un medico.
+      </li>
+      <li>
+        Nessuna decisione che produca effetti giuridici o similmente significativi sugli
+        utenti viene presa in modo esclusivamente automatizzato (art. 22 GDPR).
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">5. Limiti noti e uso corretto</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        I modelli linguistici possono produrre risposte imprecise o incomplete
+        ("allucinazioni"). Verifica sempre le informazioni rilevanti con il tuo coach.
+      </li>
+      <li>
+        Le risposte di CHIRON <strong>non costituiscono consiglio medico</strong>. Per
+        condizioni di salute, infortuni o terapie consulta un medico.
+      </li>
+      <li>
+        L'estrazione automatica da documenti può contenere errori di lettura (es. quantità o
+        serie): per questo è obbligatorio il passaggio di revisione da parte del coach.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">6. Dati personali e IA</h2>
+    <p class="al-body">
+      Il trattamento dei dati personali tramite le funzionalità di IA è descritto nella
+      <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>
+      (sezione 5), inclusi i fornitori coinvolti, i trasferimenti extra-UE e i tempi di
+      conservazione. Puoi cancellare la cronologia delle conversazioni con CHIRON in
+      qualsiasi momento.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">7. Contatti</h2>
+    <p class="al-body">
+      Per domande sull'uso dell'IA in Athlynk o per segnalare un comportamento anomalo dei
+      sistemi di IA, scrivi a
+      <a href="mailto:[email privacy]" class="al-link al-link-bronze">[email privacy]</a>.
+    </p>
+  </section>
+</article>
+{% endblock %}

@@ -5,6 +5,7 @@ from django.db import transaction
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
 from .services.images import to_webp, is_image
+from domain.chat.services import DEFAULT_PLAN_DELETED_BODY
 
 
 def _newsletter_status(email):
@@ -124,6 +125,9 @@ def impostazioni_view(request):
     saved = request.GET.get('saved')
     if saved and not error:
         active_tab = saved
+    tab = request.GET.get('tab')
+    if tab:
+        active_tab = tab
 
     reset_request_sent = request.session.pop('reset_request_sent', False)
     if reset_request_sent:
@@ -139,6 +143,7 @@ def impostazioni_view(request):
         'newsletter_status': _newsletter_status(user.email),
         'reset_request_sent': reset_request_sent,
         'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
+        'auto_msg_rows': _auto_msg_rows(coach),
     })
 
 
@@ -266,43 +271,19 @@ _AUTO_MSG_EVENTS = [
     ('SUBSCRIPTION_EXPIRING', '03', 'Abbonamento in scadenza',
      'Inviato qualche giorno prima della scadenza dell’abbonamento.',
      'Ciao {nome}, il tuo abbonamento sta per scadere ⏳ Rinnova per non perdere i progressi!'),
+    ('PLAN_DELETED', '04', 'Scheda eliminata',
+     'Inviato quando elimini una scheda o un piano assegnato a un atleta. Attivo di default: '
+     'se non scrivi nulla viene inviato il testo predefinito.',
+     DEFAULT_PLAN_DELETED_BODY),
 ]
 
 _AUTO_MSG_BODY_MAX = 2000
 
 
-def automatic_messages_view(request):
-    """Coach-only: configure the per-event automatic chat messages sent to athletes."""
-    user = get_session_user(request)
-    if not user:
-        return redirect('login')
-    coach = get_session_coach(request)
-    if not coach:
-        return redirect('impostazioni_dashboard')
-
+def _auto_msg_rows(coach):
+    """Rows for the automatic-messages panel, one per configurable event."""
     from domain.chat.models import AutomaticMessageTemplate
-
-    error = None
     templates = {t.event_type: t for t in AutomaticMessageTemplate.objects.filter(coach=coach)}
-
-    if request.method == 'POST':
-        for event_type, *_rest in _AUTO_MSG_EVENTS:
-            tpl, _created = AutomaticMessageTemplate.objects.get_or_create(coach=coach, event_type=event_type)
-            tpl.body = (request.POST.get(f'body_{event_type}', '') or '')[:_AUTO_MSG_BODY_MAX]
-            tpl.is_enabled = request.POST.get(f'enabled_{event_type}') == 'on'
-            if request.POST.get(f'remove_attachment_{event_type}') == '1':
-                tpl.attachment = None
-            elif f'attachment_{event_type}' in request.FILES:
-                raw = request.FILES[f'attachment_{event_type}']
-                if is_image(raw):
-                    tpl.attachment = to_webp(raw)
-                else:
-                    error = 'Il file allegato deve essere un’immagine valida.'
-            tpl.save()
-            templates[event_type] = tpl
-        if not error:
-            return redirect(f"{request.path}?saved=1")
-
     rows = []
     for event_type, num, label, desc, placeholder in _AUTO_MSG_EVENTS:
         tpl = templates.get(event_type)
@@ -313,19 +294,60 @@ def automatic_messages_view(request):
             'desc': desc,
             'placeholder': placeholder,
             'body': tpl.body if tpl else '',
-            'is_enabled': tpl.is_enabled if tpl else False,
+            # PLAN_DELETED è opt-out: senza riga salvata parte il default.
+            'is_enabled': tpl.is_enabled if tpl else (event_type == 'PLAN_DELETED'),
             'attachment_url': tpl.attachment.url if (tpl and tpl.attachment) else '',
         })
+    return rows
 
-    return render(request, 'pages/impostazioni/automatic_messages.html', {
-        'auth_user': user,
-        'coach': coach,
-        'is_coach': True,
-        'rows': rows,
-        'saved': request.GET.get('saved') == '1',
-        'error': error,
-        'active_tab': 'messaggi_auto',
-    })
+
+def automatic_messages_view(request):
+    """Coach-only: save the per-event automatic chat messages sent to athletes.
+
+    The form lives inside the settings dashboard (tab «Messaggi automatici»);
+    this endpoint handles the POST and redirects back to that tab.
+    """
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('impostazioni_dashboard')
+
+    from django.urls import reverse
+    from domain.chat.models import AutomaticMessageTemplate
+
+    dashboard_url = reverse('impostazioni_dashboard')
+    if request.method != 'POST':
+        return redirect(f"{dashboard_url}?tab=messaggi_auto")
+
+    error = None
+    for event_type, *_rest in _AUTO_MSG_EVENTS:
+        tpl, _created = AutomaticMessageTemplate.objects.get_or_create(coach=coach, event_type=event_type)
+        tpl.body = (request.POST.get(f'body_{event_type}', '') or '')[:_AUTO_MSG_BODY_MAX]
+        tpl.is_enabled = request.POST.get(f'enabled_{event_type}') == 'on'
+        if request.POST.get(f'remove_attachment_{event_type}') == '1':
+            tpl.attachment = None
+        elif f'attachment_{event_type}' in request.FILES:
+            raw = request.FILES[f'attachment_{event_type}']
+            if is_image(raw):
+                tpl.attachment = to_webp(raw)
+            else:
+                error = 'Il file allegato deve essere un’immagine valida.'
+        tpl.save()
+
+    if error:
+        return render(request, 'pages/impostazioni/dashboard.html', {
+            'coach': coach,
+            'auth_user': user,
+            'is_coach': True,
+            'active_tab': 'messaggi_auto',
+            'error': error,
+            'newsletter_status': _newsletter_status(user.email),
+            'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
+            'auto_msg_rows': _auto_msg_rows(coach),
+        })
+    return redirect(f"{dashboard_url}?saved=messaggi_auto")
 
 
 def calendar_view(request):

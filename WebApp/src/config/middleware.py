@@ -106,7 +106,14 @@ class SanitizationMiddleware:
         if path.startswith('/api/') and method in ('POST', 'PUT', 'PATCH'):
             if not _is_form_exempt(path):
                 ctype = (request.META.get('CONTENT_TYPE') or '').lower().split(';')[0].strip()
-                if ctype and ctype != 'application/json':
+                # I fetch() senza body (es. delete/duplicate) non hanno nulla da
+                # parsare ma Chromium li marca comunque text/plain: con body
+                # vuoto il Content-Type è irrilevante, quindi non va bloccato.
+                try:
+                    _body_len = int(request.META.get('CONTENT_LENGTH') or 0)
+                except (TypeError, ValueError):
+                    _body_len = 0
+                if _body_len and ctype and ctype != 'application/json':
                     logger.warning('sanitize.bad_content_type path=%s ctype=%s', path, ctype)
                     return JsonResponse(
                         {'error': 'Content-Type deve essere application/json'},

@@ -124,6 +124,18 @@ main.al-canvas { overflow-x: hidden; }
   .al-dlg-actions > * { width: 100%; }
   .al-modal-foot { flex-wrap: wrap; }
 
+  /* Filter pill rows (status chips on Allenamenti/Nutrizione/Check): scroll
+     horizontally instead of forcing the layout wider than the phone. */
+  .al-filter {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .al-filter::-webkit-scrollbar { display: none; }
+  .al-filter-chip { flex: 0 0 auto; }
+
   /* Tab strips scroll horizontally rather than wrapping into a tall block.
      max-width:100% constrains the inline-flex pill so overflow-x can scroll. */
   .al-tabs {

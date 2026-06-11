@@ -624,7 +624,16 @@ def nutrizione_piano_delete_view(request, plan_id):
     if not coach:
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
     plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
-    plan.delete()
+
+    # Atleti con il piano assegnato: avvisali in chat dopo l'eliminazione.
+    from domain.chat.services import send_plan_deleted_message
+    client_ids = list(plan.assignments.values_list('client_id', flat=True).distinct())
+    clients = list(ClientProfile.objects.filter(id__in=client_ids))
+
+    with transaction.atomic():
+        plan.delete()
+        transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
+
     return JsonResponse({'ok': True})
 
 

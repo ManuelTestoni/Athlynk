@@ -20,3 +20,7 @@ def cookie_view(request):
 
 def cookie_preferences_view(request):
     return render(request, 'pages/legal/cookie_preferences.html', _ctx())
+
+
+def ai_transparency_view(request):
+    return render(request, 'pages/legal/ai_transparency.html', _ctx())

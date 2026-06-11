@@ -21,6 +21,7 @@
             {% if saved == 'profilo' %}Profilo aggiornato.
             {% elif saved == 'sicurezza' %}Password aggiornata.
             {% elif saved == 'nutrizione' %}Preferenza nutrizione salvata.
+            {% elif saved == 'messaggi_auto' %}Messaggi automatici salvati.
             {% else %}Impostazioni salvate.{% endif %}
         </span>
     </div>
@@ -64,11 +65,12 @@
                 </button>
 
                 {% if is_coach %}
-                <a href="{% url 'settings_automatic_messages' %}"
-                   class="al-vtab flex items-center px-4 py-3 text-left w-full"
-                   style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
+                <button @click="activeTab = 'messaggi_auto'" type="button"
+                        :class="{ 'is-active': activeTab === 'messaggi_auto' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-chat-centered-text text-base mr-3"></i>Messaggi automatici
-                </a>
+                </button>
                 {% endif %}
 
                 <button @click="activeTab = 'elimina'" type="button"
@@ -444,10 +446,17 @@
                 </form>
             </div>
 
+            {% if is_coach %}
+            <!-- Messaggi automatici -->
+            <div x-show="activeTab === 'messaggi_auto'" class="p-6 md:p-8" x-cloak>
+                {% include 'pages/impostazioni/_automatic_messages_panel.html' %}
+            </div>
+            {% endif %}
+
             <!-- Elimina account -->
             <div x-show="activeTab === 'elimina'" class="p-6 md:p-8" x-cloak>
                 <div class="al-section-head">
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">05</p>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">{% if is_coach %}06{% else %}05{% endif %}</p>
                     <h2 class="al-h-2 mt-1" style="color: #b91c1c;">Elimina account</h2>
                     <p class="al-small mt-2">Operazione irreversibile. Tutti i tuoi dati saranno rimossi dalla piattaforma.</p>
                 </div>
