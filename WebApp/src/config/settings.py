@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,athlynk-production.up.railway.app', cast=Csv())
 
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 CONSENT_VERSION = config('CONSENT_VERSION', default='2026-06-11.v1')
