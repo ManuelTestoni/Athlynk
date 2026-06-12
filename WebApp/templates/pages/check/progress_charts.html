@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load safejson %}
 
 {% block title %}Andamento{% endblock %}
 
 {% block content %}
 <style>
-  /* ---------- Progress charts — local polish ---------- */
+  /* ---------- Modulo antropometrico — polish locale ---------- */
   .pc-card{
     position:relative;
     overflow:hidden;
@@ -42,6 +43,7 @@
 
   .pc-stat{
     display:flex; align-items:baseline; gap:.5rem;
+    flex-wrap: wrap;
     font-family: var(--al-display);
     font-weight: 500;
   }
@@ -64,17 +66,105 @@
     padding: 2px 8px;
     border-radius: var(--al-r-pill);
     display:inline-flex; align-items:center; gap:4px;
+    white-space: nowrap;
   }
   .pc-delta-up   { background: rgba(74,107,58,0.12);  color: var(--al-success); }
   .pc-delta-down { background: rgba(28,74,82,0.10);   color: var(--al-aegean);  }
   .pc-delta-flat { background: rgba(91,85,74,0.10);   color: var(--al-ink-mute); }
 
+  .pc-meta{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    color: var(--al-ink-mute);
+    margin-top: 6px;
+  }
+
+  /* Toggle ampiezza finestra (1M / 3M) */
+  .pc-zoom-row{
+    display:flex;
+    justify-content:flex-end;
+    margin: -6px 0 6px;
+  }
+  .pc-zoom{
+    display:inline-flex;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-pill);
+    background: var(--al-parchment);
+    padding: 2px;
+    gap: 2px;
+  }
+  .pc-zoom button{
+    font-family: var(--al-mono);
+    font-size: 9px;
+    letter-spacing: .08em;
+    padding: 2px 8px;
+    border-radius: var(--al-r-pill);
+    color: var(--al-ink-mute);
+    transition: background .2s, color .2s;
+  }
+  .pc-zoom button.is-on{
+    background: var(--al-bronze);
+    color: #f4efe4;
+  }
+
   .pc-chart-wrap{
     position: relative;
-    height: 240px;
+    height: 230px;
   }
   @media (max-width: 1023px){
-    .pc-chart-wrap{ height: 280px; }
+    .pc-chart-wrap{ height: 270px; }
+  }
+
+  /* Timeline scorrevole: con molti punti la tela si allarga oltre la card
+     e si esplora trascinando col mouse (drag) o con trackpad / swipe,
+     partendo dalle settimane più recenti. */
+  .pc-scroll{
+    position:absolute; inset:0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(138,106,58,0.35) transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+  .pc-scroll::-webkit-scrollbar{ height: 6px; }
+  .pc-scroll::-webkit-scrollbar-thumb{
+    background: rgba(138,106,58,0.30);
+    border-radius: 999px;
+  }
+  .pc-scroll::-webkit-scrollbar-track{ background: transparent; }
+  .pc-scroll-inner{
+    position: relative;
+    height: 100%;
+    min-width: 100%;
+  }
+
+  /* Asse Y fisso sopra la timeline scorrevole: i valori restano leggibili
+     a ogni posizione di scroll. Sfumatura parchment per staccare dal grafico. */
+  .pc-yaxis{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width: 42px;
+    pointer-events:none;
+    z-index: 2;
+    background: linear-gradient(90deg,
+      rgba(247,243,234,0.95) 0%,
+      rgba(247,243,234,0.80) 55%,
+      transparent 100%);
+  }
+  .pc-yaxis span{
+    position:absolute;
+    left: 0;
+    width: 30px;
+    text-align: right;
+    transform: translateY(-50%);
+    font-family: var(--al-mono);
+    font-size: 10px;
+    color: #5b554a;
+    line-height: 1;
   }
 
   /* Skeleton shimmer */
@@ -116,12 +206,13 @@
   .pc-mini-select{
     font-family: var(--al-mono);
     font-size: 11px;
-    letter-spacing: .08em;
-    padding: 4px 26px 4px 10px;
+    letter-spacing: .04em;
+    padding: 4px 24px 4px 10px;
     border-radius: var(--al-r-pill);
     border: 1px solid var(--al-rule);
     background: var(--al-parchment);
     color: var(--al-ink);
+    max-width: 100%;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a6a3a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
@@ -140,7 +231,41 @@
     margin: 14px 0 16px;
   }
 
-  /* Fade-in from below for whole grid items */
+  /* Empty state della singola card */
+  .pc-empty{
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap: 10px;
+    padding: 56px 20px;
+    color: var(--al-ink-mute);
+  }
+  .pc-empty i{
+    font-size: 30px;
+    color: var(--al-bronze);
+    opacity: .6;
+  }
+  .pc-empty p{
+    font-family: var(--al-display);
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  /* Griglia card: i 3 grafici restano sempre allineati su una riga
+     da desktop in su; impilati solo su schermi stretti. CSS puro:
+     la build Tailwind locale non include tutte le varianti. */
+  .pc-grid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 1024px){
+    .pc-grid{ grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Fade-in dal basso */
   .pc-rise{
     opacity: 0;
     transform: translateY(14px);
@@ -154,7 +279,9 @@
   .pc-rise[data-d="3"]{ animation-delay: .28s; }
 </style>
 
-<div class="max-w-7xl mx-auto" x-data="progressCharts()" x-init="init()">
+{% url 'check_dashboard' as new_check_url %}
+
+<div class="max-w-7xl mx-auto">
 
   <!-- Breadcrumb -->
   <nav class="al-tag flex items-center gap-2 mb-6">
@@ -176,7 +303,7 @@
     <div>
       <p class="al-eyebrow mb-3">{% if is_coach_view %}Studio &middot; Andamento{% else %}Atleta &middot; Andamento{% endif %}</p>
       <h1 class="al-h-1">{% if is_coach_view %}{{ target_client.first_name }} <span class="al-display-i">{{ target_client.last_name }}</span>{% else %}Il mio <span class="al-display-i">andamento</span>{% endif %}</h1>
-      <p class="al-body mt-2"><span class="font-mono text-ink">{{ total_checks }}</span> check registrati.</p>
+      <p class="al-body mt-2">Medie settimanali e confronti tra periodi omologhi su <span class="font-mono text-ink">{{ total_checks }}</span> check.</p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
     {% if is_coach_view %}
@@ -190,413 +317,31 @@
     {% endif %}
   </div>
 
-  {% if total_checks < 2 %}
+  {% if total_checks == 0 %}
   <div class="al-card al-card-warm">
     <div class="al-empty" style="padding: 60px 32px;">
       <i class="ph ph-chart-line al-empty-icon"></i>
-      <h3>Dati insufficienti</h3>
-      <p>Servono almeno 2 check per visualizzare i grafici di andamento.</p>
+      <h3>Nessuna misurazione disponibile per questo intervallo</h3>
+      <p>I grafici si attivano con il primo check antropometrico registrato.</p>
+      <a href="{{ new_check_url }}" class="al-btn al-btn-ghost mt-4">
+        <i class="ph ph-plus text-sm"></i><span>Inserisci nuova rilevazione</span>
+      </a>
     </div>
   </div>
   {% else %}
 
-  <!-- Three charts — single row -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-    <!-- Peso -->
-    <div class="al-card pc-card pc-rise" data-d="1">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <p class="pc-num">01 — Peso</p>
-          <div class="flex items-center gap-2 mt-1">
-            <i class="ph ph-scales text-bronze text-base"></i>
-            <h2 class="al-h-4" style="margin:0;">Peso corporeo</h2>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <div class="pc-stat">
-          <span class="pc-stat-value" x-text="stats.weight.latest ?? '—'"></span>
-          <span class="pc-stat-unit">kg</span>
-          <span class="pc-delta" :class="deltaClass(stats.weight.delta)" x-show="stats.weight.delta !== null">
-            <i :class="deltaIcon(stats.weight.delta)"></i>
-            <span x-text="formatDelta(stats.weight.delta)"></span>
-          </span>
-        </div>
-      </div>
-
-      <div class="pc-divider"></div>
-
-      <div class="pc-chart-wrap">
-        <div class="pc-skel" :class="charts.weight ? 'is-hidden' : ''">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <canvas id="weightChart" class="pc-canvas" :class="charts.weight ? 'is-ready' : ''"></canvas>
-      </div>
-    </div>
-
-    <!-- Circonferenze -->
-    <div class="al-card pc-card pc-rise" data-d="2">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <p class="pc-num">02 — Circonferenze</p>
-          <div class="flex items-center gap-2 mt-1">
-            <i class="ph ph-ruler text-bronze text-base"></i>
-            <h2 class="al-h-4" style="margin:0;" x-text="CIRC_LABELS[activeCirc]"></h2>
-          </div>
-        </div>
-        <select x-model="activeCirc" @change="updateCircChart()" class="pc-mini-select">
-          <template x-for="k in CIRC_KEYS" :key="k">
-            <option :value="k" x-text="CIRC_LABELS[k]"></option>
-          </template>
-        </select>
-      </div>
-
-      <div class="mt-4">
-        <div class="pc-stat">
-          <span class="pc-stat-value" x-text="stats.circ.latest ?? '—'"></span>
-          <span class="pc-stat-unit">cm</span>
-          <span class="pc-delta" :class="deltaClass(stats.circ.delta, true)" x-show="stats.circ.delta !== null">
-            <i :class="deltaIcon(stats.circ.delta)"></i>
-            <span x-text="formatDelta(stats.circ.delta)"></span>
-          </span>
-        </div>
-      </div>
-
-      <div class="pc-divider"></div>
-
-      <div class="pc-chart-wrap">
-        <div class="pc-skel" :class="charts.circ ? 'is-hidden' : ''">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <canvas id="circChart" class="pc-canvas" :class="charts.circ ? 'is-ready' : ''"></canvas>
-      </div>
-    </div>
-
-    <!-- Pliche -->
-    <div class="al-card pc-card pc-rise" data-d="3">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <p class="pc-num">03 — Pliche</p>
-          <div class="flex items-center gap-2 mt-1">
-            <i class="ph ph-first-aid text-bronze text-base"></i>
-            <h2 class="al-h-4" style="margin:0;" x-text="SKIN_LABELS[activeSkin]"></h2>
-          </div>
-        </div>
-        <select x-model="activeSkin" @change="updateSkinChart()" class="pc-mini-select">
-          <template x-for="k in SKIN_KEYS" :key="k">
-            <option :value="k" x-text="SKIN_LABELS[k]"></option>
-          </template>
-        </select>
-      </div>
-
-      <div class="mt-4">
-        <div class="pc-stat">
-          <span class="pc-stat-value" x-text="stats.skin.latest ?? '—'"></span>
-          <span class="pc-stat-unit">mm</span>
-          <span class="pc-delta" :class="deltaClass(stats.skin.delta, true)" x-show="stats.skin.delta !== null">
-            <i :class="deltaIcon(stats.skin.delta)"></i>
-            <span x-text="formatDelta(stats.skin.delta)"></span>
-          </span>
-        </div>
-      </div>
-
-      <div class="pc-divider"></div>
-
-      <div class="pc-chart-wrap">
-        <div class="pc-skel" :class="charts.skin ? 'is-hidden' : ''">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <canvas id="skinChart" class="pc-canvas" :class="charts.skin ? 'is-ready' : ''"></canvas>
-      </div>
-    </div>
-
+  <!-- Tre card antropometriche -->
+  <div class="pc-grid">
+    {% include 'pages/check/_anthro_card.html' with kind='weight' num='01' title='Peso'          icon='ph-scales'    delay='1' %}
+    {% include 'pages/check/_anthro_card.html' with kind='circ'   num='02' title='Circonferenze' icon='ph-ruler'     delay='2' %}
+    {% include 'pages/check/_anthro_card.html' with kind='skin'   num='03' title='Pliche'        icon='ph-first-aid' delay='3' %}
   </div>
 
   {% endif %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
-const _chartData = {{ chart_data_json|json_js }};
-
-const CIRC_LABELS = _chartData.circ_labels || {};
-const SKIN_LABELS = _chartData.skin_labels || {};
-const CIRC_KEYS   = _chartData.circ_keys || [];
-const SKIN_KEYS   = _chartData.skin_keys || [];
-
-const AL_BRONZE  = '#8a6a3a';
-const AL_AEGEAN  = '#1c4a52';
-const AL_INK     = '#14110d';
-const AL_GRID    = 'rgba(91,85,74,0.10)';
-const AL_LABEL   = '#5b554a';
-
-function firstWithData(map, keys){
-  for (const k of keys){
-    const arr = map[k] || [];
-    if (arr.some(v => v !== null && v !== undefined)) return k;
-  }
-  return keys[0];
-}
-
-function lastNonNull(arr){
-  if (!arr) return null;
-  for (let i = arr.length - 1; i >= 0; i--){
-    if (arr[i] !== null && arr[i] !== undefined) return arr[i];
-  }
-  return null;
-}
-function firstNonNull(arr){
-  if (!arr) return null;
-  for (let i = 0; i < arr.length; i++){
-    if (arr[i] !== null && arr[i] !== undefined) return arr[i];
-  }
-  return null;
-}
-
-// Trim leading/trailing empty points so the x-axis (time) starts at the first
-// real measurement of THIS metric and ends at the last — circ/pliche misurate
-// più tardi non trascinano una coda vuota dall'inizio dello storico.
-function trimSeries(labels, data){
-  let lo = 0, hi = data.length - 1;
-  while (lo < data.length && (data[lo] === null || data[lo] === undefined)) lo++;
-  while (hi >= 0 && (data[hi] === null || data[hi] === undefined)) hi--;
-  if (lo > hi) return { labels: [...labels], data: [...data] };
-  return { labels: labels.slice(lo, hi + 1), data: data.slice(lo, hi + 1) };
-}
-
-// Y-axis window = [min-pad, max+pad] (mai sotto 0) → niente partenza da zero.
-function yBounds(data, pad){
-  const vals = data.filter(v => v !== null && v !== undefined);
-  if (!vals.length) return null;
-  const lo = Math.min(...vals), hi = Math.max(...vals);
-  return { min: Math.max(0, Math.floor(lo - pad)), max: Math.ceil(hi + pad) };
-}
-
-function baseOptions(yLabel, color, yb){
-  const o = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: {
-      duration: 900,
-      easing: 'easeOutQuart',
-    },
-    transitions: {
-      active: { animation: { duration: 600, easing: 'easeOutQuart' } },
-      resize: { animation: { duration: 200 } }
-    },
-    layout: { padding: { top: 6, right: 6, bottom: 0, left: 0 } },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: AL_INK,
-        titleColor: '#f4efe4',
-        bodyColor: '#f4efe4',
-        borderColor: color,
-        borderWidth: 1,
-        padding: 10,
-        cornerRadius: 6,
-        displayColors: false,
-        titleFont: { family: 'JetBrains Mono, monospace', size: 10, weight: '500' },
-        bodyFont:  { family: 'Inter, sans-serif', size: 12, weight: '600' },
-        callbacks: {
-          label: ctx => ` ${ctx.parsed.y !== null ? ctx.parsed.y : '—'} ${yLabel}`
-        }
-      }
-    },
-    scales: {
-      x: {
-        grid: { display: false },
-        border: { color: 'rgba(91,85,74,0.18)' },
-        ticks: {
-          font: { family: 'JetBrains Mono, monospace', size: 10 },
-          color: AL_LABEL,
-          maxRotation: 0,
-          autoSkipPadding: 16
-        }
-      },
-      y: {
-        grid: { color: AL_GRID, drawTicks: false },
-        border: { display: false },
-        ticks: {
-          font: { family: 'JetBrains Mono, monospace', size: 10 },
-          color: AL_LABEL,
-          padding: 6
-        }
-      }
-    }
-  };
-  if (yb) { o.scales.y.min = yb.min; o.scales.y.max = yb.max; }
-  return o;
-}
-
-function gradientFill(ctx, area, color){
-  if (!area) return color + '20';
-  const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  g.addColorStop(0, color + '38');
-  g.addColorStop(1, color + '02');
-  return g;
-}
-
-function lineDataset(label, data, color){
-  return {
-    label,
-    data,
-    borderColor: color,
-    backgroundColor: ctx => {
-      const { chart } = ctx;
-      const { ctx: c, chartArea } = chart;
-      return gradientFill(c, chartArea, color);
-    },
-    fill: true,
-    borderWidth: 2,
-    pointRadius: 3,
-    pointHoverRadius: 6,
-    pointBackgroundColor: color,
-    pointBorderColor: '#f4efe4',
-    pointBorderWidth: 1.5,
-    tension: 0.38,
-    spanGaps: true,
-  };
-}
-
-function progressCharts(){
-  // Chart.js instances kept OUTSIDE Alpine's reactive data — Alpine's Proxy
-  // wraps reactive props and breaks Chart's .update() (Chart mutates deep
-  // internals during its animation loop). `charts` below stays reactive but
-  // only as a readiness flag for the skeleton / is-ready classes; the real
-  // instances live here so .update() animates the values in place.
-  const _inst = { weight: null, circ: null, skin: null };
-  return {
-    activeCirc: CIRC_KEYS[0] || '',
-    activeSkin: SKIN_KEYS[0] || '',
-    charts: { weight: null, circ: null, skin: null },
-    stats: {
-      weight: { latest: null, delta: null },
-      circ:   { latest: null, delta: null },
-      skin:   { latest: null, delta: null },
-    },
-    CIRC_LABELS, SKIN_LABELS, CIRC_KEYS, SKIN_KEYS,
-
-    init(){
-      if (!_chartData.labels || _chartData.labels.length < 2) return;
-
-      this.activeCirc = firstWithData(_chartData.circumferences, CIRC_KEYS);
-      this.activeSkin = firstWithData(_chartData.skinfolds, SKIN_KEYS);
-
-      this.recalcStats();
-
-      // Slight delay so skeleton is perceived, then animate in
-      setTimeout(() => {
-        this.$nextTick(() => {
-          this.buildWeightChart();
-          this.buildCircChart();
-          this.buildSkinChart();
-        });
-      }, 280);
-    },
-
-    recalcStats(){
-      const w = _chartData.weight;
-      this.stats.weight.latest = lastNonNull(w);
-      const wf = firstNonNull(w);
-      this.stats.weight.delta = (wf !== null && this.stats.weight.latest !== null)
-        ? +(this.stats.weight.latest - wf).toFixed(1) : null;
-
-      const c = _chartData.circumferences[this.activeCirc] || [];
-      this.stats.circ.latest = lastNonNull(c);
-      const cf = firstNonNull(c);
-      this.stats.circ.delta = (cf !== null && this.stats.circ.latest !== null)
-        ? +(this.stats.circ.latest - cf).toFixed(1) : null;
-
-      const s = _chartData.skinfolds[this.activeSkin] || [];
-      this.stats.skin.latest = lastNonNull(s);
-      const sf = firstNonNull(s);
-      this.stats.skin.delta = (sf !== null && this.stats.skin.latest !== null)
-        ? +(this.stats.skin.latest - sf).toFixed(1) : null;
-    },
-
-    deltaClass(d, invert=false){
-      if (d === null || d === 0) return 'pc-delta-flat';
-      const up = d > 0;
-      // For circ/pliche: down (negative) = success (aegean). For weight: neutral coloring.
-      if (invert) return up ? 'pc-delta-up' : 'pc-delta-down';
-      return up ? 'pc-delta-up' : 'pc-delta-down';
-    },
-    deltaIcon(d){
-      if (d === null || d === 0) return 'ph ph-minus';
-      return d > 0 ? 'ph ph-arrow-up' : 'ph ph-arrow-down';
-    },
-    formatDelta(d){
-      if (d === null) return '';
-      if (d === 0) return '0';
-      const sign = d > 0 ? '+' : '';
-      return `${sign}${d}`;
-    },
-
-    buildWeightChart(){
-      const el = document.getElementById('weightChart');
-      if (!el) return;
-      const s = trimSeries(_chartData.labels, _chartData.weight || []);
-      _inst.weight = new Chart(el, {
-        type: 'line',
-        data: { labels: s.labels, datasets: [ lineDataset('Peso', s.data, AL_BRONZE) ] },
-        options: baseOptions('kg', AL_BRONZE, yBounds(s.data, _chartData.weight_pad ?? 10))
-      });
-      this.charts.weight = true;
-    },
-
-    buildCircChart(){
-      const el = document.getElementById('circChart');
-      if (!el) return;
-      const s = trimSeries(_chartData.labels, _chartData.circumferences[this.activeCirc] || []);
-      _inst.circ = new Chart(el, {
-        type: 'line',
-        data: { labels: s.labels, datasets: [ lineDataset(CIRC_LABELS[this.activeCirc], s.data, AL_AEGEAN) ] },
-        options: baseOptions('cm', AL_AEGEAN, yBounds(s.data, (_chartData.circ_pad || {})[this.activeCirc] ?? 5))
-      });
-      this.charts.circ = true;
-    },
-
-    buildSkinChart(){
-      const el = document.getElementById('skinChart');
-      if (!el) return;
-      const s = trimSeries(_chartData.labels, _chartData.skinfolds[this.activeSkin] || []);
-      _inst.skin = new Chart(el, {
-        type: 'line',
-        data: { labels: s.labels, datasets: [ lineDataset(SKIN_LABELS[this.activeSkin], s.data, AL_BRONZE) ] },
-        options: baseOptions('mm', AL_BRONZE, yBounds(s.data, (_chartData.skin_pad || {})[this.activeSkin] ?? 5))
-      });
-      this.charts.skin = true;
-    },
-
-    updateCircChart(){
-      this.recalcStats();
-      if (!_inst.circ) return;
-      const s = trimSeries(_chartData.labels, _chartData.circumferences[this.activeCirc] || []);
-      const yb = yBounds(s.data, (_chartData.circ_pad || {})[this.activeCirc] ?? 5);
-      _inst.circ.data.labels = s.labels;
-      _inst.circ.data.datasets[0].label = CIRC_LABELS[this.activeCirc];
-      _inst.circ.data.datasets[0].data = s.data;
-      _inst.circ.options.scales.y.min = yb ? yb.min : undefined;
-      _inst.circ.options.scales.y.max = yb ? yb.max : undefined;
-      _inst.circ.update();
-    },
-
-    updateSkinChart(){
-      this.recalcStats();
-      if (!_inst.skin) return;
-      const s = trimSeries(_chartData.labels, _chartData.skinfolds[this.activeSkin] || []);
-      const yb = yBounds(s.data, (_chartData.skin_pad || {})[this.activeSkin] ?? 5);
-      _inst.skin.data.labels = s.labels;
-      _inst.skin.data.datasets[0].label = SKIN_LABELS[this.activeSkin];
-      _inst.skin.data.datasets[0].data = s.data;
-      _inst.skin.options.scales.y.min = yb ? yb.min : undefined;
-      _inst.skin.options.scales.y.max = yb ? yb.max : undefined;
-      _inst.skin.update();
-    }
-  };
-}
+window._chartData = {{ chart_data_json|json_js }};
 </script>
+<script src="{% static 'js/check_progress.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endblock %}

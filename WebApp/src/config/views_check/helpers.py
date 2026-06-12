@@ -192,11 +192,12 @@ def _build_chart_data(target_client):
         .values('submitted_at', 'weight_kg', 'body_circumferences', 'skinfolds')
     )
     circ_keys, skin_keys = _collect_measurement_keys(responses)
-    labels, weight = [], []
+    labels, dates, weight = [], [], []
     chart_circ = {k: [] for k in circ_keys}
     chart_skin = {k: [] for k in skin_keys}
     for r in responses:
         labels.append(r['submitted_at'].strftime('%d/%m/%Y'))
+        dates.append(r['submitted_at'].strftime('%Y-%m-%d'))
         weight.append(float(r['weight_kg']) if r['weight_kg'] else None)
         circ = r['body_circumferences'] or {}
         for k in circ_keys:
@@ -208,6 +209,9 @@ def _build_chart_data(target_client):
             chart_skin[k].append(float(v) if v else None)
     return {
         'labels': labels,
+        # ISO dates (YYYY-MM-DD) — used by check_progress.js to aggregate the
+        # raw per-check series into weekly means and homologous month-weeks.
+        'dates': dates,
         'weight': weight,
         'circumferences': chart_circ,
         'skinfolds': chart_skin,

@@ -1,0 +1,88 @@
+{% comment %}
+Card antropometrica riusabile (peso / circonferenze / pliche).
+Parametri (via include ... with): kind, num, title, icon, delay.
+Si appoggia ad anthroCard() in static/js/check_progress.js.
+{% endcomment %}
+<div class="al-card pc-card pc-rise" data-d="{{ delay }}" x-data="anthroCard('{{ kind }}')" x-init="init()">
+
+  <!-- Header: numerazione + titolo + (eventuale) selettore misura -->
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p class="pc-num">{{ num }} — {{ title }}</p>
+      <div class="flex items-center gap-2 mt-1">
+        <i class="ph {{ icon }} text-bronze text-base"></i>
+        {% if kind == 'weight' %}
+        <h2 class="al-h-4 truncate" style="margin:0;">Peso corporeo</h2>
+        {% else %}
+        <h2 class="al-h-4 truncate" style="margin:0;" x-text="measureLabels[measureKey] || '{{ title }}'"></h2>
+        {% endif %}
+      </div>
+    </div>
+    {% if kind != 'weight' %}
+    {% comment %}
+      x-init/$nextTick: le option arrivano da x-for dopo il binding di x-model —
+      senza sync esplicito il browser mostrerebbe la prima option. Sempre visibile
+      (anche con una sola misura) così circonferenze e pliche hanno la stessa testata.
+    {% endcomment %}
+    <select x-model="measureKey" x-init="$nextTick(() => $el.value = measureKey)" @change="rebuild()" class="pc-mini-select shrink-0" aria-label="Seleziona misura">
+      <template x-for="k in measureKeys" :key="k">
+        <option :value="k" x-text="measureLabels[k]"></option>
+      </template>
+    </select>
+    {% endif %}
+  </div>
+
+  <!-- Corpo dati -->
+  <template x-if="hasData">
+    <div>
+      <!-- Riepilogo: settimana selezionata (click su un punto per cambiarla) -->
+      <div class="mt-4">
+        <div class="pc-stat">
+          <span class="pc-stat-value" x-text="fmt(summary.mean)"></span>
+          <span class="pc-stat-unit" x-text="unit + ' · media ' + summary.periodLabel"></span>
+          <span class="pc-delta" :class="deltaClass()" x-show="summary.deltaTxt">
+            <i :class="deltaIcon()"></i>
+            <span x-text="summary.deltaTxt"></span>
+          </span>
+        </div>
+        <p class="pc-meta">
+          <span x-text="summary.n + (summary.n === 1 ? ' rilevazione' : ' rilevazioni')"></span>
+          <template x-if="summary.cmpLabel"><span> · <span x-text="summary.cmpLabel"></span></span></template>
+        </p>
+      </div>
+
+      <div class="pc-divider"></div>
+
+      <!-- Ampiezza finestra: 1 mese (default) o 3 mesi, sempre scorribile -->
+      <div class="pc-zoom-row">
+        <div class="pc-zoom" role="tablist" aria-label="Ampiezza finestra">
+          <button type="button" :class="zoom === 1 ? 'is-on' : ''" @click="setZoom(1)" title="Inquadra 1 mese">1M</button>
+          <button type="button" :class="zoom === 3 ? 'is-on' : ''" @click="setZoom(3)" title="Inquadra 3 mesi">3M</button>
+        </div>
+      </div>
+
+      <!-- Grafico: con molti punti la tela si allarga e scorre in orizzontale -->
+      <div class="pc-chart-wrap">
+        <div class="pc-skel" :class="ready ? 'is-hidden' : ''">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="pc-scroll">
+          <div class="pc-scroll-inner">
+            <canvas id="chart-{{ kind }}" class="pc-canvas" :class="ready ? 'is-ready' : ''"></canvas>
+          </div>
+        </div>
+        <!-- Asse Y fisso: resta visibile mentre la timeline scorre -->
+        <div class="pc-yaxis" id="yaxis-{{ kind }}" aria-hidden="true"></div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Empty state della singola metrica -->
+  <template x-if="!hasData">
+    <div class="pc-empty">
+      <i class="ph ph-chart-line-down"></i>
+      <p>Nessuna misurazione disponibile per questo intervallo.</p>
+      <a href="{{ new_check_url }}" class="al-link">Inserisci nuova rilevazione</a>
+    </div>
+  </template>
+</div>
