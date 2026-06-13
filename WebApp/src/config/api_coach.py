@@ -1238,6 +1238,15 @@ def workout_assign(request, user, plan_id):
         body=f'Ti è stata assegnata la scheda "{plan.title}".',
         link_url='/allenamenti/',
     )
+    # Fire-and-forget email (silenced if user opted out) — parity with the web
+    # assign flow in views_workouts so mobile-assigned plans also notify by mail.
+    try:
+        from django.conf import settings as _settings
+        from .services.email import send_workout_assigned
+        plan_url = f"{_settings.SITE_URL}/allenamenti/"
+        send_workout_assigned(client, coach, plan, plan_url)
+    except Exception:
+        pass
     return JsonResponse({'ok': True, 'assignment_id': a.id})
 
 

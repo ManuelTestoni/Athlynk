@@ -13,36 +13,37 @@ struct CoachChecksView: View {
     @State private var loading = true
 
     var body: some View {
-        NavigationStack {
-            ScreenScroll {
-                ScreenHeader(eyebrow: "Da revisionare", title: "Check-in",
-                             subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
+        // No NavigationStack here: this view is pushed inside CoachMoreView's
+        // stack. Nesting a second NavigationStack breaks the push (the card tap
+        // appears to do nothing). The CheckRoute destination is registered by
+        // the parent stack.
+        ScreenScroll {
+            ScreenHeader(eyebrow: "Da revisionare", title: "Check-in",
+                         subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
 
-                Picker("", selection: $filter) {
-                    Text("In attesa").tag("pending")
-                    Text("Tutti").tag("all")
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: filter) { _, _ in Task { await load() } }
+            Picker("", selection: $filter) {
+                Text("In attesa").tag("pending")
+                Text("Tutti").tag("all")
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: filter) { _, _ in Task { await load() } }
 
-                if loading && checks.isEmpty {
-                    AvatarRowsSkeleton(accent: Palette.bronze)
-                } else if checks.isEmpty {
-                    EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
-                               ? "Nessun check da revisionare. Ottimo lavoro!"
-                               : "Nessun check ricevuto.", color: Palette.lime)
-                } else {
-                    ForEach(checks) { c in
-                        NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
-                            .buttonStyle(PressableButtonStyle())
-                    }
+            if loading && checks.isEmpty {
+                AvatarRowsSkeleton(accent: Palette.bronze)
+            } else if checks.isEmpty {
+                EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
+                           ? "Nessun check da revisionare. Ottimo lavoro!"
+                           : "Nessun check ricevuto.", color: Palette.lime)
+            } else {
+                ForEach(checks) { c in
+                    NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
+                        .buttonStyle(PressableButtonStyle())
                 }
             }
-            .navigationDestination(for: CheckRoute.self) { CoachCheckDetailView(responseId: $0.id) }
-            .task { await load() }
-            .onRemoteChange(["CHECK_SUBMITTED"]) { Task { await load() } }
-            .refreshable { await load() }
         }
+        .task { await load() }
+        .onRemoteChange(["CHECK_SUBMITTED"]) { Task { await load() } }
+        .refreshable { await load() }
     }
 
     private func card(_ c: CoachCheckRow) -> some View {

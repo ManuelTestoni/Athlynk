@@ -42,6 +42,9 @@ enum CoachTab: Int, CaseIterable, Identifiable {
 struct CoachMainTabView: View {
     @EnvironmentObject private var app: AppState
     @State private var tab: CoachTab = .dashboard
+    /// Bumped when the active tab is re-tapped, changing the content identity so
+    /// the tab's NavigationStack is rebuilt at its root (pop-to-root).
+    @State private var resetNonce = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -60,9 +63,11 @@ struct CoachMainTabView: View {
                 insertion: .opacity.combined(with: .offset(y: 16)),
                 removal: .opacity
             ))
-            .id(tab)
+            .id("\(tab.rawValue)-\(resetNonce)")
 
-            CoachTabBar(selection: $tab)
+            CoachTabBar(selection: $tab, onReselect: { _ in
+                withAnimation(.easeInOut(duration: 0.25)) { resetNonce &+= 1 }
+            })
                 .padding(.bottom, 6)
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)
@@ -82,6 +87,8 @@ struct CoachMainTabView: View {
 
 struct CoachTabBar: View {
     @Binding var selection: CoachTab
+    /// Fired when the already-active tab is tapped again (pop-to-root).
+    var onReselect: (CoachTab) -> Void = { _ in }
     @Namespace private var ns
 
     var body: some View {
@@ -90,7 +97,11 @@ struct CoachTabBar: View {
                 let active = tab == selection
                 Button {
                     Haptics.tap()
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { selection = tab }
+                    if active {
+                        onReselect(tab)
+                    } else {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { selection = tab }
+                    }
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)

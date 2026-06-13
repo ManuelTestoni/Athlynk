@@ -40,6 +40,8 @@ enum AppTab: Int, CaseIterable, Identifiable {
 
 struct NeonTabBar: View {
     @Binding var selection: AppTab
+    /// Fired when the already-active tab is tapped again (pop-to-root).
+    var onReselect: (AppTab) -> Void = { _ in }
     @Namespace private var ns
 
     var body: some View {
@@ -48,7 +50,11 @@ struct NeonTabBar: View {
                 let active = tab == selection
                 Button {
                     Haptics.tap()
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { selection = tab }
+                    if active {
+                        onReselect(tab)
+                    } else {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { selection = tab }
+                    }
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)

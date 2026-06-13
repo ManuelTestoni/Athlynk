@@ -1596,6 +1596,13 @@ def check_submit(request, user, instance_id):
         body=f'{client.first_name} {client.last_name} ha compilato «{assignment.template.title}».',
         link_url=f'/check/{resp.id}/',
     )
+    # Email the coach — parity with the web submit flow (views_check/pages.py),
+    # so checks submitted from the iOS app also notify the coach by mail.
+    try:
+        from .views_check.assignments import _notify_coach_check_completed
+        _notify_coach_check_completed(instance)
+    except Exception:
+        pass
     return JsonResponse({'id': resp.id, 'status': 'completed'}, status=201)
 
 
