@@ -167,44 +167,11 @@
     <div class="hero-column hero-column-l" data-parallax="0.04"></div>
     <div class="hero-column hero-column-r" data-parallax="0.05"></div>
 
-    <!-- statua: studio anatomico in linea continua -->
-    <svg class="hero-figure" data-parallax="0.12" viewBox="0 0 600 760" fill="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#e6cf9a"/>
-          <stop offset="0.55" stop-color="#c9a96a"/>
-          <stop offset="1" stop-color="#6e5630"/>
-        </linearGradient>
-      </defs>
-      <g stroke="url(#gold)" stroke-linecap="round">
-        <!-- collo / trapezi -->
-        <path class="fline" d="M232 96 C238 152 226 176 196 208 C166 240 118 256 84 300" stroke-width="2.4"/>
-        <path class="fline" d="M348 92 C344 150 356 174 388 206 C420 238 470 254 506 298" stroke-width="2.4"/>
-        <!-- deltoidi -->
-        <path class="fline" d="M84 300 C56 340 48 392 60 444 C66 472 80 492 100 504" stroke-width="2"/>
-        <path class="fline" d="M506 298 C536 338 546 390 534 442 C528 470 514 490 494 502" stroke-width="2"/>
-        <!-- clavicole -->
-        <path class="fline" d="M148 286 C200 270 250 266 296 270 C342 266 392 270 444 286" stroke-width="1.6" opacity="0.8"/>
-        <!-- pettorali -->
-        <path class="fline" d="M120 330 C150 392 212 420 290 414" stroke-width="2.2"/>
-        <path class="fline" d="M472 328 C442 390 380 418 302 412" stroke-width="2.2"/>
-        <path class="fline" d="M150 318 C180 362 228 386 288 384" stroke-width="1.3" opacity="0.55"/>
-        <path class="fline" d="M442 316 C412 360 364 384 304 382" stroke-width="1.3" opacity="0.55"/>
-        <!-- linea alba -->
-        <path class="fline" d="M296 272 C296 330 294 420 296 520 C297 580 294 640 296 700" stroke-width="1.6" opacity="0.7"/>
-        <!-- addominali -->
-        <path class="fline" d="M232 452 C272 444 320 444 360 452" stroke-width="1.5" opacity="0.7"/>
-        <path class="fline" d="M236 512 C274 504 318 504 356 512" stroke-width="1.5" opacity="0.65"/>
-        <path class="fline" d="M242 572 C278 564 314 564 350 572" stroke-width="1.5" opacity="0.6"/>
-        <path class="fline" d="M250 632 C282 624 310 624 342 632" stroke-width="1.5" opacity="0.5"/>
-        <!-- obliqui -->
-        <path class="fline" d="M150 430 C168 510 188 580 226 660 C240 690 252 712 260 736" stroke-width="2"/>
-        <path class="fline" d="M442 428 C424 508 404 578 366 658 C352 688 340 710 332 734" stroke-width="2"/>
-        <!-- serratus -->
-        <path class="fline" d="M168 452 C190 470 206 488 214 510" stroke-width="1.2" opacity="0.5"/>
-        <path class="fline" d="M424 450 C402 468 386 486 378 508" stroke-width="1.2" opacity="0.5"/>
-      </g>
-    </svg>
+    <!-- statua greca in marmo: cutout cinematografico -->
+    <div class="hero-figure" data-parallax="0.12" aria-hidden="true">
+      <span class="hero-figure-aura"></span>
+      <img src="assets/anatomy/statue.webp" alt="" width="275" height="889" fetchpriority="high" decoding="async">
+    </div>
 
     <div class="hero-meander" aria-hidden="true"></div>
   </div>
@@ -359,143 +326,43 @@
     </header>
 
     <div class="anatomy-layout">
-      <!-- figura: statua greca, studio anatomico a corpo intero -->
+      <!-- figura: statua greca in marmo + organi (immagini Stitch) -->
       <div class="anatomy-figure-wrap" aria-hidden="true">
-        <svg class="anatomy-figure" viewBox="0 0 400 980" fill="none">
-          <defs>
-            <linearGradient id="goldBody" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#e6cf9a"/>
-              <stop offset="0.55" stop-color="#c9a96a"/>
-              <stop offset="1" stop-color="#6e5630"/>
-            </linearGradient>
-            <radialGradient id="organGlow" cx="0.5" cy="0.5" r="0.5">
-              <stop offset="0" stop-color="#e6cf9a" stop-opacity="0.55"/>
-              <stop offset="0.6" stop-color="#c9a96a" stop-opacity="0.18"/>
-              <stop offset="1" stop-color="#c9a96a" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
+        <div class="anatomy-stage">
+          <div class="anatomy-figure">
+            <span class="figure-aura"></span>
+            <img class="figure-statue" src="assets/anatomy/statue.webp" alt="" width="275" height="889" decoding="async">
 
-          <!-- ======== corpo: linea continua ======== -->
-          <g class="body-lines" stroke="url(#goldBody)" stroke-linecap="round">
-            <!-- cranio / profilo testa -->
-            <path d="M200 28 C236 28 258 56 258 92 C258 116 250 134 238 148 C230 158 226 168 226 180" stroke-width="2"/>
-            <path d="M200 28 C164 28 142 56 142 92 C142 116 150 134 162 148 C170 158 174 168 174 180" stroke-width="2"/>
-            <!-- mascella -->
-            <path d="M174 180 C182 192 218 192 226 180" stroke-width="1.6" opacity="0.8"/>
-            <!-- collo -->
-            <path d="M178 188 C178 206 174 218 162 230" stroke-width="2"/>
-            <path d="M222 188 C222 206 226 218 238 230" stroke-width="2"/>
-            <!-- trapezi / spalle -->
-            <path d="M162 230 C132 244 104 252 84 274" stroke-width="2.4"/>
-            <path d="M238 230 C268 244 296 252 316 274" stroke-width="2.4"/>
-            <!-- clavicole -->
-            <path d="M132 268 C162 258 238 258 268 268" stroke-width="1.4" opacity="0.75"/>
-            <!-- deltoidi / braccia esterne -->
-            <path d="M84 274 C62 296 54 330 58 366 C60 400 68 440 74 478 C78 510 80 540 78 568" stroke-width="2"/>
-            <path d="M316 274 C338 296 346 330 342 366 C340 400 332 440 326 478 C322 510 320 540 322 568" stroke-width="2"/>
-            <!-- braccia interne -->
-            <path d="M112 308 C104 348 102 392 106 432 C110 468 112 506 110 542" stroke-width="1.6" opacity="0.7"/>
-            <path d="M288 308 C296 348 298 392 294 432 C290 468 288 506 290 542" stroke-width="1.6" opacity="0.7"/>
-            <!-- mani accennate -->
-            <path d="M78 568 C74 590 78 606 88 618 M110 542 C108 566 100 588 92 604" stroke-width="1.4" opacity="0.6"/>
-            <path d="M322 568 C326 590 322 606 312 618 M290 542 C292 566 300 588 308 604" stroke-width="1.4" opacity="0.6"/>
-            <!-- pettorali -->
-            <path d="M126 296 C142 338 170 358 198 354" stroke-width="2"/>
-            <path d="M274 296 C258 338 230 358 202 354" stroke-width="2"/>
-            <!-- linea alba -->
-            <path d="M200 358 C200 410 199 470 200 528" stroke-width="1.4" opacity="0.7"/>
-            <!-- addominali -->
-            <path d="M164 392 C188 386 212 386 236 392" stroke-width="1.2" opacity="0.65"/>
-            <path d="M166 432 C190 426 210 426 234 432" stroke-width="1.2" opacity="0.6"/>
-            <path d="M170 472 C192 466 208 466 230 472" stroke-width="1.2" opacity="0.55"/>
-            <!-- obliqui / vita -->
-            <path d="M128 330 C124 390 130 450 146 506" stroke-width="2"/>
-            <path d="M272 330 C276 390 270 450 254 506" stroke-width="2"/>
-            <!-- bacino -->
-            <path d="M146 506 C162 532 180 544 200 546 C220 544 238 532 254 506" stroke-width="1.8"/>
-            <!-- quadricipiti esterni -->
-            <path d="M146 516 C134 580 132 644 140 706 C144 740 148 770 150 798" stroke-width="2.2"/>
-            <path d="M254 516 C266 580 268 644 260 706 C256 740 252 770 250 798" stroke-width="2.2"/>
-            <!-- cosce interne -->
-            <path d="M192 552 C188 606 186 660 188 710" stroke-width="1.6" opacity="0.7"/>
-            <path d="M208 552 C212 606 214 660 212 710" stroke-width="1.6" opacity="0.7"/>
-            <!-- ginocchia -->
-            <path d="M150 798 C158 812 178 816 188 806 M188 710 C184 742 186 774 188 806" stroke-width="1.4" opacity="0.7"/>
-            <path d="M250 798 C242 812 222 816 212 806 M212 710 C216 742 214 774 212 806" stroke-width="1.4" opacity="0.7"/>
-            <!-- polpacci -->
-            <path d="M152 812 C146 856 148 900 156 936" stroke-width="2"/>
-            <path d="M186 812 C190 856 188 898 184 932" stroke-width="1.6" opacity="0.7"/>
-            <path d="M248 812 C254 856 252 900 244 936" stroke-width="2"/>
-            <path d="M214 812 C210 856 212 898 216 932" stroke-width="1.6" opacity="0.7"/>
-            <!-- piedi -->
-            <path d="M156 936 C154 950 162 958 184 958 C188 952 186 942 184 932" stroke-width="1.6" opacity="0.8"/>
-            <path d="M244 936 C246 950 238 958 216 958 C212 952 214 942 216 932" stroke-width="1.6" opacity="0.8"/>
-          </g>
+            <div class="organ organ-brain" data-organ="brain" style="--x:50%; --y:5.5%; --w:62%">
+              <span class="organ-glow"></span>
+              <img src="assets/anatomy/brain.webp" alt="" loading="lazy" decoding="async">
+            </div>
+            <div class="organ organ-eyes" data-organ="eyes" style="--x:50%; --y:7.5%; --w:40%">
+              <span class="organ-glow"></span>
+              <img src="assets/anatomy/eyes.webp" alt="" loading="lazy" decoding="async">
+            </div>
+            <div class="organ organ-lungs" data-organ="lungs" style="--x:50%; --y:31%; --w:74%">
+              <span class="organ-glow"></span>
+              <img src="assets/anatomy/lungs.webp" alt="" loading="lazy" decoding="async">
+            </div>
+            <div class="organ organ-heart" data-organ="heart" style="--x:52%; --y:32%; --w:46%">
+              <span class="organ-glow"></span>
+              <img src="assets/anatomy/heart.webp" alt="" loading="lazy" decoding="async">
+            </div>
+            <div class="organ organ-blood" data-organ="blood" style="--x:50%; --y:41%; --w:70%">
+              <span class="organ-glow"></span>
+              <img src="assets/anatomy/blood.webp" alt="" loading="lazy" decoding="async">
+            </div>
 
-          <!-- ======== organi ======== -->
-          <!-- CERVELLO -->
-          <g class="organ organ-brain" data-organ="brain">
-            <circle class="organ-halo" cx="200" cy="84" r="60" fill="url(#organGlow)"/>
-            <g stroke="#e6cf9a" stroke-linecap="round" fill="none">
-              <path d="M170 80 C168 62 184 50 200 54 C216 48 232 60 230 78 C236 88 230 102 218 104 C212 112 188 112 182 104 C170 102 164 90 170 80 Z" stroke-width="1.6"/>
-              <path d="M200 54 C198 70 200 88 199 104" stroke-width="1" opacity="0.7"/>
-              <path d="M178 72 C186 76 192 74 196 68 M222 72 C214 76 208 74 204 68 M180 92 C188 88 194 90 198 96 M220 92 C212 88 206 90 202 96" stroke-width="1" opacity="0.7"/>
-            </g>
-          </g>
-
-          <!-- OCCHI -->
-          <g class="organ organ-eyes" data-organ="eyes">
-            <circle class="organ-halo" cx="200" cy="132" r="52" fill="url(#organGlow)"/>
-            <g stroke="#e6cf9a" stroke-linecap="round" fill="none">
-              <path d="M162 132 C170 124 184 124 192 132 C184 140 170 140 162 132 Z" stroke-width="1.4"/>
-              <path d="M208 132 C216 124 230 124 238 132 C230 140 216 140 208 132 Z" stroke-width="1.4"/>
-              <circle cx="177" cy="132" r="3.4" stroke-width="1.2"/>
-              <circle cx="223" cy="132" r="3.4" stroke-width="1.2"/>
-            </g>
-          </g>
-
-          <!-- POLMONI -->
-          <g class="organ organ-lungs" data-organ="lungs">
-            <circle class="organ-halo" cx="200" cy="330" r="78" fill="url(#organGlow)"/>
-            <g stroke="#e6cf9a" stroke-linecap="round" fill="none">
-              <path d="M192 268 C192 290 192 310 190 322" stroke-width="1.4"/>
-              <path d="M208 268 C208 290 208 310 210 322" stroke-width="1.4"/>
-              <path d="M186 300 C166 302 152 320 150 346 C148 368 158 382 172 384 C184 386 190 374 190 356 Z" stroke-width="1.5"/>
-              <path d="M214 300 C234 302 248 320 250 346 C252 368 242 382 228 384 C216 386 210 374 210 356 Z" stroke-width="1.5"/>
-              <path d="M180 318 C172 330 168 346 170 362 M220 318 C228 330 232 346 230 362" stroke-width="0.9" opacity="0.65"/>
-            </g>
-          </g>
-
-          <!-- CUORE -->
-          <g class="organ organ-heart" data-organ="heart">
-            <circle class="organ-halo" cx="206" cy="332" r="56" fill="url(#organGlow)"/>
-            <g stroke="#e6cf9a" stroke-linecap="round" fill="none">
-              <path d="M206 314 C200 304 186 304 182 314 C178 324 184 336 196 346 C202 351 206 354 206 354 C206 354 212 350 220 342 C230 332 234 320 228 312 C222 304 210 306 206 314 Z" stroke-width="1.7"/>
-              <path d="M198 308 C196 300 198 294 204 290 M214 308 C216 300 214 294 208 290" stroke-width="1" opacity="0.7"/>
-            </g>
-          </g>
-
-          <!-- SANGUE: arterie lungo corpo -->
-          <g class="organ organ-blood" data-organ="blood">
-            <circle class="organ-halo" cx="200" cy="520" r="90" fill="url(#organGlow)"/>
-            <g stroke="#e6cf9a" stroke-linecap="round" fill="none">
-              <path class="vein" d="M206 350 C204 380 200 420 198 460 C196 500 198 530 200 546" stroke-width="1.3"/>
-              <path class="vein" d="M198 372 C170 386 140 404 118 430" stroke-width="1.1"/>
-              <path class="vein" d="M202 372 C230 386 260 404 282 430" stroke-width="1.1"/>
-              <path class="vein" d="M198 546 C184 600 172 670 166 740" stroke-width="1.2"/>
-              <path class="vein" d="M202 546 C216 600 228 670 234 740" stroke-width="1.2"/>
-            </g>
-          </g>
-
-          <!-- marker -->
-          <g class="anatomy-markers">
-            <g class="organ-marker" data-organ="brain"><circle cx="200" cy="84" r="5"/><circle cx="200" cy="84" r="11"/></g>
-            <g class="organ-marker" data-organ="eyes"><circle cx="200" cy="132" r="5"/><circle cx="200" cy="132" r="11"/></g>
-            <g class="organ-marker" data-organ="heart"><circle cx="206" cy="328" r="5"/><circle cx="206" cy="328" r="11"/></g>
-            <g class="organ-marker" data-organ="lungs"><circle cx="168" cy="348" r="5"/><circle cx="168" cy="348" r="11"/></g>
-            <g class="organ-marker" data-organ="blood"><circle cx="200" cy="500" r="5"/><circle cx="200" cy="500" r="11"/></g>
-          </g>
-        </svg>
+            <div class="anatomy-markers">
+              <span class="organ-marker" data-organ="brain" style="--x:50%; --y:5.5%"></span>
+              <span class="organ-marker" data-organ="eyes" style="--x:50%; --y:8%"></span>
+              <span class="organ-marker" data-organ="heart" style="--x:53%; --y:33%"></span>
+              <span class="organ-marker" data-organ="lungs" style="--x:44%; --y:30%"></span>
+              <span class="organ-marker" data-organ="blood" style="--x:50%; --y:42%"></span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- capitoli -->

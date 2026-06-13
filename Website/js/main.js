@@ -119,7 +119,7 @@
     const organs = [...anatomy.querySelectorAll(".organ")];
     const markers = [...anatomy.querySelectorAll(".organ-marker")];
     // traslazione (% altezza figura) per portare ogni organo nella finestra sticky
-    const focusShift = { brain: 0, eyes: 0, heart: -9, lungs: -9, blood: -19 };
+    const focusShift = { brain: 0, eyes: 0, heart: -9, lungs: -9, blood: -14 };
 
     function setOrgan(name) {
       organs.forEach((o) => o.classList.toggle("active", o.dataset.organ === name));
@@ -136,6 +136,22 @@
 
     chapters.forEach((c) => organSpy.observe(c));
     setOrgan("brain");
+
+    // parallasse di profondità sul puntatore (desktop)
+    const anatomyStage = anatomy.querySelector(".anatomy-stage");
+    if (anatomyStage && !reduceMotion && matchMedia("(pointer: fine)").matches) {
+      anatomy.addEventListener("pointermove", (e) => {
+        const r = anatomy.getBoundingClientRect();
+        const nx = (e.clientX - r.left) / r.width - 0.5;
+        const ny = (e.clientY - r.top) / r.height - 0.5;
+        anatomyStage.style.setProperty("--px", (nx * 20).toFixed(1) + "px");
+        anatomyStage.style.setProperty("--py", (ny * 14).toFixed(1) + "px");
+      }, { passive: true });
+      anatomy.addEventListener("pointerleave", () => {
+        anatomyStage.style.setProperty("--px", "0px");
+        anatomyStage.style.setProperty("--py", "0px");
+      });
+    }
   }
 
   /* ---------- hero stat counters ---------- */
