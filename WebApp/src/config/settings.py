@@ -33,6 +33,15 @@ for _host in ('app.athlynk.it', 'athlynk-production.up.railway.app', RAILWAY_PUB
         ALLOWED_HOSTS.append(_host)
 
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
+# Guard: in production the localhost default would bake 127.0.0.1 links into
+# every email (verify, reset, unsubscribe). Fail at boot instead of silently
+# sending dead links — set SITE_URL=https://app.athlynk.it on the host.
+if not DEBUG and ('127.0.0.1' in SITE_URL or 'localhost' in SITE_URL):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        'SITE_URL must be set to the public URL in production '
+        f'(got {SITE_URL!r}). Set SITE_URL=https://app.athlynk.it.'
+    )
 CONSENT_VERSION = config('CONSENT_VERSION', default='2026-06-11.v1')
 
 # --- Analytics / PostHog / churn-prediction ---------------------------------
