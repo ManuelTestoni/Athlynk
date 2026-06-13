@@ -45,11 +45,11 @@ class RulesEngineTests(TestCase):
         self.assertEqual(rules.classify(score), 'high')
 
 
-@override_settings(TEST_ACCOUNT_EMAILS=['t@x.com'], INTERNAL_EMAIL_DOMAINS=['athlynk.com'])
+@override_settings(TEST_ACCOUNT_EMAILS=['t@x.com'], INTERNAL_EMAIL_DOMAINS=['athlynk.it'])
 class IdentityTests(TestCase):
     def test_env_allowlists(self):
         u1 = User.objects.create(email='t@x.com', password_hash='x', role='client')
-        u2 = User.objects.create(email='dev@athlynk.com', password_hash='x', role='coach')
+        u2 = User.objects.create(email='dev@athlynk.it', password_hash='x', role='coach')
         u3 = User.objects.create(email='real@gmail.com', password_hash='x', role='client')
         self.assertTrue(resolve_flags(u1)['is_test_account'])
         self.assertTrue(resolve_flags(u2)['is_internal_user'])

@@ -24,4 +24,4 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://athlynk.com/sitemap.xml
+Sitemap: https://athlynk.it/sitemap.xml
