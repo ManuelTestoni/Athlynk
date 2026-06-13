@@ -1376,29 +1376,53 @@ body[data-page="chat"] .al-search { display: none !important; }
   align-items: start;
 }
 @media (min-width: 901px) { .al-pageskel-agenda { grid-template-columns: 280px 1fr; } }
-.al-pageskel-sidetitle { width: 50%; height: 12px; margin-bottom: 14px; }
+/* sidebar CARD with divided sections (mirrors .agenda-sidebar-section) */
+.al-pageskel-agendaside, .al-pageskel-agendamain { align-self: start; }
+.al-pageskel-agsec { padding: 18px 16px; border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08)); }
+.al-pageskel-agsec:last-child { border-bottom: 0; }
+.al-pageskel-sidetitle { width: 50%; height: 11px; margin-bottom: 14px; }
 .al-pageskel-minical-head {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
 }
 .al-pageskel-minical-head .al-skel:first-child { width: 96px; height: 12px; }
 .al-pageskel-minical-head .al-skel:last-child  { width: 44px; height: 16px; }
+.al-pageskel-minical-dow {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px;
+}
+.al-pageskel-minical-dow .al-skel { height: 7px; }
 .al-pageskel-minical {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
 }
 .al-pageskel-minical .al-skel { aspect-ratio: 1; border-radius: 4px; }
-.al-pageskel-agendaside .al-pageskel-row { padding-left: 0; padding-right: 0; }
+.al-pageskel-agfilter { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.al-pageskel-agcheck  { width: 16px; height: 16px; border-radius: 4px; flex: none; }
+.al-pageskel-agswatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.al-pageskel-agfilter .al-skel:last-child { flex: 1; height: 10px; }
+.al-pageskel-agup { padding: 8px 0; border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06)); }
+.al-pageskel-agup:last-child { border-bottom: 0; }
+.al-pageskel-agup .al-skel { height: 9px; margin-bottom: 7px; }
+.al-pageskel-agup .al-skel:nth-child(1) { width: 30%; }
+.al-pageskel-agup .al-skel:nth-child(2) { width: 80%; height: 11px; }
+.al-pageskel-agup .al-skel:nth-child(3) { width: 50%; margin-bottom: 0; }
+/* main CARD: toolbar divider + padded day body */
 .al-pageskel-agtoolbar {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--al-s-5, 20px);
+  flex-wrap: wrap; gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--al-rule, rgba(20,17,13,0.12));
 }
-.al-pageskel-agtitle  { width: 200px; max-width: 50%; height: 20px; }
-.al-pageskel-agswitch { width: 200px; height: 34px; border-radius: var(--al-r-pill); flex: none; }
+.al-pageskel-agtoolbar-left { display: flex; align-items: center; gap: 14px; }
+.al-pageskel-agnav    { width: 96px; height: 34px; border-radius: var(--al-r-sm); flex: none; }
+.al-pageskel-agtitle  { width: 180px; max-width: 40vw; height: 20px; }
+.al-pageskel-agswitch { width: 210px; height: 34px; border-radius: var(--al-r-sm); flex: none; }
+.al-pageskel-agbody { padding: 24px; display: flex; flex-direction: column; gap: 22px; }
 .al-pageskel-todaycard {
+  border: 1px solid var(--al-rule, rgba(20,17,13,0.12));
   border-left: 3px solid var(--al-bronze, #9a7b4f);
+  border-radius: var(--al-r-sm);
   padding: 22px 24px;
-  margin-bottom: var(--al-s-5, 20px);
 }
 .al-pageskel-events { display: flex; flex-direction: column; gap: 10px; }
 .al-pageskel-eventrow {
@@ -1585,6 +1609,70 @@ body[data-page="chat"] .al-search { display: none !important; }
 /* builder / wizard — step pills above a sidebar + canvas */
 .al-pageskel-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: var(--al-s-6, 24px); }
 .al-pageskel-pill  { width: 120px; height: 38px; border-radius: var(--al-r-sm); }
+
+/* ===== athlete (client) archetypes ===== */
+
+/* home — 3 feature nav cards */
+.al-pageskel-homegrid {
+  display: grid; grid-template-columns: 1fr; gap: var(--al-s-5, 20px);
+}
+@media (min-width: 768px) { .al-pageskel-homegrid { grid-template-columns: repeat(3, 1fr); } }
+.al-pageskel-featcard { min-height: 170px; display: flex; flex-direction: column; }
+.al-pageskel-featcard-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.al-pageskel-feattitle { width: 50%; height: 18px; }
+.al-pageskel-featicon  { width: 30px; height: 30px; border-radius: var(--al-r-sm); flex: none; }
+.al-pageskel-featdesc  { width: 100%; height: 10px; margin-bottom: 8px; }
+.al-pageskel-featlink  { width: 90px; height: 11px; margin-top: auto; }
+
+/* editorial dark hero (workout / nutrition athlete pages) */
+.al-pageskel-hero {
+  background: linear-gradient(155deg, var(--al-ink, #14110d) 0%, #1d1812 60%, #2a2317 100%);
+  border: 1px solid var(--al-rule, rgba(20,17,13,0.12));
+  border-radius: var(--al-r-md);
+  padding: 36px 32px;
+  margin-bottom: 40px;
+}
+.al-pageskel-hero .al-skel {
+  background: linear-gradient(90deg, rgba(244,239,228,0.10) 25%, rgba(244,239,228,0.20) 50%, rgba(244,239,228,0.10) 75%);
+  background-size: 200% 100%;
+}
+.al-pageskel-herogrid { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: center; }
+@media (min-width: 768px) { .al-pageskel-herogrid { grid-template-columns: 1.4fr 1fr; } }
+.al-pageskel-heroeyebrow { width: 100px; height: 9px; margin-bottom: 18px; }
+.al-pageskel-herotitle   { width: 70%; height: 30px; margin-bottom: 18px; border-radius: var(--al-r-sm); }
+.al-pageskel-heroline    { width: 90%; height: 11px; margin-bottom: 10px; }
+.al-pageskel-herobtn     { width: 150px; height: 42px; margin-top: 18px; border-radius: var(--al-r-pill); }
+.al-pageskel-herostats   { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.al-pageskel-herostat .al-skel:first-child { width: 60%; height: 24px; margin-bottom: 8px; }
+.al-pageskel-herostat .al-skel:last-child  { width: 80%; height: 9px; }
+
+/* athlete subscriptions — current-plan hero + stat row */
+.al-pageskel-subhero { margin-bottom: 32px; overflow: hidden; }
+.al-pageskel-subhero-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 24px;
+}
+.al-pageskel-substats {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+  padding: 0 24px 24px;
+}
+@media (min-width: 768px) { .al-pageskel-substats { grid-template-columns: repeat(4, 1fr); } }
+.al-pageskel-substat .al-skel:first-child { width: 70%; height: 22px; margin-bottom: 8px; }
+.al-pageskel-substat .al-skel:last-child  { width: 90%; height: 9px; }
+@media (min-width: 1280px) { .al-pageskel-plangrid-client { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1536px) { .al-pageskel-plangrid-client { grid-template-columns: repeat(3, 1fr); } }
+
+/* athlete check inbox — section title + to-do cards + completed table */
+.al-pageskel-sectitle { width: 200px; height: 14px; margin-bottom: 16px; }
+.al-pageskel-todolist { display: flex; flex-direction: column; gap: 16px; }
+.al-pageskel-todo {
+  display: flex; align-items: center; gap: var(--al-s-4, 16px);
+  border-left: 3px solid var(--al-bronze, #9a7b4f);
+}
+.al-pageskel-todo-main { flex: 1; min-width: 0; }
+.al-pageskel-todo-title { width: 45%; height: 15px; margin-bottom: 9px; }
+.al-pageskel-todo-sub   { width: 70%; height: 10px; }
+.al-pageskel-todo-btn   { width: 110px; height: 38px; border-radius: var(--al-r-pill); flex: none; }
 
 /* ---------- Toast ---------- */
 .al-toast {

@@ -56,6 +56,9 @@
     // il mio percorso — stat trio + timeline rows
     if (/^\/il-mio-percorso\/?$/.test(path)) return 'timeline';
 
+    // athlete check inbox — stacked to-do cards + completed table
+    if (/^\/check\/i-miei-check\/?$/.test(path)) return 'checklist';
+
     // settings subpages & simple stacked forms (before builder:
     // anamnesi/crea and piano abbonamento are forms)
     if (/^\/impostazioni\//.test(path) ||
@@ -72,22 +75,23 @@
     // athletes roster — filter bar + data table
     if (/^\/clienti\/?$/.test(path)) return 'table';
 
-    // nutrition library — folder sidebar + plan card grid (coach)
-    if (/^\/nutrizione\/piani\/?$/.test(path)) return role === 'client' ? 'cards' : 'nutrition';
+    // nutrition library — coach: folder sidebar + card grid;
+    // athlete: editorial hero + history (same shell as workouts)
+    if (/^\/nutrizione\/piani\/?$/.test(path)) return role === 'client' ? 'clienthero' : 'nutrition';
     // supplement library & check catalogues — filter chips + card grid
     if (/^\/nutrizione\/integratori\/?$/.test(path) ||
         /^\/check\/(modelli|trova-coach)\/?$/.test(path)) return 'cards';
 
-    // workout library — chips + card grid (coach) / list (client)
-    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'list' : 'cards';
+    // workout library — coach: chips + card grid; athlete: hero + history
+    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'clienthero' : 'cards';
 
-    // subscriptions — full-width KPI row + tabs + plan card grid (coach)
-    if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'cards' : 'subs';
+    // subscriptions — coach: KPI + tabs + plan grid; athlete: hero + plan grid
+    if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'subsclient' : 'subs';
 
-    // dashboards — KPI grid + two columns (client home is a card trio)
+    // dashboards — coach: KPI grid + two columns; athlete: 3 feature cards
     if (path === '/' || /\/dashboard\/?$/.test(path))
-      return role === 'client' ? 'cards' : 'dashboard';
-    if (/^\/check\/?$/.test(path)) return role === 'client' ? 'list' : 'dashboard';
+      return role === 'client' ? 'home' : 'dashboard';
+    if (/^\/check\/?$/.test(path)) return role === 'client' ? 'checklist' : 'dashboard';
 
     // check history of one client — stacked rows, not a detail split
     if (/^\/check\/cliente\/\d+/.test(path)) return 'list';
@@ -104,12 +108,15 @@
      .al-page padding. */
   function widthFor(variant) {
     switch (variant) {
-      case 'chatlist': return '56rem';   // max-w-4xl
-      case 'form':     return '48rem';   // max-w-3xl
-      case 'settings': return '61.25rem';// ~max-w of setgrid (980px)
-      case 'subs':     return '';        // w-full
-      case 'chat':     return '';        // full-bleed (own wrapper)
-      default:         return '80rem';   // max-w-7xl
+      case 'chatlist':  return '56rem';   // max-w-4xl
+      case 'form':      return '48rem';   // max-w-3xl
+      case 'checklist': return '48rem';   // max-w-3xl
+      case 'settings':  return '61.25rem';// ~max-w of setgrid (980px)
+      case 'home':      return '72rem';   // max-w-6xl
+      case 'timeline':  return '72rem';   // max-w-6xl
+      case 'subs':      return '';        // w-full
+      case 'chat':      return '';        // full-bleed (own wrapper)
+      default:          return '80rem';   // max-w-7xl
     }
   }
 
@@ -261,6 +268,48 @@
            '</div>';
   }
 
+  // athlete dashboard feature card — title + icon, desc, footer link
+  function featcard() {
+    return '<div class="al-pageskel-panel al-pageskel-featcard">' +
+             '<div class="al-pageskel-featcard-head">' +
+               '<div class="al-skel al-pageskel-feattitle"></div>' +
+               '<div class="al-skel al-pageskel-featicon"></div>' +
+             '</div>' +
+             '<div class="al-skel al-pageskel-featdesc"></div>' +
+             '<div class="al-skel al-pageskel-featdesc" style="width:60%"></div>' +
+             '<div class="al-skel al-pageskel-featlink"></div>' +
+           '</div>';
+  }
+
+  // athlete editorial dark hero — 2-col grid of stacked lines (workout/nutrition)
+  function clientHero() {
+    return '<div class="al-pageskel-hero">' +
+             '<div class="al-pageskel-herogrid">' +
+               '<div class="al-pageskel-herocol">' +
+                 '<div class="al-skel al-pageskel-heroeyebrow"></div>' +
+                 '<div class="al-skel al-pageskel-herotitle"></div>' +
+                 '<div class="al-skel al-pageskel-heroline"></div>' +
+                 '<div class="al-skel al-pageskel-heroline" style="width:70%"></div>' +
+                 '<div class="al-skel al-pageskel-herobtn"></div>' +
+               '</div>' +
+               '<div class="al-pageskel-herocol al-pageskel-herostats">' +
+                 rep('<div class="al-pageskel-herostat"><div class="al-skel"></div><div class="al-skel"></div></div>', 4) +
+               '</div>' +
+             '</div>' +
+           '</div>';
+  }
+
+  // athlete check to-do card (bronze left rail)
+  function todoCard() {
+    return '<div class="al-pageskel-panel al-pageskel-todo">' +
+             '<div class="al-pageskel-todo-main">' +
+               '<div class="al-skel al-pageskel-todo-title"></div>' +
+               '<div class="al-skel al-pageskel-todo-sub"></div>' +
+             '</div>' +
+             '<div class="al-skel al-pageskel-todo-btn"></div>' +
+           '</div>';
+  }
+
   function build(variant) {
     if (variant === 'dashboard') {
       // header + 4 KPIs + (2fr roster table card | 1fr side list card)
@@ -303,25 +352,46 @@
         '</div>';
     }
     if (variant === 'agenda') {
+      // mirrors .agenda-shell: sidebar CARD (mini-cal + type filter +
+      // upcoming, divided sections) | main CARD (toolbar divider + day view).
+      var dow = '<div class="al-pageskel-minical-dow">' + rep(s('', ''), 7) + '</div>';
+      var agfilter = '<div class="al-pageskel-agfilter">' +
+          '<div class="al-skel al-pageskel-agcheck"></div>' +
+          '<div class="al-skel al-pageskel-agswatch"></div>' +
+          '<div class="al-skel"></div></div>';
+      var agup = '<div class="al-pageskel-agup">' +
+          '<div class="al-skel"></div><div class="al-skel"></div><div class="al-skel"></div></div>';
       return head(1) +
         '<div class="al-pageskel-agenda">' +
-          '<div class="al-pageskel-panel al-pageskel-agendaside">' +
-            '<div class="al-pageskel-minical-head"><div class="al-skel"></div><div class="al-skel"></div></div>' +
-            '<div class="al-pageskel-minical">' + rep('<div class="al-skel"></div>', 42) + '</div>' +
-            '<div class="al-skel al-pageskel-sidetitle" style="margin-top:20px"></div>' +
-            rep(row(), 3) +
+          '<div class="al-pageskel-panel al-pageskel-agendaside" style="padding:0">' +
+            '<div class="al-pageskel-agsec">' +
+              '<div class="al-pageskel-minical-head"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+              dow +
+              '<div class="al-pageskel-minical">' + rep('<div class="al-skel"></div>', 42) + '</div>' +
+            '</div>' +
+            '<div class="al-pageskel-agsec">' +
+              '<div class="al-skel al-pageskel-sidetitle"></div>' + rep(agfilter, 4) +
+            '</div>' +
+            '<div class="al-pageskel-agsec">' +
+              '<div class="al-skel al-pageskel-sidetitle"></div>' + rep(agup, 3) +
+            '</div>' +
           '</div>' +
-          '<div class="al-pageskel-agendamain">' +
+          '<div class="al-pageskel-panel al-pageskel-agendamain" style="padding:0">' +
             '<div class="al-pageskel-agtoolbar">' +
-              '<div class="al-skel al-pageskel-agtitle"></div>' +
+              '<div class="al-pageskel-agtoolbar-left">' +
+                '<div class="al-skel al-pageskel-agnav"></div>' +
+                '<div class="al-skel al-pageskel-agtitle"></div>' +
+              '</div>' +
               '<div class="al-skel al-pageskel-agswitch"></div>' +
             '</div>' +
-            '<div class="al-pageskel-panel al-pageskel-todaycard">' +
-              '<div class="al-skel" style="width:60px;height:9px;margin-bottom:10px"></div>' +
-              '<div class="al-skel" style="width:55%;height:26px;margin-bottom:8px"></div>' +
-              '<div class="al-skel" style="width:30%;height:11px"></div>' +
+            '<div class="al-pageskel-agbody">' +
+              '<div class="al-pageskel-todaycard">' +
+                '<div class="al-skel" style="width:60px;height:9px;margin-bottom:10px"></div>' +
+                '<div class="al-skel" style="width:55%;height:26px;margin-bottom:8px"></div>' +
+                '<div class="al-skel" style="width:30%;height:11px"></div>' +
+              '</div>' +
+              '<div class="al-pageskel-events">' + rep(eventRow(), 4) + '</div>' +
             '</div>' +
-            '<div class="al-pageskel-events">' + rep(eventRow(), 4) + '</div>' +
           '</div>' +
         '</div>';
     }
@@ -355,6 +425,39 @@
         '<div class="al-pageskel-chips" style="margin-bottom:24px">' +
           rep('<div class="al-skel al-pageskel-chip"></div>', 2) + '</div>' +
         '<div class="al-pageskel-plangrid">' + rep(plancard(), 8) + '</div>';
+    }
+    if (variant === 'home') {
+      // athlete home — header + 3 feature nav cards (md:grid-cols-3)
+      return head(0) +
+        '<div class="al-pageskel-homegrid">' + rep(featcard(), 3) + '</div>';
+    }
+    if (variant === 'clienthero') {
+      // athlete workout / nutrition — editorial hero + history list
+      return head(0) + clientHero() +
+        '<div class="al-pageskel-toolbar"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+        panel(rep(row(), 6));
+    }
+    if (variant === 'subsclient') {
+      // athlete subscriptions — current-plan hero (4-stat) + plan card grid
+      return head(0) +
+        '<div class="al-pageskel-panel al-pageskel-subhero" style="padding:0">' +
+          '<div class="al-pageskel-subhero-top">' +
+            '<div class="al-skel" style="width:160px;height:18px"></div>' +
+            '<div class="al-skel" style="width:90px;height:24px;border-radius:999px"></div>' +
+          '</div>' +
+          '<div class="al-pageskel-substats">' +
+            rep('<div class="al-pageskel-substat"><div class="al-skel"></div><div class="al-skel"></div></div>', 4) +
+          '</div>' +
+        '</div>' +
+        '<div class="al-pageskel-plangrid al-pageskel-plangrid-client">' + rep(plancard(), 6) + '</div>';
+    }
+    if (variant === 'checklist') {
+      // athlete check inbox — to-do cards + completed table
+      return head(0) +
+        '<div class="al-skel al-pageskel-sectitle"></div>' +
+        '<div class="al-pageskel-todolist">' + rep(todoCard(), 3) + '</div>' +
+        '<div class="al-skel al-pageskel-sectitle" style="margin-top:32px"></div>' +
+        tableSkel(3, 4);
     }
     if (variant === 'settings') {
       return head(0) +
