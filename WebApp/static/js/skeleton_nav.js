@@ -6,9 +6,12 @@
    shaped like the *destination* page into .al-page so the wait reads
    as "instant".
 
-   The skeleton must mirror the structure of the page being loaded, not
-   a generic placeholder — so each route family routes to its own
-   archetype (dashboard, list, detail, form, builder, chat).
+   The skeleton must mirror the real page 1:1 — same content max-width,
+   same column structure, same row/card shapes — so nothing jumps when
+   the SSR document commits. Each route family routes to its own
+   archetype, and every archetype is wrapped in the same max-width
+   container the live page uses (most pages: max-w-7xl mx-auto), so the
+   skeleton is centred exactly where the content will land.
 
    SAFE BOUNDARY: no fetch, no form submit, no state. Never calls
    preventDefault — the real navigation always proceeds untouched.
@@ -27,16 +30,18 @@
   function variantFor(path) {
     var role = document.body.getAttribute('data-role') || '';
 
-    // chat conversation — message bubbles + composer
+    // chat conversation — full-bleed header + bubbles + composer
     if (/^\/chat\/\d+/.test(path)) return 'chat';
+    // chat index — avatar conversation rows in a flush card (max-w-4xl)
+    if (/^\/chat\/?$/.test(path)) return 'chatlist';
 
-    // agenda — mini-calendar sidebar + month canvas
-    if (/^\/agenda\/?$/.test(path)) return 'calendar';
+    // agenda — mini-cal sidebar + day view (toolbar, hero card, event rows)
+    if (/^\/agenda\/?$/.test(path)) return 'agenda';
 
     // business analytics — KPI row + chart panels
     if (/^\/analisi\/?$/.test(path)) return 'analytics';
 
-    // chart pages — filter toolbar + chart card grid
+    // chart pages — chart card grid
     if (/^\/check\/(andamento|comparatore)/.test(path) ||
         /\/progressi\/?$/.test(path) ||
         /\/volume\/?$/.test(path)) return 'charts';
@@ -59,16 +64,25 @@
         /\/abbonamenti\/piano\/crea/.test(path) ||
         /\/importa(-pdf)?(\/|$)/.test(path)) return 'form';
 
-    // builders & wizards — sidebar list + canvas
+    // builders & wizards — step pills + canvas
     if (/\/(wizard|crea|builder)(\/|$)/.test(path) ||
         /\/modelli\/(nuovo|\d+)(\/|$)/.test(path) ||
         /\/sessione\/\d+/.test(path)) return 'builder';
 
-    // card-grid catalogues — filter chips + cards
-    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'list' : 'cards';
-    if (/^\/nutrizione\/(piani|integratori)\/?$/.test(path) ||
+    // athletes roster — filter bar + data table
+    if (/^\/clienti\/?$/.test(path)) return 'table';
+
+    // nutrition library — folder sidebar + plan card grid (coach)
+    if (/^\/nutrizione\/piani\/?$/.test(path)) return role === 'client' ? 'cards' : 'nutrition';
+    // supplement library & check catalogues — filter chips + card grid
+    if (/^\/nutrizione\/integratori\/?$/.test(path) ||
         /^\/check\/(modelli|trova-coach)\/?$/.test(path)) return 'cards';
-    if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'cards' : 'cards-kpi';
+
+    // workout library — chips + card grid (coach) / list (client)
+    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'list' : 'cards';
+
+    // subscriptions — full-width KPI row + tabs + plan card grid (coach)
+    if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'cards' : 'subs';
 
     // dashboards — KPI grid + two columns (client home is a card trio)
     if (path === '/' || /\/dashboard\/?$/.test(path))
@@ -85,8 +99,26 @@
     return 'list';
   }
 
+  /* Content max-width per variant — mirrors the live page's wrapper
+     (Tailwind max-w-* on the page root). '' means full width inside the
+     .al-page padding. */
+  function widthFor(variant) {
+    switch (variant) {
+      case 'chatlist': return '56rem';   // max-w-4xl
+      case 'form':     return '48rem';   // max-w-3xl
+      case 'settings': return '61.25rem';// ~max-w of setgrid (980px)
+      case 'subs':     return '';        // w-full
+      case 'chat':     return '';        // full-bleed (own wrapper)
+      default:         return '80rem';   // max-w-7xl
+    }
+  }
+
   /* ---- markup builders ----------------------------------------------- */
   function rep(html, n) { var s = ''; for (var i = 0; i < n; i++) s += html; return s; }
+  function s(cls, style) {
+    return '<div class="al-skel' + (cls ? ' ' + cls : '') + '"' +
+           (style ? ' style="' + style + '"' : '') + '></div>';
+  }
 
   // Page header: eyebrow + title + subtitle + bronze rule, with optional
   // right-aligned action buttons — matches the al-eyebrow/al-h-1/al-rule-bronze
@@ -115,10 +147,6 @@
              '<div class="al-skel al-skel-line" style="width:64px;border-radius:999px;flex:none"></div>' +
            '</div>';
   }
-  function card() {
-    return '<div class="al-pageskel-panel al-pageskel-cardhead">' +
-             '<div class="al-skel"></div><div class="al-skel"></div><div class="al-skel"></div></div>';
-  }
   function para() {
     return '<div class="al-pageskel-para">' + rep('<div class="al-skel"></div>', 4) + '</div>';
   }
@@ -144,48 +172,156 @@
              '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
            '</div>';
   }
-
   function panel(inner) { return '<div class="al-pageskel-panel" style="padding:0">' + inner + '</div>'; }
+
+  // flush card header bar (title block + "see all" link) — al-card-head
+  function cardbar() {
+    return '<div class="al-pageskel-cardbar">' +
+             '<div class="al-pageskel-cardbar-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+             '<div class="al-skel al-pageskel-cardbar-link"></div>' +
+           '</div>';
+  }
+
+  // data-table head strip + body rows (al-table). cols = column count.
+  function tableSkel(cols, rows) {
+    var th = '<div class="al-pageskel-thead">' + rep(s('', ''), cols) + '</div>';
+    var tr = '<div class="al-pageskel-trow">' +
+               '<div class="al-pageskel-trow-id">' +
+                 '<div class="al-skel al-skel-circle" style="width:28px;height:28px;border-radius:6px;flex:none"></div>' +
+                 '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+               '</div>' +
+               rep('<div class="al-skel al-pageskel-tcell"></div>', cols - 2) +
+               '<div class="al-skel al-pageskel-tact"></div>' +
+             '</div>';
+    return '<div class="al-pageskel-panel al-pageskel-table" style="padding:0">' +
+             th + rep(tr, rows) + '</div>';
+  }
+
+  // tall library card (workout / supplement / nutrition plan)
+  function wcard() {
+    return '<div class="al-pageskel-panel al-pageskel-wcard">' +
+             '<div class="al-pageskel-wcard-top">' +
+               '<div class="al-skel al-pageskel-badge"></div>' +
+               '<div class="al-skel al-pageskel-badge"></div>' +
+             '</div>' +
+             '<div class="al-skel al-pageskel-wcard-title"></div>' +
+             '<div class="al-skel al-pageskel-wcard-desc"></div>' +
+             '<div class="al-skel al-pageskel-wcard-desc" style="width:70%"></div>' +
+             '<div class="al-pageskel-wcard-meta">' +
+               '<div class="al-skel"></div><div class="al-skel"></div><div class="al-skel"></div>' +
+             '</div>' +
+             '<div class="al-pageskel-wcard-foot">' +
+               '<div class="al-skel"></div><div class="al-skel al-pageskel-wcard-icon"></div>' +
+             '</div>' +
+           '</div>';
+  }
+
+  // subscription plan card — head (name + price) + body + footer
+  function plancard() {
+    return '<div class="al-pageskel-panel al-pageskel-plancard">' +
+             '<div class="al-pageskel-plancard-head">' +
+               '<div class="al-skel al-pageskel-plancard-name"></div>' +
+               '<div class="al-skel al-pageskel-plancard-price"></div>' +
+             '</div>' +
+             '<div class="al-pageskel-plancard-body">' +
+               '<div class="al-skel"></div><div class="al-skel" style="width:80%"></div>' +
+               '<div class="al-pageskel-plancard-meta"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+             '</div>' +
+             '<div class="al-pageskel-plancard-foot"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+           '</div>';
+  }
+
+  // agenda event row — time | marker | title | tag (matches .agenda-event-row)
+  function eventRow() {
+    return '<div class="al-pageskel-eventrow">' +
+             '<div class="al-skel al-pageskel-evtime"></div>' +
+             '<div class="al-skel al-pageskel-evmark"></div>' +
+             '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+             '<div class="al-skel al-pageskel-evtag"></div>' +
+           '</div>';
+  }
+
+  // chat-list conversation row — large avatar + 2 lines + right meta
+  function clrow() {
+    return '<div class="al-pageskel-clrow">' +
+             '<div class="al-skel al-skel-circle" style="width:56px;height:56px;border-radius:8px;flex:none"></div>' +
+             '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+             '<div class="al-pageskel-clmeta"><div class="al-skel"></div></div>' +
+           '</div>';
+  }
+
+  // numbered form section card: section head + 2-col field grid
+  function formcard(n) {
+    return '<div class="al-pageskel-panel al-pageskel-formcard">' +
+             '<div class="al-pageskel-formcard-head">' +
+               '<div class="al-skel al-pageskel-formnum"></div>' +
+               '<div class="al-skel al-pageskel-formtitle"></div>' +
+             '</div>' +
+             '<div class="al-pageskel-fieldgrid">' + rep(field(), n) + '</div>' +
+           '</div>';
+  }
 
   function build(variant) {
     if (variant === 'dashboard') {
-      return head(2) +
+      // header + 4 KPIs + (2fr roster table card | 1fr side list card)
+      return head(1) +
         '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' +
         '<div class="al-pageskel-cols">' +
-          panel(rep(row(), 5)) + panel(rep(row(), 4)) +
+          panel(cardbar() + tableSkel(3, 5)) +
+          panel(cardbar() + rep(row(), 4)) +
         '</div>';
+    }
+    if (variant === 'table') {
+      // header + search/select filter bar + 7-col data table
+      return head(1) +
+        '<div class="al-pageskel-filterbar">' +
+          '<div class="al-skel al-pageskel-search"></div>' +
+          '<div class="al-skel al-pageskel-fsel"></div>' +
+          '<div class="al-skel al-pageskel-fsel"></div>' +
+        '</div>' +
+        tableSkel(7, 7);
     }
     if (variant === 'detail') {
       return head(1) +
         '<div class="al-pageskel-cols">' +
           '<div class="al-pageskel-panel">' + para() +
-            '<div class="al-pageskel-grid" style="margin-top:24px">' + rep(card(), 2) + '</div></div>' +
+            '<div class="al-pageskel-grid" style="margin-top:24px">' + rep(wcard(), 2) + '</div></div>' +
           panel(rep(row(), 4)) +
         '</div>';
     }
     if (variant === 'form') {
-      return head(0) +
-        '<div class="al-pageskel-panel al-pageskel-form">' + rep(field(), 6) + '</div>';
+      return head(0) + formcard(6) +
+        '<div style="height:20px"></div>' + formcard(4);
     }
     if (variant === 'builder') {
-      return head(2) +
+      // step pills + wide work panel (2-col fields) + preview rail
+      return head(1) +
+        '<div class="al-pageskel-pills">' + rep('<div class="al-skel al-pageskel-pill"></div>', 4) + '</div>' +
         '<div class="al-pageskel-builder">' +
-          panel(rep(row(), 6)) +
-          '<div class="al-pageskel-panel">' +
-            '<div class="al-pageskel-grid">' + rep(card(), 4) + '</div></div>' +
+          '<div class="al-pageskel-panel"><div class="al-pageskel-fieldgrid">' + rep(field(), 6) + '</div></div>' +
+          panel(rep(row(), 5)) +
         '</div>';
     }
-    if (variant === 'calendar') {
-      return head(2) +
+    if (variant === 'agenda') {
+      return head(1) +
         '<div class="al-pageskel-agenda">' +
           '<div class="al-pageskel-panel al-pageskel-agendaside">' +
-            '<div class="al-skel al-pageskel-sidetitle"></div>' +
-            '<div class="al-pageskel-minical">' + rep('<div class="al-skel"></div>', 35) + '</div>' +
+            '<div class="al-pageskel-minical-head"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+            '<div class="al-pageskel-minical">' + rep('<div class="al-skel"></div>', 42) + '</div>' +
+            '<div class="al-skel al-pageskel-sidetitle" style="margin-top:20px"></div>' +
             rep(row(), 3) +
           '</div>' +
-          '<div class="al-pageskel-panel">' +
-            '<div class="al-pageskel-calhead"><div class="al-skel"></div><div class="al-skel"></div></div>' +
-            '<div class="al-pageskel-calgrid">' + rep('<div class="al-skel"></div>', 35) + '</div>' +
+          '<div class="al-pageskel-agendamain">' +
+            '<div class="al-pageskel-agtoolbar">' +
+              '<div class="al-skel al-pageskel-agtitle"></div>' +
+              '<div class="al-skel al-pageskel-agswitch"></div>' +
+            '</div>' +
+            '<div class="al-pageskel-panel al-pageskel-todaycard">' +
+              '<div class="al-skel" style="width:60px;height:9px;margin-bottom:10px"></div>' +
+              '<div class="al-skel" style="width:55%;height:26px;margin-bottom:8px"></div>' +
+              '<div class="al-skel" style="width:30%;height:11px"></div>' +
+            '</div>' +
+            '<div class="al-pageskel-events">' + rep(eventRow(), 4) + '</div>' +
           '</div>' +
         '</div>';
     }
@@ -196,14 +332,29 @@
     }
     if (variant === 'charts') {
       return head(1) +
-        '<div class="al-pageskel-toolbar"><div class="al-skel"></div><div class="al-skel"></div></div>' +
         '<div class="al-pageskel-chartgrid">' + rep(chart(), 3) + '</div>';
     }
-    if (variant === 'cards' || variant === 'cards-kpi') {
+    if (variant === 'cards') {
+      return head(1) + chips() +
+        '<div class="al-pageskel-cardgrid">' + rep(wcard(), 6) + '</div>';
+    }
+    if (variant === 'nutrition') {
+      // folder sidebar + plan card grid (wb-shell)
       return head(1) +
-        (variant === 'cards-kpi' ? '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' : '') +
-        chips() +
-        '<div class="al-pageskel-grid">' + rep(card(), 6) + '</div>';
+        '<div class="al-pageskel-nutri">' +
+          '<div class="al-pageskel-panel al-pageskel-nutriside">' +
+            '<div class="al-skel al-pageskel-sidetitle"></div>' +
+            rep('<div class="al-pageskel-folderrow"><div class="al-skel"></div><div class="al-skel al-pageskel-foldercount"></div></div>', 5) +
+          '</div>' +
+          '<div class="al-pageskel-cardgrid">' + rep(wcard(), 6) + '</div>' +
+        '</div>';
+    }
+    if (variant === 'subs') {
+      return head(1) +
+        '<div class="al-pageskel-kpis">' + rep(kpi(), 4) + '</div>' +
+        '<div class="al-pageskel-chips" style="margin-bottom:24px">' +
+          rep('<div class="al-skel al-pageskel-chip"></div>', 2) + '</div>' +
+        '<div class="al-pageskel-plangrid">' + rep(plancard(), 8) + '</div>';
     }
     if (variant === 'settings') {
       return head(0) +
@@ -226,6 +377,11 @@
         '<div class="al-pageskel-kpis al-pageskel-kpis-3">' + rep(kpi(), 3) + '</div>' +
         panel(rep(row(), 6));
     }
+    if (variant === 'chatlist') {
+      return head(0) +
+        '<div class="al-pageskel-panel al-pageskel-cllist" style="padding:0">' +
+          rep(clrow(), 6) + '</div>';
+    }
     if (variant === 'chat') {
       return '<div class="al-pageskel-chat">' +
           '<div class="al-pageskel-chatbar">' +
@@ -240,7 +396,7 @@
           '</div>' +
         '</div>';
     }
-    // list (default)
+    // list (default) — search toolbar + rows
     return head(1) +
       '<div class="al-pageskel-toolbar"><div class="al-skel"></div><div class="al-skel"></div></div>' +
       panel(rep(row(), 8));
@@ -254,7 +410,10 @@
     if (!page || shown) return;
     shown = true;
     saved = page.innerHTML;    // keep the real content so a Back restore can put it back
-    page.innerHTML = '<div class="al-pageskel al-pageskel-' + variant + '">' + build(variant) + '</div>';
+    var w = widthFor(variant);
+    var cls = 'al-pageskel al-pageskel-' + variant + (variant === 'chat' ? ' al-pageskel-bleed' : '');
+    var style = w ? ' style="max-width:' + w + ';margin-left:auto;margin-right:auto"' : '';
+    page.innerHTML = '<div class="' + cls + '"' + style + '>' + build(variant) + '</div>';
     var main = document.querySelector('main.al-canvas');
     if (main) main.scrollTop = 0;
   }

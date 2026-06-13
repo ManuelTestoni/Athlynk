@@ -1367,7 +1367,8 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-pageskel-chart .al-skel:first-child { width: 38%; height: 13px; margin-bottom: 18px; }
 .al-pageskel-chart .al-skel:last-child  { width: 100%; height: 220px; border-radius: var(--al-r-md); }
 
-/* agenda — mini-calendar sidebar + month canvas (mirrors .agenda-shell) */
+/* agenda — mini-cal sidebar + day view (mirrors .agenda-shell, default
+   view is "today": toolbar + hero card + event rows, NOT a month grid) */
 .al-pageskel-agenda {
   display: grid;
   grid-template-columns: 1fr;
@@ -1376,29 +1377,43 @@ body[data-page="chat"] .al-search { display: none !important; }
 }
 @media (min-width: 901px) { .al-pageskel-agenda { grid-template-columns: 280px 1fr; } }
 .al-pageskel-sidetitle { width: 50%; height: 12px; margin-bottom: 14px; }
+.al-pageskel-minical-head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.al-pageskel-minical-head .al-skel:first-child { width: 96px; height: 12px; }
+.al-pageskel-minical-head .al-skel:last-child  { width: 44px; height: 16px; }
 .al-pageskel-minical {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: 2px;
+}
+.al-pageskel-minical .al-skel { aspect-ratio: 1; border-radius: 4px; }
+.al-pageskel-agendaside .al-pageskel-row { padding-left: 0; padding-right: 0; }
+.al-pageskel-agtoolbar {
+  display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--al-s-5, 20px);
 }
-.al-pageskel-minical .al-skel { aspect-ratio: 1; border-radius: 6px; }
-.al-pageskel-agendaside .al-pageskel-row { padding-left: 0; padding-right: 0; }
-.al-pageskel-calhead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--al-s-4, 16px);
+.al-pageskel-agtitle  { width: 200px; max-width: 50%; height: 20px; }
+.al-pageskel-agswitch { width: 200px; height: 34px; border-radius: var(--al-r-pill); flex: none; }
+.al-pageskel-todaycard {
+  border-left: 3px solid var(--al-bronze, #9a7b4f);
+  padding: 22px 24px;
+  margin-bottom: var(--al-s-5, 20px);
 }
-.al-pageskel-calhead .al-skel:first-child { width: 160px; height: 18px; }
-.al-pageskel-calhead .al-skel:last-child  { width: 120px; height: 32px; border-radius: var(--al-r-pill); }
-.al-pageskel-calgrid {
+.al-pageskel-events { display: flex; flex-direction: column; gap: 10px; }
+.al-pageskel-eventrow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  grid-template-columns: 64px 4px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08));
+  border-radius: var(--al-r-sm);
 }
-.al-pageskel-calgrid .al-skel { height: 84px; border-radius: var(--al-r-sm); opacity: 0.7; }
-@media (max-width: 640px) { .al-pageskel-calgrid .al-skel { height: 48px; } }
+.al-pageskel-evtime { height: 12px; }
+.al-pageskel-evmark { width: 4px; height: 32px; border-radius: 2px; }
+.al-pageskel-evtag  { width: 70px; height: 18px; border-radius: var(--al-r-pill); }
 
 /* settings hub — two-column grid of preference panels */
 .al-pageskel-setgrid {
@@ -1425,6 +1440,151 @@ body[data-page="chat"] .al-search { display: none !important; }
 
 /* stat trio (il mio percorso) */
 @media (min-width: 768px) { .al-pageskel-kpis.al-pageskel-kpis-3 { grid-template-columns: repeat(3, 1fr); } }
+
+/* full-bleed (chat conversation) — cancel the .al-page p-4/sm:p-8 padding */
+.al-pageskel-bleed { margin: -16px; }
+@media (min-width: 640px) { .al-pageskel-bleed { margin: -32px; } }
+
+/* flush-card header bar (al-card-head): title block + "see all" link */
+.al-pageskel-cardbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--al-s-4, 16px) var(--al-s-6, 24px);
+  border-bottom: 1px solid var(--al-rule, rgba(20,17,13,0.12));
+}
+.al-pageskel-cardbar-main { flex: 1; min-width: 0; }
+.al-pageskel-cardbar-main .al-skel:first-child { width: 64px; height: 9px; margin-bottom: 8px; }
+.al-pageskel-cardbar-main .al-skel:last-child  { width: 120px; height: 16px; }
+.al-pageskel-cardbar-link { width: 72px; height: 12px; flex: none; }
+
+/* filter bar (athletes roster): search box + select dropdowns */
+.al-pageskel-filterbar {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  margin-bottom: var(--al-s-6, 24px);
+}
+.al-pageskel-search { width: 320px; max-width: 100%; height: 42px; border-radius: var(--al-r-md); }
+.al-pageskel-fsel   { width: 180px; height: 42px; border-radius: var(--al-r-md); }
+
+/* data table (al-table): head strip + body rows */
+.al-pageskel-thead {
+  display: flex; gap: var(--al-s-5, 20px);
+  padding: 12px 24px;
+  background: var(--al-marble-w, #f4efe4);
+  border-bottom: 1px solid var(--al-rule-strong, rgba(20,17,13,0.16));
+}
+.al-pageskel-thead .al-skel { flex: 1; height: 9px; }
+.al-pageskel-trow {
+  display: flex; align-items: center; gap: var(--al-s-5, 20px);
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06));
+}
+.al-pageskel-trow:last-child { border-bottom: 0; }
+.al-pageskel-trow-id { display: flex; align-items: center; gap: 12px; flex: 1.6; min-width: 0; }
+.al-pageskel-trow-id .al-pageskel-row-main .al-skel:first-child { width: 60%; height: 11px; margin-bottom: 7px; }
+.al-pageskel-trow-id .al-pageskel-row-main .al-skel:last-child  { width: 80%; height: 8px; }
+.al-pageskel-tcell { flex: 1; height: 11px; }
+.al-pageskel-tact  { width: 56px; height: 28px; border-radius: var(--al-r-pill); flex: none; }
+@media (max-width: 720px) {
+  .al-pageskel-thead, .al-pageskel-tcell { display: none; }
+  .al-pageskel-trow { justify-content: space-between; }
+  .al-pageskel-tact { display: block; }
+}
+
+/* library card grid (workouts / supplements / nutrition plans) — md2 lg3 */
+.al-pageskel-cardgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-5, 20px);
+}
+@media (min-width: 768px)  { .al-pageskel-cardgrid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .al-pageskel-cardgrid { grid-template-columns: repeat(3, 1fr); } }
+.al-pageskel-wcard { display: flex; flex-direction: column; min-height: 230px; }
+.al-pageskel-wcard-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.al-pageskel-badge { width: 78px; height: 22px; border-radius: var(--al-r-pill); }
+.al-pageskel-wcard-title { width: 70%; height: 18px; margin-bottom: 12px; }
+.al-pageskel-wcard-desc  { width: 100%; height: 10px; margin-bottom: 8px; }
+.al-pageskel-wcard-meta  { display: flex; gap: 14px; margin: 16px 0; }
+.al-pageskel-wcard-meta .al-skel { width: 52px; height: 10px; }
+.al-pageskel-wcard-foot {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: auto; padding-top: 14px;
+  border-top: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06));
+}
+.al-pageskel-wcard-foot .al-skel:first-child { flex: 1; height: 34px; border-radius: var(--al-r-md); }
+.al-pageskel-wcard-icon { width: 34px; height: 34px; border-radius: var(--al-r-md); flex: none; }
+
+/* nutrition library — folder sidebar + card grid (mirrors .wb-shell) */
+.al-pageskel-nutri {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--al-s-6, 24px);
+  align-items: start;
+}
+@media (min-width: 1024px) { .al-pageskel-nutri { grid-template-columns: 280px minmax(0, 1fr); } }
+.al-pageskel-folderrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+}
+.al-pageskel-folderrow .al-skel:first-child { flex: 1; height: 12px; }
+.al-pageskel-foldercount { width: 22px; height: 14px; border-radius: 6px; flex: none; }
+
+/* subscriptions plan grid — md2 xl3 2xl4 */
+.al-pageskel-plangrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-5, 20px);
+}
+@media (min-width: 768px)  { .al-pageskel-plangrid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1280px) { .al-pageskel-plangrid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1536px) { .al-pageskel-plangrid { grid-template-columns: repeat(4, 1fr); } }
+.al-pageskel-plancard { padding: 0; overflow: hidden; }
+.al-pageskel-plancard-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 18px 22px 16px;
+}
+.al-pageskel-plancard-name  { width: 55%; height: 17px; }
+.al-pageskel-plancard-price { width: 56px; height: 24px; }
+.al-pageskel-plancard-body {
+  padding: 16px 22px; border-top: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06));
+}
+.al-pageskel-plancard-body .al-skel { height: 10px; margin-bottom: 8px; }
+.al-pageskel-plancard-meta { display: flex; gap: 14px; margin-top: 14px; }
+.al-pageskel-plancard-meta .al-skel { width: 60px; }
+.al-pageskel-plancard-foot {
+  display: flex; gap: 8px; padding: 12px 18px;
+  border-top: 1px solid var(--al-rule, rgba(20,17,13,0.12));
+  background: var(--al-marble-warm, #f4efe4);
+}
+.al-pageskel-plancard-foot .al-skel { flex: 1; height: 32px; border-radius: var(--al-r-md); }
+
+/* chat index — flush list of conversation rows */
+.al-pageskel-clrow {
+  display: flex; align-items: center; gap: var(--al-s-4, 16px);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.06));
+}
+.al-pageskel-clrow:last-child { border-bottom: 0; }
+.al-pageskel-clrow .al-pageskel-row-main .al-skel:first-child { width: 35%; height: 14px; margin-bottom: 9px; }
+.al-pageskel-clrow .al-pageskel-row-main .al-skel:last-child  { width: 65%; height: 10px; }
+.al-pageskel-clmeta { flex: none; }
+.al-pageskel-clmeta .al-skel { width: 56px; height: 10px; }
+
+/* numbered form section card: section head + 2-col field grid */
+.al-pageskel-formcard-head {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 22px;
+}
+.al-pageskel-formnum   { width: 22px; height: 9px; }
+.al-pageskel-formtitle { width: 160px; height: 16px; }
+.al-pageskel-fieldgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--al-s-5, 20px);
+}
+@media (min-width: 640px) { .al-pageskel-fieldgrid { grid-template-columns: repeat(2, 1fr); } }
+.al-pageskel-fieldgrid .al-pageskel-field { margin-bottom: 0; }
+
+/* builder / wizard — step pills above a sidebar + canvas */
+.al-pageskel-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: var(--al-s-6, 24px); }
+.al-pageskel-pill  { width: 120px; height: 38px; border-radius: var(--al-r-sm); }
 
 /* ---------- Toast ---------- */
 .al-toast {
