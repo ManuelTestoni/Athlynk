@@ -329,7 +329,7 @@ if not DEBUG:
     # Hosts allowed to submit CSRF-protected forms (full https origins).
     CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='https://athlynk-production.up.railway.app',
+    default='https://app.athlynk.it,https://athlynk-production.up.railway.app',
     cast=Csv()
 )
 

@@ -4,7 +4,7 @@
 //
 //  Keys (add to each target's Info.plist, values supplied by the matching
 //  xcconfig — see Debug.xcconfig / Staging.xcconfig / Release.xcconfig):
-//    API_BASE_URL      e.g. http://localhost:8000  |  https://api.athlynk.app
+//    API_BASE_URL      e.g. http://localhost:8000  |  https://app.athlynk.it
 //    POSTHOG_API_KEY   PostHog project write key (empty -> analytics off)
 //    POSTHOG_HOST      https://eu.i.posthog.com
 //    ENVIRONMENT       development | staging | production
@@ -24,7 +24,7 @@ enum AppConfig {
 
     /// Backend base URL. Falls back to the local dev server.
     static var apiBaseURL: String {
-        string("API_BASE_URL") ?? "https://athlynk-production.up.railway.app"
+        string("API_BASE_URL") ?? "https://app.athlynk.it"
     }
 
     /// PostHog project key; empty/absent disables analytics entirely.

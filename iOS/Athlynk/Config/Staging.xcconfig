@@ -2,7 +2,7 @@
 // it at this file. Use a SEPARATE PostHog project key from production so staging
 // traffic never lands in production analytics.
 
-API_BASE_URL = https:$()//athlynk-production.up.railway.app
+API_BASE_URL = https:$()//app.athlynk.it
 POSTHOG_API_KEY =
 POSTHOG_HOST = https:$()//eu.i.posthog.com
 ENVIRONMENT = staging

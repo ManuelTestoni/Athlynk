@@ -331,7 +331,7 @@ def _notify_client_new_instance(instance):
             f'Ciao {client.first_name},\n\n'
             f'Il tuo coach {coach.first_name} {coach.last_name} ti ha inviato un check da compilare: «{title}».\n\n'
             f'Hai tempo fino al {instance.expires_at.strftime("%d/%m/%Y alle %H:%M")} per compilarlo.\n\n'
-            f'Accedi alla piattaforma: https://athlynk.it/check/i-miei-check/\n\n'
+            f'Accedi alla piattaforma: {settings.SITE_URL}/check/i-miei-check/\n\n'
             f'Saluti,\nAthlynk'
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
@@ -350,7 +350,7 @@ def _notify_coach_check_completed(instance):
         message=(
             f'Ciao {coach.first_name},\n\n'
             f'{client.first_name} {client.last_name} ha compilato il check «{title}».\n\n'
-            f'Accedi alla piattaforma per revisionarlo: https://athlynk.it/check/\n\n'
+            f'Accedi alla piattaforma per revisionarlo: {settings.SITE_URL}/check/\n\n'
             f'Saluti,\nAthlynk'
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
