@@ -9,6 +9,21 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
 
+    <!-- Link preview (chat/social): Athlynk logo card. noindex still applies for SEO. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Athlynk">
+    <meta property="og:title" content="{% block og_title %}Athlynk — Il corpo è l'opera{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}La piattaforma e il gestionale per coach: allenamento, nutrizione e dati in un unico metodo.{% endblock %}">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-cover.png' %}">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Athlynk — Il corpo è l'opera">
+    <meta property="og:locale" content="it_IT">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Athlynk">
+    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-cover.png' %}">
+
     <!-- Fonts: Athlynk (Bodoni Moda + Inter + JetBrains Mono) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

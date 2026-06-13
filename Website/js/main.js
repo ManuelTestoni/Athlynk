@@ -48,7 +48,7 @@
   });
 
   /* ---------- active nav link on scroll ---------- */
-  const sections = ["hero", "chiron", "pricing", "about", "faq"]
+  const sections = ["hero", "chiron", "studio", "pricing", "about", "faq"]
     .map((id) => document.getElementById(id))
     .filter(Boolean);
   const navLinks = [...document.querySelectorAll(".main-nav .nav-link")];
@@ -230,4 +230,33 @@
       if (item.open) faqItems.forEach((other) => { if (other !== item) other.open = false; });
     });
   });
+
+  /* ---------- Chiron toggle: add supplement to every plan ---------- */
+  const chironSwitch = document.getElementById("chironSwitch");
+  const chironToggle = document.getElementById("chironToggle");
+  if (chironSwitch && chironToggle) {
+    const supplement = parseInt(chironSwitch.dataset.chironSupplement, 10) || 0;
+    const cards = [...document.querySelectorAll(".price-card[data-base]")];
+
+    const setChiron = (on) => {
+      chironToggle.setAttribute("aria-checked", String(on));
+      cards.forEach((card) => {
+        const base = parseInt(card.dataset.base, 10);
+        const numEl = card.querySelector("[data-price]");
+        const chironLine = card.querySelector(".price-chiron");
+        if (numEl) {
+          numEl.classList.add("flip");
+          setTimeout(() => {
+            numEl.textContent = on ? base + supplement : base;
+            numEl.classList.remove("flip");
+          }, 130);
+        }
+        if (chironLine) chironLine.hidden = !on;
+      });
+    };
+
+    chironToggle.addEventListener("click", () => {
+      setChiron(chironToggle.getAttribute("aria-checked") !== "true");
+    });
+  }
 })();

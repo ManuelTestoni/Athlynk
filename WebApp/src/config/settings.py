@@ -73,6 +73,7 @@ APNS_USE_SANDBOX = config('APNS_USE_SANDBOX', default=True, cast=bool)
 # EMAIL_MODE selects the backend. Values:
 #   console          -> stdout (default in dev)
 #   file             -> writes to tmp/emails/
+#   resend           -> Resend SMTP relay, auth via RESEND_API_KEY (production)
 #   smtp_test        -> real SMTP with a personal test inbox (Gmail/Outlook)
 #   smtp_production  -> real SMTP with provider/domain credentials
 EMAIL_MODE = config('EMAIL_MODE', default='console')
@@ -82,6 +83,16 @@ if EMAIL_MODE == 'console':
 elif EMAIL_MODE == 'file':
     EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
     EMAIL_FILE_PATH = BASE_DIR.parent / 'tmp' / 'emails'
+elif EMAIL_MODE == 'resend':
+    # Resend SMTP relay. Username is the literal "resend"; the password is the
+    # Resend API key. The sending domain (athlynk.it) must be verified in Resend.
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.resend.com')
+    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='resend')
+    EMAIL_HOST_PASSWORD = config('RESEND_API_KEY', default='')
 else:  # smtp_test or smtp_production
     EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
     EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')

@@ -18,9 +18,14 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="Athlynk | {% block legal_og_title %}Informative legali{% endblock %}">
     <meta property="og:url" content="{{ SITE_URL }}{{ request.path }}">
-    <meta property="og:image" content="{{ SITE_URL }}{% static 'img/AthlynkLogo.png' %}">
+    <meta property="og:image" content="{{ SITE_URL }}{% static 'img/og-cover.png' %}">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Athlynk — Il corpo è l'opera">
     <meta property="og:locale" content="it_IT">
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ SITE_URL }}{% static 'img/og-cover.png' %}">
     {% include 'partials/seo_jsonld.html' %}
 
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
