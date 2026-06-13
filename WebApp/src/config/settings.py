@@ -23,6 +23,15 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,athlynk-production.up.railway.app,app.athlynk.it', cast=Csv())
 
+# Force-trust our own hosts even when an explicit ALLOWED_HOSTS env var is set
+# (a stale value that omits the current domain would otherwise raise
+# DisallowedHost -> 400 Bad Request). Railway injects RAILWAY_PUBLIC_DOMAIN at
+# runtime; trust it too so the service host is never rejected after a rename.
+RAILWAY_PUBLIC_DOMAIN = config('RAILWAY_PUBLIC_DOMAIN', default='')
+for _host in ('app.athlynk.it', 'athlynk-production.up.railway.app', RAILWAY_PUBLIC_DOMAIN):
+    if _host and _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 CONSENT_VERSION = config('CONSENT_VERSION', default='2026-06-11.v1')
 
@@ -332,5 +341,14 @@ if not DEBUG:
     default='https://app.athlynk.it,https://athlynk-production.up.railway.app',
     cast=Csv()
 )
+    # Mirror the ALLOWED_HOSTS hardening: guarantee our own origins are trusted
+    # for CSRF even if an explicit env var omits them, so login POSTs don't 403.
+    for _origin in (
+        'https://app.athlynk.it',
+        'https://athlynk-production.up.railway.app',
+        f'https://{RAILWAY_PUBLIC_DOMAIN}' if RAILWAY_PUBLIC_DOMAIN else '',
+    ):
+        if _origin and _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
 
 
