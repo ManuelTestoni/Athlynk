@@ -17,6 +17,7 @@ import json
 import logging
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.utils.dateparse import parse_date
 from django.core import signing
@@ -42,7 +43,7 @@ from domain.checks.anthropometry import (
     circ_label, skin_label, circ_range, skin_range, WEIGHT_RANGE,
 )
 from .session_utils import get_active_relationships
-from .services import ratelimit
+from .services import ratelimit, sanitize
 from .services.images import is_image, to_webp
 from .views_check import build_measurements, RESERVED_FIELD_MAP
 
@@ -60,6 +61,57 @@ LOGIN_RATE_LIMIT = 5
 LOGIN_RATE_WINDOW_SECONDS = 15 * 60
 LOGIN_EMAIL_RATE_LIMIT = 10
 LOGIN_EMAIL_RATE_WINDOW_SECONDS = 15 * 60
+
+# HTTP methods that mutate state — get the (stricter) write rate-limit bucket.
+_WRITE_METHODS = frozenset({'POST', 'PUT', 'PATCH', 'DELETE'})
+
+
+def _rl_conf(key, fallback):
+    return int((getattr(settings, 'API_RATE_LIMITS', {}) or {}).get(key, fallback))
+
+
+def _too_many_requests():
+    window = _rl_conf('window_seconds', 60)
+    resp = JsonResponse({'error': 'Troppe richieste. Riprova tra poco.'}, status=429)
+    resp['Retry-After'] = str(window)
+    return resp
+
+
+def _api_throttle(request, ident, is_write):
+    """Per-user + per-IP rate limit for a token-authenticated API call. Reads and
+    writes use separate buckets so a write burst can't starve reads. Returns a
+    429 JsonResponse when either bucket is exhausted, else None."""
+    window = _rl_conf('window_seconds', 60)
+    per_user = _rl_conf('write_per_min', 30) if is_write else _rl_conf('read_per_min', 120)
+    ip_limit = per_user * _rl_conf('ip_multiplier', 2)
+    kind = 'w' if is_write else 'r'
+    user_ok, _ = ratelimit.hit(f'api_{kind}_u', ident, per_user, window)
+    ip = ratelimit.client_ip(request)
+    ip_ok, _ = ratelimit.hit(f'api_{kind}_ip', ip, ip_limit, window)
+    if user_ok and ip_ok:
+        return None
+    logger.warning('api.rate_limited ident=%s ip=%s write=%s user_ok=%s ip_ok=%s',
+                   ident, ip, is_write, user_ok, ip_ok)
+    return _too_many_requests()
+
+
+def _builder_throttle(request, ident):
+    """Looser single-bucket limit for coach_dual_auth endpoints (web plan
+    builders autosave frequently). Throttles abusive volume without tripping on
+    legitimate editing. Keyed by the resolved coach/session, falling back to IP."""
+    window = _rl_conf('window_seconds', 60)
+    limit = _rl_conf('builder_per_min', 120)
+    if ident:
+        ok, _ = ratelimit.hit('api_builder', ident, limit, window)
+        if not ok:
+            logger.warning('api.builder_rate_limited ident=%s', ident)
+            return _too_many_requests()
+    ip = ratelimit.client_ip(request)
+    ip_ok, _ = ratelimit.hit('api_builder_ip', ip, limit * _rl_conf('ip_multiplier', 2), window)
+    if not ip_ok:
+        logger.warning('api.builder_rate_limited ip=%s', ip)
+        return _too_many_requests()
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +155,23 @@ def api_view(methods):
             user = _user_from_token(_bearer(request) or '')
             if not user:
                 return JsonResponse({'error': 'Non autenticato'}, status=401)
+            is_write = request.method in _WRITE_METHODS
+            # Pre-parse + sanitize JSON write bodies so a malformed, oversized or
+            # control-char-laden body yields a clean 400 before the view runs and
+            # `_body()` can reuse the cleaned dict. Multipart/form uploads (e.g.
+            # photo, chat attachment) carry a non-JSON Content-Type — leave their
+            # body for the view to read so we never touch request.body too early.
+            if is_write:
+                ctype = (request.META.get('CONTENT_TYPE') or '').lower()
+                if not ctype or 'application/json' in ctype:
+                    try:
+                        cleaned = sanitize.clean_payload(sanitize.safe_json(request.body))
+                    except sanitize.InvalidInput as exc:
+                        return JsonResponse({'error': str(exc)}, status=400)
+                    request._clean_body = cleaned if isinstance(cleaned, dict) else {}
+            throttled = _api_throttle(request, f'u{user.id}', is_write)
+            if throttled:
+                return throttled
             return view(request, user, *args, **kwargs)
         wrapper.__name__ = view.__name__
         return wrapper
@@ -142,7 +211,19 @@ def coach_dual_auth(view):
         # Authorization header must never disable CSRF for a cookie-auth request.
         bearer = _bearer(request)
         token_user = _user_from_token(bearer) if bearer else None
-        if token_user is not None and not request.session.get('user_id'):
+        is_token = token_user is not None and not request.session.get('user_id')
+        # Rate limit by the resolved coach/session identity (IP-only as fallback)
+        # before doing any work. Looser bucket than the mobile API: these back
+        # the web plan builders, which autosave often.
+        if is_token:
+            ident = f'u{token_user.id}'
+        else:
+            sid = request.session.get('user_id')
+            ident = f's{sid}' if sid else ''
+        throttled = _builder_throttle(request, ident)
+        if throttled:
+            return throttled
+        if is_token:
             return view(request, *args, **kwargs)
         # Browser/session request → enforce CSRF as usual.
         reason = CsrfViewMiddleware(lambda r: None).process_view(request, view, args, kwargs)
@@ -155,10 +236,24 @@ def coach_dual_auth(view):
 
 
 def _body(request):
+    """Return the parsed + sanitized JSON body as a dict.
+
+    Every string value has been NFKC-normalized and stripped of control chars by
+    `sanitize.clean_payload` (passwords/tokens excepted). Returns {} for a
+    missing, invalid, oversized or non-object body — callers treat absent keys as
+    not-provided. The api_view decorator pre-parses write requests (so it can
+    surface a precise 400); this reuses that cached result when present."""
+    cached = getattr(request, '_clean_body', None)
+    if cached is not None:
+        return cached
     try:
-        return json.loads(request.body or b'{}')
-    except (ValueError, TypeError):
-        return {}
+        data = sanitize.clean_payload(sanitize.safe_json(request.body))
+    except sanitize.InvalidInput:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    request._clean_body = data
+    return data
 
 
 def _iso(dt):
@@ -1384,8 +1479,8 @@ def check_submit(request, user, instance_id):
     # the submit carries image attachments.
     if request.content_type and 'multipart' in request.content_type:
         try:
-            answers = json.loads(request.POST.get('answers') or '{}')
-        except json.JSONDecodeError:
+            answers = sanitize.clean_payload(json.loads(request.POST.get('answers') or '{}'))
+        except (json.JSONDecodeError, sanitize.InvalidInput):
             answers = None
     else:
         answers = (_body(request) or {}).get('answers') or {}

@@ -218,6 +218,26 @@ SANITIZE_LIMITS = {
     'short_text_chars': 200,
     'long_text_chars': 5000,
     'email_chars': 254,
+    # Per-string cap applied by the blanket sanitize.clean_payload pass on every
+    # JSON API body. Generous so it acts as a DoS safety net, not a field
+    # validator — tighter per-field caps stay the model/view's job.
+    'payload_text_chars': 20000,
+}
+
+# Per-request API rate limits (fixed window, cache-backed via services.ratelimit).
+# Enforced inside the api_view / coach_dual_auth decorators, so every mobile and
+# dual-auth endpoint is covered. Reads = GET/HEAD; writes = POST/PUT/PATCH/DELETE.
+# A parallel per-IP bucket runs at `ip_multiplier`x the per-user cap so a single
+# host can't bypass the per-user limit by minting many tokens. `builder_per_min`
+# is a separate, looser bucket for coach_dual_auth (web plan builders autosave on
+# a 1.5s debounce, so they need headroom a 30/min write cap wouldn't give).
+# Raise any value if legitimate clients hit 429.
+API_RATE_LIMITS = {
+    'read_per_min': 120,
+    'write_per_min': 30,
+    'builder_per_min': 120,
+    'ip_multiplier': 2,
+    'window_seconds': 60,
 }
 SANITIZE_ALLOWED_IMAGE_MIMES = ('image/jpeg', 'image/png', 'image/webp')
 

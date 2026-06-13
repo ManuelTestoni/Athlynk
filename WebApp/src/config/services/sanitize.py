@@ -131,3 +131,47 @@ def get_in(d: dict, key: str, default=None):
     if isinstance(v, str) and not v.strip():
         return default
     return v
+
+
+# Keys whose values must pass through untouched: secrets where every byte is
+# significant (NFKC-normalizing or trimming a password would corrupt it).
+# Matched case-insensitively against dict keys.
+_SKIP_CLEAN_KEYS = frozenset({
+    'password', 'old_password', 'new_password', 'current_password',
+    'password_confirm', 'token', 'refresh_token', 'access_token',
+})
+
+# Hard cap on nesting depth — a deeply nested JSON payload is almost always an
+# attack (stack exhaustion / amplification), never legitimate app input.
+_MAX_PAYLOAD_DEPTH = 32
+
+
+def clean_payload(data, *, _depth: int = 0):
+    """Recursively sanitize every string in a decoded JSON payload.
+
+    Applies `clean_text` (NFKC normalize, strip control chars, length cap, with
+    newlines preserved) to all string values and dict keys. Numbers, bools and
+    None pass through unchanged. Secret-bearing keys (see `_SKIP_CLEAN_KEYS`) are
+    returned verbatim. Raises `InvalidInput` on an over-long string or a payload
+    nested past `_MAX_PAYLOAD_DEPTH`.
+
+    This is the single chokepoint that lets the JSON API satisfy "sanitize all
+    text" without per-field edits: the view decoders run every body through it.
+    """
+    if _depth > _MAX_PAYLOAD_DEPTH:
+        raise InvalidInput("payload troppo annidato")
+    if isinstance(data, dict):
+        out = {}
+        for key, value in data.items():
+            clean_key = clean_short_text(key, field='chiave') if isinstance(key, str) else key
+            if isinstance(key, str) and key.lower() in _SKIP_CLEAN_KEYS:
+                out[clean_key] = value
+            else:
+                out[clean_key] = clean_payload(value, _depth=_depth + 1)
+        return out
+    if isinstance(data, list):
+        return [clean_payload(v, _depth=_depth + 1) for v in data]
+    if isinstance(data, str):
+        return clean_text(data, max_chars=_limit('payload_text_chars', 20000),
+                          allow_newlines=True, field='campo')
+    return data
