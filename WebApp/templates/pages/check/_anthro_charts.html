@@ -1,0 +1,307 @@
+{% comment %}
+Blocco grafici antropometrici riusabile (peso / circonferenze / pliche).
+Stessa logica e visualizzazione su atleta e coach: medie settimanali,
+timeline scorribile, zoom 1M/3M, asse Y fisso. Si appoggia a
+static/js/check_progress.js + window._chartData.
+
+Context atteso:
+  chart_data_json  -> JSON da _build_chart_data(target_client)
+  new_check_url    -> (opzionale) href per l'empty-state di una metrica
+{% endcomment %}
+{% load static %}
+{% load safejson %}
+<style>
+  /* ---------- Modulo antropometrico — polish locale ---------- */
+  .pc-card{
+    position:relative;
+    overflow:hidden;
+    transition: transform .35s var(--al-ease), box-shadow .35s var(--al-ease);
+  }
+  .pc-card:hover{
+    transform: translateY(-2px);
+    box-shadow: var(--al-shadow-2);
+  }
+  .pc-card::after{
+    content:"";
+    position:absolute; inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(120% 60% at 100% 0%, rgba(138,106,58,0.06), transparent 60%),
+      radial-gradient(120% 60% at 0% 100%, rgba(28,74,82,0.04), transparent 55%);
+  }
+  .pc-card > *{ position:relative; z-index:1; }
+
+  .pc-num{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    color: var(--al-ink-mute);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .pc-num::before{
+    content:"";
+    width:18px; height:1px;
+    background: var(--al-bronze);
+  }
+
+  .pc-stat{
+    display:flex; align-items:baseline; gap:.5rem;
+    flex-wrap: wrap;
+    font-family: var(--al-display);
+    font-weight: 500;
+  }
+  .pc-stat-value{
+    font-size: 1.85rem;
+    line-height: 1;
+    color: var(--al-ink);
+    font-style: italic;
+  }
+  .pc-stat-unit{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing:.12em;
+    color: var(--al-ink-mute);
+    text-transform: uppercase;
+  }
+  .pc-delta{
+    font-family: var(--al-mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--al-r-pill);
+    display:inline-flex; align-items:center; gap:4px;
+    white-space: nowrap;
+  }
+  .pc-delta-up   { background: rgba(74,107,58,0.12);  color: var(--al-success); }
+  .pc-delta-down { background: rgba(28,74,82,0.10);   color: var(--al-aegean);  }
+  .pc-delta-flat { background: rgba(91,85,74,0.10);   color: var(--al-ink-mute); }
+
+  .pc-meta{
+    font-family: var(--al-mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    color: var(--al-ink-mute);
+    margin-top: 6px;
+  }
+
+  /* Toggle ampiezza finestra (1M / 3M) */
+  .pc-zoom-row{
+    display:flex;
+    justify-content:flex-end;
+    margin: -6px 0 6px;
+  }
+  .pc-zoom{
+    display:inline-flex;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-pill);
+    background: var(--al-parchment);
+    padding: 2px;
+    gap: 2px;
+  }
+  .pc-zoom button{
+    font-family: var(--al-mono);
+    font-size: 9px;
+    letter-spacing: .08em;
+    padding: 2px 8px;
+    border-radius: var(--al-r-pill);
+    color: var(--al-ink-mute);
+    transition: background .2s, color .2s;
+  }
+  .pc-zoom button.is-on{
+    background: var(--al-bronze);
+    color: #f4efe4;
+  }
+
+  .pc-chart-wrap{
+    position: relative;
+    height: 230px;
+  }
+  @media (max-width: 1023px){
+    .pc-chart-wrap{ height: 270px; }
+  }
+
+  /* Timeline scorrevole: con molti punti la tela si allarga oltre la card
+     e si esplora trascinando col mouse (drag) o con trackpad / swipe,
+     partendo dalle settimane più recenti. */
+  .pc-scroll{
+    position:absolute; inset:0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(138,106,58,0.35) transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+  }
+  .pc-scroll::-webkit-scrollbar{ height: 6px; }
+  .pc-scroll::-webkit-scrollbar-thumb{
+    background: rgba(138,106,58,0.30);
+    border-radius: 999px;
+  }
+  .pc-scroll::-webkit-scrollbar-track{ background: transparent; }
+  .pc-scroll-inner{
+    position: relative;
+    height: 100%;
+    min-width: 100%;
+  }
+
+  /* Asse Y fisso sopra la timeline scorrevole: i valori restano leggibili
+     a ogni posizione di scroll. Tinta = sfondo card (--al-marble) con coda
+     trasparente dello stesso colore: blend continuo col grafico, nessun
+     distacco/bianco mentre la timeline scorre sotto. */
+  .pc-yaxis{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width: 46px;
+    pointer-events:none;
+    z-index: 2;
+    background: linear-gradient(90deg,
+      var(--al-marble) 0%,
+      var(--al-marble) 46%,
+      rgba(236,229,214,0.86) 66%,
+      rgba(236,229,214,0) 100%);
+  }
+  .pc-yaxis span{
+    position:absolute;
+    left: 0;
+    width: 30px;
+    text-align: right;
+    transform: translateY(-50%);
+    font-family: var(--al-mono);
+    font-size: 10px;
+    color: #5b554a;
+    line-height: 1;
+  }
+
+  /* Skeleton shimmer */
+  .pc-skel{
+    position:absolute; inset:0;
+    display:flex; align-items:flex-end; gap:8px;
+    padding: 12px 4px 6px;
+    transition: opacity .45s var(--al-ease);
+  }
+  .pc-skel.is-hidden{ opacity:0; pointer-events:none; }
+  .pc-skel span{
+    flex:1;
+    background: linear-gradient(180deg,
+      rgba(138,106,58,0.10) 0%,
+      rgba(28,74,82,0.06) 100%);
+    border-radius: 2px;
+    transform-origin: bottom;
+    animation: pc-pulse 1.4s var(--al-ease) infinite;
+  }
+  .pc-skel span:nth-child(1){ animation-delay: 0s;    height: 38%; }
+  .pc-skel span:nth-child(2){ animation-delay: .08s; height: 62%; }
+  .pc-skel span:nth-child(3){ animation-delay: .16s; height: 48%; }
+  .pc-skel span:nth-child(4){ animation-delay: .24s; height: 78%; }
+  .pc-skel span:nth-child(5){ animation-delay: .32s; height: 56%; }
+  .pc-skel span:nth-child(6){ animation-delay: .40s; height: 88%; }
+  .pc-skel span:nth-child(7){ animation-delay: .48s; height: 70%; }
+  .pc-skel span:nth-child(8){ animation-delay: .56s; height: 94%; }
+  @keyframes pc-pulse{
+    0%, 100%{ opacity:.45; transform: scaleY(.96); }
+    50%     { opacity:.95; transform: scaleY(1.02); }
+  }
+
+  .pc-canvas{
+    opacity: 0;
+    transition: opacity .55s var(--al-ease);
+  }
+  .pc-canvas.is-ready{ opacity: 1; }
+
+  .pc-mini-select{
+    font-family: var(--al-mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    padding: 4px 24px 4px 10px;
+    border-radius: var(--al-r-pill);
+    border: 1px solid var(--al-rule);
+    background: var(--al-parchment);
+    color: var(--al-ink);
+    /* Cap fisso + ellissi: il browser dimensiona la select sull'option più
+       lunga; senza tetto la tendina di circonferenze/pliche si allarga e
+       invade il titolo. Il nome completo resta nell'<h2> della card, quindi
+       qui basta l'etichetta troncata. */
+    max-width: 8.5rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a6a3a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .pc-mini-select:focus{
+    outline:none;
+    border-color: var(--al-bronze);
+    box-shadow: var(--al-shadow-glow-bronze);
+  }
+
+  .pc-divider{
+    height:1px;
+    background: linear-gradient(90deg, transparent, var(--al-rule), transparent);
+    margin: 14px 0 16px;
+  }
+
+  /* Empty state della singola card */
+  .pc-empty{
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap: 10px;
+    padding: 56px 20px;
+    color: var(--al-ink-mute);
+  }
+  .pc-empty i{
+    font-size: 30px;
+    color: var(--al-bronze);
+    opacity: .6;
+  }
+  .pc-empty p{
+    font-family: var(--al-display);
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  /* Griglia card: i 3 grafici restano sempre allineati su una riga
+     da desktop in su; impilati solo su schermi stretti. CSS puro:
+     la build Tailwind locale non include tutte le varianti. */
+  .pc-grid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 1024px){
+    .pc-grid{ grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Fade-in dal basso */
+  .pc-rise{
+    opacity: 0;
+    transform: translateY(14px);
+    animation: pc-rise .7s var(--al-ease) forwards;
+  }
+  @keyframes pc-rise{
+    to { opacity:1; transform: translateY(0); }
+  }
+  .pc-rise[data-d="1"]{ animation-delay: .08s; }
+  .pc-rise[data-d="2"]{ animation-delay: .18s; }
+  .pc-rise[data-d="3"]{ animation-delay: .28s; }
+</style>
+
+<!-- Tre card antropometriche -->
+<div class="pc-grid">
+  {% include 'pages/check/_anthro_card.html' with kind='weight' num='01' title='Peso'          icon='ph-scales'    delay='1' %}
+  {% include 'pages/check/_anthro_card.html' with kind='circ'   num='02' title='Circonferenze' icon='ph-ruler'     delay='2' %}
+  {% include 'pages/check/_anthro_card.html' with kind='skin'   num='03' title='Pliche'        icon='ph-first-aid' delay='3' %}
+</div>
+
+<script>
+window._chartData = {{ chart_data_json|json_js }};
+</script>
+<script src="{% static 'js/check_progress.js' %}?v={{ ASSET_VERSION }}"></script>

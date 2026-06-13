@@ -17,6 +17,7 @@ from domain.workouts.models import WorkoutAssignment
 
 from .session_utils import get_session_client, get_session_coach, get_session_user, get_active_relationship
 from .forms import SubscriptionPlanForm
+from .views_check.helpers import _build_chart_data
 
 
 def coach_clients_list_view(request):
@@ -151,10 +152,16 @@ def coach_client_detail_view(request, client_id):
         .order_by('-assigned_at')
     )
 
+    # Andamento antropometrico: stessa serie usata dalla vista atleta e dallo
+    # storico check (peso / circonferenze / pliche, per atleta — non per coach).
+    chart_data = _build_chart_data(client)
+
     return render(request, 'pages/clienti/detail.html', {
         'coach': coach,
         'client': client,
         'relationship': relationship,
+        'chart_data_json': json.dumps(chart_data),
+        'total_checks': len(chart_data['labels']),
         'active_workout': workout_assignments.filter(status='ACTIVE').first(),
         'workout_assignments': workout_assignments,
         'active_nutrition': nutrition_assignments.filter(status='ACTIVE').first(),

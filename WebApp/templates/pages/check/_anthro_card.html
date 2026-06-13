@@ -5,12 +5,15 @@ Si appoggia ad anthroCard() in static/js/check_progress.js.
 {% endcomment %}
 <div class="al-card pc-card pc-rise" data-d="{{ delay }}" x-data="anthroCard('{{ kind }}')" x-init="init()">
 
-  <!-- Header: numerazione + titolo + (eventuale) selettore misura -->
-  <div class="flex items-start justify-between gap-3">
-    <div class="min-w-0">
+  <!-- Header: numerazione + titolo + (eventuale) selettore misura.
+       Layout uniforme sui 3 grafici: colonna titolo flessibile che tronca,
+       icona non comprimibile, select (solo circ/pliche) a larghezza capovolta
+       e allineata in alto a destra senza invadere il titolo. -->
+  <div class="flex items-start justify-between gap-2.5">
+    <div class="min-w-0 flex-1">
       <p class="pc-num">{{ num }} — {{ title }}</p>
-      <div class="flex items-center gap-2 mt-1">
-        <i class="ph {{ icon }} text-bronze text-base"></i>
+      <div class="flex items-center gap-2 mt-1 min-w-0">
+        <i class="ph {{ icon }} text-bronze text-base shrink-0"></i>
         {% if kind == 'weight' %}
         <h2 class="al-h-4 truncate" style="margin:0;">Peso corporeo</h2>
         {% else %}

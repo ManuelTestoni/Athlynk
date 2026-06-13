@@ -168,6 +168,22 @@
         </div>
     </div>
 
+    <!-- ── Andamento antropometrico (peso · circonferenze · pliche) ──
+         Stessa logica e visualizzazione della vista atleta. -->
+    {% if total_checks > 0 %}
+    {% url 'check_create' as new_check_url %}
+    <div>
+        <div class="flex items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-3">
+                <div class="al-rule-bronze" style="width:32px;"></div>
+                <p class="al-eyebrow" style="color:var(--al-bronze);">Andamento</p>
+            </div>
+            <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico check</a>
+        </div>
+        {% include 'pages/check/_anthro_charts.html' %}
+    </div>
+    {% endif %}
+
     <!-- Timeline percorso atleta -->
     {% with client_id_str=client.id|stringformat:"s" %}
     {% with api_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/" phase_url="/api/coach/clienti/"|add:client_id_str|add:"/percorso/fasi/" can_manage_phases=True %}
