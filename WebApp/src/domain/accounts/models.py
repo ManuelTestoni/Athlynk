@@ -108,6 +108,10 @@ class DeviceToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='device_tokens')
     token = models.CharField(max_length=255, unique=True)
     platform = models.CharField(max_length=16, choices=PLATFORMS, default='ios')
+    # APNs topic = the app's bundle id. Two apps ship from this backend (the
+    # athlete app and the coach app, different bundle ids), so the topic must be
+    # stored per device — a single global APNS_BUNDLE_ID can address only one.
+    bundle_id = models.CharField(max_length=128, blank=True, default='')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

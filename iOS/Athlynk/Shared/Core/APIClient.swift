@@ -189,8 +189,11 @@ final class APIClient {
 
     /// Register this device's APNs token for push. Best-effort, never throws.
     func registerDevice(token: String) async {
+        // Send the app's bundle id so the server can set the correct APNs topic
+        // per device — the athlete and coach apps ship different bundle ids.
+        let bundleId = Bundle.main.bundleIdentifier ?? ""
         _ = try? await request("/api/v1/devices/register", method: "POST",
-                               body: ["token": token, "platform": "ios"])
+                               body: ["token": token, "platform": "ios", "bundle_id": bundleId])
     }
 
     func markNotificationRead(id: Int) async throws {

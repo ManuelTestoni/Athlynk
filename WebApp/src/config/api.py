@@ -903,6 +903,17 @@ def send_message(request, user, conversation_id):
     msg = Message.objects.create(conversation=conv, sender_user=user, body=body, message_type='TEXT')
     conv.last_message_at = msg.sent_at
     conv.save(update_fields=['last_message_at'])
+    # Notify the coach (parity with web chat + the coach→athlete API path), so a
+    # message sent from the athlete app pushes a notification to the coach.
+    client = getattr(user, 'client_profile', None)
+    sender_name = (f"{client.first_name} {client.last_name}".strip() if client else '') or 'Atleta'
+    Notification.objects.create(
+        target_user=conv.coach.user,
+        notification_type='MESSAGE',
+        title=f'Nuovo messaggio da {sender_name}',
+        body=body[:140],
+        link_url='/chat/',
+    )
     return JsonResponse({'id': msg.id, 'sent_at': _iso(msg.sent_at)}, status=201)
 
 
@@ -1122,10 +1133,11 @@ def register_device(request, user):
     if not token:
         return JsonResponse({'error': 'Token mancante'}, status=400)
     platform = (data.get('platform') or 'ios').strip().lower()
-    DeviceToken.objects.update_or_create(
-        token=token,
-        defaults={'user': user, 'platform': platform, 'is_active': True},
-    )
+    bundle_id = (data.get('bundle_id') or '').strip()[:128]
+    defaults = {'user': user, 'platform': platform, 'is_active': True}
+    if bundle_id:
+        defaults['bundle_id'] = bundle_id
+    DeviceToken.objects.update_or_create(token=token, defaults=defaults)
     return JsonResponse({'ok': True})
 
 

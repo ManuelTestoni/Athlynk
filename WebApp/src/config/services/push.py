@@ -82,7 +82,7 @@ def send_push_to_user(user, title, body, data=None, badge=None) -> None:
         tokens = list(
             DeviceToken.objects
             .filter(user=user, is_active=True, platform='ios')
-            .values_list('token', flat=True)
+            .values_list('token', 'bundle_id')
         )
         if not tokens:
             return
@@ -103,14 +103,18 @@ def _dispatch(tokens, title, body, data, badge) -> None:
     if badge is not None:
         aps['badge'] = badge
     payload = json.dumps({'aps': aps, **(data or {})}).encode()
-    headers = {
-        'authorization': f'bearer {jwt}',
-        'apns-topic': settings.APNS_BUNDLE_ID,
-        'apns-push-type': 'alert',
-    }
 
     with httpx.Client(http2=True, base_url=f'https://{host}', timeout=10) as client:
-        for tok in tokens:
+        for tok, bundle_id in tokens:
+            # apns-topic must match the app the token belongs to. Two apps ship
+            # from here (athlete + coach), so use the per-device bundle id and
+            # fall back to the global setting for legacy tokens without one.
+            topic = bundle_id or settings.APNS_BUNDLE_ID
+            headers = {
+                'authorization': f'bearer {jwt}',
+                'apns-topic': topic,
+                'apns-push-type': 'alert',
+            }
             try:
                 resp = client.post(f'/3/device/{tok}', content=payload, headers=headers)
                 # 410 Gone / 400 BadDeviceToken → token is dead, stop using it.
