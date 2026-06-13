@@ -102,6 +102,14 @@ else:  # smtp_test or smtp_production
     EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
+# Cap the SMTP socket. Without this, EMAIL_TIMEOUT defaults to None (block
+# forever): a hung connection to the SMTP host keeps the request open past
+# gunicorn's worker timeout, the worker is SIGKILLed mid-send (before the
+# try/except in services/email.py can catch/log it), and the client gets a
+# bare 500. With a timeout the send fails fast, gets logged, and degrades
+# gracefully instead of 500ing.
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
+
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@localhost')
 SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 
@@ -381,5 +389,39 @@ if not DEBUG:
     ):
         if _origin and _origin not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(_origin)
+
+
+# --- Logging -----------------------------------------------------------------
+# Without this, Django's default config routes unhandled 500 tracebacks to
+# mail_admins only (never configured) and nothing is printed, so production
+# 500s are invisible in the Railway deploy logs. Send everything to stderr.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        # Unhandled view exceptions (the 500 tracebacks) land here.
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
 
 
