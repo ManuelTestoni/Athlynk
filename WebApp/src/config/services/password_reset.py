@@ -27,6 +27,9 @@ from domain.accounts.models import PasswordResetToken, User
 logger = logging.getLogger(__name__)
 
 TOKEN_TTL_MINUTES = 30
+# Account-activation links (coach-created athlete sets their own password) live
+# much longer than a reset: the athlete may not open their inbox for days.
+ACTIVATION_TTL_MINUTES = 7 * 24 * 60
 RATE_LIMIT_WINDOW_MINUTES = 60
 RATE_LIMIT_MAX_PER_EMAIL = 5
 RATE_LIMIT_MAX_PER_IP = 10
@@ -63,11 +66,13 @@ def is_rate_limited(email: str, ip: str | None) -> bool:
     return False
 
 
-def issue_token(user: User, ip: str | None = None, user_agent: str = '') -> str:
-    """Create a new reset token for `user`. Returns the plaintext token to email.
+def issue_token(user: User, ip: str | None = None, user_agent: str = '',
+                ttl_minutes: int = TOKEN_TTL_MINUTES) -> str:
+    """Create a new single-use token for `user`. Returns the plaintext to email.
 
-    Invalidates every previously-active token for the same user before issuing the new one
-    so that only the most recent link in the user's mailbox can ever be used.
+    Shared by the password-reset flow (default 30-min TTL) and account activation
+    (longer TTL, see ACTIVATION_TTL_MINUTES). Invalidates every previously-active
+    token for the same user first, so only the most recent link can ever be used.
     """
     plaintext = secrets.token_urlsafe(48)
     token_hash = _hash_token(plaintext)
@@ -82,7 +87,7 @@ def issue_token(user: User, ip: str | None = None, user_agent: str = '') -> str:
         PasswordResetToken.objects.create(
             user=user,
             token_hash=token_hash,
-            expires_at=now + timedelta(minutes=TOKEN_TTL_MINUTES),
+            expires_at=now + timedelta(minutes=ttl_minutes),
             request_ip=ip,
             request_user_agent=(user_agent or '')[:512],
         )

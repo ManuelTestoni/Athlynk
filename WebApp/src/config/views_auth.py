@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 import logging
@@ -383,4 +384,64 @@ def reset_password_view(request):
 
     return render(request, 'pages/auth/reset_password.html', {
         'token': token_plain,
+    })
+
+
+def activate_account_view(request):
+    """First-time password creation for a coach-created athlete.
+
+    The athlete reaches this from the activation email (the link proves mailbox
+    ownership), sets a password, and is sent to the login page. Reuses the
+    PasswordResetToken machinery; the email is known and shown, not editable.
+    """
+    if request.method == 'POST':
+        token_plain = (request.POST.get('token') or '').strip()
+        if len(token_plain) > 256 or '\x00' in token_plain:
+            return render(request, 'pages/auth/set_password.html', {'token_invalid': True}, status=400)
+
+        token = pwd_reset.validate_token(token_plain)
+        try:
+            new_pw = clean_password(request.POST.get('new_password'))
+            confirm_pw = clean_password(request.POST.get('confirm_password'))
+        except InvalidInput as exc:
+            return render(request, 'pages/auth/set_password.html', {
+                'token': token_plain,
+                'email': token.user.email if token else '',
+                'error': str(exc),
+            }, status=400)
+
+        if not token:
+            return render(request, 'pages/auth/set_password.html', {'token_invalid': True}, status=400)
+
+        if new_pw != confirm_pw:
+            return render(request, 'pages/auth/set_password.html', {
+                'token': token_plain,
+                'email': token.user.email,
+                'error': 'Le due password non coincidono.',
+            }, status=400)
+
+        consumed = pwd_reset.consume_token(token_plain)
+        if not consumed:
+            return render(request, 'pages/auth/set_password.html', {'token_invalid': True}, status=400)
+
+        user = consumed.user
+        user.password_hash = make_password(new_pw)
+        # The activation link itself verifies the address — flip is_verified too.
+        if not user.is_verified:
+            user.is_verified = True
+            user.save(update_fields=['password_hash', 'is_verified'])
+        else:
+            user.save(update_fields=['password_hash'])
+
+        return redirect(f"{reverse('login')}?activated=1")
+
+    # GET — validate token and show the create-password form with the known email.
+    token_plain = (request.GET.get('token') or '').strip()
+    token = pwd_reset.validate_token(token_plain)
+    if not token:
+        return render(request, 'pages/auth/set_password.html', {'token_invalid': True}, status=400)
+
+    return render(request, 'pages/auth/set_password.html', {
+        'token': token_plain,
+        'email': token.user.email,
     })

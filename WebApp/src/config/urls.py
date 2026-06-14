@@ -58,6 +58,7 @@ urlpatterns = [
     path('verify/<str:token>/', views_auth.verify_email_view, name='verify_email'),
     path('password-dimenticata/', views_auth.forgot_password_view, name='forgot_password'),
     path('reset-password/', views_auth.reset_password_view, name='reset_password'),
+    path('attiva-account/', views_auth.activate_account_view, name='activate_account'),
     path('impostazioni/richiedi-reset/', views_auth.request_password_reset_view, name='request_password_reset'),
 
     # Legal

@@ -1,0 +1,14 @@
+Ciao,
+
+{% if coach_name %}{{ coach_name }} ti ha aggiunto su Athlynk.{% else %}Il tuo professionista ti ha aggiunto su Athlynk.{% endif %}
+
+Per accedere crea la tua password personale cliccando sul link qui sotto
+(valido per {{ ttl_days }} giorni):
+
+  {{ activate_url }}
+
+Dopo aver creato la password potrai accedere normalmente.
+Se non aspettavi questo invito, ignora questa email.
+
+— Il team Athlynk
+{{ site_url }}

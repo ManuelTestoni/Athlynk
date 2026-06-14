@@ -44,6 +44,19 @@ def send_welcome_verify(user, token):
     )
 
 
+def send_account_activation(user, token, coach_name=''):
+    """Invite a coach-created athlete to set their own password. The emailed link
+    proves mailbox ownership (the coach typed the address), so no separate email
+    confirmation is needed — the athlete just creates a password and logs in."""
+    activate_url = f"{settings.SITE_URL}{reverse('activate_account')}?token={token}"
+    return send_html_mail(
+        to=user.email,
+        subject='Attiva il tuo account Athlynk',
+        template_base='account_activation',
+        context={'user': user, 'activate_url': activate_url, 'coach_name': coach_name, 'ttl_days': 7},
+    )
+
+
 def send_password_reset(user, token):
     """Password-reset link email. `token` is the plaintext token (not the hash)."""
     reset_url = f"{settings.SITE_URL}{reverse('reset_password')}?token={token}"

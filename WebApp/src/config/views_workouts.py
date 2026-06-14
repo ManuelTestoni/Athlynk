@@ -15,6 +15,7 @@ from domain.workouts import progression_engine
 from domain.chat.models import Notification
 
 from .services.email import send_workout_assigned
+from .services import import_quota
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
     get_workout_coach, can_manage_workouts,
@@ -1336,6 +1337,10 @@ def api_workout_import_excel(request):
     if isinstance(client_data, JsonResponse):
         return client_data
 
+    allowed, _ = import_quota.consume(coach, import_quota.WORKOUT)
+    if not allowed:
+        return import_quota.limit_response(import_quota.WORKOUT)
+
     from domain.workouts.imports.excel_importer import (
         run_import_pipeline, ExcelParseError, AIExtractionError,
     )
@@ -1443,6 +1448,10 @@ def api_workout_import_pdf(request):
     client_data = _resolve_import_client(coach, client_id)
     if isinstance(client_data, JsonResponse):
         return client_data
+
+    allowed, _ = import_quota.consume(coach, import_quota.WORKOUT)
+    if not allowed:
+        return import_quota.limit_response(import_quota.WORKOUT)
 
     file_bytes = uploaded.read()
     job_id = _WORKOUT_IMPORT_JOBS.spawn(

@@ -219,6 +219,69 @@ class ResendCooldownTests(TestCase):
         self.assertNotEqual(u.email_verification_token, 'tok')  # rotated → resent
 
 
+class ActivationFlowTests(TestCase):
+    def _login_coach(self, coach):
+        s = self.client.session
+        s['user_id'] = coach.user.id
+        s['user_role'] = 'COACH'
+        s.save()
+
+    def test_new_athlete_no_password_sends_activation(self):
+        from django.contrib.auth.hashers import check_password
+        from django.core import mail
+        from domain.accounts.models import PasswordResetToken
+
+        coach = make_coach('c@e.com', 'COACH')
+        plan = plan_for(coach)
+        self._login_coach(coach)
+        resp = self.client.post('/clienti/registra/', {
+            'mode': 'new', 'first_name': 'Neo', 'last_name': 'Atleta',
+            'email': 'neo@e.com', 'birth_date': '15-03-1990',
+            'subscription_plan_id': str(plan.id),
+        })
+        self.assertEqual(resp.status_code, 302)
+        u = User.objects.get(email='neo@e.com')
+        self.assertEqual(u.role, 'CLIENT')
+        self.assertTrue(u.is_verified)
+        # Unusable password: no login possible until the athlete sets one.
+        self.assertFalse(check_password('anything', u.password_hash))
+        # Activation token issued + activation email sent.
+        self.assertTrue(PasswordResetToken.objects.filter(user=u, used_at__isnull=True).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Attiva', mail.outbox[0].subject)
+
+    def test_activation_page_sets_password(self):
+        from django.contrib.auth.hashers import check_password
+        from django.test import Client
+        from config.services import password_reset as pwd
+
+        u = User.objects.create(
+            email='neo@e.com', password_hash=make_password(None), role='CLIENT', is_verified=True,
+        )
+        ClientProfile.objects.create(user=u, first_name='Neo', last_name='A')
+        token = pwd.issue_token(u, ttl_minutes=pwd.ACTIVATION_TTL_MINUTES)
+
+        c = Client()
+        g = c.get(f'/attiva-account/?token={token}')
+        self.assertEqual(g.status_code, 200)
+        self.assertContains(g, 'neo@e.com')
+
+        p = c.post('/attiva-account/', {
+            'token': token, 'new_password': 'newpass123', 'confirm_password': 'newpass123',
+        })
+        self.assertEqual(p.status_code, 302)
+        self.assertIn('activated=1', p['Location'])
+        u.refresh_from_db()
+        self.assertTrue(check_password('newpass123', u.password_hash))
+
+    def test_activation_invalid_token(self):
+        from django.test import Client
+        c = Client()
+        g = c.get('/attiva-account/?token=bogus')
+        self.assertEqual(g.status_code, 400)
+        self.assertContains(g, 'Link non valido', status_code=400)
+
+
 class MobileGateTests(TestCase):
     def test_blocked_client_403_on_data_endpoint(self):
         from config.api import issue_token

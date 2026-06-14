@@ -14,6 +14,7 @@ from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
     get_nutrition_coach,
 )
+from config.services import import_quota
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
@@ -1992,6 +1993,10 @@ def api_diet_import_excel(request):
         except (ValueError, ClientProfile.DoesNotExist):
             return JsonResponse({'error': 'Atleta non valido'}, status=422)
 
+    allowed, _ = import_quota.consume(coach, import_quota.DIET)
+    if not allowed:
+        return import_quota.limit_response(import_quota.DIET)
+
     # Import locale per evitare overhead se la view non è chiamata
     from domain.nutrition.excel_importer import (
         run_import_pipeline, ExcelParseError, AIExtractionError,
@@ -2315,6 +2320,10 @@ def api_diet_import_pdf(request):
             client_data = {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
         except (ValueError, ClientProfile.DoesNotExist):
             return JsonResponse({'error': 'Atleta non valido'}, status=422)
+
+    allowed, _ = import_quota.consume(coach, import_quota.DIET)
+    if not allowed:
+        return import_quota.limit_response(import_quota.DIET)
 
     file_bytes = uploaded.read()
     job_id = uuid.uuid4().hex

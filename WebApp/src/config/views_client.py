@@ -19,6 +19,9 @@ from .session_utils import (
     get_session_client, get_session_coach, get_session_user, get_active_relationship,
     client_has_active_access,
 )
+from .services import password_reset as pwd_reset
+from .services.email import send_account_activation
+from .services.tokens import get_client_ip
 from .forms import SubscriptionPlanForm
 from .views_check.helpers import _build_chart_data
 
@@ -322,8 +325,6 @@ def registra_client_view(request):
     first_name = request.POST.get('first_name', '').strip()
     last_name = request.POST.get('last_name', '').strip()
     email = request.POST.get('email', '').strip().lower()
-    password = request.POST.get('password', '').strip()
-    confirm_password = request.POST.get('confirm_password', '').strip()
     phone = request.POST.get('phone', '').strip() or None
     birth_date_str = request.POST.get('birth_date', '').strip()
     gender = request.POST.get('gender', '').strip() or None
@@ -337,10 +338,6 @@ def registra_client_view(request):
         errors['email'] = "L'email è obbligatoria."
     elif User.objects.filter(email__iexact=email).exists():
         errors['email'] = 'Questa email è già registrata sulla piattaforma.'
-    if not password or len(password) < 8:
-        errors['password'] = 'La password temporanea deve essere di almeno 8 caratteri.'
-    elif password != confirm_password:
-        errors['password'] = 'Le password non coincidono.'
     if not plan_id:
         errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
 
@@ -361,11 +358,13 @@ def registra_client_view(request):
             'post_data': request.POST,
         })
 
-    # Coach vouches for the athlete and communicates the password directly, so the
-    # account is verified on creation — otherwise login would block on is_verified.
+    # No password is set by the coach: the account starts with an unusable hash
+    # and the athlete creates their own password via the activation email below.
+    # The coach typed the address, so it is trusted → is_verified=True (the
+    # activation link is the proof of mailbox ownership, not a separate confirm).
     new_user = User.objects.create(
         email=email,
-        password_hash=make_password(password),
+        password_hash=make_password(None),
         role='CLIENT',
         is_active=True,
         is_verified=True,
@@ -388,6 +387,15 @@ def registra_client_view(request):
         relationship_type=new_rel_type,
     )
     _create_client_subscription(coach, client, plan_id, payment_notes)
+
+    # Invite the athlete to set their own password.
+    token = pwd_reset.issue_token(
+        new_user,
+        ip=get_client_ip(request),
+        user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:512],
+        ttl_minutes=pwd_reset.ACTIVATION_TTL_MINUTES,
+    )
+    send_account_activation(new_user, token, coach_name=f"{coach.first_name} {coach.last_name}".strip())
 
     return redirect('clienti_detail', client_id=client.id)
 

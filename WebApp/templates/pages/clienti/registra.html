@@ -9,9 +9,6 @@
         hasPlans: {{ plans|yesno:'true,false' }},
         mode: '{{ mode|default:'new' }}',
         birth: '{{ post_data.birth_date|default:'' }}',
-        pw: '{{ post_data.password|default:'' }}',
-        cpw: '',
-        get pwMatch() { return this.cpw === '' || this.pw === this.cpw; },
         ageFrom(s) {
             const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
             if (!m) return NaN;
@@ -89,7 +86,7 @@
                         <i class="ph ph-user-circle-plus"></i><span>Atleta già esistente</span>
                     </button>
                 </div>
-                <p class="al-small mt-3" x-show="mode === 'new'">Crei un nuovo account: comunicherai tu email e password all'atleta.</p>
+                <p class="al-small mt-3" x-show="mode === 'new'">Crei un nuovo account: l'atleta riceverà un'email per creare la propria password e accedere.</p>
                 <p class="al-small mt-3" x-show="mode === 'existing'" x-cloak>L'atleta è già su Athlynk (es. seguito da un altro professionista): lo aggiungi al tuo studio tramite la sua email.</p>
             </div>
 
@@ -179,34 +176,19 @@
                 </div>
             </div>
 
-            <!-- Nuovo: Accesso alla Piattaforma -->
+            <!-- Nuovo: Accesso alla Piattaforma (password creata dall'atleta) -->
             <div class="al-card" x-show="mode === 'new'">
                 <div class="flex items-center gap-3 mb-2">
-                    <i class="ph ph-lock-key text-bronze text-xl"></i>
+                    <i class="ph ph-envelope-simple text-bronze text-xl"></i>
                     <div>
                         <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
                         <h2 class="al-h-3">Accesso alla Piattaforma</h2>
                     </div>
                 </div>
-                <p class="al-body mb-6">L'atleta userà questa email e password per accedere ad Athlynk.</p>
-
-                <div class="max-w-sm space-y-4">
-                    <div>
-                        <label class="al-label">Password Temporanea *</label>
-                        <input type="text" name="password" x-model="pw" :disabled="mode !== 'new'"
-                               placeholder="Minimo 8 caratteri" minlength="8" autocomplete="off"
-                               class="al-input {% if errors.password %}is-error{% endif %}">
-                        {% if errors.password %}<span class="al-input-error">{{ errors.password }}</span>{% endif %}
-                    </div>
-                    <div>
-                        <label class="al-label">Conferma Password *</label>
-                        <input type="text" name="confirm_password" x-model="cpw" :disabled="mode !== 'new'"
-                               placeholder="Ripeti la password" minlength="8" autocomplete="off"
-                               :class="!pwMatch ? 'is-error' : ''" class="al-input">
-                        <span x-show="!pwMatch" x-cloak class="al-input-error">Le password non coincidono.</span>
-                    </div>
-                    <span class="al-input-help">Comunicala all'atleta. Potrà cambiarla in autonomia.</span>
-                </div>
+                <p class="al-body">
+                    Non serve impostare una password: l'atleta riceverà un'email all'indirizzo indicato
+                    con un link per creare la propria password. Dopo averla creata potrà accedere ad Athlynk.
+                </p>
             </div>
 
             <!-- Piano Abbonamento (sempre) -->
@@ -248,7 +230,7 @@
             <div class="flex items-center justify-between pt-2">
                 <a href="{{ cancel_url|default:'/clienti/' }}" class="al-btn al-btn-ghost">Annulla</a>
                 <button type="submit"
-                        :disabled="!hasPlans || (mode === 'new' && (!pwMatch || (birth && !birthValid)))" class="al-btn">
+                        :disabled="!hasPlans || (mode === 'new' && birth && !birthValid)" class="al-btn">
                     <i class="ph ph-user-plus text-sm"></i>
                     <span x-text="mode === 'existing' ? 'Aggiungi atleta' : 'Registra atleta'">Registra atleta</span>
                 </button>
