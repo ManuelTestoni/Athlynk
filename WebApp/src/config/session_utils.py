@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from domain.accounts.models import User, CoachProfile, ClientProfile
 from domain.coaching.models import CoachingRelationship
 
@@ -90,6 +92,81 @@ def get_active_relationships(client):
             result['nutrition'] = rel
 
     return result
+
+
+def get_workout_coach(client):
+    """Coach responsible for the client's training: the FULL coach, else the
+    dedicated WORKOUT one. None if neither exists."""
+    rels = get_active_relationships(client)
+    rel = rels['full'] or rels['workout']
+    return rel.coach if rel else None
+
+
+def get_nutrition_coach(client):
+    """Coach responsible for the client's nutrition: the FULL coach, else the
+    dedicated NUTRITION one. None if neither exists."""
+    rels = get_active_relationships(client)
+    rel = rels['full'] or rels['nutrition']
+    return rel.coach if rel else None
+
+
+def client_has_active_access(client):
+    """An athlete may use the app only while at least one professional
+    collaboration is active. Read-only: relies on `enforce_client_access`
+    (called at login) and the deactivate_lapsed command to flip lapsed
+    relationships to INACTIVE."""
+    if not client:
+        return False
+    return CoachingRelationship.objects.filter(client=client, status='ACTIVE').exists()
+
+
+def enforce_client_access(client):
+    """Lazy, idempotent sweep run at login. Expires the client's lapsed
+    subscriptions (end_date in the past) and, when a coach is left without any
+    valid subscription for this client, deactivates that collaboration so the
+    athlete loses access until it is renewed/re-added. Returns the number of
+    relationships deactivated."""
+    if not client:
+        return 0
+    from datetime import date
+    from domain.billing.models import ClientSubscription
+
+    today = date.today()
+    lapsed = (
+        ClientSubscription.objects
+        .filter(client=client, status='ACTIVE', end_date__isnull=False, end_date__lt=today)
+        .select_related('subscription_plan', 'subscription_plan__coach')
+    )
+
+    deactivated_total = 0
+    for sub in lapsed:
+        coach = sub.subscription_plan.coach
+        sub.status = 'EXPIRED'
+        sub.save(update_fields=['status', 'updated_at'])
+
+        # Another still-valid subscription with the same coach keeps the
+        # collaboration alive (e.g. renewed early under a different plan).
+        still_covered = (
+            ClientSubscription.objects
+            .filter(client=client, subscription_plan__coach=coach, status='ACTIVE')
+            .filter(Q(end_date__isnull=True) | Q(end_date__gte=today))
+            .exists()
+        )
+        if still_covered:
+            continue
+
+        deactivated = CoachingRelationship.objects.filter(
+            client=client, coach=coach, status='ACTIVE',
+        ).update(status='INACTIVE', end_date=today)
+        if deactivated:
+            deactivated_total += deactivated
+            try:
+                from domain.chat.services import send_automatic_message
+                send_automatic_message(coach, client, 'SUBSCRIPTION_EXPIRING')
+            except Exception:
+                pass
+
+    return deactivated_total
 
 
 def build_identity_context(request):

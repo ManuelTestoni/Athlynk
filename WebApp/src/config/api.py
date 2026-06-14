@@ -42,7 +42,7 @@ from domain.workouts.models import (
 from domain.checks.anthropometry import (
     circ_label, skin_label, circ_range, skin_range, WEIGHT_RANGE,
 )
-from .session_utils import get_active_relationships
+from .session_utils import get_active_relationships, client_has_active_access, enforce_client_access
 from .services import ratelimit, sanitize
 from .services.images import is_image, to_webp
 from .views_check import build_measurements, RESERVED_FIELD_MAP
@@ -140,6 +140,16 @@ def _bearer(request):
     return None
 
 
+# Endpoints a CLIENT may still call while access is suspended (no active
+# professional): account/profile management and notifications. Every data
+# endpoint (workouts, nutrition, checks, …) is blocked — parity with the web
+# gate in config.middleware.ClientAccessMiddleware.
+_CLIENT_BLOCKED_ALLOW = {
+    'me', 'profile', 'profile_photo', 'settings', 'delete_account',
+    'register_device', 'notification_read', 'notifications', 'tutorial_complete',
+}
+
+
 def api_view(methods):
     """Decorator: CSRF-exempt + method gate + token auth.
 
@@ -155,6 +165,15 @@ def api_view(methods):
             user = _user_from_token(_bearer(request) or '')
             if not user:
                 return JsonResponse({'error': 'Non autenticato'}, status=401)
+            # Suspended athlete: block every data endpoint, allow only the
+            # account-management allowlist so the app can show its blocked state.
+            if user.role == 'CLIENT' and view.__name__ not in _CLIENT_BLOCKED_ALLOW:
+                if not client_has_active_access(getattr(user, 'client_profile', None)):
+                    return JsonResponse({
+                        'error': 'access_blocked',
+                        'message': 'Nessun professionista attivo. Chiedi al tuo coach di '
+                                   'aggiungerti o di rinnovare l’abbonamento.',
+                    }, status=403)
             is_write = request.method in _WRITE_METHODS
             # Pre-parse + sanitize JSON write bodies so a malformed, oversized or
             # control-char-laden body yields a clean 400 before the view runs and
@@ -384,6 +403,10 @@ def login(request):
 
     ratelimit.reset('login_ip', ip, LOGIN_RATE_WINDOW_SECONDS)
     ratelimit.reset('login_email', email, LOGIN_EMAIL_RATE_WINDOW_SECONDS)
+    # Expire lapsed subscriptions / deactivate orphaned collaborations now so the
+    # app immediately sees the suspended state instead of stale access.
+    if user.role == 'CLIENT':
+        enforce_client_access(getattr(user, 'client_profile', None))
     user.last_login_at = timezone.now()
     user.save(update_fields=['last_login_at'])
     return JsonResponse({'token': issue_token(user), 'user': _user_dict(user)})
@@ -394,6 +417,7 @@ def me(request, user):
     payload = {'user': _user_dict(user), 'coach': None, 'trainer': None, 'nutritionist': None}
     client = getattr(user, 'client_profile', None)
     if client:
+        payload['access_blocked'] = not client_has_active_access(client)
         rels = get_active_relationships(client)
         payload['coach'] = _coach_dict(rels['full'].coach if rels['full'] else None)
         payload['trainer'] = _coach_dict(rels['workout'].coach if rels['workout'] else None)

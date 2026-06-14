@@ -58,4 +58,6 @@ def get_web_search_tool():
 
 @lru_cache(maxsize=1)
 def get_tools() -> list:
-    return [get_web_search_tool()]
+    # Import lazy: i coach tool toccano i modelli Django.
+    from chiron.coach_tools import get_coach_tools
+    return [get_web_search_tool(), *get_coach_tools()]

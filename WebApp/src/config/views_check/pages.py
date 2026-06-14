@@ -49,7 +49,7 @@ def check_dashboard_view(request):
         client = get_session_client(request)
         relationship = get_active_relationship(client)
         if not relationship:
-            return redirect('check_coach_directory')
+            return redirect('client_blocked')
 
         # Lazy-generate any due assigned check instances
         _generate_due_instances(client)

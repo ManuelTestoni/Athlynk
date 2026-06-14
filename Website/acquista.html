@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acquista Athlynk — accesso alla piattaforma per coach</title>
+<meta name="description" content="Acquista l'accesso ad Athlynk, il gestionale per coach. Pagamento sicuro con Stripe: ricevi via email il tuo codice di accesso all'app.">
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#0b0a08">
+<link rel="canonical" href="https://athlynk.it/acquista.html">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Athlynk">
+<meta property="og:title" content="Acquista Athlynk — accesso alla piattaforma">
+<meta property="og:description" content="Pagamento sicuro con Stripe. Ricevi via email il tuo codice di accesso all'app Athlynk.">
+<meta property="og:url" content="https://athlynk.it/acquista.html">
+<meta property="og:image" content="https://athlynk.it/assets/og-cover.png">
+<meta property="og:locale" content="it_IT">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260613">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z' fill='%23c9a96a'/%3E%3Crect x='11' y='21' width='10' height='2' fill='%23c9a96a'/%3E%3C/svg%3E">
+<style>
+  .checkout-section { padding-top: calc(var(--header-h) + clamp(56px, 10vh, 120px)); }
+  .checkout-note { text-align: center; color: var(--ivory-mute); font-size: 13px; line-height: 1.6; margin-top: 32px; }
+  .checkout-note a { color: var(--gold); }
+  .checkout-banner {
+    max-width: 560px; margin: 0 auto clamp(28px, 5vh, 44px);
+    border: 1px solid var(--line-gold); border-radius: 2px;
+    background: rgba(201, 169, 106, 0.06);
+    padding: 14px 18px; color: var(--ivory-soft); font-size: 14px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- grain overlay -->
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ====================== HEADER ====================== -->
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a href="index.html#hero" class="brand" aria-label="Athlynk — home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
+        <rect x="11" y="21" width="10" height="2"/>
+      </svg>
+      <span class="brand-name">Athlynk</span>
+    </a>
+    <nav class="main-nav" id="mainNav" aria-label="Navigazione principale">
+      <a href="index.html#hero" class="nav-link">Home</a>
+      <a href="index.html#chiron" class="nav-link">Chiron</a>
+      <a href="index.html#studio" class="nav-link">Piattaforma</a>
+      <a href="index.html#pricing" class="nav-link">Pricing</a>
+      <a href="index.html#about" class="nav-link">About</a>
+      <a href="index.html#faq" class="nav-link">FAQ</a>
+    </nav>
+    <div class="header-actions">
+      <a href="https://app.athlynk.it" class="login-link" aria-label="Accedi alla web app Athlynk">
+        <svg class="login-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 3h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4"/>
+          <path d="M11 16l4-4-4-4"/>
+          <path d="M15 12H3"/>
+        </svg>
+        <span>Accedi</span>
+      </a>
+      <a href="#offerta" class="btn btn-bronze btn-sm">Acquista ora</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Apri menu" aria-expanded="false">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ====================== CHECKOUT ====================== -->
+<main>
+<section class="pricing section checkout-section" id="offerta">
+  <div class="container">
+    <header class="section-head section-head-center">
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Accesso piattaforma<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Scegli il piano<br>per il <em>tuo studio.</em></h2>
+      <p class="section-lede">Abbonamento mensile, disdici quando vuoi. Dopo il pagamento ricevi via email il tuo codice di accesso all'app.</p>
+    </header>
+
+    <!-- Banner mostrato se l'utente torna da Stripe con ?annullato=1 -->
+    <div class="checkout-banner" id="annullatoBanner" hidden>
+      Pagamento annullato. Nessun importo è stato addebitato — puoi riprovare quando vuoi.
+    </div>
+
+    <!-- Chiron toggle: stesso markup di index → main.js anima i prezzi -->
+    <div class="chiron-switch reveal" id="chironSwitch" data-chiron-supplement="15">
+      <button class="switch-btn" id="chironToggle" role="switch" aria-checked="false" aria-label="Aggiungi Chiron a tutti i piani">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </button>
+      <div class="switch-copy">
+        <span class="switch-title">Aggiungi <em>Chiron</em> — il protocollo adattivo</span>
+        <span class="switch-sub">Ricalibrazione automatica di carichi e macro a ogni check · <b>+€15</b> / mese per coach</span>
+      </div>
+    </div>
+
+    <div class="pricing-grid pricing-grid-3">
+      <!-- Athena -->
+      <article class="price-card" data-base="39">
+        <div class="price-head">
+          <h3 class="price-name">Athena</h3>
+          <p class="price-tag">Lo studio agile</p>
+        </div>
+        <p class="price-cap"><b>Fino a 15</b> atleti gestiti</p>
+        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>39</span><span class="price-per">/ mese</span></div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <ul class="price-features">
+          <li>Console gestionale completa</li>
+          <li>Builder programmi e template</li>
+          <li>Tracking atleti, serie e check</li>
+          <li>Linee guida nutrizionali</li>
+          <li>App coach + app atleta sincronizzate</li>
+        </ul>
+        <button type="button" class="btn btn-ghost btn-full" data-checkout data-plan="athena">Inizia con Athena</button>
+      </article>
+
+      <!-- Apollo -->
+      <article class="price-card price-card-pro" data-base="79">
+        <span class="price-badge">Il più scelto</span>
+        <div class="price-head">
+          <h3 class="price-name">Apollo</h3>
+          <p class="price-tag">Lo studio in crescita</p>
+        </div>
+        <p class="price-cap"><b>Fino a 50</b> atleti gestiti</p>
+        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>79</span><span class="price-per">/ mese</span></div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <ul class="price-features">
+          <li><b>Tutto Athena, più:</b></li>
+          <li>Roster esteso fino a 50 atleti</li>
+          <li>Nutrizione periodizzata avanzata</li>
+          <li>Report e analisi aggregati sullo studio</li>
+          <li>Code di check e scadenze prioritarie</li>
+          <li>Comunicazione in-app illimitata</li>
+        </ul>
+        <button type="button" class="btn btn-bronze btn-full" data-checkout data-plan="apollo">Scegli Apollo</button>
+      </article>
+
+      <!-- Zeus -->
+      <article class="price-card" data-base="149">
+        <div class="price-head">
+          <h3 class="price-name">Zeus</h3>
+          <p class="price-tag">Il team senza limiti</p>
+        </div>
+        <p class="price-cap"><b>Atleti illimitati</b></p>
+        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>149</span><span class="price-per">/ mese</span></div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <ul class="price-features">
+          <li><b>Tutto Apollo, più:</b></li>
+          <li>Atleti illimitati, nessun tetto</li>
+          <li>Multi-coach e gestione del team</li>
+          <li>Branding personalizzato dello studio</li>
+          <li>Account manager dedicato</li>
+          <li>API e integrazioni su misura</li>
+        </ul>
+        <button type="button" class="btn btn-ghost btn-full" data-checkout data-plan="zeus">Passa a Zeus</button>
+      </article>
+    </div>
+
+    <p class="checkout-note">
+      Pagamento sicuro con Stripe. Riceverai il codice di accesso all'email usata al checkout.<br>
+      Domande? Scrivici a <a href="mailto:supporto@athlynk.it">supporto@athlynk.it</a>.
+    </p>
+  </div>
+</section>
+</main>
+
+<!-- ====================== FOOTER ====================== -->
+<footer class="site-footer">
+  <div class="footer-meander" aria-hidden="true"></div>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="index.html#hero" class="brand" aria-label="Athlynk — torna alla home">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
+            <rect x="11" y="21" width="10" height="2"/>
+          </svg>
+          <span class="brand-name">Athlynk</span>
+        </a>
+        <p class="footer-tagline">Il corpo è l'opera.</p>
+      </div>
+      <nav class="footer-nav" aria-label="Navigazione footer">
+        <a href="index.html#hero">Home</a>
+        <a href="index.html#chiron">Chiron</a>
+        <a href="index.html#studio">Piattaforma</a>
+        <a href="index.html#pricing">Pricing</a>
+        <a href="index.html#about">About</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="cookie.html">Cookie</a>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Athlynk. Tutti i diritti riservati.</p>
+      <p class="footer-motto">Μέτρον ἄριστον — la misura è la cosa migliore.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- demo modal stub (kept so the shared main.js binds cleanly) -->
+<div class="modal" id="demoModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <button class="modal-close" data-close aria-label="Chiudi">✕</button>
+    <div class="modal-stage" id="modalStage"></div>
+    <div class="modal-caption">
+      <h3 id="modalTitle"></h3>
+      <p id="modalDesc"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+
+    // Reveal the "pagamento annullato" banner when Stripe sends the buyer back.
+    if (params.get("annullato") === "1") {
+      document.getElementById("annullatoBanner").hidden = false;
+    }
+
+    // Checkout wiring: each plan button redirects to the Django checkout with
+    // the chosen plan + the live Chiron toggle state.
+    const CHECKOUT_BASE = "https://app.athlynk.it/acquista/checkout/";
+    const chironToggle = document.getElementById("chironToggle");
+    const chironOn = () => chironToggle && chironToggle.getAttribute("aria-checked") === "true";
+
+    document.querySelectorAll("[data-checkout]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const url = new URL(CHECKOUT_BASE);
+        url.searchParams.set("plan", btn.dataset.plan);
+        url.searchParams.set("chiron", chironOn() ? "1" : "0");
+        location.href = url.toString();
+      });
+    });
+
+    // Preselect Chiron if arriving with ?chiron=1, and scroll the chosen plan
+    // into view if arriving with ?plan=<slug> (e.g. from the index pricing grid).
+    if (params.get("chiron") === "1" && chironToggle) chironToggle.click();
+    const wantPlan = (params.get("plan") || "").toLowerCase();
+    if (wantPlan) {
+      const card = document.querySelector(`[data-checkout][data-plan="${wantPlan}"]`);
+      if (card) card.closest(".price-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  })();
+</script>
+<script src="js/main.js?v=20260613"></script>
+</body>
+</html>

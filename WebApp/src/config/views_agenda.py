@@ -63,7 +63,7 @@ def agenda_dashboard_view(request):
         client = get_session_client(request)
         relationship = get_active_relationship(client)
         if not relationship:
-            return redirect('check_coach_directory')
+            return redirect('client_blocked')
 
         events = Appointment.objects.filter(coach=relationship.coach, client=client).select_related('client')
         events_data = [_serialize_event(e, coach_view=False) for e in events]

@@ -12,6 +12,7 @@ from django.core.cache import cache
 
 from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
+    get_nutrition_coach,
 )
 from domain.coaching.models import CoachingRelationship, ClientAnamnesis
 from domain.chat.models import Notification
@@ -161,10 +162,6 @@ def _macro_kcal_pct(prot, carb, fat):
     }
 
 
-def _get_active_relationship(client):
-    return CoachingRelationship.objects.filter(client=client, status='ACTIVE').select_related('coach').first()
-
-
 # ─── Coach views ────────────────────────────────────────────────────────────────
 
 def nutrizione_piani_view(request):
@@ -176,16 +173,16 @@ def nutrizione_piani_view(request):
         client = get_session_client(request)
         if not client:
             return redirect('login')
-        rel = _get_active_relationship(client)
-        if not rel:
-            return redirect('check_coach_directory')
+        nutrition_coach = get_nutrition_coach(client)
+        if not nutrition_coach:
+            return redirect('client_blocked')
         if not ClientAnamnesis.objects.filter(client=client).exists():
             return render(request, 'pages/nutrizione/no_prima_visita.html', {})
 
         active_assignment = (
             NutritionAssignment.objects
             .select_related('nutrition_plan', 'coach')
-            .filter(client=client, coach=rel.coach, status='ACTIVE')
+            .filter(client=client, coach=nutrition_coach, status='ACTIVE')
             .order_by('-created_at')
             .first()
         )
@@ -193,7 +190,7 @@ def nutrizione_piani_view(request):
         past_qs = (
             NutritionAssignment.objects
             .select_related('nutrition_plan')
-            .filter(client=client, coach=rel.coach)
+            .filter(client=client, coach=nutrition_coach)
             .exclude(status='ACTIVE')
             .order_by('-created_at')
         )
@@ -226,7 +223,7 @@ def nutrizione_piani_view(request):
 
         supp_assignment = (
             SupplementAssignment.objects
-            .filter(client=client, coach=rel.coach, status='ACTIVE')
+            .filter(client=client, coach=nutrition_coach, status='ACTIVE')
             .select_related('sheet')
             .prefetch_related('sheet__items__supplement')
             .order_by('-assigned_at')
@@ -240,7 +237,7 @@ def nutrizione_piani_view(request):
             'past_initial_count': len(past_data),
             'past_has_more': past_total > len(past_data),
             'history_page_size': NUTRITION_HISTORY_PAGE_SIZE,
-            'coach': rel.coach,
+            'coach': nutrition_coach,
             'supp_assignment': supp_assignment,
         })
 
@@ -2376,8 +2373,8 @@ def api_client_nutrition_history(request):
     client = get_session_client(request)
     if not client:
         return JsonResponse({'error': 'forbidden'}, status=403)
-    rel = _get_active_relationship(client)
-    if not rel:
+    nutrition_coach = get_nutrition_coach(client)
+    if not nutrition_coach:
         return JsonResponse({'error': 'no_coach'}, status=404)
     try:
         offset = max(0, int(request.GET.get('offset', 0)))
@@ -2388,7 +2385,7 @@ def api_client_nutrition_history(request):
     qs = (
         NutritionAssignment.objects
         .select_related('nutrition_plan')
-        .filter(client=client, coach=rel.coach)
+        .filter(client=client, coach=nutrition_coach)
         .exclude(status='ACTIVE')
         .order_by('-created_at')
     )

@@ -17,7 +17,7 @@ from domain.chat.models import Notification
 from .services.email import send_workout_assigned
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
-    get_active_relationship, can_manage_workouts,
+    get_workout_coach, can_manage_workouts,
 )
 
 
@@ -126,9 +126,12 @@ def allenamenti_list_view(request):
 
     if user.role == 'CLIENT':
         client = get_session_client(request)
-        relationship = get_active_relationship(client)
-        if not relationship:
-            return redirect('check_coach_directory')
+        # Resolve the training professional (FULL coach or Allenatore). A client
+        # with only a nutritionist still has access — just no workout section — so
+        # send them to the dashboard instead of the suspended-access page.
+        workout_coach = get_workout_coach(client)
+        if not workout_coach:
+            return redirect('dashboard')
 
         today = date.today()
 
@@ -171,7 +174,7 @@ def allenamenti_list_view(request):
             'history_page_size': WORKOUT_HISTORY_PAGE_SIZE,
             'is_client': True,
             'client': client,
-            'coach': relationship.coach,
+            'coach': workout_coach,
             'has_coach': True,
             'today': today,
         })

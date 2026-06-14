@@ -23,6 +23,12 @@
         <i class="ph ph-check"></i>
         <span>Email reinviata.</span>
     </div>
+    {% elif too_soon %}
+    <div class="mt-5 inline-flex items-center gap-2 al-badge-warn"
+         style="font-family: var(--al-sans); padding: 8px 14px; letter-spacing: 0; text-transform: none; font-size: 13px;">
+        <i class="ph ph-hourglass-medium"></i>
+        <span>Hai già richiesto un invio da poco. Attendi qualche istante.</span>
+    </div>
     {% endif %}
 
     <p class="al-small mt-6">
@@ -30,14 +36,18 @@
         Il link scade dopo 7 giorni.
     </p>
 
-    <div class="mt-8 pt-6 border-t" style="border-color: var(--al-rule-faint);">
+    <div class="mt-8 pt-6 border-t" style="border-color: var(--al-rule-faint);"
+         x-data="{ cd: {% if too_soon %}{{ wait_seconds }}{% elif resent or just_sent %}120{% else %}0{% endif %} }"
+         x-init="if (cd > 0) { const t = setInterval(() => { if (--cd <= 0) clearInterval(t); }, 1000); }">
         <p class="al-small mb-3">Non hai ricevuto l'email?</p>
         <form action="{% url 'resend_verification' %}" method="POST">
             {% csrf_token %}
             <input type="hidden" name="email" value="{{ email }}">
-            <button type="submit" class="al-btn al-btn-ghost al-btn-sm">
+            <button type="submit" class="al-btn al-btn-ghost al-btn-sm" :disabled="cd > 0">
                 <i class="ph ph-arrow-clockwise"></i>
-                <span>Reinvia link</span>
+                <span x-show="cd <= 0">Mail non arrivata? Richiedi nuovo invio</span>
+                <span x-show="cd > 0" x-cloak
+                      x-text="'Reinvia tra ' + Math.floor(cd / 60) + ':' + String(cd % 60).padStart(2, '0')"></span>
             </button>
         </form>
     </div>

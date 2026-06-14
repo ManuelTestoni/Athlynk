@@ -7,18 +7,19 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from pydantic import ValidationError
 
+from chiron.actions import execute_action
 from chiron.agent import run_chiron
-from chiron.schemas import ChatRequest, HistoryMessage
+from chiron.memory import build_context, reset as reset_memory
+from chiron.schemas import ChatRequest
 from domain.chiron.models import ChironMessage
 
 from .session_utils import get_session_user, get_session_coach
 
 logger = logging.getLogger(__name__)
 
-# Numero massimo di messaggi (user+assistant) usati come contesto per il modello.
-HISTORY_WINDOW = 20
-# Numero massimo di messaggi ritornati al frontend al reload.
-HISTORY_PAGE = 50
+# Paginazione history: pagina di default e tetto massimo per richiesta.
+HISTORY_PAGE_DEFAULT = 10
+HISTORY_PAGE_MAX = 50
 
 
 def _role_from_coach(coach) -> str:
@@ -29,17 +30,6 @@ def _role_from_coach(coach) -> str:
         'NUTRIZIONISTA': 'nutrizionista',
     }
     return mapping.get(getattr(coach, 'professional_type', ''), 'utente')
-
-
-def _load_history_from_db(user, limit: int = HISTORY_WINDOW) -> list[HistoryMessage]:
-    """Carica gli ultimi N messaggi dal DB in ordine cronologico crescente."""
-    rows = list(
-        ChironMessage.objects
-        .filter(user=user)
-        .order_by('-created_at')[:limit]
-    )
-    rows.reverse()
-    return [HistoryMessage(role=r.role, content=r.content) for r in rows]
 
 
 @require_http_methods(["POST"])
@@ -65,8 +55,9 @@ def api_chiron_chat(request):
     except ValidationError as exc:
         return JsonResponse({'error': 'Payload non valido', 'details': exc.errors()}, status=400)
 
-    # Se il frontend non ha mandato history, ricostruiscila dal DB.
-    history = payload.conversation_history or _load_history_from_db(user)
+    # Contesto autorevole lato server: finestra recente + riassunto rotante.
+    # build_context va chiamato PRIMA di persistere il nuovo messaggio utente.
+    history, memory_summary = build_context(user)
 
     # Persisti il messaggio utente PRIMA della chiamata al modello.
     ChironMessage.objects.create(
@@ -80,6 +71,8 @@ def api_chiron_chat(request):
             message=payload.message,
             user_role=payload.user_role,
             history=history,
+            coach_id=coach.id,
+            memory_summary=memory_summary,
         )
     except Exception:
         logger.exception("CHIRON: errore in run_chiron")
@@ -94,42 +87,101 @@ def api_chiron_chat(request):
         role='assistant',
         content=result.response,
         sources=[s.model_dump() for s in result.sources],
+        actions=[a.model_dump() for a in result.actions],
         used_web_search=result.used_web_search,
     )
 
     return JsonResponse({
         'response': result.response,
         'sources': [s.model_dump() for s in result.sources],
+        'actions': [a.model_dump() for a in result.actions],
         'used_web_search': result.used_web_search,
+        'pending_action': result.pending_action.model_dump() if result.pending_action else None,
     })
+
+
+@require_http_methods(["POST"])
+def api_chiron_action_execute(request):
+    """Esegue un'azione proposta da CHIRON, DOPO conferma del coach.
+
+    Il modello non muta mai i dati: qui il server ri-valida lo scope ed esegue.
+    """
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    try:
+        ok, message, link = execute_action(coach, body or {})
+    except Exception:
+        logger.exception("CHIRON: errore in execute_action")
+        return JsonResponse({'ok': False, 'message': 'Azione non riuscita.'}, status=500)
+
+    if ok:
+        # Registra l'esito come messaggio assistente: sopravvive al reload.
+        ChironMessage.objects.create(
+            user=user,
+            role='assistant',
+            content=f"✓ {message}",
+            actions=[link] if link else [],
+        )
+
+    return JsonResponse(
+        {'ok': ok, 'message': message, 'action': link},
+        status=200 if ok else 400,
+    )
 
 
 @require_http_methods(["GET"])
 def api_chiron_history(request):
+    """Cronologia paginata (cursor su id). `?limit=10&before=<id>` per i più vecchi."""
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
     if not get_session_coach(request):
         return JsonResponse({'error': 'Forbidden'}, status=403)
 
-    rows = list(
-        ChironMessage.objects
-        .filter(user=user)
-        .order_by('-created_at')[:HISTORY_PAGE]
-    )
-    rows.reverse()
+    try:
+        limit = int(request.GET.get('limit', HISTORY_PAGE_DEFAULT))
+    except (ValueError, TypeError):
+        limit = HISTORY_PAGE_DEFAULT
+    limit = max(1, min(limit, HISTORY_PAGE_MAX))
+
+    qs = ChironMessage.objects.filter(user=user)
+    before = request.GET.get('before')
+    if before:
+        try:
+            qs = qs.filter(id__lt=int(before))
+        except (ValueError, TypeError):
+            pass
+
+    # Prende limit+1 per sapere se ci sono altri messaggi più vecchi.
+    rows = list(qs.order_by('-id')[:limit + 1])
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    rows.reverse()  # cronologico crescente per il rendering
 
     return JsonResponse({
         'messages': [
             {
+                'id': r.id,
                 'role': r.role,
                 'content': r.content,
                 'sources': r.sources or [],
+                'actions': r.actions or [],
                 'used_web_search': r.used_web_search,
                 'created_at': r.created_at.isoformat(),
             }
             for r in rows
         ],
+        'has_more': has_more,
     })
 
 
@@ -142,4 +194,5 @@ def api_chiron_clear(request):
         return JsonResponse({'error': 'Forbidden'}, status=403)
 
     deleted, _ = ChironMessage.objects.filter(user=user).delete()
+    reset_memory(user)
     return JsonResponse({'status': 'ok', 'deleted': deleted})

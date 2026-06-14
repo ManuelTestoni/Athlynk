@@ -174,3 +174,19 @@ def send_newsletter_confirm(subscriber):
             'unsubscribe_url': unsubscribe_url,
         },
     )
+
+
+def send_platform_purchase_confirmation(purchase):
+    """Subscription confirmation for a platform purchase, carrying the access code."""
+    amount_display = f"{purchase.amount_total / 100:.2f} {purchase.currency.upper()} / mese"
+    return send_html_mail(
+        to=purchase.email,
+        subject='Abbonamento attivo · il tuo codice di accesso Athlynk',
+        template_base='platform_purchase',
+        context={
+            'code': purchase.code,
+            'amount_display': amount_display,
+            'plan_name': purchase.get_plan_display(),
+            'has_chiron': purchase.has_chiron,
+        },
+    )

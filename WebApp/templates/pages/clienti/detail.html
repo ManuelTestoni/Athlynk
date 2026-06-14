@@ -56,6 +56,18 @@
                 <a href="{% url 'allenamenti_create' %}" class="al-btn al-btn-sm al-btn-bronze">
                     <i class="ph ph-plus text-xs"></i><span>Assegna Piano</span>
                 </a>
+                {% if relationship.status == 'ACTIVE' %}
+                <div x-data class="contents">
+                    <button type="button" class="al-btn al-btn-sm al-btn-ghost text-danger"
+                            data-name="{{ client.first_name }} {{ client.last_name }}"
+                            @click="window.alConfirm({ icon: 'ph-link-break', title: 'Terminare la\ncollaborazione?', subtitle: $el.dataset.name + ' perderà l\'accesso ai tuoi contenuti e, se non seguito da altri professionisti, all\'app. Potrai sempre ri-aggiungerlo.', confirmLabel: 'Sì, termina' }).then(ok => ok && $refs.endRelForm.submit())">
+                        <i class="ph ph-user-minus text-xs"></i><span>Termina collaborazione</span>
+                    </button>
+                    <form method="post" action="{% url 'clienti_termina' client.id %}" x-ref="endRelForm" class="hidden">
+                        {% csrf_token %}
+                    </form>
+                </div>
+                {% endif %}
             </div>
         </div>
 

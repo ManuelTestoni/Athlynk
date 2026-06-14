@@ -122,6 +122,23 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@localhost')
 SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 
 
+# --- Stripe / Payments -----------------------------------------------------
+# Platform purchase (coach pays Athlynk) started from the static marketing site
+# and fulfilled via webhook. Keys live in the env, empty by default so the app
+# boots without Stripe configured (the checkout view degrades gracefully).
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+# Recurring (monthly) price IDs, one per plan, plus the Chiron add-on. Empty by
+# default; a plan whose price ID is unset is treated as unavailable at checkout.
+STRIPE_PRICE_ATHENA = config('STRIPE_PRICE_ATHENA', default='')
+STRIPE_PRICE_APOLLO = config('STRIPE_PRICE_APOLLO', default='')
+STRIPE_PRICE_ZEUS = config('STRIPE_PRICE_ZEUS', default='')
+STRIPE_PRICE_CHIRON = config('STRIPE_PRICE_CHIRON', default='')
+# Public marketing site (Vercel) — Stripe success/cancel redirects land here.
+WEBSITE_URL = config('WEBSITE_URL', default='https://athlynk.it')
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -159,6 +176,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'config.middleware.SessionSecurityMiddleware',
     'config.middleware.SanitizationMiddleware',
+    'config.middleware.ClientAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

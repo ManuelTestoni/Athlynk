@@ -1,0 +1,15 @@
+Ciao,
+
+grazie per esserti abbonato ad Athlynk. Il tuo abbonamento e' attivo.
+
+Piano: {{ plan_name }}{% if has_chiron %} + Chiron{% endif %}
+Importo: {{ amount_display }}
+
+Il tuo codice di accesso:
+
+  {{ code }}
+
+Conserva questo codice: ti servira' per accedere all'app Athlynk.
+
+— Il team Athlynk
+{{ site_url }}

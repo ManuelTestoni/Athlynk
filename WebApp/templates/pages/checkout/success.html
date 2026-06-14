@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abbonamento attivo · Athlynk</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0b0a08">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z' fill='%23c9a96a'/%3E%3Crect x='11' y='21' width='10' height='2' fill='%23c9a96a'/%3E%3C/svg%3E">
+<style>
+  :root { --ink:#0b0a08; --ivory:#f4efe4; --ivory-mute:#9b9181; --gold:#c9a96a; --line:rgba(201,169,106,0.22); }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ink); color:var(--ivory); font-family:'Hanken Grotesk',system-ui,sans-serif; -webkit-font-smoothing:antialiased; display:flex; min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+  .card { max-width:520px; text-align:center; }
+  .mark { width:64px; height:64px; margin:0 auto 28px; border:1px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--gold); }
+  .mark svg { width:28px; height:28px; }
+  .eyebrow { font-size:11px; letter-spacing:0.20em; text-transform:uppercase; color:var(--gold); margin:0 0 12px; }
+  h1 { font-family:'Bodoni Moda',Georgia,serif; font-weight:400; font-size:32px; line-height:1.15; margin:0 0 18px; }
+  .lede { color:var(--ivory-mute); font-size:17px; line-height:1.6; max-width:46ch; margin:0 auto 36px; }
+  .lede b { color:var(--ivory); }
+  .actions { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; font-weight:600; border-radius:2px; padding:13px 26px; transition:transform .18s ease,opacity .18s ease; }
+  .btn:hover { transform:translateY(-1px); }
+  .btn-gold { background:var(--gold); color:#1a1206; }
+  .btn-ghost { border:1px solid var(--line); color:var(--ivory); }
+  .note { margin-top:32px; color:var(--ivory-mute); font-size:13px; line-height:1.6; }
+  .note a { color:var(--gold); text-decoration:none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    </div>
+    <p class="eyebrow">Abbonamento attivo</p>
+    <h1>Benvenuto in Athlynk.</h1>
+    <p class="lede">Abbiamo inviato il tuo <b>codice di accesso</b>{% if email %} a <b>{{ email }}</b>{% endif %}. Conservalo: ti servirà per accedere all'app.</p>
+    <div class="actions">
+      <a href="{{ login_url }}" class="btn btn-gold">Vai al login</a>
+      <a href="https://athlynk.it" class="btn btn-ghost">Torna al sito</a>
+    </div>
+    <p class="note">Non trovi l'email? Controlla lo spam o scrivici a <a href="mailto:supporto@athlynk.it">supporto@athlynk.it</a>.</p>
+  </div>
+</body>
+</html>

@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Atleti{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ statusFilter: '{{ status_filter }}' }">
+<div class="max-w-7xl mx-auto" x-data="clientsTable()">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
@@ -23,31 +24,29 @@
         </div>
     </div>
 
-    <!-- Search & Filters -->
-    <form method="GET" action="" class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+    <!-- Search & Filters (Alpine, reattivi, nessun reload) -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
         <div class="al-search sm:max-w-xs" style="flex: 0 1 320px;">
             <i class="ph ph-magnifying-glass"></i>
-            <input type="text" name="q" value="{{ search }}" placeholder="Cerca per nome…" class="al-input">
+            <input type="text" x-model="q" placeholder="Cerca per nome o email…" class="al-input">
         </div>
-        <select name="status" onchange="this.form.submit()" class="al-select sm:max-w-[180px]">
-            <option value="" {% if not status_filter %}selected{% endif %}>Tutti gli stati</option>
-            <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Attivi</option>
-            <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>In attesa</option>
-            <option value="INACTIVE" {% if status_filter == 'INACTIVE' %}selected{% endif %}>Inattivi</option>
+        <select x-model="status" class="al-select sm:max-w-[180px]">
+            <option value="">Tutti gli stati</option>
+            <option value="ACTIVE">Attivi</option>
+            <option value="PENDING">In attesa</option>
+            <option value="INACTIVE">Inattivi</option>
         </select>
-        <select name="plan" onchange="this.form.submit()" class="al-select sm:max-w-[220px]">
-            <option value="" {% if not plan_filter %}selected{% endif %}>Tutti gli abbonamenti</option>
+        <select x-model="plan" class="al-select sm:max-w-[220px]">
+            <option value="">Tutti gli abbonamenti</option>
             {% for p in all_plans %}
-            <option value="{{ p.id }}" {% if plan_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+            <option value="{{ p.id }}">{{ p.name }}</option>
             {% endfor %}
         </select>
-        {% if search or status_filter or plan_filter %}
-        <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost al-btn-sm">
+        <button type="button" x-show="hasFilters" x-cloak @click="q=''; status=''; plan=''" class="al-btn al-btn-ghost al-btn-sm">
             <i class="ph ph-x"></i>
             <span>Resetta</span>
-        </a>
-        {% endif %}
-    </form>
+        </button>
+    </div>
 
     <!-- Table -->
     <div class="al-card al-card-flush overflow-hidden">
@@ -57,7 +56,6 @@
                     <tr>
                         <th>Atleta</th>
                         <th>Stato</th>
-                        <th>Obiettivo</th>
                         <th>Allenamento</th>
                         <th>Ultimo Check</th>
                         <th>Abbonamento</th>
@@ -65,105 +63,102 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in clients_data %}
-                    {% with client=item.client rel=item.relationship %}
+                    <template x-for="c in filtered" :key="c.id">
                     <tr>
                         <td>
                             <div class="flex items-center gap-3">
-                                <div class="al-avatar al-avatar-sm al-avatar-sq">
-                                    {{ client.first_name|slice:":1" }}{{ client.last_name|slice:":1" }}
-                                </div>
+                                <div class="al-avatar al-avatar-sm al-avatar-sq" x-text="c.initials"></div>
                                 <div>
-                                    <p class="font-medium text-ink">{{ client.first_name }} {{ client.last_name }}</p>
-                                    <p class="al-tag" style="font-size:9px;">{{ client.user.email }}</p>
+                                    <p class="font-medium text-ink" x-text="c.name"></p>
+                                    <p class="al-tag" style="font-size:9px;" x-text="c.email"></p>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            {% if rel.status == 'ACTIVE' %}
-                            <span class="al-badge al-badge-success"><span class="dot"></span>Attivo</span>
-                            {% elif rel.status == 'PENDING' %}
-                            <span class="al-badge al-badge-warn"><span class="dot"></span>In attesa</span>
-                            {% else %}
-                            <span class="al-badge"><span class="dot"></span>Inattivo</span>
-                            {% endif %}
+                            <template x-if="c.status === 'ACTIVE'"><span class="al-badge al-badge-success"><span class="dot"></span>Attivo</span></template>
+                            <template x-if="c.status === 'PENDING'"><span class="al-badge al-badge-warn"><span class="dot"></span>In attesa</span></template>
+                            <template x-if="c.status !== 'ACTIVE' && c.status !== 'PENDING'"><span class="al-badge"><span class="dot"></span>Inattivo</span></template>
                         </td>
                         <td>
-                            {% if client.primary_goal %}
-                            <span class="al-badge al-badge-aegean">{{ client.primary_goal }}</span>
-                            {% else %}
-                            <span class="al-tag">—</span>
-                            {% endif %}
+                            <template x-if="c.workout_title">
+                                <div>
+                                    <p class="font-medium text-ink truncate max-w-[160px]" x-text="c.workout_title"></p>
+                                    <p class="al-tag" style="font-size:9px;" x-text="c.workout_level"></p>
+                                </div>
+                            </template>
+                            <template x-if="!c.workout_title"><span class="al-tag">Nessun piano</span></template>
                         </td>
                         <td>
-                            {% if item.active_workout %}
-                            <p class="font-medium text-ink truncate max-w-[160px]">{{ item.active_workout.workout_plan.title }}</p>
-                            <p class="al-tag" style="font-size:9px;">{{ item.active_workout.workout_plan.level|default:"" }}</p>
-                            {% else %}
-                            <span class="al-tag">Nessun piano</span>
-                            {% endif %}
+                            <template x-if="c.last_check"><span class="al-table-num" x-text="fmtDate(c.last_check)"></span></template>
+                            <template x-if="!c.last_check"><span class="al-tag">Mai</span></template>
                         </td>
                         <td>
-                            {% if item.last_check_date %}
-                            <span class="al-table-num">{{ item.last_check_date|date:"d M Y" }}</span>
-                            {% else %}
-                            <span class="al-tag">Mai</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.active_subscription %}
-                            <p class="font-medium text-ink truncate max-w-[140px]">{{ item.active_subscription.subscription_plan.name }}</p>
-                            <p class="text-xs text-bronze font-medium">€{{ item.active_subscription.subscription_plan.price }}</p>
-                            {% else %}
-                            <span class="al-tag">Nessuno</span>
-                            {% endif %}
+                            <template x-if="c.sub_name">
+                                <div>
+                                    <p class="font-medium text-ink truncate max-w-[140px]" x-text="c.sub_name"></p>
+                                    <p class="text-xs text-bronze font-medium" x-text="'€' + c.sub_price"></p>
+                                </div>
+                            </template>
+                            <template x-if="!c.sub_name"><span class="al-tag">Nessuno</span></template>
                         </td>
                         <td class="text-right">
-                            <a href="{% url 'clienti_detail' client.id %}" class="al-btn al-btn-ghost al-btn-sm">
+                            <a :href="c.url" class="al-btn al-btn-ghost al-btn-sm">
                                 <span>Apri</span>
                                 <i class="ph ph-arrow-right text-xs"></i>
                             </a>
                         </td>
                     </tr>
-                    {% endwith %}
-                    {% empty %}
+                    </template>
+
+                    <template x-if="filtered.length === 0">
                     <tr>
-                        <td colspan="7">
+                        <td colspan="6">
                             <div class="al-empty">
                                 <i class="ph ph-users-three al-empty-icon"></i>
-                                <h3>{% if search or status_filter or plan_filter %}Nessun risultato{% else %}Nessun atleta{% endif %}</h3>
-                                <p>
-                                    {% if search or status_filter or plan_filter %}
-                                    Modifica i filtri o resetta la ricerca.
-                                    {% else %}
-                                    Aggiungi il primo atleta per iniziare.
-                                    {% endif %}
-                                </p>
-                                {% if not search and not status_filter and not plan_filter %}
-                                <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-sm al-btn-bronze">
-                                    <i class="ph ph-user-plus"></i>
-                                    <span>Aggiungi Atleta</span>
-                                </a>
-                                {% endif %}
+                                <h3 x-text="clients.length === 0 ? 'Nessun atleta' : 'Nessun risultato'"></h3>
+                                <p x-text="clients.length === 0 ? 'Aggiungi il primo atleta per iniziare.' : 'Modifica i filtri o resetta la ricerca.'"></p>
+                                <template x-if="clients.length === 0">
+                                    <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-sm al-btn-bronze">
+                                        <i class="ph ph-user-plus"></i>
+                                        <span>Aggiungi Atleta</span>
+                                    </a>
+                                </template>
                             </div>
                         </td>
                     </tr>
-                    {% endfor %}
+                    </template>
                 </tbody>
             </table>
         </div>
 
-        {% if total_count > 0 %}
-        <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
-            <span class="al-tag">
-                {% if search or status_filter or plan_filter %}
-                {{ total_count }} risultati
-                {% else %}
-                {{ total_count }} atleti totali
-                {% endif %}
-            </span>
+        <div class="px-6 py-4 border-t flex items-center justify-between" style="border-color: var(--al-rule); background: var(--al-marble-warm);"
+             x-show="filtered.length > 0">
+            <span class="al-tag" x-text="filtered.length + (hasFilters ? ' risultati' : ' atleti totali')"></span>
         </div>
-        {% endif %}
     </div>
 </div>
+
+<script>
+function clientsTable() {
+    return {
+        q: '',
+        status: '',
+        plan: '',
+        clients: {{ clients_json|json_js }},
+        get hasFilters() { return this.q.trim() !== '' || this.status !== '' || this.plan !== ''; },
+        get filtered() {
+            const q = this.q.trim().toLowerCase();
+            return this.clients.filter(c =>
+                (!q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)) &&
+                (!this.status || c.status === this.status) &&
+                (!this.plan || c.plan_id === this.plan)
+            );
+        },
+        fmtDate(iso) {
+            if (!iso) return '';
+            return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+    };
+}
+</script>
 {% endblock %}

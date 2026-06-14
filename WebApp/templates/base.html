@@ -173,19 +173,23 @@
 
                 {% elif is_client %}
 
+                {% if coach or trainer %}
                 <a href="{% url 'allenamenti_list' %}"
                    class="al-nav-link {% if s == 'allenamenti' %}is-active{% endif %}">
                     <i class="ph ph-barbell"></i>
                     <span>Il mio allenamento</span>
                     {% if sidebar_notifications.allenamenti %}<span class="al-nav-dot"></span>{% endif %}
                 </a>
+                {% endif %}
 
+                {% if coach or nutritionist %}
                 <a href="{% url 'nutrizione_piani' %}"
                    class="al-nav-link {% if s == 'nutrizione' %}is-active{% endif %}">
                     <i class="ph ph-leaf"></i>
                     <span>Nutrizione</span>
                     {% if sidebar_notifications.nutrizione %}<span class="al-nav-dot"></span>{% endif %}
                 </a>
+                {% endif %}
 
                 <a href="{% url 'agenda_dashboard' %}"
                    class="al-nav-link {% if s == 'agenda' %}is-active{% endif %}">
@@ -227,11 +231,6 @@
                    class="al-nav-link {% if s == 'specialista' %}is-active{% endif %}">
                     <i class="ph ph-user-circle"></i>
                     <span>Il Mio Specialista</span>
-                </a>
-                {% else %}
-                <a href="{% url 'check_coach_directory' %}" class="al-nav-link">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <span>Trova un Coach</span>
                 </a>
                 {% endif %}
 
@@ -379,14 +378,6 @@
                 </div>
                 {% endif %}
 
-                <div class="w-px h-5 bg-rule hidden sm:block" style="background: var(--al-rule-strong);"></div>
-
-                {% if is_client and not has_coach %}
-                <a href="{% url 'check_coach_directory' %}" class="al-btn al-btn-sm al-btn-bronze">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <span>Trova Coach</span>
-                </a>
-                {% endif %}
             </div>
         </header>
 

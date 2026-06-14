@@ -39,3 +39,44 @@ class ClientSubscription(models.Model):
 
     def __str__(self):
         return f"Subscription for {self.client}"
+
+
+class PlatformPurchase(models.Model):
+    """A coach's monthly subscription to Athlynk platform access, paid via Stripe
+    Checkout from the marketing site. Created only on a signature-verified
+    `checkout.session.completed` webhook; its `status` is then kept in sync by
+    `customer.subscription.updated/deleted` events. Decoupled from User on
+    purpose: the buyer may not have an account yet — they redeem `code` when they
+    first sign in to the app (login redemption is future work)."""
+
+    PLAN_ATHENA = 'athena'
+    PLAN_APOLLO = 'apollo'
+    PLAN_ZEUS = 'zeus'
+    PLAN_CHOICES = [
+        (PLAN_ATHENA, 'Athena'),
+        (PLAN_APOLLO, 'Apollo'),
+        (PLAN_ZEUS, 'Zeus'),
+    ]
+
+    STATUS_ACTIVE = 'active'
+    STATUS_PAST_DUE = 'past_due'
+    STATUS_CANCELED = 'canceled'
+
+    email = models.EmailField()
+    code = models.CharField(max_length=32, unique=True)
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default=PLAN_APOLLO)
+    has_chiron = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, default=STATUS_ACTIVE)
+    stripe_session_id = models.CharField(max_length=255, unique=True)
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, default='', db_index=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, default='')
+    stripe_payment_intent = models.CharField(max_length=255, blank=True, default='')
+    amount_total = models.IntegerField(default=0)  # smallest currency unit (cents)
+    currency = models.CharField(max_length=10, default='eur')
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    email_sent = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"PlatformPurchase {self.code} ({self.email}) — {self.plan}/{self.status}"

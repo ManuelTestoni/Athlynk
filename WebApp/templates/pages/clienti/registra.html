@@ -1,9 +1,31 @@
 {% extends 'base.html' %}
 
-{% block title %}Registra Atleta{% endblock %}
+{% block title %}Aggiungi Atleta{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto" x-data="{ noPlansModal: {{ no_plans_modal|yesno:'true,false' }} }">
+<div class="max-w-3xl mx-auto"
+     x-data="{
+        noPlansModal: {{ no_plans_modal|yesno:'true,false' }},
+        hasPlans: {{ plans|yesno:'true,false' }},
+        mode: '{{ mode|default:'new' }}',
+        birth: '{{ post_data.birth_date|default:'' }}',
+        pw: '{{ post_data.password|default:'' }}',
+        cpw: '',
+        get pwMatch() { return this.cpw === '' || this.pw === this.cpw; },
+        ageFrom(s) {
+            const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
+            if (!m) return NaN;
+            const d = +m[1], mo = +m[2], y = +m[3];
+            const dt = new Date(y, mo - 1, d);
+            if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return NaN;
+            const t = new Date();
+            let a = t.getFullYear() - y;
+            if (t.getMonth() + 1 < mo || (t.getMonth() + 1 === mo && t.getDate() < d)) a--;
+            return a;
+        },
+        get birthValid() { const a = this.ageFrom(this.birth); return this.birth === '' || (isFinite(a) && a >= 0 && a <= 120); },
+        get age() { const a = this.ageFrom(this.birth); return (isFinite(a) && a >= 0 && a <= 120) ? a : null; }
+     }">
 
     <!-- Modal: nessun piano attivo -->
     <div x-show="noPlansModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -20,7 +42,7 @@
             </div>
             <div class="al-modal-body">
                 <p class="al-body">
-                    Per registrare un atleta devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui.
+                    Per aggiungere un atleta devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui.
                 </p>
             </div>
             <div class="al-modal-foot">
@@ -38,24 +60,61 @@
             <i class="ph ph-users text-xs"></i><span>Atleti</span>
         </a>
         <i class="ph ph-caret-right text-[9px]"></i>
-        <span class="text-ink">Registra</span>
+        <span class="text-ink">Aggiungi</span>
     </nav>
 
     <!-- Header -->
     <div class="mb-8">
         <p class="al-eyebrow mb-3">Studio &middot; Onboarding</p>
-        <h1 class="al-h-1">Registra <span class="al-display-i">atleta</span></h1>
-        <p class="al-body mt-2">Crea l'account dell'atleta che si è presentato in studio. La password inserita sarà quella usata per accedere alla piattaforma.</p>
+        <h1 class="al-h-1">Aggiungi <span class="al-display-i">atleta</span></h1>
+        <p class="al-body mt-2">Crea un nuovo atleta, oppure aggiungi al tuo studio un atleta già presente sulla piattaforma.</p>
         <div class="al-rule-bronze mt-5"></div>
     </div>
 
     <form method="POST" action="{% url 'clienti_registra' %}">
         {% csrf_token %}
+        <input type="hidden" name="mode" :value="mode">
 
         <div class="space-y-6">
 
-            <!-- Sezione 1 -->
+            <!-- Mode toggle -->
             <div class="al-card">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" @click="mode = 'new'"
+                            class="al-btn justify-center" :class="mode === 'new' ? 'al-btn-bronze' : 'al-btn-ghost'">
+                        <i class="ph ph-user-plus"></i><span>Nuovo atleta</span>
+                    </button>
+                    <button type="button" @click="mode = 'existing'"
+                            class="al-btn justify-center" :class="mode === 'existing' ? 'al-btn-bronze' : 'al-btn-ghost'">
+                        <i class="ph ph-user-circle-plus"></i><span>Atleta già esistente</span>
+                    </button>
+                </div>
+                <p class="al-small mt-3" x-show="mode === 'new'">Crei un nuovo account: comunicherai tu email e password all'atleta.</p>
+                <p class="al-small mt-3" x-show="mode === 'existing'" x-cloak>L'atleta è già su Athlynk (es. seguito da un altro professionista): lo aggiungi al tuo studio tramite la sua email.</p>
+            </div>
+
+            <!-- Esistente: ricerca per email -->
+            <div class="al-card" x-show="mode === 'existing'" x-cloak>
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-magnifying-glass text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                        <h2 class="al-h-3">Atleta esistente</h2>
+                    </div>
+                </div>
+                <div>
+                    <label class="al-label">Email dell'atleta *</label>
+                    <input type="email" name="email" value="{{ post_data.email|default:'' }}"
+                           :disabled="mode !== 'existing'" :required="mode === 'existing'"
+                           placeholder="atleta@email.com"
+                           class="al-input {% if errors.email %}is-error{% endif %}">
+                    {% if errors.email %}<span class="al-input-error">{{ errors.email }}</span>{% endif %}
+                    <span class="al-input-help">Aggiungerai la tua collaborazione ({{ coach.get_professional_type_display }}) al suo profilo, senza modificarne i dati.</span>
+                </div>
+            </div>
+
+            <!-- Nuovo: Dati Personali -->
+            <div class="al-card" x-show="mode === 'new'">
                 <div class="flex items-center gap-3 mb-6">
                     <i class="ph ph-user text-bronze text-xl"></i>
                     <div>
@@ -67,87 +126,61 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                         <label class="al-label">Nome *</label>
-                        <input type="text" name="first_name" value="{{ post_data.first_name|default:'' }}" required placeholder="Es. Marco"
+                        <input type="text" name="first_name" value="{{ post_data.first_name|default:'' }}" :disabled="mode !== 'new'" placeholder="Es. Marco"
                                class="al-input {% if errors.first_name %}is-error{% endif %}">
                         {% if errors.first_name %}<span class="al-input-error">{{ errors.first_name }}</span>{% endif %}
                     </div>
 
                     <div>
                         <label class="al-label">Cognome *</label>
-                        <input type="text" name="last_name" value="{{ post_data.last_name|default:'' }}" required placeholder="Es. Bianchi"
+                        <input type="text" name="last_name" value="{{ post_data.last_name|default:'' }}" :disabled="mode !== 'new'" placeholder="Es. Bianchi"
                                class="al-input {% if errors.last_name %}is-error{% endif %}">
                         {% if errors.last_name %}<span class="al-input-error">{{ errors.last_name }}</span>{% endif %}
                     </div>
 
                     <div>
                         <label class="al-label">Email *</label>
-                        <input type="email" name="email" value="{{ post_data.email|default:'' }}" required placeholder="atleta@email.com"
+                        <input type="email" name="email" value="{{ post_data.email|default:'' }}" :disabled="mode !== 'new'" placeholder="atleta@email.com"
                                class="al-input {% if errors.email %}is-error{% endif %}">
                         {% if errors.email %}<span class="al-input-error">{{ errors.email }}</span>{% endif %}
                     </div>
 
                     <div>
                         <label class="al-label">Telefono</label>
-                        <input type="tel" name="phone" value="{{ post_data.phone|default:'' }}" placeholder="+39 333 000 0000" class="al-input">
+                        <input type="tel" name="phone" value="{{ post_data.phone|default:'' }}" :disabled="mode !== 'new'" placeholder="+39 333 000 0000" class="al-input">
                     </div>
 
                     <div>
                         <label class="al-label">Data di Nascita</label>
-                        <input type="date" name="birth_date" value="{{ post_data.birth_date|default:'' }}" class="al-input">
+                        <div class="flex items-stretch gap-3">
+                            <input type="text" name="birth_date" x-model="birth" :disabled="mode !== 'new'"
+                                   inputmode="numeric" maxlength="10" placeholder="GG-MM-AAAA"
+                                   :class="(birth && !birthValid) ? 'is-error' : ''"
+                                   class="al-input flex-1 {% if errors.birth_date %}is-error{% endif %}">
+                            <div class="shrink-0 flex flex-col items-center justify-center px-3"
+                                 style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-md); min-width: 64px;">
+                                <p class="al-tag" style="font-size:9px;">Età</p>
+                                <p class="font-medium text-ink" x-text="age !== null ? age : '—'"></p>
+                            </div>
+                        </div>
+                        <span x-show="birth && !birthValid" x-cloak class="al-input-error">Usa il formato GG-MM-AAAA (es. 15-03-1990).</span>
+                        {% if errors.birth_date %}<span class="al-input-error">{{ errors.birth_date }}</span>{% endif %}
                     </div>
 
                     <div>
                         <label class="al-label">Sesso</label>
-                        <select name="gender" class="al-select">
+                        <select name="gender" :disabled="mode !== 'new'" class="al-select">
                             <option value="">Non specificato</option>
                             <option value="M" {% if post_data.gender == 'M' %}selected{% endif %}>Uomo</option>
                             <option value="F" {% if post_data.gender == 'F' %}selected{% endif %}>Donna</option>
                             <option value="X" {% if post_data.gender == 'X' %}selected{% endif %}>Altro</option>
                         </select>
                     </div>
-
-                    <div>
-                        <label class="al-label">Altezza (cm)</label>
-                        <input type="number" name="height_cm" value="{{ post_data.height_cm|default:'' }}" min="100" max="250" placeholder="Es. 175" class="al-input">
-                    </div>
-
-                    <div>
-                        <label class="al-label">Livello di Attività</label>
-                        <select name="activity_level" class="al-select">
-                            <option value="">Non specificato</option>
-                            <option value="Sedentario" {% if post_data.activity_level == 'Sedentario' %}selected{% endif %}>Sedentario</option>
-                            <option value="Leggermente attivo" {% if post_data.activity_level == 'Leggermente attivo' %}selected{% endif %}>Leggermente attivo</option>
-                            <option value="Moderatamente attivo" {% if post_data.activity_level == 'Moderatamente attivo' %}selected{% endif %}>Moderatamente attivo</option>
-                            <option value="Molto attivo" {% if post_data.activity_level == 'Molto attivo' %}selected{% endif %}>Molto attivo</option>
-                            <option value="Atleta" {% if post_data.activity_level == 'Atleta' %}selected{% endif %}>Atleta</option>
-                        </select>
-                    </div>
-
-                    <div class="sm:col-span-2">
-                        <label class="al-label">Obiettivo Principale</label>
-                        <select name="primary_goal" class="al-select">
-                            <option value="">Nessuno specificato</option>
-                            <option value="Dimagrimento" {% if post_data.primary_goal == 'Dimagrimento' %}selected{% endif %}>Dimagrimento</option>
-                            <option value="Ipertrofia" {% if post_data.primary_goal == 'Ipertrofia' %}selected{% endif %}>Ipertrofia / Massa</option>
-                            <option value="Ricomposizione" {% if post_data.primary_goal == 'Ricomposizione' %}selected{% endif %}>Ricomposizione corporea</option>
-                            <option value="Forza" {% if post_data.primary_goal == 'Forza' %}selected{% endif %}>Forza atletica</option>
-                            <option value="Tonificazione" {% if post_data.primary_goal == 'Tonificazione' %}selected{% endif %}>Tonificazione</option>
-                            <option value="Salute" {% if post_data.primary_goal == 'Salute' %}selected{% endif %}>Salute / Benessere</option>
-                            <option value="Performance" {% if post_data.primary_goal == 'Performance' %}selected{% endif %}>Performance sportiva</option>
-                        </select>
-                    </div>
-
-                    <div class="sm:col-span-2">
-                        <label class="al-label">Note Mediche / Controindicazioni</label>
-                        <textarea name="medical_notes_summary" rows="2"
-                                  placeholder="Eventuali patologie, infortuni, allergie..."
-                                  class="al-textarea">{{ post_data.medical_notes_summary|default:'' }}</textarea>
-                    </div>
                 </div>
             </div>
 
-            <!-- Sezione 2 -->
-            <div class="al-card">
+            <!-- Nuovo: Accesso alla Piattaforma -->
+            <div class="al-card" x-show="mode === 'new'">
                 <div class="flex items-center gap-3 mb-2">
                     <i class="ph ph-lock-key text-bronze text-xl"></i>
                     <div>
@@ -157,26 +190,26 @@
                 </div>
                 <p class="al-body mb-6">L'atleta userà questa email e password per accedere ad Athlynk.</p>
 
-                <div class="max-w-sm space-y-4" x-data="{ pw: '', cpw: '', get match() { return this.cpw === '' || this.pw === this.cpw; } }">
+                <div class="max-w-sm space-y-4">
                     <div>
                         <label class="al-label">Password Temporanea *</label>
-                        <input type="text" name="password" x-model="pw" value="{{ post_data.password|default:'' }}" required
+                        <input type="text" name="password" x-model="pw" :disabled="mode !== 'new'"
                                placeholder="Minimo 8 caratteri" minlength="8" autocomplete="off"
                                class="al-input {% if errors.password %}is-error{% endif %}">
                         {% if errors.password %}<span class="al-input-error">{{ errors.password }}</span>{% endif %}
                     </div>
                     <div>
                         <label class="al-label">Conferma Password *</label>
-                        <input type="text" name="confirm_password" x-model="cpw" required
+                        <input type="text" name="confirm_password" x-model="cpw" :disabled="mode !== 'new'"
                                placeholder="Ripeti la password" minlength="8" autocomplete="off"
-                               :class="!match ? 'is-error' : ''" class="al-input">
-                        <span x-show="!match" class="al-input-error">Le password non coincidono.</span>
+                               :class="!pwMatch ? 'is-error' : ''" class="al-input">
+                        <span x-show="!pwMatch" x-cloak class="al-input-error">Le password non coincidono.</span>
                     </div>
                     <span class="al-input-help">Comunicala all'atleta. Potrà cambiarla in autonomia.</span>
                 </div>
             </div>
 
-            <!-- Sezione 3 -->
+            <!-- Piano Abbonamento (sempre) -->
             <div class="al-card {% if errors.subscription_plan_id %}border-danger{% endif %}">
                 <div class="flex items-center gap-3 mb-2">
                     <i class="ph ph-credit-card text-bronze text-xl"></i>
@@ -214,9 +247,10 @@
             <!-- Actions -->
             <div class="flex items-center justify-between pt-2">
                 <a href="{{ cancel_url|default:'/clienti/' }}" class="al-btn al-btn-ghost">Annulla</a>
-                <button type="submit" {% if not plans %}disabled{% endif %} class="al-btn">
+                <button type="submit"
+                        :disabled="!hasPlans || (mode === 'new' && (!pwMatch || (birth && !birthValid)))" class="al-btn">
                     <i class="ph ph-user-plus text-sm"></i>
-                    <span>Registra Atleta</span>
+                    <span x-text="mode === 'existing' ? 'Aggiungi atleta' : 'Registra atleta'">Registra atleta</span>
                 </button>
             </div>
         </div>

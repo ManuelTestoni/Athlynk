@@ -41,6 +41,7 @@ from . import views_legal
 from . import views_consent
 from . import views_seo
 from . import views_chiron
+from . import views_payments
 from . import api as mobile_api
 from . import api_coach as coach_api
 from .api import coach_dual_auth
@@ -52,8 +53,9 @@ urlpatterns = [
     path('login/', views_auth.login_view, name='login'),
     path('registrati/', views_auth.signup_view, name='signup'),
     path('logout/', views_auth.logout_view, name='logout'),
-    path('verify/<str:token>/', views_auth.verify_email_view, name='verify_email'),
+    # 'reinvia' must precede the <token> catch-all, otherwise it is captured as a token.
     path('verify/reinvia/', views_auth.resend_verification_view, name='resend_verification'),
+    path('verify/<str:token>/', views_auth.verify_email_view, name='verify_email'),
     path('password-dimenticata/', views_auth.forgot_password_view, name='forgot_password'),
     path('reset-password/', views_auth.reset_password_view, name='reset_password'),
     path('impostazioni/richiedi-reset/', views_auth.request_password_reset_view, name='request_password_reset'),
@@ -74,7 +76,12 @@ urlpatterns = [
     path('newsletter/conferma/<str:token>/', views_newsletter.confirm_subscription, name='newsletter_confirm'),
     path('newsletter/disiscriviti/<str:token>/', views_newsletter.unsubscribe, name='newsletter_unsubscribe'),
     path('api/newsletter/toggle/', views_newsletter.toggle_subscription, name='newsletter_toggle'),
-    
+
+    # Pagamenti piattaforma (coach -> Athlynk) — avviati dal sito marketing
+    path('acquista/checkout/', views_payments.checkout_page, name='platform_checkout_start'),
+    path('acquista/esito/', views_payments.checkout_return, name='platform_checkout_return'),
+    path('webhooks/stripe/', views_payments.stripe_webhook, name='stripe_webhook'),
+
     path('', views.dashboard_view, name='dashboard'),
     path('analisi/', views.coach_analytics_view, name='analytics_business_page'),
 
@@ -82,6 +89,10 @@ urlpatterns = [
     path('clienti/', views_client.coach_clients_list_view, name='clienti_list'),
     path('clienti/registra/', views_client.registra_client_view, name='clienti_registra'),
     path('clienti/<int:client_id>/', views_client.coach_client_detail_view, name='clienti_detail'),
+    path('clienti/<int:client_id>/termina/', views_client.coach_end_relationship_view, name='clienti_termina'),
+
+    # Accesso sospeso (atleta senza professionista attivo / abbonamento scaduto)
+    path('accesso-sospeso/', views_client.client_blocked_view, name='client_blocked'),
 
     # Il mio specialista (client)
     path('il-mio-coach/', views_client.client_my_coach_view, name='client_my_coach'),
@@ -230,7 +241,6 @@ urlpatterns = [
     path('api/check/cartelle/riordina/', views_check_taxonomy.api_check_folders_reorder, name='api_check_folders_reorder'),
     path('api/check/cartelle/<int:folder_id>/', views_check_taxonomy.api_check_folder_detail, name='api_check_folder_detail'),
     path('api/check/modelli/<int:template_id>/cartella/', views_check_taxonomy.api_check_template_folder, name='api_check_template_folder'),
-    path('check/trova-coach/', views_client.find_coach_list_view, name='check_coach_directory'),
     path('check/andamento/', views_check.check_progress_charts_view, name='check_progress_charts'),
     path('check/andamento/<int:client_id>/', views_check.check_progress_charts_view, name='check_progress_charts_client'),
     path('check/comparatore/', views_check.check_comparator_view, name='check_comparator'),
@@ -238,13 +248,10 @@ urlpatterns = [
     path('check/cliente/<int:client_id>/', views_check.client_check_history_view, name='check_client_history'),
     path('check/<int:response_id>/modifica/', views_check.check_edit_view, name='check_edit'),
     path('check/<int:response_id>/', views_check.check_detail_view, name='check_detail'),
-    path('api/check/trova-coach/', views_client.find_coach_api, name='check_coach_api'),
     path('api/check/cerca-cliente/', views_check.api_check_search, name='check_search_api'),
     path('api/check/clienti-stato/', views_check.api_coach_clients_check_status, name='check_clients_status_api'),
     path('api/check/pianifica/', views_check.api_check_schedule, name='check_schedule_api'),
     path('api/check/<int:response_id>/revisiona/', views_check.api_check_review, name='check_review_api'),
-    path('check/trova-coach/<int:coach_id>/', views_client.coach_detail_view, name='check_coach_detail'),
-    path('check/trova-coach/<int:coach_id>/connetti/', views_client.connect_coach_view, name='check_connect_coach'),
     path('check/i-miei-check/', views_check.client_assigned_checks_view, name='client_assigned_checks'),
     path('check/assegnato/<int:instance_id>/compila/', views_check.fill_assigned_check_view, name='fill_assigned_check'),
     path('api/check/assegna/', views_check.api_check_assign, name='check_assign_api'),
@@ -276,6 +283,7 @@ urlpatterns = [
     # CHIRON (assistente AI)
     path('api/chiron/chat/', views_chiron.api_chiron_chat, name='api_chiron_chat'),
     path('api/chiron/history/', views_chiron.api_chiron_history, name='api_chiron_history'),
+    path('api/chiron/azione/esegui/', views_chiron.api_chiron_action_execute, name='api_chiron_action_execute'),
     path('api/chiron/clear/', views_chiron.api_chiron_clear, name='api_chiron_clear'),
 
     # Notifications

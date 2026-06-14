@@ -20,6 +20,7 @@ import time
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import redirect
 
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,61 @@ class SessionSecurityMiddleware:
         self.max_age = int(getattr(settings, 'SESSION_ABSOLUTE_TIMEOUT', 0) or 0)
 
     def __call__(self, request):
-        if self.max_age and request.session.get('user_id'):
+        # "Ricordami" sessions opt out of the absolute ceiling: the 30-day sliding
+        # cookie (renewed via SESSION_SAVE_EVERY_REQUEST) is the only bound.
+        if (self.max_age and request.session.get('user_id')
+                and not request.session.get('remember')):
             auth_at = request.session.get('auth_at')
             if auth_at and (time.time() - float(auth_at)) > self.max_age:
                 logger.info('session.absolute_timeout user_id=%s', request.session.get('user_id'))
                 request.session.flush()
+        return self.get_response(request)
+
+
+class ClientAccessMiddleware:
+    """Gate athlete (CLIENT) browser sessions.
+
+    An athlete may use the app only while they have at least one active
+    professional collaboration (see config.session_utils.client_has_active_access).
+    With none — never added, collaboration ended, or subscription lapsed — every
+    page redirects to the 'accesso sospeso' landing. Coaches, anonymous visitors
+    and the mobile Bearer API (which has its own gate in config.api.api_view) are
+    untouched: this only fires for sessions carrying our custom CLIENT identity.
+    """
+
+    # Paths an athlete may always reach, even while blocked: the landing page
+    # itself, logout, account/settings, password flows and AJAX endpoints (the
+    # pages that call them are themselves gated, so the data stays unreachable).
+    ALLOW_PREFIXES = (
+        '/accesso-sospeso/',
+        '/logout/',
+        '/impostazioni/',
+        '/profilo/',
+        '/reset-password/',
+        '/password-dimenticata/',
+        '/api/',
+        '/privacy/', '/cookie/', '/ai-trasparenza/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
+        self._static_url = getattr(settings, 'STATIC_URL', '/static/') or '/static/'
+
+    def _is_allowed(self, path):
+        if self._media_url and path.startswith(self._media_url):
+            return True
+        if self._static_url and path.startswith(self._static_url):
+            return True
+        return any(path.startswith(p) for p in self.ALLOW_PREFIXES)
+
+    def __call__(self, request):
+        if (request.session.get('user_id')
+                and request.session.get('user_role') == 'CLIENT'
+                and not self._is_allowed(request.path or '')):
+            from .session_utils import get_session_client, client_has_active_access
+            if not client_has_active_access(get_session_client(request)):
+                return redirect('client_blocked')
         return self.get_response(request)
 
 

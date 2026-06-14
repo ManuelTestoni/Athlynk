@@ -10,7 +10,7 @@
 {% block auth_content %}
 <div class="text-center mb-8">
     <h1 class="al-h-1" style="font-size: clamp(28px, 4vw, 36px);">Crea il tuo account</h1>
-    <p class="al-small mt-2">Scegli il tuo ruolo e inizia il percorso.</p>
+    <p class="al-small mt-2">Per coach, allenatori e nutrizionisti. Scegli il tuo profilo e inizia.</p>
 </div>
 
 {% if error %}
@@ -22,35 +22,16 @@
 
 <form action="{% url 'signup' %}" method="POST" class="space-y-6"
       x-data="{
-        role: 'CLIENT',
         professional_type: 'COACH',
         password: '',
         confirmPassword: '',
         get pwMatch() { return this.confirmPassword === '' || this.password === this.confirmPassword; }
       }">
     {% csrf_token %}
+    <input type="hidden" name="role" value="COACH">
 
-    <!-- Role selector -->
+    <!-- Professional type -->
     <div>
-        <label class="al-label mb-3">Ruolo</label>
-        <div class="grid grid-cols-2 gap-3">
-            <label class="auth-tile" :class="role === 'CLIENT' ? 'is-on' : ''">
-                <input type="radio" name="role" value="CLIENT" x-model="role" class="sr-only">
-                <div class="auth-tile-icon"><i class="ph ph-user"></i></div>
-                <span class="al-h-4">Atleta</span>
-                <span class="al-tag" style="font-size:9px;">Atleta</span>
-            </label>
-            <label class="auth-tile" :class="role === 'COACH' ? 'is-on' : ''">
-                <input type="radio" name="role" value="COACH" x-model="role" class="sr-only">
-                <div class="auth-tile-icon"><i class="ph ph-barbell"></i></div>
-                <span class="al-h-4">Coach</span>
-                <span class="al-tag" style="font-size:9px;">Professionista</span>
-            </label>
-        </div>
-    </div>
-
-    <!-- Professional type (coach only) -->
-    <div x-show="role === 'COACH'" x-collapse>
         <label class="al-label mb-3">Tipo di Professionista</label>
         <div class="space-y-2">
             <label class="auth-tile-row" :class="professional_type === 'COACH' ? 'is-on' : ''">

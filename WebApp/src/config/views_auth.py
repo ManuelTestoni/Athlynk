@@ -3,17 +3,25 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 import logging
 
-from domain.accounts.models import User, CoachProfile, ClientProfile
+from domain.accounts.models import User, CoachProfile
 from .services.tokens import generate_token, is_expired, get_client_ip
 from .services.email import send_welcome_verify, send_password_reset, send_password_changed
 from .services import password_reset as pwd_reset
 from .services import ratelimit
+from .session_utils import enforce_client_access
 from .services.sanitize import (
     InvalidInput, clean_email, clean_password, clean_short_text,
 )
 
 logger = logging.getLogger(__name__)
 
+
+# "Ricordami": persist the session for 30 days (and skip the absolute-timeout
+# flush in SessionSecurityMiddleware). Unchecked → cookie expires at browser close.
+REMEMBER_ME_AGE = 30 * 24 * 60 * 60
+
+# Minimum gap between two verification-email sends to the same account.
+RESEND_COOLDOWN_SECONDS = 120
 
 LOGIN_RATE_LIMIT = 5
 LOGIN_RATE_WINDOW_SECONDS = 15 * 60
@@ -33,6 +41,8 @@ def login_view(request):
             password = clean_password(request.POST.get('password'), min_chars=1)
         except InvalidInput as exc:
             return render(request, 'pages/auth/login.html', {'error': str(exc)}, status=400)
+
+        remember = request.POST.get('remember') == 'on'
 
         ip = ratelimit.client_ip(request)
         ip_allowed, _ = ratelimit.hit(
@@ -60,6 +70,16 @@ def login_view(request):
             request.session['user_id'] = user.id
             request.session['user_role'] = user.role
             request.session['auth_at'] = timezone.now().timestamp()
+            # "Ricordami": keep the session for 30 days across browser restarts;
+            # otherwise expire it when the browser closes.
+            if remember:
+                request.session.set_expiry(REMEMBER_ME_AGE)
+                request.session['remember'] = True
+            else:
+                request.session.set_expiry(0)
+            # Suspend athletes whose subscription lapsed before they even reach a page.
+            if user.role == 'CLIENT':
+                enforce_client_access(getattr(user, 'client_profile', None))
             user.last_login_at = timezone.now()
             user.save(update_fields=['last_login_at'])
             ratelimit.reset('login_ip', ip, LOGIN_RATE_WINDOW_SECONDS)
@@ -82,10 +102,16 @@ def signup_view(request):
         except InvalidInput as exc:
             return render(request, 'pages/auth/signup.html', {'error': str(exc)}, status=400)
 
-        role = (request.POST.get('role') or '').strip().upper()
+        # Registration is for professionals only. Athletes never self-register —
+        # they are created/added by a Coach, Allenatore or Nutrizionista.
+        role = (request.POST.get('role') or 'COACH').strip().upper()
+        if role == 'CLIENT':
+            return render(request, 'pages/auth/signup.html', {
+                'error': 'La registrazione è riservata ai professionisti. '
+                         'Gli atleti vengono aggiunti dal proprio coach.',
+            }, status=400)
+        role = 'COACH'
         professional_type = (request.POST.get('professional_type') or 'COACH').strip().upper()
-        if role not in ('COACH', 'CLIENT'):
-            return render(request, 'pages/auth/signup.html', {'error': 'Ruolo non valido.'}, status=400)
         if professional_type not in ('COACH', 'ALLENATORE', 'NUTRIZIONISTA'):
             professional_type = 'COACH'
         newsletter_optin = request.POST.get('newsletter_optin') == 'on'
@@ -106,27 +132,20 @@ def signup_view(request):
             email_verification_sent_at=timezone.now(),
         )
 
-        if role == 'COACH':
-            CoachProfile.objects.create(
-                user=user,
-                first_name=first_name,
-                last_name=last_name,
-                professional_type=professional_type,
-                platform_subscription_status='ACTIVE',
-            )
-        elif role == 'CLIENT':
-            ClientProfile.objects.create(
-                user=user,
-                first_name=first_name,
-                last_name=last_name,
-            )
+        CoachProfile.objects.create(
+            user=user,
+            first_name=first_name,
+            last_name=last_name,
+            professional_type=professional_type,
+            platform_subscription_status='ACTIVE',
+        )
 
         send_welcome_verify(user, token)
 
         if newsletter_optin:
             _subscribe_newsletter(request, email)
 
-        return render(request, 'pages/auth/check_email.html', {'email': user.email})
+        return render(request, 'pages/auth/check_email.html', {'email': user.email, 'just_sent': True})
 
     return render(request, 'pages/auth/signup.html')
 
@@ -201,6 +220,17 @@ def resend_verification_view(request):
 
     if user.is_verified:
         return redirect('login')
+
+    # Anti-spam: at most one verification email every RESEND_COOLDOWN_SECONDS.
+    sent_at = user.email_verification_sent_at
+    if sent_at:
+        elapsed = (timezone.now() - sent_at).total_seconds()
+        if elapsed < RESEND_COOLDOWN_SECONDS:
+            return render(request, 'pages/auth/check_email.html', {
+                'email': email,
+                'too_soon': True,
+                'wait_seconds': int(RESEND_COOLDOWN_SECONDS - elapsed) + 1,
+            })
 
     user.email_verification_token = generate_token()
     user.email_verification_sent_at = timezone.now()
