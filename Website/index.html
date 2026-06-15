@@ -354,33 +354,38 @@
             <span class="figure-aura"></span>
             <img class="figure-statue" src="assets/anatomy/statue.webp" alt="" width="275" height="889" decoding="async">
 
-            <div class="organ organ-brain" data-organ="brain" style="--x:50%; --y:5.5%; --w:62%">
+            <div class="organ organ-brain" data-organ="brain" style="--x:50%; --y:5.5%; --w:40%">
               <span class="organ-glow"></span>
               <img src="assets/anatomy/brain.webp" alt="" loading="lazy" decoding="async">
             </div>
-            <div class="organ organ-eyes" data-organ="eyes" style="--x:50%; --y:7.5%; --w:40%">
+            <div class="organ organ-eyes" data-organ="eyes" style="--x:50%; --y:7.5%; --w:26%">
               <span class="organ-glow"></span>
               <img src="assets/anatomy/eyes.webp" alt="" loading="lazy" decoding="async">
             </div>
-            <div class="organ organ-lungs" data-organ="lungs" style="--x:50%; --y:31%; --w:74%">
+            <div class="organ organ-lungs" data-organ="lungs" style="--x:50%; --y:31%; --w:48%">
               <span class="organ-glow"></span>
               <img src="assets/anatomy/lungs.webp" alt="" loading="lazy" decoding="async">
             </div>
-            <div class="organ organ-heart" data-organ="heart" style="--x:52%; --y:32%; --w:46%">
+            <div class="organ organ-heart" data-organ="heart" style="--x:52%; --y:32%; --w:30%">
               <span class="organ-glow"></span>
               <img src="assets/anatomy/heart.webp" alt="" loading="lazy" decoding="async">
             </div>
-            <div class="organ organ-blood" data-organ="blood" style="--x:50%; --y:41%; --w:70%">
+            <div class="organ organ-blood" data-organ="blood" style="--x:50%; --y:41%; --w:46%">
               <span class="organ-glow"></span>
               <img src="assets/anatomy/blood.webp" alt="" loading="lazy" decoding="async">
             </div>
 
-            <div class="anatomy-markers">
-              <span class="organ-marker" data-organ="brain" style="--x:50%; --y:5.5%"></span>
-              <span class="organ-marker" data-organ="eyes" style="--x:50%; --y:8%"></span>
-              <span class="organ-marker" data-organ="heart" style="--x:53%; --y:33%"></span>
-              <span class="organ-marker" data-organ="lungs" style="--x:44%; --y:30%"></span>
-              <span class="organ-marker" data-organ="blood" style="--x:50%; --y:42%"></span>
+            <!-- SVG che traccia lo scorrimento lungo la statua -->
+            <svg class="anatomy-trace" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path class="trace-track" d="M50 5.5 L50 8 C49 18 45 24 44 30 C47 32 51 32 53 33 C52 38 49 40 50 42"></path>
+              <path class="trace-progress" d="M50 5.5 L50 8 C49 18 45 24 44 30 C47 32 51 32 53 33 C52 38 49 40 50 42"></path>
+            </svg>
+            <div class="trace-nodes">
+              <span class="trace-node" data-organ="brain" style="--x:50%; --y:5.5%"></span>
+              <span class="trace-node" data-organ="eyes"  style="--x:50%; --y:8%"></span>
+              <span class="trace-node" data-organ="lungs" style="--x:44%; --y:30%"></span>
+              <span class="trace-node" data-organ="heart" style="--x:53%; --y:33%"></span>
+              <span class="trace-node" data-organ="blood" style="--x:50%; --y:42%"></span>
             </div>
           </div>
         </div>

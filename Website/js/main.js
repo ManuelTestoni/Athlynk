@@ -117,13 +117,20 @@
     const figure = anatomy.querySelector(".anatomy-figure");
     const chapters = [...anatomy.querySelectorAll(".anatomy-chapter")];
     const organs = [...anatomy.querySelectorAll(".organ")];
-    const markers = [...anatomy.querySelectorAll(".organ-marker")];
+    const nodes = [...anatomy.querySelectorAll(".trace-node")];
+    // ordine di percorrenza dei checkpoint lungo il tracciato SVG
+    const order = ["brain", "eyes", "lungs", "heart", "blood"];
     // traslazione (% altezza figura) per portare ogni organo nella finestra sticky
     const focusShift = { brain: 0, eyes: 0, heart: -9, lungs: -9, blood: -14 };
 
     function setOrgan(name) {
+      const idx = order.indexOf(name);
       organs.forEach((o) => o.classList.toggle("active", o.dataset.organ === name));
-      markers.forEach((m) => m.classList.toggle("active", m.dataset.organ === name));
+      nodes.forEach((n) => {
+        const ni = order.indexOf(n.dataset.organ);
+        n.classList.toggle("active", n.dataset.organ === name);
+        n.classList.toggle("passed", ni > -1 && ni <= idx);
+      });
       chapters.forEach((c) => c.classList.toggle("active", c.dataset.organ === name));
       if (!reduceMotion) figure.style.transform = `translateY(${focusShift[name] || 0}%)`;
     }
@@ -136,6 +143,33 @@
 
     chapters.forEach((c) => organSpy.observe(c));
     setOrgan("brain");
+
+    // ---- tracciamento SVG guidato dallo scroll ----
+    const traceProgress = anatomy.querySelector(".trace-progress");
+    const chaptersWrap = anatomy.querySelector(".anatomy-chapters");
+    if (traceProgress && chaptersWrap) {
+      const len = traceProgress.getTotalLength();
+      traceProgress.style.strokeDasharray = len;
+      traceProgress.style.strokeDashoffset = len;
+
+      let traceTick = false;
+      function drawTrace() {
+        const r = chaptersWrap.getBoundingClientRect();
+        const vh = window.innerHeight;
+        // 0 quando il blocco entra a ~55% viewport, 1 quando esce
+        let p = (vh * 0.55 - r.top) / Math.max(r.height - vh * 0.45, 1);
+        p = Math.max(0, Math.min(1, p));
+        traceProgress.style.strokeDashoffset = len * (1 - p);
+        traceTick = false;
+      }
+      window.addEventListener("scroll", () => {
+        if (!traceTick) {
+          traceTick = true;
+          requestAnimationFrame(drawTrace);
+        }
+      }, { passive: true });
+      drawTrace();
+    }
 
     // parallasse di profondità sul puntatore (desktop)
     const anatomyStage = anatomy.querySelector(".anatomy-stage");
