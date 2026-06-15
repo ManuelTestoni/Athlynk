@@ -136,7 +136,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260615d">
+<link rel="stylesheet" href="css/style.css?v=20260615e">
 <link rel="preload" as="image" href="assets/hero.webp" fetchpriority="high">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
@@ -326,92 +326,84 @@
   </div>
 </section>
 
-<!-- ====================== ANATOMIA / ECOSISTEMA ====================== -->
-<section class="anatomy section" id="anatomy">
+<!-- ====================== ANATOMIA — DAL BLOCCO ALL'OPERA ====================== -->
+<section class="forge section" id="anatomy">
   <div class="container">
     <header class="section-head section-head-center reveal">
-      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Anatomia — l'ecosistema<span class="eyebrow-rule"></span></p>
-      <h2 class="section-title">Un solo<br><em>organismo.</em></h2>
-      <p class="section-lede">Come il corpo, Athlynk è un sistema di organi che lavorano insieme. Scorri: ogni parte ha una funzione.</p>
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Anatomia — l'opera<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Dal blocco<br><em>all'opera.</em></h2>
+      <p class="section-lede">Come il marmo diventa statua, ogni parte del tuo sistema prende forma. Scorri: la trasformazione si scolpisce sotto i tuoi occhi.</p>
     </header>
+  </div>
 
-    <div class="anatomy-layout">
-      <!-- figura: statua greca in marmo + organi (immagini Stitch) -->
-      <div class="anatomy-figure-wrap" aria-hidden="true">
-        <div class="anatomy-stage">
-          <div class="anatomy-figure">
-            <span class="figure-aura"></span>
-            <img class="figure-statue" src="assets/anatomy/statue.webp" alt="" width="275" height="889" decoding="async">
+  <div class="forge-scroll">
+    <div class="forge-stage">
+      <div class="forge-inner">
 
-            <div class="organ organ-brain" data-organ="brain" style="--x:50%; --y:5.5%; --w:40%">
-              <span class="organ-glow"></span>
-              <img src="assets/anatomy/brain.webp" alt="" loading="lazy" decoding="async">
-            </div>
-            <div class="organ organ-eyes" data-organ="eyes" style="--x:50%; --y:7.5%; --w:26%">
-              <span class="organ-glow"></span>
-              <img src="assets/anatomy/eyes.webp" alt="" loading="lazy" decoding="async">
-            </div>
-            <div class="organ organ-lungs" data-organ="lungs" style="--x:50%; --y:31%; --w:48%">
-              <span class="organ-glow"></span>
-              <img src="assets/anatomy/lungs.webp" alt="" loading="lazy" decoding="async">
-            </div>
-            <div class="organ organ-heart" data-organ="heart" style="--x:52%; --y:32%; --w:30%">
-              <span class="organ-glow"></span>
-              <img src="assets/anatomy/heart.webp" alt="" loading="lazy" decoding="async">
-            </div>
-            <div class="organ organ-blood" data-organ="blood" style="--x:50%; --y:41%; --w:46%">
-              <span class="organ-glow"></span>
-              <img src="assets/anatomy/blood.webp" alt="" loading="lazy" decoding="async">
-            </div>
-
-            <!-- SVG che traccia lo scorrimento lungo la statua -->
-            <svg class="anatomy-trace" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <path class="trace-track" d="M50 5.5 L50 8 C49 18 45 24 44 30 C47 32 51 32 53 33 C52 38 49 40 50 42"></path>
-              <path class="trace-progress" d="M50 5.5 L50 8 C49 18 45 24 44 30 C47 32 51 32 53 33 C52 38 49 40 50 42"></path>
-            </svg>
-            <div class="trace-nodes">
-              <span class="trace-node" data-organ="brain" style="--x:50%; --y:5.5%"></span>
-              <span class="trace-node" data-organ="eyes"  style="--x:50%; --y:8%"></span>
-              <span class="trace-node" data-organ="lungs" style="--x:44%; --y:30%"></span>
-              <span class="trace-node" data-organ="heart" style="--x:53%; --y:33%"></span>
-              <span class="trace-node" data-organ="blood" style="--x:50%; --y:42%"></span>
+        <div class="forge-media-col">
+          <div class="forge-media" aria-hidden="true">
+            <span class="forge-aura"></span>
+            <video class="forge-video" muted playsinline preload="none" tabindex="-1"
+                   poster="assets/anatomy/forge/k0.webp">
+              <source src="assets/anatomy/forge/forge.mp4" type="video/mp4">
+            </video>
+            <div class="forge-stills">
+              <img class="forge-still is-active" data-k="0" src="assets/anatomy/forge/k0.webp" alt="" decoding="async">
+              <img class="forge-still" data-k="1" src="assets/anatomy/forge/k1.webp" alt="" loading="lazy" decoding="async">
+              <img class="forge-still" data-k="2" src="assets/anatomy/forge/k2.webp" alt="" loading="lazy" decoding="async">
+              <img class="forge-still" data-k="3" src="assets/anatomy/forge/k3.webp" alt="" loading="lazy" decoding="async">
+              <img class="forge-still" data-k="4" src="assets/anatomy/forge/k4.webp" alt="" loading="lazy" decoding="async">
+              <img class="forge-still" data-k="5" src="assets/anatomy/forge/k5.webp" alt="" loading="lazy" decoding="async">
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- capitoli -->
-      <div class="anatomy-chapters">
-        <article class="anatomy-chapter" data-organ="brain">
-          <span class="chapter-num">Ⅰ</span>
-          <p class="chapter-label">Cervello — Chiron</p>
-          <h3 class="chapter-title">L'intelligenza <em>che guida.</em></h3>
-          <p class="chapter-text">Chiron è il cervello dell'ecosistema: legge lavoro, recupero e nutrizione, e ricalibra il protocollo prima che tu debba chiederlo. La macchina calcola, il coach decide.</p>
-        </article>
-        <article class="anatomy-chapter" data-organ="eyes">
-          <span class="chapter-num">Ⅱ</span>
-          <p class="chapter-label">Occhi — I dati</p>
-          <h3 class="chapter-title">Vedere <em>la prova.</em></h3>
-          <p class="chapter-text">Ogni serie, ogni misura, ogni check: tracciato e leggibile. La trasformazione smette di essere una sensazione e diventa evidenza.</p>
-        </article>
-        <article class="anatomy-chapter" data-organ="heart">
-          <span class="chapter-num">Ⅲ</span>
-          <p class="chapter-label">Cuore — L'allenamento</p>
-          <h3 class="chapter-title">Il battito <em>del metodo.</em></h3>
-          <p class="chapter-text">Programmazione progressiva, carichi suggeriti, ogni sessione registrata. Il lavoro quotidiano è il muscolo che muove tutto il resto.</p>
-        </article>
-        <article class="anatomy-chapter" data-organ="lungs">
-          <span class="chapter-num">Ⅳ</span>
-          <p class="chapter-label">Polmoni — Il recupero</p>
-          <h3 class="chapter-title">Respiro <em>e ritorno.</em></h3>
-          <p class="chapter-text">Recupero e carico interno analizzati a ogni check: deload quando serve, spinta quando puoi. Si cresce quando si respira, non solo quando si spinge.</p>
-        </article>
-        <article class="anatomy-chapter" data-organ="blood">
-          <span class="chapter-num">Ⅴ</span>
-          <p class="chapter-label">Sangue — La nutrizione</p>
-          <h3 class="chapter-title">L'energia <em>che circola.</em></h3>
-          <p class="chapter-text">Macro periodizzati sul ciclo di carico: surplus per costruire, ricomposizione per definire. Non una dieta — il flusso che alimenta l'opera.</p>
-        </article>
+        <div class="forge-captions">
+          <span class="forge-rail" aria-hidden="true">
+            <span class="forge-rail-fill"></span>
+            <i class="forge-node" data-cp="1"></i>
+            <i class="forge-node" data-cp="2"></i>
+            <i class="forge-node" data-cp="3"></i>
+            <i class="forge-node" data-cp="4"></i>
+            <i class="forge-node" data-cp="5"></i>
+          </span>
+
+          <figure class="forge-cap is-active" data-cp="1">
+            <span class="forge-num">Ⅰ</span>
+            <figcaption class="forge-label">Cervello — Chiron</figcaption>
+            <h3 class="forge-title">L'intelligenza <em>che guida.</em></h3>
+            <p class="forge-text">Chiron è il cervello dell'ecosistema: legge lavoro, recupero e nutrizione e ricalibra il protocollo prima che tu debba chiederlo. La macchina calcola, il coach decide.</p>
+          </figure>
+
+          <figure class="forge-cap" data-cp="2">
+            <span class="forge-num">Ⅱ</span>
+            <figcaption class="forge-label">Occhi — I dati</figcaption>
+            <h3 class="forge-title">Vedere <em>la prova.</em></h3>
+            <p class="forge-text">Ogni serie, ogni misura, ogni check: tracciato e leggibile. La trasformazione smette di essere una sensazione e diventa evidenza.</p>
+          </figure>
+
+          <figure class="forge-cap" data-cp="3">
+            <span class="forge-num">Ⅲ</span>
+            <figcaption class="forge-label">Cuore — L'allenamento</figcaption>
+            <h3 class="forge-title">Il battito <em>del metodo.</em></h3>
+            <p class="forge-text">Programmazione progressiva, carichi suggeriti, ogni sessione registrata. Il lavoro quotidiano è il muscolo che muove tutto il resto.</p>
+          </figure>
+
+          <figure class="forge-cap" data-cp="4">
+            <span class="forge-num">Ⅳ</span>
+            <figcaption class="forge-label">Intestino — La nutrizione</figcaption>
+            <h3 class="forge-title">L'energia <em>che alimenta.</em></h3>
+            <p class="forge-text">Macro periodizzati sul ciclo di carico: surplus per costruire, ricomposizione per definire. Non una dieta — il nutrimento che alimenta l'opera.</p>
+          </figure>
+
+          <figure class="forge-cap" data-cp="5">
+            <span class="forge-num">Ⅴ</span>
+            <figcaption class="forge-label">La statua — La trasformazione</figcaption>
+            <h3 class="forge-title">L'opera <em>compiuta.</em></h3>
+            <p class="forge-text">Quando ogni parte lavora insieme, il blocco grezzo diventa forma. Non un caso: il risultato di un metodo.</p>
+          </figure>
+        </div>
+
       </div>
     </div>
   </div>
@@ -727,7 +719,7 @@
   </div>
 </div>
 
-<script src="js/main.js?v=20260613"></script>
+<script src="js/main.js?v=20260615"></script>
     <!-- Vercel Speed Insights (static-site script; enable Speed Insights in the Vercel project) -->
     <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>

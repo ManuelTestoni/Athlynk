@@ -111,79 +111,130 @@
     }, { passive: true });
   }
 
-  /* ---------- anatomy: organo attivo + parallasse lungo il corpo ---------- */
-  const anatomy = document.querySelector(".anatomy");
-  if (anatomy) {
-    const figure = anatomy.querySelector(".anatomy-figure");
-    const chapters = [...anatomy.querySelectorAll(".anatomy-chapter")];
-    const organs = [...anatomy.querySelectorAll(".organ")];
-    const nodes = [...anatomy.querySelectorAll(".trace-node")];
-    // ordine di percorrenza dei checkpoint lungo il tracciato SVG
-    const order = ["brain", "eyes", "lungs", "heart", "blood"];
-    // traslazione (% altezza figura) per portare ogni organo nella finestra sticky
-    const focusShift = { brain: 0, eyes: 0, heart: -9, lungs: -9, blood: -14 };
+  /* ---------- forge: blocco di marmo scolpito, scrub guidato dallo scroll ---------- */
+  const forge = document.querySelector(".forge");
+  if (forge) {
+    const track = forge.querySelector(".forge-scroll");
+    const stage = forge.querySelector(".forge-stage");
+    const media = forge.querySelector(".forge-media");
+    const video = forge.querySelector(".forge-video");
+    const stills = [...forge.querySelectorAll(".forge-still")];
+    const caps = [...forge.querySelectorAll(".forge-cap")];
+    const nodes = [...forge.querySelectorAll(".forge-node")];
+    const railFill = forge.querySelector(".forge-rail-fill");
 
-    function setOrgan(name) {
-      const idx = order.indexOf(name);
-      organs.forEach((o) => o.classList.toggle("active", o.dataset.organ === name));
-      nodes.forEach((n) => {
-        const ni = order.indexOf(n.dataset.organ);
-        n.classList.toggle("active", n.dataset.organ === name);
-        n.classList.toggle("passed", ni > -1 && ni <= idx);
-      });
-      chapters.forEach((c) => c.classList.toggle("active", c.dataset.organ === name));
-      if (!reduceMotion) figure.style.transform = `translateY(${focusShift[name] || 0}%)`;
+    const CP = caps.length || 5;                 // numero di checkpoint (5)
+    const LAST = Math.max(stills.length - 1, 1);  // indice ultimo fotogramma (5)
+
+    // modalità video solo su schermi ampi, senza reduce-motion e con supporto mp4
+    const wide = matchMedia("(min-width: 901px)").matches;
+    const useVideo = wide && !reduceMotion && !!video &&
+                     !!video.canPlayType && !!video.canPlayType("video/mp4");
+    forge.classList.add(useVideo ? "is-video" : "is-stills");
+    let videoMode = useVideo; // può tornare false se il browser non sa fare lo scrub
+
+    // stato dichiarato PRIMA del blocco video: setDur() può chiamare update() in modo sincrono
+    const stickyTop = parseFloat(getComputedStyle(stage).top) || 0;
+    let duration = 0;
+    let activeCp = 0;
+    let activeStill = -1;
+
+    function progress() {
+      const r = track.getBoundingClientRect();
+      const scrollable = r.height - stage.offsetHeight;
+      if (scrollable <= 0) return 0;
+      const p = (stickyTop - r.top) / scrollable;
+      return Math.max(0, Math.min(1, p));
     }
 
-    const organSpy = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) setOrgan(entry.target.dataset.organ);
-      });
-    }, { rootMargin: "-45% 0px -45% 0px" });
+    function update() {
+      const p = progress();
 
-    chapters.forEach((c) => organSpy.observe(c));
-    setOrgan("brain");
-
-    // ---- tracciamento SVG guidato dallo scroll ----
-    const traceProgress = anatomy.querySelector(".trace-progress");
-    const chaptersWrap = anatomy.querySelector(".anatomy-chapters");
-    if (traceProgress && chaptersWrap) {
-      const len = traceProgress.getTotalLength();
-      traceProgress.style.strokeDasharray = len;
-      traceProgress.style.strokeDashoffset = len;
-
-      let traceTick = false;
-      function drawTrace() {
-        const r = chaptersWrap.getBoundingClientRect();
-        const vh = window.innerHeight;
-        // 0 quando il blocco entra a ~55% viewport, 1 quando esce
-        let p = (vh * 0.55 - r.top) / Math.max(r.height - vh * 0.45, 1);
-        p = Math.max(0, Math.min(1, p));
-        traceProgress.style.strokeDashoffset = len * (1 - p);
-        traceTick = false;
-      }
-      window.addEventListener("scroll", () => {
-        if (!traceTick) {
-          traceTick = true;
-          requestAnimationFrame(drawTrace);
+      // 1) media: scrub del video, oppure crossfade dei fotogrammi (fallback)
+      if (videoMode) {
+        if (duration > 0) {
+          const t = Math.min(p * duration, duration - 0.05);
+          if (Math.abs(t - video.currentTime) > 0.03) {
+            try { video.currentTime = t; } catch (e) { /* seek non pronto */ }
+          }
         }
-      }, { passive: true });
-      drawTrace();
+      } else {
+        const idx = Math.round(p * LAST);
+        if (idx !== activeStill) {
+          activeStill = idx;
+          stills.forEach((s) => s.classList.toggle("is-active", +s.dataset.k === idx));
+        }
+      }
+
+      // 2) checkpoint attivo (5 segmenti uguali lungo lo scroll)
+      const cp = Math.max(1, Math.min(CP, Math.floor(p * CP) + 1));
+      if (cp !== activeCp) {
+        activeCp = cp;
+        caps.forEach((c) => c.classList.toggle("is-active", +c.dataset.cp === cp));
+        nodes.forEach((n) => {
+          const ci = +n.dataset.cp;
+          n.classList.toggle("active", ci === cp);
+          n.classList.toggle("passed", ci < cp);
+        });
+      }
+
+      // 3) riempimento del binario verticale
+      if (railFill) railFill.style.height = (p * 100).toFixed(2) + "%";
     }
+
+    // metadati video: appena nota la durata, abilita lo scrub.
+    // "prime" (play→pause da muto) così i frame cercati vengono dipinti anche su Safari/iOS.
+    if (useVideo) {
+      video.preload = "auto"; // scarica il video solo in modalità scrub (desktop)
+      const setDur = () => {
+        duration = video.duration || 0;
+        const pl = video.play();
+        if (pl && pl.then) pl.then(() => video.pause()).catch(() => {});
+        update();
+        // auto-fallback: se il browser non muove currentTime, passa ai fotogrammi
+        let alive = false;
+        const markAlive = () => { alive = true; };
+        video.addEventListener("seeked", markAlive, { once: true });
+        video.addEventListener("timeupdate", markAlive, { once: true });
+        try { video.currentTime = Math.min(0.2, (duration || 1) * 0.02); } catch (e) {}
+        setTimeout(() => {
+          if (!alive && video.currentTime < 0.001) {
+            videoMode = false;
+            forge.classList.remove("is-video");
+            forge.classList.add("is-stills");
+            activeStill = -1;
+            update();
+          }
+        }, 1400);
+      };
+      if (video.readyState >= 1) setDur();
+      else video.addEventListener("loadedmetadata", setDur, { once: true });
+      video.load();
+    }
+
+    let forgeTick = false;
+    function onForgeScroll() {
+      if (!forgeTick) {
+        forgeTick = true;
+        requestAnimationFrame(() => { update(); forgeTick = false; });
+      }
+    }
+    window.addEventListener("scroll", onForgeScroll, { passive: true });
+    window.addEventListener("resize", onForgeScroll, { passive: true });
+    update();
 
     // parallasse di profondità sul puntatore (desktop)
-    const anatomyStage = anatomy.querySelector(".anatomy-stage");
-    if (anatomyStage && !reduceMotion && matchMedia("(pointer: fine)").matches) {
-      anatomy.addEventListener("pointermove", (e) => {
-        const r = anatomy.getBoundingClientRect();
+    if (media && !reduceMotion && matchMedia("(pointer: fine)").matches) {
+      forge.addEventListener("pointermove", (e) => {
+        const r = forge.getBoundingClientRect();
         const nx = (e.clientX - r.left) / r.width - 0.5;
         const ny = (e.clientY - r.top) / r.height - 0.5;
-        anatomyStage.style.setProperty("--px", (nx * 20).toFixed(1) + "px");
-        anatomyStage.style.setProperty("--py", (ny * 14).toFixed(1) + "px");
+        media.style.setProperty("--px", (nx * 16).toFixed(1) + "px");
+        media.style.setProperty("--py", (ny * 12).toFixed(1) + "px");
       }, { passive: true });
-      anatomy.addEventListener("pointerleave", () => {
-        anatomyStage.style.setProperty("--px", "0px");
-        anatomyStage.style.setProperty("--py", "0px");
+      forge.addEventListener("pointerleave", () => {
+        media.style.setProperty("--px", "0px");
+        media.style.setProperty("--py", "0px");
       });
     }
   }
