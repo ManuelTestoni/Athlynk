@@ -126,9 +126,10 @@
     const CP = caps.length || 5;                 // numero di checkpoint (5)
     const LAST = Math.max(stills.length - 1, 1);  // indice ultimo fotogramma (5)
 
-    // modalità video solo su schermi ampi, senza reduce-motion e con supporto mp4
-    const wide = matchMedia("(min-width: 901px)").matches;
-    const useVideo = wide && !reduceMotion && !!video &&
+    // scrub video su tutti i dispositivi (desktop + mobile), senza reduce-motion e con supporto mp4.
+    // su mobile carica la sorgente leggera all-keyframe (forge.m480.mp4) per uno scrub fluido.
+    const narrowQ = matchMedia("(max-width: 900px)");
+    const useVideo = !reduceMotion && !!video &&
                      !!video.canPlayType && !!video.canPlayType("video/mp4");
     forge.classList.add(useVideo ? "is-video" : "is-stills");
     let videoMode = useVideo; // può tornare false se il browser non sa fare lo scrub
@@ -182,10 +183,24 @@
       if (railFill) railFill.style.height = (p * 100).toFixed(2) + "%";
     }
 
-    // metadati video: appena nota la durata, abilita lo scrub.
+    // sorgente adatta al viewport (mobile = file leggero all-keyframe)
+    function pickSrc() {
+      return narrowQ.matches
+        ? (video.dataset.srcNarrow || video.dataset.srcWide)
+        : (video.dataset.srcWide || video.dataset.srcNarrow);
+    }
+
+    // carica/cambia la sorgente e abilita lo scrub appena nota la durata.
     // "prime" (play→pause da muto) così i frame cercati vengono dipinti anche su Safari/iOS.
-    if (useVideo) {
-      video.preload = "auto"; // scarica il video solo in modalità scrub (desktop)
+    let loadedKey = "";
+    function loadVideo() {
+      if (!useVideo || !videoMode) return;
+      const key = narrowQ.matches ? "narrow" : "wide";
+      if (key === loadedKey) return; // già caricata la sorgente giusta
+      loadedKey = key;
+      duration = 0;
+      video.preload = "auto";
+      video.src = pickSrc();
       const setDur = () => {
         duration = video.duration || 0;
         const pl = video.play();
@@ -207,9 +222,24 @@
           }
         }, 1400);
       };
-      if (video.readyState >= 1) setDur();
-      else video.addEventListener("loadedmetadata", setDur, { once: true });
+      video.addEventListener("loadedmetadata", setDur, { once: true });
       video.load();
+    }
+
+    if (useVideo) {
+      // lazy: scarica il video solo quando la sezione si avvicina (risparmia dati su mobile)
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver((ents) => {
+          if (ents.some((e) => e.isIntersecting)) { loadVideo(); io.disconnect(); }
+        }, { rootMargin: "150% 0px" });
+        io.observe(forge);
+      } else {
+        loadVideo();
+      }
+      // al cambio breakpoint/orientamento ricarica la sorgente adatta (se già attiva)
+      const onBp = () => { if (loadedKey) { loadedKey = ""; loadVideo(); } };
+      if (narrowQ.addEventListener) narrowQ.addEventListener("change", onBp);
+      else if (narrowQ.addListener) narrowQ.addListener(onBp);
     }
 
     let forgeTick = false;
