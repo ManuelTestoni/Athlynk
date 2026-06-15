@@ -41,7 +41,7 @@
       "@id": "https://athlynk.it/#org",
       "name": "Athlynk",
       "url": "https://athlynk.it/",
-      "logo": "https://athlynk.it/assets/logo.svg",
+      "logo": "https://athlynk.it/assets/athlynk-mark.png",
       "email": "supporto@athlynk.it",
       "slogan": "Il corpo è l'opera.",
       "description": "Ecosistema per il miglioramento fisico: programmazione di allenamento, nutrizione periodizzata e analisi dei dati, uniti in un unico metodo guidato dal coach."
@@ -136,8 +136,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260613">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z' fill='%23c9a96a'/%3E%3Crect x='11' y='21' width='10' height='2' fill='%23c9a96a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css?v=20260615d">
+<link rel="preload" as="image" href="assets/hero.webp" fetchpriority="high">
+<link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
 <body>
 
@@ -148,10 +149,7 @@
 <header class="site-header" id="siteHeader">
   <div class="header-inner">
     <a href="#hero" class="brand" aria-label="Athlynk — home">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
-        <rect x="11" y="21" width="10" height="2"/>
-      </svg>
+      <img class="brand-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
       <span class="brand-name">Athlynk</span>
     </a>
     <nav class="main-nav" id="mainNav" aria-label="Navigazione principale">
@@ -182,18 +180,9 @@
 <!-- ====================== HERO ====================== -->
 <section class="hero" id="hero">
   <div class="hero-bg" aria-hidden="true">
-    <div class="hero-light" data-parallax="0.06"></div>
-    <div class="hero-marble"></div>
-    <div class="hero-ring" data-parallax="0.10"></div>
-    <div class="hero-column hero-column-l" data-parallax="0.04"></div>
-    <div class="hero-column hero-column-r" data-parallax="0.05"></div>
-
-    <!-- statua greca in marmo: cutout cinematografico -->
-    <div class="hero-figure" data-parallax="0.12" aria-hidden="true">
-      <span class="hero-figure-aura"></span>
-      <img src="assets/anatomy/statue.webp" alt="" width="275" height="889" fetchpriority="high" decoding="async">
-    </div>
-
+    <!-- foto cinematografica full-bleed: atleta tra le colonne di marmo -->
+    <div class="hero-photo"></div>
+    <div class="hero-scrim"></div>
     <div class="hero-meander" aria-hidden="true"></div>
   </div>
 
@@ -625,7 +614,7 @@
     <div class="about-layout">
       <div class="about-side reveal" aria-hidden="true">
         <div class="about-emblem">
-          <svg viewBox="0 0 32 32"><path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z" fill="currentColor"/><rect x="11" y="21" width="10" height="2" fill="currentColor"/></svg>
+          <img class="about-emblem-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" decoding="async">
         </div>
         <div class="about-rule"></div>
         <p class="about-side-word">Athlos<br>+<br>Link</p>
@@ -702,10 +691,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a href="#hero" class="brand" aria-label="Athlynk — torna su">
-          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z"/>
-            <rect x="11" y="21" width="10" height="2"/>
-          </svg>
+          <img class="brand-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
           <span class="brand-name">Athlynk</span>
         </a>
         <p class="footer-tagline">Il corpo è l'opera.</p>
