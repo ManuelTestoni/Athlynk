@@ -126,6 +126,34 @@
     const CP = caps.length || 5;                 // numero di checkpoint (5)
     const LAST = Math.max(stills.length - 1, 1);  // indice ultimo fotogramma (5)
 
+    // RENDERING SU CANVAS — identico per desktop e mobile.
+    // Su iOS un <video> in pausa NON ridipinge quando si cambia currentTime (mostra un
+    // fotogramma congelato). drawImage() invece legge sempre il frame decodificato, quindi
+    // disegnando il video su un canvas lo scrub diventa fluido ovunque, iPhone compreso.
+    let ctx = null, canvas = null;
+    if (video) {
+      canvas = document.createElement("canvas");
+      canvas.className = "forge-canvas";
+      canvas.setAttribute("aria-hidden", "true");
+      canvas.style.cssText =
+        "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:3;" +
+        "filter:brightness(0.98) contrast(1.05) drop-shadow(0 30px 60px rgba(0,0,0,0.55));";
+      video.after(canvas);
+      ctx = canvas.getContext("2d");
+    }
+    function paintFrame() {
+      if (!ctx || !video.videoWidth) return;
+      if (canvas.width !== video.videoWidth) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
+    }
+    if (video) {
+      video.addEventListener("seeked", paintFrame);
+      video.addEventListener("loadeddata", paintFrame);
+    }
+
     // scrub video su tutti i dispositivi (desktop + mobile), senza reduce-motion e con supporto mp4.
     // su mobile carica la sorgente leggera all-keyframe (forge.m480.mp4) per uno scrub fluido.
     const narrowQ = matchMedia("(max-width: 900px)");
@@ -158,6 +186,7 @@
           if (Math.abs(t - video.currentTime) > 0.03) {
             try { video.currentTime = t; } catch (e) { /* seek non pronto */ }
           }
+          paintFrame(); // disegna subito il frame decodificato (iOS non ridipinge il <video>)
         }
       } else {
         const idx = Math.round(p * LAST);
@@ -183,18 +212,20 @@
       if (railFill) railFill.style.height = (p * 100).toFixed(2) + "%";
     }
 
-    // sorgente adatta al viewport (mobile = file leggero all-keyframe)
+    // sorgente adatta al viewport: file leggero all-keyframe su mobile, qualità piena su desktop.
+    // (è solo la scelta del file: la LOGICA di scrub è identica per mobile e desktop)
     function pickSrc() {
       return narrowQ.matches
         ? (video.dataset.srcNarrow || video.dataset.srcWide)
         : (video.dataset.srcWide || video.dataset.srcNarrow);
     }
 
-    // carica/cambia la sorgente e abilita lo scrub appena nota la durata.
-    // "prime" (play→pause da muto) così i frame cercati vengono dipinti anche su Safari/iOS.
+    // STESSA logica per desktop e mobile: carica subito la sorgente (come il desktop che già
+    // funziona — niente lazy-load, era l'unica differenza), abilita lo scrub appena nota la
+    // durata, "prime" play→pause da muto così iOS/Safari dipinge i frame cercati.
     let loadedKey = "";
     function loadVideo() {
-      if (!useVideo || !videoMode) return;
+      if (!useVideo) return;
       const key = narrowQ.matches ? "narrow" : "wide";
       if (key === loadedKey) return; // già caricata la sorgente giusta
       loadedKey = key;
@@ -203,18 +234,15 @@
       video.src = pickSrc();
       const prime = () => {
         duration = video.duration || 0;
-        // play→pause da muto: forza iOS/Safari a dipingere i frame cercati
         const pl = video.play();
         if (pl && pl.then) pl.then(() => video.pause()).catch(() => {});
         update();
       };
       video.addEventListener("loadedmetadata", prime, { once: true });
-      // ri-applica il fotogramma corretto appena ci sono dati a sufficienza
-      // (su iOS il seek viene dipinto qui, non al solo loadedmetadata)
+      // ri-applica il fotogramma corretto appena ci sono dati (su iOS il seek si dipinge qui)
       video.addEventListener("loadeddata", update, { once: true });
       video.addEventListener("canplay", update, { once: true });
-      // fallback ai fotogrammi SOLO se la sorgente non carica davvero (errore reale),
-      // niente più timer a corsa con il buffer mobile
+      // fallback ai fotogrammi SOLO se la sorgente non carica davvero (errore reale)
       video.addEventListener("error", () => {
         videoMode = false;
         forge.classList.remove("is-video");
@@ -226,16 +254,8 @@
     }
 
     if (useVideo) {
-      // lazy: scarica il video solo quando la sezione si avvicina (risparmia dati su mobile)
-      if ("IntersectionObserver" in window) {
-        const io = new IntersectionObserver((ents) => {
-          if (ents.some((e) => e.isIntersecting)) { loadVideo(); io.disconnect(); }
-        }, { rootMargin: "150% 0px" });
-        io.observe(forge);
-      } else {
-        loadVideo();
-      }
-      // al cambio breakpoint/orientamento ricarica la sorgente adatta (se già attiva)
+      loadVideo();
+      // al cambio breakpoint/orientamento ricarica la sorgente adatta
       const onBp = () => { if (loadedKey) { loadedKey = ""; loadVideo(); } };
       if (narrowQ.addEventListener) narrowQ.addEventListener("change", onBp);
       else if (narrowQ.addListener) narrowQ.addListener(onBp);
