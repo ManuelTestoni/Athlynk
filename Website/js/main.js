@@ -201,28 +201,27 @@
       duration = 0;
       video.preload = "auto";
       video.src = pickSrc();
-      const setDur = () => {
+      const prime = () => {
         duration = video.duration || 0;
+        // play→pause da muto: forza iOS/Safari a dipingere i frame cercati
         const pl = video.play();
         if (pl && pl.then) pl.then(() => video.pause()).catch(() => {});
         update();
-        // auto-fallback: se il browser non muove currentTime, passa ai fotogrammi
-        let alive = false;
-        const markAlive = () => { alive = true; };
-        video.addEventListener("seeked", markAlive, { once: true });
-        video.addEventListener("timeupdate", markAlive, { once: true });
-        try { video.currentTime = Math.min(0.2, (duration || 1) * 0.02); } catch (e) {}
-        setTimeout(() => {
-          if (!alive && video.currentTime < 0.001) {
-            videoMode = false;
-            forge.classList.remove("is-video");
-            forge.classList.add("is-stills");
-            activeStill = -1;
-            update();
-          }
-        }, 1400);
       };
-      video.addEventListener("loadedmetadata", setDur, { once: true });
+      video.addEventListener("loadedmetadata", prime, { once: true });
+      // ri-applica il fotogramma corretto appena ci sono dati a sufficienza
+      // (su iOS il seek viene dipinto qui, non al solo loadedmetadata)
+      video.addEventListener("loadeddata", update, { once: true });
+      video.addEventListener("canplay", update, { once: true });
+      // fallback ai fotogrammi SOLO se la sorgente non carica davvero (errore reale),
+      // niente più timer a corsa con il buffer mobile
+      video.addEventListener("error", () => {
+        videoMode = false;
+        forge.classList.remove("is-video");
+        forge.classList.add("is-stills");
+        activeStill = -1;
+        update();
+      }, { once: true });
       video.load();
     }
 
