@@ -121,34 +121,40 @@ def client_assignment_detail_view(request, assignment_id):
 
     assignment = get_object_or_404(
         WorkoutAssignment.objects.select_related('workout_plan', 'coach')
-                                 .prefetch_related('workout_plan__days__exercises__exercise'),
+                                 .prefetch_related(
+                                     'workout_plan__days__exercises__exercise__primary_muscles',
+                                     'workout_plan__days__exercises__exercise__secondary_muscles',
+                                     'workout_plan__days__exercises__weekly_values',
+                                 ),
         id=assignment_id, client=client,
     )
 
-    # Build days serialized for chart computation
+    # Build days serialized for the shared volume analytics drawer: muscle-group
+    # M2M (slug/name/color_token) + per-week set overrides so it can compute
+    # histogram/line/radar client-side, matching the coach experience including
+    # progressions across weeks.
     days_data = []
     for d in assignment.workout_plan.days.all().order_by('day_order'):
         ex_list = []
         for ex in d.exercises.all().order_by('order_index'):
             ex_list.append({
-                'id': ex.id,
-                'name': ex.exercise.name,
                 'sets': ex.set_count or 3,
                 'reps': ex.rep_range or '10',
-                'load_value': float(ex.load_value) if ex.load_value else None,
-                'load_unit': ex.load_unit or 'KG',
-                'recovery_seconds': ex.recovery_seconds or 90,
-                'notes': ex.technique_notes or '',
-                'primary_muscle': ex.exercise.primary_muscle or '',
-                'secondary_muscle': ex.exercise.secondary_muscle or '',
-                'target_muscle_group': ex.exercise.target_muscle_group or '',
+                'primary_muscles': [
+                    {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
+                    for m in ex.exercise.primary_muscles.all()
+                ],
+                'secondary_muscles': [
+                    {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
+                    for m in ex.exercise.secondary_muscles.all()
+                ],
+                'primary_muscle_text': ex.exercise.target_muscle_group or ex.exercise.primary_muscle or '',
+                'weekly_overrides': {
+                    wv.week_number: {'sets': wv.set_count}
+                    for wv in ex.weekly_values.all() if wv.set_count is not None
+                },
             })
-        days_data.append({
-            'id': d.id,
-            'order': d.day_order,
-            'name': d.day_name or f'Giorno {d.day_order}',
-            'exercises': ex_list,
-        })
+        days_data.append({'exercises': ex_list})
 
     PAGE_SIZE = 20
     sessions_qs = assignment.sessions.filter(client=client).order_by('-started_at')
@@ -159,6 +165,8 @@ def client_assignment_detail_view(request, assignment_id):
         'assignment': assignment,
         'plan': assignment.workout_plan,
         'days_json': json.dumps(days_data),
+        'duration_weeks': assignment.workout_plan.duration_weeks or 1,
+        'plan_kind': assignment.workout_plan.plan_kind,
         'sessions': sessions,
         'total_sessions': total_sessions,
         'sessions_page_size': PAGE_SIZE,
@@ -166,40 +174,6 @@ def client_assignment_detail_view(request, assignment_id):
         'is_client': True,
         'client': client,
         'coach': assignment.coach,
-    })
-
-
-def client_assignment_volume_view(request, assignment_id):
-    user = get_session_user(request)
-    if not user:
-        return redirect('login')
-    client = get_session_client(request)
-    if not client:
-        return redirect('dashboard')
-    assignment = get_object_or_404(
-        WorkoutAssignment.objects.select_related('workout_plan', 'coach')
-                                 .prefetch_related('workout_plan__days__exercises__exercise'),
-        id=assignment_id, client=client,
-    )
-    days_data = []
-    for d in assignment.workout_plan.days.all().order_by('day_order'):
-        ex_list = []
-        for ex in d.exercises.all().order_by('order_index'):
-            ex_list.append({
-                'sets': ex.set_count or 3,
-                'reps': ex.rep_range or '10',
-                'recovery_seconds': ex.recovery_seconds or 90,
-                'primary_muscle': ex.exercise.primary_muscle or '',
-                'secondary_muscle': ex.exercise.secondary_muscle or '',
-                'target_muscle_group': ex.exercise.target_muscle_group or '',
-            })
-        days_data.append({'id': d.id, 'order': d.day_order, 'exercises': ex_list})
-    return render(request, 'pages/allenamenti/client_volume.html', {
-        'assignment': assignment,
-        'plan': assignment.workout_plan,
-        'days_json': json.dumps(days_data),
-        'is_client': True,
-        'client': client,
     })
 
 
@@ -237,6 +211,111 @@ def api_assignment_sessions_list(request, assignment_id):
         'limit': limit,
         'has_more': (offset + limit) < total,
     })
+
+
+# ---------------------------------------------------------------------------
+# Single-exercise trend (per-session over time)
+# ---------------------------------------------------------------------------
+
+def build_exercise_trend(workout_exercise, client):
+    """Per-session trend for one planned exercise slot, from real logged sets.
+
+    One data point per completed session (not per set), so the athlete reads a
+    clean line; the per-set breakdown lives in each session's ``sets`` list for
+    on-demand drill-down. Decoupled from request/auth so the same payload can
+    later back a coach read-only view — just pass whichever client to read.
+
+    Per session it exposes:
+        volume            Σ reps × load  (volume load — total external work)
+        top_set           max load of the day (primary load metric)
+        weighted_avg_load Σ(load × reps) / Σ reps  (backend-ready for a future
+                          coach toggle; never the plain arithmetic mean)
+    Only completed sessions + completed sets with real executed values count.
+    """
+    logs = (
+        WorkoutSetLog.objects
+        .filter(workout_exercise=workout_exercise, session__client=client,
+                completed=True, session__completed=True)
+        .select_related('session', 'actual_exercise')
+        .order_by('session__started_at', 'set_number')
+    )
+
+    # Group by session — insertion order is chronological (queryset ordered).
+    sessions = {}
+    for sl in logs:
+        s = sl.session
+        bucket = sessions.get(s.id)
+        if bucket is None:
+            bucket = {
+                'session_id': s.id,
+                'date': s.started_at.date().isoformat() if s.started_at else None,
+                'datetime': s.started_at.isoformat() if s.started_at else None,
+                'notes': s.notes or '',
+                'avg_rpe': s.avg_rpe,
+                'sets': [],
+            }
+            sessions[s.id] = bucket
+        bucket['sets'].append({
+            'set_number': sl.set_number,
+            'reps': sl.reps_done,
+            'load': float(sl.load_used) if sl.load_used is not None else None,
+            'load_unit': sl.load_unit or workout_exercise.load_unit or 'KG',
+            'rpe': sl.rpe,
+            'is_extra': sl.is_extra_set,
+            'substituted': sl.exercise_substituted,
+            'actual_exercise': sl.actual_exercise.name if sl.actual_exercise else None,
+        })
+
+    series = []
+    for bucket in sessions.values():
+        full = [st for st in bucket['sets']
+                if st['load'] is not None and st['reps'] is not None]
+        with_load = [st for st in bucket['sets'] if st['load'] is not None]
+        if not with_load:
+            continue  # no usable data point this session
+        volume = sum(st['reps'] * st['load'] for st in full) if full else None
+        top = max(with_load, key=lambda st: st['load'])
+        total_reps = sum(st['reps'] for st in full)
+        weighted_avg_load = (
+            round(sum(st['load'] * st['reps'] for st in full) / total_reps, 2)
+            if total_reps else None
+        )
+        series.append({
+            **bucket,
+            'volume': round(volume, 1) if volume is not None else None,
+            'top_set': top['load'],
+            'weighted_avg_load': weighted_avg_load,
+            'load_unit': top['load_unit'] or workout_exercise.load_unit or 'KG',
+        })
+
+    return {
+        'exercise': {
+            'workout_exercise_id': workout_exercise.id,
+            'name': workout_exercise.exercise.name,
+            'load_unit': workout_exercise.load_unit or 'KG',
+        },
+        'has_data': len(series) > 0,
+        'sessions': series,
+    }
+
+
+def api_client_exercise_trend(request, workout_exercise_id):
+    """Athlete-facing per-exercise trend, scoped to the athlete's own plan."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    we = get_object_or_404(
+        WorkoutExercise.objects.select_related('exercise', 'workout_day__workout_plan'),
+        id=workout_exercise_id,
+    )
+    # Limit to the athlete's currently assigned scheda (the exercise's plan).
+    if not WorkoutAssignment.objects.filter(
+        client=client, workout_plan=we.workout_day.workout_plan,
+    ).exists():
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse(build_exercise_trend(we, client))
 
 
 # ---------------------------------------------------------------------------

@@ -79,6 +79,7 @@
       _builderMode: false,    // hide week filter when in builder context (single-week locked)
       _progressionMode: false, // wizard step 3: show line tab, allow week filter, hide radar
       _planDetailMode: false, // coach plan-detail: histogram+line multi-week, radar single-week
+      _clientView: false,     // athlete scheda-detail: same UX as plan-detail but computed from a days payload (no coach-only fetch)
       hideRadar: false,
       _weeksBeforeRadar: null, // restores multi-week selection when leaving radar
 
@@ -109,8 +110,11 @@
         this.durationWeeks = Math.max(1, parseInt(p.durationWeeks || 1, 10));
         this.payload = p.days || [];
         this._progressionMode = !!p.progressionMode;
-        this._builderMode = !this._progressionMode && !(p.planId);
-        this._planDetailMode = !!p.planId && !this._progressionMode;
+        this._clientView = !!p.clientView;
+        // Client view behaves like coach plan-detail (all 3 tabs + week filter) but
+        // always computes from the supplied days payload — never hits the coach-only API.
+        this._builderMode = !this._progressionMode && !this._clientView && !(p.planId);
+        this._planDetailMode = (!!p.planId || this._clientView) && !this._progressionMode;
         this.hideRadar = !!p.hideRadar || this._progressionMode;
         if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;

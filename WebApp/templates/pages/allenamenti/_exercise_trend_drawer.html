@@ -1,0 +1,177 @@
+{% comment %}
+Single-exercise trend drawer · reusable slide-over.
+Opened from each exercise row via `AthlynkExerciseTrend.open(weId, name)`.
+Reuses the .va-* chart-tile classes so it matches the volume drawer.
+Teleported to <body> so position:fixed anchors to the viewport.
+{% endcomment %}
+<template x-teleport="body">
+<div x-data="exerciseTrend()"
+     id="athlynk-exercise-trend-root"
+     style="position: relative; z-index: 80;">
+
+  <!-- Backdrop -->
+  <div class="va-backdrop" :class="{ 'is-open': isOpen }" @click="close()" x-cloak></div>
+
+  <!-- Drawer panel -->
+  <aside class="va-drawer" :class="{ 'is-open': isOpen }" x-cloak
+         role="dialog" aria-label="Andamento esercizio">
+
+    <header class="va-header">
+      <div class="min-w-0">
+        <p class="al-eyebrow mb-1">Andamento esercizio</p>
+        <h3 x-text="exerciseName"></h3>
+      </div>
+      <button type="button" class="al-btn-icon al-btn-ghost"
+              @click.stop="close()" aria-label="Chiudi" title="Chiudi">
+        <i class="ph ph-x"></i>
+      </button>
+    </header>
+
+    <div class="va-body">
+
+      <!-- Loading -->
+      <template x-if="loading">
+        <div class="va-chart-empty">
+          <i class="ph ph-spinner-gap animate-spin" style="font-size: 28px; opacity: 0.5;"></i>
+          <p class="mt-2">Caricamento andamento…</p>
+        </div>
+      </template>
+
+      <!-- Error -->
+      <template x-if="!loading && error">
+        <div class="va-chart-empty">
+          <i class="ph ph-warning-circle" style="font-size: 30px; opacity: 0.45;"></i>
+          <p class="mt-2">Impossibile caricare l'andamento. Riprova.</p>
+        </div>
+      </template>
+
+      <!-- Empty state -->
+      <template x-if="!loading && !error && !hasData">
+        <div class="va-chart-empty">
+          <i class="ph ph-chart-line-up" style="font-size: 32px; opacity: 0.4;"></i>
+          <p class="mt-2">Completa questo esercizio in almeno una sessione per vedere l'andamento.</p>
+        </div>
+      </template>
+
+      <!-- Chart + controls -->
+      <template x-if="!loading && !error && hasData">
+        <div class="flex flex-col gap-4">
+
+          <!-- Metric + view switchers -->
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="va-segctl" role="tablist" aria-label="Metrica">
+              <button type="button" :class="{ 'is-active': metric === 'volume' }" @click="setMetric('volume')">
+                <i class="ph ph-stack"></i> Volume
+              </button>
+              <button type="button" :class="{ 'is-active': metric === 'load' }" @click="setMetric('load')">
+                <i class="ph ph-barbell"></i> Carico
+              </button>
+            </div>
+            <div class="va-segctl" role="tablist" aria-label="Visualizzazione">
+              <button type="button" :class="{ 'is-active': view === 'session' }" @click="setView('session')">
+                <i class="ph ph-chart-line"></i> Sessione
+              </button>
+              <button type="button" :class="{ 'is-active': view === 'series' }" @click="setView('series')">
+                <i class="ph ph-chart-bar"></i> Serie
+              </button>
+            </div>
+          </div>
+
+          <!-- Session picker (Serie view) -->
+          <template x-if="view === 'series'">
+            <div class="va-filter-row">
+              <span class="va-filter-label">Sessione</span>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="s in sessions" :key="s.session_id">
+                  <button type="button" class="va-chip va-chip-week"
+                          :class="{ 'is-active': selectedSessionId === s.session_id }"
+                          @click="selectSession(s.session_id)"
+                          x-text="fmtDate(s.date)"></button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Chart frame -->
+          <div class="va-chart-frame">
+            <div class="va-chart-canvas-wrap">
+              <canvas x-init="mountCanvas($el)"></canvas>
+            </div>
+            <p class="al-small text-center mt-2" style="color: var(--al-ink-faint);"
+               x-show="view === 'session'">
+              <i class="ph ph-hand-tap"></i> Tocca un punto per il dettaglio della sessione.
+            </p>
+          </div>
+
+          <!-- Session detail card -->
+          <template x-if="selectedSession && (view === 'series' || pointClicked)">
+            <div class="va-diff-card">
+              <h4>
+                <i class="ph ph-calendar-check"></i>
+                <span x-text="fmtDateLong(selectedSession.date)"></span>
+              </h4>
+
+              <!-- Headline stats -->
+              <div class="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                  <p class="al-eyebrow">Top set</p>
+                  <p class="font-bold"><span x-text="fmtNum(selectedSession.top_set)"></span> <span class="al-small" x-text="selectedSession.load_unit"></span></p>
+                </div>
+                <div>
+                  <p class="al-eyebrow">Volume</p>
+                  <p class="font-bold" x-text="fmtNum(selectedSession.volume)"></p>
+                </div>
+                <div>
+                  <p class="al-eyebrow">RPE medio</p>
+                  <p class="font-bold" x-text="selectedSession.avg_rpe ?? '—'"></p>
+                </div>
+              </div>
+              <p class="al-small mb-3" style="color: var(--al-ink-faint);"
+                 x-show="selectedSession.weighted_avg_load != null">
+                Carico medio (pesato sulle reps):
+                <strong><span x-text="fmtNum(selectedSession.weighted_avg_load)"></span> <span x-text="selectedSession.load_unit"></span></strong>
+              </p>
+
+              <!-- Set-by-set table -->
+              <table class="w-full al-small">
+                <thead>
+                  <tr style="color: var(--al-ink-faint);">
+                    <th class="text-left py-1">Serie</th>
+                    <th class="text-left py-1">Reps</th>
+                    <th class="text-left py-1">Carico</th>
+                    <th class="text-left py-1">RPE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="st in selectedSession.sets" :key="st.set_number">
+                    <tr style="border-top: 1px solid var(--al-rule-faint);">
+                      <td class="py-1">
+                        <span x-text="st.set_number"></span>
+                        <span x-show="st.is_extra" class="al-tag" style="background: var(--al-rule-faint); color: var(--al-ink-faint);">extra</span>
+                      </td>
+                      <td class="py-1" x-text="st.reps ?? '—'"></td>
+                      <td class="py-1">
+                        <span x-text="st.load != null ? fmtNum(st.load) : '—'"></span>
+                        <span class="al-small" x-show="st.load != null" x-text="st.load_unit"></span>
+                      </td>
+                      <td class="py-1" x-text="st.rpe ?? '—'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+
+              <!-- Session notes -->
+              <template x-if="selectedSession.notes">
+                <p class="al-small italic mt-3 pt-3" style="color: var(--al-ink-mute); border-top: 1px solid var(--al-rule-faint);">
+                  <i class="ph ph-note"></i> <span x-text="selectedSession.notes"></span>
+                </p>
+              </template>
+            </div>
+          </template>
+
+        </div>
+      </template>
+    </div>
+  </aside>
+</div>
+</template>

@@ -136,7 +136,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260615e">
+<link rel="stylesheet" href="css/style.css?v=20260616a">
 <link rel="preload" as="image" href="assets/hero.webp" fetchpriority="high">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
@@ -192,31 +192,21 @@
       <span class="hero-line"><span>Il corpo</span></span>
       <span class="hero-line"><span>è <em>l'opera.</em></span></span>
     </h1>
-    <p class="hero-sub">La piattaforma che unisce allenamento, nutrizione e dati in un unico metodo — e il gestionale con cui i coach guidano ogni atleta. Costruita sulla scienza, misurata sulla performance, scolpita giorno dopo giorno.</p>
+    <p class="hero-sub">La piattaforma che unisce allenamento, nutrizione e dati in un unico metodo. Il gestionale con cui i coach guidano ogni atleta. Costruita sulla scienza, misurata sulla performance, giorno dopo giorno.</p>
     <div class="hero-cta">
       <a href="#pricing" class="btn btn-bronze">Inizia il percorso</a>
       <a href="#demos" class="btn btn-ghost">Guarda le demo<span class="btn-arrow">→</span></a>
     </div>
-    <div class="hero-stats">
-      <div class="hero-stat"><strong data-count="12">0</strong><span>settimane per ciclo</span></div>
-      <div class="hero-stat"><strong data-count="94">0</strong><span>% aderenza media</span></div>
-      <div class="hero-stat"><strong data-count="3">0</strong><span>pilastri, un metodo</span></div>
+  </div>
+
+  <!-- parole a scorrimento: dentro la hero, trasparenti sulla foto -->
+  <div class="marquee marquee-hero" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Semplicità</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Allenamento</span><i>◆</i><span>Precisione</span><i>◆</i>
+      <span>Semplicità</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Allenamento</span><i>◆</i><span>Precisione</span><i>◆</i>
     </div>
   </div>
-
-  <a href="#demos" class="hero-scroll" aria-label="Scorri alla sezione demo">
-    <span class="hero-scroll-line"></span>
-    <span class="hero-scroll-text">Scorri</span>
-  </a>
 </section>
-
-<!-- ====================== MARQUEE ====================== -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
-    <span>Disciplina</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Proporzione</span><i>◆</i><span>Longevità</span><i>◆</i>
-    <span>Disciplina</span><i>◆</i><span>Forza</span><i>◆</i><span>Metodo</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Proporzione</span><i>◆</i><span>Longevità</span><i>◆</i>
-  </div>
-</div>
 
 <!-- ====================== DEMOS ====================== -->
 <section class="demos section" id="demos">
@@ -224,7 +214,7 @@
     <header class="section-head reveal">
       <p class="eyebrow"><span class="eyebrow-rule"></span>Atlante — le demo</p>
       <h2 class="section-title">Il metodo,<br><em>in movimento.</em></h2>
-      <p class="section-lede">Tre anteprime dell'ecosistema Athlynk. Non funzionalità: strumenti di un'unica pratica.</p>
+      <p class="section-lede">Tre anteprime dell'ecosistema Athlynk.</p>
     </header>
 
     <div class="demo-grid">
@@ -250,7 +240,7 @@
           <span class="demo-num">Ⅰ</span>
           <div>
             <h3 class="demo-title">Allenamento — la pratica</h3>
-            <p class="demo-desc">Programmazione progressiva, carichi suggeriti, ogni serie registrata. Il lavoro diventa traiettoria.</p>
+            <p class="demo-desc">Programmazione progressiva, carichi e ogni serie registrata. Il lavoro diventa traiettoria.</p>
           </div>
         </div>
       </article>
@@ -278,7 +268,7 @@
           <span class="demo-num">Ⅱ</span>
           <div>
             <h3 class="demo-title">Nutrizione — la strategia</h3>
-            <p class="demo-desc">Macro periodizzati sul ciclo di allenamento. Non una dieta: un piano energetico al servizio del lavoro.</p>
+            <p class="demo-desc">Alimentazione e macro personalizzati sul ciclo di allenamento.</p>
           </div>
         </div>
       </article>
@@ -293,8 +283,8 @@
               <path class="chart-line" d="M0 96 C40 90 60 78 90 74 C120 70 140 56 180 48 C215 42 245 30 280 22"/>
               <circle class="chart-dot" cx="280" cy="22" r="3.5"/>
             </svg>
-            <div class="scene-row"><span>Massa magra</span><b>+2,4 kg</b></div>
-            <div class="scene-row"><span>Tonnellaggio</span><b>+18%</b></div>
+            <div class="scene-row"><span>Carico</span><b>+2,4 kg</b></div>
+            <div class="scene-row"><span>Volume allenamento</span><b>+18%</b></div>
           </div>
           <span class="demo-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
         </div>
@@ -314,7 +304,7 @@
 <section class="manifesto section" id="manifesto">
   <div class="manifesto-marble" aria-hidden="true"></div>
   <div class="container container-narrow">
-    <p class="eyebrow eyebrow-center reveal"><span class="eyebrow-rule"></span>Il manifesto<span class="eyebrow-rule"></span></p>
+    <p class="eyebrow eyebrow-center reveal"><span class="eyebrow-rule"></span>Il manifesto Athlynk<span class="eyebrow-rule"></span></p>
     <div class="manifesto-lines">
       <p class="manifesto-line reveal">Il corpo come <em>progetto.</em></p>
       <p class="manifesto-line reveal">La disciplina come <em>metodo.</em></p>
@@ -330,7 +320,7 @@
 <section class="forge section" id="anatomy">
   <div class="container">
     <header class="section-head section-head-center reveal">
-      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Anatomia — l'opera<span class="eyebrow-rule"></span></p>
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>L'opera<span class="eyebrow-rule"></span></p>
       <h2 class="section-title">Dal blocco<br><em>all'opera.</em></h2>
       <p class="section-lede">Come il marmo diventa statua, ogni parte del tuo sistema prende forma. Scorri: la trasformazione si scolpisce sotto i tuoi occhi.</p>
     </header>
@@ -370,9 +360,9 @@
 
           <figure class="forge-cap is-active" data-cp="1">
             <span class="forge-num">Ⅰ</span>
-            <figcaption class="forge-label">Cervello — Chiron</figcaption>
-            <h3 class="forge-title">L'intelligenza <em>che guida.</em></h3>
-            <p class="forge-text">Chiron è il cervello dell'ecosistema: legge lavoro, recupero e nutrizione e ricalibra il protocollo prima che tu debba chiederlo. La macchina calcola, il coach decide.</p>
+            <figcaption class="forge-label">Cervello — Il coach</figcaption>
+            <h3 class="forge-title">L'esperienza <em>che guida.</em></h3>
+            <p class="forge-text">Il cervello dell'ecosistema: legge lavoro, recupero e nutrizione e ricalibra il protocollo sulla base delle esigenze dell'atleta.</p>
           </figure>
 
           <figure class="forge-cap" data-cp="2">
@@ -386,21 +376,21 @@
             <span class="forge-num">Ⅲ</span>
             <figcaption class="forge-label">Cuore — L'allenamento</figcaption>
             <h3 class="forge-title">Il battito <em>del metodo.</em></h3>
-            <p class="forge-text">Programmazione progressiva, carichi suggeriti, ogni sessione registrata. Il lavoro quotidiano è il muscolo che muove tutto il resto.</p>
+            <p class="forge-text">Programmazione progressiva, carichi personalizzati, ogni sessione registrata.</p>
           </figure>
 
           <figure class="forge-cap" data-cp="4">
             <span class="forge-num">Ⅳ</span>
             <figcaption class="forge-label">Intestino — La nutrizione</figcaption>
             <h3 class="forge-title">L'energia <em>che alimenta.</em></h3>
-            <p class="forge-text">Macro periodizzati sul ciclo di carico: surplus per costruire, ricomposizione per definire. Non una dieta — il nutrimento che alimenta l'opera.</p>
+            <p class="forge-text">Schemi alimentari personalizzati per massimizzare i risultati.</p>
           </figure>
 
           <figure class="forge-cap" data-cp="5">
             <span class="forge-num">Ⅴ</span>
-            <figcaption class="forge-label">La statua — La trasformazione</figcaption>
+            <figcaption class="forge-label">Athlynk — La trasformazione</figcaption>
             <h3 class="forge-title">L'opera <em>compiuta.</em></h3>
-            <p class="forge-text">Quando ogni parte lavora insieme, il blocco grezzo diventa forma. Non un caso: il risultato di un metodo.</p>
+            <p class="forge-text">Quando ogni parte lavora insieme, il blocco grezzo diventa forma. Il risultato di metodo e precisione.</p>
           </figure>
         </div>
 
@@ -686,7 +676,7 @@
           <img class="brand-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
           <span class="brand-name">Athlynk</span>
         </a>
-        <p class="footer-tagline">Il corpo è l'opera.</p>
+        <p class="footer-tagline">Il corpo e la performance.</p>
       </div>
       <nav class="footer-nav" aria-label="Navigazione footer">
         <a href="#hero">Home</a>
