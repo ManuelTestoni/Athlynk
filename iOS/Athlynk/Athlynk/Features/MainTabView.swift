@@ -11,9 +11,6 @@ struct MainTabView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab: AppTab = .home
-    /// Bumped when the active tab is re-tapped, changing the content identity so
-    /// the tab's NavigationStack is rebuilt at its root (pop-to-root).
-    @State private var resetNonce = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -30,9 +27,7 @@ struct MainTabView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
-            NeonTabBar(selection: $tab, onReselect: { _ in
-                withAnimation(.easeInOut(duration: 0.25)) { resetNonce &+= 1 }
-            })
+            NeonTabBar(selection: $tab, onReselect: { _ in Haptics.tap() })
                 .padding(.bottom, 6)
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)
@@ -40,11 +35,13 @@ struct MainTabView: View {
         }
     }
 
-    /// Wraps a section as a paged tab. `resetNonce` rebuilds the page at its root
-    /// when its tab is re-tapped (pop-to-root).
+    /// Wraps a section as a paged tab. Identity is the stable tab tag — a paged
+    /// TabView caches a page controller per tag, so the tagged child must keep a
+    /// constant identity. Mutating it (the old `.id(nonce)` pop-to-root hack)
+    /// invalidated the cached controller and crashed on non-adjacent switches.
+    // ponytail: dropped reselect-to-root; re-add via per-tab NavigationStack path if wanted.
     private func page<Content: View>(_ which: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .id("\(which.rawValue)-\(resetNonce)")
             .tag(which)
     }
 

@@ -132,8 +132,13 @@ struct CoachCheckBuilderView: View {
                     Text("Aggiungi un blocco per iniziare.")
                         .font(Typo.body(13)).foregroundStyle(Palette.textLow)
                 }
-                ForEach($blocks) { $block in
-                    blockCard($block)
+                ForEach(blocks) { block in
+                    // Look the binding up by id each render so a row can delete
+                    // itself without leaving a stale binding into a removed
+                    // element (the crash).
+                    if let i = blocks.firstIndex(where: { $0.id == block.id }) {
+                        blockCard($blocks[i])
+                    }
                 }
 
                 addMenu
@@ -168,16 +173,18 @@ struct CoachCheckBuilderView: View {
                 Text("Tocca il nome per rinominare · frecce per riordinare")
                     .font(Typo.mono(8)).foregroundStyle(Palette.textLow)
             }
-            ForEach($steps) { $s in
-                HStack(spacing: 8) {
-                    editableField("Nome step…", text: $s.label)
-                    if steps.count > 1 {
-                        Button { moveStep(s.id, by: -1) } label: { Image(systemName: "arrow.up") }
-                            .foregroundStyle(Palette.textLow)
-                        Button { moveStep(s.id, by: 1) } label: { Image(systemName: "arrow.down") }
-                            .foregroundStyle(Palette.textLow)
-                        Button { removeStep(s.id) } label: {
-                            Image(systemName: "trash").foregroundStyle(Palette.amber)
+            ForEach(steps) { step in
+                if let i = steps.firstIndex(where: { $0.id == step.id }) {
+                    HStack(spacing: 8) {
+                        editableField("Nome step…", text: $steps[i].label)
+                        if steps.count > 1 {
+                            Button { moveStep(step.id, by: -1) } label: { Image(systemName: "arrow.up") }
+                                .foregroundStyle(Palette.textLow)
+                            Button { moveStep(step.id, by: 1) } label: { Image(systemName: "arrow.down") }
+                                .foregroundStyle(Palette.textLow)
+                            Button { removeStep(step.id) } label: {
+                                Image(systemName: "trash").foregroundStyle(Palette.amber)
+                            }
                         }
                     }
                 }
@@ -261,13 +268,16 @@ struct CoachCheckBuilderView: View {
     }
 
     @ViewBuilder private func optionsEditor(_ block: Binding<CheckBlock>) -> some View {
-        ForEach(block.options.indices, id: \.self) { i in
-            HStack(spacing: 8) {
-                editableField("Testo opzione…", text: block.options[i])
-                Button {
-                    DispatchQueue.main.async { block.wrappedValue.options.remove(at: i) }
-                } label: {
-                    Image(systemName: "minus.circle").foregroundStyle(Palette.textLow)
+        ForEach(block.wrappedValue.options.indices, id: \.self) { i in
+            // Guard: during the delete diff the index can outlive the array.
+            if i < block.wrappedValue.options.count {
+                HStack(spacing: 8) {
+                    editableField("Testo opzione…", text: block.options[i])
+                    Button {
+                        block.wrappedValue.options.remove(at: i)
+                    } label: {
+                        Image(systemName: "minus.circle").foregroundStyle(Palette.textLow)
+                    }
                 }
             }
         }
@@ -346,13 +356,8 @@ struct CoachCheckBuilderView: View {
         binding.wrappedValue = set
     }
 
-    // ForEach($blocks) holds a binding into each element; removing the element
-    // synchronously inside its own row crashes (index out of range). Defer one
-    // runloop tick so the current render pass finishes first.
     private func removeBlock(_ id: UUID) {
-        DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.2)) { blocks.removeAll { $0.id == id } }
-        }
+        withAnimation(.easeOut(duration: 0.2)) { blocks.removeAll { $0.id == id } }
     }
 
     private func move(_ id: UUID, by delta: Int) {
@@ -373,11 +378,9 @@ struct CoachCheckBuilderView: View {
         steps.append(EditStep(id: "s_\(UUID().uuidString.prefix(6))", label: "Step \(steps.count + 1)"))
     }
     private func removeStep(_ id: String) {
-        DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.2)) {
-                steps.removeAll { $0.id == id }
-                for i in blocks.indices where blocks[i].stepId == id { blocks[i].stepId = defaultStep }
-            }
+        withAnimation(.easeOut(duration: 0.2)) {
+            steps.removeAll { $0.id == id }
+            for i in blocks.indices where blocks[i].stepId == id { blocks[i].stepId = defaultStep }
         }
     }
 

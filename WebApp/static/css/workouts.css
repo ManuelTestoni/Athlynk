@@ -1209,7 +1209,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   transform: translateX(100%);
   transition: transform 320ms var(--al-ease-emp), visibility 0s linear 320ms;
   box-shadow: var(--al-shadow-3);
-  overflow-y: auto;
+  overflow: hidden;            /* body scrolls; header + foot stay pinned */
   display: flex;
   flex-direction: column;
   visibility: hidden;
@@ -1239,6 +1239,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   justify-content: space-between;
   padding: var(--al-s-5) var(--al-s-5) var(--al-s-3);
   border-bottom: 1px solid var(--al-rule-faint);
+  flex-shrink: 0;
 }
 .wb-drawer-header h3 {
   font-family: var(--al-display);
@@ -1251,6 +1252,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   flex-direction: column;
   gap: var(--al-s-4);
   flex: 1;
+  overflow-y: auto;           /* the only scroll region inside the drawer */
 }
 .wb-drawer-foot {
   padding: var(--al-s-4) var(--al-s-5);
@@ -1259,6 +1261,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   gap: var(--al-s-2);
   justify-content: flex-end;
   background: rgba(244,239,228,0.8);
+  flex-shrink: 0;             /* always visible — never pushed off-screen */
 }
 
 /* --------- Client view chip-pairs (plan_detail) ------------- */

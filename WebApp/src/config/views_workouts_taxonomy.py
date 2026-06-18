@@ -13,6 +13,7 @@ suitable for both web (Alpine.js) and future mobile (Swift / Flutter) clients.
 from __future__ import annotations
 
 import json
+from urllib.parse import urlsplit
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -35,6 +36,27 @@ ALLOWED_LABEL_COLORS = {
     'bronze', 'aegean', 'amber', 'emerald', 'rose',
     'violet', 'slate', 'sand', 'crimson', 'teal',
 }
+
+# Difficulty picklist — must match the <select> in wizard.html / _import_review.html
+ALLOWED_DIFFICULTY = {'Principiante', 'Intermedio', 'Avanzato', 'Agonista'}
+
+
+def _safe_http_url(raw, max_length=500):
+    """Return a trimmed http(s) URL, or '' for anything else.
+
+    Blocks javascript:/data:/file: and other schemes that HTML-escaping does
+    not defang when the value lands in an href.
+    """
+    if not isinstance(raw, str):
+        return ''
+    url = raw.strip()[:max_length]
+    if not url:
+        return ''
+    try:
+        scheme = urlsplit(url).scheme.lower()
+    except ValueError:
+        return ''
+    return url if scheme in ('http', 'https') else ''
 
 
 # ---------------------------------------------------------------------------
@@ -297,10 +319,24 @@ def _exercise_payload_apply(ex, data, coach):
             candidate = f"{base}-c{coach.id}-{suffix}"
         ex.slug = candidate[:220]
 
-    for fld in ('video_url', 'difficulty_level', 'equipment', 'coach_notes'):
+    # Free-text fields: trim + cap to the DB column length. Output is rendered
+    # through Django auto-escaping, but length caps still prevent abuse.
+    text_caps = {'equipment': 100, 'coach_notes': 5000}
+    for fld, cap in text_caps.items():
         if fld in data:
-            value = (data.get(fld) or '')
-            setattr(ex, fld, value.strip() if isinstance(value, str) else value)
+            value = data.get(fld)
+            value = value.strip()[:cap] if isinstance(value, str) else ''
+            setattr(ex, fld, value)
+
+    # difficulty_level is a fixed picklist on the UI — reject anything else.
+    if 'difficulty_level' in data:
+        diff = (data.get('difficulty_level') or '').strip()
+        ex.difficulty_level = diff if diff in ALLOWED_DIFFICULTY else ''
+
+    # video_url: only http(s). HTML-escaping does NOT neutralise a javascript:
+    # href, so the scheme must be validated here before it reaches an <a href>.
+    if 'video_url' in data:
+        ex.video_url = _safe_http_url(data.get('video_url'))
 
     if 'cover_image' in data and not data.get('cover_image'):
         ex.cover_image = None
