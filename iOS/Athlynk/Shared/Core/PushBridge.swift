@@ -54,16 +54,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     /// Alert arriving while the app is foregrounded: still show it, and refresh.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        broadcast(type: notification.request.content.userInfo["type"] as? String ?? "")
+        await broadcast(type: notification.request.content.userInfo["type"] as? String ?? "")
         return [.banner, .sound, .badge]
     }
 
     /// User tapped the notification: refresh so the destination is up to date.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
-        broadcast(type: response.notification.request.content.userInfo["type"] as? String ?? "")
+        await broadcast(type: response.notification.request.content.userInfo["type"] as? String ?? "")
     }
 
+    /// Posting drives SwiftUI `.onReceive` handlers, which mutate view state — so
+    /// it MUST run on the main thread. The push callbacks are `nonisolated`, so
+    /// posting from them directly would deliver `.onReceive` off-main → SwiftUI
+    /// state mutated off the main actor → AttributeGraph corruption (main-thread
+    /// hang / watchdog kill). Hop to the main actor first.
+    @MainActor
     private func broadcast(type: String) {
         NotificationCenter.default.post(name: .athlynkRemoteChange, object: nil,
                                         userInfo: ["type": type])

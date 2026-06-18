@@ -37,6 +37,10 @@ final class APIClient {
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest = 20
         cfg.waitsForConnectivity = true
+        // Without this, waitsForConnectivity ignores the 20s request timeout and
+        // waits up to the resource default (7 days) → spinner that never ends when
+        // the network is briefly unreachable. Cap the whole attempt instead.
+        cfg.timeoutIntervalForResource = 30
         return URLSession(configuration: cfg)
     }()
 
