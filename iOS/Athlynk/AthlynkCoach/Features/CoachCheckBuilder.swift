@@ -133,12 +133,7 @@ struct CoachCheckBuilderView: View {
                         .font(Typo.body(13)).foregroundStyle(Palette.textLow)
                 }
                 ForEach(blocks) { block in
-                    // Look the binding up by id each render so a row can delete
-                    // itself without leaving a stale binding into a removed
-                    // element (the crash).
-                    if let i = blocks.firstIndex(where: { $0.id == block.id }) {
-                        blockCard($blocks[i])
-                    }
+                    blockCard(blockBinding(block.id))
                 }
 
                 addMenu
@@ -174,17 +169,15 @@ struct CoachCheckBuilderView: View {
                     .font(Typo.mono(8)).foregroundStyle(Palette.textLow)
             }
             ForEach(steps) { step in
-                if let i = steps.firstIndex(where: { $0.id == step.id }) {
-                    HStack(spacing: 8) {
-                        editableField("Nome step…", text: $steps[i].label)
-                        if steps.count > 1 {
-                            Button { moveStep(step.id, by: -1) } label: { Image(systemName: "arrow.up") }
-                                .foregroundStyle(Palette.textLow)
-                            Button { moveStep(step.id, by: 1) } label: { Image(systemName: "arrow.down") }
-                                .foregroundStyle(Palette.textLow)
-                            Button { removeStep(step.id) } label: {
-                                Image(systemName: "trash").foregroundStyle(Palette.amber)
-                            }
+                HStack(spacing: 8) {
+                    editableField("Nome step…", text: stepLabelBinding(step.id))
+                    if steps.count > 1 {
+                        Button { moveStep(step.id, by: -1) } label: { Image(systemName: "arrow.up") }
+                            .foregroundStyle(Palette.textLow)
+                        Button { moveStep(step.id, by: 1) } label: { Image(systemName: "arrow.down") }
+                            .foregroundStyle(Palette.textLow)
+                        Button { removeStep(step.id) } label: {
+                            Image(systemName: "trash").foregroundStyle(Palette.amber)
                         }
                     }
                 }
@@ -354,6 +347,24 @@ struct CoachCheckBuilderView: View {
         if on { if !set.contains(key) { set.append(key) } }
         else { set.removeAll { $0 == key } }
         binding.wrappedValue = set
+    }
+
+    // Bind by id, not index. During an animated removal SwiftUI keeps the
+    // disappearing row alive and re-reads its binding; an index binding ($blocks[i])
+    // then dereferences a vanished slot → "Index out of range" crash. The id lookup
+    // returns a throwaway placeholder instead, and writes no-op once the block is gone.
+    private func blockBinding(_ id: UUID) -> Binding<CheckBlock> {
+        Binding(
+            get: { blocks.first { $0.id == id } ?? .make("aperta", stepId: defaultStep) },
+            set: { v in if let i = blocks.firstIndex(where: { $0.id == id }) { blocks[i] = v } }
+        )
+    }
+
+    private func stepLabelBinding(_ id: String) -> Binding<String> {
+        Binding(
+            get: { steps.first { $0.id == id }?.label ?? "" },
+            set: { v in if let i = steps.firstIndex(where: { $0.id == id }) { steps[i].label = v } }
+        )
     }
 
     private func removeBlock(_ id: UUID) {

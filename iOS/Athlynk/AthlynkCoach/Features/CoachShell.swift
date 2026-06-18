@@ -43,9 +43,6 @@ struct CoachMainTabView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab: CoachTab = .home
-    /// Bumped when the active tab is re-tapped, changing the content identity so
-    /// the tab's NavigationStack is rebuilt at its root (pop-to-root).
-    @State private var resetNonce = 0
     /// Pending deep-link into the "Altro" hub (e.g. from Home quick actions for
     /// Atleti/Chat/Agenda, which no longer have their own tab).
     @State private var pendingMore: CoachRoute?
@@ -72,9 +69,10 @@ struct CoachMainTabView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
-            CoachTabBar(selection: $tab, onReselect: { _ in
-                withAnimation(.easeInOut(duration: 0.25)) { resetNonce &+= 1 }
-            })
+            // No pop-to-root via .id() churn: inside a .page TabView, mutating a
+            // tagged child's identity invalidates the cached page controller and
+            // crashes on non-adjacent switches. Reselect = haptic only.
+            CoachTabBar(selection: $tab)
                 .padding(.bottom, 6)
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)
@@ -88,7 +86,6 @@ struct CoachMainTabView: View {
 
     private func page<Content: View>(_ which: CoachTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .id("\(which.rawValue)-\(resetNonce)")
             .tag(which)
     }
 
