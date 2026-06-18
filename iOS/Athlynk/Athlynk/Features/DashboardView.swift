@@ -185,7 +185,7 @@ struct DashboardView: View {
     private func coachCard(_ conv: ConversationDTO, message: String) -> some View {
         Button {
             Haptics.tap()
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .you }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .altro }
         } label: {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {

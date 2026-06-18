@@ -88,6 +88,63 @@ def clean_password(value, *, min_chars: int = 8, max_chars: int = 128, field: st
     return value
 
 
+# --- Password policy --------------------------------------------------------
+# Severe policy (product decision): length-first AND full character composition.
+# Enforced server-side on every new/changed password; the frontend shows the
+# same checklist for parity. clean_password runs first (type, null bytes, caps).
+PASSWORD_MIN_LEN = 12
+_PW_LOWER = re.compile(r'[a-z]')
+_PW_UPPER = re.compile(r'[A-Z]')
+_PW_DIGIT = re.compile(r'[0-9]')
+_PW_SYMBOL = re.compile(r'[^A-Za-z0-9\s]')
+
+
+def validate_password_strength(value, *, email: str | None = None,
+                               names: Iterable[str] | None = None,
+                               field: str = 'password') -> str:
+    """Enforce the app password policy on a new/changed password.
+
+    Rules: >= 12 chars, at least one lowercase, uppercase, digit and symbol; not
+    a well-known common password; not derived from the user's email/name.
+    Returns the password unchanged or raises `InvalidInput`.
+    """
+    pw = clean_password(value, min_chars=PASSWORD_MIN_LEN, field=field)
+    if not _PW_LOWER.search(pw):
+        raise InvalidInput(f"{field}: serve almeno una lettera minuscola")
+    if not _PW_UPPER.search(pw):
+        raise InvalidInput(f"{field}: serve almeno una lettera maiuscola")
+    if not _PW_DIGIT.search(pw):
+        raise InvalidInput(f"{field}: serve almeno un numero")
+    if not _PW_SYMBOL.search(pw):
+        raise InvalidInput(f"{field}: serve almeno un simbolo (es. ! ? @ #)")
+    # Block passwords that embed the email local-part or a name fragment.
+    lowered = pw.lower()
+    fragments = []
+    if email:
+        fragments.append(email.split('@', 1)[0])
+    for n in (names or []):
+        if n:
+            fragments.extend(str(n).split())
+    for frag in fragments:
+        frag = frag.strip().lower()
+        if len(frag) >= 4 and frag in lowered:
+            raise InvalidInput(f"{field}: troppo simile ai tuoi dati personali")
+    # Reject well-known weak passwords via Django's bundled ~20k list. Never let
+    # an import/IO hiccup in the validator block a legitimate password.
+    try:
+        from django.contrib.auth.password_validation import CommonPasswordValidator
+        from django.core.exceptions import ValidationError
+        try:
+            CommonPasswordValidator().validate(pw)
+        except ValidationError:
+            raise InvalidInput(f"{field}: troppo comune, scegline una più robusta")
+    except InvalidInput:
+        raise
+    except Exception:
+        pass
+    return pw
+
+
 def safe_json(body: bytes | str, *, max_bytes: int | None = None) -> dict | list:
     """Parse a JSON request body with a hard byte cap and a try/except wrapper."""
     if max_bytes is None:

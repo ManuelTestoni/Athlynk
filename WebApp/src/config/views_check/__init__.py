@@ -7,6 +7,7 @@ import esistenti (`from .views_check import ...`) continuano a funzionare.
 
 from .helpers import (  # noqa: F401
     RESERVED_FIELD_MAP, build_measurements,
+    create_quick_measurement, quick_measurement_template, QuickMeasurementError,
 )
 from .pages import (  # noqa: F401
     check_dashboard_view, check_create_view, check_detail_view,

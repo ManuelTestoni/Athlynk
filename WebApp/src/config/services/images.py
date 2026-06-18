@@ -16,10 +16,23 @@ from django.core.files.base import ContentFile
 WEBP_QUALITY = 90  # high-efficiency setting; visually lossless for photos
 MAX_DIM = 2000     # cap longest side to keep files reasonable
 
+# Cap total pixels Pillow will decode. Defends against "decompression bomb"
+# images (tiny file, enormous dimensions) that exhaust RAM on decode. 50 MP
+# comfortably covers modern phone cameras (~48 MP) while blocking absurd inputs.
+MAX_IMAGE_PIXELS = 50_000_000
+
+# Raster formats we accept and re-encode. Anything Pillow can't parse, or that
+# parses as something off-list (SVG, PDF, ICO, animated multi-frame oddities),
+# is rejected even when the filename/Content-Type claim ".jpg". The stored file
+# is always a freshly Pillow-encoded WebP, so no original bytes survive.
+ALLOWED_INPUT_FORMATS = frozenset({'JPEG', 'PNG', 'WEBP', 'GIF', 'BMP', 'TIFF'})
+
 
 def _load_pillow():
     try:
         from PIL import Image, ImageOps
+        # Hard ceiling on decoded pixels — raises DecompressionBombError above 2x.
+        Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
         return Image, ImageOps
     except ImportError as e:  # pragma: no cover
         raise RuntimeError(
@@ -70,14 +83,21 @@ def to_webp(uploaded_file, *, max_dim: int = MAX_DIM, quality: int = WEBP_QUALIT
 
 
 def is_image(uploaded_file) -> bool:
-    """Best-effort check that an uploaded file is an image we can process."""
+    """True only when the bytes really are a raster image in our allowlist.
+
+    Sniffs the actual format from the content (not the filename/Content-Type,
+    both attacker-controlled) and runs Pillow's integrity ``verify()`` to reject
+    truncated or crafted payloads. A non-image renamed to ``.jpg`` returns False.
+    """
     Image, _ = _load_pillow()
     try:
         if hasattr(uploaded_file, 'seek'):
             uploaded_file.seek(0)
-        Image.open(uploaded_file).verify()
+        with Image.open(uploaded_file) as probe:
+            fmt = (probe.format or '').upper()
+            probe.verify()  # detects truncated / corrupt payloads
         uploaded_file.seek(0)
-        return True
+        return fmt in ALLOWED_INPUT_FORMATS
     except Exception:
         try:
             uploaded_file.seek(0)

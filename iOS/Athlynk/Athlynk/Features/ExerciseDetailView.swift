@@ -20,6 +20,9 @@ struct ExerciseDetailView: View {
                     statGrid
                     if let eq = exercise.equipment, !eq.isEmpty { equipmentTag(eq) }
                     if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes) }
+                    ExerciseTrendCard {
+                        try await APIClient.shared.exerciseTrend(workoutExerciseId: exercise.id)
+                    }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
             }

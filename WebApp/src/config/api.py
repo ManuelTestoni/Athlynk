@@ -41,11 +41,16 @@ from domain.workouts.models import (
 
 from domain.checks.anthropometry import (
     circ_label, skin_label, circ_range, skin_range, WEIGHT_RANGE,
+    measurement_options,
 )
 from .session_utils import get_active_relationships, client_has_active_access, enforce_client_access
 from .services import ratelimit, sanitize
 from .services.images import is_image, to_webp
-from .views_check import build_measurements, RESERVED_FIELD_MAP
+from .services.uploads import store_attachment
+from .views_check import (
+    build_measurements, RESERVED_FIELD_MAP,
+    create_quick_measurement, QuickMeasurementError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -702,7 +707,9 @@ def journey(request, user):
     else:
         rel_start = (today - timedelta(days=365)).replace(day=1)
     from .views_client import _build_percorso_events, _serialize_phases, _one_year_after_month
-    events = _build_percorso_events(client, rel.coach, rel_start, today)
+    # Whole history for the timeline (see coach client_percorso): clipping to the
+    # relationship-start month would drop older assignments and checks.
+    events = _build_percorso_events(client, rel.coach, date(2000, 1, 1), today)
     phases = _serialize_phases(client, rel.coach)
 
     # Open-ended forward bound: one year past the latest activity (event or phase end).
@@ -1033,6 +1040,7 @@ def progress(request, user):
         'submitted_at': _iso(r.submitted_at),
         'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
         'measurements': {k: v for k, v in (r.body_circumferences or {}).items() if v not in (None, '')},
+        'skinfolds': {k: v for k, v in (r.skinfolds or {}).items() if v not in (None, '')},
         'coach_feedback': r.coach_feedback,
         'notes': r.notes,
         'photos': [{
@@ -1043,6 +1051,73 @@ def progress(request, user):
         } for p in r.photos.all()],
     } for r in responses]
     return JsonResponse({'entries': entries})
+
+
+# ---------------------------------------------------------------------------
+# Misurazione singola — pesata/circonferenza/plica del giorno X. Salvata come
+# QuestionnaireResponse leggera, quindi compare in grafico + percorso + storico.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def measurement_catalog(request, user):
+    return JsonResponse(measurement_options())
+
+
+def _parse_measurement_body(request):
+    """(mtype, key, value, day) | (None, error_message)."""
+    data = _body(request)
+    mtype = (data.get('type') or '').strip()
+    key = (data.get('key') or '').strip() or None
+    value = data.get('value')
+    day = parse_date((data.get('date') or '').strip()) or date.today()
+    if mtype not in ('weight', 'circumference', 'skinfold'):
+        return None, 'Tipo di misura non valido.'
+    if mtype != 'weight' and not key:
+        return None, 'Seleziona il punto di misura.'
+    return (mtype, key, value, day), None
+
+
+@api_view(['POST'])
+def progress_measurement_create(request, user):
+    """L'atleta inserisce una propria misurazione singola."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    rels = get_active_relationships(client)
+    rel = rels.get('full') or rels.get('workout') or rels.get('nutrition')
+    if not rel:
+        return JsonResponse({'error': 'no_coach'}, status=403)
+    parsed, err = _parse_measurement_body(request)
+    if err:
+        return JsonResponse({'error': err}, status=400)
+    mtype, key, value, day = parsed
+    try:
+        r = create_quick_measurement(rel.coach, client, mtype, key, value, day)
+    except QuickMeasurementError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'id': r.id, 'submitted_at': _iso(r.submitted_at)}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Single-exercise trend (per-session over time) — reuses the web builder so the
+# mobile chart matches the website exactly. Scoped to the athlete's own plan.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def exercise_trend(request, user, workout_exercise_id):
+    from .views_session import build_exercise_trend
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    we = (WorkoutExercise.objects
+          .select_related('exercise', 'workout_day__workout_plan')
+          .filter(id=workout_exercise_id).first())
+    if not we:
+        return JsonResponse({'error': 'not found'}, status=404)
+    if not WorkoutAssignment.objects.filter(
+        client=client, workout_plan=we.workout_day.workout_plan).exists():
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse(build_exercise_trend(we, client))
 
 
 # ---------------------------------------------------------------------------
@@ -1137,7 +1212,10 @@ def profile_photo(request, user):
     upload = request.FILES.get('photo') or request.FILES.get('file')
     if not upload:
         return JsonResponse({'error': 'Nessuna immagine inviata'}, status=400)
-    from config.services.images import to_webp
+    # Sniff real content before re-encoding: a non-image renamed to .jpg fails
+    # is_image() and is rejected rather than handed to Pillow.
+    if not is_image(upload):
+        return JsonResponse({'error': 'Immagine non valida'}, status=400)
     try:
         webp = to_webp(upload)
     except Exception:
@@ -1331,11 +1409,12 @@ def tutorial_complete(request, user):
 
 @api_view(['DELETE'])
 def delete_account(request, user):
-    # Soft delete: deactivate the account. Token auth (_user_from_token) filters
-    # is_active=True, so the user is immediately logged out everywhere and cannot
-    # log back in — without cascade-wiping linked plans/checks/history.
-    user.is_active = False
-    user.save(update_fields=['is_active', 'updated_at'])
+    # Hard delete: cascade-wipe the account and every linked row, matching the
+    # web "Elimina account". Pre-clears the one PROTECT FK (ClientSubscription →
+    # SubscriptionPlan) so a coach delete doesn't 500. The auth token dies with
+    # the user, logging them out everywhere.
+    from domain.accounts.services import hard_delete_user
+    hard_delete_user(user)
     return JsonResponse({'ok': True})
 
 
@@ -1612,11 +1691,10 @@ def check_submit(request, user, instance_id):
         if q.get('type') != 'allegato':
             continue
         for f in request.FILES.getlist(f'attachment_{q.get("id")}'):
-            base = f'check_attachments/{client.id}/{q.get("id")}_{int(timezone.now().timestamp())}_{f.name}'
-            if is_image(f):
-                saved = default_storage.save(base.rsplit('.', 1)[0] + '.webp', to_webp(f))
-            else:
-                saved = default_storage.save(base, f)
+            prefix = f'check_attachments/{client.id}/{q.get("id")}_{int(timezone.now().timestamp())}_'
+            saved, kind = store_attachment(f, dir_prefix=prefix)
+            if not saved:
+                continue  # rejected: not a real image or video
             QuestionAttachment.objects.create(
                 response=resp,
                 question_id=q.get('id'),

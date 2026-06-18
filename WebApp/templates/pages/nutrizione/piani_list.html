@@ -19,6 +19,7 @@
       planDetail: "/nutrizione/piani/__ID__/",
       planAssign: "/api/nutrizione/piani/__ID__/assegna/",
       planDelete: "/api/nutrizione/piani/__ID__/elimina/",
+      planDuplicate: "/api/nutrizione/piani/__ID__/duplica/",
       importExcel: "{% url 'nutrizione_import' %}",
       importPdf: "{% url 'nutrizione_import_pdf' %}",
       anamnesi: "{% url 'nutrizione_anamnesi' %}",
@@ -266,6 +267,11 @@
                      class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
                     <i class="ph ph-pencil text-sm"></i>
                   </a>
+                  <button @click="duplicatePlan(plan.id)" type="button"
+                          class="p-1 text-ink-line hover:text-bronze transition-colors"
+                          title="Duplica" :disabled="duplicatingId === plan.id">
+                    <i class="ph text-sm" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
+                  </button>
                   <button @click="openDelete(plan.id)" type="button"
                           class="p-1 transition-colors" title="Elimina"
                           style="color: var(--al-ink-line);"

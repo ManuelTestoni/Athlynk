@@ -58,7 +58,7 @@ class SignupTests(TestCase):
     def test_client_signup_rejected(self):
         resp = self.client.post('/registrati/', {
             'role': 'CLIENT', 'first_name': 'A', 'last_name': 'B',
-            'email': 'x@y.com', 'password': 'password1', 'confirm_password': 'password1',
+            'email': 'x@y.com', 'password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
         })
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(User.objects.filter(email='x@y.com').exists())
@@ -67,7 +67,7 @@ class SignupTests(TestCase):
         resp = self.client.post('/registrati/', {
             'role': 'COACH', 'professional_type': 'ALLENATORE',
             'first_name': 'A', 'last_name': 'B',
-            'email': 'pro@y.com', 'password': 'password1', 'confirm_password': 'password1',
+            'email': 'pro@y.com', 'password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
         })
         self.assertEqual(resp.status_code, 200)
         u = User.objects.get(email='pro@y.com')
@@ -267,12 +267,12 @@ class ActivationFlowTests(TestCase):
         self.assertContains(g, 'neo@e.com')
 
         p = c.post('/attiva-account/', {
-            'token': token, 'new_password': 'newpass123', 'confirm_password': 'newpass123',
+            'token': token, 'new_password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
         })
         self.assertEqual(p.status_code, 302)
         self.assertIn('activated=1', p['Location'])
         u.refresh_from_db()
-        self.assertTrue(check_password('newpass123', u.password_hash))
+        self.assertTrue(check_password('V0lt!Athlynk#9', u.password_hash))
 
     def test_activation_invalid_token(self):
         from django.test import Client

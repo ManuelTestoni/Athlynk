@@ -7,6 +7,8 @@ import SwiftUI
 
 struct CoachDashboardView: View {
     @Binding var tab: CoachTab
+    /// Deep-link into the "Altro" hub for sections that no longer have a tab.
+    @Binding var pendingMore: CoachRoute?
     @EnvironmentObject private var app: AppState
     @State private var data: CoachDashboardDTO?
     @State private var loading = true
@@ -76,14 +78,15 @@ struct CoachDashboardView: View {
     private var quickActions: some View {
         HStack(spacing: 12) {
             CoachQuickAction(icon: "person.crop.circle.badge.checkmark", label: "Atleti",
-                             accent: Palette.cyan) { tab = .clienti }
+                             accent: Palette.cyan) { pendingMore = .clients; tab = .altro }
             CoachQuickAction(icon: "checkmark.seal.fill", label: "Revisione", accent: Palette.bronze) {
-                tab = .altro
-                NotificationCenter.default.post(name: .coachOpenChecks, object: nil)
+                tab = .check
             }
-            CoachQuickAction(icon: "calendar.badge.clock", label: "Agenda", accent: Palette.amber) { tab = .agenda }
+            CoachQuickAction(icon: "calendar.badge.clock", label: "Agenda", accent: Palette.amber) {
+                pendingMore = .agenda; tab = .altro
+            }
             CoachQuickAction(icon: "bubble.left.and.bubble.right.fill", label: "Chat",
-                             accent: Palette.violet) { tab = .chat }
+                             accent: Palette.violet) { pendingMore = .chat; tab = .altro }
         }
     }
 
@@ -171,10 +174,4 @@ struct CoachDashboardView: View {
         do { data = try await APIClient.shared.coachDashboard(); error = nil }
         catch { self.error = error.localizedDescription }
     }
-}
-
-extension Notification.Name {
-    /// Posted from the dashboard quick-action to deep-link into the check review
-    /// list inside the "Altro" hub.
-    static let coachOpenChecks = Notification.Name("coach.openChecks")
 }

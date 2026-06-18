@@ -35,9 +35,25 @@ from domain.workouts.models import (
 
 from .api import (
     api_view, _body, _iso, _abs_media, _coach_dict, _message_dict,
-    coach_dual_auth, _request_coach,
+    coach_dual_auth, _request_coach, _parse_measurement_body,
 )
 from .session_utils import can_manage_nutrition, can_manage_workouts
+from .views_check import (
+    create_quick_measurement, QuickMeasurementError,
+    build_measurements, RESERVED_FIELD_MAP,
+)
+from .views_check.helpers import _response_config, _build_prefill
+from .views_check.templates_admin import _ensure_preset_clones, PRESET_ORDER
+from .views_check.assignments import _create_instance
+from .views_client import _create_client_subscription, _rel_type_for
+from .services import password_reset as pwd_reset
+from .services.email import send_account_activation
+from .services.tokens import get_client_ip
+from domain.accounts.models import User
+from domain.checks.models import AssignedCheck
+from domain.checks.preset_templates import PRESETS, build_template_payload
+from domain.checks.anthropometry import catalog_json, circ_label, skin_label
+from django.contrib.auth.hashers import make_password
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -464,6 +480,477 @@ def check_feedback(request, user, response_id):
     return JsonResponse({'id': r.id, 'coach_feedback': r.coach_feedback})
 
 
+@api_view(['POST'])
+def client_measurement_create(request, user, client_id):
+    """Coach inserisce una misurazione singola per un proprio cliente."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    parsed, perr = _parse_measurement_body(request)
+    if perr:
+        return JsonResponse({'error': perr}, status=400)
+    mtype, key, value, day = parsed
+    try:
+        r = create_quick_measurement(coach, rel.client, mtype, key, value, day)
+    except QuickMeasurementError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'id': r.id, 'submitted_at': _iso(r.submitted_at)}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Onboarding cliente — il coach crea un atleta dall'app (come nella web app).
+# L'atleta riceve un'email per impostare la propria password.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def subscription_plans(request, user):
+    """Piani di abbonamento attivi del coach, per il picker di onboarding."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plans = SubscriptionPlan.objects.filter(coach=coach, is_active=True).order_by('name')
+    return JsonResponse({'plans': [{
+        'id': p.id,
+        'name': p.name,
+        'price': float(p.price),
+        'duration_days': p.duration_days,
+    } for p in plans]})
+
+
+@api_view(['POST'])
+def create_client(request, user):
+    """Crea un nuovo atleta + relazione + abbonamento e invia l'email di attivazione.
+    Rispecchia il ramo "nuovo atleta" di registra_client_view (web)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    data = _body(request)
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    phone = (data.get('phone') or '').strip() or None
+    gender = (data.get('gender') or '').strip() or None
+    plan_id = str(data.get('subscription_plan_id') or '').strip()
+    payment_notes = (data.get('payment_notes') or '').strip() or None
+    birth_date = parse_date((data.get('birth_date') or '').strip()) if data.get('birth_date') else None
+
+    errors = {}
+    if not first_name:
+        errors['first_name'] = 'Il nome è obbligatorio.'
+    if not last_name:
+        errors['last_name'] = 'Il cognome è obbligatorio.'
+    if not email:
+        errors['email'] = "L'email è obbligatoria."
+    elif User.objects.filter(email__iexact=email).exists():
+        errors['email'] = 'Questa email è già registrata sulla piattaforma.'
+    if not plan_id:
+        errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
+    if errors:
+        return JsonResponse({'error': 'Dati non validi', 'fields': errors}, status=400)
+
+    with transaction.atomic():
+        new_user = User.objects.create(
+            email=email,
+            password_hash=make_password(None),
+            role='CLIENT',
+            is_active=True,
+            is_verified=True,
+        )
+        client = ClientProfile.objects.create(
+            user=new_user,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            birth_date=birth_date,
+            gender=gender,
+            client_status='ACTIVE',
+            onboarding_status='REGISTERED',
+        )
+        CoachingRelationship.objects.create(
+            coach=coach, client=client, status='ACTIVE',
+            start_date=timezone.now().date(), relationship_type=_rel_type_for(coach),
+        )
+        _create_client_subscription(coach, client, plan_id, payment_notes)
+
+    token = pwd_reset.issue_token(
+        new_user,
+        ip=get_client_ip(request),
+        user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:512],
+        ttl_minutes=pwd_reset.ACTIVATION_TTL_MINUTES,
+    )
+    send_account_activation(new_user, token, coach_name=f"{coach.first_name} {coach.last_name}".strip())
+
+    return JsonResponse({
+        'id': client.id,
+        'display_name': f"{first_name} {last_name}".strip(),
+        'message': 'Email di attivazione inviata.',
+    }, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Gestione modelli check (parità con la web app): lista, dettaglio, crea,
+# modifica, duplica, elimina, ripristina preset, assegna, compila, modifica valori.
+# Riusa la logica del dominio check già usata dalle view web.
+# ---------------------------------------------------------------------------
+
+def _template_summary(t):
+    return {
+        'id': t.id,
+        'title': t.title,
+        'description': t.description or '',
+        'preset_key': t.preset_key or '',
+        'is_modified_preset': bool(t.is_modified_preset),
+        'questionnaire_type': t.questionnaire_type,
+        'questions_count': len(t.questions_config or []),
+        'steps_count': len(t.steps_config or []),
+        'updated_at': _iso(t.updated_at),
+    }
+
+
+def _own_template(coach, template_id):
+    return QuestionnaireTemplate.objects.filter(id=template_id, coach=coach, is_active=True).first()
+
+
+def _resolve_questions(questions_config):
+    """Questions in the same shape the athlete fill form consumes: ISAK labels for
+    antropometria are resolved server-side. Mirrors api._check_form."""
+    out = []
+    for q in (questions_config or []):
+        item = {
+            'id': q.get('id'),
+            'type': q.get('type', 'aperta'),
+            'label': q.get('label', q.get('id')),
+            'required': bool(q.get('required')),
+            'unit': q.get('unit'),
+            'options': q.get('options') or [],
+            'min': q.get('min'),
+            'max': q.get('max'),
+            'min_label': q.get('minLabel'),
+            'max_label': q.get('maxLabel'),
+            'placeholder': q.get('placeholder'),
+            'step_id': q.get('step_id'),
+        }
+        if q.get('type') == 'antropometria':
+            item['weight'] = q.get('weight', True)
+            item['circumferences'] = [
+                {'key': k, 'label': circ_label(k)} for k in (q.get('circumferences') or [])
+            ]
+            item['skinfolds'] = [
+                {'key': k, 'label': skin_label(k)} for k in (q.get('skinfolds') or [])
+            ]
+        out.append(item)
+    return out
+
+
+def _parse_metric(val):
+    try:
+        v = float(val or 0)
+        return str(round(v, 1)) if v > 0 else ''
+    except (ValueError, TypeError):
+        return ''
+
+
+def _answers_to_fields(raw_answers, questions_config):
+    """Da raw_answers (chiavi web: peso_corporeo, circ::k, pl::k, benessere_*,
+    note_*, custom) ai campi della QuestionnaireResponse. Mirror del web."""
+    weight_kg, circ, skin = build_measurements(raw_answers, questions_config, _parse_metric)
+    answers_json = {
+        'mood': raw_answers.get('benessere_umore', ''),
+        'diet_adherence': raw_answers.get('benessere_dieta', ''),
+        'workout_adherence': raw_answers.get('benessere_workout', ''),
+    }
+    for k, v in raw_answers.items():
+        if k == 'peso_corporeo' or k in RESERVED_FIELD_MAP \
+                or k.startswith('circ::') or k.startswith('pl::'):
+            continue
+        answers_json.setdefault(k, v)
+    return {
+        'weight_kg': weight_kg,
+        'body_circumferences': circ,
+        'skinfolds': skin,
+        'answers_json': answers_json,
+        'injuries': raw_answers.get('note_infortuni', ''),
+        'limitations': raw_answers.get('note_limitazioni', ''),
+        'notes': raw_answers.get('note_messaggio', ''),
+    }
+
+
+@api_view(['GET'])
+def check_catalog(request, user):
+    """Catalogo antropometrico ISAK per il builder mobile (circ/pliche/peso)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    return JsonResponse(catalog_json())
+
+
+@api_view(['GET'])
+def check_templates(request, user):
+    """Modelli del coach: preset (clonati lazy) + custom."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    _ensure_preset_clones(coach)
+    all_t = list(QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+                 .exclude(questionnaire_type='quick_measurement'))
+    by_key = {t.preset_key: t for t in all_t if t.preset_key}
+    presets = [_template_summary(by_key[k]) for k in PRESET_ORDER if k in by_key]
+    customs = [_template_summary(t) for t in
+               sorted((t for t in all_t if not t.preset_key),
+                      key=lambda t: t.updated_at, reverse=True)]
+    return JsonResponse({'presets': presets, 'customs': customs})
+
+
+@api_view(['GET'])
+def check_template_detail(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    return JsonResponse({
+        **_template_summary(t),
+        'questions_config': t.questions_config or [],   # raw, per il builder a blocchi
+        'questions': _resolve_questions(t.questions_config),  # risolte, per il form di compilazione
+        'steps_config': t.steps_config or [],
+    })
+
+
+@api_view(['POST'])
+def check_template_create(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    data = _body(request)
+    title = (data.get('title') or '').strip() or 'Nuovo modello'
+    t = QuestionnaireTemplate.objects.create(
+        coach=coach,
+        title=title,
+        questionnaire_type='custom_check',
+        is_active=True,
+        steps_config=data.get('steps_config') or [],
+        questions_config=data.get('questions_config') or [],
+    )
+    return JsonResponse(_template_summary(t), status=201)
+
+
+@api_view(['PATCH', 'POST'])
+def check_template_update(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    data = _body(request)
+    if 'title' in data:
+        t.title = (data.get('title') or '').strip() or t.title
+    if 'steps_config' in data:
+        t.steps_config = data.get('steps_config') or []
+    if 'questions_config' in data:
+        t.questions_config = data.get('questions_config') or []
+    if t.preset_key:
+        t.is_modified_preset = True
+    t.save()
+    return JsonResponse(_template_summary(t))
+
+
+@api_view(['POST'])
+def check_template_duplicate(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    copy = QuestionnaireTemplate.objects.create(
+        coach=coach,
+        title=f'Copia di {t.title}',
+        description=t.description,
+        questionnaire_type='custom_check',
+        is_active=True,
+        steps_config=t.steps_config,
+        questions_config=t.questions_config,
+    )
+    return JsonResponse(_template_summary(copy), status=201)
+
+
+@api_view(['POST'])
+def check_template_delete(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    t.is_active = False
+    t.save(update_fields=['is_active', 'updated_at'])
+    return JsonResponse({'success': True})
+
+
+@api_view(['POST'])
+def check_template_restore(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    if not t.preset_key or t.preset_key not in PRESETS:
+        return JsonResponse({'error': 'Solo i preset di sistema possono essere ripristinati.'}, status=400)
+    payload = build_template_payload(t.preset_key)
+    t.title = payload['title']
+    t.description = payload['description']
+    t.steps_config = payload['steps_config']
+    t.questions_config = payload['questions_config']
+    t.is_modified_preset = False
+    t.save()
+    return JsonResponse(_template_summary(t))
+
+
+@api_view(['POST'])
+def check_template_assign(request, user, template_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    data = _body(request)
+    client_ids = data.get('client_ids')
+    if client_ids is None and data.get('client_id'):
+        client_ids = [data.get('client_id')]
+    recurrence = data.get('recurrence_type', 'once')
+    weekly_day = data.get('weekly_day')
+    monthly_day = data.get('monthly_day')
+    duration_hrs = max(1, int(data.get('duration_hours', 72)))
+    notes = (data.get('notes') or '').strip()
+    if not client_ids:
+        return JsonResponse({'error': 'Seleziona almeno un atleta.'}, status=400)
+
+    clients = list(ClientProfile.objects.filter(
+        id__in=client_ids,
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    ).distinct())
+    if not clients:
+        return JsonResponse({'error': 'Nessun atleta valido selezionato.'}, status=400)
+
+    assignment_ids = []
+    for client in clients:
+        assignment = AssignedCheck.objects.create(
+            template=t,
+            snapshot_config=t.questions_config,
+            client=client,
+            coach=coach,
+            recurrence_type=recurrence,
+            weekly_day=weekly_day if recurrence == 'weekly' else None,
+            monthly_day=monthly_day if recurrence == 'monthly' else None,
+            duration_hours=duration_hrs,
+            notes=notes,
+        )
+        assignment_ids.append(assignment.id)
+        if recurrence == 'once':
+            _create_instance(assignment, timezone.localdate())
+        Notification.objects.create(
+            target_user=client.user,
+            notification_type='CHECK_SUBMITTED',
+            title='Nuovo check da compilare',
+            body=f'Il tuo coach ti ha assegnato il check «{t.title}».',
+            link_url='/check/i-miei-check/',
+        )
+    return JsonResponse({'success': True, 'assigned_count': len(assignment_ids),
+                         'assignment_ids': assignment_ids})
+
+
+@api_view(['POST'])
+def check_template_fill(request, user, template_id):
+    """Il coach compila un modello per un atleta → check già revisionato."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    t = _own_template(coach, template_id)
+    if not t:
+        return JsonResponse({'error': 'Template non trovato'}, status=404)
+    data = _body(request)
+    rel = _own_relationship(coach, data.get('client_id'))
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    raw_answers = data.get('answers') or {}
+    questions_config = t.questions_config or []
+    fields = _answers_to_fields(raw_answers, questions_config)
+
+    submitted_at = timezone.now()
+    day = parse_date((data.get('date') or '').strip()) if data.get('date') else None
+    if day:
+        from datetime import datetime as _dt, time as _time
+        naive = _dt.combine(day, _time(12, 0))
+        submitted_at = timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+
+    r = QuestionnaireResponse.objects.create(
+        questionnaire_template=t,
+        client=rel.client,
+        coach=coach,
+        submitted_at=submitted_at,
+        status='REVIEWED',
+        questions_snapshot=questions_config,
+        steps_snapshot=t.steps_config or [],
+        **fields,
+    )
+    return JsonResponse({'id': r.id}, status=201)
+
+
+@api_view(['GET'])
+def check_values_prefill(request, user, response_id):
+    """Snapshot domande + valori correnti per il form di modifica valori."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    r = (QuestionnaireResponse.objects
+         .select_related('questionnaire_template')
+         .filter(id=response_id, coach=coach).first())
+    if not r:
+        return JsonResponse({'error': 'Check non trovato'}, status=404)
+    questions_cfg, steps_cfg = _response_config(r)
+    return JsonResponse({
+        'questions': _resolve_questions(questions_cfg),
+        'steps_config': steps_cfg,
+        'prefill': _build_prefill(r),
+    })
+
+
+@api_view(['PATCH', 'POST'])
+def check_values_update(request, user, response_id):
+    """Il coach corregge i valori di un check compilato. submitted_at invariato."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    r = (QuestionnaireResponse.objects
+         .select_related('questionnaire_template')
+         .filter(id=response_id, coach=coach).first())
+    if not r:
+        return JsonResponse({'error': 'Check non trovato'}, status=404)
+    questions_cfg, _ = _response_config(r)
+    raw_answers = (_body(request).get('answers')) or {}
+    fields = _answers_to_fields(raw_answers, questions_cfg)
+    r.weight_kg = fields['weight_kg']
+    r.body_circumferences = fields['body_circumferences']
+    r.skinfolds = fields['skinfolds']
+    r.answers_json = fields['answers_json']
+    r.injuries = fields['injuries']
+    r.limitations = fields['limitations']
+    r.notes = fields['notes']
+    r.save(update_fields=[
+        'weight_kg', 'body_circumferences', 'skinfolds', 'answers_json',
+        'injuries', 'limitations', 'notes', 'updated_at',
+    ])
+    return JsonResponse({'id': r.id, 'success': True})
+
+
 # ---------------------------------------------------------------------------
 # Workout / Nutrition management ("Gestione Allenamenti / Nutrizione")
 # ---------------------------------------------------------------------------
@@ -775,7 +1262,11 @@ def profile_photo(request, user):
     upload = request.FILES.get('photo') or request.FILES.get('file')
     if not upload:
         return JsonResponse({'error': 'Nessuna immagine inviata'}, status=400)
-    from config.services.images import to_webp
+    from config.services.images import is_image, to_webp
+    # Sniff real content first: a non-image renamed to .jpg fails is_image()
+    # and is rejected instead of being handed to Pillow.
+    if not is_image(upload):
+        return JsonResponse({'error': 'Immagine non valida'}, status=400)
     try:
         webp = to_webp(upload)
     except Exception:
@@ -809,6 +1300,7 @@ def client_progress(request, user, client_id):
         'submitted_at': _iso(r.submitted_at),
         'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
         'measurements': _measurements(r),
+        'skinfolds': {k: v for k, v in (r.skinfolds or {}).items() if v not in (None, '')},
         'coach_feedback': r.coach_feedback,
         'notes': r.notes,
         'photos': [{
@@ -819,6 +1311,195 @@ def client_progress(request, user, client_id):
         } for p in r.photos.all()],
     } for r in responses]
     return JsonResponse({'entries': entries})
+
+
+# ---------------------------------------------------------------------------
+# Client exercise trend — the coach reads one athlete's per-exercise trend
+# (volume / top set / weighted avg per session). Reuses the web builder.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def client_exercise_trend(request, user, client_id, workout_exercise_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    from .views_session import build_exercise_trend
+    we = (WorkoutExercise.objects
+          .select_related('exercise', 'workout_day__workout_plan')
+          .filter(id=workout_exercise_id).first())
+    if not we:
+        return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
+    if not WorkoutAssignment.objects.filter(
+        client=rel.client, workout_plan=we.workout_day.workout_plan).exists():
+        return JsonResponse({'error': 'Esercizio non assegnato'}, status=404)
+    return JsonResponse(build_exercise_trend(we, rel.client))
+
+
+# ---------------------------------------------------------------------------
+# Client percorso (journey) — the coach reads an athlete's timeline and can add
+# or remove phases. Reuses the web event/phase builders so views stay in sync.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def client_percorso(request, user, client_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    from .views_client import _build_percorso_events, _serialize_phases, _one_year_after_month
+    client = rel.client
+    today = date.today()
+    start = getattr(rel, 'start_date', None)
+    if start:
+        rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
+    else:
+        rel_start = (today - timedelta(days=365)).replace(day=1)
+    # Collect the whole history for the timeline, not just from the (possibly
+    # renewed) relationship start — otherwise older plans/checks silently vanish.
+    events = _build_percorso_events(client, coach, date(2000, 1, 1), today)
+    phases = _serialize_phases(client, coach)
+    last_activity = today
+    if events:
+        last_activity = max(last_activity, date.fromisoformat(events[-1]['date']))
+    for ph in phases:
+        ph_end = date.fromisoformat(ph['end'])
+        if ph_end > last_activity:
+            last_activity = ph_end
+    window_end = _one_year_after_month(last_activity)
+    return JsonResponse({
+        'events': events,
+        'phases': phases,
+        'window_start': rel_start.isoformat(),
+        'window_end': window_end.isoformat(),
+        'relationship_start': rel_start.isoformat(),
+    })
+
+
+@api_view(['POST'])
+def phase_create(request, user, client_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    from domain.coaching.models import CoachingPhase
+    payload = _body(request)
+    title = (payload.get('title') or '').strip()
+    note = (payload.get('note') or '').strip()
+    start_str = (payload.get('start_date') or '').strip()
+    unit = (payload.get('duration_unit') or 'WEEKS').strip().upper()
+    if not title:
+        return JsonResponse({'error': 'Il titolo è obbligatorio.'}, status=400)
+    try:
+        start_date = date.fromisoformat(start_str)
+    except ValueError:
+        return JsonResponse({'error': 'Data di inizio non valida.'}, status=400)
+    try:
+        duration_value = int(payload.get('duration_value'))
+    except (TypeError, ValueError):
+        duration_value = 0
+    if duration_value < 1:
+        return JsonResponse({'error': 'La durata deve essere almeno 1.'}, status=400)
+    if unit not in ('WEEKS', 'MONTHS'):
+        unit = 'WEEKS'
+    phase = CoachingPhase.objects.create(
+        coach=coach, client=rel.client, title=title[:120], note=note,
+        start_date=start_date, duration_value=duration_value, duration_unit=unit,
+    )
+    return JsonResponse({
+        'id': phase.id,
+        'title': phase.title,
+        'note': phase.note or '',
+        'start': phase.start_date.isoformat(),
+        'end': phase.end_date.isoformat(),
+        'duration_value': phase.duration_value,
+        'duration_unit': phase.duration_unit,
+    })
+
+
+@api_view(['PATCH', 'PUT', 'DELETE'])
+def phase_detail(request, user, client_id, phase_id):
+    """Update (PATCH/PUT) or remove (DELETE) one coaching phase."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    from domain.coaching.models import CoachingPhase
+    phase = CoachingPhase.objects.filter(id=phase_id, coach=coach, client_id=client_id).first()
+    if not phase:
+        return JsonResponse({'error': 'Fase non trovata'}, status=404)
+
+    if request.method == 'DELETE':
+        phase.delete()
+        return JsonResponse({'success': True})
+
+    payload = _body(request)
+    title = (payload.get('title') or '').strip()
+    if not title:
+        return JsonResponse({'error': 'Il titolo è obbligatorio.'}, status=400)
+    try:
+        start_date = date.fromisoformat((payload.get('start_date') or '').strip())
+    except ValueError:
+        return JsonResponse({'error': 'Data di inizio non valida.'}, status=400)
+    try:
+        duration_value = int(payload.get('duration_value'))
+    except (TypeError, ValueError):
+        duration_value = 0
+    if duration_value < 1:
+        return JsonResponse({'error': 'La durata deve essere almeno 1.'}, status=400)
+    unit = (payload.get('duration_unit') or 'WEEKS').strip().upper()
+    if unit not in ('WEEKS', 'MONTHS'):
+        unit = 'WEEKS'
+    phase.title = title[:120]
+    phase.note = (payload.get('note') or '').strip()
+    phase.start_date = start_date
+    phase.duration_value = duration_value
+    phase.duration_unit = unit
+    phase.save(update_fields=['title', 'note', 'start_date', 'duration_value', 'duration_unit'])
+    return JsonResponse({
+        'id': phase.id,
+        'title': phase.title,
+        'note': phase.note or '',
+        'start': phase.start_date.isoformat(),
+        'end': phase.end_date.isoformat(),
+        'duration_value': phase.duration_value,
+        'duration_unit': phase.duration_unit,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Client active workout — days + exercises (with workout_exercise ids) so the
+# coach can drill into a single exercise's trend. Reuses the athlete serializers.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def client_workout(request, user, client_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    from .api import _day_dict
+    # Prefer the active plan, but fall back to the most recent assignment of any
+    # status: the athlete may have logged sessions under a plan that's since been
+    # completed/replaced, and the coach still needs to drill into those trends
+    # (otherwise the app says "nessun allenamento" while the web shows charts).
+    base = WorkoutAssignment.objects.filter(client=rel.client).select_related('workout_plan')
+    asg = (base.filter(status='ACTIVE').order_by('-created_at').first()
+           or base.order_by('-created_at').first())
+    if not asg:
+        return JsonResponse({'plan': None, 'days': []})
+    plan = asg.workout_plan
+    return JsonResponse({
+        'plan': {'id': plan.id, 'title': plan.title},
+        'days': [_day_dict(d) for d in plan.days.all().prefetch_related('exercises__exercise')],
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -1190,21 +1871,33 @@ def nutrition_create(request, user):
             daily_kcal=data.get('daily_kcal') or None,
             status='DRAFT', is_template=False,
         )
-        for m_idx, meal in enumerate(meals_in):
-            meal_obj = Meal.objects.create(
-                plan=plan, name=(meal.get('name') or f'Pasto {m_idx + 1}')[:100],
-                order=m_idx, notes=(meal.get('notes') or '').strip() or None,
-                time_of_day=(meal.get('time_of_day') or '').strip()[:10] or None,
-            )
+        saved_meals = 0
+        for meal in meals_in:
+            # Resolve real items first; a meal with no foods is never persisted —
+            # we don't fill the DB with empty meals.
+            valid_items = []
             for food in meal.get('items') or []:
                 food_obj = Food.objects.filter(id=food.get('food_id')).first()
+                name = (food.get('name') or '').strip()
+                if not food_obj and not name:
+                    continue
                 try:
                     qty = float(food.get('quantity_g') or 0)
                 except (TypeError, ValueError):
                     qty = 0.0
+                valid_items.append((food_obj, qty, name))
+            if not valid_items:
+                continue
+            meal_obj = Meal.objects.create(
+                plan=plan, name=(meal.get('name') or f'Pasto {saved_meals + 1}')[:100],
+                order=saved_meals, notes=(meal.get('notes') or '').strip() or None,
+                time_of_day=(meal.get('time_of_day') or '').strip()[:10] or None,
+            )
+            saved_meals += 1
+            for food_obj, qty, name in valid_items:
                 MealItem.objects.create(
                     meal=meal_obj, food=food_obj, quantity_g=qty,
-                    raw_name=(food.get('name') or None) if not food_obj else None,
+                    raw_name=name or None if not food_obj else None,
                     uncertain=food_obj is None,
                 )
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)

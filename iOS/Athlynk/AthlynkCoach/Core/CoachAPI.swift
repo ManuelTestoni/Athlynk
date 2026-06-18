@@ -110,6 +110,153 @@ extension APIClient {
                    from: try await request("/api/v1/coach/clients/\(clientId)/progress")).entries
     }
 
+    // MARK: Gestione modelli check (parità web)
+
+    func coachCheckTemplates() async throws -> CoachCheckTemplatesResponse {
+        try decode(CoachCheckTemplatesResponse.self,
+                   from: try await request("/api/v1/coach/check-templates"))
+    }
+
+    func coachCheckTemplate(id: Int) async throws -> CoachCheckTemplateDetail {
+        try decode(CoachCheckTemplateDetail.self,
+                   from: try await request("/api/v1/coach/check-templates/\(id)"))
+    }
+
+    func coachCheckCatalog() async throws -> CheckCatalog {
+        try decode(CheckCatalog.self, from: try await request("/api/v1/coach/check-catalog"))
+    }
+
+    @discardableResult
+    func coachCreateCheckTemplate(title: String, steps: [[String: Any]],
+                                  questions: [[String: Any]]) async throws -> CoachCheckTemplate {
+        try decode(CoachCheckTemplate.self,
+                   from: try await request("/api/v1/coach/check-templates/create", method: "POST",
+                                           body: ["title": title, "steps_config": steps, "questions_config": questions]))
+    }
+
+    @discardableResult
+    func coachUpdateCheckTemplate(id: Int, title: String, steps: [[String: Any]],
+                                  questions: [[String: Any]]) async throws -> CoachCheckTemplate {
+        try decode(CoachCheckTemplate.self,
+                   from: try await request("/api/v1/coach/check-templates/\(id)/update", method: "POST",
+                                           body: ["title": title, "steps_config": steps, "questions_config": questions]))
+    }
+
+    func coachDuplicateCheckTemplate(id: Int) async throws {
+        _ = try await request("/api/v1/coach/check-templates/\(id)/duplicate", method: "POST")
+    }
+
+    func coachDeleteCheckTemplate(id: Int) async throws {
+        _ = try await request("/api/v1/coach/check-templates/\(id)/delete", method: "POST")
+    }
+
+    func coachRestoreCheckTemplate(id: Int) async throws {
+        _ = try await request("/api/v1/coach/check-templates/\(id)/restore", method: "POST")
+    }
+
+    func coachAssignCheck(templateId: Int, clientIds: [Int], recurrence: String,
+                          weeklyDay: Int?, monthlyDay: Int?, durationHours: Int, notes: String) async throws {
+        var body: [String: Any] = [
+            "client_ids": clientIds, "recurrence_type": recurrence,
+            "duration_hours": durationHours, "notes": notes,
+        ]
+        body["weekly_day"] = weeklyDay ?? NSNull()
+        body["monthly_day"] = monthlyDay ?? NSNull()
+        _ = try await request("/api/v1/coach/check-templates/\(templateId)/assign", method: "POST", body: body)
+    }
+
+    func coachFillCheck(templateId: Int, clientId: Int, answers: [String: Any], date: String?) async throws {
+        var body: [String: Any] = ["client_id": clientId, "answers": answers]
+        body["date"] = date ?? NSNull()
+        _ = try await request("/api/v1/coach/check-templates/\(templateId)/fill", method: "POST", body: body)
+    }
+
+    func coachCheckPrefill(responseId: Int) async throws -> CoachCheckPrefill {
+        try decode(CoachCheckPrefill.self,
+                   from: try await request("/api/v1/coach/checks/\(responseId)/values"))
+    }
+
+    func coachUpdateCheckValues(responseId: Int, answers: [String: Any]) async throws {
+        _ = try await request("/api/v1/coach/checks/\(responseId)/values/update",
+                              method: "POST", body: ["answers": answers])
+    }
+
+    // MARK: Onboarding (coach crea atleta)
+
+    func coachSubscriptionPlans() async throws -> [CoachSubscriptionPlanDTO] {
+        try decode(CoachSubscriptionPlansResponse.self,
+                   from: try await request("/api/v1/coach/subscription-plans")).plans
+    }
+
+    /// Creates a brand-new athlete; the server emails them an activation link.
+    /// `birthDate` is ISO `yyyy-MM-dd` or nil; `gender` is "M"/"F"/nil.
+    func coachCreateClient(firstName: String, lastName: String, email: String,
+                           phone: String?, birthDate: String?, gender: String?,
+                           subscriptionPlanId: Int, paymentNotes: String?) async throws {
+        var body: [String: Any] = [
+            "first_name": firstName, "last_name": lastName, "email": email,
+            "subscription_plan_id": subscriptionPlanId,
+        ]
+        body["phone"] = phone ?? NSNull()
+        body["birth_date"] = birthDate ?? NSNull()
+        body["gender"] = gender ?? NSNull()
+        body["payment_notes"] = paymentNotes ?? NSNull()
+        _ = try await request("/api/v1/coach/clients/create", method: "POST", body: body)
+    }
+
+    /// Coach records one measurement for a client on a given day. Mirrors the
+    /// athlete `addMeasurement`; `key` is the ISAK site (nil for weight).
+    func coachAddMeasurement(clientId: Int, type: String, key: String?, value: Double, date: String) async throws {
+        var body: [String: Any] = ["type": type, "value": value, "date": date]
+        body["key"] = key ?? NSNull()
+        _ = try await request("/api/v1/coach/clients/\(clientId)/measurement", method: "POST", body: body)
+    }
+
+    func coachExerciseTrend(clientId: Int, workoutExerciseId: Int) async throws -> ExerciseTrendDTO {
+        try decode(ExerciseTrendDTO.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/exercises/\(workoutExerciseId)/trend"))
+    }
+
+    func coachClientWorkout(clientId: Int) async throws -> CoachClientWorkoutDTO {
+        try decode(CoachClientWorkoutDTO.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/workout"))
+    }
+
+    // MARK: Client percorso (journey + phases)
+
+    func coachClientPercorso(clientId: Int) async throws -> JourneyResponse {
+        try decode(JourneyResponse.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/percorso"))
+    }
+
+    @discardableResult
+    func coachAddPhase(clientId: Int, title: String, startDate: String,
+                       durationValue: Int, durationUnit: String, note: String) async throws -> JourneyPhaseDTO {
+        let body: [String: Any] = [
+            "title": title, "start_date": startDate,
+            "duration_value": durationValue, "duration_unit": durationUnit, "note": note,
+        ]
+        return try decode(JourneyPhaseDTO.self,
+                          from: try await request("/api/v1/coach/clients/\(clientId)/percorso/phases",
+                                                  method: "POST", body: body))
+    }
+
+    @discardableResult
+    func coachUpdatePhase(clientId: Int, phaseId: Int, title: String, startDate: String,
+                          durationValue: Int, durationUnit: String, note: String) async throws -> JourneyPhaseDTO {
+        let body: [String: Any] = [
+            "title": title, "start_date": startDate,
+            "duration_value": durationValue, "duration_unit": durationUnit, "note": note,
+        ]
+        return try decode(JourneyPhaseDTO.self,
+                          from: try await request("/api/v1/coach/clients/\(clientId)/percorso/phases/\(phaseId)",
+                                                  method: "PATCH", body: body))
+    }
+
+    func coachDeletePhase(clientId: Int, phaseId: Int) async throws {
+        _ = try await request("/api/v1/coach/clients/\(clientId)/percorso/phases/\(phaseId)", method: "DELETE")
+    }
+
     // MARK: Agenda CRUD
 
     @discardableResult
@@ -188,6 +335,13 @@ extension APIClient {
         _ = try await request("/api/allenamenti/\(planId)/elimina/", method: "POST")
     }
 
+    /// Deep-copy a workout plan into a new DRAFT. Returns the new plan id.
+    @discardableResult
+    func coachDuplicateWorkoutPlan(planId: Int) async throws -> Int {
+        let data = try await request("/api/allenamenti/\(planId)/duplica/", method: "POST")
+        return try coachJSONObject(data)["plan_id"] as? Int ?? 0
+    }
+
     /// Edit-ready payload of a nutrition plan (meals/foods or macro targets).
     func coachNutritionBuilder(planId: Int) async throws -> [String: Any] {
         let data = try await request("/api/v1/coach/nutrition/\(planId)/builder")
@@ -205,6 +359,13 @@ extension APIClient {
 
     func coachDeleteNutritionPlan(planId: Int) async throws {
         _ = try await request("/api/nutrizione/piani/\(planId)/elimina/", method: "POST")
+    }
+
+    /// Deep-copy a nutrition plan into a new DRAFT. Returns the new plan id.
+    @discardableResult
+    func coachDuplicateNutritionPlan(planId: Int) async throws -> Int {
+        let data = try await request("/api/nutrizione/piani/\(planId)/duplica/", method: "POST")
+        return try coachJSONObject(data)["id"] as? Int ?? 0
     }
 
     /// Assignable athletes with their currently active plan (for overwrite warnings).

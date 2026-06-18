@@ -49,6 +49,7 @@ struct CoachWorkoutDetailView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { editing = true } label: { Label("Modifica", systemImage: "pencil") }
+                Button { Task { await duplicatePlan() } } label: { Label("Duplica", systemImage: "doc.on.doc") }
                 Button(role: .destructive) { confirmDelete = true } label: {
                     Label("Elimina", systemImage: "trash")
                 }
@@ -78,6 +79,17 @@ struct CoachWorkoutDetailView: View {
         deleting = true; defer { deleting = false }
         do {
             try await APIClient.shared.coachDeleteWorkoutPlan(planId: planId)
+            Haptics.success()
+            dismiss()
+        } catch {
+            Haptics.error()
+        }
+    }
+
+    private func duplicatePlan() async {
+        deleting = true; defer { deleting = false }
+        do {
+            _ = try await APIClient.shared.coachDuplicateWorkoutPlan(planId: planId)
             Haptics.success()
             dismiss()
         } catch {
@@ -160,6 +172,7 @@ struct CoachNutritionDetailView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { editing = true } label: { Label("Modifica", systemImage: "pencil") }
+                Button { Task { await duplicatePlan() } } label: { Label("Duplica", systemImage: "doc.on.doc") }
                 Button(role: .destructive) { confirmDelete = true } label: {
                     Label("Elimina", systemImage: "trash")
                 }
@@ -189,6 +202,17 @@ struct CoachNutritionDetailView: View {
         deleting = true; defer { deleting = false }
         do {
             try await APIClient.shared.coachDeleteNutritionPlan(planId: planId)
+            Haptics.success()
+            dismiss()
+        } catch {
+            Haptics.error()
+        }
+    }
+
+    private func duplicatePlan() async {
+        deleting = true; defer { deleting = false }
+        do {
+            _ = try await APIClient.shared.coachDuplicateNutritionPlan(planId: planId)
             Haptics.success()
             dismiss()
         } catch {

@@ -2,6 +2,7 @@
 andamento e comparatore."""
 
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -16,13 +17,13 @@ from datetime import timedelta
 from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import (
-    circ_label, skin_label, order_circ_keys, order_skin_keys, catalog_json,
+    circ_label, skin_label, order_circ_keys, order_skin_keys, catalog_json, measurement_options,
     circ_pad, skin_pad, WEIGHT_PAD,
 )
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
-from ..services.images import to_webp, is_image
+from ..services.uploads import store_attachment
 
 try:
     from domain.calendar.models import Appointment
@@ -239,11 +240,10 @@ def check_create_view(request):
                 continue
             files = request.FILES.getlist(f'attachment_{q["id"]}')
             for f in files:
-                save_path = f'check_attachments/{client.id}/{q["id"]}_{int(timezone.now().timestamp())}_{f.name}'
-                if is_image(f):
-                    saved = default_storage.save(save_path.rsplit('.', 1)[0] + '.webp', to_webp(f))
-                else:
-                    saved = default_storage.save(save_path, f)
+                prefix = f'check_attachments/{client.id}/{q["id"]}_{int(timezone.now().timestamp())}_'
+                saved, kind = store_attachment(f, dir_prefix=prefix)
+                if not saved:
+                    continue  # rejected: not a real image or video
                 QuestionAttachment.objects.create(
                     response=response,
                     question_id=q['id'],
@@ -527,11 +527,18 @@ def check_progress_charts_view(request, client_id=None):
 
     chart_data = _build_chart_data(target_client)
 
+    if is_coach_view:
+        measurement_url = reverse('api_coach_measurement', args=[target_client.id])
+    else:
+        measurement_url = reverse('api_client_measurement')
+
     return render(request, 'pages/check/progress_charts.html', {
         'target_client': target_client,
         'is_coach_view': is_coach_view,
         'chart_data_json': json.dumps(chart_data),
         'total_checks': len(chart_data['labels']),
+        'measurement_options_json': json.dumps(measurement_options()),
+        'measurement_post_url': measurement_url,
     })
 
 
@@ -732,11 +739,10 @@ def fill_assigned_check_view(request, instance_id):
             continue
         files = request.FILES.getlist(f'attachment_{q["id"]}')
         for f in files:
-            save_path = f'check_attachments/{client.id}/{q["id"]}_{int(timezone.now().timestamp())}_{f.name}'
-            if is_image(f):
-                saved = default_storage.save(save_path.rsplit('.', 1)[0] + '.webp', to_webp(f))
-            else:
-                saved = default_storage.save(save_path, f)
+            prefix = f'check_attachments/{client.id}/{q["id"]}_{int(timezone.now().timestamp())}_'
+            saved, kind = store_attachment(f, dir_prefix=prefix)
+            if not saved:
+                continue  # rejected: not a real image or video
             QuestionAttachment.objects.create(
                 response=response_obj,
                 question_id=q['id'],

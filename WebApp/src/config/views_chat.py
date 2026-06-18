@@ -11,6 +11,8 @@ from domain.coaching.models import CoachingRelationship
 from domain.calendar.models import Appointment
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
+from .services.images import is_image, to_webp
+from .services.uploads import is_valid_video, safe_filename
 
 
 def _user_has_access_to_conversation(user, conversation):
@@ -207,11 +209,15 @@ def api_send_message(request, conversation_id):
 
     msg_type = 'TEXT'
     if attachment:
-        ct = (attachment.content_type or '').lower()
-        if ct.startswith('image/'):
+        # Validate by real content, not the (forgeable) filename/Content-Type.
+        # Images are re-encoded to WebP (strips any non-image payload); videos
+        # must match a real container signature and the size cap.
+        if is_image(attachment):
             msg_type = 'IMAGE'
-        elif ct.startswith('video/'):
+            attachment = to_webp(attachment)
+        elif is_valid_video(attachment):
             msg_type = 'VIDEO'
+            attachment.name = safe_filename(attachment.name)
         else:
             return JsonResponse({'error': 'Tipo file non supportato. Solo immagini o video.'}, status=400)
 

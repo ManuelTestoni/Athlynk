@@ -25,6 +25,12 @@
         professional_type: 'COACH',
         password: '',
         confirmPassword: '',
+        get hasLen() { return this.password.length >= 12; },
+        get hasLower() { return /[a-z]/.test(this.password); },
+        get hasUpper() { return /[A-Z]/.test(this.password); },
+        get hasDigit() { return /[0-9]/.test(this.password); },
+        get hasSymbol() { return /[^A-Za-z0-9\s]/.test(this.password); },
+        get strong() { return this.hasLen && this.hasLower && this.hasUpper && this.hasDigit && this.hasSymbol; },
         get pwMatch() { return this.confirmPassword === '' || this.password === this.confirmPassword; }
       }">
     {% csrf_token %}
@@ -83,15 +89,15 @@
     <div>
         <label class="al-label">Password</label>
         <input type="password" name="password" required x-model="password"
-               class="al-input" placeholder="••••••••" minlength="8" autocomplete="new-password">
-        <span class="al-input-help">Minimo 8 caratteri.</span>
+               class="al-input" placeholder="••••••••" minlength="12" autocomplete="new-password">
+        {% include 'partials/password_rules.html' %}
     </div>
 
     <div>
         <label class="al-label">Conferma Password</label>
         <input type="password" name="confirm_password" required x-model="confirmPassword"
                :class="!pwMatch ? 'is-error' : ''"
-               class="al-input" placeholder="••••••••" minlength="8" autocomplete="new-password">
+               class="al-input" placeholder="••••••••" minlength="12" autocomplete="new-password">
         <span x-show="!pwMatch" class="al-input-error">Le password non coincidono.</span>
     </div>
 
@@ -111,7 +117,7 @@
         <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie Policy</a>.
     </p>
 
-    <button type="submit" :disabled="!pwMatch" class="al-btn al-btn-lg w-full justify-center mt-2">
+    <button type="submit" :disabled="!strong || !pwMatch" class="al-btn al-btn-lg w-full justify-center mt-2">
         <span>Crea Account</span>
         <i class="ph ph-arrow-right text-sm"></i>
     </button>

@@ -11,13 +11,13 @@ from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
 from django.conf import settings
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 
 from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import (
     circ_label, skin_label, order_circ_keys, order_skin_keys, catalog_json,
-    circ_pad, skin_pad, WEIGHT_PAD,
+    circ_pad, skin_pad, WEIGHT_PAD, WEIGHT_RANGE, circ_range, skin_range,
 )
 from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
@@ -397,3 +397,108 @@ def _build_prefill(response):
         if v not in (None, ''):
             prefill[qid] = v
     return prefill
+
+
+# ---------------------------------------------------------------------------
+# Misurazione singola ("pesata/circonferenza/plica del giorno X")
+# ---------------------------------------------------------------------------
+# Una misura singola viene salvata come una QuestionnaireResponse "leggera" sotto
+# un template sintetico per-coach, così compare automaticamente nel grafico di
+# andamento, negli eventi de "Il mio percorso" e nello storico check, senza nuovi
+# percorsi di lettura. Snapshot single-metric → il dettaglio la renderizza come
+# un normale check antropometrico con la sola voce compilata.
+
+QUICK_MEASUREMENT_TYPE = 'quick_measurement'
+QUICK_MEASUREMENT_TITLE = 'Misurazione rapida'
+
+
+def quick_measurement_template(coach):
+    """Template sintetico (uno per coach) che ancora le misurazioni singole."""
+    template, _ = QuestionnaireTemplate.objects.get_or_create(
+        coach=coach,
+        questionnaire_type=QUICK_MEASUREMENT_TYPE,
+        defaults={
+            'title': QUICK_MEASUREMENT_TITLE,
+            'description': 'Misurazioni singole inserite manualmente.',
+            'questions_config': [],
+            'steps_config': [],
+            'is_active': True,
+        },
+    )
+    return template
+
+
+class QuickMeasurementError(ValueError):
+    """Input non valido per una misurazione singola (messaggio mostrabile)."""
+
+
+def create_quick_measurement(coach, client, mtype, key, value, day):
+    """Crea una QuestionnaireResponse per una singola misura del giorno `day`.
+
+    mtype: 'weight' | 'circumference' | 'skinfold'
+    key:   chiave ISAK memorizzata (ignorata per 'weight')
+    value: numero (kg / cm / mm)
+    day:   datetime.date della misurazione
+
+    Solleva QuickMeasurementError per input fuori range o chiave ignota.
+    """
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        raise QuickMeasurementError('Valore non valido.')
+    if val <= 0:
+        raise QuickMeasurementError('Inserisci un valore maggiore di zero.')
+
+    if day is None:
+        raise QuickMeasurementError('Data mancante.')
+    if day > timezone.localdate():
+        raise QuickMeasurementError('La data non può essere nel futuro.')
+
+    weight_kg = None
+    body_circumferences = {}
+    skinfolds = {}
+    snapshot_q = {'id': 'antropometria', 'type': 'antropometria', 'label': 'Misura',
+                  'step_id': '__solo', 'weight': False, 'circumferences': [], 'skinfolds': []}
+
+    if mtype == 'weight':
+        lo, hi = WEIGHT_RANGE
+        if not (lo <= val <= hi):
+            raise QuickMeasurementError(f'Il peso deve essere tra {lo:g} e {hi:g} kg.')
+        weight_kg = round(val, 1)
+        snapshot_q['weight'] = True
+    elif mtype == 'circumference':
+        rng = circ_range(key)
+        if rng is None:
+            raise QuickMeasurementError('Circonferenza sconosciuta.')
+        lo, hi = rng
+        if not (lo <= val <= hi):
+            raise QuickMeasurementError(f'{circ_label(key)} deve essere tra {lo:g} e {hi:g} cm.')
+        body_circumferences[key] = str(round(val, 1))
+        snapshot_q['circumferences'] = [key]
+    elif mtype == 'skinfold':
+        rng = skin_range(key)
+        lo, hi = rng
+        if not (lo <= val <= hi):
+            raise QuickMeasurementError(f'{skin_label(key)} deve essere tra {lo:g} e {hi:g} mm.')
+        skinfolds[key] = str(round(val, 1))
+        snapshot_q['skinfolds'] = [key]
+    else:
+        raise QuickMeasurementError('Tipo di misura non valido.')
+
+    # Mezzogiorno locale per ancorare la serie temporale del grafico al giorno X.
+    naive = datetime.combine(day, time(12, 0))
+    submitted_at = timezone.make_aware(naive) if settings.USE_TZ else naive
+
+    return QuestionnaireResponse.objects.create(
+        questionnaire_template=quick_measurement_template(coach),
+        client=client,
+        coach=coach,
+        submitted_at=submitted_at,
+        status='REVIEWED',
+        weight_kg=weight_kg,
+        body_circumferences=body_circumferences,
+        skinfolds=skinfolds,
+        answers_json={},
+        questions_snapshot=[snapshot_q],
+        steps_snapshot=[{'id': '__solo', 'label': QUICK_MEASUREMENT_TITLE, 'icon': 'ph-ruler'}],
+    )

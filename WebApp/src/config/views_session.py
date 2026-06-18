@@ -232,10 +232,16 @@ def build_exercise_trend(workout_exercise, client):
                           coach toggle; never the plain arithmetic mean)
     Only completed sessions + completed sets with real executed values count.
     """
+    # Count any real executed set (set-level completed=True). We deliberately do
+    # NOT also require session.completed: athletes routinely log their sets and
+    # then leave the app without tapping "Termina", so the session stays
+    # completed=False even though the work was done. Gating on session.completed
+    # made those (very real) sessions invisible in both the athlete and coach
+    # trend charts — the "data is there but nothing shows" bug.
     logs = (
         WorkoutSetLog.objects
         .filter(workout_exercise=workout_exercise, session__client=client,
-                completed=True, session__completed=True)
+                completed=True)
         .select_related('session', 'actual_exercise')
         .order_by('session__started_at', 'set_number')
     )
@@ -578,15 +584,21 @@ def api_session_upload_media(request, session_id):
     if not f:
         return JsonResponse({'error': 'no file'}, status=400)
 
-    mime = (f.content_type or '').lower()
-    if mime.startswith('image/'):
-        media_type = 'PHOTO'
+    # Validate by real content, not the (forgeable) Content-Type. Images are
+    # re-encoded to WebP (any non-image payload is stripped); videos must match a
+    # real container signature. A file renamed to .jpg/.mp4 is rejected.
+    from .services.images import is_image, to_webp
+    from .services.uploads import looks_like_video, safe_filename
+    if is_image(f):
         if f.size > 10 * 1024 * 1024:
             return JsonResponse({'error': 'Foto > 10MB non supportate'}, status=400)
-    elif mime.startswith('video/'):
-        media_type = 'VIDEO'
+        media_type = 'PHOTO'
+        f = to_webp(f)
+    elif looks_like_video(f):
         if f.size > 50 * 1024 * 1024:
             return JsonResponse({'error': 'Video > 50MB non supportati'}, status=400)
+        media_type = 'VIDEO'
+        f.name = safe_filename(f.name)
     else:
         return JsonResponse({'error': 'tipo file non supportato'}, status=400)
 

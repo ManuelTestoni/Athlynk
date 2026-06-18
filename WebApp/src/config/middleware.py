@@ -19,11 +19,18 @@ import logging
 import time
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
+
+from .services.sanitize import _CONTROL_RE, _SKIP_CLEAN_KEYS
 
 
 logger = logging.getLogger(__name__)
+
+# Form keys whose values pass through with only a null-byte scrub: secrets where
+# trimming/normalizing would corrupt the value (passwords, tokens) plus Django's
+# CSRF field. Mirrors the JSON API's sanitize._SKIP_CLEAN_KEYS.
+_FORM_SKIP_KEYS = _SKIP_CLEAN_KEYS | {'csrfmiddlewaretoken'}
 
 
 class SessionSecurityMiddleware:
@@ -121,9 +128,14 @@ def _is_form_exempt(path):
 
 
 def _scrub_querydict(qd):
-    """Remove ASCII NUL bytes from all values in a Django QueryDict.
+    """Sanitize all string values in a Django QueryDict in place.
 
-    Operates in place by toggling `_mutable`. Returns the dict for chaining.
+    Strips ASCII control characters (NUL, the rest of 0x00-0x1F except tab/
+    newline, DEL and the C1 range) from every value — the same blanket pass the
+    JSON API applies via sanitize.clean_payload, so form input is normalized
+    too. Secret-bearing keys (passwords, tokens, CSRF) get only a null-byte
+    scrub so their bytes stay intact. Tabs and newlines are preserved (textarea
+    content). Operates in place by toggling `_mutable`; returns the dict.
     """
     if not qd:
         return qd
@@ -131,9 +143,16 @@ def _scrub_querydict(qd):
     qd._mutable = True
     try:
         for key in list(qd.keys()):
-            cleaned = [v.replace('\x00', '') for v in qd.getlist(key) if isinstance(v, str)]
-            non_str = [v for v in qd.getlist(key) if not isinstance(v, str)]
-            qd.setlist(key, cleaned + non_str)
+            skip = isinstance(key, str) and key.lower() in _FORM_SKIP_KEYS
+            cleaned = []
+            for v in qd.getlist(key):
+                if not isinstance(v, str):
+                    cleaned.append(v)
+                elif skip:
+                    cleaned.append(v.replace('\x00', ''))
+                else:
+                    cleaned.append(_CONTROL_RE.sub('', v))
+            qd.setlist(key, cleaned)
     finally:
         qd._mutable = was_mutable
     return qd
@@ -146,8 +165,9 @@ class SanitizationMiddleware:
         self._json_body_cap = int(limits.get('json_body_mb', 1)) * 1024 * 1024
 
     def __call__(self, request):
-        # Null-byte scrub on every request. QueryDicts are normally immutable
-        # after parsing; we flip the flag for the rewrite and flip it back.
+        # Control-char scrub on every request (null bytes + the rest of the C0/C1
+        # ranges, tabs/newlines kept). QueryDicts are normally immutable after
+        # parsing; we flip the flag for the rewrite and flip it back.
         _scrub_querydict(request.GET)
         _scrub_querydict(request.POST)
 
@@ -185,4 +205,48 @@ class SanitizationMiddleware:
                     status=413,
                 )
 
+        return self.get_response(request)
+
+
+class GlobalRateLimitMiddleware:
+    """Coarse per-IP request cap covering *every* endpoint.
+
+    A blanket backstop so endpoints without their own limiter (most web views)
+    still can't be hammered. The granular limiters — login, mobile API,
+    password reset, checkout — stay stricter and run independently inside their
+    views/decorators; this only catches volume those don't see. Static and media
+    requests are exempt. Returns 429 (JSON under /api/, else plain text) with a
+    Retry-After header once the per-IP bucket for the window is exhausted.
+
+    Tune via settings.GLOBAL_RATE_LIMIT; set per_min to 0 to disable.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        from .services import ratelimit
+        self._rl = ratelimit
+        conf = getattr(settings, 'GLOBAL_RATE_LIMIT', {}) or {}
+        self.limit = int(conf.get('per_min', 300))
+        self.window = int(conf.get('window_seconds', 60))
+        self.enabled = self.limit > 0
+        self._static = getattr(settings, 'STATIC_URL', '/static/') or '/static/'
+        self._media = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
+
+    def __call__(self, request):
+        if self.enabled:
+            path = request.path or ''
+            if not path.startswith(self._static) and not path.startswith(self._media):
+                ip = self._rl.client_ip(request)
+                allowed, _ = self._rl.hit('global_ip', ip, self.limit, self.window)
+                if not allowed:
+                    logger.warning('global.rate_limited ip=%s path=%s', ip, path)
+                    if path.startswith('/api/'):
+                        resp = JsonResponse(
+                            {'error': 'Troppe richieste. Riprova tra poco.'}, status=429)
+                    else:
+                        resp = HttpResponse(
+                            'Troppe richieste. Riprova tra poco.',
+                            status=429, content_type='text/plain; charset=utf-8')
+                    resp['Retry-After'] = str(self.window)
+                    return resp
         return self.get_response(request)

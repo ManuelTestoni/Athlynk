@@ -12,8 +12,7 @@ struct CoachMessagesView: View {
     @State private var composingNew = false
 
     var body: some View {
-        NavigationStack {
-            ScreenScroll {
+        ScreenScroll {
                 ScreenHeader(eyebrow: "Conversazioni", title: "Messaggi",
                              subtitle: "Resta in contatto con i tuoi atleti", accent: Palette.violet)
 
@@ -42,16 +41,15 @@ struct CoachMessagesView: View {
                     }
                 }
             }
-            .navigationDestination(for: CoachConversation.self) { c in
-                CoachThreadView(conversation: c)
-            }
-            .sheet(isPresented: $composingNew, onDismiss: { Task { await load() } }) {
-                CoachNewMessageView()
-            }
-            .task { await load() }
-            .onRemoteChange(["MESSAGE"]) { Task { await load() } }
-            .refreshable { await load() }
+        .navigationDestination(for: CoachConversation.self) { c in
+            CoachThreadView(conversation: c)
         }
+        .sheet(isPresented: $composingNew, onDismiss: { Task { await load() } }) {
+            CoachNewMessageView()
+        }
+        .task { await load() }
+        .onRemoteChange(["MESSAGE"]) { Task { await load() } }
+        .refreshable { await load() }
     }
 
     private func row(_ c: CoachConversation) -> some View {
@@ -205,9 +203,12 @@ struct CoachNewMessageView: View {
     @State private var query = ""
 
     private var filtered: [CoachMessageableClient] {
+        // Only athletes the coach has never written to — existing chats live in
+        // the conversation list, not here.
+        let fresh = clients.filter { !$0.hasConversation }
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return clients }
-        return clients.filter { $0.displayName.lowercased().contains(q) }
+        guard !q.isEmpty else { return fresh }
+        return fresh.filter { $0.displayName.lowercased().contains(q) }
     }
 
     var body: some View {
@@ -258,10 +259,6 @@ struct CoachNewMessageView: View {
                                     }
                                 }
                                 Spacer()
-                                if c.hasConversation {
-                                    Text("In corso").font(Typo.mono(8, .semibold)).tracking(1)
-                                        .foregroundStyle(Palette.textLow)
-                                }
                                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(Palette.textLow)
                             }

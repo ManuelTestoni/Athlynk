@@ -210,6 +210,148 @@ struct CoachClientsResponse: Codable {
     let active: Int
 }
 
+// MARK: - Onboarding (coach crea atleta)
+
+struct CoachSubscriptionPlanDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let price: Double
+    let durationDays: Int?
+    enum CodingKeys: String, CodingKey {
+        case id, name, price
+        case durationDays = "duration_days"
+    }
+}
+
+struct CoachSubscriptionPlansResponse: Codable { let plans: [CoachSubscriptionPlanDTO] }
+
+// MARK: - Gestione modelli check (parità web)
+
+struct CoachCheckTemplate: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let description: String
+    let presetKey: String
+    let isModifiedPreset: Bool
+    let questionnaireType: String
+    let questionsCount: Int
+    let stepsCount: Int
+    let updatedAt: String?
+
+    var isPreset: Bool { !presetKey.isEmpty }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description
+        case presetKey = "preset_key"
+        case isModifiedPreset = "is_modified_preset"
+        case questionnaireType = "questionnaire_type"
+        case questionsCount = "questions_count"
+        case stepsCount = "steps_count"
+        case updatedAt = "updated_at"
+    }
+}
+
+struct CoachCheckTemplatesResponse: Codable {
+    let presets: [CoachCheckTemplate]
+    let customs: [CoachCheckTemplate]
+}
+
+/// Full template: `questions` are resolved (ISAK labels) for the fill form;
+/// the builder reconstructs its blocks from them.
+struct CoachCheckTemplateDetail: Codable, Hashable {
+    let id: Int
+    let title: String
+    let presetKey: String
+    let questions: [CheckQuestion]
+    let steps: [CheckStep]
+
+    var isPreset: Bool { !presetKey.isEmpty }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, questions
+        case presetKey = "preset_key"
+        case steps = "steps_config"
+    }
+}
+
+/// ISAK catalog entry for the builder's antropometria block.
+struct CheckCatalogItem: Codable, Identifiable, Hashable {
+    let key: String
+    let label: String
+    let isLimb: Bool
+    var id: String { key }
+    enum CodingKeys: String, CodingKey {
+        case key
+        case label = "it"
+        case isLimb = "is_limb"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        label = (try? c.decode(String.self, forKey: .label)) ?? key
+        isLimb = (try? c.decode(Bool.self, forKey: .isLimb)) ?? false
+    }
+}
+
+struct CheckCatalog: Codable {
+    let circumferences: [CheckCatalogItem]
+    let skinfolds: [CheckCatalogItem]
+}
+
+/// Snapshot + current values for the "edit values" form.
+struct CoachCheckPrefill: Codable, Identifiable {
+    let id = UUID()
+    let questions: [CheckQuestion]
+    let steps: [CheckStep]
+    let prefill: [String: AnyCodable]
+
+    enum CodingKeys: String, CodingKey {
+        case questions, prefill
+        case steps = "steps_config"
+    }
+}
+
+/// Minimal heterogeneous JSON value (prefill values are numbers, strings or arrays).
+enum AnyCodable: Codable, Hashable {
+    case string(String), double(Double), bool(Bool), array([String]), null
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let b = try? c.decode(Bool.self) { self = .bool(b) }
+        else if let d = try? c.decode(Double.self) { self = .double(d) }
+        else if let s = try? c.decode(String.self) { self = .string(s) }
+        else if let a = try? c.decode([String].self) { self = .array(a) }
+        else { self = .null }
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let s): try c.encode(s)
+        case .double(let d): try c.encode(d)
+        case .bool(let b): try c.encode(b)
+        case .array(let a): try c.encode(a)
+        case .null: try c.encodeNil()
+        }
+    }
+
+    /// String form for text fields.
+    var asString: String {
+        switch self {
+        case .string(let s): return s
+        case .double(let d): return d == d.rounded() ? String(Int(d)) : String(d)
+        case .bool(let b): return b ? "1" : "0"
+        case .array(let a): return a.joined(separator: ",")
+        case .null: return ""
+        }
+    }
+    var asStringArray: [String] {
+        if case .array(let a) = self { return a }
+        let s = asString
+        return s.isEmpty ? [] : [s]
+    }
+}
+
 // MARK: - Client detail
 
 struct TitleRef: Codable, Hashable {
@@ -512,12 +654,13 @@ struct CoachProgressEntry: Codable, Identifiable, Hashable {
     let submittedAt: String?
     let weightKg: Double?
     let measurements: [String: String]
+    let skinfolds: [String: String]
     let coachFeedback: String?
     let notes: String?
     let photos: [CoachCheckPhoto]
 
     enum CodingKeys: String, CodingKey {
-        case id, measurements, notes, photos
+        case id, measurements, skinfolds, notes, photos
         case submittedAt = "submitted_at"
         case weightKg = "weight_kg"
         case coachFeedback = "coach_feedback"
@@ -529,6 +672,7 @@ struct CoachProgressEntry: Codable, Identifiable, Hashable {
         submittedAt = try? c.decodeIfPresent(String.self, forKey: .submittedAt)
         weightKg = try? c.decodeIfPresent(Double.self, forKey: .weightKg)
         measurements = (try? c.decode([String: String].self, forKey: .measurements)) ?? [:]
+        skinfolds = (try? c.decode([String: String].self, forKey: .skinfolds)) ?? [:]
         coachFeedback = try? c.decodeIfPresent(String.self, forKey: .coachFeedback)
         notes = try? c.decodeIfPresent(String.self, forKey: .notes)
         photos = (try? c.decode([CoachCheckPhoto].self, forKey: .photos)) ?? []
@@ -536,6 +680,25 @@ struct CoachProgressEntry: Codable, Identifiable, Hashable {
 }
 
 struct CoachProgressResponse: Codable { let entries: [CoachProgressEntry] }
+
+// MARK: - Client active workout (for the per-exercise trend drill-down)
+
+struct CoachClientWorkoutDTO: Codable {
+    struct PlanRef: Codable { let id: Int; let title: String }
+    struct Day: Codable, Identifiable {
+        let id: Int
+        let title: String?
+        let dayName: String?
+        let exercises: [ExerciseDTO]
+        enum CodingKeys: String, CodingKey {
+            case id, title, exercises
+            case dayName = "day_name"
+        }
+        var label: String { title ?? dayName ?? "Giorno" }
+    }
+    let plan: PlanRef?
+    let days: [Day]
+}
 
 // MARK: - Plan detail (workout)
 

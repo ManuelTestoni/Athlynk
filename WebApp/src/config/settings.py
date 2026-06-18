@@ -175,6 +175,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'config.middleware.SessionSecurityMiddleware',
+    'config.middleware.GlobalRateLimitMiddleware',
     'config.middleware.SanitizationMiddleware',
     'config.middleware.ClientAccessMiddleware',
 ]
@@ -259,6 +260,7 @@ DATA_UPLOAD_MAX_NUMBER_FILES = 20                    # cap multi-file uploads
 # Per-input-class caps used by sanitize helpers (in MB). Views opt in.
 SANITIZE_LIMITS = {
     'image_mb': 10,
+    'video_mb': 100,
     'json_body_mb': 1,
     'short_text_chars': 200,
     'long_text_chars': 5000,
@@ -285,6 +287,16 @@ API_RATE_LIMITS = {
     'window_seconds': 60,
 }
 SANITIZE_ALLOWED_IMAGE_MIMES = ('image/jpeg', 'image/png', 'image/webp')
+
+# Blanket per-IP request cap applied to every endpoint by
+# config.middleware.GlobalRateLimitMiddleware — a backstop for views without
+# their own limiter. Generous so normal coach/athlete usage never trips it;
+# raise per_min if legitimate clients hit 429. Disabled under the test runner so
+# request-heavy test cases stay deterministic. Set per_min to 0 to disable.
+GLOBAL_RATE_LIMIT = {
+    'per_min': 0 if 'test' in sys.argv else 300,
+    'window_seconds': 60,
+}
 
 
 # Password validation

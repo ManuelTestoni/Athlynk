@@ -32,15 +32,18 @@
       <p class="al-body mt-2">Medie settimanali e confronti tra periodi omologhi su <span class="font-mono text-ink">{{ total_checks }}</span> check.</p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
-    {% if is_coach_view %}
-    <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
-      <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
-    </a>
-    {% else %}
-    <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
-      <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
-    </a>
-    {% endif %}
+    <div class="flex items-center gap-3">
+      {% include 'partials/_add_measurement.html' %}
+      {% if is_coach_view %}
+      <a href="{% url 'check_client_history' target_client.id %}" class="al-btn al-btn-ghost">
+        <i class="ph ph-arrow-left text-sm"></i><span>Torna allo storico</span>
+      </a>
+      {% else %}
+      <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-ghost">
+        <i class="ph ph-arrow-left text-sm"></i><span>Torna ai check</span>
+      </a>
+      {% endif %}
+    </div>
   </div>
 
   {% if total_checks == 0 %}

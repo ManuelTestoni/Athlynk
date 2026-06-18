@@ -635,6 +635,86 @@ def nutrizione_piano_delete_view(request, plan_id):
     return JsonResponse({'ok': True})
 
 
+def nutrizione_piano_duplicate_view(request, plan_id):
+    """Deep-copy a nutrition plan (days → meals → items → substitutions) into a
+    new DRAFT owned by the same coach. Supplement sheet link is OneToOne, so the
+    copy starts without one. Returns the new plan id for client-side redirect."""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Metodo non consentito'}, status=405)
+
+    source = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+
+    with transaction.atomic():
+        new_plan = NutritionPlan.objects.create(
+            coach=coach,
+            title=f"{source.title} (copia)",
+            description=source.description,
+            plan_type=source.plan_type,
+            plan_kind=source.plan_kind,
+            plan_mode=source.plan_mode,
+            nutrition_goal=source.nutrition_goal,
+            daily_kcal=source.daily_kcal,
+            protein_target_g=source.protein_target_g,
+            carb_target_g=source.carb_target_g,
+            fat_target_g=source.fat_target_g,
+            meals_per_day=source.meals_per_day,
+            status='DRAFT',
+            is_template=False,
+            include_substitutions_in_avg=source.include_substitutions_in_avg,
+            folder=source.folder,
+        )
+
+        # Days first, so meals can be re-pointed to the copied day.
+        day_map = {}
+        for src_day in source.days.all():
+            new_day = DietDay.objects.create(
+                plan=new_plan,
+                day_of_week=src_day.day_of_week,
+                order=src_day.order,
+                notes=src_day.notes,
+                target_kcal=src_day.target_kcal,
+                target_protein_g=src_day.target_protein_g,
+                target_carb_g=src_day.target_carb_g,
+                target_fat_g=src_day.target_fat_g,
+            )
+            day_map[src_day.id] = new_day
+
+        for src_meal in source.meals.all().prefetch_related('items__substitutions'):
+            new_meal = Meal.objects.create(
+                plan=new_plan,
+                day=day_map.get(src_meal.day_id) if src_meal.day_id else None,
+                name=src_meal.name,
+                order=src_meal.order,
+                time_of_day=src_meal.time_of_day,
+                notes=src_meal.notes,
+            )
+            for src_item in src_meal.items.all():
+                new_item = MealItem.objects.create(
+                    meal=new_meal,
+                    food=src_item.food,
+                    quantity_g=src_item.quantity_g,
+                    notes=src_item.notes,
+                    uncertain=src_item.uncertain,
+                    raw_name=src_item.raw_name,
+                )
+                for src_sub in src_item.substitutions.all():
+                    MealItemSubstitution.objects.create(
+                        item=new_item,
+                        food=src_sub.food,
+                        mode=src_sub.mode,
+                        quantity_g=src_sub.quantity_g,
+                        order=src_sub.order,
+                    )
+
+    return JsonResponse({'ok': True, 'id': new_plan.id})
+
+
 # ─── API: Wizard CRUD (Sezione 9.3) ──────────────────────────────────────────────
 
 def _require_coach_json(request):
@@ -1623,7 +1703,24 @@ def _handle_plan_save(request, coach, plan):
         if is_weekly:
             day_cache = {d.day_of_week: d for d in plan.days.all()}
 
-        for order, meal_data in enumerate(meals_raw):
+        saved_meals = 0
+        for meal_data in meals_raw:
+            # Resolve valid food items first. A meal with no foods is never
+            # persisted — we don't fill the DB with empty meals/days.
+            valid_items = []
+            for item_data in meal_data.get('items', []):
+                food_id = item_data.get('food_id')
+                qty = item_data.get('quantity_g', 0)
+                if not food_id or not qty:
+                    continue
+                try:
+                    food = Food.objects.get(id=food_id)
+                except Food.DoesNotExist:
+                    continue
+                valid_items.append((food, float(qty), item_data))
+            if not valid_items:
+                continue
+
             day_obj = None
             if is_weekly:
                 day_code = _normalize_weekday(meal_data.get('day_of_week'))
@@ -1640,24 +1737,17 @@ def _handle_plan_save(request, coach, plan):
             meal = Meal.objects.create(
                 plan=plan,
                 day=day_obj,
-                name=meal_data.get('name', f'Pasto {order + 1}'),
-                order=order,
+                name=meal_data.get('name', f'Pasto {saved_meals + 1}'),
+                order=saved_meals,
                 time_of_day=meal_data.get('time_of_day', '') or None,
                 notes=meal_data.get('notes', '') or None,
             )
-            for item_data in meal_data.get('items', []):
-                food_id = item_data.get('food_id')
-                qty = item_data.get('quantity_g', 0)
-                if not food_id or not qty:
-                    continue
-                try:
-                    food = Food.objects.get(id=food_id)
-                except Food.DoesNotExist:
-                    continue
+            saved_meals += 1
+            for food, qty, item_data in valid_items:
                 item = MealItem.objects.create(
                     meal=meal,
                     food=food,
-                    quantity_g=float(qty),
+                    quantity_g=qty,
                     notes=item_data.get('notes', '') or None,
                 )
                 for s_order, sub_data in enumerate(item_data.get('substitutions') or []):
@@ -1677,6 +1767,11 @@ def _handle_plan_save(request, coach, plan):
                         quantity_g=float(s_qty),
                         order=s_order,
                     )
+
+        # Keep meals_per_day in sync with what we actually stored (empties skipped).
+        if plan.meals_per_day != (saved_meals or None):
+            plan.meals_per_day = saved_meals or None
+            plan.save(update_fields=['meals_per_day'])
 
         if is_weekly:
             used_days = {m.day_id for m in plan.meals.all() if m.day_id}

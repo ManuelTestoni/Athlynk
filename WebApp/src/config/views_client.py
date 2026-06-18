@@ -24,6 +24,7 @@ from .services.email import send_account_activation
 from .services.tokens import get_client_ip
 from .forms import SubscriptionPlanForm
 from .views_check.helpers import _build_chart_data
+from .views_check import create_quick_measurement, QuickMeasurementError
 
 
 def coach_clients_list_view(request):
@@ -180,12 +181,17 @@ def coach_client_detail_view(request, client_id):
     # storico check (peso / circonferenze / pliche, per atleta — non per coach).
     chart_data = _build_chart_data(client)
 
+    from django.urls import reverse
+    from domain.checks.anthropometry import measurement_options
+
     return render(request, 'pages/clienti/detail.html', {
         'coach': coach,
         'client': client,
         'relationship': relationship,
         'chart_data_json': json.dumps(chart_data),
         'total_checks': len(chart_data['labels']),
+        'measurement_options_json': json.dumps(measurement_options()),
+        'measurement_post_url': reverse('api_coach_measurement', args=[client.id]),
         'active_workout': workout_assignments.filter(status='ACTIVE').first(),
         'workout_assignments': workout_assignments,
         'active_nutrition': nutrition_assignments.filter(status='ACTIVE').first(),
@@ -920,6 +926,72 @@ def api_coach_phase_create(request, client_id):
         'duration_value': phase.duration_value,
         'duration_unit': phase.duration_unit,
     })
+
+
+def _parse_measurement_payload(request):
+    """(mtype, key, value, day) | (None, error_message). Shared web parser."""
+    from datetime import date as date_type
+    try:
+        payload = json.loads(request.body or '{}')
+    except (ValueError, json.JSONDecodeError):
+        return None, 'Body non valido.'
+    mtype = (payload.get('type') or '').strip()
+    key = (payload.get('key') or '').strip() or None
+    value = payload.get('value')
+    date_str = (payload.get('date') or '').strip()
+    if mtype not in ('weight', 'circumference', 'skinfold'):
+        return None, 'Tipo di misura non valido.'
+    if mtype != 'weight' and not key:
+        return None, 'Seleziona il punto di misura.'
+    if date_str:
+        try:
+            day = date_type.fromisoformat(date_str)
+        except ValueError:
+            return None, 'Data non valida.'
+    else:
+        day = timezone.localdate()
+    return (mtype, key, value, day), None
+
+
+@require_http_methods(["POST"])
+def api_client_measurement_create(request):
+    """L'atleta inserisce una propria misurazione singola (peso/circ/plica)."""
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    rel = get_active_relationship(client)
+    if not rel:
+        return JsonResponse({'error': 'Nessun coach attivo.'}, status=403)
+    parsed, err = _parse_measurement_payload(request)
+    if err:
+        return JsonResponse({'error': err}, status=400)
+    mtype, key, value, day = parsed
+    try:
+        r = create_quick_measurement(rel.coach, client, mtype, key, value, day)
+    except QuickMeasurementError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'success': True, 'id': r.id})
+
+
+@require_http_methods(["POST"])
+def api_coach_measurement_create(request, client_id):
+    """Il coach inserisce una misurazione singola per un proprio cliente."""
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    relationship = CoachingRelationship.objects.filter(
+        coach=coach, client_id=client_id, status='ACTIVE').select_related('client').first()
+    if not relationship:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    parsed, err = _parse_measurement_payload(request)
+    if err:
+        return JsonResponse({'error': err}, status=400)
+    mtype, key, value, day = parsed
+    try:
+        r = create_quick_measurement(coach, relationship.client, mtype, key, value, day)
+    except QuickMeasurementError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'success': True, 'id': r.id})
 
 
 @require_http_methods(["DELETE"])

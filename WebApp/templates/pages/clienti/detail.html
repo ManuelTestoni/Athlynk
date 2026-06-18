@@ -182,19 +182,29 @@
 
     <!-- ── Andamento antropometrico (peso · circonferenze · pliche) ──
          Stessa logica e visualizzazione della vista atleta. -->
-    {% if total_checks > 0 %}
-    {% url 'check_create' as new_check_url %}
     <div>
         <div class="flex items-center justify-between gap-3 mb-5">
             <div class="flex items-center gap-3">
                 <div class="al-rule-bronze" style="width:32px;"></div>
                 <p class="al-eyebrow" style="color:var(--al-bronze);">Andamento</p>
             </div>
-            <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico check</a>
+            <div class="flex items-center gap-3">
+                {% include 'partials/_add_measurement.html' %}
+                <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico check</a>
+            </div>
         </div>
+        {% if total_checks > 0 %}
         {% include 'pages/check/_anthro_charts.html' %}
+        {% else %}
+        <div class="al-card al-card-warm">
+            <div class="al-empty" style="padding: 48px 32px;">
+                <i class="ph ph-chart-line al-empty-icon"></i>
+                <h3>Nessuna misurazione registrata</h3>
+                <p>Aggiungi una misurazione o assegna un check per attivare i grafici.</p>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     <!-- Timeline percorso atleta -->
     {% with client_id_str=client.id|stringformat:"s" %}

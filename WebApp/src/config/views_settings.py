@@ -210,17 +210,8 @@ def delete_account_view(request):
             ctx['is_client'] = True
         return render(request, 'pages/impostazioni/dashboard.html', ctx)
 
-    with transaction.atomic():
-        # Hard delete relies on FK CASCADE, but ClientSubscription.subscription_plan
-        # is PROTECT: deleting a coach cascades to their SubscriptionPlans, which is
-        # blocked while any ClientSubscription still references them. Tear those
-        # billing rows down first so the cascade can complete instead of 500ing.
-        if user.role == 'COACH':
-            coach = get_session_coach(request)
-            if coach:
-                from domain.billing.models import ClientSubscription
-                ClientSubscription.objects.filter(subscription_plan__coach=coach).delete()
-        user.delete()
+    from domain.accounts.services import hard_delete_user
+    hard_delete_user(user)
 
     request.session.flush()
     return redirect('login')

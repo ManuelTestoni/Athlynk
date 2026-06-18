@@ -1,18 +1,53 @@
 //
 //  ProfileView.swift
-//  Stitch "Profilo Atleta": avatar block, stat cards, your professionals, a
-//  settings list, notifications, and logout.
-//
-//  Rows whose destination screens have no API wired yet (Modifica profilo,
-//  Abbonamento, Aiuto) are placeholders until their endpoints are connected.
+//  "Altro" dell'atleta — hub a rettangoli (come l'Altro del coach): identità in
+//  testa, i tuoi professionisti, poi una griglia di sezioni (andamento, percorso,
+//  messaggi, agenda, abbonamento, notifiche, profilo, anamnesi, impostazioni, aiuto)
+//  e il logout.
 //
 
 import SwiftUI
-import Combine
 
-struct ProfileView: View {
+struct AthleteMoreView: View {
     @EnvironmentObject var app: AppState
     @State private var appear = false
+
+    private enum Route: Hashable {
+        case andamento, percorso, messaggi, agenda, abbonamento
+        case notifiche, profilo, anamnesi, impostazioni, aiuto
+    }
+
+    private struct Item: Identifiable {
+        let id = UUID()
+        let route: Route
+        let icon: String
+        let title: String
+        let subtitle: String
+        let accent: Color
+    }
+
+    private let items: [Item] = [
+        .init(route: .andamento, icon: "chart.xyaxis.line", title: "Il mio andamento",
+              subtitle: "Peso, circonferenze e pliche", accent: Palette.cyan),
+        .init(route: .percorso, icon: "map.fill", title: "Il mio percorso",
+              subtitle: "Piani, diete e check", accent: Palette.bronze),
+        .init(route: .messaggi, icon: "bubble.left.and.bubble.right.fill", title: "Messaggi",
+              subtitle: "Parla con il tuo coach", accent: Palette.violet),
+        .init(route: .agenda, icon: "calendar", title: "Agenda",
+              subtitle: "Appuntamenti e sessioni", accent: Palette.cyan),
+        .init(route: .abbonamento, icon: "crown.fill", title: "Abbonamento",
+              subtitle: "Il tuo piano", accent: Palette.magenta),
+        .init(route: .notifiche, icon: "bell.fill", title: "Notifiche",
+              subtitle: "Centro notifiche", accent: Palette.amber),
+        .init(route: .profilo, icon: "person.fill", title: "Modifica profilo",
+              subtitle: "I tuoi dati", accent: Palette.amber),
+        .init(route: .anamnesi, icon: "doc.text.magnifyingglass", title: "Anamnesi",
+              subtitle: "Storia clinica e sportiva", accent: Palette.lime),
+        .init(route: .impostazioni, icon: "gearshape.fill", title: "Impostazioni",
+              subtitle: "Preferenze e privacy", accent: Palette.cyan),
+        .init(route: .aiuto, icon: "questionmark.circle.fill", title: "Aiuto",
+              subtitle: "Guida e supporto", accent: Palette.violet),
+    ]
 
     var body: some View {
         NavigationStack {
@@ -24,34 +59,12 @@ struct ProfileView: View {
                     .revealUp(appear, index: 2)
                 coachList.revealUp(appear, index: 3)
 
-                Text("ACCOUNT").voltEyebrow().padding(.top, 4).revealUp(appear, index: 4)
-                VStack(spacing: 10) {
-                    navRow(icon: "bubble.left.and.bubble.right.fill", title: "Messaggi", color: Palette.cyan) {
-                        ChatListView()
-                    }
-                    navRow(icon: "map.fill", title: "Il mio percorso", color: Palette.bronze) {
-                        JourneyView()
-                    }
-                    navRow(icon: "calendar", title: "Agenda", color: Palette.cyan) {
-                        AgendaView()
-                    }
-                    navRow(icon: "crown.fill", title: "Abbonamento", color: Palette.magenta) {
-                        SubscriptionView()
-                    }
-                    navRow(icon: "bell.fill", title: "Notifiche", color: Palette.violet) {
-                        NotificheView()
-                    }
-                    navRow(icon: "person.fill", title: "Modifica profilo", color: Palette.amber) {
-                        EditProfileView()
-                    }
-                    navRow(icon: "doc.text.magnifyingglass", title: "Anamnesi", color: Palette.lime) {
-                        AnamnesisView()
-                    }
-                    navRow(icon: "gearshape.fill", title: "Impostazioni", color: Palette.cyan) {
-                        SettingsView()
-                    }
-                    navRow(icon: "questionmark.circle.fill", title: "Aiuto", color: Palette.violet) {
-                        HelpView()
+                Text("GESTIONE").voltEyebrow().padding(.top, 4).revealUp(appear, index: 4)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
+                          spacing: 14) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item.route) { card(item) }
+                            .buttonStyle(PressableButtonStyle())
                     }
                 }
                 .revealUp(appear, index: 5)
@@ -62,12 +75,40 @@ struct ProfileView: View {
                 .padding(.top, 8)
                 .revealUp(appear, index: 6)
             }
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .andamento:    ProgressTrackerView()
+                case .percorso:     JourneyView()
+                case .messaggi:     ChatListView()
+                case .agenda:       AgendaView()
+                case .abbonamento:  SubscriptionView()
+                case .notifiche:    NotificheView()
+                case .profilo:      EditProfileView()
+                case .anamnesi:     AnamnesisView()
+                case .impostazioni: SettingsView()
+                case .aiuto:        HelpView()
+                }
+            }
             .navigationDestination(for: ConversationDTO.self) { conv in
                 ChatDetailView(conversation: conv)
             }
         }
         .tint(Palette.amber)
         .onAppear { appear = true }
+    }
+
+    private func card(_ item: Item) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: item.icon).font(.system(size: 22, weight: .bold))
+                .foregroundStyle(item.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title).font(Typo.body(15, .bold)).foregroundStyle(Palette.textHi)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text(item.subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .padding(16).voltPanel(item.accent.opacity(0.35))
     }
 
     private var identityCard: some View {
@@ -135,26 +176,6 @@ struct ProfileView: View {
                 .buttonStyle(PressableButtonStyle())
             }
         }
-    }
-
-    private func settingsRow(icon: String, title: String, color: Color) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon).font(.system(size: 18, weight: .black)).foregroundStyle(color)
-                .frame(width: 28)
-            Text(title).font(Typo.display(17)).foregroundStyle(Palette.textHi)
-            Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .black))
-                .foregroundStyle(color)
-        }
-        .padding(14).voltPanel(color.opacity(0.35))
-    }
-
-    private func navRow<Destination: View>(icon: String, title: String, color: Color,
-                                           @ViewBuilder destination: () -> Destination) -> some View {
-        NavigationLink { destination() } label: {
-            settingsRow(icon: icon, title: title, color: color)
-        }
-        .buttonStyle(PressableButtonStyle())
     }
 
     private var goalLabel: String {

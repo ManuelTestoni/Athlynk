@@ -176,3 +176,22 @@ def catalog_json():
         'skinfolds': SKINFOLDS,
         'weight': {'range': WEIGHT_RANGE, 'pad': WEIGHT_PAD},
     }
+
+
+def measurement_options():
+    """Opzioni piatte (chiave+label) per i picker di misurazione singola, web e
+    mobile. Le circonferenze degli arti espongono i due lati come voci separate,
+    coerenti con le chiavi memorizzate (_l / _r)."""
+    circ = []
+    for c in CIRCUMFERENCES:
+        if c['is_limb']:
+            circ.append({'key': c['key'] + '_r', 'label': c['it'] + ' (DX)'})
+            circ.append({'key': c['key'] + '_l', 'label': c['it'] + ' (SX)'})
+        else:
+            circ.append({'key': c['key'], 'label': c['it']})
+    skin = [{'key': s['key'], 'label': s['it']} for s in SKINFOLDS]
+    return {
+        'weight': {'unit': 'kg', 'range': list(WEIGHT_RANGE)},
+        'circumferences': circ,
+        'skinfolds': skin,
+    }

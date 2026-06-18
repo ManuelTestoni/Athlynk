@@ -53,23 +53,41 @@ final class APIClient {
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         if let body { req.httpBody = try JSONSerialization.data(withJSONObject: body) }
 
-        let data: Data, resp: URLResponse
-        do {
-            (data, resp) = try await session.data(for: req)
-        } catch {
-            throw APIError.transport(error.localizedDescription)
-        }
-        guard let http = resp as? HTTPURLResponse else { throw APIError.transport("Nessuna risposta") }
-        guard (200..<300).contains(http.statusCode) else {
-            var msg = ""
-            if let obj = try? JSONSerialization.jsonObject(with: data),
-               let dict = obj as? [String: Any],
-               let err = dict["error"] as? String {
-                msg = err
+        // A single network blip (host briefly unreachable, 5xx during a redeploy)
+        // used to surface as a definitive empty screen, because callers do
+        // `try? await …` and render the failure as "no data". Retry transient
+        // failures a couple of times so navigating into a section recovers on its
+        // own instead of needing a manual close/reopen.
+        // ponytail: fixed 2-retry + linear backoff; swap for exponential if a
+        // flaky network ever needs it.
+        var attempt = 0
+        while true {
+            do {
+                let (data, resp) = try await session.data(for: req)
+                guard let http = resp as? HTTPURLResponse else { throw APIError.transport("Nessuna risposta") }
+                guard (200..<300).contains(http.statusCode) else {
+                    if http.statusCode >= 500, attempt < 2 {
+                        attempt += 1
+                        try await Task.sleep(nanoseconds: UInt64(attempt) * 400_000_000)
+                        continue
+                    }
+                    var msg = ""
+                    if let obj = try? JSONSerialization.jsonObject(with: data),
+                       let dict = obj as? [String: Any],
+                       let err = dict["error"] as? String {
+                        msg = err
+                    }
+                    throw APIError.http(http.statusCode, msg)
+                }
+                return data
+            } catch let error as URLError {
+                // Respect a cancelled task — the view is gone, retrying is waste.
+                if error.code == .cancelled || Task.isCancelled { throw CancellationError() }
+                guard attempt < 2 else { throw APIError.transport(error.localizedDescription) }
+                attempt += 1
+                try await Task.sleep(nanoseconds: UInt64(attempt) * 400_000_000)
             }
-            throw APIError.http(http.statusCode, msg)
         }
-        return data
     }
 
     func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -145,6 +163,25 @@ final class APIClient {
 
     func progress() async throws -> [ProgressEntryDTO] {
         try decode(ProgressResponse.self, from: try await request("/api/v1/progress")).entries
+    }
+
+    func exerciseTrend(workoutExerciseId id: Int) async throws -> ExerciseTrendDTO {
+        try decode(ExerciseTrendDTO.self, from: try await request("/api/v1/exercises/\(id)/trend"))
+    }
+
+    // MARK: Single measurement (peso / circonferenza / plica del giorno X)
+
+    func measurementCatalog() async throws -> MeasurementCatalog {
+        try decode(MeasurementCatalog.self, from: try await request("/api/v1/measurement-catalog"))
+    }
+
+    /// The athlete records one measurement on a given day. `type` is
+    /// "weight" | "circumference" | "skinfold"; `key` is the ISAK site (nil for weight);
+    /// `date` is ISO `yyyy-MM-dd`.
+    func addMeasurement(type: String, key: String?, value: Double, date: String) async throws {
+        var body: [String: Any] = ["type": type, "value": value, "date": date]
+        body["key"] = key ?? NSNull()
+        _ = try await request("/api/v1/progress/measurement", method: "POST", body: body)
     }
 
     func profile() async throws -> ClientProfileDTO {

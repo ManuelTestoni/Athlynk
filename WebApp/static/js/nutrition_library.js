@@ -33,6 +33,9 @@ function nutritionLibrary() {
     newPlanKind: null,
     newPlanMode: 'FOOD',
 
+    /* duplicate */
+    duplicatingId: null,
+
     /* drag */
     draggedPlanId: null,
     dropTargetId: null,
@@ -400,6 +403,28 @@ function nutritionLibrary() {
         this.deleteModal = false;
       } catch (e) {
         Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+      }
+    },
+
+    /* === duplicate plan === */
+    async duplicatePlan(id) {
+      if (this.duplicatingId) return;
+      this.duplicatingId = id;
+      try {
+        const res = await fetch(this.urls.planDuplicate.replace('__ID__', id), {
+          method: 'POST', headers: {'X-CSRFToken': nutCsrfToken()}
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore duplicazione.' });
+          return;
+        }
+        // Open the new draft straight in the editor so the coach can tweak it.
+        window.location.href = this.urls.planEdit.replace('__ID__', data.id);
+      } catch (e) {
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+      } finally {
+        this.duplicatingId = null;
       }
     },
 

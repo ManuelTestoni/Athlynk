@@ -11,6 +11,7 @@ struct CoachChecksView: View {
     @State private var pendingCount = 0
     @State private var filter = "pending"     // pending | all
     @State private var loading = true
+    @State private var visibleCount = 10      // paginazione: 10 + "carica ancora"
 
     var body: some View {
         // No NavigationStack here: this view is pushed inside CoachMoreView's
@@ -35,11 +36,28 @@ struct CoachChecksView: View {
                            ? "Nessun check da revisionare. Ottimo lavoro!"
                            : "Nessun check ricevuto.", color: Palette.lime)
             } else {
-                ForEach(checks) { c in
+                ForEach(checks.prefix(visibleCount)) { c in
                     NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
                         .buttonStyle(PressableButtonStyle())
                 }
+                if checks.count > visibleCount {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) { visibleCount += 10 }
+                    } label: {
+                        Label("Carica ancora (\(checks.count - visibleCount))", systemImage: "arrow.down.circle")
+                            .font(Typo.body(14, .semibold)).foregroundStyle(Palette.bronze)
+                            .frame(maxWidth: .infinity).padding(.vertical, 13)
+                            .background(RoundedRectangle(cornerRadius: 12).stroke(Palette.bronze.opacity(0.5), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+
+            CoachCheckTemplatesSection()
+                .padding(.top, 8)
+        }
+        .navigationDestination(for: CheckTemplateRoute.self) {
+            CoachCheckTemplateDetailView(templateId: $0.id)
         }
         .task { await load() }
         .onRemoteChange(["CHECK_SUBMITTED"]) { Task { await load() } }
@@ -68,7 +86,7 @@ struct CoachChecksView: View {
     private func load() async {
         loading = true; defer { loading = false }
         if let res = try? await APIClient.shared.coachChecks(filter: filter) {
-            checks = res.checks; pendingCount = res.pendingCount
+            checks = res.checks; pendingCount = res.pendingCount; visibleCount = 10
         }
     }
 }
@@ -84,6 +102,8 @@ struct CoachCheckDetailView: View {
     @State private var privateNotes = ""
     @State private var sending = false
     @State private var sent = false
+    @State private var editForm: CoachCheckPrefill?
+    @State private var loadingEdit = false
 
     var body: some View {
         ScreenScroll {
@@ -92,6 +112,7 @@ struct CoachCheckDetailView: View {
                 if !d.measurements.isEmpty || d.weightKg != nil { measurements(d) }
                 if !d.photos.isEmpty { photos(d) }
                 if hasNotes(d) { notes(d) }
+                editValuesButton
                 feedbackComposer(d)
             } else if loading {
                 CoachCheckDetailSkeleton()
@@ -103,11 +124,34 @@ struct CoachCheckDetailView: View {
         .statusOverlay(flash)
         .onAppear { app.tabBarHidden = true }
         .onDisappear { app.tabBarHidden = false }
+        .sheet(item: $editForm) { pf in
+            CoachCheckFormView(mode: .edit(responseId: responseId),
+                               title: data?.title ?? "Check",
+                               questions: pf.questions, steps: pf.steps, prefill: pf.prefill) {
+                flash.success("Valori aggiornati"); Task { await load() }
+            }
+        }
         .task {
             Analytics.shared.capture(.checkinOpened, ["check_id": responseId])
             Analytics.shared.capture(.checkinReviewStarted, ["check_id": responseId])
             await load()
         }
+    }
+
+    private var editValuesButton: some View {
+        Button {
+            Task {
+                loadingEdit = true; defer { loadingEdit = false }
+                editForm = try? await APIClient.shared.coachCheckPrefill(responseId: responseId)
+                if editForm == nil { flash.failure("Modifica non disponibile") }
+            }
+        } label: {
+            Label(loadingEdit ? "Apertura…" : "Correggi valori", systemImage: "slider.horizontal.3")
+                .font(Typo.body(13, .semibold)).foregroundStyle(Palette.cyan)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .background(RoundedRectangle(cornerRadius: 12).stroke(Palette.cyan.opacity(0.5), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func clientHeader(_ d: CoachCheckDetailDTO) -> some View {

@@ -511,12 +511,14 @@ struct ProgressEntryDTO: Codable, Identifiable, Hashable {
     /// Body circumferences in cm, keyed by site (waist, chest, …). Server sends
     /// values as strings ("85.0"); empty sites are omitted.
     let measurements: [String: String]?
+    /// Skinfolds in mm, keyed by site (chest, abdomen, …). Same string encoding.
+    let skinfolds: [String: String]?
     let coachFeedback: String?
     let notes: String?
     let photos: [ProgressPhotoDTO]
 
     enum CodingKeys: String, CodingKey {
-        case id, notes, photos, measurements
+        case id, notes, photos, measurements, skinfolds
         case submittedAt = "submitted_at"
         case weightKg = "weight_kg"
         case coachFeedback = "coach_feedback"
@@ -524,6 +526,68 @@ struct ProgressEntryDTO: Codable, Identifiable, Hashable {
 }
 
 struct ProgressResponse: Codable { let entries: [ProgressEntryDTO] }
+
+// MARK: - Single measurement catalog ("pesata/circonferenza/plica del giorno X")
+
+/// One selectable measurement site (e.g. "waist" → "Vita"). Limb circumferences
+/// expose the two sides as separate options (key suffixed `_l` / `_r`).
+struct MeasurementOption: Codable, Identifiable, Hashable {
+    let key: String
+    let label: String
+    var id: String { key }
+}
+
+struct MeasurementCatalog: Codable {
+    let circumferences: [MeasurementOption]
+    let skinfolds: [MeasurementOption]
+}
+
+// MARK: - Exercise trend (per-session over time) — shared by athlete & coach
+
+struct ExerciseTrendDTO: Codable {
+    struct Meta: Codable { let name: String; let loadUnit: String
+        enum CodingKeys: String, CodingKey { case name; case loadUnit = "load_unit" } }
+    let exercise: Meta
+    let hasData: Bool
+    let sessions: [TrendSessionDTO]
+    enum CodingKeys: String, CodingKey { case exercise, sessions; case hasData = "has_data" }
+}
+
+struct TrendSessionDTO: Codable, Identifiable {
+    let sessionId: Int
+    let date: String?
+    let avgRpe: Double?
+    let volume: Double?
+    let topSet: Double?
+    let weightedAvgLoad: Double?
+    let loadUnit: String?
+    let sets: [TrendSetDTO]
+    var id: Int { sessionId }
+    enum CodingKeys: String, CodingKey {
+        case date, volume, sets
+        case sessionId = "session_id"
+        case avgRpe = "avg_rpe"
+        case topSet = "top_set"
+        case weightedAvgLoad = "weighted_avg_load"
+        case loadUnit = "load_unit"
+    }
+}
+
+struct TrendSetDTO: Codable, Identifiable {
+    let setNumber: Int
+    let reps: Int?
+    let load: Double?
+    let rpe: Double?
+    let isExtra: Bool?
+    let actualExercise: String?
+    var id: Int { setNumber }
+    enum CodingKeys: String, CodingKey {
+        case reps, load, rpe
+        case setNumber = "set_number"
+        case isExtra = "is_extra"
+        case actualExercise = "actual_exercise"
+    }
+}
 
 // MARK: - Editable profile
 

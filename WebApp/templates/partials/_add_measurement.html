@@ -1,0 +1,118 @@
+{% load safejson %}
+{# Pulsante + modale per inserire una misurazione singola (peso/circonferenza/plica)
+   del giorno X. Richiede nel context:
+     - measurement_options_json : output di measurement_options() già json.dumps
+     - measurement_post_url     : URL POST (atleta o coach)
+   La nuova misura compare nel grafico, nello storico e ne "Il mio percorso". #}
+<div x-data='addMeasurement({{ measurement_options_json|json_js }}, "{{ measurement_post_url }}")' class="inline-block">
+  <button type="button" @click="show()" class="al-btn al-btn-bronze">
+    <i class="ph ph-plus text-sm"></i><span>Aggiungi misurazione</span>
+  </button>
+
+  <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="al-modal-backdrop" @click="open = false"></div>
+    <div class="al-modal-panel relative" style="max-width: 460px;">
+      <div class="al-modal-head flex items-start justify-between gap-4">
+        <div>
+          <p class="al-eyebrow mb-2">Andamento</p>
+          <h3 class="al-h-2">Aggiungi <span class="al-display-i">misurazione</span></h3>
+        </div>
+        <button type="button" @click="open = false" class="al-btn-icon al-btn al-btn-ghost shrink-0">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="al-modal-body space-y-4">
+        <div>
+          <label class="al-label">Tipo di misura</label>
+          <select class="al-select" x-model="type" @change="key = sites.length ? sites[0].key : ''">
+            <option value="weight">Peso (kg)</option>
+            <option value="circumference">Circonferenza (cm)</option>
+            <option value="skinfold">Plica (mm)</option>
+          </select>
+        </div>
+
+        <div x-show="type !== 'weight'">
+          <label class="al-label">Punto di misura</label>
+          <select class="al-select" x-model="key">
+            <template x-for="s in sites" :key="s.key">
+              <option :value="s.key" x-text="s.label"></option>
+            </template>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="al-label">Valore <span x-text="'(' + unit + ')'"></span></label>
+            <input type="number" inputmode="decimal" step="0.1" min="0" class="al-input"
+                   x-model="value" placeholder="0.0">
+          </div>
+          <div>
+            <label class="al-label">Data</label>
+            <input type="date" class="al-input" x-model="date" :max="today">
+          </div>
+        </div>
+
+        <p x-show="error" x-cloak class="al-input-error" x-text="error"></p>
+      </div>
+
+      <div class="al-modal-foot">
+        <button type="button" @click="open = false" class="al-btn al-btn-ghost flex-1">Annulla</button>
+        <button type="button" @click="submit()" :disabled="saving" class="al-btn al-btn-bronze flex-1">
+          <i class="ph ph-check"></i><span x-text="saving ? 'Salvataggio…' : 'Salva'"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function addMeasurement(options, postUrl) {
+    return {
+      options, postUrl,
+      open: false, saving: false, error: '',
+      type: 'weight', key: '', value: '',
+      today: new Date().toISOString().slice(0, 10),
+      date: new Date().toISOString().slice(0, 10),
+      get sites() {
+        if (this.type === 'circumference') return this.options.circumferences || [];
+        if (this.type === 'skinfold') return this.options.skinfolds || [];
+        return [];
+      },
+      get unit() {
+        return this.type === 'weight' ? 'kg' : (this.type === 'circumference' ? 'cm' : 'mm');
+      },
+      show() {
+        this.error = '';
+        this.type = 'weight'; this.key = '';
+        this.value = '';
+        this.date = this.today;
+        this.open = true;
+      },
+      _csrf() {
+        return document.querySelector('meta[name="csrf-token"]')?.content
+          || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1];
+      },
+      async submit() {
+        this.error = '';
+        const val = parseFloat(this.value);
+        if (!val || val <= 0) { this.error = 'Inserisci un valore valido.'; return; }
+        if (this.type !== 'weight' && !this.key) { this.error = 'Seleziona il punto di misura.'; return; }
+        this.saving = true;
+        try {
+          const resp = await fetch(this.postUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+            body: JSON.stringify({ type: this.type, key: this.key || null, value: val, date: this.date }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) { this.error = data.error || 'Errore durante il salvataggio.'; this.saving = false; return; }
+          window.location.reload();
+        } catch (e) {
+          this.error = 'Errore di rete. Riprova.';
+          this.saving = false;
+        }
+      },
+    };
+  }
+</script>

@@ -11,8 +11,7 @@ struct CoachAgendaView: View {
     @State private var creating = false
 
     var body: some View {
-        NavigationStack {
-            ScreenScroll {
+        ScreenScroll {
                 ScreenHeader(eyebrow: "Calendario", title: "Agenda",
                              subtitle: "I tuoi prossimi appuntamenti", accent: Palette.amber)
 
@@ -41,13 +40,12 @@ struct CoachAgendaView: View {
                     }
                 }
             }
-            .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
-                CoachNewAppointmentView()
-            }
-            .task { await load() }
-            .onRemoteChange { Task { await load() } }
-            .refreshable { await load() }
+        .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
+            CoachNewAppointmentView()
         }
+        .task { await load() }
+        .onRemoteChange { Task { await load() } }
+        .refreshable { await load() }
     }
 
     private var grouped: [(String, [CoachAgendaItem])] {

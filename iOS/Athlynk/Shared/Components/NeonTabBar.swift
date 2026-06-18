@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum AppTab: Int, CaseIterable, Identifiable {
-    case home, train, fuel, check, you
+    case home, train, fuel, check, altro
     var id: Int { rawValue }
 
     var icon: String {
@@ -15,16 +15,16 @@ enum AppTab: Int, CaseIterable, Identifiable {
         case .train: return "dumbbell.fill"
         case .fuel: return "flame.fill"
         case .check: return "checkmark.seal.fill"
-        case .you: return "person.fill"
+        case .altro: return "ellipsis"
         }
     }
     var title: String {
         switch self {
-        case .home: return "Hub"
-        case .train: return "Train"
-        case .fuel: return "Fuel"
+        case .home: return "Home"
+        case .train: return "Allenamento"
+        case .fuel: return "Nutrizione"
         case .check: return "Check"
-        case .you: return "You"
+        case .altro: return "Altro"
         }
     }
     var color: Color {
@@ -33,7 +33,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
         case .train: return Palette.magenta
         case .fuel: return Palette.lime
         case .check: return Palette.violet
-        case .you: return Palette.amber
+        case .altro: return Palette.amber
         }
     }
 }
@@ -65,6 +65,8 @@ struct NeonTabBar: View {
                             .font(Typo.mono(9, .bold))
                             .tracking(1)
                             .textCase(.uppercase)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
                     }
                     .foregroundStyle(active ? Palette.void0 : Palette.textLow)
                     .frame(maxWidth: .infinity)
@@ -83,12 +85,15 @@ struct NeonTabBar: View {
             }
         }
         .padding(6)
-        .background {
-            Capsule()
-                .fill(Palette.void1.opacity(0.85))
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
-        }
+        // iOS 26 Liquid Glass: the bar refracts the content paging behind it.
+        .glassEffect(.regular.tint(Palette.void1.opacity(0.28)).interactive(), in: .capsule)
+        .overlay(
+            Capsule().strokeBorder(
+                LinearGradient(
+                    colors: [.white.opacity(0.40), .white.opacity(0.04), Palette.line.opacity(0.6)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing),
+                lineWidth: 1)
+        )
         .padding(.horizontal, 18)
         .shadow(color: Color(hex: 0x14110D, alpha: 0.16), radius: 22, y: 12)
     }

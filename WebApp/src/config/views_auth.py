@@ -12,6 +12,7 @@ from .services import ratelimit
 from .session_utils import enforce_client_access
 from .services.sanitize import (
     InvalidInput, clean_email, clean_password, clean_short_text,
+    validate_password_strength,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,8 @@ def signup_view(request):
             email = clean_email(request.POST.get('email'))
             first_name = clean_short_text(request.POST.get('first_name'), field='nome')
             last_name = clean_short_text(request.POST.get('last_name'), field='cognome')
-            password = clean_password(request.POST.get('password'))
+            password = validate_password_strength(
+                request.POST.get('password'), email=email, names=(first_name, last_name))
             confirm_password = clean_password(request.POST.get('confirm_password'))
         except InvalidInput as exc:
             return render(request, 'pages/auth/signup.html', {'error': str(exc)}, status=400)
@@ -331,8 +333,11 @@ def reset_password_view(request):
         # garbage and skip Unicode normalization (would corrupt the hash lookup).
         if len(token_plain) > 256 or '\x00' in token_plain:
             return render(request, 'pages/auth/reset_password.html', {'token_invalid': True}, status=400)
+        token = pwd_reset.validate_token(token_plain)
         try:
-            new_pw = clean_password(request.POST.get('new_password'))
+            new_pw = validate_password_strength(
+                request.POST.get('new_password'),
+                email=token.user.email if token else None)
             confirm_pw = clean_password(request.POST.get('confirm_password'))
         except InvalidInput as exc:
             return render(request, 'pages/auth/reset_password.html', {
@@ -340,7 +345,6 @@ def reset_password_view(request):
                 'error': str(exc),
             }, status=400)
 
-        token = pwd_reset.validate_token(token_plain)
         if not token:
             return render(request, 'pages/auth/reset_password.html', {
                 'token_invalid': True,
@@ -401,7 +405,9 @@ def activate_account_view(request):
 
         token = pwd_reset.validate_token(token_plain)
         try:
-            new_pw = clean_password(request.POST.get('new_password'))
+            new_pw = validate_password_strength(
+                request.POST.get('new_password'),
+                email=token.user.email if token else None)
             confirm_pw = clean_password(request.POST.get('confirm_password'))
         except InvalidInput as exc:
             return render(request, 'pages/auth/set_password.html', {

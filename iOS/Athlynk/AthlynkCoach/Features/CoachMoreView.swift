@@ -1,19 +1,21 @@
 //
 //  CoachMoreView.swift
-//  "Altro" hub — entry point to the secondary coach areas: check review, plan
-//  & nutrition management, subscriptions, resource library, analytics,
-//  notifications and the coach profile.
+//  "Altro" hub — entry point to the secondary coach areas: athletes, chat,
+//  agenda, subscriptions, resource library, analytics, notifications and the
+//  coach profile. (Allenamento / Nutrizione / Check are now primary tabs.)
 //
 
 import SwiftUI
 
 enum CoachRoute: Hashable {
-    case checks, workouts, nutrition, subscriptions, resources, analytics, notifications, profile
+    case clients, chat, agenda, subscriptions, resources, analytics, notifications, profile
 }
 
 struct CoachMoreView: View {
     @EnvironmentObject private var app: AppState
     @State private var path = NavigationPath()
+    /// Deep-link requested from the Home dashboard quick actions (Atleti/Chat/Agenda).
+    @Binding var pending: CoachRoute?
 
     private struct Item: Identifiable {
         let id = UUID()
@@ -25,14 +27,14 @@ struct CoachMoreView: View {
     }
 
     private let items: [Item] = [
-        .init(route: .checks, icon: "checkmark.seal.fill", title: "Revisione Check-in",
-              subtitle: "Leggi e commenta i check", accent: Palette.bronze),
-        .init(route: .workouts, icon: "dumbbell.fill", title: "Allenamenti",
-              subtitle: "Schede e assegnazioni", accent: Palette.cyan),
-        .init(route: .nutrition, icon: "flame.fill", title: "Nutrizione",
-              subtitle: "Piani alimentari", accent: Palette.lime),
+        .init(route: .clients, icon: "person.2.fill", title: "Atleti",
+              subtitle: "I tuoi clienti", accent: Palette.cyan),
+        .init(route: .chat, icon: "bubble.left.fill", title: "Chat",
+              subtitle: "Messaggi con gli atleti", accent: Palette.violet),
+        .init(route: .agenda, icon: "calendar", title: "Agenda",
+              subtitle: "Appuntamenti", accent: Palette.amber),
         .init(route: .subscriptions, icon: "creditcard.fill", title: "Abbonamenti",
-              subtitle: "Piani e ricavi", accent: Palette.amber),
+              subtitle: "Piani e ricavi", accent: Palette.bronze),
         .init(route: .resources, icon: "books.vertical.fill", title: "Libreria Risorse",
               subtitle: "Modelli riutilizzabili", accent: Palette.violet),
         .init(route: .analytics, icon: "chart.line.uptrend.xyaxis", title: "Analisi Progressi",
@@ -59,9 +61,9 @@ struct CoachMoreView: View {
             }
             .navigationDestination(for: CoachRoute.self) { route in
                 switch route {
-                case .checks:        CoachChecksView()
-                case .workouts:      CoachWorkoutsView()
-                case .nutrition:     CoachNutritionView()
+                case .clients:       CoachClientsView()
+                case .chat:          CoachMessagesView()
+                case .agenda:        CoachAgendaView()
                 case .subscriptions: CoachSubscriptionsView()
                 case .resources:     CoachResourcesView()
                 case .analytics:     CoachAnalyticsView()
@@ -69,11 +71,16 @@ struct CoachMoreView: View {
                 case .profile:       CoachProfileView()
                 }
             }
-            .navigationDestination(for: CheckRoute.self) { CoachCheckDetailView(responseId: $0.id) }
-            .onReceive(NotificationCenter.default.publisher(for: .coachOpenChecks)) { _ in
-                path.append(CoachRoute.checks)
-            }
         }
+        .onAppear(perform: consumePending)
+        .onChange(of: pending) { _, _ in consumePending() }
+    }
+
+    /// Push a deep-link route requested before this tab became active.
+    private func consumePending() {
+        guard let route = pending else { return }
+        path.append(route)
+        pending = nil
     }
 
     private func card(_ item: Item) -> some View {
