@@ -1202,6 +1202,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   position: fixed;
   top: 0; right: 0;
   height: 100vh;
+  height: 100dvh;              /* mobile: avoid the foot slipping under the URL bar */
   width: 100%;
   max-width: 560px;
   background: var(--al-parchment);
