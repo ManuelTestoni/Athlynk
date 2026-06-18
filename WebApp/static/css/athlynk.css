@@ -2120,9 +2120,13 @@ input[type="number"] { -moz-appearance: textfield; }
   overflow: hidden;
 }
 
-/* Subtle entrance for canvas content */
+/* Subtle entrance for canvas content.
+   `backwards` (not `both`): a forwards/both fill keeps the transform animation
+   "filling" forever, materializing transform:none as matrix(1,0,0,1,0,0) — a
+   non-none transform that establishes a containing block and traps nested
+   position:fixed drawers. `backwards` reverts to a true `none` post-animation. */
 .al-canvas .al-page > * {
-  animation: al-fade-up 0.5s var(--al-ease-out) both;
+  animation: al-fade-up 0.5s var(--al-ease-out) backwards;
 }
 @keyframes al-fade-up {
   from { opacity: 0; transform: translateY(8px); }
@@ -2838,7 +2842,9 @@ body[data-al-page-ready="1"] .al-canvas {
   to   { opacity: 1; transform: none; }
 }
 body[data-al-page-ready="1"] .al-canvas > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]):not(.al-toast):not(.al-popover) {
-  animation: al-stagger-in var(--al-d-velvet) var(--al-ease-silk) both;
+  /* `backwards` not `both`: a both/forwards fill keeps the transform animation
+     filling, leaving matrix(1,0,0,1,0,0) which traps nested position:fixed drawers. */
+  animation: al-stagger-in var(--al-d-velvet) var(--al-ease-silk) backwards;
 }
 body[data-al-page-ready="1"] .al-canvas > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]):nth-child(1) { animation-delay: calc(var(--al-stagger-silk) * 0); }
 body[data-al-page-ready="1"] .al-canvas > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]):nth-child(2) { animation-delay: calc(var(--al-stagger-silk) * 1); }
