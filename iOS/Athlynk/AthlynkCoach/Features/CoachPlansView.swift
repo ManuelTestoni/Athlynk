@@ -10,6 +10,7 @@ struct CoachWorkoutsView: View {
     @State private var data: CoachWorkoutsResponse?
     @State private var loading = true
     @State private var creating = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         ScreenScroll {
@@ -48,11 +49,10 @@ struct CoachWorkoutsView: View {
             case .nutrition(let id): CoachNutritionDetailView(planId: id)
             }
         }
-        .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
+        .sheet(isPresented: $creating, onDismiss: { loadToken = UUID() }) {
             CoachPlanCreateView(kind: .workout)
         }
-        .task { await load() }
-        .onAppear { if data != nil { Task { await load() } } }   // refresh after edit/delete
+        .task(id: loadToken) { await load() }
         .refreshable { await load() }
     }
 
@@ -64,6 +64,7 @@ struct CoachNutritionView: View {
     @State private var data: CoachNutritionResponse?
     @State private var loading = true
     @State private var creating = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         ScreenScroll {
@@ -102,11 +103,10 @@ struct CoachNutritionView: View {
             case .nutrition(let id): CoachNutritionDetailView(planId: id)
             }
         }
-        .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
+        .sheet(isPresented: $creating, onDismiss: { loadToken = UUID() }) {
             CoachPlanCreateView(kind: .nutrition)
         }
-        .task { await load() }
-        .onAppear { if data != nil { Task { await load() } } }   // refresh after edit/delete
+        .task(id: loadToken) { await load() }
         .refreshable { await load() }
     }
 

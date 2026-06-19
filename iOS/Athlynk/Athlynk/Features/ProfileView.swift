@@ -18,8 +18,8 @@ struct AthleteMoreView: View {
     }
 
     private struct Item: Identifiable {
-        let id = UUID()
         let route: Route
+        var id: Route { route }
         let icon: String
         let title: String
         let subtitle: String

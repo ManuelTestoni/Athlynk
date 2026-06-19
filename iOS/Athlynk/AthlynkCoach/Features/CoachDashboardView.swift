@@ -13,6 +13,7 @@ struct CoachDashboardView: View {
     @State private var data: CoachDashboardDTO?
     @State private var loading = true
     @State private var error: String?
+    @State private var loadToken = UUID()
 
     var body: some View {
         ScreenScroll {
@@ -30,9 +31,9 @@ struct CoachDashboardView: View {
                 EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.bronze)
             }
         }
-        .task { await load() }
-        .onRemoteChange { Task { await load() } }
-        .refreshable { await load() }
+        .task(id: loadToken) { await load() }
+        .onRemoteChange { loadToken = UUID() }
+        .refreshable { await load(force: true) }
     }
 
     private var greeting: String {
@@ -169,9 +170,17 @@ struct CoachDashboardView: View {
         }
     }
 
-    private func load() async {
+    private func load(force: Bool = false) async {
+        let cache = AppDataCache.shared
+        if !force, let cached: CoachDashboardDTO = cache.get("coach.dashboard") {
+            data = cached; loading = false; return
+        }
         loading = true; defer { loading = false }
-        do { data = try await APIClient.shared.coachDashboard(); error = nil }
-        catch { self.error = error.localizedDescription }
+        do {
+            let d = try await APIClient.shared.coachDashboard()
+            data = d
+            cache.set("coach.dashboard", d)
+            error = nil
+        } catch { self.error = error.localizedDescription }
     }
 }

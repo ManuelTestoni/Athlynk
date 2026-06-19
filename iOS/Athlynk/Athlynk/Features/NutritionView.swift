@@ -12,6 +12,7 @@ struct NutritionView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var appear = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         NavigationStack {
@@ -52,9 +53,9 @@ struct NutritionView: View {
         }
         .tint(Palette.lime)
         .onAppear { appear = true }
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .refreshable { await load() }
-        .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { Task { await load() } }
+        .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { loadToken = UUID() }
     }
 
     private var supplementsLink: some View {

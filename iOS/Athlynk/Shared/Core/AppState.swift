@@ -83,6 +83,7 @@ final class AppState: ObservableObject {
     }
 
     func logout() {
+        AppDataCache.shared.invalidateAll()
         Analytics.shared.reset()
         api.token = nil
         Keychain.delete(tokenKey)

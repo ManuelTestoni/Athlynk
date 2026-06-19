@@ -18,8 +18,8 @@ struct CoachMoreView: View {
     @Binding var pending: CoachRoute?
 
     private struct Item: Identifiable {
-        let id = UUID()
         let route: CoachRoute
+        var id: CoachRoute { route }
         let icon: String
         let title: String
         let subtitle: String

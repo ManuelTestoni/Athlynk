@@ -16,16 +16,29 @@ final class DashboardVM: ObservableObject {
     @Published var conversations: [ConversationDTO] = []
     @Published var loading = true
 
-    func load() async {
+    private var isLoading = false
+
+    func load(force: Bool = false) async {
+        guard !isLoading else { return }
+        isLoading = true; defer { isLoading = false }
+        let cache = AppDataCache.shared
+        if !force,
+           let w: [WorkoutPlanDTO]   = cache.get("dashboard.workouts"),
+           let n: [NutritionPlanDTO] = cache.get("dashboard.nutrition"),
+           let c: [CheckDTO]         = cache.get("dashboard.checks"),
+           let v: [ConversationDTO]  = cache.get("dashboard.conversations") {
+            workouts = w; nutrition = n; checks = c; conversations = v
+            loading = false; return
+        }
         loading = true
         async let w = APIClient.shared.workouts()
         async let n = APIClient.shared.nutrition()
         async let c = APIClient.shared.checks()
         async let v = APIClient.shared.conversations()
-        workouts = (try? await w) ?? []
-        nutrition = (try? await n) ?? []
-        checks = (try? await c) ?? []
-        conversations = (try? await v) ?? []
+        if let r = try? await w { workouts = r;      cache.set("dashboard.workouts", r) }
+        if let r = try? await n { nutrition = r;     cache.set("dashboard.nutrition", r) }
+        if let r = try? await c { checks = r;        cache.set("dashboard.checks", r) }
+        if let r = try? await v { conversations = r; cache.set("dashboard.conversations", r) }
         loading = false
     }
 
@@ -43,6 +56,7 @@ struct DashboardView: View {
     @EnvironmentObject var app: AppState
     @StateObject private var vm = DashboardVM()
     @State private var appear = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         ScreenScroll {
@@ -98,10 +112,10 @@ struct DashboardView: View {
             }
         }
         .onAppear { appear = true }
-        .task { await vm.load() }
-        .refreshable { await vm.load() }
+        .task(id: loadToken) { await vm.load() }
+        .refreshable { await vm.load(force: true) }
         .onRemoteChange(["WORKOUT_ASSIGNED", "NUTRITION_ASSIGNED", "CHECK_REVIEWED",
-                         "COACH_FEEDBACK", "MESSAGE"]) { Task { await vm.load() } }
+                         "COACH_FEEDBACK", "MESSAGE"]) { loadToken = UUID() }
     }
 
     // MARK: Cards

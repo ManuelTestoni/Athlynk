@@ -14,6 +14,7 @@ struct ChecksView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var appear = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         NavigationStack {
@@ -63,9 +64,9 @@ struct ChecksView: View {
             newCheckButton.revealUp(appear, index: checks.count + 1)
         }
         .onAppear { appear = true }
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .refreshable { await load() }
-        .onRemoteChange(["CHECK_REVIEWED"]) { Task { await load() } }
+        .onRemoteChange(["CHECK_REVIEWED"]) { loadToken = UUID() }
     }
 
     private func timelineRow(_ c: CheckDTO, index: Int, isLast: Bool) -> some View {

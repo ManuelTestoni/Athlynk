@@ -12,6 +12,7 @@ struct WorkoutsView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var appear = false
+    @State private var loadToken = UUID()
 
     var body: some View {
         NavigationStack {
@@ -50,9 +51,9 @@ struct WorkoutsView: View {
         }
         .tint(Palette.magenta)
         .onAppear { appear = true }
-        .task { await load() }
+        .task(id: loadToken) { await load() }
         .refreshable { await load() }
-        .onRemoteChange(["WORKOUT_ASSIGNED"]) { Task { await load() } }
+        .onRemoteChange(["WORKOUT_ASSIGNED"]) { loadToken = UUID() }
     }
 
     private func planSummaryCard(_ plan: WorkoutPlanDTO) -> some View {
