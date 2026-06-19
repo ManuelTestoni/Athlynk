@@ -12,6 +12,7 @@ struct CoachChecksView: View {
     @State private var filter = "pending"     // pending | all
     @State private var loading = true
     @State private var visibleCount = 10      // paginazione: 10 + "carica ancora"
+    @State private var loadToken = UUID()
 
     var body: some View {
         // No NavigationStack here: this view is pushed inside CoachMoreView's
@@ -27,7 +28,7 @@ struct CoachChecksView: View {
                 Text("Tutti").tag("all")
             }
             .pickerStyle(.segmented)
-            .onChange(of: filter) { _, _ in Task { await load() } }
+            .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
 
             if loading && checks.isEmpty {
                 AvatarRowsSkeleton(accent: Palette.bronze)
@@ -59,9 +60,9 @@ struct CoachChecksView: View {
         .navigationDestination(for: CheckTemplateRoute.self) {
             CoachCheckTemplateDetailView(templateId: $0.id)
         }
-        .task { await load() }
-        .onRemoteChange(["CHECK_SUBMITTED"]) { Task { await load() } }
-        .refreshable { await load() }
+        .task(id: loadToken) { await load() }
+        .onRemoteChange(["CHECK_SUBMITTED"]) { checks = []; loadToken = UUID() }
+        .refreshable { checks = []; await load() }
     }
 
     private func card(_ c: CoachCheckRow) -> some View {
@@ -84,6 +85,7 @@ struct CoachChecksView: View {
     }
 
     private func load() async {
+        guard checks.isEmpty else { return }
         loading = true; defer { loading = false }
         if let res = try? await APIClient.shared.coachChecks(filter: filter) {
             checks = res.checks; pendingCount = res.pendingCount; visibleCount = 10
