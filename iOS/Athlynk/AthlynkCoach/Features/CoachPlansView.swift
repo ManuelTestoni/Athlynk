@@ -49,15 +49,18 @@ struct CoachWorkoutsView: View {
             case .nutrition(let id): CoachNutritionDetailView(planId: id)
             }
         }
-        .sheet(isPresented: $creating, onDismiss: { loadToken = UUID() }) {
+        .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
             CoachPlanCreateView(kind: .workout)
         }
         .task(id: loadToken) { await load() }
-        .refreshable { await load() }
+        .refreshable { data = nil; await load() }
     }
 
-    private func load() async { loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachWorkouts() }
+    private func load() async {
+        guard data == nil else { return }
+        loading = true; defer { loading = false }
+        data = try? await APIClient.shared.coachWorkouts()
+    }
 }
 
 struct CoachNutritionView: View {
@@ -103,15 +106,18 @@ struct CoachNutritionView: View {
             case .nutrition(let id): CoachNutritionDetailView(planId: id)
             }
         }
-        .sheet(isPresented: $creating, onDismiss: { loadToken = UUID() }) {
+        .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
             CoachPlanCreateView(kind: .nutrition)
         }
         .task(id: loadToken) { await load() }
-        .refreshable { await load() }
+        .refreshable { data = nil; await load() }
     }
 
-    private func load() async { loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachNutrition() }
+    private func load() async {
+        guard data == nil else { return }
+        loading = true; defer { loading = false }
+        data = try? await APIClient.shared.coachNutrition()
+    }
 }
 
 // MARK: - Shared cards (file-private helpers usable by both views above)

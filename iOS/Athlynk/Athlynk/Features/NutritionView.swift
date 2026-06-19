@@ -54,8 +54,8 @@ struct NutritionView: View {
         .tint(Palette.lime)
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { await load() }
-        .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { loadToken = UUID() }
+        .refreshable { plans = []; await load() }
+        .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { plans = []; loadToken = UUID() }
     }
 
     private var supplementsLink: some View {
@@ -209,6 +209,7 @@ struct NutritionView: View {
     }
 
     private func load() async {
+        guard plans.isEmpty else { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.nutrition() }
         catch { self.error = error.localizedDescription }

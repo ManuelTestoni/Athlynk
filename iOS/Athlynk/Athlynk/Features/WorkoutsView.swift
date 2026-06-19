@@ -52,8 +52,8 @@ struct WorkoutsView: View {
         .tint(Palette.magenta)
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { await load() }
-        .onRemoteChange(["WORKOUT_ASSIGNED"]) { loadToken = UUID() }
+        .refreshable { plans = []; await load() }
+        .onRemoteChange(["WORKOUT_ASSIGNED"]) { plans = []; loadToken = UUID() }
     }
 
     private func planSummaryCard(_ plan: WorkoutPlanDTO) -> some View {
@@ -136,6 +136,7 @@ struct WorkoutsView: View {
     }
 
     private func load() async {
+        guard plans.isEmpty else { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.workouts() }
         catch { self.error = error.localizedDescription }

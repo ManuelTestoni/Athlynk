@@ -65,8 +65,8 @@ struct ChecksView: View {
         }
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { await load() }
-        .onRemoteChange(["CHECK_REVIEWED"]) { loadToken = UUID() }
+        .refreshable { checks = []; await load() }
+        .onRemoteChange(["CHECK_REVIEWED"]) { checks = []; loadToken = UUID() }
     }
 
     private func timelineRow(_ c: CheckDTO, index: Int, isLast: Bool) -> some View {
@@ -153,6 +153,7 @@ struct ChecksView: View {
     }
 
     private func load() async {
+        guard checks.isEmpty else { return }
         loading = true; error = nil
         do { checks = try await APIClient.shared.checks() }
         catch { self.error = error.localizedDescription }

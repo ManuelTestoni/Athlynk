@@ -234,12 +234,13 @@ if 'test' in sys.argv:
 
 
 # Cache — used for rate limiting and short-lived counters.
-# DatabaseCache persists across worker restarts and is multi-worker safe.
-# Run `python manage.py createcachetable` once after deploying.
+# LocMemCache = in-process memory, zero DB queries. Rate-limit counters are
+# per-worker (not shared across gunicorn workers), which is acceptable given
+# the generous limits. DatabaseCache caused 6-9 extra Supabase queries per
+# API call, producing 20 s load times under concurrent tab usage.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'django_cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
