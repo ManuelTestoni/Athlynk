@@ -148,6 +148,12 @@ struct CoachClientDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: CoachClientWorkoutRoute.self) { r in
+            CoachClientWorkoutView(clientId: r.clientId)
+        }
+        .navigationDestination(for: CoachJourneyRoute.self) { r in
+            CoachJourneyView(clientId: r.clientId)
+        }
         .sheet(isPresented: $showAddMeasurement) {
             AddMeasurementSheet(accent: Palette.cyan) { type, key, value, date in
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
@@ -294,9 +300,7 @@ struct CoachClientDetailView: View {
     private var workoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             CoachSectionTitle(eyebrow: "Andamento", title: "Esercizi", accent: Palette.magenta)
-            NavigationLink {
-                CoachClientWorkoutView(clientId: clientId)
-            } label: {
+            NavigationLink(value: CoachClientWorkoutRoute(clientId: clientId)) {
                 HStack(spacing: 14) {
                     Image(systemName: "chart.bar.xaxis").font(.system(size: 16, weight: .bold))
                         .foregroundStyle(Palette.magenta).frame(width: 30)
@@ -324,7 +328,7 @@ struct CoachClientDetailView: View {
             HStack {
                 CoachSectionTitle(eyebrow: "Programmazione", title: "Percorso", accent: Palette.phase)
                 Spacer()
-                NavigationLink { CoachJourneyView(clientId: clientId) } label: {
+                NavigationLink(value: CoachJourneyRoute(clientId: clientId)) {
                     HStack(spacing: 4) {
                         Text("Gestisci").font(Typo.mono(10, .bold)).tracking(1).textCase(.uppercase)
                         Image(systemName: "arrow.right").font(.system(size: 10, weight: .bold))
@@ -332,7 +336,7 @@ struct CoachClientDetailView: View {
                     .foregroundStyle(Palette.phase)
                 }
             }
-            NavigationLink { CoachJourneyView(clientId: clientId) } label: {
+            NavigationLink(value: CoachJourneyRoute(clientId: clientId)) {
                 lastEventCard(events.first, phaseCount: phaseCount)
             }
             .buttonStyle(PressableButtonStyle())
@@ -436,6 +440,9 @@ struct CoachTrendChart: View {
 
 /// Hashable route wrapper so a check id can coexist with the Int client route.
 struct CheckRoute: Hashable { let id: Int }
+struct CoachClientWorkoutRoute: Hashable { let clientId: Int }
+struct CoachJourneyRoute: Hashable { let clientId: Int }
+struct CoachExerciseTrendRoute: Hashable { let clientId: Int; let exercise: ExerciseDTO }
 
 // MARK: - Client active workout → per-exercise trend (coach view)
 
@@ -455,9 +462,9 @@ struct CoachClientWorkoutView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         CoachSectionTitle(eyebrow: "Giorno", title: day.label, accent: Palette.magenta)
                         ForEach(day.exercises) { ex in
-                            NavigationLink {
-                                CoachExerciseTrendView(clientId: clientId, exercise: ex)
-                            } label: { exerciseRow(ex) }
+                            NavigationLink(value: CoachExerciseTrendRoute(clientId: clientId, exercise: ex)) {
+                                exerciseRow(ex)
+                            }
                             .buttonStyle(PressableButtonStyle())
                         }
                     }
@@ -467,6 +474,9 @@ struct CoachClientWorkoutView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: CoachExerciseTrendRoute.self) { r in
+            CoachExerciseTrendView(clientId: r.clientId, exercise: r.exercise)
+        }
         .task { await load() }
     }
 

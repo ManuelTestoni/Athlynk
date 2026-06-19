@@ -16,6 +16,7 @@ struct CoachMoreView: View {
     @Binding var path: NavigationPath
     /// Deep-link requested from the Home dashboard quick actions (Atleti/Chat/Agenda).
     @Binding var pending: CoachRoute?
+    @State private var isOnScreen = false
 
     private struct Item: Identifiable {
         let route: CoachRoute
@@ -72,8 +73,12 @@ struct CoachMoreView: View {
                 }
             }
         }
-        .onAppear(perform: consumePending)
-        .onChange(of: pending) { _, _ in consumePending() }
+        .onAppear { isOnScreen = true; consumePending() }
+        .onDisappear { isOnScreen = false }
+        .onChange(of: pending) { _, _ in
+            guard isOnScreen else { return }
+            consumePending()
+        }
     }
 
     /// Push a deep-link route requested before this tab became active.

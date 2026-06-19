@@ -267,6 +267,7 @@ private struct QuantityView: View {
 
     @State private var grams: Double = 100
     @State private var saving = false
+    @StateObject private var flash = StatusFlash()
 
     private var factor: Double { grams / 100 }
 
@@ -317,6 +318,7 @@ private struct QuantityView: View {
             }
             .padding(.horizontal, 24)
         }
+        .statusOverlay(flash)
         .navigationTitle("Quantità")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -338,7 +340,7 @@ private struct QuantityView: View {
                                                     quantityG: grams, mealName: nil)
             Haptics.success()
             onConfirm()
-        } catch { Haptics.error() }
+        } catch { flash.failure("Aggiunta non riuscita") }
         saving = false
     }
 }

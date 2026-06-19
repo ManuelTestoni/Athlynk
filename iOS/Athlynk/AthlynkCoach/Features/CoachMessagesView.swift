@@ -87,6 +87,7 @@ struct CoachThreadView: View {
     @State private var loading = true
     @State private var pollTask: Task<Void, Never>?
     @FocusState private var composerFocused: Bool
+    @StateObject private var flash = StatusFlash()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -110,6 +111,7 @@ struct CoachThreadView: View {
         .task { await initialLoad(); startPolling() }
         .onDisappear { pollTask?.cancel(); app.tabBarHidden = false }
         .onAppear { app.tabBarHidden = true }
+        .statusOverlay(flash)
     }
 
     private func bubble(_ m: MessageDTO) -> some View {
@@ -185,7 +187,7 @@ struct CoachThreadView: View {
             }
             Analytics.shared.capture(.messageSent, ["conversation_id": conversation.id])
             Haptics.tap()
-        } catch { Haptics.error(); draft = body }
+        } catch { flash.failure("Invio non riuscito"); draft = body }
     }
 }
 

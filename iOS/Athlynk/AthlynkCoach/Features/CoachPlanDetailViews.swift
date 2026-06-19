@@ -23,6 +23,7 @@ struct CoachWorkoutDetailView: View {
     @State private var editing = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    @StateObject private var flash = StatusFlash()
 
     var body: some View {
         ScreenScroll {
@@ -68,6 +69,7 @@ struct CoachWorkoutDetailView: View {
             Text("Verrà rimossa anche dagli atleti a cui è assegnata.")
         }
         .task { await load() }
+        .statusOverlay(flash)
     }
 
     private func load() async {
@@ -82,7 +84,7 @@ struct CoachWorkoutDetailView: View {
             Haptics.success()
             dismiss()
         } catch {
-            Haptics.error()
+            flash.failure("Eliminazione non riuscita")
         }
     }
 
@@ -93,7 +95,7 @@ struct CoachWorkoutDetailView: View {
             Haptics.success()
             dismiss()
         } catch {
-            Haptics.error()
+            flash.failure("Duplicazione non riuscita")
         }
     }
 
@@ -137,6 +139,7 @@ struct CoachNutritionDetailView: View {
     @State private var editing = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    @StateObject private var flash = StatusFlash()
 
     var body: some View {
         ScreenScroll {
@@ -191,6 +194,7 @@ struct CoachNutritionDetailView: View {
             Text("Verrà rimosso anche dagli atleti a cui è assegnato.")
         }
         .task { await load() }
+        .statusOverlay(flash)
     }
 
     private func load() async {
@@ -205,7 +209,7 @@ struct CoachNutritionDetailView: View {
             Haptics.success()
             dismiss()
         } catch {
-            Haptics.error()
+            flash.failure("Eliminazione non riuscita")
         }
     }
 
@@ -216,7 +220,7 @@ struct CoachNutritionDetailView: View {
             Haptics.success()
             dismiss()
         } catch {
-            Haptics.error()
+            flash.failure("Duplicazione non riuscita")
         }
     }
 

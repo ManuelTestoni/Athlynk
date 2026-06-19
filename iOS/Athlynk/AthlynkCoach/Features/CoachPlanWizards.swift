@@ -603,6 +603,7 @@ struct CoachWorkoutWizardView: View {
             let plan = try await APIClient.shared.coachWorkoutBuilder(planId: planId)
             apply(builder: plan)
             savedPlanId = planId
+            step = 1
         } catch {
             flash.failure("Impossibile caricare la scheda")
         }
@@ -1259,6 +1260,7 @@ struct CoachNutritionWizardView: View {
             let plan = try await APIClient.shared.coachNutritionBuilder(planId: planId)
             apply(builder: plan)
             savedPlanId = planId
+            step = 1
         } catch {
             flash.failure("Impossibile caricare il piano")
         }

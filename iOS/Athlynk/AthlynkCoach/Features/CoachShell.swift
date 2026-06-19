@@ -54,14 +54,16 @@ struct CoachMainTabView: View {
             VoltBackground(palette: tabPalette)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.8), value: tab)
 
-            TabView(selection: $tab) {
+            // ZStack instead of TabView(.page): avoids iOS 26 UINavigationBar assertion
+            // that fires when multiple NavigationStacks are alive in UIPageViewController.
+            // All views stay alive (state preserved); only one is visible + interactive.
+            ZStack {
                 page(.home) { CoachDashboardView(tab: $tab, pendingMore: $pendingMore) }
                 page(.allenamento) { CoachWorkoutsView(path: $allenamentoPath) }
                 page(.nutrizione)  { CoachNutritionView(path: $nutrizioneePath) }
                 page(.check)       { CoachChecksView(path: $checkPath) }
                 page(.altro)       { CoachMoreView(path: $altroPPath, pending: $pendingMore) }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
             CoachTabBar(selection: $tab, onReselect: { reselectTab in
@@ -87,7 +89,8 @@ struct CoachMainTabView: View {
 
     private func page<Content: View>(_ which: CoachTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .tag(which)
+            .opacity(tab == which ? 1 : 0)
+            .allowsHitTesting(tab == which)
     }
 
     private var tabPalette: [Color] {

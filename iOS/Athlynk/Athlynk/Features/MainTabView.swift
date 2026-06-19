@@ -21,14 +21,13 @@ struct MainTabView: View {
             VoltBackground(palette: tabPalette)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.8), value: tab)
 
-            TabView(selection: $tab) {
-                page(.home) { DashboardView(tab: $tab) }
+            ZStack {
+                page(.home)  { DashboardView(tab: $tab) }
                 page(.train) { WorkoutsView(path: $workoutsPath) }
                 page(.fuel)  { NutritionView(path: $nutritionPath) }
                 page(.check) { ChecksView(path: $checksPath) }
                 page(.altro) { AthleteMoreView(path: $altroPPath) }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
             NeonTabBar(selection: $tab, onReselect: { reselectTab in
@@ -54,7 +53,8 @@ struct MainTabView: View {
     /// invalidated the cached controller and crashed on non-adjacent switches.
     private func page<Content: View>(_ which: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .tag(which)
+            .opacity(tab == which ? 1 : 0)
+            .allowsHitTesting(tab == which)
     }
 
     private var tabPalette: [Color] {
