@@ -11,6 +11,10 @@ struct MainTabView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab: AppTab = .home
+    @State private var workoutsPath = NavigationPath()
+    @State private var nutritionPath = NavigationPath()
+    @State private var checksPath    = NavigationPath()
+    @State private var altroPPath    = NavigationPath()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -19,15 +23,24 @@ struct MainTabView: View {
 
             TabView(selection: $tab) {
                 page(.home) { DashboardView(tab: $tab) }
-                page(.train) { WorkoutsView() }
-                page(.fuel) { NutritionView() }
-                page(.check) { ChecksView() }
-                page(.altro) { AthleteMoreView() }
+                page(.train) { WorkoutsView(path: $workoutsPath) }
+                page(.fuel)  { NutritionView(path: $nutritionPath) }
+                page(.check) { ChecksView(path: $checksPath) }
+                page(.altro) { AthleteMoreView(path: $altroPPath) }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
-            NeonTabBar(selection: $tab, onReselect: { _ in Haptics.tap() })
+            NeonTabBar(selection: $tab, onReselect: { reselectTab in
+                Haptics.tap()
+                switch reselectTab {
+                case .train: workoutsPath = NavigationPath()
+                case .fuel:  nutritionPath = NavigationPath()
+                case .check: checksPath = NavigationPath()
+                case .altro: altroPPath = NavigationPath()
+                default: break
+                }
+            })
                 .padding(.bottom, 6)
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)
@@ -39,7 +52,6 @@ struct MainTabView: View {
     /// TabView caches a page controller per tag, so the tagged child must keep a
     /// constant identity. Mutating it (the old `.id(nonce)` pop-to-root hack)
     /// invalidated the cached controller and crashed on non-adjacent switches.
-    // ponytail: dropped reselect-to-root; re-add via per-tab NavigationStack path if wanted.
     private func page<Content: View>(_ which: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
             .tag(which)

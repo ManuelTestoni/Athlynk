@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AthleteMoreView: View {
     @EnvironmentObject var app: AppState
+    @Binding var path: NavigationPath
     @State private var appear = false
 
     private enum Route: Hashable {
@@ -50,7 +51,7 @@ struct AthleteMoreView: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScreenScroll {
                 identityCard.revealUp(appear, index: 0)
                 statRow.revealUp(appear, index: 1)

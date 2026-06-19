@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ChecksView: View {
     @EnvironmentObject var app: AppState
+    @Binding var path: NavigationPath
     @State private var checks: [CheckDTO] = []
     @State private var loading = true
     @State private var error: String?
@@ -17,7 +18,7 @@ struct ChecksView: View {
     @State private var loadToken = UUID()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             content
                 .navigationDestination(for: ChecksRoute.self) { route in
                     switch route {

@@ -8,6 +8,7 @@ import SwiftUI
 
 struct WorkoutsView: View {
     @EnvironmentObject var app: AppState
+    @Binding var path: NavigationPath
     @State private var plans: [WorkoutPlanDTO] = []
     @State private var loading = true
     @State private var error: String?
@@ -15,7 +16,7 @@ struct WorkoutsView: View {
     @State private var loadToken = UUID()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Programma",
                              title: "I TUOI\nPROGRAMMI",

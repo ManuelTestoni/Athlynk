@@ -51,7 +51,7 @@ struct CoachCheckTemplatesSection: View {
         }
         .task(id: reloadToken) { await load() }
         .sheet(isPresented: $showBuilder) {
-            CoachCheckBuilderView(templateId: nil) { reloadToken += 1 }
+            CoachCheckBuilderView(templateId: nil) { presets = []; customs = []; reloadToken += 1 }
         }
     }
 
@@ -78,6 +78,7 @@ struct CoachCheckTemplatesSection: View {
     }
 
     private func load() async {
+        guard presets.isEmpty && customs.isEmpty else { return }
         loading = true; defer { loading = false }
         if let res = try? await APIClient.shared.coachCheckTemplates() {
             presets = res.presets; customs = res.customs

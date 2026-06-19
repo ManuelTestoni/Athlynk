@@ -43,9 +43,11 @@ struct CoachMainTabView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab: CoachTab = .home
-    /// Pending deep-link into the "Altro" hub (e.g. from Home quick actions for
-    /// Atleti/Chat/Agenda, which no longer have their own tab).
     @State private var pendingMore: CoachRoute?
+    @State private var allenamentoPath = NavigationPath()
+    @State private var nutrizioneePath = NavigationPath()
+    @State private var checkPath       = NavigationPath()
+    @State private var altroPPath      = NavigationPath()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -54,25 +56,31 @@ struct CoachMainTabView: View {
 
             TabView(selection: $tab) {
                 page(.home) { CoachDashboardView(tab: $tab, pendingMore: $pendingMore) }
-                page(.allenamento) { NavigationStack { CoachWorkoutsView() } }
-                page(.nutrizione) { NavigationStack { CoachNutritionView() } }
+                page(.allenamento) { NavigationStack(path: $allenamentoPath) { CoachWorkoutsView() } }
+                page(.nutrizione)  { NavigationStack(path: $nutrizioneePath) { CoachNutritionView() } }
                 page(.check) {
-                    NavigationStack {
+                    NavigationStack(path: $checkPath) {
                         CoachChecksView()
                             .navigationDestination(for: CheckRoute.self) {
                                 CoachCheckDetailView(responseId: $0.id)
                             }
                     }
                 }
-                page(.altro) { CoachMoreView(pending: $pendingMore) }
+                page(.altro) { CoachMoreView(path: $altroPPath, pending: $pendingMore) }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)
 
-            // No pop-to-root via .id() churn: inside a .page TabView, mutating a
-            // tagged child's identity invalidates the cached page controller and
-            // crashes on non-adjacent switches. Reselect = haptic only.
-            CoachTabBar(selection: $tab)
+            CoachTabBar(selection: $tab, onReselect: { reselectTab in
+                Haptics.tap()
+                switch reselectTab {
+                case .allenamento: allenamentoPath = NavigationPath()
+                case .nutrizione:  nutrizioneePath = NavigationPath()
+                case .check:       checkPath = NavigationPath()
+                case .altro:       altroPPath = NavigationPath()
+                default: break
+                }
+            })
                 .padding(.bottom, 6)
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)

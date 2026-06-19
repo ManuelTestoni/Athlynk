@@ -13,7 +13,7 @@ enum CoachRoute: Hashable {
 
 struct CoachMoreView: View {
     @EnvironmentObject private var app: AppState
-    @State private var path = NavigationPath()
+    @Binding var path: NavigationPath
     /// Deep-link requested from the Home dashboard quick actions (Atleti/Chat/Agenda).
     @Binding var pending: CoachRoute?
 

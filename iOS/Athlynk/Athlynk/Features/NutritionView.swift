@@ -8,6 +8,7 @@ import SwiftUI
 
 struct NutritionView: View {
     @EnvironmentObject var app: AppState
+    @Binding var path: NavigationPath
     @State private var plans: [NutritionPlanDTO] = []
     @State private var loading = true
     @State private var error: String?
@@ -15,7 +16,7 @@ struct NutritionView: View {
     @State private var loadToken = UUID()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Alimentazione",
                              title: "I TUOI\nPIANI",
