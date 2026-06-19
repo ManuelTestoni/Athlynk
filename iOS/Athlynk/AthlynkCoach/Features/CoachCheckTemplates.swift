@@ -49,7 +49,10 @@ struct CoachCheckTemplatesSection: View {
                 }
             }
         }
-        .task(id: reloadToken) { await load() }
+        .task(id: reloadToken) {
+            do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+            await load()
+        }
         .sheet(isPresented: $showBuilder) {
             CoachCheckBuilderView(templateId: nil) { presets = []; customs = []; reloadToken += 1 }
         }

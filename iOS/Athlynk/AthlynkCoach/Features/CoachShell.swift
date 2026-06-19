@@ -56,17 +56,10 @@ struct CoachMainTabView: View {
 
             TabView(selection: $tab) {
                 page(.home) { CoachDashboardView(tab: $tab, pendingMore: $pendingMore) }
-                page(.allenamento) { NavigationStack(path: $allenamentoPath) { CoachWorkoutsView() } }
-                page(.nutrizione)  { NavigationStack(path: $nutrizioneePath) { CoachNutritionView() } }
-                page(.check) {
-                    NavigationStack(path: $checkPath) {
-                        CoachChecksView()
-                            .navigationDestination(for: CheckRoute.self) {
-                                CoachCheckDetailView(responseId: $0.id)
-                            }
-                    }
-                }
-                page(.altro) { CoachMoreView(path: $altroPPath, pending: $pendingMore) }
+                page(.allenamento) { CoachWorkoutsView(path: $allenamentoPath) }
+                page(.nutrizione)  { CoachNutritionView(path: $nutrizioneePath) }
+                page(.check)       { CoachChecksView(path: $checkPath) }
+                page(.altro)       { CoachMoreView(path: $altroPPath, pending: $pendingMore) }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(.container, edges: .bottom)

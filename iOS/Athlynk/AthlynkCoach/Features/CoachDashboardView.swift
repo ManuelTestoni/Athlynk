@@ -14,6 +14,7 @@ struct CoachDashboardView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var loadToken = UUID()
+    @State private var fetching = false
 
     var body: some View {
         ScreenScroll {
@@ -171,16 +172,18 @@ struct CoachDashboardView: View {
     }
 
     private func load(force: Bool = false) async {
+        guard !fetching else { return }
         let cache = AppDataCache.shared
         if !force, let cached: CoachDashboardDTO = cache.get("coach.dashboard") {
             data = cached; loading = false; return
         }
-        loading = true; defer { loading = false }
+        fetching = true; loading = true
         do {
             let d = try await APIClient.shared.coachDashboard()
             data = d
             cache.set("coach.dashboard", d)
             error = nil
         } catch { self.error = error.localizedDescription }
+        fetching = false; loading = false
     }
 }

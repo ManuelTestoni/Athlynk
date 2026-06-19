@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct CoachChecksView: View {
+    @Binding var path: NavigationPath
     @State private var checks: [CoachCheckRow] = []
     @State private var pendingCount = 0
     @State private var filter = "pending"     // pending | all
@@ -15,54 +16,58 @@ struct CoachChecksView: View {
     @State private var loadToken = UUID()
 
     var body: some View {
-        // No NavigationStack here: this view is pushed inside CoachMoreView's
-        // stack. Nesting a second NavigationStack breaks the push (the card tap
-        // appears to do nothing). The CheckRoute destination is registered by
-        // the parent stack.
-        ScreenScroll {
-            ScreenHeader(eyebrow: "Da revisionare", title: "Check-in",
-                         subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
+        NavigationStack(path: $path) {
+            ScreenScroll {
+                ScreenHeader(eyebrow: "Da revisionare", title: "Check-in",
+                             subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
 
-            Picker("", selection: $filter) {
-                Text("In attesa").tag("pending")
-                Text("Tutti").tag("all")
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
-
-            if loading && checks.isEmpty {
-                AvatarRowsSkeleton(accent: Palette.bronze)
-            } else if checks.isEmpty {
-                EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
-                           ? "Nessun check da revisionare. Ottimo lavoro!"
-                           : "Nessun check ricevuto.", color: Palette.lime)
-            } else {
-                ForEach(checks.prefix(visibleCount)) { c in
-                    NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
-                        .buttonStyle(PressableButtonStyle())
+                Picker("", selection: $filter) {
+                    Text("In attesa").tag("pending")
+                    Text("Tutti").tag("all")
                 }
-                if checks.count > visibleCount {
-                    Button {
-                        withAnimation(.easeOut(duration: 0.2)) { visibleCount += 10 }
-                    } label: {
-                        Label("Carica ancora (\(checks.count - visibleCount))", systemImage: "arrow.down.circle")
-                            .font(Typo.body(14, .semibold)).foregroundStyle(Palette.bronze)
-                            .frame(maxWidth: .infinity).padding(.vertical, 13)
-                            .background(RoundedRectangle(cornerRadius: 12).stroke(Palette.bronze.opacity(0.5), lineWidth: 1))
+                .pickerStyle(.segmented)
+                .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
+
+                if loading && checks.isEmpty {
+                    AvatarRowsSkeleton(accent: Palette.bronze)
+                } else if checks.isEmpty {
+                    EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
+                               ? "Nessun check da revisionare. Ottimo lavoro!"
+                               : "Nessun check ricevuto.", color: Palette.lime)
+                } else {
+                    ForEach(checks.prefix(visibleCount)) { c in
+                        NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
+                            .buttonStyle(PressableButtonStyle())
                     }
-                    .buttonStyle(.plain)
+                    if checks.count > visibleCount {
+                        Button {
+                            withAnimation(.easeOut(duration: 0.2)) { visibleCount += 10 }
+                        } label: {
+                            Label("Carica ancora (\(checks.count - visibleCount))", systemImage: "arrow.down.circle")
+                                .font(Typo.body(14, .semibold)).foregroundStyle(Palette.bronze)
+                                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                                .background(RoundedRectangle(cornerRadius: 12).stroke(Palette.bronze.opacity(0.5), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-            }
 
-            CoachCheckTemplatesSection()
-                .padding(.top, 8)
+                CoachCheckTemplatesSection()
+                    .padding(.top, 8)
+            }
+            .navigationDestination(for: CheckRoute.self) {
+                CoachCheckDetailView(responseId: $0.id)
+            }
+            .navigationDestination(for: CheckTemplateRoute.self) {
+                CoachCheckTemplateDetailView(templateId: $0.id)
+            }
+            .task(id: loadToken) {
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                await load()
+            }
+            .onRemoteChange(["CHECK_SUBMITTED"]) { checks = []; loadToken = UUID() }
+            .refreshable { checks = []; await load() }
         }
-        .navigationDestination(for: CheckTemplateRoute.self) {
-            CoachCheckTemplateDetailView(templateId: $0.id)
-        }
-        .task(id: loadToken) { await load() }
-        .onRemoteChange(["CHECK_SUBMITTED"]) { checks = []; loadToken = UUID() }
-        .refreshable { checks = []; await load() }
     }
 
     private func card(_ c: CoachCheckRow) -> some View {

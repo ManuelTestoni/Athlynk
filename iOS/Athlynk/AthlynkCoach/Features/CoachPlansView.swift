@@ -7,53 +7,59 @@
 import SwiftUI
 
 struct CoachWorkoutsView: View {
+    @Binding var path: NavigationPath
     @State private var data: CoachWorkoutsResponse?
     @State private var loading = true
     @State private var creating = false
     @State private var loadToken = UUID()
 
     var body: some View {
-        ScreenScroll {
-            ScreenHeader(eyebrow: "Programmazione", title: "Allenamenti",
-                         subtitle: "Le tue schede e assegnazioni", accent: Palette.cyan)
-            if loading && data == nil {
-                CoachPlanLibrarySkeleton(accent: Palette.cyan)
-            } else if let d = data {
-                CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(d.plans.count))", accent: Palette.cyan)
-                if d.plans.isEmpty {
-                    EmptyPanel(icon: "dumbbell", text: "Nessuna scheda creata.")
-                } else {
-                    ForEach(d.plans) { p in
-                        NavigationLink(value: CoachPlanRoute.workout(p.id)) {
-                            planCard(title: p.title,
-                                     subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
-                                     meta: p.durationWeeks.map { "\($0) sett." },
-                                     assigned: p.assignedCount, accent: Palette.cyan)
+        NavigationStack(path: $path) {
+            ScreenScroll {
+                ScreenHeader(eyebrow: "Programmazione", title: "Allenamenti",
+                             subtitle: "Le tue schede e assegnazioni", accent: Palette.cyan)
+                if loading && data == nil {
+                    CoachPlanLibrarySkeleton(accent: Palette.cyan)
+                } else if let d = data {
+                    CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(d.plans.count))", accent: Palette.cyan)
+                    if d.plans.isEmpty {
+                        EmptyPanel(icon: "dumbbell", text: "Nessuna scheda creata.")
+                    } else {
+                        ForEach(d.plans) { p in
+                            NavigationLink(value: CoachPlanRoute.workout(p.id)) {
+                                planCard(title: p.title,
+                                         subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
+                                         meta: p.durationWeeks.map { "\($0) sett." },
+                                         assigned: p.assignedCount, accent: Palette.cyan)
+                            }
+                            .buttonStyle(PressableButtonStyle())
                         }
-                        .buttonStyle(PressableButtonStyle())
+                    }
+                    if !d.assignments.isEmpty {
+                        CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
+                        ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.cyan) }
                     }
                 }
-                if !d.assignments.isEmpty {
-                    CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
-                    ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.cyan) }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) {
+                Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
+            } }
+            .navigationDestination(for: CoachPlanRoute.self) { route in
+                switch route {
+                case .workout(let id): CoachWorkoutDetailView(planId: id)
+                case .nutrition(let id): CoachNutritionDetailView(planId: id)
                 }
             }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) {
-            Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
-        } }
-        .navigationDestination(for: CoachPlanRoute.self) { route in
-            switch route {
-            case .workout(let id): CoachWorkoutDetailView(planId: id)
-            case .nutrition(let id): CoachNutritionDetailView(planId: id)
+            .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
+                CoachPlanCreateView(kind: .workout)
             }
+            .task(id: loadToken) {
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                await load()
+            }
+            .refreshable { data = nil; await load() }
         }
-        .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
-            CoachPlanCreateView(kind: .workout)
-        }
-        .task(id: loadToken) { await load() }
-        .refreshable { data = nil; await load() }
     }
 
     private func load() async {
@@ -64,53 +70,59 @@ struct CoachWorkoutsView: View {
 }
 
 struct CoachNutritionView: View {
+    @Binding var path: NavigationPath
     @State private var data: CoachNutritionResponse?
     @State private var loading = true
     @State private var creating = false
     @State private var loadToken = UUID()
 
     var body: some View {
-        ScreenScroll {
-            ScreenHeader(eyebrow: "Programmazione", title: "Nutrizione",
-                         subtitle: "I tuoi piani alimentari", accent: Palette.lime)
-            if loading && data == nil {
-                CoachPlanLibrarySkeleton(accent: Palette.lime)
-            } else if let d = data {
-                CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(d.plans.count))", accent: Palette.lime)
-                if d.plans.isEmpty {
-                    EmptyPanel(icon: "flame", text: "Nessun piano creato.")
-                } else {
-                    ForEach(d.plans) { p in
-                        NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {
-                            planCard(title: p.title,
-                                     subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
-                                     meta: p.dailyKcal.map { "\($0) kcal" },
-                                     assigned: p.assignedCount, accent: Palette.lime)
+        NavigationStack(path: $path) {
+            ScreenScroll {
+                ScreenHeader(eyebrow: "Programmazione", title: "Nutrizione",
+                             subtitle: "I tuoi piani alimentari", accent: Palette.lime)
+                if loading && data == nil {
+                    CoachPlanLibrarySkeleton(accent: Palette.lime)
+                } else if let d = data {
+                    CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(d.plans.count))", accent: Palette.lime)
+                    if d.plans.isEmpty {
+                        EmptyPanel(icon: "flame", text: "Nessun piano creato.")
+                    } else {
+                        ForEach(d.plans) { p in
+                            NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {
+                                planCard(title: p.title,
+                                         subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
+                                         meta: p.dailyKcal.map { "\($0) kcal" },
+                                         assigned: p.assignedCount, accent: Palette.lime)
+                            }
+                            .buttonStyle(PressableButtonStyle())
                         }
-                        .buttonStyle(PressableButtonStyle())
+                    }
+                    if !d.assignments.isEmpty {
+                        CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
+                        ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.lime) }
                     }
                 }
-                if !d.assignments.isEmpty {
-                    CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
-                    ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.lime) }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) {
+                Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)
+            } }
+            .navigationDestination(for: CoachPlanRoute.self) { route in
+                switch route {
+                case .workout(let id): CoachWorkoutDetailView(planId: id)
+                case .nutrition(let id): CoachNutritionDetailView(planId: id)
                 }
             }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) {
-            Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)
-        } }
-        .navigationDestination(for: CoachPlanRoute.self) { route in
-            switch route {
-            case .workout(let id): CoachWorkoutDetailView(planId: id)
-            case .nutrition(let id): CoachNutritionDetailView(planId: id)
+            .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
+                CoachPlanCreateView(kind: .nutrition)
             }
+            .task(id: loadToken) {
+                do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+                await load()
+            }
+            .refreshable { data = nil; await load() }
         }
-        .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
-            CoachPlanCreateView(kind: .nutrition)
-        }
-        .task(id: loadToken) { await load() }
-        .refreshable { data = nil; await load() }
     }
 
     private func load() async {
