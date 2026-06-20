@@ -1,4 +1,5 @@
 import ActivityKit
+import Combine
 import SwiftUI
 
 @MainActor
