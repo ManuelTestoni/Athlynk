@@ -138,6 +138,9 @@ final class ActiveSessionVM: ObservableObject {
         e.done.toggle()
         entries[k] = e
         Haptics.thud()
+        if e.done, let rec = ex.recoverySeconds, rec > 0 {
+            RestTimerManager.shared.start(seconds: rec, exerciseName: ex.name)
+        }
         do {
             try await APIClient.shared.logSet(
                 sessionId: sid, exerciseId: ex.workoutExerciseId, setNumber: n,
@@ -150,6 +153,7 @@ final class ActiveSessionVM: ObservableObject {
 
     func finish(interrupted: Bool) async {
         guard let sid = sessionId else { return }
+        RestTimerManager.shared.cancel()
         finishing = true
         do {
             try await APIClient.shared.finishSession(sessionId: sid, notes: "", interrupted: interrupted)
@@ -194,6 +198,7 @@ struct ActiveSessionView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             ParticleBurst(trigger: burst)
+            RestTimerOverlay()
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
