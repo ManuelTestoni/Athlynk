@@ -194,6 +194,10 @@ struct ActiveSessionView: View {
                         finishButtons
                     }
                     .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 50)
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(TapGesture().onEnded {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    })
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
@@ -204,7 +208,6 @@ struct ActiveSessionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(keyboardShown ? .hidden : .visible, for: .navigationBar)
-        .animation(.easeInOut(duration: 0.22), value: keyboardShown)
         .task { await vm.start() }
         .onChange(of: vm.finished) { _, done in if done { burst += 1 } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
