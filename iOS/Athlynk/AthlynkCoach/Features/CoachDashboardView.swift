@@ -8,7 +8,7 @@ import SwiftUI
 struct CoachDashboardView: View {
     @Binding var tab: CoachTab
     /// Deep-link into the "Altro" hub for sections that no longer have a tab.
-    @Binding var pendingMore: CoachRoute?
+    @State private var sheetRoute: CoachRoute?
     @EnvironmentObject private var app: AppState
     @State private var data: CoachDashboardDTO?
     @State private var loading = true
@@ -35,6 +35,9 @@ struct CoachDashboardView: View {
         .task(id: loadToken) { await load() }
         .onRemoteChange { loadToken = UUID() }
         .refreshable { await load(force: true) }
+        .sheet(item: $sheetRoute) { route in
+            NavigationStack { sheetDestination(route) }
+        }
     }
 
     private var greeting: String {
@@ -80,15 +83,25 @@ struct CoachDashboardView: View {
     private var quickActions: some View {
         HStack(spacing: 12) {
             CoachQuickAction(icon: "person.crop.circle.badge.checkmark", label: "Atleti",
-                             accent: Palette.cyan) { pendingMore = .clients; tab = .altro }
+                             accent: Palette.cyan) { sheetRoute = .clients }
             CoachQuickAction(icon: "checkmark.seal.fill", label: "Revisione", accent: Palette.bronze) {
                 tab = .check
             }
             CoachQuickAction(icon: "calendar.badge.clock", label: "Agenda", accent: Palette.amber) {
-                pendingMore = .agenda; tab = .altro
+                sheetRoute = .agenda
             }
             CoachQuickAction(icon: "bubble.left.and.bubble.right.fill", label: "Chat",
-                             accent: Palette.violet) { pendingMore = .chat; tab = .altro }
+                             accent: Palette.violet) { sheetRoute = .chat }
+        }
+    }
+
+    @ViewBuilder
+    private func sheetDestination(_ route: CoachRoute) -> some View {
+        switch route {
+        case .clients: CoachClientsView()
+        case .chat:    CoachMessagesView()
+        case .agenda:  CoachAgendaView()
+        default:       EmptyView()
         }
     }
 

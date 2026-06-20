@@ -43,7 +43,6 @@ struct CoachMainTabView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tab: CoachTab = .home
-    @State private var pendingMore: CoachRoute?
     @State private var allenamentoPath = NavigationPath()
     @State private var nutrizioneePath = NavigationPath()
     @State private var checkPath       = NavigationPath()
@@ -58,11 +57,11 @@ struct CoachMainTabView: View {
             // that fires when multiple NavigationStacks are alive in UIPageViewController.
             // All views stay alive (state preserved); only one is visible + interactive.
             ZStack {
-                page(.home) { CoachDashboardView(tab: $tab, pendingMore: $pendingMore) }
+                page(.home) { CoachDashboardView(tab: $tab) }
                 page(.allenamento) { CoachWorkoutsView(path: $allenamentoPath) }
                 page(.nutrizione)  { CoachNutritionView(path: $nutrizioneePath) }
                 page(.check)       { CoachChecksView(path: $checkPath) }
-                page(.altro)       { CoachMoreView(path: $altroPPath, pending: $pendingMore) }
+                page(.altro)       { CoachMoreView(path: $altroPPath) }
             }
             .ignoresSafeArea(.container, edges: .bottom)
 

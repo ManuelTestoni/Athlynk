@@ -1036,3 +1036,27 @@ struct CoachAssignableClient: Codable, Identifiable, Hashable {
         case activeAssignment = "active_assignment"
     }
 }
+
+struct CoachFabbisogniDTO: Codable {
+    let fresh: Bool
+    let submittedAt: String?
+    let data: Data?
+
+    struct Data: Codable {
+        let detKcal: Int?
+        let proteineG: Int?
+        let carboidratiG: Int?
+        let lipidiG: Int?
+        enum CodingKeys: String, CodingKey {
+            case detKcal = "det_kcal"
+            case proteineG = "proteine_g"
+            case carboidratiG = "carboidrati_g"
+            case lipidiG = "lipidi_g"
+        }
+    }
+    enum CodingKeys: String, CodingKey {
+        case fresh
+        case submittedAt = "submitted_at"
+        case data
+    }
+}

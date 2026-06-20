@@ -64,7 +64,7 @@
             <button type="button"
                     class="nz-athlete"
                     :class="{ 'is-selected': selectedClient?.id === c.id }"
-                    @click="selectedClient = c">
+                    @click="selectedClient = c; loadClientFabbisogni(c.id)">
               <span class="nz-athlete-avatar"
                     x-text="c.name.split(' ').filter(Boolean).slice(0,2).map(n => n[0]?.toUpperCase()).join('') || '?'"></span>
               <span class="nz-athlete-name" x-text="c.name"></span>
@@ -94,6 +94,56 @@
             <h3 class="nz-pane-title">Durata</h3>
           </div>
         </header>
+
+        <!-- Fabbisogni suggestion banner -->
+        <template x-if="fabbisogniLoading">
+          <div class="nz-fab-banner" style="opacity:.6;">
+            <i class="ph ph-circle-notch nz-spin" style="color: var(--al-bronze);"></i>
+            <span class="al-small" style="color: var(--al-ink-mute);">Caricamento fabbisogni…</span>
+          </div>
+        </template>
+        <template x-if="!fabbisogniLoading && fabbisogniData">
+          <div class="nz-fab-banner">
+            <div class="flex items-start gap-2">
+              <i class="ph-fill ph-calculator text-lg mt-0.5" style="color: var(--al-bronze); flex-shrink:0;"></i>
+              <div class="min-w-0">
+                <p class="al-eyebrow" style="color: var(--al-ink);">Calcolo Fabbisogni recente</p>
+                <p class="al-small mt-0.5" style="color: var(--al-ink-mute);">
+                  Compilato il <span class="font-mono font-semibold" style="color: var(--al-ink);"
+                    x-text="fabbisogniData.submitted_at ? new Date(fabbisogniData.submitted_at).toLocaleDateString('it-IT') : '—'"></span>
+                </p>
+                <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                  <template x-if="fabbisogniData.data.det_kcal">
+                    <span class="al-tag" style="font-size:10px;">
+                      <span class="font-mono font-semibold" x-text="fabbisogniData.data.det_kcal"></span> kcal
+                    </span>
+                  </template>
+                  <template x-if="fabbisogniData.data.proteine_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-aegean);">
+                      Pro <span class="font-mono font-semibold" x-text="fabbisogniData.data.proteine_g"></span>g
+                    </span>
+                  </template>
+                  <template x-if="fabbisogniData.data.carboidrati_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-warn);">
+                      Carb <span class="font-mono font-semibold" x-text="fabbisogniData.data.carboidrati_g"></span>g
+                    </span>
+                  </template>
+                  <template x-if="fabbisogniData.data.lipidi_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-danger);">
+                      Fat <span class="font-mono font-semibold" x-text="fabbisogniData.data.lipidi_g"></span>g
+                    </span>
+                  </template>
+                </div>
+                <button type="button" @click="applyFabbisogniTargets()"
+                        class="al-btn al-btn-ghost mt-2"
+                        style="font-size: 11px; padding: 5px 10px; border-color: var(--al-bronze); color: var(--al-bronze);">
+                  <i class="ph ph-arrow-square-in text-xs"></i>
+                  Applica target al piano
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <div class="nz-fields">
           <label class="nz-field">
@@ -514,5 +564,15 @@
 .nz-spin {
   display: inline-block;
   animation: nzSpin .9s linear infinite;
+}
+
+/* Fabbisogni suggestion banner */
+.nz-fab-banner {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(138,106,58,.06), transparent);
+  border: 1px solid var(--al-bronze-soft, rgba(138,106,58,.35));
+  border-left: 3px solid var(--al-bronze);
+  border-radius: var(--al-r-sm);
 }
 </style>

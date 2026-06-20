@@ -344,6 +344,7 @@ urlpatterns = [
     path('api/v1/coach/clients/<int:client_id>', coach_api.client_detail, name='api_v1_coach_client_detail'),
     path('api/v1/coach/clients/<int:client_id>/progress', coach_api.client_progress, name='api_v1_coach_client_progress'),
     path('api/v1/coach/clients/<int:client_id>/measurement', coach_api.client_measurement_create, name='api_v1_coach_client_measurement'),
+    path('api/v1/coach/clients/<int:client_id>/fabbisogni', coach_api.client_fabbisogni, name='api_v1_coach_client_fabbisogni'),
     path('api/v1/coach/agenda/create', coach_api.agenda_create, name='api_v1_coach_agenda_create'),
     path('api/v1/coach/agenda/<int:appointment_id>', coach_api.agenda_detail, name='api_v1_coach_agenda_detail'),
     path('api/v1/coach/checks', coach_api.checks_review, name='api_v1_coach_checks'),
@@ -391,4 +392,8 @@ urlpatterns = [
     path('api/v1/coach/clients/<int:client_id>/percorso/phases', coach_api.phase_create, name='api_v1_coach_phase_create'),
     path('api/v1/coach/clients/<int:client_id>/percorso/phases/<int:phase_id>',
          coach_api.phase_detail, name='api_v1_coach_phase_detail'),
+    path('api/v1/coach/chiron/chat/', coach_api.chiron_chat, name='api_v1_coach_chiron_chat'),
+    path('api/v1/coach/chiron/history/', coach_api.chiron_history, name='api_v1_coach_chiron_history'),
+    path('api/v1/coach/chiron/clear/', coach_api.chiron_clear, name='api_v1_coach_chiron_clear'),
+    path('api/v1/coach/chiron/azione/esegui/', coach_api.chiron_execute, name='api_v1_coach_chiron_execute'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

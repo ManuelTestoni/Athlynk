@@ -969,6 +969,7 @@ struct CoachNutritionWizardView: View {
 
     @State private var busy = false
     @State private var loadingPlan = false
+    @State private var fabbisogni: CoachFabbisogniDTO? = nil
 
     private let accent = Palette.lime
     private let steps = ["Tipo", "Contenuto", "Finalizza"]
@@ -1214,6 +1215,34 @@ struct CoachNutritionWizardView: View {
                 ForEach(clients) { c in clientRow(c) }
             }
 
+            if mode == "MACRO", let fab = fabbisogni, fab.fresh, let d = fab.data {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calculator").font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(accent)
+                        Text("Calcolo Fabbisogni recente").font(Typo.body(13, .semibold)).foregroundStyle(Palette.textHi)
+                    }
+                    HStack(spacing: 12) {
+                        if let v = d.detKcal      { fabPill("Kcal", "\(v)",  Palette.bronze) }
+                        if let v = d.proteineG    { fabPill("Pro",  "\(v)g", Palette.cyan)   }
+                        if let v = d.carboidratiG { fabPill("Carb", "\(v)g", Palette.lime)   }
+                        if let v = d.lipidiG      { fabPill("Fat",  "\(v)g", Palette.magenta) }
+                    }
+                    Button {
+                        if let v = d.detKcal      { kcal    = "\(v)" }
+                        if let v = d.proteineG    { protein = "\(v)" }
+                        if let v = d.carboidratiG { carb    = "\(v)" }
+                        if let v = d.lipidiG      { fat     = "\(v)" }
+                        withAnimation(.snappy) { step = 1 }
+                    } label: {
+                        Label("Applica target e rivedi", systemImage: "arrow.uturn.left")
+                            .font(Typo.body(12, .semibold)).foregroundStyle(accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(14).voltPanel(accent.opacity(0.25))
+            }
+
             NeonButton(title: selectedClients.isEmpty
                            ? "Salva piano"
                            : "Salva e assegna a \(selectedClients.count)",
@@ -1223,6 +1252,15 @@ struct CoachNutritionWizardView: View {
 
             wzBackLink { withAnimation(.snappy) { step = 1 } }
         }
+    }
+
+    private func fabPill(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(Typo.mono(13, .bold)).foregroundStyle(color)
+            Text(label).font(Typo.mono(9, .semibold)).foregroundStyle(Palette.textMid)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .voltPanel(color.opacity(0.15))
     }
 
     private func chip(_ t: String) -> some View {
@@ -1237,6 +1275,11 @@ struct CoachNutritionWizardView: View {
             Haptics.tap()
             withAnimation(.snappy) {
                 if isSel { selectedClients.remove(c.id) } else { selectedClients.insert(c.id) }
+            }
+            if mode == "MACRO" && !isSel {
+                Task { fabbisogni = try? await APIClient.shared.coachClientFabbisogni(clientId: c.id) }
+            } else if selectedClients.count != 1 {
+                fabbisogni = nil
             }
         } label: {
             HStack(spacing: 12) {

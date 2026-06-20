@@ -170,6 +170,10 @@ function nutritionWizard() {
     assignNotes: '',
     successFlash: false,
 
+    /* === fabbisogni suggestion state === */
+    fabbisogniData: null,
+    fabbisogniLoading: false,
+
     init() {
       const params = new URLSearchParams(window.location.search);
       const requestedStep = params.get('step');
@@ -859,6 +863,30 @@ function nutritionWizard() {
       window.location.href = INIT.urls.piani;
     },
 
+    /* === Fabbisogni suggestion === */
+    async loadClientFabbisogni(clientId) {
+      this.fabbisogniData = null;
+      if (!clientId || !INIT.urls.fabbisogniPattern) return;
+      this.fabbisogniLoading = true;
+      try {
+        const url = INIT.urls.fabbisogniPattern.replace('__CLIENT_ID__', clientId);
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (res.ok) {
+          const json = await res.json();
+          this.fabbisogniData = json.fresh ? json : null;
+        }
+      } catch (e) { /* silently ignore */ }
+      this.fabbisogniLoading = false;
+    },
+    applyFabbisogniTargets() {
+      const d = this.fabbisogniData && this.fabbisogniData.data;
+      if (!d) return;
+      if (d.det_kcal)      this.daily_kcal      = d.det_kcal;
+      if (d.proteine_g)    this.protein_target_g = d.proteine_g;
+      if (d.carboidrati_g) this.carb_target_g    = d.carboidrati_g;
+      if (d.lipidi_g)      this.fat_target_g     = d.lipidi_g;
+    },
+
     /* === Assign modal === */
     openAssign() {
       if (!this.canAssign()) return;
@@ -874,6 +902,7 @@ function nutritionWizard() {
         this.endDate = '';
         this.assignNotes = '';
         this.successFlash = false;
+        this.fabbisogniData = null;
         this.assignModal = true;
       });
     },

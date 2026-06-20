@@ -12,6 +12,8 @@ struct VoltField: View {
     var secure: Bool = false
     var accent: Color = Palette.cyan
 
+    @State private var isRevealed = false
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -19,12 +21,29 @@ struct VoltField: View {
                 .foregroundStyle(accent)
                 .frame(width: 22)
             Group {
-                if secure { SecureField("", text: $text, prompt: prompt) }
-                else { TextField("", text: $text, prompt: prompt) }
+                if secure {
+                    if isRevealed {
+                        TextField("", text: $text, prompt: prompt)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    } else {
+                        SecureField("", text: $text, prompt: prompt)
+                    }
+                } else {
+                    TextField("", text: $text, prompt: prompt)
+                }
             }
             .font(Typo.body(16, .medium))
             .foregroundStyle(Palette.textHi)
             .tint(accent)
+            if secure {
+                Button(action: { isRevealed.toggle() }) {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(accent.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)

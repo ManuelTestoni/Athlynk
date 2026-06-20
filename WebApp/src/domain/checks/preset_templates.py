@@ -120,6 +120,54 @@ PRESETS = {
     },
 
     # ──────────────────────────────────────────────────────────────────
+    # Coach-only: non viene mai assegnato all'atleta. Scopo: calcolo
+    # fabbisogni energetici e di nutrienti (NCPT comparative standards).
+    'calcolo_fabbisogni': {
+        'title': 'Calcolo Fabbisogni',
+        'description': 'Calcolo coach dei fabbisogni energetici e di macronutrienti (NCPT). Non viene assegnato all\'atleta.',
+        'coach_only': True,
+        'steps': [
+            {'id': 's_dati_base',   'label': 'Dati Base',             'icon': 'ph-chart-bar'},
+            {'id': 's_energetico',  'label': 'Fabbisogno Energetico', 'icon': 'ph-lightning'},
+            {'id': 's_macro',       'label': 'Macronutrienti',        'icon': 'ph-scales'},
+            {'id': 's_altri',       'label': 'Altri Fabbisogni',      'icon': 'ph-drop'},
+            {'id': 's_note_op',     'label': 'Note Operative',        'icon': 'ph-note-pencil'},
+        ],
+        'questions': [
+            # ── Dati Base ──────────────────────────────────────────
+            {'id': 'altezza_cm',     'step_id': 's_dati_base', 'type': 'metrica', 'label': 'Altezza',           'unit': 'cm',   'required': True,  'report_visible': True},
+            {'id': 'peso_kg',        'step_id': 's_dati_base', 'type': 'metrica', 'label': 'Peso corporeo',     'unit': 'kg',   'required': True,  'report_visible': True},
+            {'id': 'eta_anni',       'step_id': 's_dati_base', 'type': 'metrica', 'label': 'Età',               'unit': 'anni', 'required': True,  'report_visible': True},
+            {'id': 'sesso',          'step_id': 's_dati_base', 'type': 'radio',   'label': 'Sesso biologico',   'options': ['Maschio', 'Femmina'], 'required': True,  'report_visible': True},
+            {'id': 'formula_mb',     'step_id': 's_dati_base', 'type': 'radio',   'label': 'Formula MB',        'options': ['Mifflin-St Jeor', 'Harris-Benedict', 'Cunningham', 'Altro'], 'required': True, 'report_visible': True},
+            {'id': 'mb_stimata_kcal','step_id': 's_dati_base', 'type': 'metrica', 'label': 'MB stimata (auto-calcolata, modificabile)', 'unit': 'kcal', 'required': True, 'report_visible': True},
+            {'id': 'pal_valore',     'step_id': 's_dati_base', 'type': 'metrica', 'label': 'LAF / PAL',         'unit': '×',    'required': True,  'report_visible': True},
+            {'id': 'pal_descrizione','step_id': 's_dati_base', 'type': 'aperta',  'label': 'Descrizione livello di attività', 'placeholder': 'Es. Sedentario (1.2), Leggero (1.375), Moderato (1.55), Attivo (1.725)…', 'required': False, 'report_visible': True},
+            # ── Fabbisogno Energetico ──────────────────────────────
+            {'id': 'det_kcal',       'step_id': 's_energetico', 'type': 'metrica', 'label': 'DET — Fabbisogno energetico totale (MB × PAL, modificabile)', 'unit': 'kcal', 'required': True, 'report_visible': True},
+            {'id': 'det_note',       'step_id': 's_energetico', 'type': 'aperta',  'label': 'Note DET', 'placeholder': 'Obiettivo calorico, modulazione secondo fasi, strategie…', 'required': False, 'report_visible': True},
+            # ── Macronutrienti ─────────────────────────────────────
+            {'id': 'proteine_gkg',      'step_id': 's_macro', 'type': 'metrica', 'label': 'Proteine — target',        'unit': 'g/kg', 'required': True,  'report_visible': True},
+            {'id': 'proteine_g_totale', 'step_id': 's_macro', 'type': 'metrica', 'label': 'Proteine — intake totale (auto da kg, modificabile)', 'unit': 'g', 'required': True, 'report_visible': True},
+            {'id': 'proteine_note',     'step_id': 's_macro', 'type': 'aperta',  'label': 'Note proteine', 'placeholder': 'Timing, distribuzione nei pasti, fonti preferite…', 'required': False, 'report_visible': True},
+            {'id': 'carboidrati_gkg',      'step_id': 's_macro', 'type': 'metrica', 'label': 'Carboidrati — target',        'unit': 'g/kg', 'required': True,  'report_visible': True},
+            {'id': 'carboidrati_g_totale', 'step_id': 's_macro', 'type': 'metrica', 'label': 'Carboidrati — intake totale (auto da kg, modificabile)', 'unit': 'g', 'required': True, 'report_visible': True},
+            {'id': 'carboidrati_note',     'step_id': 's_macro', 'type': 'aperta',  'label': 'Note carboidrati', 'placeholder': 'Attorno all\'allenamento, fonti consigliate…', 'required': False, 'report_visible': True},
+            {'id': 'lipidi_target',      'step_id': 's_macro', 'type': 'metrica', 'label': 'Lipidi — target',        'unit': 'g/kg o %kcal', 'required': True,  'report_visible': True},
+            {'id': 'lipidi_g_totale',    'step_id': 's_macro', 'type': 'metrica', 'label': 'Lipidi — intake totale (auto da kg, modificabile)',   'unit': 'g', 'required': True, 'report_visible': True},
+            {'id': 'lipidi_note',        'step_id': 's_macro', 'type': 'aperta',  'label': 'Note lipidi', 'placeholder': 'Tipologie di grassi, modulazione per fase…', 'required': False, 'report_visible': True},
+            # ── Altri Fabbisogni ───────────────────────────────────
+            {'id': 'fibra_gdie',         'step_id': 's_altri', 'type': 'metrica', 'label': 'Fabbisogno fibra',   'unit': 'g/die', 'required': False, 'report_visible': True},
+            {'id': 'fibra_note',         'step_id': 's_altri', 'type': 'aperta',  'label': 'Note fibra', 'placeholder': 'Tolleranza, fonti consigliate…', 'required': False, 'report_visible': True},
+            {'id': 'idrico_mldie',       'step_id': 's_altri', 'type': 'metrica', 'label': 'Fabbisogno idrico',  'unit': 'ml/die', 'required': False, 'report_visible': True},
+            {'id': 'idrico_criterio',    'step_id': 's_altri', 'type': 'aperta',  'label': 'Criterio idrico', 'placeholder': 'ml/kg, ml/kcal, sintomi soggettivi…', 'required': False, 'report_visible': True},
+            {'id': 'micronutrienti_critici', 'step_id': 's_altri', 'type': 'aperta', 'label': 'Micronutrienti critici da monitorare', 'placeholder': 'Ca, Fe, Vit D, Mg, Zn… in base a quadro clinico/sportivo', 'required': False, 'report_visible': True},
+            # ── Note Operative ─────────────────────────────────────
+            {'id': 'note_operative', 'step_id': 's_note_op', 'type': 'aperta', 'label': 'Sintesi punti chiave', 'placeholder': 'Vincoli, priorità, bandierine rosse, strategie iniziali, adattamenti programmati…', 'required': False, 'report_visible': True},
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
     'allenamento': {
         'title': 'Allenamento',
         'description': 'Check allenamento: aderenza, performance, recupero, dolori articolari.',

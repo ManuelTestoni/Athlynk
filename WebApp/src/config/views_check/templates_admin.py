@@ -33,7 +33,7 @@ from ..session_utils import get_session_user, get_session_coach, get_session_cli
 
 
 
-PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento']
+PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento', 'calcolo_fabbisogni']
 
 
 def _ensure_preset_clones(coach):

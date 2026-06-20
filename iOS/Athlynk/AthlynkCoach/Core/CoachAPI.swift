@@ -6,6 +6,58 @@
 
 import Foundation
 
+// MARK: - Chiron DTOs
+
+struct ChironSource {
+    let url: String
+    let title: String
+}
+
+struct ChironEntry: Identifiable {
+    let id: Int
+    let role: String
+    let content: String
+    let sources: [ChironSource]
+    let usedWebSearch: Bool
+
+    static func from(_ json: [String: Any]) -> ChironEntry? {
+        guard let id = json["id"] as? Int,
+              let role = json["role"] as? String,
+              let content = json["content"] as? String else { return nil }
+        let srcs = (json["sources"] as? [[String: Any]] ?? []).compactMap { s -> ChironSource? in
+            guard let u = s["url"] as? String, let t = s["title"] as? String else { return nil }
+            return ChironSource(url: u, title: t)
+        }
+        return ChironEntry(id: id, role: role, content: content, sources: srcs,
+                           usedWebSearch: json["used_web_search"] as? Bool ?? false)
+    }
+}
+
+struct ChironChatResult {
+    let assistantContent: String
+    let usedWebSearch: Bool
+    let sources: [ChironSource]
+    let pendingAction: [String: Any]?
+    let pendingActionLabel: String
+
+    init(json: [String: Any]) {
+        assistantContent = json["response"] as? String ?? ""
+        usedWebSearch = json["used_web_search"] as? Bool ?? false
+        sources = (json["sources"] as? [[String: Any]] ?? []).compactMap { s -> ChironSource? in
+            guard let u = s["url"] as? String, let t = s["title"] as? String else { return nil }
+            return ChironSource(url: u, title: t)
+        }
+        let pa = json["pending_action"] as? [String: Any]
+        pendingAction = pa
+        pendingActionLabel = pa?["label"] as? String
+            ?? pa?["description"] as? String
+            ?? pa?["type"] as? String
+            ?? ""
+    }
+}
+
+// MARK: -
+
 extension APIClient {
     func coachDashboard() async throws -> CoachDashboardDTO {
         try decode(CoachDashboardDTO.self, from: try await request("/api/v1/coach/dashboard"))
@@ -210,6 +262,11 @@ extension APIClient {
         var body: [String: Any] = ["type": type, "value": value, "date": date]
         body["key"] = key ?? NSNull()
         _ = try await request("/api/v1/coach/clients/\(clientId)/measurement", method: "POST", body: body)
+    }
+
+    func coachClientFabbisogni(clientId: Int) async throws -> CoachFabbisogniDTO {
+        try decode(CoachFabbisogniDTO.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/fabbisogni"))
     }
 
     func coachExerciseTrend(clientId: Int, workoutExerciseId: Int) async throws -> ExerciseTrendDTO {
@@ -541,5 +598,33 @@ extension APIClient {
             throw APIError.decoding("JSON non valido")
         }
         return o
+    }
+
+    // MARK: - Chiron
+
+    func coachChironHistory(before: Int? = nil) async throws -> ([ChironEntry], Bool) {
+        var path = "/api/v1/coach/chiron/history"
+        if let b = before { path += "?before=\(b)" }
+        let data = try await request(path)
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        let rows = json["messages"] as? [[String: Any]] ?? []
+        let hasMore = json["has_more"] as? Bool ?? false
+        return (rows.compactMap { ChironEntry.from($0) }, hasMore)
+    }
+
+    func coachChironChat(message: String) async throws -> ChironChatResult {
+        let data = try await request("/api/v1/coach/chiron/chat/", method: "POST", body: ["message": message])
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        return ChironChatResult(json: json)
+    }
+
+    func coachChironClear() async throws {
+        _ = try await request("/api/v1/coach/chiron/clear/", method: "POST", body: [:])
+    }
+
+    func coachChironExecute(_ action: [String: Any]) async throws -> (Bool, String) {
+        let data = try await request("/api/v1/coach/chiron/azione/esegui/", method: "POST", body: action)
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        return (json["ok"] as? Bool ?? false, json["message"] as? String ?? "")
     }
 }

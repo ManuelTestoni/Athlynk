@@ -7,16 +7,14 @@
 
 import SwiftUI
 
-enum CoachRoute: Hashable {
-    case clients, chat, agenda, subscriptions, resources, analytics, notifications, profile
+enum CoachRoute: Hashable, Identifiable {
+    case clients, chat, agenda, subscriptions, resources, analytics, notifications, profile, chiron
+    var id: Self { self }
 }
 
 struct CoachMoreView: View {
     @EnvironmentObject private var app: AppState
     @Binding var path: NavigationPath
-    /// Deep-link requested from the Home dashboard quick actions (Atleti/Chat/Agenda).
-    @Binding var pending: CoachRoute?
-    @State private var isOnScreen = false
 
     private struct Item: Identifiable {
         let route: CoachRoute
@@ -44,6 +42,8 @@ struct CoachMoreView: View {
               subtitle: "Centro notifiche", accent: Palette.phase),
         .init(route: .profile, icon: "person.crop.square.fill", title: "Profilo & Impostazioni",
               subtitle: "Il tuo profilo pubblico", accent: Palette.bronze),
+        .init(route: .chiron, icon: "sparkles", title: "Chiron AI",
+              subtitle: "Assistente intelligente", accent: Palette.bronze),
     ]
 
     var body: some View {
@@ -70,22 +70,10 @@ struct CoachMoreView: View {
                 case .analytics:     CoachAnalyticsView()
                 case .notifications: CoachNotificationsView()
                 case .profile:       CoachProfileView()
+                case .chiron:        CoachChironView()
                 }
             }
         }
-        .onAppear { isOnScreen = true; consumePending() }
-        .onDisappear { isOnScreen = false }
-        .onChange(of: pending) { _, _ in
-            guard isOnScreen else { return }
-            consumePending()
-        }
-    }
-
-    /// Push a deep-link route requested before this tab became active.
-    private func consumePending() {
-        guard let route = pending else { return }
-        path.append(route)
-        pending = nil
     }
 
     private func card(_ item: Item) -> some View {

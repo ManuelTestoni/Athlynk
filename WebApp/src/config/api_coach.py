@@ -54,6 +54,10 @@ from domain.checks.models import AssignedCheck
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import catalog_json, circ_label, skin_label
 from django.contrib.auth.hashers import make_password
+from chiron.agent import run_chiron
+from chiron.memory import build_context, reset as reset_chiron_memory
+from chiron.actions import execute_action as chiron_execute_action
+from domain.chiron.models import ChironMessage
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -478,6 +482,47 @@ def check_feedback(request, user, response_id):
         link_url='/progressi/',
     )
     return JsonResponse({'id': r.id, 'coach_feedback': r.coach_feedback})
+
+
+@api_view(['GET'])
+def client_fabbisogni(request, user, client_id):
+    """Ultima risposta al questionario calcolo_fabbisogni del cliente (<90gg = fresh)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    cutoff = timezone.now() - timedelta(days=90)
+    resp = (QuestionnaireResponse.objects
+            .filter(
+                client_id=client_id,
+                coach=coach,
+                questionnaire_template__questionnaire_type='preset_calcolo_fabbisogni',
+            )
+            .order_by('-submitted_at')
+            .first())
+    if not resp:
+        return JsonResponse({'fresh': False, 'submitted_at': None, 'data': None})
+    fresh = resp.submitted_at is not None and resp.submitted_at >= cutoff
+    answers = resp.answers_json or {}
+    def _int(key):
+        try:
+            return int(float(answers.get(key) or 0)) or None
+        except (TypeError, ValueError):
+            return None
+    return JsonResponse({
+        'fresh': fresh,
+        'submitted_at': _iso(resp.submitted_at),
+        'data': {
+            'det_kcal':        _int('det_kcal'),
+            'proteine_g':      _int('proteine_g_totale'),
+            'carboidrati_g':   _int('carboidrati_g_totale'),
+            'lipidi_g':        _int('lipidi_g_totale'),
+            'fibra_g':         _int('fibra_gdie'),
+            'idrico_ml':       _int('idrico_mldie'),
+        },
+    })
 
 
 @api_view(['POST'])
@@ -2138,3 +2183,119 @@ def analytics_client_risk(request, client_id):
     for h in history:
         h['snapshot_date'] = h['snapshot_date'].isoformat()
     return JsonResponse({'client_id': client_id, 'history': history})
+
+
+# ---------------------------------------------------------------------------
+# Chiron mobile API — same logic as views_chiron.py but via token auth
+# ---------------------------------------------------------------------------
+
+def _chiron_role(coach) -> str:
+    mapping = {'COACH': 'coach', 'ALLENATORE': 'allenatore', 'NUTRIZIONISTA': 'nutrizionista'}
+    return mapping.get(getattr(coach, 'professional_type', ''), 'utente')
+
+
+@coach_dual_auth
+def chiron_chat(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    user = coach.user
+    body = _body(request)
+    message = (body.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'message required'}, status=400)
+    history, memory_summary = build_context(user)
+    ChironMessage.objects.create(user=user, role='user', content=message)
+    try:
+        result = run_chiron(
+            message=message,
+            user_role=_chiron_role(coach),
+            history=history,
+            coach_id=coach.id,
+            memory_summary=memory_summary,
+        )
+    except Exception:
+        logger.exception('CHIRON mobile chat: errore')
+        return JsonResponse({'error': 'CHIRON non disponibile. Riprova tra poco.'}, status=500)
+    ChironMessage.objects.create(
+        user=user, role='assistant', content=result.response,
+        sources=[s.model_dump() for s in result.sources],
+        actions=[a.model_dump() for a in result.actions],
+        used_web_search=result.used_web_search,
+    )
+    return JsonResponse({
+        'response': result.response,
+        'sources': [s.model_dump() for s in result.sources],
+        'actions': [a.model_dump() for a in result.actions],
+        'used_web_search': result.used_web_search,
+        'pending_action': result.pending_action.model_dump() if result.pending_action else None,
+    })
+
+
+@coach_dual_auth
+def chiron_history(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    try:
+        limit = min(int(request.GET.get('limit', 20)), 50)
+    except (ValueError, TypeError):
+        limit = 20
+    qs = ChironMessage.objects.filter(user=coach.user)
+    before = request.GET.get('before')
+    if before:
+        try:
+            qs = qs.filter(id__lt=int(before))
+        except (ValueError, TypeError):
+            pass
+    rows = list(qs.order_by('-id')[:limit + 1])
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    rows.reverse()
+    return JsonResponse({
+        'messages': [
+            {
+                'id': r.id, 'role': r.role, 'content': r.content,
+                'sources': r.sources or [], 'used_web_search': r.used_web_search,
+                'created_at': r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+        'has_more': has_more,
+    })
+
+
+@coach_dual_auth
+def chiron_execute(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    body = _body(request)
+    try:
+        ok, message, link = chiron_execute_action(coach, body or {})
+    except Exception:
+        logger.exception('CHIRON mobile execute: errore')
+        return JsonResponse({'ok': False, 'message': 'Azione non riuscita.'}, status=500)
+    if ok:
+        ChironMessage.objects.create(user=coach.user, role='assistant',
+                                     content=f'✓ {message}', actions=[link] if link else [])
+    return JsonResponse({'ok': ok, 'message': message, 'action': link},
+                        status=200 if ok else 400)
+
+
+@coach_dual_auth
+def chiron_clear(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    deleted, _ = ChironMessage.objects.filter(user=coach.user).delete()
+    reset_chiron_memory(coach.user)
+    return JsonResponse({'status': 'ok', 'deleted': deleted})

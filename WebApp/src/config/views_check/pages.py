@@ -174,6 +174,15 @@ def check_create_view(request):
         return redirect('check_dashboard')
 
     if request.method == 'GET':
+        prefill = {}
+        if template.questionnaire_type == 'preset_calcolo_fabbisogni':
+            latest = (QuestionnaireResponse.objects
+                      .filter(client=client, weight_kg__isnull=False)
+                      .order_by('-submitted_at')
+                      .values_list('weight_kg', flat=True)
+                      .first())
+            if latest:
+                prefill['peso_kg'] = str(round(float(latest), 1))
         return render(request, 'pages/check/builder.html', {
             'client': client,
             'coach': coach,
@@ -182,6 +191,7 @@ def check_create_view(request):
             'questions_config_json': json.dumps(template.questions_config or []),
             'steps_config_json': json.dumps(template.steps_config or []),
             'catalog_json': json.dumps(catalog_json()),
+            'prefill_json': json.dumps(prefill),
         })
 
     # ── POST ───────────────────────────────────────────────────────

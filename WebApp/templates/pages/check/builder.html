@@ -426,6 +426,22 @@ function checkFill() {
                     this.answers[q.id] = [];
                 }
             });
+            {% if template.questionnaire_type == 'preset_calcolo_fabbisogni' %}
+            this.$watch(
+                () => [this.answers.altezza_cm, this.answers.peso_kg, this.answers.eta_anni,
+                       this.answers.sesso, this.answers.formula_mb].join('|'),
+                () => this._fbCalcBMR()
+            );
+            this.$watch(
+                () => (this.answers.mb_stimata_kcal || '') + '|' + (this.answers.pal_valore || ''),
+                () => this._fbCalcDET()
+            );
+            this.$watch(
+                () => [this.answers.peso_kg, this.answers.proteine_gkg,
+                       this.answers.carboidrati_gkg, this.answers.lipidi_target].join('|'),
+                () => this._fbCalcMacros()
+            );
+            {% endif %}
         },
 
         questionsFor(stepId) {
@@ -452,6 +468,44 @@ function checkFill() {
             for (let i = 0; i < fileList.length; i++) names.push(fileList[i].name);
             this.fileNames[qid] = names;
         },
+
+        {% if template.questionnaire_type == 'preset_calcolo_fabbisogni' %}
+        _fbCalcBMR() {
+            const H = parseFloat(this.answers.altezza_cm || 0);
+            const P = parseFloat(this.answers.peso_kg || 0);
+            const A = parseFloat(this.answers.eta_anni || 0);
+            const sesso = this.answers.sesso;
+            const formula = this.answers.formula_mb;
+            if (!H || !P || !A || !sesso || !formula || formula === 'Altro') return;
+            const male = sesso === 'Maschio';
+            let bmr = 0;
+            if (formula === 'Mifflin-St Jeor') {
+                bmr = male ? (10*P + 6.25*H - 5*A + 5) : (10*P + 6.25*H - 5*A - 161);
+            } else if (formula === 'Harris-Benedict') {
+                bmr = male ? (88.36 + 13.4*P + 4.8*H - 5.7*A) : (447.6 + 9.25*P + 3.1*H - 4.3*A);
+            } else if (formula === 'Cunningham') {
+                const lbm = P * (male ? 0.80 : 0.75);
+                bmr = 500 + 22 * lbm;
+            }
+            if (bmr > 0) this.answers.mb_stimata_kcal = String(Math.round(bmr));
+        },
+        _fbCalcDET() {
+            const mb = parseFloat(this.answers.mb_stimata_kcal || 0);
+            const pal = parseFloat(this.answers.pal_valore || 0);
+            if (mb > 0 && pal > 0) this.answers.det_kcal = String(Math.round(mb * pal));
+        },
+        _fbCalcMacros() {
+            const P = parseFloat(this.answers.peso_kg || 0);
+            if (!P) return;
+            const calc = (gkgKey, totalKey) => {
+                const gkg = parseFloat(this.answers[gkgKey] || 0);
+                if (gkg > 0) this.answers[totalKey] = String(Math.round(gkg * P));
+            };
+            calc('proteine_gkg', 'proteine_g_totale');
+            calc('carboidrati_gkg', 'carboidrati_g_totale');
+            calc('lipidi_target', 'lipidi_g_totale');
+        },
+        {% endif %}
 
         async submitCheck() {
             // Validate required
