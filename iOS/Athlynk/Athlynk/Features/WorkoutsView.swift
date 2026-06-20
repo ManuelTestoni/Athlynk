@@ -143,6 +143,7 @@ struct WorkoutsView: View {
         guard plans.isEmpty else { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.workouts() }
+        catch is CancellationError { } // task cancelled by token refresh — new task will reload
         catch { self.error = error.localizedDescription }
         loading = false
     }

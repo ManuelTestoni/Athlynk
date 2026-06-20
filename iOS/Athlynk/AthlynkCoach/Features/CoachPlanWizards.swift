@@ -294,7 +294,7 @@ struct CoachWorkoutWizardView: View {
     @State private var clients: [CoachAssignableClient] = []
     @State private var selectedClients: Set<Int> = []
     @State private var assignWeeks = 8
-    @State private var overwrite = true
+    @State private var showOverwriteConfirm = false
 
     @State private var busy = false
     @State private var loadingPlan = false
@@ -514,19 +514,27 @@ struct CoachWorkoutWizardView: View {
                 ForEach(clients) { c in clientRow(c) }
                 if !selectedClients.isEmpty {
                     WZIntStepper(label: "DURATA ASSEGNAZIONE (SETT.)", value: $assignWeeks, range: 1...52)
-                    Toggle(isOn: $overwrite) {
-                        Text("Chiudi le schede attive degli atleti selezionati")
-                            .font(Typo.body(13)).foregroundStyle(Palette.textMid)
-                    }
-                    .tint(accent)
-                    .padding(.horizontal, 16).padding(.vertical, 12).voltPanel()
                 }
             }
 
             if !selectedClients.isEmpty {
                 NeonButton(title: "Assegna a \(selectedClients.count) atlet\(selectedClients.count == 1 ? "a" : "i")",
                            icon: "paperplane.fill", color: accent, loading: busy) {
-                    Task { await saveAndFinalize(action: "assign") }
+                    let conflicts = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }
+                    if conflicts.isEmpty {
+                        Task { await saveAndFinalize(action: "assign") }
+                    } else {
+                        showOverwriteConfirm = true
+                    }
+                }
+                .alert("Scheda attiva presente", isPresented: $showOverwriteConfirm) {
+                    Button("Sostituisci", role: .destructive) {
+                        Task { await saveAndFinalize(action: "assign") }
+                    }
+                    Button("Annulla", role: .cancel) {}
+                } message: {
+                    let n = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }.count
+                    Text("\(n == 1 ? "Un atleta ha" : "\(n) atleti hanno") già una scheda attiva. Continuare sostituirà la scheda corrente con quella nuova.")
                 }
             }
             NeonButton(title: "Salva come template", icon: "square.on.square",
@@ -731,7 +739,7 @@ struct CoachWorkoutWizardView: View {
                 if action == "assign" {
                     body["client_ids"] = Array(selectedClients)
                     body["weeks"] = assignWeeks
-                    body["overwrite"] = overwrite
+                    body["overwrite"] = true
                 }
                 try await APIClient.shared.coachFinalizeWorkoutPlan(planId: pid, payload: body)
             }
