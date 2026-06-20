@@ -46,6 +46,9 @@ struct WorkoutsView: View {
             .navigationDestination(for: WorkoutPlanDTO.self) { plan in
                 WorkoutPlanDetailView(plan: plan)
             }
+            .navigationDestination(for: WorkoutDaySelection.self) { sel in
+                WorkoutDayView(day: sel.day, assignmentId: sel.assignmentId)
+            }
             .navigationDestination(for: ExerciseDTO.self) { ex in
                 ExerciseDetailView(exercise: ex)
             }

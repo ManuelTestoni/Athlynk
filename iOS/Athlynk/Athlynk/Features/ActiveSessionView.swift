@@ -8,12 +8,25 @@
 import SwiftUI
 import Combine
 
+// MARK: - Shake
+
+private struct ShakeEffect: GeometryEffect {
+    var animatableData: CGFloat
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(.init(translationX: 8 * sin(animatableData * .pi * 4), y: 0))
+    }
+}
+
+// MARK: - SetEntry
+
 struct SetEntry {
     var reps = ""
     var load = ""
     var rpe = ""
     var done = false
 }
+
+// MARK: - ViewModel
 
 @MainActor
 final class ActiveSessionVM: ObservableObject {
@@ -27,6 +40,9 @@ final class ActiveSessionVM: ObservableObject {
     @Published var entries: [String: SetEntry] = [:]
     @Published var finishing = false
     @Published var finished = false
+    @Published var setOverrides: [Int: Int] = [:]    // exerciseId → set count
+    @Published var shakeTrigger: [String: Int] = [:] // set key → shake count
+    @Published var invalidFields: Set<String> = []   // "reps-2-1", "load-2-1", "rpe-2-1"
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
         self.assignmentId = assignmentId
@@ -35,14 +51,45 @@ final class ActiveSessionVM: ObservableObject {
 
     func key(_ ex: Int, _ s: Int) -> String { "\(ex)-\(s)" }
 
+    func setsForExercise(_ ex: SessionExerciseDTO) -> Int {
+        setOverrides[ex.workoutExerciseId] ?? ex.sets
+    }
+
+    func addSet(_ ex: SessionExerciseDTO) {
+        let n = setsForExercise(ex)
+        setOverrides[ex.workoutExerciseId] = n + 1
+        entries[key(ex.workoutExerciseId, n + 1)] = SetEntry(reps: ex.reps, load: fmtLoad(ex.loadValue))
+    }
+
+    func removeSet(_ ex: SessionExerciseDTO) {
+        let n = setsForExercise(ex)
+        guard n > 1 else { return }
+        entries.removeValue(forKey: key(ex.workoutExerciseId, n))
+        setOverrides[ex.workoutExerciseId] = n - 1
+    }
+
     private func fmtLoad(_ v: Double?) -> String {
         guard let v else { return "" }
         return v.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(v)) : String(v)
     }
 
-    var doneCount: Int { entries.values.filter { $0.done }.count }
-    var totalSets: Int { exercises.reduce(0) { $0 + $1.sets } }
+    var doneCount: Int {
+        exercises.reduce(0) { count, ex in
+            count + (1...max(setsForExercise(ex), 1)).filter {
+                entries[key(ex.workoutExerciseId, $0)]?.done == true
+            }.count
+        }
+    }
+
+    var totalSets: Int { exercises.reduce(0) { $0 + setsForExercise($1) } }
     var progress: Double { totalSets == 0 ? 0 : Double(doneCount) / Double(totalSets) }
+
+    var incompleteExerciseCount: Int {
+        exercises.filter { ex in
+            let n = setsForExercise(ex)
+            return !(1...max(n, 1)).contains { entries[key(ex.workoutExerciseId, $0)]?.done == true }
+        }.count
+    }
 
     func start() async {
         loading = true; error = nil
@@ -50,7 +97,6 @@ final class ActiveSessionVM: ObservableObject {
             let s = try await APIClient.shared.sessionStart(assignmentId: assignmentId, dayId: day.id)
             sessionId = s.sessionId
             exercises = s.exercises
-            // Seed default reps/load per set, then overlay any already-logged sets.
             for ex in s.exercises {
                 let defLoad = fmtLoad(ex.loadValue)
                 for n in 1...max(ex.sets, 1) {
@@ -75,6 +121,20 @@ final class ActiveSessionVM: ObservableObject {
         guard let sid = sessionId else { return }
         let k = key(ex.workoutExerciseId, n)
         var e = entries[k] ?? SetEntry()
+
+        if !e.done {
+            var invalid = Set<String>()
+            if e.reps.trimmingCharacters(in: .whitespaces).isEmpty { invalid.insert("reps-\(k)") }
+            if e.load.trimmingCharacters(in: .whitespaces).isEmpty { invalid.insert("load-\(k)") }
+            if e.rpe.trimmingCharacters(in: .whitespaces).isEmpty  { invalid.insert("rpe-\(k)") }
+            if !invalid.isEmpty {
+                invalidFields = invalid
+                shakeTrigger[k, default: 0] += 1
+                Haptics.soft()
+                return
+            }
+        }
+        invalidFields = []
         e.done.toggle()
         entries[k] = e
         Haptics.thud()
@@ -84,7 +144,6 @@ final class ActiveSessionVM: ObservableObject {
                 reps: Int(e.reps), load: Double(e.load.replacingOccurrences(of: ",", with: ".")),
                 loadUnit: ex.loadUnit ?? "KG", rpe: Int(e.rpe), completed: e.done)
         } catch {
-            // Revert on failure.
             e.done.toggle(); entries[k] = e
         }
     }
@@ -103,10 +162,14 @@ final class ActiveSessionVM: ObservableObject {
     }
 }
 
+// MARK: - View
+
 struct ActiveSessionView: View {
     @StateObject private var vm: ActiveSessionVM
     @Environment(\.dismiss) private var dismiss
     @State private var burst = 0
+    @State private var keyboardShown = false
+    @State private var showFinishConfirm = false
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
         _vm = StateObject(wrappedValue: ActiveSessionVM(assignmentId: assignmentId, day: day))
@@ -128,15 +191,34 @@ struct ActiveSessionView: View {
                     }
                     .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 50)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             ParticleBurst(trigger: burst)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(keyboardShown ? .hidden : .visible, for: .navigationBar)
+        .animation(.easeInOut(duration: 0.22), value: keyboardShown)
         .task { await vm.start() }
         .onChange(of: vm.finished) { _, done in if done { burst += 1 } }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardShown = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardShown = false
+        }
+        .alert("Sessione incompleta", isPresented: $showFinishConfirm) {
+            Button("Termina comunque", role: .destructive) {
+                Task { await vm.finish(interrupted: false) }
+            }
+            Button("Continua", role: .cancel) {}
+        } message: {
+            Text("Hai ancora \(vm.incompleteExerciseCount) \(vm.incompleteExerciseCount == 1 ? "esercizio" : "esercizi") da completare. I dati non compilati non verranno salvati.")
+        }
     }
+
+    // MARK: Header
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -156,8 +238,11 @@ struct ActiveSessionView: View {
         }
     }
 
+    // MARK: Exercise block
+
     private func exerciseBlock(_ ex: SessionExerciseDTO) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let n = vm.setsForExercise(ex)
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ex.name).font(Typo.display(20)).foregroundStyle(Palette.textHi)
@@ -171,7 +256,7 @@ struct ActiveSessionView: View {
                         .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
                 }
             }
-            // Column headers
+
             HStack(spacing: 8) {
                 Text("SET").frame(width: 34, alignment: .leading)
                 Text("REPS").frame(maxWidth: .infinity)
@@ -181,10 +266,37 @@ struct ActiveSessionView: View {
             }
             .font(Typo.mono(8, .bold)).tracking(1).foregroundStyle(Palette.textLow)
 
-            ForEach(1...max(ex.sets, 1), id: \.self) { n in setRow(ex, n) }
+            ForEach(1...max(n, 1), id: \.self) { i in setRow(ex, i) }
+
+            HStack(spacing: 10) {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { vm.addSet(ex) }
+                } label: {
+                    Label("Serie", systemImage: "plus")
+                        .font(Typo.mono(11, .bold)).tracking(1)
+                        .foregroundStyle(Palette.magenta)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(Capsule().stroke(Palette.magenta, lineWidth: 1))
+                }
+                if n > 1 {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { vm.removeSet(ex) }
+                    } label: {
+                        Label("Rimuovi", systemImage: "minus")
+                            .font(Typo.mono(11, .bold)).tracking(1)
+                            .foregroundStyle(Palette.textLow)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(Capsule().stroke(Palette.line, lineWidth: 1))
+                    }
+                }
+                Spacer()
+            }
+            .buttonStyle(.plain)
         }
         .padding(16).voltPanel(Palette.magenta.opacity(0.45))
     }
+
+    // MARK: Set row
 
     private func setRow(_ ex: SessionExerciseDTO, _ n: Int) -> some View {
         let k = vm.key(ex.workoutExerciseId, n)
@@ -193,12 +305,13 @@ struct ActiveSessionView: View {
             set: { vm.entries[k] = $0 }
         )
         let done = binding.wrappedValue.done
+        let shakeVal = vm.shakeTrigger[k] ?? 0
         return HStack(spacing: 8) {
             Text("\(n)").font(Typo.mono(14, .black)).foregroundStyle(Palette.magenta)
                 .frame(width: 34, alignment: .leading)
-            field(binding.reps, keyboard: .numberPad)
-            field(binding.load, keyboard: .decimalPad)
-            field(binding.rpe, keyboard: .numberPad, width: 52)
+            field(binding.reps, fieldKey: "reps-\(k)", keyboard: .numberPad)
+            field(binding.load, fieldKey: "load-\(k)", keyboard: .decimalPad)
+            field(binding.rpe,  fieldKey: "rpe-\(k)",  keyboard: .numberPad, width: 52)
             Button {
                 Task { await vm.toggle(ex, set: n) }
             } label: {
@@ -215,17 +328,34 @@ struct ActiveSessionView: View {
             .frame(width: 34)
         }
         .opacity(done ? 0.85 : 1)
+        .modifier(ShakeEffect(animatableData: CGFloat(shakeVal)))
+        .animation(.default, value: shakeVal)
     }
 
-    private func field(_ text: Binding<String>, keyboard: UIKeyboardType, width: CGFloat? = nil) -> some View {
-        TextField("", text: text)
+    // MARK: Field
+
+    private func field(_ text: Binding<String>, fieldKey: String, keyboard: UIKeyboardType, width: CGFloat? = nil) -> some View {
+        let isInvalid = vm.invalidFields.contains(fieldKey)
+        return TextField("", text: text)
             .font(Typo.mono(14, .semibold)).foregroundStyle(Palette.textHi).tint(Palette.magenta)
             .multilineTextAlignment(.center).keyboardType(keyboard)
             .padding(.vertical, 8)
             .frame(maxWidth: width == nil ? .infinity : nil)
             .frame(width: width)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Palette.void2))
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isInvalid ? Palette.magenta.opacity(0.12) : Palette.void2)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isInvalid ? Palette.magenta : Color.clear, lineWidth: 1.5)
+                    )
+            )
+            .onChange(of: text.wrappedValue) { _, _ in
+                vm.invalidFields.remove(fieldKey)
+            }
     }
+
+    // MARK: Finish buttons
 
     private var finishButtons: some View {
         VStack(spacing: 12) {
@@ -240,7 +370,11 @@ struct ActiveSessionView: View {
             } else {
                 NeonButton(title: "Termina sessione", icon: "flag.checkered",
                            color: Palette.lime, loading: vm.finishing) {
-                    Task { await vm.finish(interrupted: false) }
+                    if vm.incompleteExerciseCount > 0 {
+                        showFinishConfirm = true
+                    } else {
+                        Task { await vm.finish(interrupted: false) }
+                    }
                 }
                 Button { Task { await vm.finish(interrupted: true); dismiss() } } label: {
                     Text("Interrompi").font(Typo.mono(12, .bold)).tracking(1).foregroundStyle(Palette.textLow)

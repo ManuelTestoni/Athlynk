@@ -148,6 +148,11 @@ struct WorkoutDayDTO: Codable, Identifiable, Hashable {
     }
 }
 
+struct WorkoutDaySelection: Hashable {
+    let day: WorkoutDayDTO
+    let assignmentId: Int
+}
+
 struct WorkoutPlanDTO: Codable, Identifiable, Hashable {
     let assignmentId: Int
     let planId: Int

@@ -21,7 +21,7 @@ struct WorkoutPlanDetailView: View {
                     if let desc = plan.description, !desc.isEmpty { descriptionCard(desc) }
                     Text("GIORNI").voltEyebrow()
                     ForEach(plan.days) { day in
-                        NavigationLink { WorkoutDayView(day: day, assignmentId: plan.assignmentId) } label: {
+                        NavigationLink(value: WorkoutDaySelection(day: day, assignmentId: plan.assignmentId)) {
                             dayRow(day)
                         }
                         .buttonStyle(PressableButtonStyle())
