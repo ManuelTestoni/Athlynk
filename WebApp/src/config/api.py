@@ -196,7 +196,11 @@ def api_view(methods):
             throttled = _api_throttle(request, f'u{user.id}', is_write)
             if throttled:
                 return throttled
-            return view(request, user, *args, **kwargs)
+            try:
+                return view(request, user, *args, **kwargs)
+            except Exception:
+                logging.getLogger('django.request').exception('Unhandled exception in api_view: %s', view.__name__)
+                return JsonResponse({'error': 'Errore interno del server'}, status=500)
         wrapper.__name__ = view.__name__
         return wrapper
     return decorator
@@ -247,13 +251,17 @@ def coach_dual_auth(view):
         throttled = _builder_throttle(request, ident)
         if throttled:
             return throttled
-        if is_token:
+        try:
+            if is_token:
+                return view(request, *args, **kwargs)
+            # Browser/session request → enforce CSRF as usual.
+            reason = CsrfViewMiddleware(lambda r: None).process_view(request, view, args, kwargs)
+            if reason is not None:
+                return reason
             return view(request, *args, **kwargs)
-        # Browser/session request → enforce CSRF as usual.
-        reason = CsrfViewMiddleware(lambda r: None).process_view(request, view, args, kwargs)
-        if reason is not None:
-            return reason
-        return view(request, *args, **kwargs)
+        except Exception:
+            logging.getLogger('django.request').exception('Unhandled exception in coach_dual_auth: %s', view.__name__)
+            return JsonResponse({'error': 'Errore interno del server'}, status=500)
 
     wrapper.__name__ = getattr(view, '__name__', 'coach_dual_auth_view')
     return wrapper

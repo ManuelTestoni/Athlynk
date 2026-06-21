@@ -170,6 +170,7 @@ final class ActiveSessionVM: ObservableObject {
 
 struct ActiveSessionView: View {
     @StateObject private var vm: ActiveSessionVM
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var burst = 0
     @State private var keyboardShown = false
@@ -209,6 +210,8 @@ struct ActiveSessionView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(keyboardShown ? .hidden : .visible, for: .navigationBar)
         .task { await vm.start() }
+        .onAppear { app.tabBarHidden = true }
+        .onDisappear { app.tabBarHidden = false }
         .onChange(of: vm.finished) { _, done in if done { burst += 1 } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardShown = true

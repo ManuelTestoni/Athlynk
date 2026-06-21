@@ -20,6 +20,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from . import views
+from . import views_errors
+
+handler400 = 'config.views_errors.bad_request'
+handler403 = 'config.views_errors.forbidden'
+handler404 = 'config.views_errors.not_found'
+handler500 = 'config.views_errors.server_error'
 from . import views_workouts
 from . import views_workouts_taxonomy
 from . import views_agenda

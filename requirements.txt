@@ -106,6 +106,7 @@ yarl==1.23.0
 zstandard==0.25.0
 gunicorn==23.0.0
 whitenoise==6.8.2
+django-cors-headers==4.4.0
 
 # Static type checking (gate for type annotations). Config: WebApp/src/mypy.ini
 # Run from WebApp/src: mypy <paths>

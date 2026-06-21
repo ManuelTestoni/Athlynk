@@ -148,6 +148,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     
     # App di Dominio
     'domain.accounts',
@@ -166,6 +167,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -428,6 +430,16 @@ if not DEBUG:
     ):
         if _origin and _origin not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(_origin)
+
+# CORS — restrict cross-origin browser access to /api/* only.
+# Native iOS clients are unaffected (no browser CORS applies to URLSession).
+CORS_URLS_REGEX = r'^/api/.*$'
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in config('CORS_ALLOWED_ORIGINS', default='https://app.athlynk.it').split(',')
+    if o.strip()
+]
+CORS_ALLOW_CREDENTIALS = False
 
 
 # --- Logging -----------------------------------------------------------------

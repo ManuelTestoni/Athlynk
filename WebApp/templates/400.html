@@ -1,0 +1,60 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Richiesta non valida{% endblock %}
+{% block auth_robots %}noindex, nofollow{% endblock %}
+{% block auth_eyebrow %}Errore 400{% endblock %}
+{% block auth_panel_width %}max-w-lg{% endblock %}
+
+{% block auth_extra_head %}
+<style>
+  .nf-numeral {
+    font-family: 'Bodoni Moda', serif;
+    font-weight: 600;
+    line-height: 0.9;
+    font-size: clamp(88px, 18vw, 152px);
+    letter-spacing: -0.02em;
+    background: linear-gradient(170deg, var(--al-ink) 0%, var(--al-bronze) 130%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .nf-rule {
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, transparent, var(--al-rule-strong), transparent);
+  }
+</style>
+{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="flex items-center gap-4 mb-4">
+        <span class="nf-rule"></span>
+        <i class="ph ph-x-circle text-2xl" style="color: var(--al-bronze);"></i>
+        <span class="nf-rule"></span>
+    </div>
+
+    <div class="nf-numeral">400</div>
+
+    <h1 class="al-h-1 mt-4" style="font-size: clamp(22px, 3.6vw, 30px);">
+        Richiesta non valida
+    </h1>
+
+    <p class="al-body mt-3">
+        La richiesta inviata non è nel formato atteso.
+        Riprova o torna alla home.
+    </p>
+
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+        <a href="/" class="al-btn al-btn-bronze">
+            <i class="ph ph-house"></i>
+            <span>Torna alla home</span>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+Hai bisogno di aiuto? <a href="/" class="al-link al-link-bronze">Contatta il supporto</a>
+{% endblock %}

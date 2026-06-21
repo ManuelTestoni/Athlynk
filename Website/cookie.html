@@ -73,7 +73,7 @@
   <header class="legal-header">
     <p class="eyebrow"><span class="eyebrow-rule"></span>Informativa</p>
     <h1>Cookie Policy</h1>
-    <p class="legal-meta">Sito <strong>athlynk.it</strong> · Ultimo aggiornamento: <strong>13 giugno 2026</strong></p>
+    <p class="legal-meta">Sito <strong>athlynk.it</strong> · Ultimo aggiornamento: <strong>21 giugno 2026</strong></p>
     <div class="legal-rule"></div>
   </header>
 
@@ -92,10 +92,11 @@
       <h2>I cookie su questo sito</h2>
       <p>
         Il sito vetrina <strong>athlynk.it</strong> è statico e informativo:
-        <strong>non utilizza cookie di profilazione, analytics, marketing o retargeting</strong>,
-        non installa pixel di tracciamento e non richiede alcun banner di consenso, in quanto
-        non vengono impostati cookie soggetti a consenso. Le uniche tecnologie impiegate sono
-        elencate qui sotto.
+        <strong>non utilizza cookie di profilazione, marketing o retargeting</strong>
+        e non installa pixel di tracciamento di terze parti. Utilizziamo un'unica tecnologia
+        di analytics prestazionale (<em>Vercel Speed Insights</em>), attivata solo previo
+        tuo consenso tramite il banner che compare alla prima visita.
+        Le tecnologie impiegate sono elencate nella tabella seguente.
       </p>
 
       <div class="legal-table-wrap">
@@ -116,14 +117,32 @@
               <td>Non richiesto</td>
             </tr>
             <tr>
-              <td>Log del server</td>
+              <td>Log del server (Vercel)</td>
               <td>Tecnico</td>
               <td>Funzionamento e sicurezza del sito (registrazione lato server, non un cookie sul dispositivo).</td>
               <td>Non richiesto</td>
             </tr>
+            <tr>
+              <td>Vercel Speed Insights</td>
+              <td>Analytics prestazionale</td>
+              <td>Misurazione delle prestazioni del sito (tempo di caricamento, Core Web Vitals). Non imposta cookie; utilizza localStorage per aggregare dati anonimi sulle prestazioni. Nessun dato personale inviato a terze parti per finalità pubblicitarie.</td>
+              <td><strong>Richiesto</strong> — attivo solo dopo consenso esplicito</td>
+            </tr>
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section>
+      <h2>Gestisci le tue preferenze</h2>
+      <p>
+        Puoi modificare o revocare il tuo consenso in qualsiasi momento.
+        Clicca il pulsante qui sotto per reimpostare le preferenze: alla prossima visita
+        della home il banner comparirà di nuovo.
+      </p>
+      <button onclick="localStorage.removeItem('athlynk_cookie_consent'); window.location.href='index.html';" class="btn btn-ghost btn-sm" style="margin-top:0.75rem;">
+        Reimposta preferenze cookie
+      </button>
     </section>
 
     <section>
@@ -142,8 +161,9 @@
       <h2>Disabilitare i cookie dal browser</h2>
       <p>
         Puoi gestire o disabilitare i cookie direttamente dalle impostazioni del browser.
-        Poiché questo sito non imposta cookie soggetti a consenso, tali impostazioni non
-        incidono sulla navigazione delle pagine vetrina.
+        Poiché Vercel Speed Insights utilizza localStorage e non cookie di sessione,
+        la disabilitazione dei cookie dal browser non ne impedisce l'esecuzione: usa
+        il pulsante "Reimposta preferenze" nella sezione precedente per revocare il consenso.
       </p>
     </section>
 
@@ -187,7 +207,6 @@
 </footer>
 
 <script src="js/main.js?v=20260613"></script>
-    <!-- Vercel Speed Insights (static-site script; enable Speed Insights in the Vercel project) -->
-    <script defer src="/_vercel/speed-insights/script.js"></script>
+<script src="js/cookie-consent.js"></script>
 </body>
 </html>
