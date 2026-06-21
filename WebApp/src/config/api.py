@@ -17,6 +17,8 @@ import json
 import logging
 from datetime import date, timedelta
 
+import sentry_sdk
+
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.utils.dateparse import parse_date
@@ -170,6 +172,7 @@ def api_view(methods):
             user = _user_from_token(_bearer(request) or '')
             if not user:
                 return JsonResponse({'error': 'Non autenticato'}, status=401)
+            sentry_sdk.set_user({'id': str(user.id), 'segment': user.role})
             # Suspended athlete: block every data endpoint, allow only the
             # account-management allowlist so the app can show its blocked state.
             if user.role == 'CLIENT' and view.__name__ not in _CLIENT_BLOCKED_ALLOW:
@@ -245,9 +248,12 @@ def coach_dual_auth(view):
         # the web plan builders, which autosave often.
         if is_token:
             ident = f'u{token_user.id}'
+            sentry_sdk.set_user({'id': str(token_user.id), 'segment': 'COACH'})
         else:
             sid = request.session.get('user_id')
             ident = f's{sid}' if sid else ''
+            if sid:
+                sentry_sdk.set_user({'id': str(sid), 'segment': 'COACH'})
         throttled = _builder_throttle(request, ident)
         if throttled:
             return throttled

@@ -476,3 +476,46 @@ LOGGING = {
 }
 
 
+# --- Sentry -------------------------------------------------------------
+# No-op when SENTRY_DSN is unset (local dev). Set it in Railway env vars
+# after creating the project on sentry.io.
+#
+# Env vars to set in Railway (Athlynk service):
+#   SENTRY_DSN                  — project DSN from sentry.io (required to activate)
+#   SENTRY_TRACES_SAMPLE_RATE   — fraction of requests traced   (default 0.10)
+#   SENTRY_PROFILES_SAMPLE_RATE — fraction of traces profiled   (default 0.0)
+import logging
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.openai import OpenAIIntegration
+from sentry_sdk.integrations.langchain import LangchainIntegration
+
+sentry_sdk.init(
+    dsn=config('SENTRY_DSN', default=''),
+    integrations=[
+        DjangoIntegration(
+            transaction_style='url',    # group by URL pattern, not full path
+            middleware_spans=True,
+            signals_spans=False,
+            cache_spans=True,
+        ),
+        LoggingIntegration(
+            level=logging.INFO,         # breadcrumbs from INFO+
+            event_level=logging.ERROR,  # Sentry events only for ERROR+
+        ),
+        OpenAIIntegration(
+            include_prompts=False,      # never send prompt content to Sentry (GDPR)
+        ),
+        LangchainIntegration(
+            include_prompts=False,
+        ),
+    ],
+    traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.10, cast=float),
+    profiles_sample_rate=config('SENTRY_PROFILES_SAMPLE_RATE', default=0.0, cast=float),
+    send_default_pii=False,   # no IP / email in events (GDPR)
+    environment=config('RAILWAY_ENVIRONMENT', default='development'),
+    release=config('RAILWAY_GIT_COMMIT_SHA', default=''),
+)
+
+

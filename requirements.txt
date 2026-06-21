@@ -107,6 +107,7 @@ zstandard==0.25.0
 gunicorn==23.0.0
 whitenoise==6.8.2
 django-cors-headers==4.4.0
+sentry-sdk[django,openai,langchain]==2.63.0
 
 # Static type checking (gate for type annotations). Config: WebApp/src/mypy.ini
 # Run from WebApp/src: mypy <paths>
