@@ -2,5 +2,5 @@
 
 
 [deploy]
-startCommand = "cd WebApp/src && python manage.py collectstatic --noinput && python manage.py migrate --noinput && python manage.py createcachetable && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 60"
+startCommand = "bash start.sh"
 restartPolicyType = "ON_FAILURE"
