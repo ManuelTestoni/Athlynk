@@ -486,7 +486,8 @@ def check_feedback(request, user, response_id):
 
 @api_view(['GET'])
 def client_fabbisogni(request, user, client_id):
-    """Ultima risposta al questionario calcolo_fabbisogni del cliente (<90gg = fresh)."""
+    """Ultimi fabbisogni calcolati per il cliente: prima risposta (più recente)
+    che contiene lo strumento «Calcolo Fabbisogni» (<90gg = fresh)."""
     coach, err = _require_coach(user)
     if err:
         return err
@@ -494,14 +495,16 @@ def client_fabbisogni(request, user, client_id):
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
     cutoff = timezone.now() - timedelta(days=90)
-    resp = (QuestionnaireResponse.objects
-            .filter(
-                client_id=client_id,
-                coach=coach,
-                questionnaire_template__questionnaire_type='preset_calcolo_fabbisogni',
-            )
-            .order_by('-submitted_at')
-            .first())
+    resp = None
+    recent = (QuestionnaireResponse.objects
+              .filter(client_id=client_id, coach=coach)
+              .select_related('questionnaire_template')
+              .order_by('-submitted_at')[:80])
+    for r in recent:
+        qcfg, _ = _response_config(r)
+        if any(q.get('type') == 'strumento_fabbisogni' for q in qcfg):
+            resp = r
+            break
     if not resp:
         return JsonResponse({'fresh': False, 'submitted_at': None, 'data': None})
     fresh = resp.submitted_at is not None and resp.submitted_at >= cutoff
@@ -515,7 +518,7 @@ def client_fabbisogni(request, user, client_id):
         'fresh': fresh,
         'submitted_at': _iso(resp.submitted_at),
         'data': {
-            'det_kcal':        _int('det_kcal'),
+            'det_kcal':        _int('det_finale_kcal') or _int('det_kcal'),
             'proteine_g':      _int('proteine_g_totale'),
             'carboidrati_g':   _int('carboidrati_g_totale'),
             'lipidi_g':        _int('lipidi_g_totale'),

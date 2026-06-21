@@ -76,6 +76,71 @@ def _to_float(val):
         return None
 
 
+# Chiavi answers_json gestite dallo strumento «Calcolo Fabbisogni».
+FB_TOOL_KEYS = [
+    'altezza_cm', 'peso_kg', 'eta_anni', 'sesso', 'formula_mb', 'mb_stimata_kcal',
+    'pal_valore', 'pal_descrizione', 'det_kcal', 'det_adjust_kcal', 'det_finale_kcal',
+    'det_note', 'proteine_gkg', 'proteine_g_totale', 'proteine_note',
+    'carboidrati_gkg', 'carboidrati_g_totale', 'carboidrati_note',
+    'lipidi_target', 'lipidi_g_totale', 'lipidi_note',
+    'fibra_gdie', 'fibra_note', 'idrico_mldie', 'idrico_criterio',
+    'micronutrienti_critici', 'note_operative',
+]
+
+_FB_MACRO_DEFS = [
+    ('Proteine',    'proteine_gkg',    'proteine_g_totale',    'proteine_note',    4),
+    ('Carboidrati', 'carboidrati_gkg', 'carboidrati_g_totale', 'carboidrati_note', 4),
+    ('Lipidi',      'lipidi_target',   'lipidi_g_totale',      'lipidi_note',      9),
+]
+
+
+def _fabbisogni_summary(q, response):
+    """Riepilogo leggibile dello strumento «Calcolo Fabbisogni» da answers_json.
+    Ritorna None se non ci sono dati significativi da mostrare."""
+    aj = (response.answers_json or {}) if response else {}
+
+    def g(k):
+        v = aj.get(k)
+        return v if v not in (None, '') else None
+
+    def gi(k):
+        v = _to_float(aj.get(k))
+        return int(round(v)) if v else None
+
+    det_base = gi('det_kcal')
+    try:
+        det_adj = int(round(float(aj.get('det_adjust_kcal') or 0)))
+    except (TypeError, ValueError):
+        det_adj = 0
+    det_finale = gi('det_finale_kcal') or ((det_base + det_adj) if det_base else None)
+
+    macros = []
+    for label, gkg_k, g_k, note_k, factor in _FB_MACRO_DEFS:
+        grams = gi(g_k)
+        if grams or g(gkg_k) or g(note_k):
+            macros.append({
+                'label': label, 'gkg': g(gkg_k), 'g': grams,
+                'kcal': int(round(grams * factor)) if grams else None,
+                'note': g(note_k),
+            })
+
+    fb = {
+        'altezza': g('altezza_cm'), 'peso': g('peso_kg'), 'eta': g('eta_anni'), 'sesso': g('sesso'),
+        'formula': g('formula_mb'), 'mb': gi('mb_stimata_kcal'),
+        'pal': g('pal_valore'), 'pal_desc': g('pal_descrizione'),
+        'det_base': det_base, 'det_adjust': det_adj, 'det_finale': det_finale, 'det_note': g('det_note'),
+        'macros': macros,
+        'fibra': g('fibra_gdie'), 'fibra_note': g('fibra_note'),
+        'idrico': g('idrico_mldie'), 'idrico_note': g('idrico_criterio'),
+        'micro': g('micronutrienti_critici'), 'note_op': g('note_operative'),
+    }
+    has_data = bool(macros) or any(v for k, v in fb.items() if k != 'det_adjust' and v)
+    if not has_data:
+        return None
+    return {'id': q.get('id'), 'type': 'strumento_fabbisogni',
+            'label': q.get('label', 'Calcolo Fabbisogni'), 'fb': fb}
+
+
 def build_measurements(raw_answers, questions_config, parse_fn):
     """Build (weight_kg, body_circumferences, skinfolds) from submitted answers.
 
@@ -268,6 +333,12 @@ def _build_check_sections(questions, steps, response, prev_response, attachments
                 rendered.extend(_antropometria_rows(q, response, prev_response))
                 continue
 
+            if q_type == 'strumento_fabbisogni':
+                summary = _fabbisogni_summary(q, response)
+                if summary:
+                    rendered.append(summary)
+                continue
+
             val = _get_q_value(q_id, response)
             if val in (None, '') or val == []:
                 continue
@@ -385,6 +456,14 @@ def _build_prefill(response):
                     prefill['pl::' + key] = v
             continue
         if qtype == 'allegato':
+            continue
+        if qtype == 'strumento_fabbisogni':
+            # Lo strumento salva chiavi piatte in answers_json: ricaricale tutte
+            # così la ricompilazione coach riparte dai valori salvati.
+            for k in FB_TOOL_KEYS:
+                v = aj.get(k)
+                if v not in (None, ''):
+                    prefill[k] = v
             continue
         if qid in _BENESSERE_ALIASES:
             v = aj.get(qid, aj.get(_BENESSERE_ALIASES[qid]))

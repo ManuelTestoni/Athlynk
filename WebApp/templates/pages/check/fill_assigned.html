@@ -363,7 +363,10 @@
 </div>
 
 <script>
-const FCK_QUESTIONS = {{ questions_config_json|json_js }};
+// Gli strumenti coach (es. Calcolo Fabbisogni) non sono compilati dall'atleta:
+// si escludono dal flusso, così l'eventuale sezione che li contiene sparisce.
+const FCK_QUESTIONS = ({{ questions_config_json|json_js }})
+    .filter(q => !(q && typeof q.type === 'string' && q.type.startsWith('strumento_')));
 const FCK_STEPS     = {{ steps_config_json|json_js }};
 const FCK_PREFILL   = {% if prefill_json %}{{ prefill_json|json_js }}{% else %}{}{% endif %};
 const CATALOG       = JSON.parse('{{ catalog_json|escapejs }}' || '{"circumferences":[],"skinfolds":[]}');

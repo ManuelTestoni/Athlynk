@@ -59,6 +59,9 @@ class CoachProfile(models.Model):
     social_facebook = models.URLField(max_length=300, null=True, blank=True)
     social_website = models.URLField(max_length=300, null=True, blank=True)
     professional_videos = models.TextField(null=True, blank=True)
+    # Formule MB personalizzate del coach, riusabili nello strumento «Calcolo
+    # Fabbisogni». Formato: [{"name": str, "expr": str}] con variabili P,H,A.
+    custom_bmr_formulas = models.JSONField(default=list, blank=True)
     # Random token used to expose this coach's appointments as an ICS feed
     # without requiring login (subscribed in Google/Apple Calendar via URL).
     # Generated lazily on first request.

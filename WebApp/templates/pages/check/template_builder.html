@@ -127,6 +127,71 @@
 .tb-prev-h { font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--al-bronze); }
 .tb-prev-items { font-size: 12px; color: var(--al-ink-mute); }
 .tb-prev-u { font-size: 10px; opacity: .7; }
+
+/* ── Strumenti: separati e distinti dalle domande ── */
+.tb-group-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--al-bronze); margin: 2px 0 10px;
+}
+.tb-group-label::after { content: ''; flex: 1; height: 1px; background: var(--al-rule); }
+.tb-group-label.is-q { color: var(--al-ink-mute); }
+.tb-group-label.is-q::after { background: var(--al-rule-faint); }
+.tb-tools-wrap { margin-bottom: 22px; }
+.tb-tool-built {
+    position: relative; overflow: hidden;
+    background:
+        radial-gradient(120% 140% at 100% 0%, rgba(138,106,58,.10), transparent 60%),
+        var(--al-marble);
+    border: 1px solid rgba(138,106,58,.32);
+    border-left: 3px solid var(--al-bronze);
+    border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
+}
+.tb-tool-ic {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
+    display: grid; place-content: center;
+    background: var(--al-ink); color: var(--al-parchment);
+    box-shadow: 0 3px 10px rgba(20,17,13,.16);
+}
+.tb-tool-ic i { font-size: 19px; }
+.tb-tool-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 7px; border-radius: 999px;
+    background: var(--al-bronze); color: #fff;
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.tb-tool-secs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.tb-tool-sec {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--al-parchment); border: 1px solid var(--al-rule);
+    font-size: 11px; color: var(--al-ink-mute);
+}
+.tb-tool-sec i { font-size: 12px; color: var(--al-bronze); }
+.tb-tool-expand {
+    margin-top: 11px; display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--al-bronze);
+    padding: 2px 0;
+}
+.tb-tool-expand i { transition: transform 160ms var(--al-ease); }
+.tb-tool-expand:hover { text-decoration: underline; }
+.tb-tool-detail { margin-top: 11px; padding-top: 12px; border-top: 1px dashed var(--al-rule); display: flex; flex-direction: column; gap: 13px; }
+.tb-tool-detsec-h { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--al-bronze); margin-bottom: 6px; }
+.tb-tool-detsec-h i { font-size: 13px; }
+.tb-tool-fields { display: flex; flex-wrap: wrap; gap: 6px; }
+.tb-tool-field {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px; border-radius: 8px;
+    background: var(--al-parchment); border: 1px solid var(--al-rule);
+    font-size: 11.5px; color: var(--al-ink);
+}
+.tb-tool-field .tb-tool-fu { color: var(--al-ink-mute); font-size: 10px; }
+.tb-tool-fk { font-size: 9px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--al-ink-mute); background: var(--al-marble); padding: 1px 6px; border-radius: 999px; }
+.tb-type-card.tb-tool-pick { border-color: rgba(138,106,58,.4); }
+.tb-type-card.tb-tool-pick i { color: var(--al-ink); }
+.tb-type-card.is-disabled { opacity: .5; cursor: not-allowed; }
+.tb-type-card.is-disabled:hover { transform: none; border-color: var(--al-rule); background: var(--al-parchment); }
 </style>
 
 <form id="tb-form" method="POST" action="{% if template %}{% url 'check_template_edit' template_id=template.id %}{% else %}{% url 'check_template_new' %}{% endif %}">
@@ -240,19 +305,74 @@
                            class="al-input"
                            style="font-family: var(--al-display); font-size: 26px; padding: 4px 8px; max-width: 480px; letter-spacing: -0.005em;">
                 </template>
-                <p class="al-body text-sm mt-1">Aggiungi e configura le domande di questa sezione. Trascina per riordinare.</p>
+                <p class="al-body text-sm mt-1">Aggiungi domande e strumenti a questa sezione. Trascina le domande per riordinarle.</p>
             </div>
         </div>
 
-        <template x-if="activeStepQuestions.length === 0">
-            <div class="al-empty my-6">
-                <i class="ph ph-question al-empty-icon"></i>
-                <h3>Nessuna domanda</h3>
-                <p>Aggiungi la prima domanda con il pulsante qui sotto.</p>
+        <!-- Strumenti della sezione (distinti dalle domande) -->
+        <template x-if="activeStepTools.length">
+            <div class="tb-tools-wrap">
+                <p class="tb-group-label"><i class="ph ph-wrench"></i> Strumenti</p>
+                <template x-for="q in activeStepTools" :key="q.id">
+                    <div class="tb-tool-built">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="tb-tool-ic"><i :class="'ph ' + toolMeta(q).icon"></i></span>
+                                <span class="min-w-0">
+                                    <span class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-medium text-ink text-sm" x-text="q.label"></span>
+                                        <span class="tb-tool-badge"><i class="ph ph-sparkle" style="font-size:9px;"></i> Strumento</span>
+                                    </span>
+                                    <span class="tb-type-desc block" style="margin-top:2px;" x-text="toolMeta(q).desc"></span>
+                                </span>
+                            </div>
+                            <button @click="removeQuestion(q.id)" type="button" title="Rimuovi strumento" class="p-1.5 rounded transition-colors hover:bg-marble shrink-0" style="color: var(--al-ink-mute);">
+                                <i class="ph ph-trash text-sm"></i>
+                            </button>
+                        </div>
+                        <div class="tb-tool-secs">
+                            <template x-for="s in toolMeta(q).sections" :key="s.label">
+                                <span class="tb-tool-sec"><i :class="'ph ' + s.icon"></i><span x-text="s.label"></span></span>
+                            </template>
+                        </div>
+                        <button type="button" class="tb-tool-expand" @click="toggleToolExpand(q.id)">
+                            <i :class="'ph ' + (isToolExpanded(q.id) ? 'ph-caret-up' : 'ph-caret-down')"></i>
+                            <span x-text="isToolExpanded(q.id) ? 'Nascondi i campi' : 'Mostra i campi dello strumento'"></span>
+                        </button>
+                        <div class="tb-tool-detail" x-show="isToolExpanded(q.id)" x-cloak>
+                            <template x-for="s in toolMeta(q).sections" :key="s.label">
+                                <div>
+                                    <p class="tb-tool-detsec-h"><i :class="'ph ' + s.icon"></i><span x-text="s.label"></span></p>
+                                    <div class="tb-tool-fields">
+                                        <template x-for="f in (s.fields || [])" :key="f.label">
+                                            <span class="tb-tool-field">
+                                                <span x-text="f.label"></span>
+                                                <template x-if="f.unit"><span class="tb-tool-fu" x-text="f.unit"></span></template>
+                                                <template x-if="f.kind"><span class="tb-tool-fk" x-text="f.kind"></span></template>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </div>
         </template>
 
-        <template x-for="q in activeStepQuestions" :key="q.id">
+        <template x-if="activeStepTools.length && activeStepQuestionsOnly.length">
+            <p class="tb-group-label is-q"><i class="ph ph-list-dashes"></i> Domande</p>
+        </template>
+
+        <template x-if="activeStepQuestionsOnly.length === 0 && activeStepTools.length === 0">
+            <div class="al-empty my-6">
+                <i class="ph ph-question al-empty-icon"></i>
+                <h3>Nessuna domanda</h3>
+                <p>Aggiungi la prima domanda o strumento con il pulsante qui sotto.</p>
+            </div>
+        </template>
+
+        <template x-for="q in activeStepQuestionsOnly" :key="q.id">
             <div class="tb-q-card"
                  draggable="true"
                  @dragstart="dragSrcId = q.id"
@@ -439,6 +559,26 @@
                                 <span class="tb-type-desc block">Upload file</span>
                             </span>
                         </button>
+                    </div>
+
+                    <!-- Strumenti: non semplici domande, ma calcolatori interattivi -->
+                    <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--al-rule);">
+                        <p class="al-eyebrow mb-1" style="color: var(--al-bronze);">Strumenti</p>
+                        <p class="al-small mb-2" style="color: var(--al-ink-mute);">Non una domanda: un calcolatore interattivo che lavora sui dati dell'atleta.</p>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button @click="addTool('fabbisogni')" type="button"
+                                    class="tb-type-card tb-tool-pick"
+                                    :class="{'is-disabled': toolUsed('fabbisogni')}"
+                                    :disabled="toolUsed('fabbisogni')"
+                                    :title="toolUsed('fabbisogni') ? 'Questo strumento è già presente nel modello' : ''">
+                                <i class="ph ph-calculator"></i>
+                                <span class="min-w-0 flex-1">
+                                    <span class="tb-type-name block">Calcolo Fabbisogni</span>
+                                    <span class="tb-type-desc block">BMR · DET con deficit/surplus · macro in tempo reale</span>
+                                </span>
+                                <span x-show="toolUsed('fabbisogni')" class="tb-locked-tag" style="white-space:nowrap;">già aggiunto</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -663,7 +803,55 @@ const TB_TYPE_LABELS = {
     checkbox: 'Scelta multipla',
     aperta:   'Risposta aperta',
     allegato: 'Allegato',
+    strumento_fabbisogni: 'Strumento',
 };
+
+// Strumenti = calcolatori interattivi (non semplici domande). Ogni strumento
+// è un item in questions_config con type 'strumento_<key>'.
+const TB_TOOLS = {
+    fabbisogni: {
+        type: 'strumento_fabbisogni',
+        label: 'Calcolo Fabbisogni',
+        icon: 'ph-calculator',
+        desc: 'Calcolatore interattivo: dati atleta → BMR → DET → macro, in tempo reale.',
+        sections: [
+            { icon: 'ph-identification-card', label: 'Dati base', fields: [
+                { label: 'Altezza', unit: 'cm', kind: 'da scheda' },
+                { label: 'Peso corporeo', unit: 'kg', kind: 'da check' },
+                { label: 'Età', unit: 'anni', kind: 'da nascita' },
+                { label: 'Sesso', kind: 'da scheda' },
+                { label: 'Formula MB', kind: 'scelta + custom' },
+                { label: 'MB stimata', unit: 'kcal', kind: 'auto' },
+            ] },
+            { icon: 'ph-lightning', label: 'Fabbisogni energetici', fields: [
+                { label: 'LAF / PAL', unit: '×' },
+                { label: 'Descrizione attività', kind: 'nota' },
+                { label: 'DET base', unit: 'kcal', kind: 'MB×PAL' },
+                { label: 'Aggiusta deficit / surplus', unit: 'kcal' },
+                { label: 'DET finale', unit: 'kcal', kind: 'auto' },
+                { label: 'Note DET', kind: 'nota' },
+            ] },
+            { icon: 'ph-scales', label: 'Macronutrienti', fields: [
+                { label: 'Proteine', kind: 'g/kg → g → kcal' },
+                { label: 'Carboidrati', kind: 'g/kg → g → kcal' },
+                { label: 'Lipidi', kind: 'g/kg → g → kcal' },
+                { label: 'Note per macro', kind: 'nota' },
+                { label: 'kcal residue sul DET', kind: 'auto' },
+            ] },
+            { icon: 'ph-drop', label: 'Altri fabbisogni', fields: [
+                { label: 'Fabbisogno fibra', unit: 'g/die' },
+                { label: 'Fabbisogno idrico', unit: 'ml/die' },
+                { label: 'Note fibra / idrico', kind: 'nota' },
+                { label: 'Micronutrienti da monitorare', kind: 'nota' },
+            ] },
+            { icon: 'ph-note-pencil', label: 'Note operative', fields: [
+                { label: 'Sintesi punti chiave', kind: 'nota' },
+            ] },
+        ],
+    },
+};
+const TB_TOOL_BY_TYPE = Object.fromEntries(Object.entries(TB_TOOLS).map(([k, v]) => [v.type, { key: k, ...v }]));
+const tbIsTool = (q) => !!(q && typeof q.type === 'string' && q.type.startsWith('strumento_'));
 
 const CATALOG = JSON.parse('{{ catalog_json|escapejs }}' || '{"circumferences":[],"skinfolds":[]}');
 const CIRC_ORDER = [];
@@ -731,6 +919,42 @@ function templateBuilder() {
         get activeStepQuestions() {
             if (!this.activeStep) return [];
             return this.questions.filter(q => q.step_id === this.activeStep.id);
+        },
+        get activeStepTools() {
+            return this.activeStepQuestions.filter(q => tbIsTool(q));
+        },
+        get activeStepQuestionsOnly() {
+            return this.activeStepQuestions.filter(q => !tbIsTool(q));
+        },
+
+        // ── Strumenti ──
+        isTool: tbIsTool,
+        expandedToolIds: [],
+        isToolExpanded(id) { return this.expandedToolIds.includes(id); },
+        toggleToolExpand(id) {
+            const i = this.expandedToolIds.indexOf(id);
+            if (i >= 0) this.expandedToolIds.splice(i, 1); else this.expandedToolIds.push(id);
+        },
+        toolMeta(q) {
+            return TB_TOOL_BY_TYPE[q.type] || { icon: 'ph-wrench', desc: '', sections: [] };
+        },
+        toolUsed(toolKey) {
+            const t = TB_TOOLS[toolKey];
+            return !!t && this.questions.some(q => q.type === t.type);
+        },
+        addTool(toolKey) {
+            const t = TB_TOOLS[toolKey];
+            if (!t || this.toolUsed(toolKey) || this.activeStepId === '__report__') return;
+            this.questions.push({
+                id: 'tool_' + toolKey + '_' + Date.now(),
+                step_id: this.activeStepId,
+                type: t.type,
+                tool: toolKey,
+                label: t.label,
+                report_visible: true,
+            });
+            if (this.presetKey) this.dirtyPreset = true;
+            this.closeModal();
         },
         selectStep(id) {
             this.activeStepId = id;
@@ -971,7 +1195,7 @@ function templateBuilder() {
 
         // ── Report ──
         get reportSteps() {
-            const visibleQs = this.questions.filter(q => q.report_visible !== false);
+            const visibleQs = this.questions.filter(q => q.report_visible !== false && !tbIsTool(q));
             return this.steps.map(s => ({
                 id: s.id,
                 label: s.label,

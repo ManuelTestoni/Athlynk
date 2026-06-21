@@ -283,6 +283,51 @@
                             <span class="al-tag font-mono" style="background: var(--al-marble); color: var(--al-ink);">{{ q.value }}</span>
                         </div>
 
+                        {# ── STRUMENTO: Calcolo Fabbisogni (riepilogo) ── #}
+                        {% elif q.type == 'strumento_fabbisogni' %}
+                        <div class="al-card al-card-warm al-card-flush" style="padding: 16px; border-left: 3px solid var(--al-bronze);">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="ph ph-calculator text-bronze"></i>
+                                <p class="al-eyebrow" style="color: var(--al-bronze);">{{ q.label }}</p>
+                            </div>
+                            {% if q.fb.det_finale %}
+                            <div class="flex items-end justify-between gap-3 flex-wrap mb-4" style="padding: 12px 14px; background: var(--al-ink); color: var(--al-parchment); border-radius: 10px;">
+                                <div>
+                                    <p class="al-eyebrow" style="color: rgba(244,239,228,.7);">DET finale</p>
+                                    <p class="al-display font-mono" style="font-size: 26px; line-height: 1;">{{ q.fb.det_finale }}<span class="text-sm"> kcal/die</span></p>
+                                </div>
+                                {% if q.fb.det_adjust %}<span class="al-tag font-mono" style="background: rgba(244,239,228,.14); color: var(--al-parchment);">base {{ q.fb.det_base }} · {% if q.fb.det_adjust > 0 %}+{% endif %}{{ q.fb.det_adjust }} kcal</span>{% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="flex flex-wrap gap-x-6 gap-y-1 mb-3 text-sm" style="color: var(--al-ink-mute);">
+                                {% if q.fb.peso %}<span>Peso <strong class="text-ink">{{ q.fb.peso }}</strong> kg</span>{% endif %}
+                                {% if q.fb.altezza %}<span>Altezza <strong class="text-ink">{{ q.fb.altezza }}</strong> cm</span>{% endif %}
+                                {% if q.fb.eta %}<span>Età <strong class="text-ink">{{ q.fb.eta }}</strong></span>{% endif %}
+                                {% if q.fb.sesso %}<span>{{ q.fb.sesso }}</span>{% endif %}
+                                {% if q.fb.mb %}<span>MB <strong class="text-ink">{{ q.fb.mb }}</strong> kcal</span>{% endif %}
+                                {% if q.fb.pal %}<span>PAL <strong class="text-ink">{{ q.fb.pal }}</strong>×</span>{% endif %}
+                                {% if q.fb.formula %}<span>· {{ q.fb.formula }}</span>{% endif %}
+                            </div>
+                            {% if q.fb.macros %}
+                            <div style="border: 1px solid var(--al-rule); border-radius: 10px; overflow: hidden; margin-bottom: 8px;">
+                                {% for m in q.fb.macros %}
+                                <div class="flex items-center justify-between gap-3" style="padding: 9px 12px;{% if not forloop.last %} border-bottom: 1px solid var(--al-rule-faint);{% endif %}">
+                                    <span class="text-ink font-medium text-sm">{{ m.label }}</span>
+                                    <span class="font-mono text-sm" style="color: var(--al-ink-mute);">{% if m.gkg %}{{ m.gkg }} g/kg · {% endif %}{% if m.g %}<strong class="text-ink">{{ m.g }}</strong> g{% endif %}{% if m.kcal %} · {{ m.kcal }} kcal{% endif %}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm" style="color: var(--al-ink-mute);">
+                                {% if q.fb.fibra %}<span>Fibra <strong class="text-ink">{{ q.fb.fibra }}</strong> g/die</span>{% endif %}
+                                {% if q.fb.idrico %}<span>Idratazione <strong class="text-ink">{{ q.fb.idrico }}</strong> ml/die</span>{% endif %}
+                            </div>
+                            {% if q.fb.pal_desc %}<p class="al-small mt-2" style="color: var(--al-ink-mute);"><strong>Attività:</strong> {{ q.fb.pal_desc }}</p>{% endif %}
+                            {% if q.fb.det_note %}<p class="al-small mt-1" style="color: var(--al-ink-mute);"><strong>Note DET:</strong> {{ q.fb.det_note }}</p>{% endif %}
+                            {% if q.fb.micro %}<p class="al-small mt-1" style="color: var(--al-ink-mute);"><strong>Micronutrienti:</strong> {{ q.fb.micro }}</p>{% endif %}
+                            {% if q.fb.note_op %}<p class="al-small mt-1" style="color: var(--al-ink-mute);"><strong>Note operative:</strong> {{ q.fb.note_op }}</p>{% endif %}
+                        </div>
+
                         {# ── FALLBACK ── #}
                         {% else %}
                         <div class="flex items-center justify-between gap-3">

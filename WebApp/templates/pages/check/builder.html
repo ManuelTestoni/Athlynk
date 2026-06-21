@@ -29,6 +29,100 @@
 }
 .ck-file-slot:hover { border-color: var(--al-bronze); }
 .ck-file-slot.has-file { border-color: var(--al-bronze); background: rgba(138,106,58,.08); border-style: solid; }
+
+/* ════════════════ Strumento: Calcolo Fabbisogni ════════════════ */
+.fb-tool { margin: 4px 0 6px; }
+.fb-intro {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; margin-bottom: 16px;
+    background:
+        radial-gradient(120% 160% at 100% 0%, rgba(138,106,58,.12), transparent 62%),
+        var(--al-marble);
+    border: 1px solid rgba(138,106,58,.30); border-left: 3px solid var(--al-bronze);
+    border-radius: var(--al-r-sm);
+}
+.fb-intro-ic { flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px; display: grid; place-content: center; background: var(--al-ink); color: var(--al-parchment); box-shadow: 0 3px 12px rgba(20,17,13,.18); }
+.fb-intro-ic i { font-size: 22px; }
+.fb-card {
+    background: var(--al-parchment); border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-sm); padding: 16px 18px; margin-bottom: 14px;
+}
+.fb-card-h { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.fb-card-n { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: grid; place-content: center; background: var(--al-marble); border: 1px solid var(--al-rule); color: var(--al-bronze); font-size: 12px; }
+.fb-card-t { font-family: var(--al-display); font-size: 18px; color: var(--al-ink); letter-spacing: -.01em; line-height: 1.1; }
+.fb-card-s { font-size: 11.5px; color: var(--al-ink-mute); margin-top: 1px; }
+.fb-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px 14px; }
+@media (min-width: 640px) { .fb-grid.is-4 { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+.fb-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fb-lab { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--al-ink); }
+.fb-lab .fb-from { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--al-bronze); background: rgba(138,106,58,.10); padding: 1px 6px; border-radius: 999px; }
+.fb-in {
+    display: flex; align-items: center; gap: 6px; padding: 0 10px;
+    background: var(--al-marble); border: 1.5px solid var(--al-rule); border-radius: 9px;
+    transition: border-color 140ms var(--al-ease), background 140ms var(--al-ease);
+}
+.fb-in:focus-within { border-color: var(--al-bronze); background: var(--al-parchment); }
+.fb-in input { flex: 1; min-width: 0; border: none; background: transparent; padding: 9px 0; font-size: 15px; color: var(--al-ink); font-variant-numeric: tabular-nums; outline: none; }
+.fb-in .fb-u { font-size: 11px; color: var(--al-ink-mute); white-space: nowrap; }
+.fb-in.is-auto { border-style: dashed; }
+.fb-seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.fb-seg-btn { padding: 9px 14px; border-radius: 9px; border: 1.5px solid var(--al-rule); background: var(--al-marble); font-size: 13px; font-weight: 600; color: var(--al-ink-mute); cursor: pointer; transition: all 140ms var(--al-ease); }
+.fb-seg-btn:hover { border-color: var(--al-bronze); }
+.fb-seg-btn.is-on { background: var(--al-ink); border-color: var(--al-ink); color: var(--al-parchment); }
+
+/* Formule MB con tooltip */
+.fb-formulas { display: flex; flex-wrap: wrap; gap: 8px; }
+.fb-formula { position: relative; }
+.fb-formula-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 9px; border: 1.5px solid var(--al-rule); background: var(--al-marble); font-size: 13px; font-weight: 600; color: var(--al-ink); cursor: pointer; transition: all 140ms var(--al-ease); }
+.fb-formula-btn:hover { border-color: var(--al-bronze); }
+.fb-formula-btn.is-on { background: var(--al-bronze); border-color: var(--al-bronze); color: #fff; }
+.fb-formula-btn .fb-info { font-size: 13px; opacity: .6; }
+.fb-tip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
+    width: max-content; max-width: 280px; z-index: 40;
+    background: var(--al-ink); color: var(--al-parchment);
+    padding: 9px 12px; border-radius: 9px; box-shadow: 0 8px 24px rgba(20,17,13,.28);
+    font-size: 11.5px; line-height: 1.5; letter-spacing: .01em;
+    opacity: 0; pointer-events: none; transition: opacity 140ms var(--al-ease), transform 140ms var(--al-ease);
+}
+.fb-tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--al-ink); }
+.fb-tip .fb-tip-h { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 9px; color: var(--al-bronze-2, #d8b985); margin-bottom: 3px; }
+.fb-tip code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #fff; }
+.fb-formula:hover .fb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.fb-add-formula { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 9px; border: 1.5px dashed var(--al-rule-strong); background: transparent; font-size: 12px; font-weight: 700; color: var(--al-bronze); cursor: pointer; transition: all 140ms var(--al-ease); }
+.fb-add-formula:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+
+/* DET / energetico */
+.fb-det {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    padding: 14px 16px; border-radius: 11px;
+    background: var(--al-ink); color: var(--al-parchment); margin-top: 4px;
+}
+.fb-det-lab { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+.fb-det-val { font-family: var(--al-display); font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.fb-det-val small { font-size: 13px; opacity: .65; font-family: var(--al-body, inherit); margin-left: 4px; }
+.fb-det-break { font-size: 11px; opacity: .8; margin-top: 4px; }
+.fb-det-break .fb-pos { color: #7fd1a8; } .fb-det-break .fb-neg { color: #ee9c8a; }
+
+/* Macronutrienti */
+.fb-macro { border: 1px solid var(--al-rule); border-radius: 10px; padding: 12px 13px; margin-bottom: 10px; background: var(--al-marble); }
+.fb-macro-top { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 10px; align-items: end; }
+@media (max-width: 560px) { .fb-macro-top { grid-template-columns: 1fr 1fr; } }
+.fb-macro-name { font-weight: 700; font-size: 13.5px; color: var(--al-ink); display: flex; align-items: center; gap: 7px; }
+.fb-macro-dot { width: 9px; height: 9px; border-radius: 50%; }
+.fb-out { display: flex; flex-direction: column; gap: 3px; }
+.fb-out-v { font-family: var(--al-display); font-size: 19px; color: var(--al-ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.fb-out-v small { font-size: 11px; color: var(--al-ink-mute); font-family: inherit; }
+.fb-rem-pos { color: var(--al-bronze); } .fb-rem-neg { color: #c0392b; }
+.fb-budget { margin-top: 6px; }
+.fb-budget-track { height: 9px; border-radius: 999px; background: var(--al-rule); overflow: hidden; display: flex; }
+.fb-budget-seg { height: 100%; transition: width 260ms var(--al-ease); }
+.fb-budget-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 11.5px; color: var(--al-ink-mute); }
+.fb-budget-foot strong { font-variant-numeric: tabular-nums; }
+.fb-over { color: #c0392b; font-weight: 700; }
+.fb-note { width: 100%; margin-top: 9px; }
+.fb-note textarea { min-height: 0; }
+.fb-warn { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: rgba(192,57,43,.08); border: 1px solid rgba(192,57,43,.25); color: #a5331f; font-size: 12px; }
 </style>
 
 <form id="check-fill-form" method="POST" action="{% if is_edit %}{% url 'check_edit' response.id %}{% else %}{% url 'check_create' %}{% endif %}" enctype="multipart/form-data">
@@ -103,7 +197,193 @@
                 </template>
 
                 <template x-for="q in questionsFor(s.id)" :key="q.id">
-                    <div class="ck-q-card">
+                  <div>
+                    <!-- ░░░ Strumento: Calcolo Fabbisogni ░░░ -->
+                    <template x-if="q.type === 'strumento_fabbisogni'">
+                      <div class="fb-tool">
+                        <div class="fb-intro">
+                            <span class="fb-intro-ic"><i class="ph ph-calculator"></i></span>
+                            <div class="min-w-0">
+                                <p class="al-eyebrow" style="color: var(--al-ink); margin:0;">Strumento · Calcolo Fabbisogni</p>
+                                <p class="al-small" style="color: var(--al-ink-mute); margin-top:2px;">Dati atleta precompilati e modificabili. I calcoli si aggiornano in tempo reale.</p>
+                            </div>
+                        </div>
+
+                        <!-- 1 · Dati base -->
+                        <div class="fb-card">
+                            <div class="fb-card-h"><span class="fb-card-n">1</span><div><div class="fb-card-t">Dati base</div><div class="fb-card-s">Antropometria e formula del metabolismo basale</div></div></div>
+                            <div class="fb-grid is-4">
+                                <div class="fb-field">
+                                    <label class="fb-lab">Altezza <span class="fb-from" x-show="fbPrefilled('altezza_cm')">scheda</span></label>
+                                    <span class="fb-in"><input type="number" inputmode="decimal" min="80" max="250" placeholder="—" :value="answers.altezza_cm ?? ''" @input="answers.altezza_cm=$event.target.value"><span class="fb-u">cm</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Peso corporeo <span class="fb-from" x-show="fbPrefilled('peso_kg')">check</span></label>
+                                    <span class="fb-in"><input type="number" inputmode="decimal" min="25" max="350" placeholder="—" :value="answers.peso_kg ?? ''" @input="answers.peso_kg=$event.target.value"><span class="fb-u">kg</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Età <span class="fb-from" x-show="fbPrefilled('eta_anni')">nascita</span></label>
+                                    <span class="fb-in"><input type="number" inputmode="numeric" min="10" max="110" placeholder="—" :value="answers.eta_anni ?? ''" @input="answers.eta_anni=$event.target.value"><span class="fb-u">anni</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Sesso <span class="fb-from" x-show="fbPrefilled('sesso')">scheda</span></label>
+                                    <div class="fb-seg">
+                                        <button type="button" class="fb-seg-btn" :class="{'is-on': answers.sesso==='Maschio'}" @click="answers.sesso='Maschio'">Maschio</button>
+                                        <button type="button" class="fb-seg-btn" :class="{'is-on': answers.sesso==='Femmina'}" @click="answers.sesso='Femmina'">Femmina</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px;">
+                                <label class="fb-lab" style="margin-bottom:8px;">Formula metabolismo basale (MB) <span style="color:var(--al-ink-mute);font-weight:400;">· passa sopra per la formula</span></label>
+                                <div class="fb-formulas">
+                                    <template x-for="f in fbAllFormulas()" :key="f.name">
+                                        <div class="fb-formula">
+                                            <button type="button" class="fb-formula-btn" :class="{'is-on': answers.formula_mb===f.name}" @click="answers.formula_mb=f.name">
+                                                <span x-text="f.name"></span><i class="ph ph-info fb-info"></i>
+                                            </button>
+                                            <div class="fb-tip"><div class="fb-tip-h" x-text="f.custom ? 'Formula personalizzata' : 'Formula'"></div><div x-html="f.tip"></div></div>
+                                        </div>
+                                    </template>
+                                    <button type="button" class="fb-add-formula" @click="fbOpenFormula()"><i class="ph ph-plus"></i> Formula personalizzata</button>
+                                </div>
+                            </div>
+                            <div class="fb-grid" style="margin-top:16px;">
+                                <div class="fb-field">
+                                    <label class="fb-lab">MB stimata <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">auto · modificabile</span></label>
+                                    <span class="fb-in is-auto"><input type="number" inputmode="numeric" placeholder="—" :value="answers.mb_stimata_kcal ?? ''" @input="answers.mb_stimata_kcal=$event.target.value"><span class="fb-u">kcal</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2 · Fabbisogni energetici -->
+                        <div class="fb-card">
+                            <div class="fb-card-h"><span class="fb-card-n">2</span><div><div class="fb-card-t">Fabbisogni energetici</div><div class="fb-card-s">Livello di attività, DET e modulazione calorica</div></div></div>
+                            <div class="fb-grid">
+                                <div class="fb-field">
+                                    <label class="fb-lab">LAF / PAL — livello di attività</label>
+                                    <span class="fb-in"><input type="number" step="0.005" inputmode="decimal" min="1" max="2.6" placeholder="—" :value="answers.pal_valore ?? ''" @input="answers.pal_valore=$event.target.value"><span class="fb-u">×</span></span>
+                                    <div class="fb-seg" style="margin-top:7px;">
+                                        <template x-for="p in fbPalPresets" :key="p.v">
+                                            <button type="button" class="fb-seg-btn" style="padding:5px 9px;font-size:11px;" :class="{'is-on': String(answers.pal_valore)===String(p.v)}" @click="answers.pal_valore=String(p.v)" x-text="p.l"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Descrizione livello di attività</label>
+                                    <textarea class="al-textarea" rows="2" placeholder="Es. lavoro sedentario + 4 sessioni/sett…" :value="answers.pal_descrizione ?? ''" @input="answers.pal_descrizione=$event.target.value"></textarea>
+                                </div>
+                            </div>
+                            <div class="fb-grid" style="margin-top:14px;">
+                                <div class="fb-field">
+                                    <label class="fb-lab">DET base <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">MB × PAL</span></label>
+                                    <span class="fb-in is-auto"><input type="number" inputmode="numeric" placeholder="—" :value="answers.det_kcal ?? ''" @input="answers.det_kcal=$event.target.value"><span class="fb-u">kcal</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Aggiusta — deficit (−) / surplus (+)</label>
+                                    <div class="fb-seg" style="flex-wrap:nowrap; align-items:stretch;">
+                                        <button type="button" class="fb-seg-btn" @click="fbBumpAdjust(-50)">−50</button>
+                                        <span class="fb-in" style="flex:1;"><input type="number" inputmode="numeric" step="10" placeholder="0" :value="answers.det_adjust_kcal ?? ''" @input="answers.det_adjust_kcal=$event.target.value"><span class="fb-u">kcal</span></span>
+                                        <button type="button" class="fb-seg-btn" @click="fbBumpAdjust(50)">+50</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fb-det">
+                                <div>
+                                    <div class="fb-det-lab">DET finale · riferimento macro</div>
+                                    <div class="fb-det-val"><span x-text="fbDetFinal || '—'"></span><small>kcal/die</small></div>
+                                </div>
+                                <div class="fb-det-break" x-show="fbAdjust !== 0">
+                                    <span x-text="(answers.det_kcal||0)"></span> base
+                                    <span :class="fbAdjust>0 ? 'fb-pos' : 'fb-neg'" x-text="(fbAdjust>0?'  +':'  ')+fbAdjust+' kcal'"></span>
+                                </div>
+                            </div>
+                            <div class="fb-field" style="margin-top:12px;">
+                                <label class="fb-lab">Note DET</label>
+                                <textarea class="al-textarea" rows="2" placeholder="Obiettivo calorico, modulazione per fasi, strategie…" :value="answers.det_note ?? ''" @input="answers.det_note=$event.target.value"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 3 · Macronutrienti -->
+                        <div class="fb-card">
+                            <div class="fb-card-h"><span class="fb-card-n">3</span><div><div class="fb-card-t">Macronutrienti</div><div class="fb-card-s">Target g/kg ⇄ grammi: compila l'uno, l'altro si calcola. «kcal rimaste» = DET meno tutti i macro, uguale e live nei tre.</div></div></div>
+                            <template x-for="m in fbMacroDefs" :key="m.key">
+                                <div class="fb-macro">
+                                    <div class="fb-macro-top">
+                                        <div class="fb-field">
+                                            <label class="fb-macro-name"><span class="fb-macro-dot" :style="'background:'+m.color"></span><span x-text="m.label"></span></label>
+                                            <span class="fb-in"><input type="number" step="0.1" inputmode="decimal" min="0" placeholder="0.0" :value="answers[m.gkgKey] ?? ''" @input="answers[m.gkgKey]=$event.target.value; fbMacroFromGkg(m)"><span class="fb-u" x-text="m.gkgUnit"></span></span>
+                                        </div>
+                                        <div class="fb-field">
+                                            <label class="fb-lab">Grammi totali <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">⇄</span></label>
+                                            <span class="fb-in"><input type="number" inputmode="numeric" min="0" placeholder="—" :value="answers[m.gKey] ?? ''" @input="answers[m.gKey]=$event.target.value; fbMacroFromGrams(m)"><span class="fb-u">g</span></span>
+                                        </div>
+                                        <div class="fb-out">
+                                            <span class="fb-lab">Energia</span>
+                                            <span class="fb-out-v"><span x-text="fbMacroKcalOf(m) || '—'"></span><small> kcal</small></span>
+                                        </div>
+                                        <div class="fb-out">
+                                            <span class="fb-lab" title="kcal del DET ancora libere (DET meno tutti i macro): uguale e live nei tre macro">kcal rimaste</span>
+                                            <span class="fb-out-v" :class="fbKcalLeft===null ? '' : (fbKcalLeft<0 ? 'fb-rem-neg' : 'fb-rem-pos')"><span x-text="fbKcalLeft===null ? '—' : fbKcalLeft"></span><small x-show="fbKcalLeft!==null"> kcal</small></span>
+                                        </div>
+                                    </div>
+                                    <div class="fb-note">
+                                        <textarea class="al-textarea" rows="1" :placeholder="'Note ' + m.label.toLowerCase() + '…'" :value="answers[m.noteKey] ?? ''" @input="answers[m.noteKey]=$event.target.value"></textarea>
+                                    </div>
+                                </div>
+                            </template>
+                            <div class="fb-budget" x-show="fbDetFinal">
+                                <div class="fb-budget-track">
+                                    <template x-for="seg in fbBudgetSegments()" :key="seg.key">
+                                        <span class="fb-budget-seg" :style="'width:'+seg.pct+'%;background:'+seg.color"></span>
+                                    </template>
+                                </div>
+                                <div class="fb-budget-foot">
+                                    <span>Assegnate <strong x-text="fbMacroKcal"></strong> / <strong x-text="fbDetFinal"></strong> kcal</span>
+                                    <span :class="fbMacroRemaining<0 ? 'fb-over' : ''"><span x-text="fbMacroRemaining<0 ? 'Sforo ' : 'Libere '"></span><strong x-text="Math.abs(fbMacroRemaining)"></strong> kcal</span>
+                                </div>
+                            </div>
+                            <div class="fb-warn" x-show="fbDetFinal && fbMacroRemaining < 0">
+                                <i class="ph-fill ph-warning-circle"></i><span>I macro superano il DET finale di <strong x-text="Math.abs(fbMacroRemaining)"></strong> kcal: riduci un target.</span>
+                            </div>
+                        </div>
+
+                        <!-- 4 · Altri fabbisogni -->
+                        <div class="fb-card">
+                            <div class="fb-card-h"><span class="fb-card-n">4</span><div><div class="fb-card-t">Altri fabbisogni</div><div class="fb-card-s">Fibra, idratazione e micronutrienti</div></div></div>
+                            <div class="fb-grid">
+                                <div class="fb-field">
+                                    <label class="fb-lab">Fabbisogno fibra</label>
+                                    <span class="fb-in"><input type="number" inputmode="numeric" min="0" placeholder="—" :value="answers.fibra_gdie ?? ''" @input="answers.fibra_gdie=$event.target.value"><span class="fb-u">g/die</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Nota fibra</label>
+                                    <textarea class="al-textarea" rows="1" placeholder="Tolleranza, fonti consigliate…" :value="answers.fibra_note ?? ''" @input="answers.fibra_note=$event.target.value"></textarea>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Fabbisogno idrico</label>
+                                    <span class="fb-in"><input type="number" inputmode="numeric" min="0" step="50" placeholder="—" :value="answers.idrico_mldie ?? ''" @input="answers.idrico_mldie=$event.target.value"><span class="fb-u">ml/die</span></span>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-lab">Nota idratazione</label>
+                                    <textarea class="al-textarea" rows="1" placeholder="ml/kg, ml/kcal, sintomi…" :value="answers.idrico_criterio ?? ''" @input="answers.idrico_criterio=$event.target.value"></textarea>
+                                </div>
+                            </div>
+                            <div class="fb-field" style="margin-top:12px;">
+                                <label class="fb-lab">Micronutrienti da monitorare</label>
+                                <textarea class="al-textarea" rows="2" placeholder="Ca, Fe, Vit D, Mg, Zn… secondo quadro clinico/sportivo" :value="answers.micronutrienti_critici ?? ''" @input="answers.micronutrienti_critici=$event.target.value"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 5 · Note operative -->
+                        <div class="fb-card">
+                            <div class="fb-card-h"><span class="fb-card-n">5</span><div><div class="fb-card-t">Note operative</div><div class="fb-card-s">Sintesi, vincoli e priorità</div></div></div>
+                            <textarea class="al-textarea" rows="3" placeholder="Vincoli, priorità, bandierine rosse, strategie iniziali, adattamenti programmati…" :value="answers.note_operative ?? ''" @input="answers.note_operative=$event.target.value"></textarea>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Domanda normale -->
+                    <div class="ck-q-card" x-show="q.type !== 'strumento_fabbisogni'">
                         <div class="flex items-center justify-between gap-3 mb-2">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="font-medium text-ink text-sm" x-text="q.label"></span>
@@ -319,6 +599,7 @@
                             </div>
                         </template>
                     </div>
+                  </div>
                 </template>
             </div>
         </template>
@@ -345,6 +626,43 @@
                 {% endif %}
             </button>
         </div>
+
+        <!-- Modale: nuova formula MB personalizzata -->
+        <template x-teleport="body">
+        <div x-show="fbFormulaModal" x-cloak style="position:fixed;inset:0;z-index:60;">
+            <div class="al-modal-backdrop" @click="fbCloseFormula()"></div>
+            <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:61;max-width:480px;width:calc(100% - 2rem);" @click.stop>
+                <div class="al-modal-head flex items-start justify-between gap-4">
+                    <div>
+                        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Strumento Fabbisogni</p>
+                        <h3 class="al-h-2">Formula MB personalizzata</h3>
+                        <p class="al-small mt-1" style="color: var(--al-ink-mute);">Variabili: <strong>P</strong> peso (kg) · <strong>H</strong> altezza (cm) · <strong>A</strong> età (anni). Operatori: + − * / ( ).</p>
+                    </div>
+                    <button @click="fbCloseFormula()" type="button" class="al-btn al-btn-ghost shrink-0" style="padding:6px;"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="al-modal-body space-y-3">
+                    <div>
+                        <label class="al-label">Nome formula</label>
+                        <input type="text" x-model="fbNewFormula.name" placeholder="Es. Katch-McArdle" class="al-input" maxlength="60">
+                    </div>
+                    <div>
+                        <label class="al-label">Formula</label>
+                        <input type="text" x-model="fbNewFormula.expr" placeholder="Es. 370 + 21.6 * (P * 0.85)" class="al-input" style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">
+                        <p class="al-small mt-1" style="color: var(--al-ink-mute);">Anteprima con P=80, H=180, A=30: <strong x-text="fbFormulaPreview()"></strong></p>
+                    </div>
+                    <template x-if="fbFormulaError">
+                        <div class="al-toast is-danger"><i class="ph-fill ph-warning-circle shrink-0"></i><span x-text="fbFormulaError"></span></div>
+                    </template>
+                </div>
+                <div class="al-modal-foot">
+                    <button @click="fbCloseFormula()" type="button" class="al-btn al-btn-ghost">Annulla</button>
+                    <button @click="fbSaveFormula()" type="button" class="al-btn al-btn-bronze" :disabled="fbSaving">
+                        <i class="ph ph-floppy-disk text-sm"></i><span x-text="fbSaving ? 'Salvataggio…' : 'Salva e usa'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        </template>
 
     </div>
 </form>
@@ -386,6 +704,54 @@ function _circRows(keys) {
     }
     return rows;
 }
+// Valutatore aritmetico sicuro (no eval): numeri, + - * / ^, parentesi e le
+// variabili passate in `vars` (P, H, A). Qualsiasi altro identificatore o
+// token → null. Usato per le formule MB personalizzate del coach.
+function fbSafeEval(expr, vars) {
+    const s = String(expr || '');
+    if (!s.trim()) return null;
+    const tokens = s.match(/(\d+\.?\d*|\.\d+|[A-Za-z]+|[()+\-*/])/g);
+    if (!tokens) return null;
+    let i = 0;
+    const peek = () => tokens[i];
+    function parseExpr() {
+        let v = parseTerm();
+        while (peek() === '+' || peek() === '-') { const op = tokens[i++]; const r = parseTerm(); v = op === '+' ? v + r : v - r; }
+        return v;
+    }
+    function parseTerm() {
+        let v = parseUnary();
+        while (peek() === '*' || peek() === '/') { const op = tokens[i++]; const r = parseUnary(); v = op === '*' ? v * r : v / r; }
+        return v;
+    }
+    function parseUnary() {
+        if (peek() === '-') { i++; return -parseUnary(); }
+        if (peek() === '+') { i++; return parseUnary(); }
+        return parsePrimary();
+    }
+    function parsePrimary() {
+        const t = tokens[i++];
+        if (t === '(') { const v = parseExpr(); if (tokens[i++] !== ')') throw new Error('paren'); return v; }
+        if (/^(\d|\.)/.test(t)) return parseFloat(t);
+        if (/^[A-Za-z]+$/.test(t)) { if (!(t in vars)) throw new Error('var'); return vars[t]; }
+        throw new Error('tok');
+    }
+    try {
+        const v = parseExpr();
+        if (i !== tokens.length) return null;
+        return (typeof v === 'number' && isFinite(v)) ? v : null;
+    } catch (e) { return null; }
+}
+
+const FB_BUILTIN_FORMULAS = [
+    { name: 'Mifflin-St Jeor', tip: 'M: 10·P + 6.25·H − 5·A + 5<br>F: 10·P + 6.25·H − 5·A − 161' },
+    { name: 'Harris-Benedict', tip: 'M: 88.36 + 13.4·P + 4.8·H − 5.7·A<br>F: 447.6 + 9.25·P + 3.1·H − 4.3·A' },
+    { name: 'Cunningham',      tip: '500 + 22 · LBM<br>LBM = P · 0.80 (M) / 0.75 (F)' },
+];
+function fbEscapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
 function checkFill() {
     return {
         questions: JSON.parse('{{ questions_config_json|escapejs }}' || '[]'),
@@ -396,6 +762,24 @@ function checkFill() {
         stepIdx: 0,
         rangeErr: {},
         weightBounds: WEIGHT_BOUNDS,
+
+        // ── Strumento Calcolo Fabbisogni ──
+        customFormulas: JSON.parse('{{ custom_bmr_formulas_json|escapejs }}' || '[]'),
+        fbActive: false,
+        fbPrefillKeys: new Set(),
+        fbFormulaModal: false,
+        fbNewFormula: { name: '', expr: '' },
+        fbFormulaError: '',
+        fbSaving: false,
+        fbPalPresets: [
+            { v: 1.2, l: 'Sedentario' }, { v: 1.375, l: 'Leggero' }, { v: 1.55, l: 'Moderato' },
+            { v: 1.725, l: 'Attivo' }, { v: 1.9, l: 'Molto attivo' },
+        ],
+        fbMacroDefs: [
+            { key: 'proteine',    label: 'Proteine',    gkgKey: 'proteine_gkg',    gKey: 'proteine_g_totale',    noteKey: 'proteine_note',    factor: 4, gkgUnit: 'g/kg', color: '#8a6a3a' },
+            { key: 'carboidrati', label: 'Carboidrati', gkgKey: 'carboidrati_gkg', gKey: 'carboidrati_g_totale', noteKey: 'carboidrati_note', factor: 4, gkgUnit: 'g/kg', color: '#4f7d6a' },
+            { key: 'lipidi',      label: 'Lipidi',      gkgKey: 'lipidi_target',   gKey: 'lipidi_g_totale',      noteKey: 'lipidi_note',      factor: 9, gkgUnit: 'g/kg', color: '#b5854a' },
+        ],
 
         circLabel: _circLabel,
         circRows: _circRows,
@@ -426,22 +810,46 @@ function checkFill() {
                     this.answers[q.id] = [];
                 }
             });
-            {% if template.questionnaire_type == 'preset_calcolo_fabbisogni' %}
-            this.$watch(
-                () => [this.answers.altezza_cm, this.answers.peso_kg, this.answers.eta_anni,
-                       this.answers.sesso, this.answers.formula_mb].join('|'),
-                () => this._fbCalcBMR()
-            );
-            this.$watch(
-                () => (this.answers.mb_stimata_kcal || '') + '|' + (this.answers.pal_valore || ''),
-                () => this._fbCalcDET()
-            );
-            this.$watch(
-                () => [this.answers.peso_kg, this.answers.proteine_gkg,
-                       this.answers.carboidrati_gkg, this.answers.lipidi_target].join('|'),
-                () => this._fbCalcMacros()
-            );
-            {% endif %}
+            // Strumento Calcolo Fabbisogni: attiva i calcoli reattivi se presente.
+            this.fbActive = this.questions.some(q => q.type === 'strumento_fabbisogni');
+            if (this.fbActive) {
+                this.fbPrefillKeys = new Set(
+                    ['altezza_cm', 'peso_kg', 'eta_anni', 'sesso']
+                        .filter(k => this.answers[k] !== undefined && this.answers[k] !== '')
+                );
+                // Pre-inizializza TUTTE le chiavi del tool: in Alpine le proprietà
+                // assenti all'avvio non sono reattive in modo affidabile se aggiunte
+                // dopo (specie dentro x-for). Così ogni cella (kcal, disponibili) si
+                // aggiorna live appena cambia il proprio macro.
+                [
+                    'altezza_cm','peso_kg','eta_anni','sesso','formula_mb','mb_stimata_kcal',
+                    'pal_valore','pal_descrizione','det_kcal','det_adjust_kcal','det_finale_kcal','det_note',
+                    'proteine_gkg','proteine_g_totale','proteine_note',
+                    'carboidrati_gkg','carboidrati_g_totale','carboidrati_note',
+                    'lipidi_target','lipidi_g_totale','lipidi_note',
+                    'fibra_gdie','fibra_note','idrico_mldie','idrico_criterio',
+                    'micronutrienti_critici','note_operative',
+                ].forEach(k => { if (this.answers[k] === undefined) this.answers[k] = ''; });
+                this.$watch(
+                    () => [this.answers.altezza_cm, this.answers.peso_kg, this.answers.eta_anni,
+                           this.answers.sesso, this.answers.formula_mb].join('|'),
+                    () => this._fbCalcBMR()
+                );
+                this.$watch(
+                    () => (this.answers.mb_stimata_kcal || '') + '|' + (this.answers.pal_valore || ''),
+                    () => this._fbCalcDET()
+                );
+                this.$watch(
+                    () => (this.answers.det_kcal || '') + '|' + (this.answers.det_adjust_kcal || ''),
+                    () => { this.answers.det_finale_kcal = String(this.fbDetFinal || ''); }
+                );
+                // Solo il peso ricalcola i grammi dal target g/kg (sorgente di
+                // verità). Le due direzioni g/kg ⇄ grammi sono gestite negli
+                // handler @input per evitare loop reattivi.
+                this.$watch(() => this.answers.peso_kg, () => this._fbRescaleMacros());
+                // Persisti il DET finale già al caricamento (per API/dettaglio).
+                this.$nextTick(() => { this.answers.det_finale_kcal = String(this.fbDetFinal || ''); });
+            }
         },
 
         questionsFor(stepId) {
@@ -469,23 +877,42 @@ function checkFill() {
             this.fileNames[qid] = names;
         },
 
-        {% if template.questionnaire_type == 'preset_calcolo_fabbisogni' %}
+        // ── Strumento Calcolo Fabbisogni ──
+        fbPrefilled(key) { return !this.isEdit && this.fbPrefillKeys.has(key); },
+        fbAllFormulas() {
+            const legend = '<br><span style="opacity:.7">P peso · H altezza · A età</span>';
+            const builtins = FB_BUILTIN_FORMULAS.map(f => ({ name: f.name, tip: f.tip + legend, custom: false }));
+            const customs = (this.customFormulas || []).map(f => ({
+                name: f.name, custom: true,
+                tip: '<code>' + fbEscapeHtml(f.expr) + '</code>' + legend,
+            }));
+            return builtins.concat(customs);
+        },
         _fbCalcBMR() {
             const H = parseFloat(this.answers.altezza_cm || 0);
             const P = parseFloat(this.answers.peso_kg || 0);
             const A = parseFloat(this.answers.eta_anni || 0);
             const sesso = this.answers.sesso;
             const formula = this.answers.formula_mb;
-            if (!H || !P || !A || !sesso || !formula || formula === 'Altro') return;
+            if (!P || !formula) return;
             const male = sesso === 'Maschio';
             let bmr = 0;
             if (formula === 'Mifflin-St Jeor') {
+                if (!H || !A || !sesso) return;
                 bmr = male ? (10*P + 6.25*H - 5*A + 5) : (10*P + 6.25*H - 5*A - 161);
             } else if (formula === 'Harris-Benedict') {
+                if (!H || !A || !sesso) return;
                 bmr = male ? (88.36 + 13.4*P + 4.8*H - 5.7*A) : (447.6 + 9.25*P + 3.1*H - 4.3*A);
             } else if (formula === 'Cunningham') {
+                if (!sesso) return;
                 const lbm = P * (male ? 0.80 : 0.75);
                 bmr = 500 + 22 * lbm;
+            } else {
+                const f = (this.customFormulas || []).find(x => x.name === formula);
+                if (!f) return;
+                const v = fbSafeEval(f.expr, { P, H, A });
+                if (v == null) return;
+                bmr = v;
             }
             if (bmr > 0) this.answers.mb_stimata_kcal = String(Math.round(bmr));
         },
@@ -494,18 +921,90 @@ function checkFill() {
             const pal = parseFloat(this.answers.pal_valore || 0);
             if (mb > 0 && pal > 0) this.answers.det_kcal = String(Math.round(mb * pal));
         },
-        _fbCalcMacros() {
+        _fbRescaleMacros() {
+            // Su cambio peso: i grammi totali si ricalcolano dal target g/kg.
             const P = parseFloat(this.answers.peso_kg || 0);
             if (!P) return;
-            const calc = (gkgKey, totalKey) => {
-                const gkg = parseFloat(this.answers[gkgKey] || 0);
-                if (gkg > 0) this.answers[totalKey] = String(Math.round(gkg * P));
-            };
-            calc('proteine_gkg', 'proteine_g_totale');
-            calc('carboidrati_gkg', 'carboidrati_g_totale');
-            calc('lipidi_target', 'lipidi_g_totale');
+            this.fbMacroDefs.forEach(m => {
+                const gkg = parseFloat(this.answers[m.gkgKey] || 0);
+                if (gkg > 0) this.answers[m.gKey] = String(Math.round(gkg * P));
+            });
         },
-        {% endif %}
+        fbMacroFromGkg(m) {
+            // g/kg compilato → grammi totali = g/kg × peso. Svuotato/0 → grammi 0.
+            const P = parseFloat(this.answers.peso_kg || 0);
+            const gkg = parseFloat(this.answers[m.gkgKey] || 0);
+            if (gkg > 0 && P > 0) this.answers[m.gKey] = String(Math.round(gkg * P));
+            else if (!(gkg > 0)) this.answers[m.gKey] = '0';
+        },
+        fbMacroFromGrams(m) {
+            // grammi totali compilati → g/kg = grammi / peso (2 dec.). Svuotato/0 → g/kg 0.
+            const P = parseFloat(this.answers.peso_kg || 0);
+            const g = parseFloat(this.answers[m.gKey] || 0);
+            if (g > 0 && P > 0) this.answers[m.gkgKey] = String(Math.round(g / P * 100) / 100);
+            else if (!(g > 0)) this.answers[m.gkgKey] = '0';
+        },
+        get fbAdjust() { const v = Math.round(parseFloat(this.answers.det_adjust_kcal || 0)); return isFinite(v) ? v : 0; },
+        get fbDetFinal() { const base = Math.round(parseFloat(this.answers.det_kcal || 0)) || 0; return base ? base + this.fbAdjust : 0; },
+        fbBumpAdjust(d) { const cur = Math.round(parseFloat(this.answers.det_adjust_kcal || 0)) || 0; this.answers.det_adjust_kcal = String(cur + d); },
+        // Ogni cella legge direttamente answers.* → reattività precisa per riga.
+        fbMacroKcalOf(m) {
+            const g = Math.round(parseFloat(this.answers[m.gKey] || 0)) || 0;
+            return Math.round(g * m.factor);
+        },
+        get fbMacroKcal() { return this.fbMacroDefs.reduce((s, m) => s + this.fbMacroKcalOf(m), 0); },
+        get fbMacroRemaining() { return (this.fbDetFinal || 0) - this.fbMacroKcal; },
+        // "kcal rimaste" = DET meno TUTTI i macro: stesso valore live nei tre macro.
+        get fbKcalLeft() {
+            const det = this.fbDetFinal;
+            return det ? det - this.fbMacroKcal : null;
+        },
+        fbBudgetSegments() {
+            const det = this.fbDetFinal; if (!det) return [];
+            const segs = this.fbMacroDefs.map(m => ({ key: m.key, color: m.color, pct: Math.max(0, this.fbMacroKcalOf(m) / det * 100) }));
+            const used = this.fbMacroKcal;
+            if (used < det) segs.push({ key: 'free', color: 'var(--al-rule)', pct: (det - used) / det * 100 });
+            return segs;
+        },
+        fbOpenFormula() { this.fbNewFormula = { name: '', expr: '' }; this.fbFormulaError = ''; this.fbFormulaModal = true; },
+        fbCloseFormula() { this.fbFormulaModal = false; },
+        fbFormulaPreview() {
+            const v = fbSafeEval(this.fbNewFormula.expr, { P: 80, H: 180, A: 30 });
+            return v == null ? 'formula non valida' : Math.round(v) + ' kcal';
+        },
+        async fbSaveFormula() {
+            this.fbFormulaError = '';
+            const name = (this.fbNewFormula.name || '').trim();
+            const expr = (this.fbNewFormula.expr || '').trim();
+            if (!name) { this.fbFormulaError = 'Inserisci un nome per la formula.'; return; }
+            if (fbSafeEval(expr, { P: 80, H: 180, A: 30 }) == null) {
+                this.fbFormulaError = 'Formula non valida. Usa solo numeri, + − * / ( ) e le variabili P, H, A.'; return;
+            }
+            const taken = FB_BUILTIN_FORMULAS.concat(this.customFormulas || [])
+                .some(f => (f.name || '').trim().toLowerCase() === name.toLowerCase());
+            if (taken) { this.fbFormulaError = 'Esiste già una formula con questo nome.'; return; }
+            this.fbSaving = true;
+            try {
+                const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+                const res = await fetch('{% url "api_bmr_formula_create" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+                    body: JSON.stringify({ name, expr }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.customFormulas = data.formulas || this.customFormulas;
+                    this.answers.formula_mb = name;
+                    this.fbFormulaModal = false;
+                    this._fbCalcBMR();
+                } else {
+                    this.fbFormulaError = data.error || 'Errore nel salvataggio.';
+                }
+            } catch (e) {
+                this.fbFormulaError = 'Errore di rete.';
+            }
+            this.fbSaving = false;
+        },
 
         async submitCheck() {
             // Validate required

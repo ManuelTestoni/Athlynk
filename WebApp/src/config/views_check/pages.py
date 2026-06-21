@@ -40,6 +40,39 @@ from .helpers import (
 from .assignments import _generate_due_instances, _notify_coach_check_completed
 
 
+def _template_has_fabbisogni(questions):
+    """True se la config domande contiene lo strumento «Calcolo Fabbisogni»."""
+    return any((q or {}).get('type') == 'strumento_fabbisogni' for q in (questions or []))
+
+
+def _fabbisogni_prefill(client):
+    """Precompila i dati di partenza dello strumento Fabbisogni dal profilo
+    atleta: altezza, ultimo peso dai check, età dalla data di nascita, sesso.
+    Tutti i valori restano modificabili a mano in fase di compilazione."""
+    prefill = {}
+    if client.height_cm:
+        prefill['altezza_cm'] = str(client.height_cm)
+    latest_w = (QuestionnaireResponse.objects
+                .filter(client=client, weight_kg__isnull=False)
+                .order_by('-submitted_at')
+                .values_list('weight_kg', flat=True)
+                .first())
+    if latest_w:
+        prefill['peso_kg'] = str(round(float(latest_w), 1))
+    if client.birth_date:
+        today = timezone.now().date()
+        bd = client.birth_date
+        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+        if 0 < age < 120:
+            prefill['eta_anni'] = str(age)
+    g = (client.gender or '').strip().lower()
+    if g[:1] == 'm' or g in ('maschio', 'male', 'uomo'):
+        prefill['sesso'] = 'Maschio'
+    elif g[:1] == 'f' or g in ('femmina', 'female', 'donna'):
+        prefill['sesso'] = 'Femmina'
+    return prefill
+
+
 def check_dashboard_view(request):
     user = get_session_user(request)
     if not user:
@@ -175,14 +208,8 @@ def check_create_view(request):
 
     if request.method == 'GET':
         prefill = {}
-        if template.questionnaire_type == 'preset_calcolo_fabbisogni':
-            latest = (QuestionnaireResponse.objects
-                      .filter(client=client, weight_kg__isnull=False)
-                      .order_by('-submitted_at')
-                      .values_list('weight_kg', flat=True)
-                      .first())
-            if latest:
-                prefill['peso_kg'] = str(round(float(latest), 1))
+        if _template_has_fabbisogni(template.questions_config):
+            prefill.update(_fabbisogni_prefill(client))
         return render(request, 'pages/check/builder.html', {
             'client': client,
             'coach': coach,
@@ -192,6 +219,7 @@ def check_create_view(request):
             'steps_config_json': json.dumps(template.steps_config or []),
             'catalog_json': json.dumps(catalog_json()),
             'prefill_json': json.dumps(prefill),
+            'custom_bmr_formulas_json': json.dumps(coach.custom_bmr_formulas or []),
         })
 
     # ── POST ───────────────────────────────────────────────────────
@@ -422,6 +450,7 @@ def check_edit_view(request, response_id):
             'steps_config_json': json.dumps(steps_cfg),
             'catalog_json': json.dumps(catalog_json()),
             'prefill_json': json.dumps(_build_prefill(response)),
+            'custom_bmr_formulas_json': json.dumps(coach.custom_bmr_formulas or []),
         })
 
     # ── POST ───────────────────────────────────────────────────────

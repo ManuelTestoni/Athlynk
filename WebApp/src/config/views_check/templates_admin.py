@@ -33,7 +33,12 @@ from ..session_utils import get_session_user, get_session_coach, get_session_cli
 
 
 
-PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento', 'calcolo_fabbisogni']
+PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento']
+
+# Preset rimossi dal modulo: i loro cloni (anche modificati) vanno disattivati
+# alla prima apertura di «Gestisci Modelli». Le risposte storiche restano
+# integre — referenziano il template via FK e conservano lo snapshot.
+RETIRED_PRESET_KEYS = ['calcolo_fabbisogni']
 
 
 def _ensure_preset_clones(coach):
@@ -44,6 +49,13 @@ def _ensure_preset_clones(coach):
     `antropometria`): senza questo, i cloni restano alla vecchia versione e
     «Ripristina» è disabilitato perché is_modified_preset=False.
     """
+    # Disattiva i cloni di preset ritirati (es. «Calcolo Fabbisogni», ora
+    # disponibile come strumento dentro gli altri modelli).
+    if RETIRED_PRESET_KEYS:
+        QuestionnaireTemplate.objects.filter(
+            coach=coach, preset_key__in=RETIRED_PRESET_KEYS, is_active=True
+        ).update(is_active=False)
+
     existing = {
         t.preset_key: t for t in QuestionnaireTemplate.objects.filter(
             coach=coach, preset_key__in=list(PRESETS.keys())
@@ -257,3 +269,65 @@ def api_check_template_delete(request, template_id):
     tpl.is_active = False
     tpl.save(update_fields=['is_active', 'updated_at'])
     return JsonResponse({'success': True})
+
+
+# ── Formule MB personalizzate (strumento «Calcolo Fabbisogni») ──────────────
+import ast
+
+# Nodi AST ammessi in un'espressione di formula MB: sola aritmetica pura sulle
+# variabili note (niente chiamate, attributi o nomi arbitrari). Validazione via
+# AST, mai eval.
+_BMR_ALLOWED_NODES = (
+    ast.Expression, ast.BinOp, ast.UnaryOp,
+    ast.Add, ast.Sub, ast.Mult, ast.Div,
+    ast.USub, ast.UAdd, ast.Load, ast.Name, ast.Constant,
+)
+_BMR_ALLOWED_VARS = {'P', 'H', 'A'}  # Peso(kg), Altezza(cm), Età(anni)
+
+
+def _validate_bmr_expr(expr):
+    """True se `expr` è un'espressione aritmetica sicura su P, H, A."""
+    expr = (expr or '').strip()
+    if not expr or len(expr) > 200:
+        return False
+    try:
+        tree = ast.parse(expr, mode='eval')
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, _BMR_ALLOWED_NODES):
+            return False
+        if isinstance(node, ast.Name) and node.id not in _BMR_ALLOWED_VARS:
+            return False
+        if isinstance(node, ast.Constant) and not isinstance(node.value, (int, float)):
+            return False
+    return True
+
+
+def api_bmr_formula_create(request):
+    """Salva una formula MB personalizzata sul profilo coach (sessione web).
+    Body JSON {name, expr}; ritorna l'elenco aggiornato."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    try:
+        data = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Body non valido.'}, status=400)
+    name = (data.get('name') or '').strip()
+    expr = (data.get('expr') or '').strip()
+    if not name or len(name) > 60:
+        return JsonResponse({'error': 'Nome formula non valido.'}, status=400)
+    if not _validate_bmr_expr(expr):
+        return JsonResponse({'error': 'Formula non valida. Usa solo numeri, + − × ÷ ( ) e le variabili P, H, A.'}, status=400)
+    formulas = list(coach.custom_bmr_formulas or [])
+    if any((f.get('name') or '').strip().lower() == name.lower() for f in formulas):
+        return JsonResponse({'error': 'Esiste già una formula con questo nome.'}, status=400)
+    if len(formulas) >= 50:
+        return JsonResponse({'error': 'Hai raggiunto il numero massimo di formule.'}, status=400)
+    formulas.append({'name': name, 'expr': expr})
+    coach.custom_bmr_formulas = formulas
+    coach.save(update_fields=['custom_bmr_formulas', 'updated_at'])
+    return JsonResponse({'success': True, 'formulas': formulas}, status=201)

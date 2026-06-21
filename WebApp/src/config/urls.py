@@ -247,6 +247,7 @@ urlpatterns = [
     path('api/check/modelli/<int:template_id>/ripristina/', views_check.api_check_template_restore, name='api_check_template_restore'),
     path('api/check/modelli/<int:template_id>/duplica/', views_check.api_check_template_duplicate, name='api_check_template_duplicate'),
     path('api/check/modelli/<int:template_id>/elimina/', views_check.api_check_template_delete, name='api_check_template_delete'),
+    path('api/check/formule-mb/', views_check.api_bmr_formula_create, name='api_bmr_formula_create'),
     path('api/check/cartelle/', views_check_taxonomy.api_check_folders, name='api_check_folders'),
     path('api/check/cartelle/riordina/', views_check_taxonomy.api_check_folders_reorder, name='api_check_folders_reorder'),
     path('api/check/cartelle/<int:folder_id>/', views_check_taxonomy.api_check_folder_detail, name='api_check_folder_detail'),
