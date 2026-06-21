@@ -1,0 +1,6 @@
+[build]
+
+
+[deploy]
+startCommand = "cd WebApp/src && python manage.py run_daily_analytics"
+restartPolicyType = "ON_FAILURE"
