@@ -27,5 +27,8 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $app.showChiron) {
             ChironTutorialView(userName: app.greetingName) { app.finishChiron() }
         }
+        .fullScreenCover(isPresented: $app.showReview) {
+            ReviewRequestView { app.showReview = false }
+        }
     }
 }

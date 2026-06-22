@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q, Count
+from django.core.cache import cache
 from datetime import date, timedelta
 import json
 
@@ -184,69 +185,75 @@ def allenamenti_list_view(request):
     if not coach or not can_manage_workouts(coach):
         return redirect('dashboard')
 
-    plans_qs = list(WorkoutPlan.objects
-                    .filter(coach=coach)
-                    .select_related('folder', 'sport')
-                    .annotate(day_count=Count('days', distinct=True),
-                              assignment_count=Count('assignments', distinct=True))
-                    .order_by('-updated_at'))
+    _wkey = f'workout_plans:{coach.id}'
+    _cached = cache.get(_wkey)
+    if _cached:
+        plans_data, folders_data, clients_data = _cached
+    else:
+        plans_qs = list(WorkoutPlan.objects
+                        .filter(coach=coach)
+                        .select_related('folder', 'sport')
+                        .annotate(day_count=Count('days', distinct=True),
+                                  assignment_count=Count('assignments', distinct=True))
+                        .order_by('-updated_at'))
 
-    folders = list(
-        WorkoutFolder.objects.filter(coach=coach)
-        .annotate(plan_count=Count('plans'))
-        .order_by('order', 'title')
-    )
+        folders = list(
+            WorkoutFolder.objects.filter(coach=coach)
+            .annotate(plan_count=Count('plans'))
+            .order_by('order', 'title')
+        )
 
-    # Progression families per plan, inferred from per-week overrides vs base
-    # (counted one hit per exercise per family). Programmazioni only in the UI.
-    prog_summary = progression_engine.classify_progressions_for_plans(
-        [p.id for p in plans_qs]
-    )
+        # Progression families per plan, inferred from per-week overrides vs base
+        # (counted one hit per exercise per family). Programmazioni only in the UI.
+        prog_summary = progression_engine.classify_progressions_for_plans(
+            [p.id for p in plans_qs]
+        )
 
-    plans_data = [
-        {
-            'id': p.id,
-            'title': p.title,
-            'description': p.description or '',
-            'status': p.status,
-            'plan_kind': p.plan_kind,
-            'goal': p.goal or '',
-            'level': p.level or '',
-            'frequency_per_week': p.frequency_per_week or 0,
-            'duration_weeks': p.duration_weeks or 0,
-            'day_count': p.day_count,
-            'assignment_count': p.assignment_count,
-            'folder_id': p.folder_id,
-            'sport_id': p.sport_id,
-            'sport_name': p.sport.name if p.sport_id else '',
-            'sport_icon': (p.sport.icon if p.sport_id else '') or '',
-            'updated_at': p.updated_at.isoformat() if p.updated_at else '',
-            'progression_summary': prog_summary.get(p.id, []),
-        }
-        for p in plans_qs
-    ]
+        plans_data = [
+            {
+                'id': p.id,
+                'title': p.title,
+                'description': p.description or '',
+                'status': p.status,
+                'plan_kind': p.plan_kind,
+                'goal': p.goal or '',
+                'level': p.level or '',
+                'frequency_per_week': p.frequency_per_week or 0,
+                'duration_weeks': p.duration_weeks or 0,
+                'day_count': p.day_count,
+                'assignment_count': p.assignment_count,
+                'folder_id': p.folder_id,
+                'sport_id': p.sport_id,
+                'sport_name': p.sport.name if p.sport_id else '',
+                'sport_icon': (p.sport.icon if p.sport_id else '') or '',
+                'updated_at': p.updated_at.isoformat() if p.updated_at else '',
+                'progression_summary': prog_summary.get(p.id, []),
+            }
+            for p in plans_qs
+        ]
 
-    folders_data = [
-        {
-            'id': f.id,
-            'title': f.title,
-            'label_text': f.label_text or '',
-            'label_color': f.label_color or '',
-            'order': f.order,
-            'plan_count': f.plan_count,
-        }
-        for f in folders
-    ]
+        folders_data = [
+            {
+                'id': f.id,
+                'title': f.title,
+                'label_text': f.label_text or '',
+                'label_color': f.label_color or '',
+                'order': f.order,
+                'plan_count': f.plan_count,
+            }
+            for f in folders
+        ]
 
-    clients = (ClientProfile.objects
-               .filter(coaching_relationships_as_client__coach=coach,
-                       coaching_relationships_as_client__status='ACTIVE')
-               .select_related('user')
-               .distinct())
-    clients_data = [
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
-        for c in clients
-    ]
+        clients = (ClientProfile.objects
+                   .filter(coaching_relationships_as_client__coach=coach,
+                           coaching_relationships_as_client__status='ACTIVE')
+                   .select_related('user')
+                   .distinct())
+        clients_data = [
+            {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+            for c in clients
+        ]
+        cache.set(_wkey, (plans_data, folders_data, clients_data), 300)
 
     return render(request, 'pages/allenamenti/library.html', {
         'plans_json': json.dumps(plans_data),
@@ -816,6 +823,7 @@ def api_plan_save(request, plan_id=None):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+    cache.delete(f'workout_plans:{coach.id}')
     return JsonResponse({
         'status': 'ok',
         'plan': _serialize_plan_for_wizard(plan),
@@ -942,6 +950,7 @@ def api_plan_delete(request, plan_id):
         plan.delete()
         transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
 
+    cache.delete(f'workout_plans:{coach.id}')
     return JsonResponse({'status': 'ok'})
 
 
@@ -1069,6 +1078,7 @@ def api_plan_duplicate(request, plan_id):
                     is_deload=wv.is_deload,
                 )
 
+    cache.delete(f'workout_plans:{coach.id}')
     return JsonResponse({
         'status': 'ok',
         'plan_id': new_plan.id,

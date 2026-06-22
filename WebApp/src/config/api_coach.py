@@ -1304,8 +1304,8 @@ def profile(request, user):
             if data.get(field):
                 setattr(coach, field, data[field].strip())
         for field in ('phone', 'specialization', 'city', 'bio', 'description',
-                      'certifications', 'social_instagram', 'social_youtube',
-                      'social_tiktok', 'social_website'):
+                      'certifications', 'professional_type', 'social_instagram',
+                      'social_youtube', 'social_tiktok', 'social_website'):
             if field in data:
                 setattr(coach, field, (data.get(field) or '').strip() or None)
         if 'years_experience' in data:

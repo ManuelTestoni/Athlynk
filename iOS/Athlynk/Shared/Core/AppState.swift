@@ -21,6 +21,10 @@ final class AppState: ObservableObject {
     @Published var isAuthenticating = false
     /// Drives the one-time Chiron mascot tutorial (clients, first login only).
     @Published var showChiron = false
+    /// Drives the StoreKit review prompt shown once after onboarding completes.
+    @Published var showReview = false
+    /// Drives the one-time coach profile setup wizard.
+    @Published var showCoachChiron = false
     /// Slides the floating tab bar off-screen for immersive screens (e.g. chat,
     /// where it would otherwise cover the message composer).
     @Published var tabBarHidden = false
@@ -41,6 +45,10 @@ final class AppState: ObservableObject {
             self.user = me.user
             self.avatarUrl = me.profile?.imageUrl
             showChiron = me.user.needsChironIntro
+            if me.user.role.uppercased() == "COACH"
+                && !UserDefaults.standard.bool(forKey: "athlynk.coach.chiron.done") {
+                showCoachChiron = true
+            }
             phase = .app
             Analytics.shared.configure()
             Analytics.shared.identify(userId: me.user.id, role: me.user.role, coachId: nil)
@@ -68,6 +76,10 @@ final class AppState: ObservableObject {
             // Prefer the richer /me payload, but fall back to the login user.
             let identified = me?.user ?? res.user
             showChiron = identified.needsChironIntro
+            if identified.role.uppercased() == "COACH"
+                && !UserDefaults.standard.bool(forKey: "athlynk.coach.chiron.done") {
+                showCoachChiron = true
+            }
             Analytics.shared.configure()
             Analytics.shared.identify(userId: identified.id, role: identified.role, coachId: nil)
             if identified.role.uppercased() == "COACH" {
@@ -94,9 +106,16 @@ final class AppState: ObservableObject {
     }
 
     /// Dismiss the Chiron tutorial and persist that it has been seen.
+    /// Triggers the review screen if the user hasn't rated yet.
     func finishChiron() {
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { showChiron = false }
         Task { try? await api.completeTutorial() }
+        let alreadyReviewed = UserDefaults.standard.bool(forKey: "athlynk.reviewDone")
+        if !alreadyReviewed {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { self.showReview = true }
+            }
+        }
     }
 
     /// Deactivate the account server-side, then drop the local session.

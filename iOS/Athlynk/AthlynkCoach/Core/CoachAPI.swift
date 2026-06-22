@@ -554,6 +554,19 @@ extension APIClient {
         _ = try await request("/api/allenamenti/import/conferma/", method: "POST", body: body)
     }
 
+    @discardableResult
+    func coachUploadProfilePhoto(_ imageData: Data) async throws -> CoachProfileDTO {
+        let data = try await coachMultipartUpload(
+            "/api/v1/coach/profile/photo",
+            fields: [:],
+            fileField: "photo",
+            fileName: "photo.jpg",
+            fileMime: "image/jpeg",
+            fileData: imageData
+        )
+        return try decode(CoachProfileResponse.self, from: data).profile
+    }
+
     // MARK: Multipart / raw-JSON plumbing
 
     private func coachMultipartUpload(_ path: String, fields: [String: String],

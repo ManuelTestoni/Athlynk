@@ -33,9 +33,10 @@ class User(models.Model):
 
 class CoachProfile(models.Model):
     PROFESSIONAL_TYPES = [
-        ('COACH', 'Coach (Allenamento + Nutrizione)'),
-        ('ALLENATORE', 'Allenatore'),
+        ('COACH', 'Coach'),
         ('NUTRIZIONISTA', 'Nutrizionista'),
+        ('ALLENATORE', 'Allenatore'),
+        ('ALTRO', 'Altro'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='coach_profile')

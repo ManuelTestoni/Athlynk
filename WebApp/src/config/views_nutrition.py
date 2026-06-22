@@ -246,84 +246,90 @@ def nutrizione_piani_view(request):
     if not coach:
         return redirect('login')
 
-    plans = (
-        coach.nutrition_plans
-        .select_related('folder')
-        .prefetch_related('meals__items__food', 'days')
-        .annotate(assigned_count=Count('assignments'))
-        .order_by('-updated_at')
-    )
+    _nkey = f'nutrition_plans:{coach.id}'
+    _cached = cache.get(_nkey)
+    if _cached:
+        plans_payload, folders_payload, clients_json = _cached
+    else:
+        plans = (
+            coach.nutrition_plans
+            .select_related('folder')
+            .prefetch_related('meals__items__food', 'days')
+            .annotate(assigned_count=Count('assignments'))
+            .order_by('-updated_at')
+        )
 
-    active_assignments = (
-        NutritionAssignment.objects
-        .filter(coach=coach, status='ACTIVE')
-        .values_list('nutrition_plan_id', 'client_id')
-    )
-    assigned_map: dict[int, list[int]] = {}
-    for plan_id, client_id in active_assignments:
-        assigned_map.setdefault(plan_id, []).append(client_id)
+        active_assignments = (
+            NutritionAssignment.objects
+            .filter(coach=coach, status='ACTIVE')
+            .values_list('nutrition_plan_id', 'client_id')
+        )
+        assigned_map: dict[int, list[int]] = {}
+        for plan_id, client_id in active_assignments:
+            assigned_map.setdefault(plan_id, []).append(client_id)
 
-    plans_payload = []
-    for plan in plans:
-        if plan.plan_mode == 'MACRO':
-            avg = _plan_macro_targets(plan)['avg']
-            total_kcal, total_prot, total_carb, total_fat = (
-                avg['kcal'], avg['prot'], avg['carb'], avg['fat'],
-            )
-        else:
-            total_kcal = total_prot = total_carb = total_fat = 0
-            for meal in plan.meals.all():
-                for item in meal.items.all():
-                    total_kcal += item.kcal
-                    total_prot += item.protein
-                    total_carb += item.carbs
-                    total_fat += item.fat
-        plans_payload.append({
-            'id': plan.id,
-            'title': plan.title,
-            'description': plan.description or '',
-            'plan_type': plan.plan_type or '',
-            'plan_kind': plan.plan_kind,
-            'plan_mode': plan.plan_mode,
-            'status': plan.status or '',
-            'is_template': plan.is_template,
-            'folder_id': plan.folder_id,
-            'kcal': round(total_kcal),
-            'prot': round(total_prot),
-            'carb': round(total_carb),
-            'fat': round(total_fat),
-            'assigned_count': plan.assigned_count,
-            'assigned_client_ids': assigned_map.get(plan.id, []),
-            'updated_at': plan.updated_at.isoformat() if plan.updated_at else '',
-        })
+        plans_payload = []
+        for plan in plans:
+            if plan.plan_mode == 'MACRO':
+                avg = _plan_macro_targets(plan)['avg']
+                total_kcal, total_prot, total_carb, total_fat = (
+                    avg['kcal'], avg['prot'], avg['carb'], avg['fat'],
+                )
+            else:
+                total_kcal = total_prot = total_carb = total_fat = 0
+                for meal in plan.meals.all():
+                    for item in meal.items.all():
+                        total_kcal += item.kcal
+                        total_prot += item.protein
+                        total_carb += item.carbs
+                        total_fat += item.fat
+            plans_payload.append({
+                'id': plan.id,
+                'title': plan.title,
+                'description': plan.description or '',
+                'plan_type': plan.plan_type or '',
+                'plan_kind': plan.plan_kind,
+                'plan_mode': plan.plan_mode,
+                'status': plan.status or '',
+                'is_template': plan.is_template,
+                'folder_id': plan.folder_id,
+                'kcal': round(total_kcal),
+                'prot': round(total_prot),
+                'carb': round(total_carb),
+                'fat': round(total_fat),
+                'assigned_count': plan.assigned_count,
+                'assigned_client_ids': assigned_map.get(plan.id, []),
+                'updated_at': plan.updated_at.isoformat() if plan.updated_at else '',
+            })
 
-    folders = list(
-        NutritionFolder.objects.filter(coach=coach)
-        .annotate(plan_count=Count('plans'))
-        .order_by('order', 'title')
-    )
-    folders_payload = [
-        {
-            'id': f.id,
-            'title': f.title,
-            'label_text': f.label_text or '',
-            'label_color': f.label_color or '',
-            'order': f.order,
-            'plan_count': f.plan_count,
-        }
-        for f in folders
-    ]
+        folders = list(
+            NutritionFolder.objects.filter(coach=coach)
+            .annotate(plan_count=Count('plans'))
+            .order_by('order', 'title')
+        )
+        folders_payload = [
+            {
+                'id': f.id,
+                'title': f.title,
+                'label_text': f.label_text or '',
+                'label_color': f.label_color or '',
+                'order': f.order,
+                'plan_count': f.plan_count,
+            }
+            for f in folders
+        ]
 
-    clients = (
-        ClientProfile.objects.filter(
-            coaching_relationships_as_client__coach=coach,
-            coaching_relationships_as_client__status='ACTIVE'
-        ).select_related('user')
-    )
-    clients_json = json.dumps([
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
-        for c in clients
-    ])
+        clients = (
+            ClientProfile.objects.filter(
+                coaching_relationships_as_client__coach=coach,
+                coaching_relationships_as_client__status='ACTIVE'
+            ).select_related('user')
+        )
+        clients_json = json.dumps([
+            {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+            for c in clients
+        ])
+        cache.set(_nkey, (plans_payload, folders_payload, clients_json), 300)
 
     return render(request, 'pages/nutrizione/piani_list.html', {
         'plans_json': json.dumps(plans_payload),
@@ -632,6 +638,7 @@ def nutrizione_piano_delete_view(request, plan_id):
         plan.delete()
         transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
 
+    cache.delete(f'nutrition_plans:{coach.id}')
     return JsonResponse({'ok': True})
 
 
@@ -712,6 +719,7 @@ def nutrizione_piano_duplicate_view(request, plan_id):
                         order=src_sub.order,
                     )
 
+    cache.delete(f'nutrition_plans:{coach.id}')
     return JsonResponse({'ok': True, 'id': new_plan.id})
 
 
@@ -1779,6 +1787,7 @@ def _handle_plan_save(request, coach, plan):
         else:
             plan.days.all().delete()
 
+    cache.delete(f'nutrition_plans:{coach.id}')
     return JsonResponse({'ok': True, 'plan_id': plan.id, 'plan_kind': plan.plan_kind})
 
 
