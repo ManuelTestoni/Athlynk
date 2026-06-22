@@ -33,7 +33,7 @@ from ..session_utils import get_session_user, get_session_coach, get_session_cli
 
 
 
-PRESET_ORDER = ['completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento']
+PRESET_ORDER = ['prima_valutazione', 'completo_coach', 'rapido_atleta', 'feedback_atleta', 'nutrizione', 'allenamento']
 
 # Preset rimossi dal modulo: i loro cloni (anche modificati) vanno disattivati
 # alla prima apertura di «Gestisci Modelli». Le risposte storiche restano

@@ -19,6 +19,31 @@
     background: var(--al-parchment); border: 1px solid var(--al-rule);
     border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
 }
+/* Rimuovi campo in fase di compilazione (coach): lascia il campo vuoto e
+   alleggerisce la grafica. I campi nascosti si possono ripristinare. */
+.ck-q-del {
+    flex-shrink: 0; display: grid; place-content: center;
+    width: 26px; height: 26px; border-radius: 7px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--al-ink-mute); cursor: pointer;
+    transition: all 140ms var(--al-ease);
+}
+.ck-q-del:hover { background: rgba(192,57,43,.10); color: #c0392b; border-color: rgba(192,57,43,.25); }
+.ck-q-del i { font-size: 15px; }
+.ck-restore {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 6px 0 10px; padding: 9px 13px;
+    border: 1px dashed var(--al-rule-strong); border-radius: var(--al-r-sm);
+    background: var(--al-marble); font-size: 12px; color: var(--al-ink-mute);
+}
+.ck-restore-lab { display: inline-flex; align-items: center; gap: 7px; }
+.ck-restore-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px;
+    border-radius: 7px; border: 1px solid var(--al-rule); background: var(--al-parchment);
+    font-size: 12px; font-weight: 700; color: var(--al-bronze); cursor: pointer;
+    transition: all 140ms var(--al-ease); white-space: nowrap;
+}
+.ck-restore-btn:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
 .ck-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--al-rule); }
 .ck-file-slot {
     display: flex; align-items: center; gap: 10px;
@@ -188,7 +213,7 @@
                     <h2 class="al-h-2" x-text="s.label"></h2>
                 </div>
 
-                <template x-if="questionsFor(s.id).length === 0">
+                <template x-if="questionsFor(s.id).length === 0 && removedFor(s.id).length === 0">
                     <div class="al-empty my-6">
                         <i class="ph ph-question al-empty-icon"></i>
                         <h3>Nessuna domanda</h3>
@@ -207,6 +232,10 @@
                                 <p class="al-eyebrow" style="color: var(--al-ink); margin:0;">Strumento · Calcolo Fabbisogni</p>
                                 <p class="al-small" style="color: var(--al-ink-mute); margin-top:2px;">Dati atleta precompilati e modificabili. I calcoli si aggiornano in tempo reale.</p>
                             </div>
+                            <button type="button" class="ck-q-del" style="margin-left:auto;" @click="removeQuestion(q)"
+                                    title="Rimuovi lo strumento" aria-label="Rimuovi lo strumento">
+                                <i class="ph ph-x"></i>
+                            </button>
                         </div>
 
                         <!-- 1 · Dati base -->
@@ -394,6 +423,10 @@
                                     <span style="color:#c0392b;font-size:11px;font-weight:700;">*</span>
                                 </template>
                             </div>
+                            <button type="button" class="ck-q-del" @click="removeQuestion(q)"
+                                    title="Rimuovi questo campo" aria-label="Rimuovi questo campo">
+                                <i class="ph ph-x"></i>
+                            </button>
                         </div>
 
                         <!-- metrica -->
@@ -601,6 +634,20 @@
                     </div>
                   </div>
                 </template>
+
+                <!-- Campi rimossi in questo step: ripristinabili -->
+                <template x-if="removedFor(s.id).length > 0">
+                    <div class="ck-restore">
+                        <span class="ck-restore-lab">
+                            <i class="ph ph-eye-slash"></i>
+                            <span x-text="removedFor(s.id).length"></span>
+                            <span x-text="removedFor(s.id).length === 1 ? 'campo nascosto' : 'campi nascosti'"></span>
+                        </span>
+                        <button type="button" class="ck-restore-btn" @click="restoreStep(s.id)">
+                            <i class="ph ph-arrow-counter-clockwise"></i> Ripristina
+                        </button>
+                    </div>
+                </template>
             </div>
         </template>
 
@@ -761,6 +808,7 @@ function checkFill() {
         fileNames: {},
         stepIdx: 0,
         rangeErr: {},
+        removed: [],   // id dei campi rimossi dal coach in compilazione (ripristinabili)
         weightBounds: WEIGHT_BOUNDS,
 
         // ── Strumento Calcolo Fabbisogni ──
@@ -855,7 +903,61 @@ function checkFill() {
         questionsFor(stepId) {
             // In edit mode gli allegati non sono ri-modificabili (solo i dati compilati).
             return this.questions.filter(q =>
-                q.step_id === stepId && !(this.isEdit && q.type === 'allegato'));
+                q.step_id === stepId
+                && !this.removed.includes(q.id)
+                && !(this.isEdit && q.type === 'allegato'));
+        },
+        // ── Rimozione campi in compilazione (coach) ──
+        // Il coach può togliere i campi che non vuole compilare: restano vuoti e
+        // la pagina resta pulita. Ogni step mostra un riepilogo per ripristinarli.
+        removedFor(stepId) {
+            return this.questions.filter(q =>
+                q.step_id === stepId
+                && this.removed.includes(q.id)
+                && !(this.isEdit && q.type === 'allegato'));
+        },
+        removeQuestion(q) {
+            if (!this.removed.includes(q.id)) this.removed.push(q.id);
+            this._clearAnswer(q);
+        },
+        restoreStep(stepId) {
+            const ids = this.removedFor(stepId).map(q => q.id);
+            this.removed = this.removed.filter(id => !ids.includes(id));
+            // Ripristina i default (slider a metà, checkbox vuoto) sui campi riportati.
+            this.questions.forEach(q => {
+                if (!ids.includes(q.id)) return;
+                if (q.type === 'media' && (this.answers[q.id] === undefined || this.answers[q.id] === '')) {
+                    this.answers[q.id] = Math.round((+q.min + +q.max) / 2);
+                }
+                if (q.type === 'checkbox' && !Array.isArray(this.answers[q.id])) {
+                    this.answers[q.id] = [];
+                }
+            });
+        },
+        _clearAnswer(q) {
+            if (q.type === 'antropometria') {
+                this.answers['peso_corporeo'] = '';
+                this.rangeErr['peso_corporeo'] = '';
+                (q.circumferences || []).forEach(k => { this.answers['circ::' + k] = ''; this.rangeErr['circ::' + k] = ''; });
+                (q.skinfolds || []).forEach(k => { this.answers['pl::' + k] = ''; this.rangeErr['pl::' + k] = ''; });
+            } else if (q.type === 'strumento_fabbisogni') {
+                [
+                    'altezza_cm', 'peso_kg', 'eta_anni', 'sesso', 'formula_mb', 'mb_stimata_kcal',
+                    'pal_valore', 'pal_descrizione', 'det_kcal', 'det_adjust_kcal', 'det_finale_kcal', 'det_note',
+                    'proteine_gkg', 'proteine_g_totale', 'proteine_note',
+                    'carboidrati_gkg', 'carboidrati_g_totale', 'carboidrati_note',
+                    'lipidi_target', 'lipidi_g_totale', 'lipidi_note',
+                    'fibra_gdie', 'fibra_note', 'idrico_mldie', 'idrico_criterio',
+                    'micronutrienti_critici', 'note_operative',
+                ].forEach(k => { this.answers[k] = ''; });
+            } else if (q.type === 'checkbox') {
+                this.answers[q.id] = [];
+            } else if (q.type === 'allegato') {
+                this.answers[q.id] = '';
+                this.fileNames[q.id] = [];
+            } else {
+                this.answers[q.id] = '';
+            }
         },
         goTo(i) { this.stepIdx = i; window.scrollTo({ top: 0, behavior: 'smooth' }); },
         prev() { if (this.stepIdx > 0) this.goTo(this.stepIdx - 1); },
@@ -1011,6 +1113,7 @@ function checkFill() {
             const missing = [];
             for (const q of this.questions) {
                 if (!q.required) continue;
+                if (this.removed.includes(q.id)) continue;   // campo rimosso dal coach
                 if (q.type === 'antropometria') continue;
                 if (this.isEdit && q.type === 'allegato') continue;
                 const v = this.answers[q.id];
@@ -1029,6 +1132,7 @@ function checkFill() {
             // Valida le misure antropometriche contro gli intervalli plausibili.
             for (const q of this.questions) {
                 if (q.type !== 'antropometria') continue;
+                if (this.removed.includes(q.id)) continue;   // campo rimosso dal coach
                 if (q.weight !== false) this.validateRange('peso_corporeo', this.weightBounds);
                 (q.circumferences || []).forEach(k => this.validateRange('circ::' + k, this.circBounds(k)));
                 (q.skinfolds || []).forEach(k => this.validateRange('pl::' + k, this.skinBounds(k)));
