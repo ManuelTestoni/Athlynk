@@ -1,0 +1,196 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Termini di Servizio{% endblock %}
+{% block legal_og_title %}Termini di Servizio — Athlynk Coach{% endblock %}
+{% block legal_description %}Termini di Servizio di Athlynk per i coach professionisti: condizioni d'uso della piattaforma, abbonamento, responsabilità, dati e risoluzione del contratto.{% endblock %}
+
+{% block legal_content %}
+<article class="space-y-6">
+  <header>
+    <p class="al-eyebrow">Contratto tra Athlynk e il Coach</p>
+    <h1 class="al-h-1 mt-2">Termini di Servizio</h1>
+    <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">1. Definizioni</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li><strong>"Athlynk"</strong> — <strong>[Ragione sociale]</strong>, P.IVA [numero], fornitore della piattaforma.</li>
+      <li><strong>"Coach"</strong> — il professionista del fitness o della nutrizione che sottoscrive un piano Athlynk per gestire i propri clienti.</li>
+      <li><strong>"Atleta"</strong> — il cliente del Coach che accede alla piattaforma su invito del Coach.</li>
+      <li><strong>"Piattaforma"</strong> — l'applicazione web Athlynk (app.athlynk.it) e le app iOS Athlynk Coach e Athlynk, comprese API, dashborad e strumenti correlati.</li>
+      <li><strong>"Piano"</strong> — il livello di abbonamento scelto dal Coach (Athena, Apollo o Zeus) con le rispettive funzionalità e limiti.</li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">2. Accettazione</h2>
+    <p class="al-body">
+      Completando la registrazione e il pagamento su <em>athlynk.it</em>, il Coach accetta
+      integralmente i presenti Termini di Servizio, la
+      <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a> e la
+      <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie Policy</a>.
+      Se non accetti, non puoi utilizzare la Piattaforma.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">3. Oggetto del contratto</h2>
+    <p class="al-body">
+      Athlynk concede al Coach una licenza d'uso non esclusiva, non trasferibile e revocabile
+      della Piattaforma, per gestire i propri clienti mediante strumenti di pianificazione
+      di allenamenti, piani nutrizionali, check di avanzamento, agenda, chat e analisi.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">4. Abbonamento e pagamento</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        L'accesso alla Piattaforma è condizionato al pagamento del canone del Piano scelto,
+        fatturato con la periodicità indicata al momento dell'acquisto.
+      </li>
+      <li>
+        Il pagamento avviene tramite Stripe. Le coordinate bancarie non transitano mai sui
+        server di Athlynk.
+      </li>
+      <li>
+        In caso di mancato pagamento, l'accesso alla Piattaforma viene sospeso dopo 7 giorni
+        di grazia. I dati rimangono disponibili per 90 giorni prima dell'eliminazione.
+      </li>
+      <li>
+        I prezzi sono IVA esclusa, salvo diversa indicazione. Athlynk si riserva il diritto
+        di aggiornare i prezzi previo preavviso di almeno 30 giorni via email.
+      </li>
+      <li>
+        <strong>Diritto di recesso</strong>: i Coach persone fisiche che abbiano acquistato
+        a titolo non professionale hanno diritto di recedere entro 14 giorni dall'acquisto
+        ai sensi del D.Lgs. 206/2005 (Codice del Consumo), salvo rinuncia espressa al
+        diritto di recesso per l'accesso immediato al servizio digitale.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">5. Obblighi e responsabilità del Coach</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        Il Coach è responsabile della qualità e correttezza dei piani di allenamento,
+        nutrizionali e delle valutazioni fornite ai propri Atleti. Athlynk fornisce gli
+        strumenti; le decisioni professionali restano in capo al Coach.
+      </li>
+      <li>
+        Il Coach garantisce di agire in conformità alla normativa vigente sull'esercizio
+        delle professioni del fitness e della nutrizione nel proprio Paese.
+      </li>
+      <li>
+        Il Coach ottiene il consenso degli Atleti al trattamento dei dati personali,
+        inclusi i dati relativi alla salute (art. 9 GDPR), prima di inserirli in piattaforma.
+        Athlynk agisce come responsabile del trattamento (art. 28 GDPR) per conto del Coach.
+      </li>
+      <li>
+        Il Coach non utilizza la Piattaforma per fini illeciti, non carica contenuti
+        offensivi, non tenta di violare la sicurezza del sistema e non condivide le proprie
+        credenziali con terzi.
+      </li>
+      <li>
+        L'utilizzo dell'assistente AI CHIRON come supporto informativo non esime il Coach
+        dalla responsabilità professionale sulle indicazioni fornite agli Atleti.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">6. Disponibilità e SLA</h2>
+    <p class="al-body">
+      Athlynk si impegna a garantire la disponibilità della Piattaforma, fatti salvi
+      interventi di manutenzione programmata (notificata via email con almeno 24 ore di
+      anticipo) ed eventi di forza maggiore. Non è garantito un SLA formale per i piani
+      Athena e Apollo; il piano Zeus include supporto prioritario.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">7. Proprietà intellettuale</h2>
+    <p class="al-body">
+      La Piattaforma, il codice, il design, i marchi e i testi di Athlynk sono di proprietà
+      di Athlynk e protetti dalle leggi sul diritto d'autore. Il Coach conserva la
+      proprietà dei dati inseriti (piani, contenuti, dati degli Atleti). Athlynk non
+      rivendica alcun diritto sui contenuti caricati dal Coach.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">8. Limitazione di responsabilità</h2>
+    <p class="al-body">
+      Nei limiti consentiti dalla legge applicabile, Athlynk non è responsabile per
+      danni indiretti, perdita di profitto, perdita di dati o interruzioni di servizio
+      derivanti dall'uso della Piattaforma. La responsabilità complessiva di Athlynk
+      verso il Coach non supera il corrispettivo pagato dal Coach negli ultimi 3 mesi.
+      L'assistente AI CHIRON fornisce informazioni a scopo di supporto: Athlynk non è
+      responsabile per le decisioni professionali adottate sulla base delle sue risposte.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">9. Riservatezza e protezione dei dati</h2>
+    <p class="al-body">
+      Athlynk tratta i dati degli Atleti in qualità di responsabile del trattamento ex
+      art. 28 GDPR, su istruzione del Coach (titolare del trattamento nel rapporto
+      coach-atleta). Il dettaglio completo è nella
+      <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>.
+      Athlynk adotta misure tecniche e organizzative adeguate a proteggere i dati.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">10. Durata e risoluzione</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        Il contratto ha durata pari al periodo di abbonamento scelto e si rinnova
+        automaticamente salvo disdetta effettuata almeno 24 ore prima del rinnovo.
+      </li>
+      <li>
+        Il Coach può disdire in qualsiasi momento dal pannello impostazioni. Il servizio
+        resta attivo fino alla fine del periodo già pagato.
+      </li>
+      <li>
+        Athlynk può risolvere il contratto con effetto immediato in caso di violazione
+        grave dei presenti Termini, previo avviso via email.
+      </li>
+      <li>
+        Alla risoluzione, il Coach può esportare i propri dati entro 90 giorni. Trascorso
+        tale termine, i dati vengono eliminati.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">11. Modifiche ai Termini</h2>
+    <p class="al-body">
+      Athlynk può modificare i presenti Termini previo preavviso di almeno 30 giorni via
+      email. L'uso continuato della Piattaforma dopo la data di efficacia costituisce
+      accettazione delle modifiche. In caso di modifica sostanziale sfavorevole, il Coach
+      può recedere senza penali entro il periodo di preavviso.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">12. Legge applicabile e foro competente</h2>
+    <p class="al-body">
+      I presenti Termini sono regolati dalla legge italiana. Per qualsiasi controversia
+      è competente in via esclusiva il Foro di [Città sede di Athlynk], salvo diversa
+      disposizione inderogabile di legge (es. foro del consumatore).
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">13. Contatti</h2>
+    <p class="al-body">
+      Per richieste contrattuali o supporto:
+      <a href="mailto:[email contatti]" class="al-link al-link-bronze">[email contatti]</a>.
+    </p>
+  </section>
+</article>
+{% endblock %}

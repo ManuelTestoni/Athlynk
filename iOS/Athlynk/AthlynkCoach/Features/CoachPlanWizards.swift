@@ -1231,10 +1231,12 @@ struct CoachNutritionWizardView: View {
                         Text("Calcolo Fabbisogni recente").font(Typo.body(13, .semibold)).foregroundStyle(Palette.textHi)
                     }
                     HStack(spacing: 12) {
-                        if let v = d.detKcal      { fabPill("Kcal", "\(v)",  Palette.bronze) }
-                        if let v = d.proteineG    { fabPill("Pro",  "\(v)g", Palette.cyan)   }
-                        if let v = d.carboidratiG { fabPill("Carb", "\(v)g", Palette.lime)   }
-                        if let v = d.lipidiG      { fabPill("Fat",  "\(v)g", Palette.magenta) }
+                        if let v = d.detKcal      { fabPill("Kcal", "\(v)",    Palette.bronze) }
+                        if let v = d.proteineG    { fabPill("Pro",  "\(v)g",   Palette.cyan)   }
+                        if let v = d.carboidratiG { fabPill("Carb", "\(v)g",   Palette.lime)   }
+                        if let v = d.lipidiG      { fabPill("Fat",  "\(v)g",   Palette.magenta) }
+                        if let v = d.fibraG       { fabPill("Fibra","\(v)g",   Palette.violet) }
+                        if let v = d.idricoMl     { fabPill("H₂O", "\(v)ml",  Palette.cyan.opacity(0.7)) }
                     }
                     Button {
                         if let v = d.detKcal      { kcal    = "\(v)" }

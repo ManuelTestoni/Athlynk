@@ -47,6 +47,7 @@ struct CoachMainTabView: View {
     @State private var nutrizioneePath = NavigationPath()
     @State private var checkPath       = NavigationPath()
     @State private var altroPPath      = NavigationPath()
+    @State private var showChiron      = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -79,7 +80,16 @@ struct CoachMainTabView: View {
                 .offset(y: app.tabBarHidden ? 160 : 0)
                 .opacity(app.tabBarHidden ? 0 : 1)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
+
+            // Chiron floating button — always visible, bottom-right above tab bar
+            ChironFAB(show: $showChiron)
+                .padding(.trailing, 20)
+                .padding(.bottom, 90)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(y: app.tabBarHidden ? 80 : 0)
+                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
         }
+        .sheet(isPresented: $showChiron) { CoachChironView() }
         .task { Analytics.shared.screen("coach_\(tab.title.lowercased())") }
         .onChange(of: tab) { _, newTab in
             Analytics.shared.screen("coach_\(newTab.title.lowercased())")
@@ -95,6 +105,31 @@ struct CoachMainTabView: View {
     private var tabPalette: [Color] {
         let c = tab.color
         return [c, c.opacity(0.6), Palette.violet, Palette.cyan]
+    }
+}
+
+// MARK: - Chiron Floating Action Button
+
+struct ChironFAB: View {
+    @Binding var show: Bool
+
+    var body: some View {
+        Button { Haptics.tap(); show = true } label: {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [Palette.bronze, Palette.amber],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 56, height: 56)
+                    .neonGlow(Palette.bronze, radius: 16)
+                    .shadow(color: Palette.bronze.opacity(0.45), radius: 12, y: 6)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Apri Chiron AI")
     }
 }
 

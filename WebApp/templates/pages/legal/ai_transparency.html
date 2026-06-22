@@ -42,25 +42,36 @@
               Risponde a domande su allenamento, nutrizione e uso della piattaforma. Può
               effettuare ricerche web per arricchire le risposte, citando le fonti.
             </td>
-            <td class="px-3 py-3 font-mono">GPT-OSS (open-weight, OpenAI) su infrastruttura Ollama</td>
+            <td class="px-3 py-3 font-mono">GPT-OSS 120B (open-weight, OpenAI) su infrastruttura Ollama</td>
           </tr>
-          <tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
             <td class="px-3 py-3 font-medium">Analisi documenti — diete e allenamenti</td>
             <td class="px-3 py-3">
               Estrae la struttura da documenti PDF/Excel caricati dal coach (alimenti, macro,
               esercizi, serie e ripetizioni) per convertirli in piani digitali. Il risultato
               è sempre presentato al coach per revisione e conferma.
             </td>
-            <td class="px-3 py-3 font-mono">GPT-OSS (open-weight, OpenAI) su infrastruttura Ollama</td>
+            <td class="px-3 py-3 font-mono">GPT-OSS 120B (open-weight, OpenAI) su infrastruttura Ollama</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-3 font-medium">Analisi del rischio di abbandono (churn prediction)</td>
+            <td class="px-3 py-3">
+              Elaborazione notturna di metriche di attività aggregate (accessi, check-in,
+              messaggi, stato pagamento) per calcolare un punteggio di rischio abbandono del
+              percorso. Visibile solo al coach; non comunica con l'atleta né produce decisioni
+              automatizzate con effetti giuridici. Classificazione: <strong>basso rischio</strong>
+              (strumento di supporto alla decisione del coach, senza impatto diretto sull'atleta).
+            </td>
+            <td class="px-3 py-3 font-mono">Motore di regole interno + modello statistico (ML) locale — nessun modello LLM esterno</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="al-body">
-      I modelli della famiglia GPT-OSS sono modelli linguistici open-weight rilasciati da
-      OpenAI ed eseguiti tramite l'infrastruttura cloud di Ollama. I dati inviati ai modelli
-      sono usati esclusivamente per generare la risposta richiesta e
-      <strong>non vengono utilizzati per addestrare i modelli</strong>.
+      Il modello <strong>GPT-OSS 120B</strong> è un modello linguistico open-weight di 120
+      miliardi di parametri rilasciato da OpenAI ed eseguito tramite l'infrastruttura cloud
+      di Ollama. I dati inviati al modello sono usati esclusivamente per generare la risposta
+      richiesta e <strong>non vengono utilizzati per addestrare i modelli</strong>.
     </p>
   </section>
 

@@ -1,0 +1,158 @@
+{% extends 'pages/legal/_base.html' %}
+
+{% block legal_title %}Termini d'Uso{% endblock %}
+{% block legal_og_title %}Termini d'Uso — Athlynk per gli Atleti{% endblock %}
+{% block legal_description %}Termini d'Uso di Athlynk per gli atleti: condizioni di accesso, dati personali, condotta accettabile e diritti.{% endblock %}
+
+{% block legal_content %}
+<article class="space-y-6">
+  <header>
+    <p class="al-eyebrow">Condizioni per gli Atleti</p>
+    <h1 class="al-h-1 mt-2">Termini d'Uso</h1>
+    <p class="al-small mt-2">Ultimo aggiornamento: <span class="font-mono">{{ consent_version }}</span></p>
+    <div class="al-rule-bronze mt-5"></div>
+  </header>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">1. Chi siamo e a chi si applicano questi Termini</h2>
+    <p class="al-body">
+      Athlynk (<strong>[Ragione sociale]</strong>, P.IVA [numero]) mette a disposizione una
+      piattaforma digitale ("Piattaforma") che permette ai coach professionisti di gestire i
+      propri clienti. Gli atleti accedono alla Piattaforma su <strong>invito del proprio
+      coach</strong>: non è possibile registrarsi autonomamente. I presenti Termini d'Uso
+      regolano il rapporto tra Athlynk e l'Atleta.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">2. Accesso al servizio</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        L'accesso dell'Atleta è condizionato al mantenimento di un rapporto attivo con il
+        coach. Se il coach sospende o interrompe il rapporto, l'accesso viene limitato.
+      </li>
+      <li>
+        L'Atleta utilizza la Piattaforma tramite l'app iOS Athlynk o l'interfaccia web.
+        L'account non è trasferibile.
+      </li>
+      <li>
+        L'Atleta è responsabile della riservatezza delle proprie credenziali. Eventuali
+        accessi non autorizzati vanno segnalati immediatamente a
+        <a href="mailto:[email supporto]" class="al-link al-link-bronze">[email supporto]</a>.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">3. Contenuto e uso corretto</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        I piani di allenamento, i piani nutrizionali, i check e le valutazioni presenti
+        sulla Piattaforma sono predisposti dal coach dell'Atleta. Athlynk non è responsabile
+        del contenuto professionale fornito dal coach.
+      </li>
+      <li>
+        Le indicazioni presenti sulla Piattaforma <strong>non costituiscono consiglio
+        medico</strong>. Per condizioni di salute, infortuni o terapie, consulta sempre
+        un medico qualificato.
+      </li>
+      <li>
+        L'Atleta non utilizza la Piattaforma per fini illeciti, non carica contenuti
+        offensivi, non tenta di violare la sicurezza del sistema e non accede ai dati di
+        altri utenti.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">4. Dati personali e salute</h2>
+    <p class="al-body">
+      La Piattaforma tratta dati relativi alla salute (anamnesi, misure corporee, foto di
+      avanzamento, diario alimentare) previo tuo consenso esplicito. Puoi revocare il
+      consenso e richiedere la cancellazione dei dati in qualsiasi momento. Il trattamento
+      completo è descritto nella
+      <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>.
+    </p>
+    <p class="al-body">
+      Athlynk elabora metriche di attività aggregate (accessi, check-in, messaggi) per
+      calcolare un punteggio di rischio abbandono del percorso, visibile solo al tuo coach
+      come strumento di supporto. Questo punteggio non produce effetti automatizzati nei
+      tuoi confronti.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">5. Assistente AI CHIRON</h2>
+    <p class="al-body">
+      Se il tuo coach ti dà accesso a CHIRON, l'assistente AI è identificato chiaramente
+      come strumento automatizzato. Le sue risposte sono a scopo informativo e
+      <strong>non sostituiscono il parere del tuo coach o di un medico</strong>.
+      I modelli AI possono produrre risposte imprecise: verifica sempre con il tuo coach.
+      Per i dettagli tecnici consulta la
+      <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">pagina Trasparenza AI</a>.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">6. Proprietà intellettuale</h2>
+    <p class="al-body">
+      I piani, i contenuti e i dati che inserisci appartengono a te e al tuo coach.
+      Athlynk non rivendica diritti sui tuoi dati personali o sui contenuti creati dal
+      tuo coach per te.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">7. Limitazione di responsabilità</h2>
+    <p class="al-body">
+      Nei limiti consentiti dalla legge applicabile, Athlynk non è responsabile per i
+      risultati sportivi o di salute derivanti dall'uso della Piattaforma. La Piattaforma
+      è uno strumento digitale di supporto; la responsabilità professionale resta in capo
+      al coach. Athlynk non è parte del contratto tra coach e atleta.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">8. Sospensione e cancellazione account</h2>
+    <ul class="al-body list-disc pl-6 space-y-2">
+      <li>
+        Puoi eliminare il tuo account in qualsiasi momento da Impostazioni → Elimina
+        account (o chiedendo al supporto). I tuoi dati vengono eliminati entro 30 giorni.
+      </li>
+      <li>
+        Athlynk può sospendere l'accesso in caso di violazione grave dei presenti Termini.
+      </li>
+      <li>
+        Se il tuo coach interrompe il proprio abbonamento, i tuoi dati rimangono
+        disponibili per 90 giorni, dopodiché vengono eliminati salvo tua richiesta di
+        esportazione.
+      </li>
+    </ul>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">9. Modifiche ai Termini</h2>
+    <p class="al-body">
+      Athlynk può modificare i presenti Termini previo preavviso di almeno 30 giorni via
+      email. L'uso continuato della Piattaforma costituisce accettazione delle modifiche.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">10. Legge applicabile e foro</h2>
+    <p class="al-body">
+      I presenti Termini sono regolati dalla legge italiana. Per qualsiasi controversia
+      è competente in via esclusiva il Foro di [Città], salvo diversa disposizione
+      inderogabile di legge (es. foro del consumatore ai sensi del D.Lgs. 206/2005).
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="al-h-3">11. Contatti</h2>
+    <p class="al-body">
+      Per domande o segnalazioni:
+      <a href="mailto:[email supporto]" class="al-link al-link-bronze">[email supporto]</a>.
+    </p>
+  </section>
+</article>
+{% endblock %}

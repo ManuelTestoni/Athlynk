@@ -8,7 +8,7 @@
 import SwiftUI
 
 enum CoachRoute: Hashable, Identifiable {
-    case clients, chat, agenda, subscriptions, resources, analytics, notifications, profile, chiron
+    case clients, chat, agenda, subscriptions, resources, analytics, notifications, profile
     var id: Self { self }
 }
 
@@ -42,8 +42,6 @@ struct CoachMoreView: View {
               subtitle: "Centro notifiche", accent: Palette.phase),
         .init(route: .profile, icon: "person.crop.square.fill", title: "Profilo & Impostazioni",
               subtitle: "Il tuo profilo pubblico", accent: Palette.bronze),
-        .init(route: .chiron, icon: "sparkles", title: "Chiron AI",
-              subtitle: "Assistente intelligente", accent: Palette.bronze),
     ]
 
     var body: some View {
@@ -70,7 +68,6 @@ struct CoachMoreView: View {
                 case .analytics:     CoachAnalyticsView()
                 case .notifications: CoachNotificationsView()
                 case .profile:       CoachProfileView()
-                case .chiron:        CoachChironView()
                 }
             }
         }

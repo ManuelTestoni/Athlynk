@@ -351,6 +351,10 @@ final class APIClient {
         try decode(AnamnesisResponse.self, from: try await request("/api/v1/anamnesis")).anamnesis
     }
 
+    func primaValutazione() async throws -> PrimaValutazioneDTO {
+        try decode(PrimaValutazioneDTO.self, from: try await request("/api/v1/prima-valutazione"))
+    }
+
     func forgotPassword(email: String) async throws {
         _ = try await request("/api/v1/auth/forgot-password", method: "POST", body: ["email": email])
     }

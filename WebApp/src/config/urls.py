@@ -72,6 +72,8 @@ urlpatterns = [
     path('cookie/', views_legal.cookie_view, name='cookie_policy'),
     path('cookie/preferenze/', views_legal.cookie_preferences_view, name='cookie_preferences'),
     path('ai-trasparenza/', views_legal.ai_transparency_view, name='ai_transparency'),
+    path('termini-di-servizio/', views_legal.tos_view, name='tos'),
+    path('termini-duso/', views_legal.terms_use_view, name='terms_use'),
     path('api/consent/', views_consent.consent_api, name='api_consent'),
 
     # SEO / AI discoverability
@@ -341,6 +343,7 @@ urlpatterns = [
     path('api/v1/sessions/<int:session_id>/finish', mobile_api.session_finish, name='api_v1_session_finish'),
     path('api/v1/checks/<int:instance_id>/submit', mobile_api.check_submit, name='api_v1_check_submit'),
     path('api/v1/anamnesis', mobile_api.anamnesis, name='api_v1_anamnesis'),
+    path('api/v1/prima-valutazione', mobile_api.prima_valutazione, name='api_v1_prima_valutazione'),
 
     # --- Coach app (Athlynk Coach) ---------------------------------------
     path('api/v1/coach/dashboard', coach_api.dashboard, name='api_v1_coach_dashboard'),

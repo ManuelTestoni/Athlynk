@@ -219,7 +219,17 @@ def _request_coach(request):
     bearer = _bearer(request)
     if bearer:
         user = _user_from_token(bearer)
-        coach = getattr(user, 'coach_profile', None) if user else None
+        if user is None:
+            logging.getLogger('athlynk.api').warning(
+                '_request_coach: bearer token invalid or expired'
+            )
+            request._mobile_coach = None
+            return None
+        coach = getattr(user, 'coach_profile', None)
+        if coach is None:
+            logging.getLogger('athlynk.api').warning(
+                '_request_coach: user %s (role=%s) has no coach_profile', user.id, user.role
+            )
         request._mobile_coach = coach
         return coach
     from .session_utils import get_session_coach
@@ -1769,6 +1779,104 @@ def anamnesis(request, user):
         'path_goal': a.path_goal,
         'coach': _coach_dict(a.coach),
     }})
+
+
+# ---------------------------------------------------------------------------
+# Prima Valutazione — athlete reads their own first-visit check summary
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def prima_valutazione(request, user):
+    """Return the latest submitted prima_valutazione check response for the
+    authenticated athlete as a structured summary for the iOS anamnesi screen.
+    Returns {submitted_at: null} if no completed response exists yet."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'submitted_at': None, 'data': None})
+
+    resp = (
+        QuestionnaireResponse.objects
+        .filter(
+            client=client,
+            status='SUBMITTED',
+            questionnaire_template__preset_key='prima_valutazione',
+        )
+        .order_by('-submitted_at')
+        .first()
+    )
+    if not resp:
+        return JsonResponse({'submitted_at': None, 'data': None})
+
+    a = resp.answers_json or {}
+
+    def _str(key):
+        v = a.get(key)
+        return str(v).strip() if v else None
+
+    def _float(key):
+        try:
+            return float(a.get(key) or 0) or None
+        except (TypeError, ValueError):
+            return None
+
+    def _int(key):
+        try:
+            return int(float(a.get(key) or 0)) or None
+        except (TypeError, ValueError):
+            return None
+
+    # Anthropometry comes from the 'antropometria' compound question
+    antrop = a.get('antropometria') or {}
+    if isinstance(antrop, str):
+        import json as _json
+        try:
+            antrop = _json.loads(antrop)
+        except Exception:
+            antrop = {}
+
+    fabbisogni_data = None
+    det_kcal = _int('det_finale_kcal') or _int('det_kcal')
+    if any([det_kcal, _int('proteine_g_totale'), _int('carboidrati_g_totale')]):
+        fabbisogni_data = {
+            'det_kcal': det_kcal,
+            'proteine_g': _int('proteine_g_totale'),
+            'carboidrati_g': _int('carboidrati_g_totale'),
+            'lipidi_g': _int('lipidi_g_totale'),
+            'fibra_g': _int('fibra_gdie'),
+            'idrico_ml': _int('idrico_mldie'),
+        }
+
+    return JsonResponse({
+        'submitted_at': _iso(resp.submitted_at),
+        'data': {
+            'storia': {
+                'patologie': _str('pv_clin_patologie'),
+                'allergie': _str('pv_clin_allergie'),
+                'interventi': _str('pv_clin_interventi'),
+                'familiarita': _str('pv_clin_familiarita'),
+                'farmaci': _str('pv_clin_farmaci'),
+                'professionisti_seguiti': a.get('pv_prof_seguito'),
+            },
+            'antropometria': {
+                'altezza_cm': _float('pv_antrop_altezza'),
+                'peso_kg': float(resp.weight_kg) if resp.weight_kg else _float('pv_antrop_peso_abituale'),
+                'peso_abituale_kg': _float('pv_antrop_peso_abituale'),
+                'circonferenze': antrop.get('circumferences') if isinstance(antrop, dict) else None,
+            },
+            'allenamento': {
+                'discipline': a.get('pv_all_discipline'),
+                'anni_esperienza': _int('pv_all_anni'),
+                'sedute_settimana': _int('pv_all_sedute'),
+                'durata_media_min': _int('pv_all_durata'),
+            },
+            'fabbisogni': fabbisogni_data,
+            'obiettivi': {
+                'obiettivo_principale': _str('pv_ob_obiettivo'),
+                'motivazione': _str('pv_ob_motivazione'),
+                'scadenza': _str('pv_ob_scadenza'),
+            },
+        },
+    })
 
 
 # ---------------------------------------------------------------------------

@@ -927,3 +927,87 @@ struct AnamnesisDTO: Codable, Hashable {
 }
 
 struct AnamnesisResponse: Codable { let anamnesis: AnamnesisDTO? }
+
+struct PrimaValutazioneDTO: Codable {
+    let submittedAt: String?
+    let data: DataPayload?
+
+    struct DataPayload: Codable {
+        let storia: Storia?
+        let antropometria: Antropometria?
+        let allenamento: Allenamento?
+        let fabbisogni: Fabbisogni?
+        let obiettivi: Obiettivi?
+    }
+
+    struct Storia: Codable {
+        let patologie: String?
+        let allergie: String?
+        let interventi: String?
+        let familiarita: String?
+        let farmaci: String?
+        let professionistiSeguiti: [String]?
+        enum CodingKeys: String, CodingKey {
+            case patologie, allergie, interventi, familiarita, farmaci
+            case professionistiSeguiti = "professionisti_seguiti"
+        }
+    }
+
+    struct Antropometria: Codable {
+        let altezzaCm: Double?
+        let pesoKg: Double?
+        let pesoAbitualeKg: Double?
+        enum CodingKeys: String, CodingKey {
+            case altezzaCm = "altezza_cm"
+            case pesoKg = "peso_kg"
+            case pesoAbitualeKg = "peso_abituale_kg"
+        }
+    }
+
+    struct Allenamento: Codable {
+        let discipline: [String]?
+        let anniEsperienza: Int?
+        let seduteSettimana: Int?
+        let durataMedMin: Int?
+        enum CodingKeys: String, CodingKey {
+            case discipline
+            case anniEsperienza = "anni_esperienza"
+            case seduteSettimana = "sedute_settimana"
+            case durataMedMin = "durata_media_min"
+        }
+    }
+
+    struct Fabbisogni: Codable {
+        let detKcal: Int?
+        let proteineG: Int?
+        let carboidratiG: Int?
+        let lipidiG: Int?
+        let fibraG: Int?
+        let idricoMl: Int?
+        enum CodingKeys: String, CodingKey {
+            case detKcal = "det_kcal"
+            case proteineG = "proteine_g"
+            case carboidratiG = "carboidrati_g"
+            case lipidiG = "lipidi_g"
+            case fibraG = "fibra_g"
+            case idricoMl = "idrico_ml"
+        }
+    }
+
+    struct Obiettivi: Codable {
+        let obiettivoPrincipale: String?
+        let motivazione: String?
+        let scadenza: String?
+        enum CodingKeys: String, CodingKey {
+            case obiettivoPrincipale = "obiettivo_principale"
+            case motivazione, scadenza
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case submittedAt = "submitted_at"
+        case data
+    }
+
+    var hasData: Bool { submittedAt != nil && data != nil }
+}

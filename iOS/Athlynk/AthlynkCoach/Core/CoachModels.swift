@@ -1047,11 +1047,15 @@ struct CoachFabbisogniDTO: Codable {
         let proteineG: Int?
         let carboidratiG: Int?
         let lipidiG: Int?
+        let fibraG: Int?
+        let idricoMl: Int?
         enum CodingKeys: String, CodingKey {
             case detKcal = "det_kcal"
             case proteineG = "proteine_g"
             case carboidratiG = "carboidrati_g"
             case lipidiG = "lipidi_g"
+            case fibraG = "fibra_g"
+            case idricoMl = "idrico_ml"
         }
     }
     enum CodingKeys: String, CodingKey {

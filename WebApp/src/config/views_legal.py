@@ -24,3 +24,11 @@ def cookie_preferences_view(request):
 
 def ai_transparency_view(request):
     return render(request, 'pages/legal/ai_transparency.html', _ctx())
+
+
+def tos_view(request):
+    return render(request, 'pages/legal/tos.html', _ctx())
+
+
+def terms_use_view(request):
+    return render(request, 'pages/legal/terms_use.html', _ctx())

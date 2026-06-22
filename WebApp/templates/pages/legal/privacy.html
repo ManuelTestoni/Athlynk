@@ -67,6 +67,21 @@
         user agent).
       </li>
       <li>
+        <strong>Dati per il monitoraggio errori</strong>: in caso di errori o eccezioni
+        nell'applicazione, raccogliamo tracce dello stack tecnico (stack trace), URL della
+        richiesta, tipo di operazione e ambiente di esecuzione tramite Sentry. I prompt inviati
+        ai modelli AI e i dati personali (es. email, IP) sono <strong>esclusi</strong>
+        esplicitamente dalla trasmissione a Sentry.
+      </li>
+      <li>
+        <strong>Dati analitici comportamentali (analisi del rischio churn)</strong>: per
+        aiutare il coach a identificare atleti a rischio di abbandono del percorso, elaboriamo
+        in forma aggregata metriche di attività (es. numero di accessi negli ultimi 7/30 giorni,
+        giorni dall'ultimo check-in, messaggi inviati, promemoria ignorati, stato pagamento
+        abbonamento). Il risultato è un punteggio di rischio interno visibile solo al coach e
+        non comunicato a terzi né usato per decisioni automatizzate con effetti giuridici.
+      </li>
+      <li>
         <strong>Newsletter</strong>: email e stato di iscrizione, con double opt-in.
       </li>
     </ul>
@@ -111,6 +126,14 @@
             <td class="px-3 py-3">Sicurezza della piattaforma, prevenzione abusi, log tecnici</td>
             <td class="px-3 py-3">Legittimo interesse (art. 6.1.f)</td>
           </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Monitoraggio degli errori e performance dell'applicazione (Sentry)</td>
+            <td class="px-3 py-3">Legittimo interesse (art. 6.1.f) — senza trasmissione di PII o prompt AI</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--al-rule-faint);">
+            <td class="px-3 py-3">Analisi del rischio di abbandono del percorso (churn prediction) per supportare il coach</td>
+            <td class="px-3 py-3">Legittimo interesse (art. 6.1.f) — elaborazione interna, non comunicata a terzi</td>
+          </tr>
           <tr>
             <td class="px-3 py-3">Conservazione del registro dei consensi e adempimenti di legge</td>
             <td class="px-3 py-3">Obbligo legale (art. 6.1.c)</td>
@@ -153,12 +176,23 @@
         sempre mostrato al coach per revisione e conferma prima del salvataggio.
       </li>
     </ul>
-    <p class="al-body">
+    <ul class="al-body list-disc pl-6 space-y-2 mt-2">
+      <li>
+        <strong>Analisi del rischio di abbandono (churn prediction)</strong> — ogni notte
+        elaboriamo metriche di attività aggregate per ogni atleta (accessi, check-in,
+        messaggi, stato pagamento) con un sistema di regole e un modello statistico per
+        calcolare un punteggio di rischio abbandono. Il punteggio è mostrato solo al coach
+        come supporto alla decisione e <strong>non produce effetti giuridici né decisioni
+        automatizzate</strong> nei confronti dell'atleta (art. 22 GDPR). I dati usati per
+        il calcolo non vengono inviati a modelli AI esterni.
+      </li>
+    </ul>
+    <p class="al-body mt-3">
       I dati inviati ai modelli AI sono usati esclusivamente per generare la risposta
       richiesta e <strong>non vengono utilizzati per addestrare i modelli</strong>.
-      Nessuna decisione produttiva di effetti giuridici o similmente significativi viene
-      presa in modo esclusivamente automatizzato (art. 22 GDPR): piani, diete e valutazioni
-      sono sempre decisi e validati da un coach umano. Per maggiori dettagli consulta la
+      Nessuna decisione con effetti giuridici o similmente significativi viene presa in modo
+      esclusivamente automatizzato (art. 22 GDPR): piani, diete e valutazioni sono sempre
+      decisi e validati da un coach umano. Per maggiori dettagli consulta la
       pagina <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>.
     </p>
   </section>
@@ -170,13 +204,14 @@
       ex art. 28 GDPR:
     </p>
     <ul class="al-body list-disc pl-6 space-y-2">
-      <li><strong>Supabase</strong> — hosting del database e archiviazione file (media, foto) su storage privato.</li>
-      <li><strong>Ollama</strong> — esecuzione dei modelli AI (vedi sezione 5).</li>
-      <li><strong>Tavily</strong> — provider di ricerca web per l'assistente CHIRON (solo query di ricerca).</li>
-      <li><strong>PostHog</strong> — analytics di prodotto, su cloud europeo, solo previo consenso.</li>
+      <li><strong>Supabase</strong> — hosting del database e archiviazione file (media, foto) su storage privato. Sede UE.</li>
+      <li><strong>Railway</strong> — hosting dell'applicazione web e dei processi in background. Infrastruttura cloud.</li>
+      <li><strong>Ollama</strong> — esecuzione dei modelli AI GPT-OSS 120B (vedi sezione 5). Riceve solo i messaggi inviati al modello, mai dati identificativi aggiuntivi.</li>
+      <li><strong>Tavily</strong> — provider di ricerca web per l'assistente CHIRON (solo la query di ricerca).</li>
+      <li><strong>PostHog</strong> — analytics di prodotto, su cloud europeo (EU), solo previo consenso. DPA disponibile su <a href="https://posthog.com/dpa" class="al-link al-link-bronze" rel="noopener" target="_blank">posthog.com/dpa</a>.</li>
+      <li><strong>Sentry</strong> — monitoraggio errori e performance. Configurato senza trasmissione di PII, prompt o indirizzi IP. Riceve solo stack trace tecnici, URL della richiesta e metadati di errore.</li>
       <li><strong>Provider email (SMTP)</strong> — invio di email transazionali e newsletter.</li>
-      <li><strong>Apple</strong> — consegna delle notifiche push sull'app iOS (token dispositivo).</li>
-      <li><strong>Provider di hosting dell'applicazione</strong> — esecuzione dell'infrastruttura server.</li>
+      <li><strong>Apple</strong> — consegna delle notifiche push sull'app iOS (solo token dispositivo opaco).</li>
     </ul>
     <p class="al-body">
       I dati non vengono venduti né ceduti a terzi per finalità di marketing. Possono essere

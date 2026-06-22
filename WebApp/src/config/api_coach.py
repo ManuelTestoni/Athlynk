@@ -74,6 +74,22 @@ def _require_coach(user):
     return coach, None
 
 
+def _coach_or_401(request):
+    """Return (coach, error_response) for dual-auth (bearer OR session) coach views.
+    Gives specific 401 messages so iOS can distinguish invalid-token from missing-profile."""
+    from .api import _bearer, _user_from_token
+    coach = _request_coach(request)
+    if coach:
+        return coach, None
+    bearer = _bearer(request)
+    if bearer:
+        user = _user_from_token(bearer)
+        if user is None:
+            return None, JsonResponse({'error': 'Token non valido o scaduto. Effettua nuovamente l\'accesso.'}, status=401)
+        return None, JsonResponse({'error': 'Profilo coach non trovato. Contatta il supporto.'}, status=401)
+    return None, JsonResponse({'error': 'Non autenticato'}, status=401)
+
+
 def _coach_avatar(request, coach):
     """Prefer the uploaded file; fall back to the stored URL."""
     if coach.profile_image:
@@ -2201,9 +2217,9 @@ def _chiron_role(coach) -> str:
 def chiron_chat(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    coach = _request_coach(request)
-    if not coach:
-        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach, err = _coach_or_401(request)
+    if err:
+        return err
     user = coach.user
     body = _body(request)
     message = (body.get('message') or '').strip()
@@ -2241,9 +2257,9 @@ def chiron_chat(request):
 def chiron_history(request):
     if request.method != 'GET':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    coach = _request_coach(request)
-    if not coach:
-        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach, err = _coach_or_401(request)
+    if err:
+        return err
     try:
         limit = min(int(request.GET.get('limit', 20)), 50)
     except (ValueError, TypeError):
@@ -2276,9 +2292,9 @@ def chiron_history(request):
 def chiron_execute(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    coach = _request_coach(request)
-    if not coach:
-        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach, err = _coach_or_401(request)
+    if err:
+        return err
     body = _body(request)
     try:
         ok, message, link = chiron_execute_action(coach, body or {})
@@ -2296,9 +2312,9 @@ def chiron_execute(request):
 def chiron_clear(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    coach = _request_coach(request)
-    if not coach:
-        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach, err = _coach_or_401(request)
+    if err:
+        return err
     deleted, _ = ChironMessage.objects.filter(user=coach.user).delete()
     reset_chiron_memory(coach.user)
     return JsonResponse({'status': 'ok', 'deleted': deleted})
