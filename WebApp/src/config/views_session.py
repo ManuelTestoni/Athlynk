@@ -238,12 +238,15 @@ def build_exercise_trend(workout_exercise, client):
     # completed=False even though the work was done. Gating on session.completed
     # made those (very real) sessions invisible in both the athlete and coach
     # trend charts — the "data is there but nothing shows" bug.
-    # Aggregate by the underlying Exercise, not the single plan slot: the same
-    # movement trained on another day/week/plan is a different WorkoutExercise
-    # row, and the athlete expects one continuous trend over time.
+    # Aggregate by exercise NAME, not the single plan slot nor the Exercise row:
+    # the same movement trained on another day/week/plan is a different
+    # WorkoutExercise — and may even be a different Exercise record that shares
+    # the name. The name is the stable, unique key, so the athlete sees one
+    # continuous trend over time.
+    ex_name = workout_exercise.exercise.name
     logs = (
         WorkoutSetLog.objects
-        .filter(workout_exercise__exercise=workout_exercise.exercise,
+        .filter(workout_exercise__exercise__name__iexact=ex_name,
                 session__client=client, completed=True)
         .select_related('session', 'actual_exercise')
         .order_by('session__started_at', 'set_number')
