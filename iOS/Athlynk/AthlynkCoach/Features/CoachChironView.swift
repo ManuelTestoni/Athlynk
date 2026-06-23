@@ -18,13 +18,45 @@ final class CoachChironVM: ObservableObject {
     @Published var pendingAction: [String: Any]?
     @Published var pendingActionLabel = ""
     @Published var errorMsg: String?
+    @Published var hasMore = false
+    @Published var loadingMore = false
+    private var oldestId: Int?
 
     func loadHistory() async {
         guard !loading else { return }
         loading = true; defer { loading = false }
         do {
-            let (history, _) = try await APIClient.shared.coachChironHistory()
+            let (history, more) = try await APIClient.shared.coachChironHistory()
             entries = history
+            hasMore = more
+            oldestId = history.first?.id
+        } catch {
+            errorMsg = error.localizedDescription
+        }
+    }
+
+    /// Reload the latest page after a send/action; keeps pagination consistent.
+    private func refreshHistory() async {
+        do {
+            let (history, more) = try await APIClient.shared.coachChironHistory()
+            entries = history
+            hasMore = more
+            oldestId = history.first?.id
+        } catch {
+            errorMsg = error.localizedDescription
+        }
+    }
+
+    /// Page in older messages when the user reaches the top.
+    func loadMore() async {
+        guard hasMore, !loadingMore, let before = oldestId else { return }
+        loadingMore = true; defer { loadingMore = false }
+        do {
+            let (older, more) = try await APIClient.shared.coachChironHistory(before: before)
+            guard !older.isEmpty else { hasMore = false; return }
+            entries.insert(contentsOf: older, at: 0)
+            oldestId = older.first?.id
+            hasMore = more
         } catch {
             errorMsg = error.localizedDescription
         }
@@ -35,14 +67,13 @@ final class CoachChironVM: ObservableObject {
         guard !msg.isEmpty, !sending else { return }
         input = ""
         let tmpId = -Int(Date().timeIntervalSince1970)
-        entries.append(ChironEntry(id: tmpId, role: "user", content: msg, sources: [], usedWebSearch: false))
+        entries.append(ChironEntry(id: tmpId, role: "user", content: msg, sources: [], actions: [], usedWebSearch: false))
         sending = true; defer { sending = false }
         do {
             let result = try await APIClient.shared.coachChironChat(message: msg)
             pendingAction = result.pendingAction
             pendingActionLabel = result.pendingActionLabel
-            let (history, _) = try await APIClient.shared.coachChironHistory()
-            entries = history
+            await refreshHistory()
         } catch {
             entries.removeAll { $0.id == tmpId }
             errorMsg = error.localizedDescription
@@ -55,8 +86,7 @@ final class CoachChironVM: ObservableObject {
             let (ok, msg) = try await APIClient.shared.coachChironExecute(action)
             pendingAction = nil; pendingActionLabel = ""
             if ok {
-                let (history, _) = try await APIClient.shared.coachChironHistory()
-                entries = history
+                await refreshHistory()
             } else {
                 errorMsg = msg
             }
@@ -69,6 +99,7 @@ final class CoachChironVM: ObservableObject {
         do {
             try await APIClient.shared.coachChironClear()
             entries = []; pendingAction = nil; pendingActionLabel = ""
+            hasMore = false; oldestId = nil
         } catch {
             errorMsg = error.localizedDescription
         }
@@ -80,6 +111,8 @@ final class CoachChironVM: ObservableObject {
 struct CoachChironView: View {
     @StateObject private var vm = CoachChironVM()
     @State private var clearConfirm = false
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var router: CoachRouter
 
     var body: some View {
         VStack(spacing: 0) {
@@ -90,6 +123,14 @@ struct CoachChironView: View {
         .navigationTitle("CHIRON")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.textMid)
+                }
+                .accessibilityLabel("Chiudi")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { clearConfirm = true } label: {
                     Image(systemName: "trash")
@@ -122,8 +163,23 @@ struct CoachChironView: View {
                     } else if !vm.loading && vm.entries.isEmpty {
                         welcomePrompt
                     }
+                    // Reaching the top auto-loads older messages; we re-anchor to
+                    // the previous first message so the view doesn't jump.
+                    if vm.hasMore {
+                        Color.clear.frame(height: 1)
+                            .onAppear {
+                                Task {
+                                    let anchor = vm.entries.first?.id
+                                    await vm.loadMore()
+                                    if let anchor { proxy.scrollTo(anchor, anchor: .top) }
+                                }
+                            }
+                        if vm.loadingMore {
+                            ProgressView().frame(maxWidth: .infinity).padding(.vertical, 6)
+                        }
+                    }
                     ForEach(vm.entries) { entry in
-                        ChironBubbleRow(entry: entry)
+                        ChironBubbleRow(entry: entry) { router.open($0); dismiss() }
                     }
                     if vm.sending {
                         ChironTypingIndicator()
@@ -134,7 +190,9 @@ struct CoachChironView: View {
                 .padding(16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: vm.entries.count) { _, _ in scrollToBottom(proxy) }
+            // Scroll to bottom only when a new message lands at the end — not
+            // when older messages are prepended (last id unchanged then).
+            .onChange(of: vm.entries.last?.id) { _, _ in scrollToBottom(proxy) }
             .onChange(of: vm.sending) { _, _ in scrollToBottom(proxy) }
             .onAppear { scrollToBottom(proxy) }
         }
@@ -226,6 +284,7 @@ struct CoachChironView: View {
 
 private struct ChironBubbleRow: View {
     let entry: ChironEntry
+    var onAction: (String) -> Void = { _ in }
     private var isUser: Bool { entry.role == "user" }
 
     var body: some View {
@@ -253,6 +312,28 @@ private struct ChironBubbleRow: View {
                             }
                         }
                     }
+                }
+                // In-app "section" links — open the matching native screen.
+                if !entry.actions.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(entry.actions) { action in
+                            Button { onAction(action.url) } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.up.right.square")
+                                    Text(action.label).lineLimit(1)
+                                    Spacer(minLength: 0)
+                                }
+                                .font(Typo.mono(11, .bold))
+                                .foregroundStyle(Palette.bronze)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(RoundedRectangle(cornerRadius: 12).fill(Palette.bronze.opacity(0.10)))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.bronze.opacity(0.35), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 2)
                 }
             }
             if !isUser { Spacer(minLength: 56) }

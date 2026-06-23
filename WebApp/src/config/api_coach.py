@@ -2279,7 +2279,8 @@ def chiron_history(request):
         'messages': [
             {
                 'id': r.id, 'role': r.role, 'content': r.content,
-                'sources': r.sources or [], 'used_web_search': r.used_web_search,
+                'sources': r.sources or [], 'actions': r.actions or [],
+                'used_web_search': r.used_web_search,
                 'created_at': r.created_at.isoformat(),
             }
             for r in rows

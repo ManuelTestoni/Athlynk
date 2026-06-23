@@ -109,17 +109,21 @@
       </div>
 
       <!-- Metriche: toggle multipli ed espliciti, persistono al cambio esercizio.
-           Riga di chip semplice (niente .al-filter: lì lo slider è single-select). -->
+           Riga di chip semplice (niente .al-filter: lì lo slider è single-select).
+           Outline sui chip spenti così si leggono come pulsanti, non etichette. -->
+      <style>
+        .metric-chip:not(.is-active){ border:1px solid var(--al-rule); }
+      </style>
       <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Metriche">
-        <button type="button" class="al-filter-chip" data-tone="bronze"
+        <button type="button" class="al-filter-chip metric-chip" data-tone="bronze"
                 :class="{ 'is-active': loads.metrics.load }" @click="toggleMetric('load')">
           <span class="w-2.5 h-2.5 rounded-full" style="background:#b8860b;"></span> Carico Max
         </button>
-        <button type="button" class="al-filter-chip" data-tone="bronze"
+        <button type="button" class="al-filter-chip metric-chip" data-tone="bronze"
                 :class="{ 'is-active': loads.metrics.reps }" @click="toggleMetric('reps')">
           <span class="w-2.5 h-2.5 rounded-full" style="background:#0d9488;"></span> Rip medie
         </button>
-        <button type="button" class="al-filter-chip" data-tone="bronze"
+        <button type="button" class="al-filter-chip metric-chip" data-tone="bronze"
                 :class="{ 'is-active': loads.metrics.rpe }" @click="toggleMetric('rpe')">
           <span class="w-2.5 h-2.5 rounded-full" style="background:#dc2626;"></span> RPE medio
         </button>

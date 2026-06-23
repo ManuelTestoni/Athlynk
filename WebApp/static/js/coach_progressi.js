@@ -89,7 +89,10 @@ document.addEventListener('alpine:init', () => {
       if (this.loads.chart) {
         const c = this.loads.chart;
         c.data.labels = labels;
-        c.data.datasets.forEach((ds, i) => { ds.data = dsData[i]; ds.hidden = hidden[i]; });
+        c.data.datasets.forEach((ds, i) => {
+          ds.data = dsData[i];
+          c.setDatasetVisibility(i, !hidden[i]);
+        });
         c.update();
         return;
       }
@@ -123,7 +126,7 @@ document.addEventListener('alpine:init', () => {
       const c = this.loads.chart;
       if (!c) return;
       const idx = { load: 0, reps: 1, rpe: 2 }[key];
-      c.data.datasets[idx].hidden = !this.loads.metrics[key];
+      c.setDatasetVisibility(idx, this.loads.metrics[key]);
       c.update();
     },
 

@@ -5,6 +5,44 @@
 //
 
 import SwiftUI
+import Combine
+
+// MARK: - Deep-link routing (Chiron "section" links → native screens)
+
+/// A native destination Chiron can ask the app to open. Parsed from the web
+/// path (`reverse()`) the backend emits; falls back to the section when no
+/// per-id native screen exists (e.g. progressi → client detail).
+enum CoachDeepLink: Equatable {
+    case client(Int)
+    case check(Int)
+    case checkDashboard
+
+    static func parse(_ url: String) -> CoachDeepLink? {
+        // Backend emits relative paths (Django reverse), e.g. "/clienti/5/".
+        // Take the path only; tolerate an absolute URL just in case.
+        let path = URLComponents(string: url)?.path ?? url
+        let parts = path.split(separator: "/").map(String.init)
+        guard let first = parts.first else { return nil }
+        func int(_ i: Int) -> Int? { i < parts.count ? Int(parts[i]) : nil }
+        switch first {
+        case "clienti":                              // /clienti/<id>/ , /clienti/<id>/progressi/
+            if let id = int(1) { return .client(id) }
+        case "check":
+            if parts.count == 1 { return .checkDashboard }            // /check/
+            if parts[1] == "cliente", let id = int(2) { return .client(id) } // /check/cliente/<id>/
+            if let id = Int(parts[1]) { return .check(id) }           // /check/<id>/
+        default: break
+        }
+        return nil
+    }
+}
+
+@MainActor
+final class CoachRouter: ObservableObject {
+    /// Set by a deep-link tap; CoachShell observes and consumes it.
+    @Published var deepLink: CoachDeepLink?
+    func open(_ url: String) { if let dl = CoachDeepLink.parse(url) { deepLink = dl } }
+}
 
 enum CoachTab: Int, CaseIterable, Identifiable {
     case home, allenamento, nutrizione, check, altro
@@ -48,6 +86,7 @@ struct CoachMainTabView: View {
     @State private var checkPath       = NavigationPath()
     @State private var altroPPath      = NavigationPath()
     @State private var showChiron      = false
+    @StateObject private var router    = CoachRouter()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -89,10 +128,40 @@ struct CoachMainTabView: View {
                 .offset(y: app.tabBarHidden ? 80 : 0)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
         }
-        .sheet(isPresented: $showChiron) { CoachChironView() }
+        .sheet(isPresented: $showChiron) {
+            NavigationStack { CoachChironView() }
+                .environmentObject(router)
+        }
         .task { Analytics.shared.screen("coach_\(tab.title.lowercased())") }
         .onChange(of: tab) { _, newTab in
             Analytics.shared.screen("coach_\(newTab.title.lowercased())")
+        }
+        .onChange(of: router.deepLink) { _, dl in
+            guard let dl else { return }
+            showChiron = false
+            applyDeepLink(dl)
+            router.deepLink = nil
+        }
+    }
+
+    /// Route a Chiron link to the matching native screen, falling back to the
+    /// relevant section when no per-id screen exists.
+    private func applyDeepLink(_ dl: CoachDeepLink) {
+        switch dl {
+        case .client(let id):
+            var p = NavigationPath()
+            p.append(CoachRoute.clients)   // More tab → clients list → detail
+            p.append(id)                   // Int → CoachClientDetailView(clientId:)
+            altroPPath = p
+            tab = .altro
+        case .check(let id):
+            var p = NavigationPath()
+            p.append(CheckRoute(id: id))
+            checkPath = p
+            tab = .check
+        case .checkDashboard:
+            checkPath = NavigationPath()
+            tab = .check
         }
     }
 

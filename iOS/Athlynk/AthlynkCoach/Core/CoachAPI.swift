@@ -13,11 +13,27 @@ struct ChironSource {
     let title: String
 }
 
+/// In-app "section" link Chiron emits (open a check, a client, …). `url` is a
+/// web path (Django reverse), mapped to a native screen on tap.
+struct ChironAction: Identifiable {
+    let label: String
+    let url: String
+    var id: String { url }
+}
+
+private func parseChironActions(_ json: [String: Any]) -> [ChironAction] {
+    (json["actions"] as? [[String: Any]] ?? []).compactMap { a in
+        guard let u = a["url"] as? String, !u.isEmpty else { return nil }
+        return ChironAction(label: a["label"] as? String ?? u, url: u)
+    }
+}
+
 struct ChironEntry: Identifiable {
     let id: Int
     let role: String
     let content: String
     let sources: [ChironSource]
+    let actions: [ChironAction]
     let usedWebSearch: Bool
 
     static func from(_ json: [String: Any]) -> ChironEntry? {
@@ -29,6 +45,7 @@ struct ChironEntry: Identifiable {
             return ChironSource(url: u, title: t)
         }
         return ChironEntry(id: id, role: role, content: content, sources: srcs,
+                           actions: parseChironActions(json),
                            usedWebSearch: json["used_web_search"] as? Bool ?? false)
     }
 }
@@ -37,6 +54,7 @@ struct ChironChatResult {
     let assistantContent: String
     let usedWebSearch: Bool
     let sources: [ChironSource]
+    let actions: [ChironAction]
     let pendingAction: [String: Any]?
     let pendingActionLabel: String
 
@@ -47,6 +65,7 @@ struct ChironChatResult {
             guard let u = s["url"] as? String, let t = s["title"] as? String else { return nil }
             return ChironSource(url: u, title: t)
         }
+        actions = parseChironActions(json)
         let pa = json["pending_action"] as? [String: Any]
         pendingAction = pa
         pendingActionLabel = pa?["label"] as? String
