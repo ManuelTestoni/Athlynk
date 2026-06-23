@@ -214,7 +214,6 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                 <thead>
                     <tr>
                         <th>Atleta</th>
-                        <th>Obiettivo</th>
                         <th>Ultimo check</th>
                         <th>Peso</th>
                         <th>Stato</th>
@@ -223,7 +222,7 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                 </thead>
                 <tbody>
                     <template x-if="loading">
-                        <tr><td colspan="6">
+                        <tr><td colspan="5">
                             <div class="al-empty"><i class="ph ph-spinner-gap animate-spin text-2xl al-empty-icon"></i></div>
                         </td></tr>
                     </template>
@@ -236,12 +235,6 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                                         <div class="al-avatar al-avatar-sm al-avatar-sq" x-text="r.client_initials"></div>
                                         <p class="font-medium text-ink" x-text="r.client_name"></p>
                                     </div>
-                                </td>
-                                <td>
-                                    <template x-if="r.primary_goal">
-                                        <span class="al-badge al-badge-aegean" x-text="r.primary_goal"></span>
-                                    </template>
-                                    <template x-if="!r.primary_goal"><span class="al-tag">—</span></template>
                                 </td>
                                 <td>
                                     <template x-if="r.latest_check_at">
@@ -278,7 +271,7 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                     </template>
 
                     <template x-if="!loading && results.length === 0">
-                        <tr><td colspan="6">
+                        <tr><td colspan="5">
                             <div class="al-empty">
                                 <i class="ph ph-users al-empty-icon"></i>
                                 <h3>Nessun atleta</h3>

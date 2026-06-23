@@ -1521,6 +1521,7 @@ def session_start(request, user):
         'load_value': float(ex.load_value) if ex.load_value else None,
         'load_unit': ex.load_unit or 'KG',
         'recovery_seconds': ex.recovery_seconds or 90,
+        'tempo': ex.tempo or '',
         'notes': ex.technique_notes or '',
     } for ex in day.exercises.select_related('exercise').order_by('order_index')]
 

@@ -11,7 +11,8 @@ document.addEventListener('alpine:init', () => {
     kpi: {},
     exercisesInProgram: window.PROGRESS_INIT.exercises_in_program,
 
-    loads: { exerciseId: '', range: 'all', series: [], progress_4w: null, empty: true, chart: null },
+    loads: { exerciseId: '', range: 'all', series: [], progress_4w: null, empty: true, chart: null,
+             metrics: { load: true, reps: false, rpe: false } },
     volume: { weeks: [], muscles: [], series: {}, chart: null },
     adherence: { series: [], chart: null },
     rpe: { series: [], chart: null },
@@ -29,7 +30,7 @@ document.addEventListener('alpine:init', () => {
     async init() {
       this.loadKpi();
       if (this.exercisesInProgram.length) {
-        this.loads.exerciseId = this.exercisesInProgram[0].workout_exercise_id;
+        this.loads.exerciseId = this.exercisesInProgram[0].exercise_id;
       }
       this.loadTab('loads');
     },
@@ -59,7 +60,7 @@ document.addEventListener('alpine:init', () => {
 
     async loadLoads() {
       const params = new URLSearchParams();
-      if (this.loads.exerciseId) params.set('workout_exercise_id', this.loads.exerciseId);
+      if (this.loads.exerciseId) params.set('exercise_id', this.loads.exerciseId);
       if (this.loads.range) params.set('range', this.loads.range);
       try {
         const r = await fetch(`${this.urls.loads}?${params.toString()}`);
@@ -77,28 +78,53 @@ document.addEventListener('alpine:init', () => {
     renderLoadsChart() {
       const ctx = document.getElementById('loadsChart');
       if (!ctx) return;
-      if (this.loads.chart) this.loads.chart.destroy();
       const data = this.loads.series;
+      const m = this.loads.metrics;
+      const labels = data.map(d => d.date);
+      const dsData = [data.map(d => d.load_max), data.map(d => d.reps_avg), data.map(d => d.rpe_avg)];
+      const hidden = [!m.load, !m.reps, !m.rpe];
+
+      // Switching exercise/range keeps the chart instance and animates the
+      // transition (like the volume chart) instead of tearing it down.
+      if (this.loads.chart) {
+        const c = this.loads.chart;
+        c.data.labels = labels;
+        c.data.datasets.forEach((ds, i) => { ds.data = dsData[i]; ds.hidden = hidden[i]; });
+        c.update();
+        return;
+      }
+
       this.loads.chart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: data.map(d => d.date),
+          labels,
           datasets: [
-            { label: 'Carico max (kg)', data: data.map(d => d.load_max), borderColor: '#b8860b', backgroundColor: 'rgba(184,134,11,0.15)', borderWidth: 2, tension: .3, yAxisID: 'y' },
-            { label: 'Rip medie', data: data.map(d => d.reps_avg), borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: true },
-            { label: 'RPE medio', data: data.map(d => d.rpe_avg), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: true },
+            { label: 'Carico max (kg)', data: dsData[0], borderColor: '#b8860b', backgroundColor: 'rgba(184,134,11,0.15)', borderWidth: 2, tension: .3, yAxisID: 'y', hidden: hidden[0] },
+            { label: 'Rip medie', data: dsData[1], borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[1] },
+            { label: 'RPE medio', data: dsData[2], borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[2] },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false } },
           scales: {
             y: { type: 'linear', position: 'left', title: { display: true, text: 'kg' } },
             y1: { type: 'linear', position: 'right', title: { display: true, text: 'rip / RPE' }, grid: { drawOnChartArea: false } },
           },
         },
       });
+    },
+
+    // Metric toggles drive dataset visibility; persist across exercise changes.
+    toggleMetric(key) {
+      this.loads.metrics[key] = !this.loads.metrics[key];
+      const c = this.loads.chart;
+      if (!c) return;
+      const idx = { load: 0, reps: 1, rpe: 2 }[key];
+      c.data.datasets[idx].hidden = !this.loads.metrics[key];
+      c.update();
     },
 
     async loadVolume() {
@@ -117,12 +143,14 @@ document.addEventListener('alpine:init', () => {
       if (!ctx) return;
       if (this.volume.chart) this.volume.chart.destroy();
       const colors = ['#b8860b', '#0d9488', '#dc2626', '#7c3aed', '#0ea5e9', '#16a34a', '#f59e0b', '#ec4899', '#6366f1', '#84cc16', '#06b6d4'];
+      // Same histogram language as the adherence chart (flat fill, rounded
+      // top); only the per-muscle colour differs, as intended.
       const datasets = this.volume.muscles.map((m, i) => ({
         label: m,
         data: this.volume.series[m] || [],
-        backgroundColor: colors[i % colors.length] + 'cc',
-        borderColor: colors[i % colors.length],
-        borderWidth: 1,
+        backgroundColor: colors[i % colors.length],
+        borderRadius: 4,
+        borderWidth: 0,
       }));
       this.volume.chart = new Chart(ctx, {
         type: 'bar',

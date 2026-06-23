@@ -616,7 +616,7 @@ extension APIClient {
     // MARK: - Chiron
 
     func coachChironHistory(before: Int? = nil) async throws -> ([ChironEntry], Bool) {
-        var path = "/api/v1/coach/chiron/history"
+        var path = "/api/v1/coach/chiron/history/"
         if let b = before { path += "?before=\(b)" }
         let data = try await request(path)
         let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]

@@ -630,18 +630,23 @@ def coach_client_progressi_view(request, client_id):
     last_session = WorkoutSession.objects.filter(client=client).order_by('-started_at').first()
     total_sessions = WorkoutSession.objects.filter(client=client, completed=True).count()
 
-    # Build exercises list for filter dropdown
-    exercises_in_program = []
-    if active_assignment:
-        for ex in WorkoutExercise.objects.filter(
-            workout_day__workout_plan=active_assignment.workout_plan
-        ).select_related('exercise').distinct().order_by('exercise__name'):
-            if ex.exercise.id not in [e['exercise_id'] for e in exercises_in_program]:
-                exercises_in_program.append({
-                    'workout_exercise_id': ex.id,
-                    'exercise_id': ex.exercise.id,
-                    'name': ex.exercise.name,
-                })
+    # Exercises for the loads dropdown: only those the athlete has actually
+    # logged (completed sets), keyed by the underlying Exercise — so the same
+    # movement trained on different days aggregates into one entry and no empty
+    # options ever appear.
+    performed = (
+        WorkoutSetLog.objects
+        .filter(session__client=client, completed=True,
+                workout_exercise__exercise__isnull=False)
+        .values('workout_exercise__exercise_id', 'workout_exercise__exercise__name')
+        .distinct()
+    )
+    exercises_in_program = [
+        {'exercise_id': p['workout_exercise__exercise_id'],
+         'name': p['workout_exercise__exercise__name']}
+        for p in performed
+    ]
+    exercises_in_program.sort(key=lambda e: (e['name'] or '').lower())
 
     return render(request, 'pages/clienti/progressi.html', {
         'client': client,
@@ -676,11 +681,17 @@ def api_progress_loads(request, client_id):
         return err
     coach, client = res
 
-    we_id = request.GET.get('workout_exercise_id') or request.GET.get('exercise_id')
+    # exercise_id = underlying Exercise, so the same movement across different
+    # plan days aggregates into one trend. (Legacy workout_exercise_id still
+    # accepted for older callers.)
+    ex_id = request.GET.get('exercise_id')
+    we_id = request.GET.get('workout_exercise_id')
     range_param = request.GET.get('range', 'all')
 
     qs = WorkoutSetLog.objects.filter(session__client=client, completed=True)
-    if we_id:
+    if ex_id:
+        qs = qs.filter(workout_exercise__exercise_id=ex_id)
+    elif we_id:
         qs = qs.filter(workout_exercise_id=we_id)
 
     today = timezone.now().date()
@@ -715,7 +726,7 @@ def api_progress_loads(request, client_id):
         })
 
     progress_4w = None
-    if series and we_id:
+    if series and (ex_id or we_id):
         cutoff = (today - timedelta(weeks=4)).isoformat()
         recent = [s['load_max'] for s in series if s['date'] >= cutoff and s['load_max'] is not None]
         before = [s['load_max'] for s in series if s['date'] < cutoff and s['load_max'] is not None]

@@ -74,14 +74,17 @@
     </div>
   </div>
 
-  <!-- Tabs -->
-  <div class="flex gap-2 border-b mb-4 overflow-x-auto" style="border-color: var(--al-rule-faint);">
-    <template x-for="t in tabs" :key="t.key">
-      <button @click="activeTab = t.key; loadTab(t.key)" type="button"
-              class="px-4 py-2 whitespace-nowrap shrink-0"
-              :style="activeTab === t.key ? 'border-bottom: 2px solid var(--al-bronze); font-weight: 700;' : 'color: var(--al-ink-faint);'"
-              x-text="t.label"></button>
-    </template>
+  <!-- Tabs (stile filtro Athlynk) -->
+  <div class="mb-5 overflow-x-auto">
+    <div class="al-filter" role="tablist" aria-label="Sezione progressi">
+      <template x-for="t in tabs" :key="t.key">
+        <button @click="activeTab = t.key; loadTab(t.key)" type="button"
+                role="tab" :aria-selected="activeTab === t.key"
+                class="al-filter-chip" data-tone="bronze"
+                :class="{ 'is-active': activeTab === t.key }"
+                x-text="t.label"></button>
+      </template>
+    </div>
   </div>
 
   <!-- TAB 1: Carichi -->
@@ -92,8 +95,8 @@
         <div class="flex items-center gap-2 flex-wrap">
           <select x-model="loads.exerciseId" @change="loadLoads()" class="al-select" style="font-size:.85rem;">
             <option value="">Seleziona esercizio...</option>
-            <template x-for="ex in exercisesInProgram" :key="ex.workout_exercise_id">
-              <option :value="ex.workout_exercise_id" x-text="ex.name"></option>
+            <template x-for="ex in exercisesInProgram" :key="ex.exercise_id">
+              <option :value="ex.exercise_id" x-text="ex.name"></option>
             </template>
           </select>
           <select x-model="loads.range" @change="loadLoads()" class="al-select" style="font-size:.85rem;">
@@ -103,6 +106,23 @@
             <option value="week">Ultima settimana</option>
           </select>
         </div>
+      </div>
+
+      <!-- Metriche: toggle multipli ed espliciti, persistono al cambio esercizio.
+           Riga di chip semplice (niente .al-filter: lì lo slider è single-select). -->
+      <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Metriche">
+        <button type="button" class="al-filter-chip" data-tone="bronze"
+                :class="{ 'is-active': loads.metrics.load }" @click="toggleMetric('load')">
+          <span class="w-2.5 h-2.5 rounded-full" style="background:#b8860b;"></span> Carico Max
+        </button>
+        <button type="button" class="al-filter-chip" data-tone="bronze"
+                :class="{ 'is-active': loads.metrics.reps }" @click="toggleMetric('reps')">
+          <span class="w-2.5 h-2.5 rounded-full" style="background:#0d9488;"></span> Rip medie
+        </button>
+        <button type="button" class="al-filter-chip" data-tone="bronze"
+                :class="{ 'is-active': loads.metrics.rpe }" @click="toggleMetric('rpe')">
+          <span class="w-2.5 h-2.5 rounded-full" style="background:#dc2626;"></span> RPE medio
+        </button>
       </div>
 
       <p x-show="loads.progress_4w !== null" class="mb-3">
@@ -198,42 +218,67 @@
   </section>
 
   <!-- Session detail modal -->
-  <div x-show="sessionModal.open" class="al-modal-backdrop" @click.self="sessionModal.open = false" x-cloak>
-    <div class="al-modal-panel" style="max-width: 640px; max-height: 80vh; overflow-y: auto;">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="al-h-3">Dettaglio sessione</h3>
+  <div x-show="sessionModal.open" class="al-modal-backdrop" @click.self="sessionModal.open = false" x-cloak
+       style="background: rgba(20,18,15,0.55);">
+    <div class="al-modal-panel" style="max-width: 640px; max-height: 85vh; display:flex; flex-direction:column;">
+      <!-- Header sticky -->
+      <div class="flex items-center justify-between px-6 py-4 border-b shrink-0" style="border-color: var(--al-rule);">
+        <h3 class="al-h-3" style="margin:0;">Dettaglio sessione</h3>
         <button @click="sessionModal.open = false" class="al-btn-icon"><i class="ph ph-x"></i></button>
       </div>
-      <template x-if="sessionModal.data">
-        <div>
-          <p class="al-small mb-2"><span x-text="new Date(sessionModal.data.started_at).toLocaleString('it-IT')"></span> · <span x-text="sessionModal.data.duration_minutes + ' min'"></span> · RPE <span x-text="sessionModal.data.avg_rpe || '—'"></span></p>
-          <p x-show="sessionModal.data.notes" class="italic mb-3" x-text="'« ' + sessionModal.data.notes + ' »'"></p>
 
-          <template x-for="ex in sessionModal.data.exercises" :key="ex.workout_exercise_id">
-            <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
-              <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
-              <table class="w-full al-small">
-                <thead><tr><th class="text-left">Set</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th></tr></thead>
-                <tbody>
-                  <template x-for="set in ex.sets" :key="set.set_number">
-                    <tr><td x-text="set.set_number"></td><td x-text="set.reps_done ?? '—'"></td><td x-text="(set.load_used ?? '—') + (set.load_unit==='KG'?' kg':'')"></td><td x-text="set.rpe ?? '—'"></td></tr>
-                  </template>
-                </tbody>
-              </table>
+      <!-- Body scrollabile con padding -->
+      <div class="px-6 py-5 overflow-y-auto" style="min-height:80px;">
+        <template x-if="!sessionModal.data">
+          <div class="al-empty" style="padding:32px;"><i class="ph ph-spinner-gap animate-spin al-empty-icon"></i></div>
+        </template>
+        <template x-if="sessionModal.data">
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <span class="al-tag"><i class="ph ph-calendar"></i> <span x-text="new Date(sessionModal.data.started_at).toLocaleString('it-IT')"></span></span>
+              <span class="al-tag"><i class="ph ph-clock"></i> <span x-text="(sessionModal.data.duration_minutes ?? '—') + ' min'"></span></span>
+              <span class="al-tag"><i class="ph ph-gauge"></i> RPE <span x-text="sessionModal.data.avg_rpe || '—'"></span></span>
             </div>
-          </template>
+            <p x-show="sessionModal.data.notes" class="italic mb-4 al-small" style="color: var(--al-ink-faint);" x-text="'« ' + sessionModal.data.notes + ' »'"></p>
 
-          <h4 class="al-h-4 mt-4">Note del coach</h4>
-          <template x-for="n in sessionModal.data.coach_notes" :key="n.id">
-            <div class="al-card mb-2" style="background: var(--al-marble-warm); padding: .5rem;">
-              <p class="al-small" x-text="n.text"></p>
-              <p class="al-small italic" style="color: var(--al-ink-faint);" x-text="n.coach_name + ' · ' + new Date(n.created_at).toLocaleString('it-IT')"></p>
-            </div>
-          </template>
-          <textarea x-model="coachNoteText" placeholder="Aggiungi una nota..." class="al-textarea" rows="2"></textarea>
-          <button @click="addCoachNote()" class="al-btn al-btn-bronze al-btn-sm mt-2">Salva nota</button>
-        </div>
-      </template>
+            <template x-for="ex in sessionModal.data.exercises" :key="ex.workout_exercise_id">
+              <div class="mb-3 rounded-lg overflow-hidden" style="border: 1px solid var(--al-rule);">
+                <p class="font-semibold px-3 py-2" style="background: var(--al-marble-warm); border-bottom: 1px solid var(--al-rule-faint);" x-text="ex.exercise_name"></p>
+                <table class="w-full al-small">
+                  <thead>
+                    <tr style="color: var(--al-ink-faint);">
+                      <th class="text-left px-3 py-1.5 font-medium">Set</th>
+                      <th class="text-left px-3 py-1.5 font-medium">Rip</th>
+                      <th class="text-left px-3 py-1.5 font-medium">Carico</th>
+                      <th class="text-left px-3 py-1.5 font-medium">RPE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="set in ex.sets" :key="set.set_number">
+                      <tr style="border-top: 1px solid var(--al-rule-faint);">
+                        <td class="px-3 py-1.5 font-mono" x-text="set.set_number"></td>
+                        <td class="px-3 py-1.5" x-text="set.reps_done ?? '—'"></td>
+                        <td class="px-3 py-1.5 font-mono" x-text="(set.load_used ?? '—') + (set.load_unit==='KG'?' kg':'')"></td>
+                        <td class="px-3 py-1.5" x-text="set.rpe ?? '—'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <h4 class="al-h-4 mt-5 mb-2">Note del coach</h4>
+            <template x-for="n in sessionModal.data.coach_notes" :key="n.id">
+              <div class="rounded-lg mb-2 p-3" style="background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint);">
+                <p class="al-small" x-text="n.text"></p>
+                <p class="al-small italic mt-1" style="color: var(--al-ink-faint);" x-text="n.coach_name + ' · ' + new Date(n.created_at).toLocaleString('it-IT')"></p>
+              </div>
+            </template>
+            <textarea x-model="coachNoteText" placeholder="Aggiungi una nota..." class="al-textarea mt-1" rows="2"></textarea>
+            <button @click="addCoachNote()" class="al-btn al-btn-bronze al-btn-sm mt-2">Salva nota</button>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 

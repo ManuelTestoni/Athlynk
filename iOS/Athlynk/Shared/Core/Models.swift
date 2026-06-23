@@ -844,12 +844,13 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
     let loadValue: Double?
     let loadUnit: String?
     let recoverySeconds: Int?
+    let tempo: String?
     let notes: String?
 
     var id: Int { workoutExerciseId }
 
     enum CodingKeys: String, CodingKey {
-        case name, sets, reps, notes
+        case name, sets, reps, notes, tempo
         case workoutExerciseId = "workout_exercise_id"
         case targetMuscleGroup = "target_muscle_group"
         case loadValue = "load_value"

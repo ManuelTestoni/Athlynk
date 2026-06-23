@@ -57,6 +57,7 @@
                         <th>Atleta</th>
                         <th>Stato</th>
                         <th>Allenamento</th>
+                        <th>Nutrizione</th>
                         <th>Ultimo Check</th>
                         <th>Abbonamento</th>
                         <th class="text-right">&nbsp;</th>
@@ -89,6 +90,12 @@
                             <template x-if="!c.workout_title"><span class="al-tag">Nessun piano</span></template>
                         </td>
                         <td>
+                            <template x-if="c.nutrition_title">
+                                <p class="font-medium text-ink truncate max-w-[160px]" x-text="c.nutrition_title"></p>
+                            </template>
+                            <template x-if="!c.nutrition_title"><span class="al-tag">Nessun piano</span></template>
+                        </td>
+                        <td>
                             <template x-if="c.last_check"><span class="al-table-num" x-text="fmtDate(c.last_check)"></span></template>
                             <template x-if="!c.last_check"><span class="al-tag">Mai</span></template>
                         </td>
@@ -112,7 +119,7 @@
 
                     <template x-if="filtered.length === 0">
                     <tr>
-                        <td colspan="6">
+                        <td colspan="7">
                             <div class="al-empty">
                                 <i class="ph ph-users-three al-empty-icon"></i>
                                 <h3 x-text="clients.length === 0 ? 'Nessun atleta' : 'Nessun risultato'"></h3>
@@ -149,7 +156,7 @@ function clientsTable() {
         get filtered() {
             const q = this.q.trim().toLowerCase();
             return this.clients.filter(c =>
-                (!q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)) &&
+                (!q || (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)) &&
                 (!this.status || c.status === this.status) &&
                 (!this.plan || c.plan_id === this.plan)
             );

@@ -105,14 +105,14 @@
         </div>
 
         <!-- Risk class breakdown -->
-        <div class="al-card al-card-dark">
+        <div class="al-card">
             <div class="al-card-head"><h3 class="al-h-3">Rischio clienti</h3></div>
             <div class="al-card-body space-y-4">
                 <template x-for="b in riskBreakdown" :key="b.cls">
                     <button class="w-full flex items-center justify-between p-3 rounded-al-md transition border"
                             :class="riskFilter===b.cls
                                 ? 'bg-bronze/20 border-bronze-light/40'
-                                : 'border-transparent hover:bg-parchment/5'"
+                                : 'border-transparent hover:bg-marble'"
                             @click="setRiskFilter(b.cls)">
                         <span class="flex items-center gap-3">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + b.dot"></span>
@@ -120,7 +120,7 @@
                         </span>
                         <span class="flex items-center gap-2">
                             <span class="al-display text-2xl" x-text="b.count"></span>
-                            <i class="ph ph-check-circle text-bronze-light" x-show="riskFilter===b.cls" x-cloak></i>
+                            <i class="ph ph-check-circle text-bronze" x-show="riskFilter===b.cls" x-cloak></i>
                         </span>
                     </button>
                 </template>

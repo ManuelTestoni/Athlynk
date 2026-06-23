@@ -262,10 +262,30 @@ struct ActiveSessionView: View {
                     }
                 }
                 Spacer()
-                if let rec = ex.recoverySeconds {
-                    Label("\(rec)s", systemImage: "timer")
-                        .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if let rec = ex.recoverySeconds {
+                        Label("\(rec)s", systemImage: "timer")
+                            .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
+                    }
+                    // TUT (tempo) — only when the coach set it for this exercise.
+                    if let t = ex.tempo?.trimmingCharacters(in: .whitespaces), !t.isEmpty {
+                        Label(t, systemImage: "metronome")
+                            .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
+                    }
                 }
+            }
+
+            // Coach note — shown only when set for this exercise.
+            if let note = ex.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "quote.opening")
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.magenta)
+                    Text(note).font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Palette.magenta.opacity(0.08)))
             }
 
             HStack(spacing: 8) {

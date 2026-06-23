@@ -58,7 +58,17 @@ def coach_clients_list_view(request):
         ).values_list('client_id', flat=True)
         relationships_qs = relationships_qs.filter(client_id__in=list(plan_client_ids))
 
-    relationships = list(relationships_qs)
+    # One row per client: a coach can hold several relationship records for the
+    # same athlete (e.g. re-added after a lapse). Keep the most relevant one
+    # (qs is ordered -start_date) so the table — and its Alpine x-for :key=id —
+    # never sees duplicate client ids.
+    seen = set()
+    relationships = []
+    for r in relationships_qs:
+        if r.client_id in seen:
+            continue
+        seen.add(r.client_id)
+        relationships.append(r)
     client_ids = [r.client_id for r in relationships]
 
     active_workouts = {
@@ -82,6 +92,12 @@ def coach_clients_list_view(request):
             status='ACTIVE'
         ).select_related('subscription_plan')
     }
+    active_nutrition = {
+        na.client_id: na
+        for na in NutritionAssignment.objects.filter(
+            client_id__in=client_ids, coach=coach, status='ACTIVE'
+        ).select_related('nutrition_plan')
+    }
 
     clients_data = [
         {
@@ -90,6 +106,7 @@ def coach_clients_list_view(request):
             'active_workout': active_workouts.get(rel.client_id),
             'last_check_date': last_check_dates.get(rel.client_id),
             'active_subscription': active_subs.get(rel.client_id),
+            'active_nutrition': active_nutrition.get(rel.client_id),
         }
         for rel in relationships
     ]
@@ -109,6 +126,7 @@ def coach_clients_list_view(request):
             'status': item['relationship'].status or '',
             'workout_title': item['active_workout'].workout_plan.title if item['active_workout'] else '',
             'workout_level': (item['active_workout'].workout_plan.level or '') if item['active_workout'] else '',
+            'nutrition_title': item['active_nutrition'].nutrition_plan.title if item['active_nutrition'] else '',
             'last_check': item['last_check_date'].isoformat() if item['last_check_date'] else '',
             'sub_name': item['active_subscription'].subscription_plan.name if item['active_subscription'] else '',
             'sub_price': str(item['active_subscription'].subscription_plan.price) if item['active_subscription'] else '',

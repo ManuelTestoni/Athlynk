@@ -244,6 +244,15 @@
       window.requestAnimationFrame(function () { place(false); });
       setTimeout(function () { place(false); }, 80);
 
+      // Built while hidden (e.g. inside x-cloak/x-show): offsetWidth is 0 then,
+      // so the active chip looks unstyled until first click. Re-place once the
+      // control actually becomes visible.
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          if (entries.some(function (e) { return e.isIntersecting; })) place(false);
+        }).observe(filter);
+      }
+
       var rzTicking = false;
       window.addEventListener('resize', function () {
         if (rzTicking) return;
