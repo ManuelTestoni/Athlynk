@@ -1,5 +1,9 @@
 document.addEventListener('alpine:init', () => {
-  Alpine.data('coachProgressi', () => ({
+  Alpine.data('coachProgressi', () => {
+    // Chart.js instances live OUTSIDE Alpine's reactive data: if proxied, the
+    // Proxy corrupts internals and .update() silently no-ops (chart frozen).
+    const charts = { loads: null, volume: null, adherence: null, rpe: null };
+    return {
     activeTab: 'loads',
     tabs: [
       { key: 'loads', label: 'Progressioni Carichi' },
@@ -11,11 +15,11 @@ document.addEventListener('alpine:init', () => {
     kpi: {},
     exercisesInProgram: window.PROGRESS_INIT.exercises_in_program,
 
-    loads: { exerciseId: '', range: 'all', series: [], progress_4w: null, empty: true, chart: null,
+    loads: { exerciseId: '', range: 'all', series: [], progress_4w: null, empty: true,
              metrics: { load: true, reps: false, rpe: false } },
-    volume: { weeks: [], muscles: [], series: {}, chart: null },
-    adherence: { series: [], chart: null },
-    rpe: { series: [], chart: null },
+    volume: { weeks: [], muscles: [], series: {} },
+    adherence: { series: [] },
+    rpe: { series: [] },
 
     sessions: [],
     media: [],
@@ -86,8 +90,8 @@ document.addEventListener('alpine:init', () => {
 
       // Switching exercise/range keeps the chart instance and animates the
       // transition (like the volume chart) instead of tearing it down.
-      if (this.loads.chart) {
-        const c = this.loads.chart;
+      if (charts.loads) {
+        const c = charts.loads;
         c.data.labels = labels;
         c.data.datasets.forEach((ds, i) => {
           ds.data = dsData[i];
@@ -97,7 +101,7 @@ document.addEventListener('alpine:init', () => {
         return;
       }
 
-      this.loads.chart = new Chart(ctx, {
+      charts.loads = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
@@ -123,7 +127,7 @@ document.addEventListener('alpine:init', () => {
     // Metric toggles drive dataset visibility; persist across exercise changes.
     toggleMetric(key) {
       this.loads.metrics[key] = !this.loads.metrics[key];
-      const c = this.loads.chart;
+      const c = charts.loads;
       if (!c) return;
       const idx = { load: 0, reps: 1, rpe: 2 }[key];
       c.setDatasetVisibility(idx, this.loads.metrics[key]);
@@ -144,7 +148,7 @@ document.addEventListener('alpine:init', () => {
     renderVolumeChart() {
       const ctx = document.getElementById('volumeChart');
       if (!ctx) return;
-      if (this.volume.chart) this.volume.chart.destroy();
+      if (charts.volume) charts.volume.destroy();
       const colors = ['#b8860b', '#0d9488', '#dc2626', '#7c3aed', '#0ea5e9', '#16a34a', '#f59e0b', '#ec4899', '#6366f1', '#84cc16', '#06b6d4'];
       // Same histogram language as the adherence chart (flat fill, rounded
       // top); only the per-muscle colour differs, as intended.
@@ -155,7 +159,7 @@ document.addEventListener('alpine:init', () => {
         borderRadius: 4,
         borderWidth: 0,
       }));
-      this.volume.chart = new Chart(ctx, {
+      charts.volume = new Chart(ctx, {
         type: 'bar',
         data: { labels: this.volume.weeks, datasets },
         options: {
@@ -178,9 +182,9 @@ document.addEventListener('alpine:init', () => {
     renderAdherenceChart() {
       const ctx = document.getElementById('adherenceChart');
       if (!ctx) return;
-      if (this.adherence.chart) this.adherence.chart.destroy();
+      if (charts.adherence) charts.adherence.destroy();
       const data = this.adherence.series;
-      this.adherence.chart = new Chart(ctx, {
+      charts.adherence = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: data.map(d => d.week),
@@ -211,9 +215,9 @@ document.addEventListener('alpine:init', () => {
     renderRpeChart() {
       const ctx = document.getElementById('rpeChart');
       if (!ctx) return;
-      if (this.rpe.chart) this.rpe.chart.destroy();
+      if (charts.rpe) charts.rpe.destroy();
       const data = this.rpe.series;
-      this.rpe.chart = new Chart(ctx, {
+      charts.rpe = new Chart(ctx, {
         type: 'line',
         data: {
           labels: data.map(d => d.week),
@@ -290,5 +294,6 @@ document.addEventListener('alpine:init', () => {
         }
       } catch (e) { /* silent */ }
     },
-  }));
+    };
+  });
 });
