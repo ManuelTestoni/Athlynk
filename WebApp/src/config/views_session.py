@@ -283,10 +283,16 @@ def build_exercise_trend(workout_exercise, client):
         full = [st for st in bucket['sets']
                 if st['load'] is not None and st['reps'] is not None]
         with_load = [st for st in bucket['sets'] if st['load'] is not None]
-        if not with_load:
-            continue  # no usable data point this session
+        # Keep any session with logged work, even reps-only (bodyweight, or the
+        # athlete didn't enter a load): load-based metrics are simply None then.
+        # Matches api_progress_loads, which also surfaces no-load sessions —
+        # otherwise the trend reads "nessuna sessione" while the web shows points.
+        has_work = any(st['reps'] is not None or st['load'] is not None
+                       for st in bucket['sets'])
+        if not has_work:
+            continue
         volume = sum(st['reps'] * st['load'] for st in full) if full else None
-        top = max(with_load, key=lambda st: st['load'])
+        top = max(with_load, key=lambda st: st['load']) if with_load else None
         total_reps = sum(st['reps'] for st in full)
         weighted_avg_load = (
             round(sum(st['load'] * st['reps'] for st in full) / total_reps, 2)
@@ -295,9 +301,9 @@ def build_exercise_trend(workout_exercise, client):
         series.append({
             **bucket,
             'volume': round(volume, 1) if volume is not None else None,
-            'top_set': top['load'],
+            'top_set': top['load'] if top else None,
             'weighted_avg_load': weighted_avg_load,
-            'load_unit': top['load_unit'] or workout_exercise.load_unit or 'KG',
+            'load_unit': (top['load_unit'] if top else None) or workout_exercise.load_unit or 'KG',
         })
 
     return {

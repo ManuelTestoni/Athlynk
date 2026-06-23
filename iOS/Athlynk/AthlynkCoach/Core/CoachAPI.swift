@@ -632,6 +632,18 @@ extension APIClient {
         return o
     }
 
+    // MARK: - Client past sessions
+
+    func coachClientSessions(clientId: Int, offset: Int = 0) async throws -> SessionBriefListDTO {
+        try decode(SessionBriefListDTO.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/sessions?offset=\(offset)"))
+    }
+
+    func coachSessionDetail(_ id: Int) async throws -> SessionDetailDTO {
+        try decode(SessionDetailDTO.self,
+                   from: try await request("/api/v1/coach/sessions/\(id)"))
+    }
+
     // MARK: - Chiron
 
     func coachChironHistory(before: Int? = nil) async throws -> ([ChironEntry], Bool) {

@@ -247,6 +247,12 @@ final class APIClient {
                    from: try await request("/api/v1/workout-history?offset=\(offset)"))
     }
 
+    /// Full detail (logged sets per exercise) of one past session.
+    func workoutSessionDetail(_ id: Int) async throws -> SessionDetailDTO {
+        try decode(SessionDetailDTO.self,
+                   from: try await request("/api/v1/workout-history/\(id)"))
+    }
+
     func supplements() async throws -> [SupplementSheetDTO] {
         try decode(SupplementsResponse.self, from: try await request("/api/v1/supplements")).sheets
     }

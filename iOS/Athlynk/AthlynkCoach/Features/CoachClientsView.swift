@@ -154,6 +154,14 @@ struct CoachClientDetailView: View {
         .navigationDestination(for: CoachJourneyRoute.self) { r in
             CoachJourneyView(clientId: r.clientId)
         }
+        .navigationDestination(for: CoachSessionsRoute.self) { r in
+            CoachSessionsView(clientId: r.clientId)
+        }
+        .navigationDestination(for: CoachSessionRoute.self) { r in
+            SessionDetailView(accent: Palette.magenta) {
+                try await APIClient.shared.coachSessionDetail(r.sessionId)
+            }
+        }
         .sheet(isPresented: $showAddMeasurement) {
             AddMeasurementSheet(accent: Palette.cyan) { type, key, value, date in
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
@@ -316,6 +324,23 @@ struct CoachClientDetailView: View {
                 .padding(14).voltPanel()
             }
             .buttonStyle(PressableButtonStyle())
+
+            NavigationLink(value: CoachSessionsRoute(clientId: clientId)) {
+                HStack(spacing: 14) {
+                    Image(systemName: "clock.arrow.circlepath").font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Palette.magenta).frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Storico sessioni").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                        Text("Allenamenti passati e serie registrate")
+                            .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Palette.textLow)
+                }
+                .padding(14).voltPanel()
+            }
+            .buttonStyle(PressableButtonStyle())
         }
     }
 
@@ -442,6 +467,85 @@ struct CoachTrendChart: View {
 struct CheckRoute: Hashable { let id: Int }
 struct CoachClientWorkoutRoute: Hashable { let clientId: Int }
 struct CoachJourneyRoute: Hashable { let clientId: Int }
+struct CoachSessionsRoute: Hashable { let clientId: Int }
+struct CoachSessionRoute: Hashable { let sessionId: Int }
+
+/// Paged list of a client's past sessions; rows push the shared SessionDetailView.
+struct CoachSessionsView: View {
+    let clientId: Int
+    @State private var sessions: [SessionBriefDTO] = []
+    @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
+    @State private var error: String?
+
+    var body: some View {
+        ScreenScroll {
+            if loading {
+                ProgressView().tint(Palette.magenta).frame(maxWidth: .infinity).padding(.top, 60)
+            } else if let error {
+                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
+            } else if sessions.isEmpty {
+                EmptyPanel(icon: "clock.arrow.circlepath", text: "Nessuna sessione registrata.")
+            } else {
+                ForEach(sessions) { s in
+                    NavigationLink(value: CoachSessionRoute(sessionId: s.id)) { row(s) }
+                        .buttonStyle(PressableButtonStyle())
+                        .onAppear { if s.id == sessions.last?.id { Task { await loadMore() } } }
+                }
+                if loadingMore {
+                    ProgressView().tint(Palette.magenta).frame(maxWidth: .infinity).padding(.vertical, 8)
+                }
+            }
+        }
+        .navigationTitle("Storico sessioni")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func row(_ s: SessionBriefDTO) -> some View {
+        let statusColor = s.completed ? Palette.lime : (s.interrupted ? Palette.amber : Palette.textLow)
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(s.dayName ?? "Sessione").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                HStack(spacing: 12) {
+                    Text(CoachDate.dayMonth(s.startedAt)).font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
+                    if let d = s.durationMinutes {
+                        Label("\(d) min", systemImage: "timer").font(Typo.mono(10)).foregroundStyle(Palette.textMid)
+                    }
+                    if let r = s.avgRpe {
+                        Label(String(format: "RPE %.1f", r), systemImage: "flame.fill")
+                            .font(Typo.mono(10)).foregroundStyle(Palette.textMid)
+                    }
+                }
+            }
+            Spacer()
+            Image(systemName: s.completed ? "checkmark.seal.fill" : (s.interrupted ? "exclamationmark.triangle.fill" : "circle"))
+                .font(.system(size: 18, weight: .black)).foregroundStyle(statusColor)
+        }
+        .padding(14).voltPanel(statusColor.opacity(0.4))
+    }
+
+    private func load() async {
+        loading = true; error = nil
+        do {
+            let page = try await APIClient.shared.coachClientSessions(clientId: clientId)
+            sessions = page.sessions
+            hasMore = page.hasMore ?? false
+        } catch { self.error = error.localizedDescription }
+        loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore, !loading else { return }
+        loadingMore = true; defer { loadingMore = false }
+        guard let page = try? await APIClient.shared.coachClientSessions(clientId: clientId, offset: sessions.count)
+        else { return }
+        let known = Set(sessions.map(\.id))
+        sessions.append(contentsOf: page.sessions.filter { !known.contains($0.id) })
+        hasMore = page.hasMore ?? false
+    }
+}
 struct CoachExerciseTrendRoute: Hashable { let clientId: Int; let exercise: ExerciseDTO }
 
 // MARK: - Client active workout → per-exercise trend (coach view)

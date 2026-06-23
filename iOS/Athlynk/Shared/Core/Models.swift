@@ -754,6 +754,89 @@ struct WorkoutHistoryResponse: Codable {
     enum CodingKeys: String, CodingKey { case sessions; case hasMore = "has_more" }
 }
 
+// MARK: - Past session detail (athlete + coach share these via _serialize_session_*)
+
+/// Brief row for the coach's per-client session history list.
+struct SessionBriefDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let dayName: String?
+    let startedAt: String?
+    let durationMinutes: Int?
+    let avgRpe: Double?
+    let completed: Bool
+    let interrupted: Bool
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, completed, interrupted, notes
+        case dayName = "day_name"
+        case startedAt = "started_at"
+        case durationMinutes = "duration_minutes"
+        case avgRpe = "avg_rpe"
+    }
+}
+
+struct SessionBriefListDTO: Codable {
+    let sessions: [SessionBriefDTO]
+    let hasMore: Bool?
+    enum CodingKeys: String, CodingKey { case sessions; case hasMore = "has_more" }
+}
+
+struct LoggedSetDetailDTO: Codable, Identifiable, Hashable {
+    let setNumber: Int
+    let repsDone: Int?
+    let loadUsed: Double?
+    let loadUnit: String?
+    let rpe: Int?
+    let completed: Bool
+    var id: Int { setNumber }
+
+    enum CodingKeys: String, CodingKey {
+        case rpe, completed
+        case setNumber = "set_number"
+        case repsDone = "reps_done"
+        case loadUsed = "load_used"
+        case loadUnit = "load_unit"
+    }
+}
+
+struct SessionLoggedExerciseDTO: Codable, Identifiable, Hashable {
+    let workoutExerciseId: Int
+    let exerciseName: String
+    let exerciseNote: String?
+    let prescribedReps: String?
+    let sets: [LoggedSetDetailDTO]
+    var id: Int { workoutExerciseId }
+
+    enum CodingKeys: String, CodingKey {
+        case sets
+        case workoutExerciseId = "workout_exercise_id"
+        case exerciseName = "exercise_name"
+        case exerciseNote = "exercise_note"
+        case prescribedReps = "prescribed_reps"
+    }
+}
+
+struct SessionDetailDTO: Codable, Identifiable {
+    let id: Int
+    let dayName: String?
+    let startedAt: String?
+    let durationMinutes: Int?
+    let avgRpe: Double?
+    let completed: Bool
+    let interrupted: Bool
+    let notes: String?
+    let exercises: [SessionLoggedExerciseDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case id, completed, interrupted, notes, exercises
+        case dayName = "day_name"
+        case startedAt = "started_at"
+        case durationMinutes = "duration_minutes"
+        case avgRpe = "avg_rpe"
+    }
+}
+
 // MARK: - Supplements (Integratori)
 
 struct SupplementItemDTO: Codable, Identifiable, Hashable {

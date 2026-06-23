@@ -31,6 +31,7 @@ from domain.nutrition.models import (
 )
 from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutPlan,
+    WorkoutSession,
 )
 
 from .api import (
@@ -1400,6 +1401,49 @@ def client_exercise_trend(request, user, client_id, workout_exercise_id):
         client=rel.client, workout_plan=we.workout_day.workout_plan).exists():
         return JsonResponse({'error': 'Esercizio non assegnato'}, status=404)
     return JsonResponse(build_exercise_trend(we, rel.client))
+
+
+@api_view(['GET'])
+def client_sessions(request, user, client_id):
+    """Paged list of a client's past training sessions (most recent first)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    from .views_session import _serialize_session_brief
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except (ValueError, TypeError):
+        offset = 0
+    page = 20
+    qs = (WorkoutSession.objects
+          .filter(client=rel.client)
+          .select_related('workout_day')
+          .order_by('-started_at'))
+    sessions = list(qs[offset:offset + page])
+    return JsonResponse({
+        'sessions': [_serialize_session_brief(s) for s in sessions],
+        'has_more': qs.count() > offset + page,
+    })
+
+
+@api_view(['GET'])
+def session_detail(request, user, session_id):
+    """Full detail of one session belonging to one of the coach's clients."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    from .views_session import _serialize_session_full
+    s = (WorkoutSession.objects
+         .select_related('workout_day', 'client')
+         .filter(id=session_id).first())
+    if not s:
+        return JsonResponse({'error': 'Sessione non trovata'}, status=404)
+    if not _own_relationship(coach, s.client_id):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    return JsonResponse(_serialize_session_full(s))
 
 
 # ---------------------------------------------------------------------------

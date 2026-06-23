@@ -1310,6 +1310,21 @@ def workout_history(request, user):
     return JsonResponse({'sessions': out, 'has_more': has_more})
 
 
+@api_view(['GET'])
+def workout_session_detail(request, user, session_id):
+    """Full detail of one of the athlete's own past sessions (logged sets)."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    from .views_session import _serialize_session_full
+    s = (WorkoutSession.objects
+         .select_related('workout_day')
+         .filter(id=session_id, client=client).first())
+    if not s:
+        return JsonResponse({'error': 'Sessione non trovata'}, status=404)
+    return JsonResponse(_serialize_session_full(s))
+
+
 # ---------------------------------------------------------------------------
 # Supplements — active supplement protocol ("Integratori")
 # ---------------------------------------------------------------------------
