@@ -184,10 +184,7 @@ struct CoachClientDetailView: View {
         VStack(spacing: 12) {
             CoachClientAvatar(url: d.client.profileImageUrl, initials: d.client.initials, size: 92)
             Text(d.client.displayName).font(Typo.poster(32)).foregroundStyle(Palette.textHi)
-            if let goal = d.client.primaryGoal {
-                Text(goal.uppercased()).font(Typo.mono(11, .semibold)).tracking(2)
-                    .foregroundStyle(Palette.bronze)
-            }
+
             StatusBadge(text: d.relationship.status ?? "—",
                         color: (d.relationship.status == "ACTIVE") ? Palette.lime : Palette.textLow)
         }
