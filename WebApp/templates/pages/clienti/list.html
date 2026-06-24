@@ -4,7 +4,7 @@
 {% block title %}Atleti{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="clientsTable({{ clients_json|json_js }}, {{ all_labels_json|json_js }})">
+<div class="max-w-7xl mx-auto" x-data="clientsTable()">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
@@ -157,14 +157,16 @@
 </div>
 
 <script>
-function clientsTable(clientsData, allLabelsData) {
+var _clientsData = {{ clients_json|json_js }};
+var _allLabelsData = {{ all_labels_json|json_js }};
+function clientsTable() {
     return {
         q: '',
         status: '',
         plan: '',
         labelFilter: '',
-        clients: clientsData,
-        allLabels: allLabelsData,
+        clients: _clientsData,
+        allLabels: _allLabelsData,
         get hasFilters() { return this.q.trim() !== '' || this.status !== '' || this.plan !== '' || this.labelFilter !== ''; },
         get filtered() {
             const q = this.q.trim().toLowerCase();
