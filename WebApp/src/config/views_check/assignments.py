@@ -53,7 +53,7 @@ def api_check_search(request):
         QuestionnaireResponse.objects.filter(coach=coach)
         .select_related('client')
         .only('id', 'submitted_at', 'weight_kg', 'status',
-              'client__id', 'client__first_name', 'client__last_name', 'client__primary_goal')
+              'client__id', 'client__first_name', 'client__last_name')
         .order_by('-submitted_at')
     )
 
@@ -75,7 +75,6 @@ def api_check_search(request):
             'client_id': r.client.id,
             'client_name': f"{r.client.first_name} {r.client.last_name}",
             'client_initials': f"{r.client.first_name[:1]}{r.client.last_name[:1]}".upper(),
-            'primary_goal': r.client.primary_goal or '',
             'submitted_at': r.submitted_at.strftime('%-d %b %Y, %H:%M') if r.submitted_at else '—',
             'weight_kg': str(r.weight_kg) if r.weight_kg else None,
             'status': r.status,
@@ -146,7 +145,6 @@ def api_coach_clients_check_status(request):
             'client_id': client.id,
             'client_name': f"{client.first_name} {client.last_name}",
             'client_initials': f"{client.first_name[:1]}{client.last_name[:1]}".upper(),
-            'primary_goal': client.primary_goal or '',
             'pending_count': pending_count,
             'status': status_val,
             'latest_check_at': latest_submitted_at.strftime('%-d %b %Y') if latest_submitted_at else None,

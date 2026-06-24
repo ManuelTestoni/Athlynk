@@ -50,9 +50,6 @@ class Command(BaseCommand):
                 'last_name': 'Bianchi',
                 'phone': '+39 333 7654321',
                 'birth_date': date(1995, 8, 10),
-                'height_cm': 180,
-                'activity_level': 'Sedentario',
-                'primary_goal': 'Ipertrofia e Ricomposizione Corporea',
                 'client_status': 'ACTIVE'
             }
         )
@@ -74,9 +71,6 @@ class Command(BaseCommand):
                 'last_name': 'Amorelli',
                 'phone': '+39 333 7654321',
                 'birth_date': date(1995, 8, 10),
-                'height_cm': 180,
-                'activity_level': 'Sedentario',
-                'primary_goal': 'DISTURBI GRAVI ALIMENTARI',
                 'client_status': 'ACTIVE'
             }
         )

@@ -14,9 +14,6 @@ struct EditProfileView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var phone = ""
-    @State private var heightCm = ""
-    @State private var goal = ""
-    @State private var activity = ""
 
     @State private var imageUrl: String?
     @State private var photoItem: PhotosPickerItem?
@@ -42,9 +39,6 @@ struct EditProfileView: View {
                         field("Nome", text: $firstName)
                         field("Cognome", text: $lastName)
                         field("Telefono", text: $phone, keyboard: .phonePad)
-                        field("Altezza (cm)", text: $heightCm, keyboard: .numberPad)
-                        field("Obiettivo", text: $goal)
-                        field("Livello attività", text: $activity)
 
                         NeonButton(title: saving ? "Salvataggio…" : "Salva modifiche",
                                    icon: "checkmark", color: Palette.amber, loading: saving) {
@@ -162,9 +156,6 @@ struct EditProfileView: View {
             firstName = p.firstName
             lastName = p.lastName
             phone = p.phone ?? ""
-            heightCm = p.heightCm.map { "\($0)" } ?? ""
-            goal = p.primaryGoal ?? ""
-            activity = p.activityLevel ?? ""
             imageUrl = p.imageUrl
         } catch {
             self.error = error.localizedDescription
@@ -174,14 +165,11 @@ struct EditProfileView: View {
 
     private func save() async {
         saving = true; error = nil
-        var fields: [String: Any] = [
+        let fields: [String: Any] = [
             "first_name": firstName,
             "last_name": lastName,
             "phone": phone,
-            "primary_goal": goal,
-            "activity_level": activity,
         ]
-        fields["height_cm"] = Int(heightCm.trimmingCharacters(in: .whitespaces)) ?? ""
         do {
             _ = try await APIClient.shared.updateProfile(fields)
             Haptics.success()

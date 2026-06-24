@@ -4,7 +4,7 @@
 {% block title %}Atleti{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="clientsTable()">
+<div class="max-w-7xl mx-auto" x-data="clientsTable({{ clients_json|json_js }}, {{ all_labels_json|json_js }})">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
@@ -42,7 +42,13 @@
             <option value="{{ p.id }}">{{ p.name }}</option>
             {% endfor %}
         </select>
-        <button type="button" x-show="hasFilters" x-cloak @click="q=''; status=''; plan=''" class="al-btn al-btn-ghost al-btn-sm">
+        <select x-model="labelFilter" class="al-select sm:max-w-[180px]" x-show="allLabels.length > 0" x-cloak>
+            <option value="">Tutte le etichette</option>
+            <template x-for="l in allLabels" :key="l.id">
+                <option :value="l.id" x-text="l.name"></option>
+            </template>
+        </select>
+        <button type="button" x-show="hasFilters" x-cloak @click="q=''; status=''; plan=''; labelFilter=''" class="al-btn al-btn-ghost al-btn-sm">
             <i class="ph ph-x"></i>
             <span>Resetta</span>
         </button>
@@ -72,6 +78,11 @@
                                 <div>
                                     <p class="font-medium text-ink" x-text="c.name"></p>
                                     <p class="al-tag" style="font-size:9px;" x-text="c.email"></p>
+                                    <div class="flex flex-wrap gap-1 mt-1" x-show="c.labels && c.labels.length > 0">
+                                        <template x-for="lbl in (c.labels || [])" :key="lbl.id">
+                                            <span class="al-pill" style="font-size:9px; padding: 1px 6px;" x-text="lbl.name"></span>
+                                        </template>
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -146,19 +157,23 @@
 </div>
 
 <script>
-function clientsTable() {
+function clientsTable(clientsData, allLabelsData) {
     return {
         q: '',
         status: '',
         plan: '',
-        clients: {{ clients_json|json_js }},
-        get hasFilters() { return this.q.trim() !== '' || this.status !== '' || this.plan !== ''; },
+        labelFilter: '',
+        clients: clientsData,
+        allLabels: allLabelsData,
+        get hasFilters() { return this.q.trim() !== '' || this.status !== '' || this.plan !== '' || this.labelFilter !== ''; },
         get filtered() {
             const q = this.q.trim().toLowerCase();
+            const lf = this.labelFilter ? parseInt(this.labelFilter) : null;
             return this.clients.filter(c =>
                 (!q || (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)) &&
                 (!this.status || c.status === this.status) &&
-                (!this.plan || c.plan_id === this.plan)
+                (!this.plan || c.plan_id === this.plan) &&
+                (!lf || (c.label_ids || []).includes(lf))
             );
         },
         fmtDate(iso) {

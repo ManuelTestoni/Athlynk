@@ -82,15 +82,12 @@ class ClientProfile(models.Model):
     phone = models.CharField(max_length=20, null=True, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=20, null=True, blank=True)
-    height_cm = models.IntegerField(null=True, blank=True)
     # Self-declared current weight, captured at onboarding (the Chiron intake).
     # Ongoing weight history still lives in check responses.
     current_weight_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
     # Primary sport / discipline the athlete trains for.
     sport = models.CharField(max_length=100, null=True, blank=True)
-    activity_level = models.CharField(max_length=100, null=True, blank=True)
     medical_notes_summary = models.TextField(null=True, blank=True)
-    primary_goal = models.CharField(max_length=200, null=True, blank=True)
     payment_status_summary = models.CharField(max_length=100, null=True, blank=True)
     onboarding_status = models.CharField(max_length=100, null=True, blank=True)
     client_status = models.CharField(max_length=100, null=True, blank=True)

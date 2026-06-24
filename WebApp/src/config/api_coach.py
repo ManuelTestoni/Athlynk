@@ -110,7 +110,6 @@ def _client_brief(request, client):
         'last_name': last,
         'display_name': (f'{first} {last}'.strip() or 'Atleta'),
         'profile_image_url': _client_avatar(request, client),
-        'primary_goal': client.primary_goal,
         'sport': client.sport,
     }
 
@@ -374,9 +373,7 @@ def client_detail(request, user, client_id):
         'phone': client.phone,
         'gender': client.gender,
         'birth_date': _iso(client.birth_date),
-        'height_cm': client.height_cm,
         'weight_kg': float(client.current_weight_kg) if client.current_weight_kg is not None else None,
-        'activity_level': client.activity_level,
         'email': client.user.email,
     })
 

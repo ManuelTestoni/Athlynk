@@ -185,6 +185,10 @@ urlpatterns = [
     path('api/cliente/percorso/', views_client.api_client_my_percorso, name='api_client_percorso'),
     path('api/cliente/misurazione/', views_client.api_client_measurement_create, name='api_client_measurement'),
     path('api/coach/clienti/<int:client_id>/misurazione/', views_client.api_coach_measurement_create, name='api_coach_measurement'),
+    path('api/coach/etichette/', views_client.api_coach_labels, name='api_coach_labels'),
+    path('api/coach/etichette/<int:label_id>/', views_client.api_coach_label_delete, name='api_coach_label_delete'),
+    path('api/coach/clienti/<int:client_id>/etichette/', views_client.api_coach_client_label_assign, name='api_coach_client_label_assign'),
+    path('api/coach/clienti/<int:client_id>/etichette/<int:label_id>/', views_client.api_coach_client_label_remove, name='api_coach_client_label_remove'),
 
     # Coach progress APIs
     path('api/coach/clienti/<int:client_id>/progressi/kpi/', views_session.api_progress_kpi, name='api_progress_kpi'),

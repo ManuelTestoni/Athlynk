@@ -54,11 +54,10 @@ struct AthleteMoreView: View {
         NavigationStack(path: $path) {
             ScreenScroll {
                 identityCard.revealUp(appear, index: 0)
-                statRow.revealUp(appear, index: 1)
 
                 Text("I TUOI PROFESSIONISTI").voltEyebrow().padding(.top, 4)
-                    .revealUp(appear, index: 2)
-                coachList.revealUp(appear, index: 3)
+                    .revealUp(appear, index: 1)
+                coachList.revealUp(appear, index: 2)
 
                 Text("GESTIONE").voltEyebrow().padding(.top, 4).revealUp(appear, index: 4)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
@@ -127,14 +126,6 @@ struct AthleteMoreView: View {
         .padding(18).voltPanel(Palette.amber.opacity(0.4))
     }
 
-    private var statRow: some View {
-        HStack(spacing: 12) {
-            statCard("Altezza", app.me?.profile?.heightCm.map { "\($0) cm" } ?? "—", Palette.cyan)
-            statCard("Obiettivo", goalLabel, Palette.magenta)
-            statCard("Livello", levelLabel, Palette.lime)
-        }
-    }
-
     private func statCard(_ label: String, _ value: String, _ color: Color) -> some View {
         VStack(spacing: 5) {
             Text(value).font(Typo.display(18)).foregroundStyle(color)
@@ -177,15 +168,6 @@ struct AthleteMoreView: View {
                 .buttonStyle(PressableButtonStyle())
             }
         }
-    }
-
-    private var goalLabel: String {
-        let g = app.me?.profile?.primaryGoal ?? ""
-        return g.isEmpty ? "—" : g.capitalized
-    }
-    private var levelLabel: String {
-        let l = app.me?.profile?.activityLevel ?? ""
-        return l.isEmpty ? "—" : l.capitalized
     }
 
     private var initials: String {

@@ -1,5 +1,18 @@
 from django.db import models
 
+class ClientLabel(models.Model):
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='client_labels')
+    name = models.CharField(max_length=50)
+    color = models.CharField(max_length=20, default='bronze')
+
+    class Meta:
+        unique_together = [('coach', 'name')]
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class CoachingRelationship(models.Model):
     RELATIONSHIP_TYPES = [
         ('FULL', 'Full (Coach)'),
@@ -14,6 +27,7 @@ class CoachingRelationship(models.Model):
     end_date = models.DateField(null=True, blank=True)
     relationship_type = models.CharField(max_length=20, choices=RELATIONSHIP_TYPES, null=True, blank=True)
     internal_notes = models.TextField(null=True, blank=True)
+    labels = models.ManyToManyField(ClientLabel, blank=True, related_name='relationships')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -452,9 +452,6 @@ def me(request, user):
         payload['trainer'] = _coach_dict(rels['workout'].coach if rels['workout'] else None)
         payload['nutritionist'] = _coach_dict(rels['nutrition'].coach if rels['nutrition'] else None)
         payload['profile'] = {
-            'height_cm': client.height_cm,
-            'primary_goal': client.primary_goal,
-            'activity_level': client.activity_level,
             'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
         }
     coach = getattr(user, 'coach_profile', None)
@@ -469,9 +466,6 @@ def me(request, user):
             'city': coach.city,
         }
         payload['profile'] = {
-            'height_cm': None,
-            'primary_goal': coach.specialization,
-            'activity_level': None,
             'profile_image_url': img,
         }
     return JsonResponse(payload)
@@ -1233,11 +1227,8 @@ def _client_profile_dict(request, client):
         'first_name': client.first_name,
         'last_name': client.last_name,
         'phone': client.phone,
-        'height_cm': client.height_cm,
         'weight_kg': float(client.current_weight_kg) if client.current_weight_kg is not None else None,
         'sport': client.sport,
-        'primary_goal': client.primary_goal,
-        'activity_level': client.activity_level,
         'gender': client.gender,
         'birth_date': _iso(client.birth_date),
         'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
@@ -1257,12 +1248,6 @@ def profile(request, user):
             client.last_name = data['last_name'].strip()
         if 'phone' in data:
             client.phone = (data.get('phone') or '').strip() or None
-        if 'height_cm' in data:
-            raw = data.get('height_cm')
-            try:
-                client.height_cm = int(raw) if raw not in (None, '') else None
-            except (TypeError, ValueError):
-                pass
         if 'weight_kg' in data:
             raw = data.get('weight_kg')
             try:
@@ -1271,10 +1256,6 @@ def profile(request, user):
                 pass
         if 'sport' in data:
             client.sport = (data.get('sport') or '').strip() or None
-        if 'primary_goal' in data:
-            client.primary_goal = (data.get('primary_goal') or '').strip() or None
-        if 'activity_level' in data:
-            client.activity_level = (data.get('activity_level') or '').strip() or None
         if 'gender' in data:
             client.gender = (data.get('gender') or '').strip() or None
         if 'birth_date' in data:

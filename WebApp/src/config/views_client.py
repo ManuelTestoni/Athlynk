@@ -11,7 +11,7 @@ import json
 from domain.accounts.models import ClientProfile, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
-from domain.coaching.models import CoachingRelationship, CoachingPhase
+from domain.coaching.models import CoachingRelationship, CoachingPhase, ClientLabel
 from domain.nutrition.models import NutritionAssignment, SupplementAssignment
 from domain.workouts.models import WorkoutAssignment
 
@@ -40,6 +40,7 @@ def coach_clients_list_view(request):
         CoachingRelationship.objects
         .filter(coach=coach)
         .select_related('client', 'client__user')
+        .prefetch_related('labels')
         .order_by('-start_date', '-created_at')
     )
     if status_filter:
@@ -107,6 +108,7 @@ def coach_clients_list_view(request):
             'last_check_date': last_check_dates.get(rel.client_id),
             'active_subscription': active_subs.get(rel.client_id),
             'active_nutrition': active_nutrition.get(rel.client_id),
+            'labels': list(rel.labels.all()),
         }
         for rel in relationships
     ]
@@ -132,18 +134,26 @@ def coach_clients_list_view(request):
             'sub_price': str(item['active_subscription'].subscription_plan.price) if item['active_subscription'] else '',
             'plan_id': str(item['active_subscription'].subscription_plan_id) if item['active_subscription'] else '',
             'url': f"/clienti/{item['client'].id}/",
+            'label_ids': [l.id for l in item['labels']],
+            'labels': [{'id': l.id, 'name': l.name, 'color': l.color} for l in item['labels']],
         }
         for item in clients_data
     ]
 
-    return render(request, 'pages/clienti/list.html', {
+    all_labels = list(coach.client_labels.values('id', 'name', 'color'))
+
+    response = render(request, 'pages/clienti/list.html', {
         'coach': coach,
         'clients_data': clients_data,
         'clients_json': json.dumps(clients_json),
         'all_plans': all_plans,
+        'all_labels': all_labels,
+        'all_labels_json': json.dumps(all_labels),
         'total_count': len(clients_data),
         'active_count': sum(1 for r in relationships if r.status == 'ACTIVE'),
     })
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 def coach_client_detail_view(request, client_id):
@@ -152,7 +162,7 @@ def coach_client_detail_view(request, client_id):
         return redirect('login')
 
     relationship = get_object_or_404(
-        CoachingRelationship.objects.select_related('client', 'client__user'),
+        CoachingRelationship.objects.select_related('client', 'client__user').prefetch_related('labels'),
         coach=coach,
         client_id=client_id,
     )
@@ -219,6 +229,10 @@ def coach_client_detail_view(request, client_id):
         'recent_checks': recent_checks,
         'all_checks': all_checks,
         'supplement_assignments': supplement_assignments,
+        'assigned_labels': list(relationship.labels.all()),
+        'all_labels': list(coach.client_labels.all()),
+        'all_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in coach.client_labels.all()]),
+        'assigned_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in relationship.labels.all()]),
     })
 
 
@@ -1105,3 +1119,67 @@ def il_mio_percorso_view(request):
         'relationship': rel,
         'is_client': True,
     })
+
+
+# ---------------------------------------------------------------------------
+# Labels (Etichette) API
+# ---------------------------------------------------------------------------
+
+@require_http_methods(["GET", "POST"])
+def api_coach_labels(request):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    if request.method == 'GET':
+        labels = list(coach.client_labels.values('id', 'name', 'color'))
+        return JsonResponse({'labels': labels})
+
+    data = json.loads(request.body or '{}')
+    name = (data.get('name') or '').strip()
+    color = (data.get('color') or 'bronze').strip()
+    if not name:
+        return JsonResponse({'error': 'Nome obbligatorio.'}, status=400)
+    label, created = ClientLabel.objects.get_or_create(
+        coach=coach, name=name,
+        defaults={'color': color},
+    )
+    if not created:
+        return JsonResponse({'error': 'Etichetta già esistente.'}, status=400)
+    return JsonResponse({'id': label.id, 'name': label.name, 'color': label.color}, status=201)
+
+
+@require_http_methods(["DELETE"])
+def api_coach_label_delete(request, label_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    label = get_object_or_404(ClientLabel, id=label_id, coach=coach)
+    label.delete()
+    return JsonResponse({'ok': True})
+
+
+@require_http_methods(["POST"])
+def api_coach_client_label_assign(request, client_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    relationship = get_object_or_404(CoachingRelationship, coach=coach, client_id=client_id)
+    data = json.loads(request.body or '{}')
+    label_id = data.get('label_id')
+    label = get_object_or_404(ClientLabel, id=label_id, coach=coach)
+    if relationship.labels.filter(id=label_id).exists():
+        return JsonResponse({'error': 'Etichetta già assegnata.'}, status=400)
+    relationship.labels.add(label)
+    return JsonResponse({'ok': True})
+
+
+@require_http_methods(["DELETE"])
+def api_coach_client_label_remove(request, client_id, label_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    relationship = get_object_or_404(CoachingRelationship, coach=coach, client_id=client_id)
+    label = get_object_or_404(ClientLabel, id=label_id, coach=coach)
+    relationship.labels.remove(label)
+    return JsonResponse({'ok': True})

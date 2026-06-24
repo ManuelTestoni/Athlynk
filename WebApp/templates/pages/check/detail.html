@@ -120,13 +120,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="al-h-4 truncate">{{ response.client.first_name }} {{ response.client.last_name }}</h3>
-                        {% if response.client.primary_goal %}
-                        <p class="al-small mt-0.5">{{ response.client.primary_goal }}</p>
-                        {% endif %}
-                        {% if response.client.height_cm or response.client.gender %}
+                        {% if response.client.gender %}
                         <div class="mt-2 flex flex-wrap gap-1.5">
-                            {% if response.client.gender %}<span class="al-tag">{{ response.client.gender }}</span>{% endif %}
-                            {% if response.client.height_cm %}<span class="al-tag">{{ response.client.height_cm }} cm</span>{% endif %}
+                            <span class="al-tag">{{ response.client.gender }}</span>
                         </div>
                         {% endif %}
                     </div>

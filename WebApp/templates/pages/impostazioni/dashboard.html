@@ -262,16 +262,6 @@
                                 <option {% if client.gender == 'Altro' %}selected{% endif %} value="Altro">Altro</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="al-label">Altezza (cm)</label>
-                            <input type="number" name="height_cm" value="{{ client.height_cm|default:'' }}"
-                                   min="100" max="250" placeholder="Es. 175" class="al-input">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="al-label">Obiettivo principale</label>
-                            <input type="text" name="primary_goal" value="{{ client.primary_goal|default:'' }}"
-                                   placeholder="Es. Perdere peso, costruire massa..." class="al-input">
-                        </div>
                     </div>
                     {% endif %}
 

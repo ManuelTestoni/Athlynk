@@ -55,14 +55,8 @@ struct Coach: Codable, Identifiable, Hashable {
 }
 
 struct MeProfile: Codable {
-    let heightCm: Int?
-    let primaryGoal: String?
-    let activityLevel: String?
     let imageUrl: String?
     enum CodingKeys: String, CodingKey {
-        case heightCm = "height_cm"
-        case primaryGoal = "primary_goal"
-        case activityLevel = "activity_level"
         case imageUrl = "profile_image_url"
     }
 }
@@ -600,11 +594,8 @@ struct ClientProfileDTO: Codable, Hashable {
     let firstName: String
     let lastName: String
     let phone: String?
-    let heightCm: Int?
     let weightKg: Double?
     let sport: String?
-    let primaryGoal: String?
-    let activityLevel: String?
     let gender: String?
     let birthDate: String?
     let imageUrl: String?
@@ -613,10 +604,7 @@ struct ClientProfileDTO: Codable, Hashable {
         case phone, gender, sport
         case firstName = "first_name"
         case lastName = "last_name"
-        case heightCm = "height_cm"
         case weightKg = "weight_kg"
-        case primaryGoal = "primary_goal"
-        case activityLevel = "activity_level"
         case birthDate = "birth_date"
         case imageUrl = "profile_image_url"
     }

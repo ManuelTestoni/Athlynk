@@ -72,10 +72,6 @@ struct DashboardView: View {
                 Text(app.greetingName.uppercased())
                     .font(Typo.poster(52)).foregroundStyle(Palette.textHi)
                     .lineLimit(1).minimumScaleFactor(0.55)
-                if let goal = app.me?.profile?.primaryGoal, !goal.isEmpty {
-                    Text(goal.uppercased())
-                        .font(Typo.mono(12, .bold)).tracking(2).foregroundStyle(Palette.lime)
-                }
                 Rectangle().fill(Palette.bronze).frame(height: 1).opacity(0.5)
             }
             .revealUp(appear, index: 0)

@@ -1,9 +1,4 @@
 {% load safejson %}
-{# Pulsante + modale per inserire una misurazione singola (peso/circonferenza/plica)
-   del giorno X. Richiede nel context:
-     - measurement_options_json : output di measurement_options() già json.dumps
-     - measurement_post_url     : URL POST (atleta o coach)
-   La nuova misura compare nel grafico, nello storico e ne "Il mio percorso". #}
 <div x-data='addMeasurement({{ measurement_options_json|json_js }}, "{{ measurement_post_url }}")' class="inline-block">
   <button type="button" @click="show()" class="al-btn al-btn-bronze">
     <i class="ph ph-plus text-sm"></i><span>Aggiungi misurazione</span>

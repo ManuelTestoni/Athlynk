@@ -50,8 +50,6 @@ def _fabbisogni_prefill(client):
     atleta: altezza, ultimo peso dai check, età dalla data di nascita, sesso.
     Tutti i valori restano modificabili a mano in fase di compilazione."""
     prefill = {}
-    if client.height_cm:
-        prefill['altezza_cm'] = str(client.height_cm)
     latest_w = (QuestionnaireResponse.objects
                 .filter(client=client, weight_kg__isnull=False)
                 .order_by('-submitted_at')

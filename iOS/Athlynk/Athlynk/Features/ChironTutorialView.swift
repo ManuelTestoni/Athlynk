@@ -20,11 +20,8 @@ struct ChironTutorialView: View {
     @State private var gender: String?
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     @State private var hasBirth = false
-    @State private var heightCm: Double = 175
     @State private var weightKg: Double = 70
     @State private var sport = ""
-    @State private var goal: String?
-    @State private var activity: String?
 
     // Flow
     @State private var step = 0
@@ -33,11 +30,9 @@ struct ChironTutorialView: View {
     @State private var entered = false
     @State private var saving = false
 
-    private let goals = ["Dimagrimento", "Aumento massa", "Forza", "Ricomposizione", "Salute & benessere", "Performance"]
-    private let activities = ["Sedentario", "Leggermente attivo", "Moderatamente attivo", "Molto attivo", "Atleta"]
     private let genders = ["Uomo", "Donna", "Altro"]
 
-    private var stepCount: Int { 9 }
+    private var stepCount: Int { 6 }
     private var isLast: Bool { step == stepCount - 1 }
     private var name: String { userName.isEmpty ? "atleta" : userName }
 
@@ -46,11 +41,8 @@ struct ChironTutorialView: View {
         case 0: return "Χαῖρε, \(name). Sono Chiron: ho forgiato eroi. Prima di partire, lascia che ti conosca."
         case 1: return "Dimmi chi sei. Come ti identifichi?"
         case 2: return "Quando sei nato? Il tempo è parte della forza."
-        case 3: return "Quanto sei alto? Misuriamo le fondamenta."
-        case 4: return "E il tuo peso di oggi? È solo il punto di partenza."
-        case 5: return "Qual è la disciplina che vuoi dominare?"
-        case 6: return "Qual è il tuo obiettivo principale?"
-        case 7: return "Quanto ti muovi, di norma, in una giornata?"
+        case 3: return "E il tuo peso di oggi? È solo il punto di partenza."
+        case 4: return "Qual è la disciplina che vuoi dominare?"
         default: return "Tutto pronto, \(name). Ora il percorso è inciso nel marmo. Andiamo."
         }
     }
@@ -59,8 +51,6 @@ struct ChironTutorialView: View {
     private var canAdvance: Bool {
         switch step {
         case 1: return gender != nil
-        case 6: return goal != nil
-        case 7: return activity != nil
         default: return true
         }
     }
@@ -167,18 +157,11 @@ struct ChironTutorialView: View {
             }
             .padding(8).voltPanel(Palette.bronze.opacity(0.3))
         case 3:
-            MeasureSlider(value: $heightCm, range: 130...220, step: 1, unit: "cm",
-                          format: "%.0f", accent: Palette.cyan)
-        case 4:
             MeasureSlider(value: $weightKg, range: 35...200, step: 0.5, unit: "kg",
                           format: "%.1f", accent: Palette.magenta)
-        case 5:
+        case 4:
             VoltField(icon: "figure.run", placeholder: "Es. Calcio, Powerlifting, Running…",
                       text: $sport, accent: Palette.amber)
-        case 6:
-            ChipGrid(options: goals, selection: $goal, accent: Palette.lime)
-        case 7:
-            ChipGrid(options: activities, selection: $activity, accent: Palette.cyan)
         default:
             recap
         }
@@ -208,11 +191,8 @@ struct ChironTutorialView: View {
     private var recap: some View {
         VStack(spacing: 9) {
             recapRow("Sesso", gender ?? "—")
-            recapRow("Altezza", "\(Int(heightCm)) cm")
             recapRow("Peso", String(format: "%.1f kg", weightKg))
             if !sport.isEmpty { recapRow("Sport", sport) }
-            if let goal { recapRow("Obiettivo", goal) }
-            if let activity { recapRow("Attività", activity) }
         }
         .padding(16).voltPanel(Palette.bronze.opacity(0.4))
     }
@@ -263,18 +243,13 @@ struct ChironTutorialView: View {
 
     private func save() async {
         saving = true
-        var fields: [String: Any] = [
-            "height_cm": Int(heightCm),
-            "weight_kg": weightKg,
-        ]
+        var fields: [String: Any] = ["weight_kg": weightKg]
         if let gender { fields["gender"] = gender }
         if hasBirth {
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
             fields["birth_date"] = f.string(from: birthDate)
         }
         if !sport.isEmpty { fields["sport"] = sport }
-        if let goal { fields["primary_goal"] = goal }
-        if let activity { fields["activity_level"] = activity }
         try? await APIClient.shared.updateProfile(fields)
         saving = false
         burst += 1

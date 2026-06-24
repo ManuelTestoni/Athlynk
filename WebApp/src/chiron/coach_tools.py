@@ -118,7 +118,7 @@ def find_athlete(name: str, config: RunnableConfig) -> str:
     if not rows:
         return _ok({"matches": [], "note": "Nessun atleta trovato con questo nome."})
     return _ok({"matches": [
-        {"client_id": c.id, "name": _full_name(c), "goal": c.primary_goal or ""}
+        {"client_id": c.id, "name": _full_name(c)}
         for c in rows
     ]})
 
@@ -232,7 +232,6 @@ def athlete_snapshot(client_id: int, config: RunnableConfig) -> str:
 
     snap = {
         "name": name,
-        "goal": client.primary_goal or None,
         "last_check": (
             last_check.submitted_at.strftime("%-d %b %Y")
             if last_check and last_check.submitted_at else None

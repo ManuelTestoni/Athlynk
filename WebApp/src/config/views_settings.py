@@ -40,9 +40,6 @@ def impostazioni_view(request):
                 birth = request.POST.get('birth_date', '').strip()
                 client.birth_date = birth if birth else client.birth_date
                 client.gender = request.POST.get('gender', '').strip() or None
-                height = request.POST.get('height_cm', '').strip()
-                client.height_cm = int(height) if height.isdigit() else client.height_cm
-                client.primary_goal = request.POST.get('primary_goal', '').strip() or None
                 if 'profile_image' in request.FILES:
                     raw = request.FILES['profile_image']
                     if is_image(raw):

@@ -41,21 +41,79 @@
                 <div class="flex flex-wrap items-center gap-4 al-small">
                     <span class="flex items-center gap-1.5"><i class="ph ph-envelope text-bronze"></i>{{ client.user.email }}</span>
                     {% if client.phone %}<span class="flex items-center gap-1.5"><i class="ph ph-phone text-bronze"></i>{{ client.phone }}</span>{% endif %}
-                    {% if client.primary_goal %}<span class="flex items-center gap-1.5"><i class="ph ph-target text-bronze"></i>{{ client.primary_goal }}</span>{% endif %}
                     <span class="flex items-center gap-1.5"><i class="ph ph-calendar-plus text-bronze"></i>Atleta dal {{ relationship.start_date|date:"d M Y" }}</span>
                 </div>
+                {% if assigned_labels %}
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                    {% for lbl in assigned_labels %}<span class="al-pill" style="font-size:10px;">{{ lbl.name }}</span>{% endfor %}
+                </div>
+                {% endif %}
             </div>
 
-            <div class="flex flex-wrap gap-2 shrink-0">
+            <div class="flex flex-wrap gap-2 shrink-0" x-data="labelManager({{ assigned_labels_json|safe }}, {{ all_labels_json|safe }}, {{ client.id }})">
                 <a href="{% url 'agenda_dashboard' %}" class="al-btn al-btn-sm al-btn-ghost">
                     <i class="ph ph-calendar-plus text-xs"></i><span>Prenota</span>
                 </a>
-                <a href="{% url 'check_create' %}?client_id={{ client.id }}" class="al-btn al-btn-sm al-btn-ghost">
-                    <i class="ph ph-clipboard-text text-xs"></i><span>Compila Check</span>
-                </a>
-                <a href="{% url 'allenamenti_create' %}" class="al-btn al-btn-sm al-btn-bronze">
-                    <i class="ph ph-plus text-xs"></i><span>Assegna Piano</span>
-                </a>
+                <button type="button" @click="openModal()" class="al-btn al-btn-sm al-btn-ghost">
+                    <i class="ph ph-tag text-xs"></i><span>Etichette</span>
+                </button>
+                <!-- Label modal -->
+                <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div class="al-modal-backdrop" @click="open = false"></div>
+                    <div class="al-modal-panel relative" style="max-width: 420px;">
+                        <div class="al-modal-head flex items-start justify-between gap-4">
+                            <div>
+                                <p class="al-eyebrow mb-1">Atleta</p>
+                                <h3 class="al-h-2">Gestisci <span class="al-display-i">etichette</span></h3>
+                            </div>
+                            <button type="button" @click="open = false" class="al-btn-icon al-btn al-btn-ghost shrink-0"><i class="ph ph-x"></i></button>
+                        </div>
+                        <div class="al-modal-body space-y-4">
+                            <!-- Assigned labels -->
+                            <div x-show="assigned.length > 0">
+                                <p class="al-tag mb-2">Assegnate</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="l in assigned" :key="l.id">
+                                        <span class="al-pill flex items-center gap-1.5">
+                                            <span x-text="l.name"></span>
+                                            <button type="button" @click="removeLabel(l.id)" class="text-ink-mute hover:text-danger leading-none"><i class="ph ph-x" style="font-size:10px;"></i></button>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Available labels -->
+                            <div x-show="available.length > 0">
+                                <p class="al-tag mb-2">Disponibili</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="l in available" :key="l.id">
+                                        <button type="button" @click="assignLabel(l.id)" class="al-pill al-pill-outline hover:bg-marble-warm transition-colors" x-text="l.name"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Create new label -->
+                            <div class="pt-2 border-t" style="border-color: var(--al-rule);">
+                                <p class="al-tag mb-2">Crea nuova etichetta</p>
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="newName" placeholder="Nome etichetta" class="al-input flex-1" @keydown.enter.prevent="createLabel()">
+                                    <select x-model="newColor" class="al-select" style="width: 130px;">
+                                        <option value="bronze">Bronze</option>
+                                        <option value="aegean">Aegean</option>
+                                        <option value="amber">Amber</option>
+                                        <option value="emerald">Emerald</option>
+                                        <option value="danger">Rosso</option>
+                                    </select>
+                                    <button type="button" @click="createLabel()" class="al-btn al-btn-sm al-btn-bronze">
+                                        <i class="ph ph-plus text-xs"></i>
+                                    </button>
+                                </div>
+                                <p x-show="error" x-cloak class="al-input-error mt-2" x-text="error"></p>
+                            </div>
+                        </div>
+                        <div class="al-modal-foot">
+                            <button type="button" @click="open = false" class="al-btn al-btn-ghost flex-1">Chiudi</button>
+                        </div>
+                    </div>
+                </div>
                 {% if relationship.status == 'ACTIVE' %}
                 <div x-data class="contents">
                     <button type="button" class="al-btn al-btn-sm al-btn-ghost text-danger"
@@ -71,33 +129,20 @@
             </div>
         </div>
 
-        {% if client.height_cm or client.activity_level or client.medical_notes_summary %}
+        {% if client.medical_notes_summary %}
         <div class="mt-6 pt-5 border-t flex flex-wrap gap-8" style="border-color: var(--al-rule);">
-            {% if client.height_cm %}
-            <div>
-                <p class="al-tag mb-1">Altezza</p>
-                <p class="font-mono text-ink font-medium">{{ client.height_cm }} cm</p>
-            </div>
-            {% endif %}
-            {% if client.activity_level %}
-            <div>
-                <p class="al-tag mb-1">Livello Attività</p>
-                <p class="text-ink font-medium">{{ client.activity_level }}</p>
-            </div>
-            {% endif %}
-            {% if client.medical_notes_summary %}
             <div class="flex-1 min-w-0">
                 <p class="al-tag mb-1">Note Mediche</p>
                 <p class="al-body truncate max-w-xs">{{ client.medical_notes_summary }}</p>
             </div>
-            {% endif %}
         </div>
         {% endif %}
     </div>
 
-    <!-- Status Cards (3 col) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <!-- Status Cards (4 col) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
+        <!-- Allenamento -->
         <div class="al-card al-reveal" style="--d:0ms;">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
@@ -106,7 +151,7 @@
                     </div>
                     <span class="al-eyebrow" style="color: var(--al-ink-mute);">Allenamento</span>
                 </div>
-                <a href="{% url 'coach_client_progressi' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Progressi</a>
+                <a href="{% url 'coach_client_progressi' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
             </div>
             {% if active_workout %}
             <p class="al-h-3 truncate">{{ active_workout.workout_plan.title }}</p>
@@ -114,14 +159,18 @@
             {% if active_workout.start_date %}
             <p class="al-small mt-3">Iniziato il {{ active_workout.start_date|date:"d M Y" }}</p>
             {% endif %}
+            <a href="{% url 'allenamenti_plan_detail' active_workout.workout_plan.id %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
+                <i class="ph ph-arrow-square-out text-xs"></i>Dettagli piano
+            </a>
             {% else %}
             <p class="al-body">Nessun piano attivo</p>
-            <a href="{% url 'allenamenti_create' %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
+            <a href="{% url 'allenamenti_wizard' %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
                 <i class="ph ph-plus-circle text-xs"></i>Assegna piano
             </a>
             {% endif %}
         </div>
 
+        <!-- Nutrizione -->
         <div class="al-card al-reveal" style="--d:60ms;">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
@@ -130,7 +179,12 @@
                     </div>
                     <span class="al-eyebrow" style="color: var(--al-ink-mute);">Nutrizione</span>
                 </div>
-                <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Tutti</a>
+                {% if active_nutrition %}
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'nutrizione_piano_detail' active_nutrition.nutrition_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Dettagli piano</a>
+                    <a href="{% url 'nutrizione_client_detail' active_nutrition.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
+                </div>
+                {% endif %}
             </div>
             {% if active_nutrition %}
             <p class="al-h-3 truncate">{{ active_nutrition.nutrition_plan.title }}</p>
@@ -145,13 +199,43 @@
             {% endif %}
             {% endwith %}
             {% else %}
-            <p class="al-body">Nessun piano attivo</p>
+            <p class="al-body">L'atleta non ha un piano nutrizionale attivo.</p>
             <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
                 <i class="ph ph-plus-circle text-xs"></i>Assegna piano
             </a>
             {% endif %}
         </div>
 
+        <!-- Check -->
+        <div class="al-card al-reveal" style="--d:90ms;">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
+                        <i class="ph ph-clipboard-text"></i>
+                    </div>
+                    <span class="al-eyebrow" style="color: var(--al-ink-mute);">Check</span>
+                </div>
+                <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
+            </div>
+            {% if recent_checks %}
+            <p class="al-h-3">{{ recent_checks.0.questionnaire_template.title|default:"Check" }}</p>
+            <p class="al-small mt-1">{% if recent_checks.0.submitted_at %}{{ recent_checks.0.submitted_at|date:"d M Y" }}{% else %}{{ recent_checks.0.created_at|date:"d M Y" }}{% endif %}</p>
+            <p class="al-tag mt-2">{{ total_checks }} check totali</p>
+            {% else %}
+            <p class="al-body">Nessun check registrato</p>
+            {% endif %}
+            <div class="mt-4 flex flex-wrap gap-2">
+                <a href="{% url 'check_create' %}?client_id={{ client.id }}" class="al-link al-link-bronze inline-flex items-center gap-1 text-[11px] uppercase tracking-widest">
+                    <i class="ph ph-pencil text-xs"></i>Compila
+                </a>
+                <span class="al-tag" style="color: var(--al-rule);">·</span>
+                <a href="{% url 'check_dashboard' %}" class="al-link al-link-bronze inline-flex items-center gap-1 text-[11px] uppercase tracking-widest">
+                    <i class="ph ph-plus-circle text-xs"></i>Assegna
+                </a>
+            </div>
+        </div>
+
+        <!-- Abbonamento -->
         <div class="al-card al-reveal" style="--d:120ms;">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
@@ -188,7 +272,6 @@
             </div>
             <div class="flex items-center gap-3">
                 {% include 'partials/_add_measurement.html' %}
-                <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico check</a>
             </div>
         </div>
         {% if total_checks > 0 %}
@@ -211,4 +294,64 @@
     {% endwith %}
     {% endwith %}
 </div>
+
+<script>
+function labelManager(assignedData, allLabelsData, clientId) {
+    return {
+        open: false,
+        assigned: [...assignedData],
+        allLabels: [...allLabelsData],
+        newName: '',
+        newColor: 'bronze',
+        error: '',
+        get available() {
+            const ids = new Set(this.assigned.map(l => l.id));
+            return this.allLabels.filter(l => !ids.has(l.id));
+        },
+        openModal() { this.error = ''; this.newName = ''; this.open = true; },
+        _csrf() {
+            return document.querySelector('meta[name="csrf-token"]')?.content
+              || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1];
+        },
+        async assignLabel(labelId) {
+            const resp = await fetch(`/api/coach/clienti/${clientId}/etichette/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+                body: JSON.stringify({ label_id: labelId }),
+            });
+            if (resp.ok) {
+                const lbl = this.allLabels.find(l => l.id === labelId);
+                if (lbl) this.assigned.push(lbl);
+            }
+        },
+        async removeLabel(labelId) {
+            const resp = await fetch(`/api/coach/clienti/${clientId}/etichette/${labelId}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': this._csrf() },
+            });
+            if (resp.ok) this.assigned = this.assigned.filter(l => l.id !== labelId);
+        },
+        async createLabel() {
+            this.error = '';
+            const name = this.newName.trim();
+            if (!name) { this.error = 'Inserisci un nome.'; return; }
+            const resp = await fetch('/api/coach/etichette/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+                body: JSON.stringify({ name, color: this.newColor }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) { this.error = data.error || 'Errore durante la creazione.'; return; }
+            this.allLabels.push(data);
+            this.assigned.push(data);
+            await fetch(`/api/coach/clienti/${clientId}/etichette/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+                body: JSON.stringify({ label_id: data.id }),
+            });
+            this.newName = '';
+        },
+    };
+}
+</script>
 {% endblock %}
