@@ -144,8 +144,8 @@ struct CoachClientProgressView: View {
         return GeometryReader { geo in
             let pw = geo.size.width - yAxisW
             let ph = geo.size.height
-            func xf(_ i: Int) -> CGFloat { yAxisW + pw * CGFloat(i) / CGFloat(max(pts.count - 1, 1)) }
-            func yf(_ v: Double) -> CGFloat { ph * (1 - CGFloat(v) / 10) }
+            let xf = { (i: Int) -> CGFloat in yAxisW + pw * CGFloat(i) / CGFloat(max(pts.count - 1, 1)) }
+            let yf = { (v: Double) -> CGFloat in ph * (1 - CGFloat(v) / 10) }
             let nodes = pts.enumerated().map { CGPoint(x: xf($0.offset), y: yf($0.element.1)) }
 
             ZStack(alignment: .topLeading) {
