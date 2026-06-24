@@ -256,8 +256,8 @@ struct CoachNewMessageView: View {
                                 CoachClientAvatar(url: c.profileImageUrl, initials: c.initials, size: 46)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(c.displayName).font(Typo.body(16, .semibold)).foregroundStyle(Palette.textHi)
-                                    if let g = c.primaryGoal {
-                                        Text(g).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                                    if let sport = c.sport {
+                                        Text(sport).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
                                     }
                                 }
                                 Spacer()

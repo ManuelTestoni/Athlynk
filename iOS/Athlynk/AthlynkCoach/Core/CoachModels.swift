@@ -13,15 +13,12 @@ struct CoachClient: Codable, Identifiable, Hashable {
     let lastName: String
     let displayName: String
     let profileImageUrl: String?
-    let primaryGoal: String?
     let sport: String?
     // Extended fields (present only in client detail).
     let phone: String?
     let gender: String?
     let birthDate: String?
-    let heightCm: Int?
     let weightKg: Double?
-    let activityLevel: String?
     let email: String?
 
     var initials: String {
@@ -37,11 +34,8 @@ struct CoachClient: Codable, Identifiable, Hashable {
         case lastName = "last_name"
         case displayName = "display_name"
         case profileImageUrl = "profile_image_url"
-        case primaryGoal = "primary_goal"
         case birthDate = "birth_date"
-        case heightCm = "height_cm"
         case weightKg = "weight_kg"
-        case activityLevel = "activity_level"
     }
 }
 
@@ -168,7 +162,6 @@ struct CoachClientRow: Codable, Identifiable, Hashable {
     let firstName: String
     let lastName: String
     let profileImageUrl: String?
-    let primaryGoal: String?
     let relationshipType: String?
     let status: String?
     let startDate: String?
@@ -195,7 +188,6 @@ struct CoachClientRow: Codable, Identifiable, Hashable {
         case firstName = "first_name"
         case lastName = "last_name"
         case profileImageUrl = "profile_image_url"
-        case primaryGoal = "primary_goal"
         case relationshipType = "relationship_type"
         case startDate = "start_date"
         case activeWorkout = "active_workout"
@@ -890,7 +882,6 @@ struct CoachMessageableClient: Codable, Identifiable, Hashable {
     let firstName: String
     let lastName: String
     let profileImageUrl: String?
-    let primaryGoal: String?
     let sport: String?
     let hasConversation: Bool
 
@@ -904,7 +895,6 @@ struct CoachMessageableClient: Codable, Identifiable, Hashable {
         case firstName = "first_name"
         case lastName = "last_name"
         case profileImageUrl = "profile_image_url"
-        case primaryGoal = "primary_goal"
         case hasConversation = "has_conversation"
     }
 }

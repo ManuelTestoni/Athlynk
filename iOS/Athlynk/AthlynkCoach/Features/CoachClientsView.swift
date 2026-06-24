@@ -91,7 +91,7 @@ struct CoachClientsView: View {
             CoachClientAvatar(url: r.profileImageUrl, initials: r.initials, size: 50)
             VStack(alignment: .leading, spacing: 4) {
                 Text(r.displayName).font(Typo.body(16, .semibold)).foregroundStyle(Palette.textHi)
-                Text(r.activeWorkout ?? r.primaryGoal ?? r.relationshipLabel)
+                Text(r.activeWorkout ?? r.relationshipLabel)
                     .font(Typo.body(13)).foregroundStyle(Palette.textMid).lineLimit(1)
                 HStack(spacing: 6) {
                     StatusBadge(text: r.relationshipLabel, color: Palette.cyan, filled: false)
@@ -196,9 +196,8 @@ struct CoachClientDetailView: View {
     }
 
     private func statRow(_ d: CoachClientDetailDTO) -> some View {
-        let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+        let cols = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: cols, spacing: 12) {
-            miniStat("\(d.client.heightCm.map { "\($0)" } ?? "—")", "Altezza cm")
             miniStat(d.client.weightKg.map { String(format: "%.1f", $0) } ?? "—", "Peso kg")
             miniStat("\(d.checks.count)", "Check")
         }
