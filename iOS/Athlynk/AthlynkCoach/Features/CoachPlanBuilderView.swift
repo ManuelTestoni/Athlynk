@@ -23,8 +23,17 @@ struct WBExerciseDraft: Identifiable {
     var loadUnit = "KG"          // KG | PERCENT_1RM | BODYWEIGHT
     var rir: Int? = nil
     var rpe: Int? = nil
+    var rpeRirType = "RPE"         // UI-only: "RPE" | "RIR"
     var tempo = ""
     var notes = ""
+
+    var rpeRirValue: Int? {
+        get { rpeRirType == "RPE" ? rpe : rir }
+        set {
+            if rpeRirType == "RPE" { rpe = newValue; rir = nil }
+            else { rir = newValue; rpe = nil }
+        }
+    }
 
     var summary: String {
         let r = repRange.isEmpty ? "\(reps)" : repRange
@@ -270,26 +279,19 @@ private struct WBExerciseRow: View {
 
             if expanded {
                 VStack(spacing: 12) {
-                    HStack(spacing: 10) {
+                    // Row 1: SERIE, REPS, CARICO, UNITÀ
+                    HStack(spacing: 8) {
                         WBStepper(label: "SERIE", value: $ex.sets, range: 1...12)
                         WBStepper(label: "REPS", value: $ex.reps, range: 1...50)
                             .opacity(ex.repRange.isEmpty ? 1 : 0.35)
-                    }
-                    HStack(spacing: 10) {
-                        WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
-                                  range: 0...600, step: 15)
-                        WBOptStepper(label: "RIR", value: $ex.rir, range: 0...6)
-                        WBOptStepper(label: "RPE", value: $ex.rpe, range: 1...10)
-                    }
-                    HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("CARICO (OPZ.)")
+                            Text("CARICO")
                                 .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
                             TextField("", value: $ex.loadValue, format: .number,
-                                      prompt: Text("Es. 60").foregroundStyle(Palette.textLow))
+                                      prompt: Text("—").foregroundStyle(Palette.textLow))
                                 .keyboardType(.decimalPad)
                                 .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
-                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .padding(.horizontal, 10).padding(.vertical, 9)
                                 .voltPanel(radius: 10)
                         }
                         VStack(alignment: .leading, spacing: 5) {
@@ -298,50 +300,83 @@ private struct WBExerciseRow: View {
                             Menu {
                                 Button("kg") { ex.loadUnit = "KG" }
                                 Button("% 1RM") { ex.loadUnit = "PERCENT_1RM" }
-                                Button("Corpo libero") { ex.loadUnit = "BODYWEIGHT" }
+                                Button("BW") { ex.loadUnit = "BODYWEIGHT" }
                             } label: {
-                                HStack {
-                                    Text(ex.loadUnit == "PERCENT_1RM" ? "% 1RM"
-                                         : ex.loadUnit == "BODYWEIGHT" ? "Corpo" : "kg")
-                                        .font(Typo.body(14)).foregroundStyle(Palette.textHi)
-                                    Spacer()
+                                HStack(spacing: 2) {
+                                    Text(ex.loadUnit == "PERCENT_1RM" ? "%1RM"
+                                         : ex.loadUnit == "BODYWEIGHT" ? "BW" : "kg")
+                                        .font(Typo.body(13)).foregroundStyle(Palette.textHi)
                                     Image(systemName: "chevron.up.chevron.down")
-                                        .font(.system(size: 10, weight: .semibold))
+                                        .font(.system(size: 9, weight: .semibold))
                                         .foregroundStyle(Palette.textLow)
                                 }
-                                .padding(.horizontal, 12).padding(.vertical, 11)
+                                .padding(.horizontal, 8).padding(.vertical, 11)
                                 .voltPanel(radius: 10)
                             }
                         }
-                        .frame(width: 110)
+                        .frame(width: 70)
                     }
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("RANGE REPS (OPZ.)")
-                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                            TextField("", text: $ex.repRange,
-                                      prompt: Text("Es. 8-12").foregroundStyle(Palette.textLow))
-                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
-                                .padding(.horizontal, 12).padding(.vertical, 9)
-                                .voltPanel(radius: 10)
+                    // Row 2: RECUPERO, RPE/RIR, TUT + NOTE (side)
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(spacing: 8) {
+                            // Row 2a
+                            HStack(spacing: 8) {
+                                WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
+                                          range: 0...600, step: 15)
+                                // RPE/RIR combined
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(ex.rpeRirType)
+                                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                                    HStack(spacing: 0) {
+                                        Picker("", selection: $ex.rpeRirType) {
+                                            Text("RPE").tag("RPE")
+                                            Text("RIR").tag("RIR")
+                                        }
+                                        .pickerStyle(.segmented)
+                                        .frame(width: 80)
+                                        .onChange(of: ex.rpeRirType) { _, newType in
+                                            if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
+                                            else { ex.rir = ex.rpe; ex.rpe = nil }
+                                        }
+                                        WBOptStepper(label: "", value: Binding(
+                                            get: { ex.rpeRirValue },
+                                            set: { ex.rpeRirValue = $0 }
+                                        ), range: 0...10)
+                                    }
+                                }
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("TUT")
+                                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                                    TextField("", text: $ex.tempo,
+                                              prompt: Text("3-1-1").foregroundStyle(Palette.textLow))
+                                        .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                                        .padding(.horizontal, 10).padding(.vertical, 9)
+                                        .voltPanel(radius: 10)
+                                }
+                            }
                         }
+                        .frame(maxWidth: .infinity)
+                        // NOTE — side rectangle spanning
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("TEMPO (OPZ.)")
+                            Text("NOTE")
                                 .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                            TextField("", text: $ex.tempo,
-                                      prompt: Text("Es. 3-1-1").foregroundStyle(Palette.textLow))
-                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
-                                .padding(.horizontal, 12).padding(.vertical, 9)
+                            TextField("", text: $ex.notes,
+                                      prompt: Text("Es. scapole addotte…").foregroundStyle(Palette.textLow),
+                                      axis: .vertical)
+                                .lineLimit(2...4)
+                                .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                                .padding(.horizontal, 10).padding(.vertical, 9)
                                 .voltPanel(radius: 10)
+                                .frame(maxHeight: .infinity)
                         }
+                        .frame(width: 120)
                     }
+                    // Range reps (optional, below)
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("NOTE TECNICHE (OPZ.)")
+                        Text("RANGE REPS (OPZ.)")
                             .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                        TextField("", text: $ex.notes,
-                                  prompt: Text("Es. fermo 1″ al petto").foregroundStyle(Palette.textLow),
-                                  axis: .vertical)
-                            .lineLimit(1...3)
+                        TextField("", text: $ex.repRange,
+                                  prompt: Text("Es. 8-12").foregroundStyle(Palette.textLow))
                             .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
                             .padding(.horizontal, 12).padding(.vertical, 9)
                             .voltPanel(radius: 10)

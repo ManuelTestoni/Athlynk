@@ -281,7 +281,7 @@ struct CoachWorkoutWizardView: View {
     @State private var title = ""
     @State private var goal = ""
     @State private var level = ""
-    @State private var frequency = 3
+    @State private var frequency = 4
     @State private var durationWeeks = 8
     @State private var days: [WBDayDraft] = []
     @State private var rules: [WBRuleDraft] = []
@@ -382,7 +382,7 @@ struct CoachWorkoutWizardView: View {
             }
 
             HStack(spacing: 10) {
-                WZIntStepper(label: "FREQUENZA / SETT.", value: $frequency, range: 1...6)
+                WZIntStepper(label: "FREQUENZA / SETT.", value: $frequency, range: 1...14)
                 if kind == "PROGRAM" {
                     WZIntStepper(label: "DURATA (SETT.)", value: $durationWeeks, range: 1...52)
                 }
@@ -542,12 +542,20 @@ struct CoachWorkoutWizardView: View {
                 Task { await saveAndFinalize(action: "template") }
             }
             Button {
-                Task { await saveAndFinalize(action: nil) }
+                Task { await saveAndFinalize(action: "draft") }
             } label: {
                 Text("Salva come bozza")
                     .font(Typo.body(14, .semibold)).foregroundStyle(Palette.textMid)
                     .frame(maxWidth: .infinity).padding(.vertical, 13)
                     .voltPanel(radius: 14)
+            }
+            .buttonStyle(.plain)
+            Button {
+                Task { await saveAndFinalize(action: nil) }
+            } label: {
+                Text("Salva")
+                    .font(Typo.body(14)).foregroundStyle(Palette.textLow)
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
             }
             .buttonStyle(.plain)
 
@@ -642,6 +650,7 @@ struct CoachWorkoutWizardView: View {
                 if ex.loadUnit.isEmpty { ex.loadUnit = "KG" }
                 ex.rir = e["rir"] as? Int
                 ex.rpe = e["rpe"] as? Int
+                ex.rpeRirType = (ex.rir != nil) ? "RIR" : "RPE"
                 ex.tempo = e["tempo"] as? String ?? ""
                 ex.notes = (e["coach_notes"] as? String) ?? (e["notes"] as? String) ?? ""
                 if let pk = ex.pk { pkToRef[pk] = ex.id }
@@ -745,7 +754,8 @@ struct CoachWorkoutWizardView: View {
             }
             Analytics.shared.capture(.planUpdated, ["kind": "workout"])
             flash.success(action == "assign" ? "Scheda assegnata"
-                          : action == "template" ? "Template salvato" : "Bozza salvata")
+                          : action == "template" ? "Template salvato"
+                          : action == "draft" ? "Bozza salvata" : "Scheda salvata")
             try? await Task.sleep(for: .seconds(1.1))
             onSaved()
             dismiss()

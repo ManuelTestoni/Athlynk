@@ -304,7 +304,7 @@
   <template x-teleport="body">
   <div x-show="typePickerOpen" x-cloak
        x-effect="window.panelLock && (typePickerOpen ? window.panelLock.acquire() : window.panelLock.release())"
-       class="fixed inset-0 z-50 flex items-center justify-center p-4">
+       class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="closeTypePicker()"></div>
     <div class="al-modal-panel wb-fade-in relative" style="max-width: 820px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
@@ -443,7 +443,7 @@
   <template x-teleport="body">
   <div x-show="deleteFolderOpen" x-cloak
        x-effect="window.panelLock && (deleteFolderOpen ? window.panelLock.acquire() : window.panelLock.release())"
-       class="fixed inset-0 z-50 flex items-center justify-center p-4">
+       class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
     <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">

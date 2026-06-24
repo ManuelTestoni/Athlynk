@@ -4,9 +4,123 @@
 
 {% block content %}
 {% include 'pages/allenamenti/_volume_drawer.html' %}
+
+<style>
+  .pd-rcp-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (min-width: 1024px) {
+    .pd-rcp-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.75rem; }
+  }
+  .pd-rcp-col { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+
+  .rcp-head {
+    padding: 1.5rem 1.75rem;
+    background:
+      linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%),
+      var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-left: 4px solid var(--al-bronze);
+    border-radius: var(--al-r-md);
+    position: relative; overflow: hidden;
+  }
+  .rcp-head::after {
+    content: ''; position: absolute; right: -40px; top: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .rcp-head h2 { font-family: var(--al-font-display); font-size: 1.85rem; line-height: 1.05; letter-spacing: -.01em; margin: 0; color: var(--al-ink); }
+  .rcp-head .rcp-desc { color: var(--al-ink-mute); font-style: italic; margin-top: .5rem; max-width: 56ch; font-size: .9rem; }
+  .rcp-meta { display: flex; flex-wrap: wrap; gap: .4rem .55rem; margin-top: 1rem; position: relative; z-index: 1; }
+  .rcp-chip {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .6rem;
+    border: 1px solid var(--al-rule);
+    background: white; border-radius: 999px;
+    font-size: .72rem; font-weight: 600; color: var(--al-ink-soft); letter-spacing: .02em;
+  }
+  .rcp-chip i { font-size: .9rem; color: var(--al-bronze); }
+  .rcp-chip.is-status-active  { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+  .rcp-chip.is-status-active i { color: #065f46; }
+  .rcp-chip.is-status-template { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+  .rcp-chip.is-status-template i { color: #1e40af; }
+  .rcp-chip.is-status-draft  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .rcp-chip.is-status-draft i { color: #92400e; }
+
+  .rcp-days-head {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    margin-bottom: .65rem;
+  }
+  .rcp-days-head h3 { font-family: var(--al-font-display); font-size: 1.1rem; margin: 0; color: var(--al-ink); }
+  .rcp-day {
+    border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-md);
+    background: white; overflow: hidden; transition: border-color .15s;
+  }
+  .rcp-day.is-open { border-color: var(--al-rule); }
+  .rcp-day-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: .8rem 1rem; background: var(--al-stone); border: none; cursor: pointer;
+    transition: background .15s; text-align: left;
+  }
+  .rcp-day-btn:hover { background: rgba(138,106,58,0.08); }
+  .rcp-day.is-open .rcp-day-btn { background: var(--al-stone); border-bottom: 1px solid var(--al-rule-faint); }
+  .rcp-day-title { font-weight: 600; color: var(--al-ink); display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
+  .rcp-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .5rem; }
+  .rcp-day-meta i.ph-caret-down { transition: transform .2s; }
+  .rcp-day.is-open .rcp-day-meta i.ph-caret-down { transform: rotate(180deg); }
+  .rcp-day-body { padding: .65rem 1rem 1rem; }
+
+  .rcp-ex { padding: .65rem 0; border-bottom: 1px dashed var(--al-rule-faint); }
+  .rcp-ex:last-child { border-bottom: none; }
+  .rcp-ex-head { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+  .rcp-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
+  .rcp-ex-name .rcp-ss {
+    display: inline-block; margin-left: .35rem;
+    background: var(--al-bronze); color: white;
+    font-size: .6rem; font-weight: 700; padding: 1px 5px;
+    border-radius: 3px; letter-spacing: .06em; vertical-align: middle;
+  }
+  .rcp-ex-primary {
+    font-family: var(--al-font-mono); font-size: .8rem; font-weight: 600;
+    color: var(--al-ink-soft); font-variant-numeric: tabular-nums;
+  }
+  .rcp-ex-fields { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
+  .rcp-field {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .7rem; padding: .15rem .45rem;
+    background: var(--al-stone); color: var(--al-ink-soft);
+    border-radius: 3px; font-variant-numeric: tabular-nums;
+  }
+  .rcp-field b { color: var(--al-ink-faint); font-weight: 600; letter-spacing: .04em; font-size: .65rem; text-transform: uppercase; }
+  .rcp-ex-notes { margin-top: .35rem; font-size: .78rem; color: var(--al-ink-mute); font-style: italic; }
+
+  /* Sidebar assignment card */
+  .pd-assign-card {
+    background: white; border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-md); overflow: hidden;
+  }
+  .pd-assign-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .65rem 1rem; gap: .75rem;
+  }
+  .pd-assign-row + .pd-assign-row { border-top: 1px solid var(--al-rule-faint); }
+  .pd-assign-avatar {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: var(--al-bronze); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 700; flex-shrink: 0;
+  }
+  .pd-assign-name { font-weight: 600; font-size: .85rem; color: var(--al-ink); }
+  .pd-assign-meta { font-size: .72rem; color: var(--al-ink-mute); margin-top: 1px; }
+</style>
+
 <div class="max-w-6xl mx-auto" x-data="{ busy: false }">
 
-  <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+  <div class="flex items-center justify-between mb-6 gap-3 flex-wrap plan-print-actions">
     <a href="{% url 'allenamenti_list' %}" class="al-link al-link-quiet inline-flex items-center gap-1 text-[12px]">
       <i class="ph ph-arrow-left"></i> Torna alla libreria
     </a>
@@ -14,7 +128,7 @@
       <button type="button"
               onclick="AthlynkVolume.open({planId: {{ plan.id }}, planKind: '{{ plan.plan_kind|default:'WEEKLY' }}', durationWeeks: {{ plan.duration_weeks|default:1 }}})"
               class="al-btn al-btn-ghost al-btn-sm">
-        <i class="ph ph-chart-bar text-sm"></i><span>Volume d'allenamento</span>
+        <i class="ph ph-chart-bar text-sm"></i><span>Volume</span>
       </button>
       <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-ghost al-btn-sm">
         <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
@@ -27,115 +141,147 @@
     </div>
   </div>
 
-  <div class="al-card mb-6">
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-      <div class="flex-1 min-w-0">
-        <p class="al-eyebrow mb-2">Studio &middot; Scheda</p>
-        <h1 class="al-h-1 truncate">{{ plan.title }}</h1>
-        {% if plan.description %}<p class="al-body mt-3 max-w-3xl">{{ plan.description }}</p>{% endif %}
-        <div class="flex flex-wrap items-center gap-2 mt-4">
-          <span class="wb-kind-badge {% if plan.plan_kind == 'PROGRAM' %}wb-kind-badge--program{% else %}wb-kind-badge--weekly{% endif %}">
-            {% if plan.plan_kind == 'PROGRAM' %}Programmazione{% else %}Settimana{% endif %}
+  <div class="pd-rcp-grid">
+
+    <!-- ===== LEFT: plan info + days ===== -->
+    <div class="pd-rcp-col">
+
+      <!-- Plan header -->
+      <div class="rcp-head">
+        <p class="al-eyebrow" style="margin-bottom: .5rem;">Studio &middot; Scheda</p>
+        <h2>{{ plan.title }}</h2>
+        {% if plan.description %}<p class="rcp-desc">{{ plan.description }}</p>{% endif %}
+        <div class="rcp-meta">
+          <span class="rcp-chip">
+            {% if plan.plan_kind == 'PROGRAM' %}
+              <i class="ph ph-chart-line-up"></i> Programmazione
+            {% else %}
+              <i class="ph ph-calendar-blank"></i> Settimanale
+            {% endif %}
           </span>
-          {% if plan.sport %}<span class="al-badge"><i class="ph {{ plan.sport.icon|default:'ph-stack' }}"></i> {{ plan.sport.name }}</span>{% endif %}
+          {% if plan.sport %}
+            <span class="rcp-chip"><i class="ph {{ plan.sport.icon|default:'ph-trophy' }}"></i> {{ plan.sport.name }}</span>
+          {% endif %}
           {% if plan.folder %}
-            <span class="wb-folder-chip {% if plan.folder.label_color %}wb-folder-chip--{{ plan.folder.label_color }}{% endif %}">
-              <i class="ph ph-folder-simple"></i>
+            <span class="rcp-chip"><i class="ph ph-folder-simple"></i>
               {% if plan.folder.label_text %}{{ plan.folder.label_text }}{% else %}{{ plan.folder.title }}{% endif %}
             </span>
           {% endif %}
-          {% if plan.status == 'TEMPLATE' %}<span class="al-badge" style="background:#dbeafe;color:#1e40af;">Template</span>{% endif %}
-          {% if plan.status == 'ACTIVE' %}<span class="al-badge" style="background:#d1fae5;color:#065f46;">Attiva</span>{% endif %}
-          {% if plan.goal %}<span class="al-badge al-badge-aegean">{{ plan.goal }}</span>{% endif %}
-          {% if plan.level %}<span class="al-badge">{{ plan.level }}</span>{% endif %}
-          {% if plan.frequency_per_week %}<span class="al-badge"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
-          {% if plan.plan_kind == 'PROGRAM' and plan.duration_weeks %}<span class="al-badge"><i class="ph ph-stack"></i> {{ plan.duration_weeks }} settimane</span>{% endif %}
+          {% if plan.goal %}
+            <span class="rcp-chip"><i class="ph ph-target"></i> {{ plan.goal }}</span>
+          {% endif %}
+          {% if plan.level %}
+            <span class="rcp-chip"><i class="ph ph-barbell"></i> {{ plan.level }}</span>
+          {% endif %}
+          {% if plan.frequency_per_week %}
+            <span class="rcp-chip"><i class="ph ph-calendar"></i> {{ plan.frequency_per_week }} gg/sett</span>
+          {% endif %}
+          {% if plan.plan_kind == 'PROGRAM' and plan.duration_weeks %}
+            <span class="rcp-chip"><i class="ph ph-hourglass"></i> {{ plan.duration_weeks }} sett.</span>
+          {% endif %}
+          <span class="rcp-chip {% if plan.status == 'ACTIVE' %}is-status-active{% elif plan.status == 'TEMPLATE' %}is-status-template{% else %}is-status-draft{% endif %}">
+            <i class="ph {% if plan.status == 'ACTIVE' %}ph-check-circle{% elif plan.status == 'TEMPLATE' %}ph-bookmark-simple{% else %}ph-pencil-simple{% endif %}"></i>
+            {% if plan.status == 'ACTIVE' %}Attiva{% elif plan.status == 'TEMPLATE' %}Template{% else %}Bozza{% endif %}
+          </span>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-    <div class="lg:col-span-2 space-y-4">
-      <h2 class="al-h-3">Programmazione</h2>
-      {% for day in plan.days.all %}
-      <div class="al-card">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="al-h-4">{{ day.day_name|default:"Giorno" }} {{ forloop.counter }}</h3>
-          <span class="al-tag">{{ day.exercises.count }} esercizi</span>
+      <!-- Days collapsible -->
+      <div>
+        <div class="rcp-days-head">
+          <h3>Dettaglio esercizi</h3>
+          <span class="al-small" style="color: var(--al-ink-mute);">{{ plan.days.count }} giorn{{ plan.days.count|pluralize:'o,i' }}</span>
         </div>
-        <div class="space-y-3">
-          {% for ex in day.exercises.all %}
-          <div class="p-3 rounded" style="border: 1px solid var(--al-rule-faint); background: var(--al-parchment);">
-            <div class="flex items-start justify-between gap-2 mb-1">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-semibold" style="font-size: 14px;">{{ ex.exercise.name }}</span>
-                {% if ex.execution_type and ex.execution_type != 'REPETITION' %}
-                  <span class="wb-chip-set-type {% if ex.execution_type == 'RAMPING' %}is-ramp{% elif ex.execution_type == 'TEST' %}is-test{% else %}is-rep{% endif %}">
-                    {% if ex.execution_type == 'RAMPING' %}Ramping{% elif ex.execution_type == 'TEST' %}Test{% else %}Ripetizione{% endif %}
+        <div class="space-y-2">
+          {% for day in plan.days.all %}
+          <div class="rcp-day plan-print-day" x-data="{ open: true }" :class="{ 'is-open': open }">
+            <button type="button" class="rcp-day-btn" @click="open = !open">
+              <span class="rcp-day-title">
+                <i class="ph ph-list-bullets" style="color: var(--al-bronze);"></i>
+                {{ day.day_name|default:"Giorno" }} {{ forloop.counter }}
+              </span>
+              <span class="rcp-day-meta">
+                <span>{{ day.exercises.count }} es.</span>
+                <i class="ph ph-caret-down"></i>
+              </span>
+            </button>
+            <div x-show="open" x-collapse class="rcp-day-body">
+              {% for ex in day.exercises.all %}
+              <div class="rcp-ex">
+                <div class="rcp-ex-head">
+                  <span class="rcp-ex-name">
+                    {{ ex.exercise.name }}
+                    {% if ex.superset_group_id %}<span class="rcp-ss">SS{{ ex.superset_group_id }}</span>{% endif %}
+                    {% if ex.execution_type and ex.execution_type != 'REPETITION' %}
+                      <span class="al-tag" style="margin-left:.35rem;font-size:.6rem;">{% if ex.execution_type == 'RAMPING' %}Ramping{% elif ex.execution_type == 'TEST' %}Test{% endif %}</span>
+                    {% endif %}
                   </span>
+                  <span class="rcp-ex-primary">{{ ex.set_count|default:"?" }} × {{ ex.rep_range|default:"?" }}</span>
+                </div>
+                <div class="rcp-ex-fields">
+                  {% if ex.load_value %}
+                    <span class="rcp-field"><b>Carico</b>
+                      {{ ex.load_value }}{% if ex.load_unit == 'KG' %} kg{% elif ex.load_unit == 'PERCENT_1RM' %} % 1RM{% elif ex.load_unit == 'BODYWEIGHT' %} BW{% endif %}
+                    </span>
+                  {% endif %}
+                  {% if ex.recovery_seconds %}
+                    <span class="rcp-field"><b>Rec</b> {{ ex.recovery_seconds }}s</span>
+                  {% endif %}
+                  {% if ex.rpe %}
+                    <span class="rcp-field"><b>RPE</b> {{ ex.rpe }}</span>
+                  {% endif %}
+                  {% if ex.rir is not None %}
+                    <span class="rcp-field"><b>RIR</b> {{ ex.rir }}</span>
+                  {% endif %}
+                  {% if ex.tempo %}
+                    <span class="rcp-field"><b>TUT</b> {{ ex.tempo }}</span>
+                  {% endif %}
+                </div>
+                {% if ex.technique_notes %}
+                  <p class="rcp-ex-notes">{{ ex.technique_notes }}</p>
                 {% endif %}
-                {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
               </div>
+              {% empty %}
+              <p class="al-small italic" style="color: var(--al-ink-faint); padding: .5rem 0;">Giorno vuoto</p>
+              {% endfor %}
             </div>
-
-            <div class="cw-params">
-              {% if ex.set_count %}<span class="cw-chip"><span class="cw-key">Serie</span><span class="cw-val">{{ ex.set_count }}</span></span>{% endif %}
-              {% if ex.rep_range %}<span class="cw-chip"><span class="cw-key">Reps</span><span class="cw-val">{{ ex.rep_range }}</span></span>{% endif %}
-              {% if ex.load_value %}
-                <span class="cw-chip">
-                  <span class="cw-key">Carico</span>
-                  <span class="cw-val">
-                    {{ ex.load_value }}{% if ex.load_unit == 'KG' %} kg{% elif ex.load_unit == 'PERCENT_1RM' %} % 1RM{% elif ex.load_unit == 'BODYWEIGHT' %} BW{% endif %}
-                  </span>
-                </span>
-              {% endif %}
-              {% if ex.recovery_seconds %}<span class="cw-chip"><span class="cw-key">Rec</span><span class="cw-val">{{ ex.recovery_seconds }}s</span></span>{% endif %}
-              {% if ex.rpe %}<span class="cw-chip"><span class="cw-key">RPE</span><span class="cw-val">{{ ex.rpe }}</span></span>{% endif %}
-              {% if ex.rir is not None %}<span class="cw-chip"><span class="cw-key">RIR</span><span class="cw-val">{{ ex.rir }}</span></span>{% endif %}
-              {% if ex.tempo %}<span class="cw-chip"><span class="cw-key">Tempo</span><span class="cw-val">{{ ex.tempo }}</span></span>{% endif %}
-            </div>
-
-            {% if ex.technique_notes %}
-            <p class="cw-note">{{ ex.technique_notes }}</p>
-            {% endif %}
           </div>
           {% empty %}
-          <p class="al-small italic" style="color: var(--al-ink-faint);">Giorno vuoto</p>
+          <p class="al-small italic" style="color: var(--al-ink-faint);">Nessun giorno definito.</p>
           {% endfor %}
         </div>
       </div>
-      {% empty %}
-      <p class="al-small italic">Nessun giorno definito.</p>
-      {% endfor %}
     </div>
 
-    <div class="space-y-4">
-      <h2 class="al-h-3">Assegnazioni</h2>
-      <div class="al-card">
-        {% for a in plan.assignments.all %}
-        <div class="flex items-center justify-between py-2 {% if not forloop.last %}border-b{% endif %}" style="border-color: var(--al-rule-faint);">
-          <div class="flex items-center gap-2">
-            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze);">
-              {{ a.client.first_name|slice:":1" }}{{ a.client.last_name|slice:":1" }}
-            </div>
-            <div>
-              <p class="font-semibold text-sm">{{ a.client.first_name }} {{ a.client.last_name }}</p>
-              <p class="al-small" style="color: var(--al-ink-faint);">{{ a.start_date|default:"—" }}{% if a.end_date %} → {{ a.end_date }}{% endif %}</p>
-            </div>
-          </div>
-          <span class="al-badge">{{ a.status }}</span>
-        </div>
-        {% empty %}
-        <p class="al-small italic" style="color: var(--al-ink-faint);">Nessuna assegnazione.</p>
-        {% endfor %}
+    <!-- ===== RIGHT: assignments ===== -->
+    <div class="pd-rcp-col plan-print-aside">
+      <div class="rcp-head" style="padding: 1.1rem 1.25rem;">
+        <p class="al-eyebrow" style="margin-bottom: .35rem;">Assegnazioni</p>
+        <p class="al-small" style="color: var(--al-ink-mute);">{{ plan.assignments.count }} atleta{{ plan.assignments.count|pluralize:'i' }} con questa scheda</p>
       </div>
 
+      {% if plan.assignments.count %}
+      <div class="pd-assign-card">
+        {% for a in plan.assignments.all %}
+        <div class="pd-assign-row">
+          <div class="pd-assign-avatar">{{ a.client.first_name|slice:":1" }}{{ a.client.last_name|slice:":1" }}</div>
+          <div style="flex:1; min-width:0;">
+            <p class="pd-assign-name">{{ a.client.first_name }} {{ a.client.last_name }}</p>
+            <p class="pd-assign-meta">
+              {{ a.start_date|default:"—" }}{% if a.end_date %} → {{ a.end_date }}{% endif %}
+            </p>
+          </div>
+          <span class="al-badge {% if a.status == 'ACTIVE' %}al-badge-success{% endif %}">{{ a.status }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       <a href="{% url 'allenamenti_wizard_resume' plan.id %}" class="al-btn al-btn-bronze w-full justify-center">
-        <i class="ph ph-paper-plane-right"></i> Apri wizard per assegnare
+        <i class="ph ph-paper-plane-right"></i> Assegna / modifica
       </a>
     </div>
+
   </div>
 </div>
 {% endblock %}

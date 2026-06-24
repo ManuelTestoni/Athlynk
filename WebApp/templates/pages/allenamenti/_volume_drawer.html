@@ -46,7 +46,7 @@ anchored to the viewport, not any transformed ancestor of .al-canvas.
           <button type="button" :class="{ 'is-active': chartType === 'histogram' }" @click="setChartType('histogram')">
             <i class="ph ph-chart-bar"></i> Istogramma
           </button>
-          <template x-if="_progressionMode || _planDetailMode">
+          <template x-if="_progressionMode || (_planDetailMode && durationWeeks > 1 && planKind !== 'WEEKLY')">
             <button type="button" :class="{ 'is-active': chartType === 'line' }" @click="setChartType('line')">
               <i class="ph ph-chart-line"></i> Linea
             </button>

@@ -13,6 +13,7 @@
     delete: "/api/allenamenti/__ID__/elimina/",
     duplicate: "/api/allenamenti/__ID__/duplica/",
     list: "{% url 'allenamenti_list' %}",
+    detail: "{% if plan %}{% url 'allenamenti_plan_detail' plan.id %}{% else %}{% url 'allenamenti_list' %}{% endif %}",
     search_exercises: "{% url 'api_search_exercises' %}",
     search_clients: "{% url 'api_search_clients' %}",
     filters: "{% url 'api_exercise_filters' %}",
@@ -1224,16 +1225,12 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="al-label">Allenamenti per settimana *</label>
-          <div class="flex gap-2 flex-wrap">
-            <template x-for="n in [1,2,3,4,5,6]" :key="n">
-              <button type="button" @click="setFrequency(n)"
-                      class="px-4 py-2 rounded transition-all"
-                      :style="plan.frequency_per_week === n
-                              ? 'background: var(--al-ink); color: var(--al-parchment); font-weight:600;'
-                              : 'background: var(--al-stone); color: var(--al-ink);'"
-                      x-text="n">
-              </button>
-            </template>
+          <div class="flex items-center gap-3 mt-1">
+            <button type="button" @click="setFrequency(Math.max(1, plan.frequency_per_week - 1))"
+                    class="al-btn al-btn-ghost al-btn-sm" style="padding: 6px 12px; font-size: 18px; line-height:1;">−</button>
+            <span class="font-bold text-2xl w-10 text-center" style="font-family: var(--al-mono);" x-text="plan.frequency_per_week"></span>
+            <button type="button" @click="setFrequency(Math.min(14, plan.frequency_per_week + 1))"
+                    class="al-btn al-btn-ghost al-btn-sm" style="padding: 6px 12px; font-size: 18px; line-height:1;">+</button>
           </div>
           <p class="al-small mt-2" style="color: var(--al-ink-faint);">
             Determina i giorni nel builder. Non modificabile dopo lo step 2.
@@ -1480,52 +1477,78 @@
                       <button x-show="ex.superset_group_id" @click="ex.superset_group_id = null; markDirty()" class="wb-icon-btn" title="Rimuovi superset">
                         <i class="ph ph-link-break"></i>
                       </button>
-                      <button type="button" class="wb-icon-btn"
-                              :class="{'is-active': ex._showAdvanced}"
-                              @click="ex._showAdvanced = !ex._showAdvanced"
-                              title="Più campi (RPE / RIR / Tempo)">
-                        <i class="ph ph-sliders-horizontal"></i>
-                      </button>
-                      <button type="button" class="wb-icon-btn"
-                              :class="{'is-active': ex._showNote || ex.coach_notes}"
-                              @click="ex._showNote = !ex._showNote"
-                              title="Note coach">
-                        <i class="ph ph-note"></i>
-                      </button>
                       <button type="button" class="wb-icon-btn" @click="removeExercise(exIdx)" title="Rimuovi" style="color: var(--al-danger);">
                         <i class="ph ph-trash"></i>
                       </button>
                     </div>
                   </div>
 
-                  <!-- PARAMS (adaptive by set type) -->
-                  <div class="wb-row-params" x-show="(ex.execution_type || 'REPETITION') === 'REPETITION'">
-                    <div class="wb-mini-field">
-                      <label class="wb-mini-field-label">Serie</label>
-                      <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                  <!-- PARAMS REPETITION: new 2-row + side-note layout -->
+                  <template x-if="(ex.execution_type || 'REPETITION') === 'REPETITION'">
+                    <div style="display:flex; gap:6px; align-items:stretch;">
+                      <!-- Left: 2 stacked rows -->
+                      <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                        <!-- Row 1: Serie, Reps, Carico, Unità (compact) -->
+                        <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:4px;">
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">Serie</label>
+                            <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                          </div>
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">Reps</label>
+                            <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="8-10">
+                          </div>
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">Carico</label>
+                            <input type="number" step="0.5" class="wb-mini-input" x-model.number="ex.load_value" @input="markDirty()">
+                          </div>
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">Unità</label>
+                            <select class="wb-mini-input" x-model="ex.load_unit" @change="markDirty()">
+                              <option value="KG">kg</option>
+                              <option value="PERCENT_1RM">%1RM</option>
+                              <option value="BODYWEIGHT">BW</option>
+                            </select>
+                          </div>
+                        </div>
+                        <!-- Row 2: Recupero, RPE/RIR, TUT -->
+                        <div style="display:grid; grid-template-columns: 1fr 1.4fr 1fr; gap:4px;">
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">Recupero (s)</label>
+                            <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
+                          </div>
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label" x-text="ex._rpe_rir_type"></label>
+                            <div style="display:flex; gap:2px;">
+                              <select class="wb-mini-input" style="flex:0 0 auto; width:48px; padding-left:2px; padding-right:2px;"
+                                      x-model="ex._rpe_rir_type"
+                                      @change="if(ex._rpe_rir_type==='RPE'){ex.rpe=ex.rir;ex.rir=null;}else{ex.rir=ex.rpe;ex.rpe=null;} markDirty()">
+                                <option value="RPE">RPE</option>
+                                <option value="RIR">RIR</option>
+                              </select>
+                              <input type="number" min="0" max="10" class="wb-mini-input" style="flex:1;"
+                                     :value="ex._rpe_rir_type==='RPE' ? ex.rpe : ex.rir"
+                                     @input="ex._rpe_rir_type==='RPE' ? (ex.rpe=+$event.target.value||null) : (ex.rir=+$event.target.value||null); markDirty()"
+                                     placeholder="—">
+                            </div>
+                          </div>
+                          <div class="wb-mini-field">
+                            <label class="wb-mini-field-label">TUT</label>
+                            <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="3-1-1">
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Right: Note sempre visibili -->
+                      <div class="wb-mini-field" style="width:130px; display:flex; flex-direction:column;">
+                        <label class="wb-mini-field-label">Note</label>
+                        <textarea x-model="ex.coach_notes" @input="ex.notes=$event.target.value; markDirty()"
+                                  maxlength="500" placeholder="Es. scapole addotte…"
+                                  class="wb-mini-input" style="flex:1; resize:none; min-height:58px; padding:4px 6px; font-size:11px;"></textarea>
+                      </div>
                     </div>
-                    <div class="wb-mini-field">
-                      <label class="wb-mini-field-label">Reps</label>
-                      <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="8-10">
-                    </div>
-                    <div class="wb-mini-field">
-                      <label class="wb-mini-field-label">Carico</label>
-                      <input type="number" step="0.5" class="wb-mini-input" x-model.number="ex.load_value" @input="markDirty()">
-                    </div>
-                    <div class="wb-mini-field">
-                      <label class="wb-mini-field-label">Unità</label>
-                      <select class="wb-mini-input" x-model="ex.load_unit" @change="markDirty()">
-                        <option value="KG">kg</option>
-                        <option value="PERCENT_1RM">%1RM</option>
-                        <option value="BODYWEIGHT">corpo libero</option>
-                      </select>
-                    </div>
-                    <div class="wb-mini-field">
-                      <label class="wb-mini-field-label">Recupero (s)</label>
-                      <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
-                    </div>
-                  </div>
+                  </template>
 
+                  <!-- PARAMS RAMPING -->
                   <div class="wb-row-params" x-show="ex.execution_type === 'RAMPING'">
                     <div class="wb-mini-field">
                       <label class="wb-mini-field-label">Set</label>
@@ -1541,6 +1564,7 @@
                     </div>
                   </div>
 
+                  <!-- PARAMS TEST -->
                   <div class="wb-row-params" x-show="ex.execution_type === 'TEST'">
                     <div class="wb-mini-field">
                       <label class="wb-mini-field-label">Obiettivo</label>
@@ -1555,30 +1579,6 @@
                       <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="Pieno">
                     </div>
                   </div>
-
-                  <!-- ADVANCED FIELDS (collapsible) -->
-                  <div class="wb-row-ribbon" x-show="ex._showAdvanced" x-cloak>
-                    <div class="wb-row-params">
-                      <div class="wb-mini-field">
-                        <label class="wb-mini-field-label">RPE</label>
-                        <input type="number" min="1" max="10" class="wb-mini-input" x-model.number="ex.rpe" @input="markDirty()">
-                      </div>
-                      <div class="wb-mini-field">
-                        <label class="wb-mini-field-label">RIR</label>
-                        <input type="number" min="0" max="10" class="wb-mini-input" x-model.number="ex.rir" @input="markDirty()">
-                      </div>
-                      <div class="wb-mini-field">
-                        <label class="wb-mini-field-label">TUT / Tempo</label>
-                        <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="4-0-2-0">
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- NOTE RIBBON -->
-                  <div class="wb-row-ribbon" x-show="ex._showNote" x-cloak>
-                    <textarea x-model="ex.coach_notes" @input="ex.notes = $event.target.value; markDirty()"
-                              maxlength="500" placeholder="Es. scendi controllato in 3 secondi, scapole addotte."></textarea>
-                  </div>
                 </div>
               </template>
               <template x-if="activeDay().exercises.length === 0">
@@ -1590,9 +1590,6 @@
               </template>
             </div>
 
-            <button @click="openLibraryFocus()" type="button" class="al-btn al-btn-ghost mt-3 w-full">
-              <i class="ph ph-plus"></i> Aggiungi esercizio
-            </button>
           </div>
         </template>
 
@@ -2215,11 +2212,14 @@
 
           <!-- Secondary actions -->
           <div class="asg-secondary">
+            <button @click="saveDraft(true).then(() => window.location.href = urls.detail)" :disabled="finalizing" type="button">
+              <i class="ph ph-check"></i> Salva
+            </button>
+            <button @click="doSaveDraft()" :disabled="finalizing" type="button">
+              <i class="ph ph-floppy-disk"></i> Salva come bozza
+            </button>
             <button @click="doSaveTemplate()" :disabled="finalizing" type="button">
               <i class="ph ph-bookmark-simple"></i> Salva come template
-            </button>
-            <button @click="saveDraft(true).then(() => window.location.href = urls.list)" :disabled="finalizing" type="button">
-              <i class="ph ph-floppy-disk"></i> Salva bozza
             </button>
           </div>
         </div>

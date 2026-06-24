@@ -2073,11 +2073,12 @@ input[type="number"] { -moz-appearance: textfield; }
   }
   main.al-canvas > .al-page { padding: 0 !important; max-width: none !important; }
 
-  /* hide app chrome + interactive controls */
+  /* hide app chrome + interactive controls + Chiron */
   .al-sidebar, .al-topbar, .al-footer,
   .al-toast-host, #cookie-banner-root,
   .al-search-dropdown, .al-notif-pop,
-  .al-modal-backdrop, .al-btn, .al-print-hide {
+  .al-modal-backdrop, .al-btn, .al-print-hide,
+  .chiron-root {
     display: none !important;
   }
 
@@ -2091,6 +2092,18 @@ input[type="number"] { -moz-appearance: textfield; }
   .pd-meal, .pd-hero, .pd-dashboard, .print-avoid { break-inside: avoid; }
   h1, h2, h3, .al-h-1, .al-h-2, .al-h-3 { break-after: avoid; }
   .print-break-before { break-before: page; }
+  .print-break-after  { break-after: page; }
+
+  /* workout plan: each day starts a new page when there are many */
+  .plan-print-day { break-before: page; }
+  .plan-print-day:first-child { break-before: auto; }
+
+  /* nutrition plan: each day/meal-set starts a new page */
+  .plan-print-meal-day { break-before: page; }
+  .plan-print-meal-day:first-child { break-before: auto; }
+
+  /* hide non-content sidebars (assignments column, actions) */
+  .plan-print-aside, .plan-print-actions { display: none !important; }
 
   /* flatten heavy shadows for clean toner output */
   .al-card, .av-section, .av-hero, .av-vital, .av-private { box-shadow: none !important; }

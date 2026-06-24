@@ -326,6 +326,7 @@ document.addEventListener('alpine:init', () => {
           /* UI-only */
           _showAdvanced: !!(ex.rpe || ex.rir || ex.tempo),
           _showNote: !!(ex.notes || ex.coach_notes),
+          _rpe_rir_type: (ex.rir != null && ex.rir !== '') ? 'RIR' : 'RPE',
         })),
       }));
     },
@@ -829,6 +830,7 @@ document.addEventListener('alpine:init', () => {
         superset_group_id: null,
         _showAdvanced: false,
         _showNote: false,
+        _rpe_rir_type: 'RPE',
       });
       this.flashIds.push(libEx.id);
       setTimeout(() => {
@@ -1713,6 +1715,15 @@ document.addEventListener('alpine:init', () => {
       });
       if (d) {
         this._showToast('Scheda assegnata!');
+        setTimeout(() => { window.location.href = d.redirect_url || this.urls.list; }, 1200);
+      }
+    },
+
+    async doSaveDraft() {
+      await this.saveDraft();
+      const d = await this._finalize({ action: 'draft' });
+      if (d) {
+        this._showToast('Salvata come bozza');
         setTimeout(() => { window.location.href = d.redirect_url || this.urls.list; }, 1200);
       }
     },

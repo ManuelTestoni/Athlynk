@@ -405,7 +405,7 @@ def _serialize_plan_for_wizard(plan):
         'description': plan.description or '',
         'goal': plan.goal or '',
         'level': plan.level or '',
-        'frequency_per_week': plan.frequency_per_week or 3,
+        'frequency_per_week': plan.frequency_per_week or 4,
         'duration_weeks': plan.duration_weeks or 8,
         'status': plan.status,
         'last_step': plan.last_step or 1,
@@ -489,7 +489,7 @@ def _apply_payload_to_plan(plan, data, coach):
     if 'frequency_per_week' in data and data.get('frequency_per_week'):
         try:
             f = int(data['frequency_per_week'])
-            if 1 <= f <= 6:
+            if 1 <= f <= 14:
                 plan.frequency_per_week = f
         except (TypeError, ValueError):
             pass
@@ -923,6 +923,12 @@ def api_plan_finalize(request, plan_id):
             plan.save()
 
         return JsonResponse({'status': 'ok', 'redirect_url': '/allenamenti/'})
+
+    if action == 'draft':
+        plan.status = 'DRAFT'
+        plan.is_template = False
+        plan.save()
+        return JsonResponse({'status': 'ok', 'redirect_url': f'/allenamenti/{plan.id}/'})
 
     return JsonResponse({'error': 'azione non valida'}, status=400)
 
