@@ -37,31 +37,34 @@ struct CoachCheckFormView: View {
 
     var body: some View {
         NavigationStack {
-            ScreenScroll {
-                ScreenHeader(eyebrow: needsClient ? "Compila" : "Modifica valori", title: title,
-                             subtitle: needsClient ? "Inserisci i dati per l'atleta" : "Correggi i dati registrati",
-                             accent: Palette.lime)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    if needsClient { clientPicker }
 
-                if needsClient { clientPicker }
-
-                ForEach(orderedSteps) { step in
-                    let qs = questions.filter { ($0.stepId ?? orderedSteps.first?.id) == step.id }
-                    if !qs.isEmpty {
-                        if orderedSteps.count > 1 {
-                            CoachSectionTitle(eyebrow: "Step", title: step.label, accent: Palette.cyan)
-                        }
-                        ForEach(Array(qs.enumerated()), id: \.offset) { _, q in
-                            questionCard(q)
+                    ForEach(orderedSteps) { step in
+                        let qs = questions.filter { ($0.stepId ?? orderedSteps.first?.id) == step.id }
+                        if !qs.isEmpty {
+                            if orderedSteps.count > 1 {
+                                CoachSectionTitle(eyebrow: "Step", title: step.label, accent: Palette.cyan)
+                            }
+                            ForEach(Array(qs.enumerated()), id: \.offset) { _, q in
+                                questionCard(q)
+                            }
                         }
                     }
+
+                    if let error { Text(error).font(Typo.body(13)).foregroundStyle(Palette.amber) }
+
+                    NeonButton(title: saving ? "Salvataggio…" : "Salva", icon: "checkmark.seal.fill",
+                               color: Palette.lime) { Task { await save() } }
+                        .disabled(saving || (needsClient && clientId == nil))
                 }
-
-                if let error { Text(error).font(Typo.body(13)).foregroundStyle(Palette.amber) }
-
-                NeonButton(title: saving ? "Salvataggio…" : "Salva", icon: "checkmark.seal.fill",
-                           color: Palette.lime) { Task { await save() } }
-                    .disabled(saving || (needsClient && clientId == nil))
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } } }
             .task { await setup() }

@@ -228,6 +228,36 @@ final class APIClient {
         return try decode(ProfilePhotoResponse.self, from: data).imageUrl
     }
 
+    /// Upload the coach's avatar (JPEG bytes) as multipart; returns the new URL.
+    @discardableResult
+    func uploadCoachPhoto(_ imageData: Data) async throws -> String {
+        guard let url = URL(string: baseURL + "/api/v1/coach/profile/photo") else { throw APIError.badURL }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let data: Data, resp: URLResponse
+        do { (data, resp) = try await session.upload(for: req, from: body) }
+        catch { throw APIError.transport(error.localizedDescription) }
+        guard let http = resp as? HTTPURLResponse else { throw APIError.transport("Nessuna risposta") }
+        guard (200..<300).contains(http.statusCode) else {
+            var msg = ""
+            if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let err = obj["error"] as? String { msg = err }
+            throw APIError.http(http.statusCode, msg)
+        }
+        return try decode(ProfilePhotoResponse.self, from: data).imageUrl
+    }
+
     /// Register this device's APNs token for push. Best-effort, never throws.
     func registerDevice(token: String) async {
         // Send the app's bundle id so the server can set the correct APNs topic

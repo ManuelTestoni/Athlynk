@@ -5,6 +5,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct CoachProfileView: View {
     @EnvironmentObject private var app: AppState
@@ -231,6 +232,10 @@ struct CoachEditProfileView: View {
     @State private var phone: String
     @State private var bio: String
     @State private var saving = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var avatarPreview: Data?
+    @State private var uploadingPhoto = false
+    @State private var photoError: String?
 
     init(profile: CoachProfileDTO, onSave: @escaping (CoachProfileDTO) -> Void) {
         self.profile = profile; self.onSave = onSave
@@ -246,6 +251,10 @@ struct CoachEditProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    avatarPicker
+                    if let photoError {
+                        Text(photoError).font(Typo.body(13)).foregroundStyle(Palette.amber)
+                    }
                     field("Nome", $firstName)
                     field("Cognome", $lastName)
                     field("Specializzazione", $specialization)
@@ -271,6 +280,85 @@ struct CoachEditProfileView: View {
                 Button("Chiudi") { dismiss() }.tint(Palette.textMid)
             } }
         }
+    }
+
+    private var avatarPicker: some View {
+        VStack(spacing: 10) {
+            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [Palette.bronze, Palette.phase],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: 104, height: 104)
+                        .neonGlow(Palette.bronze, radius: 10)
+                    avatarImage
+                        .frame(width: 104, height: 104)
+                        .clipShape(Circle())
+                    if uploadingPhoto {
+                        Circle().fill(Color(hex: 0x14110D, alpha: 0.45)).frame(width: 104, height: 104)
+                        ProgressView().tint(Palette.void0)
+                    }
+                    Circle().fill(Palette.void0).frame(width: 34, height: 34)
+                        .overlay(Image(systemName: "camera.fill")
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(Palette.bronze))
+                        .overlay(Circle().stroke(Palette.bronze, lineWidth: 2))
+                        .offset(x: 36, y: 36)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(uploadingPhoto)
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                Task { await pickAndUpload(item) }
+            }
+            Text("Tocca per cambiare foto")
+                .font(Typo.mono(10, .bold)).tracking(1).foregroundStyle(Palette.textLow)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 6)
+    }
+
+    @ViewBuilder private var avatarImage: some View {
+        if let data = avatarPreview, let ui = UIImage(data: data) {
+            Image(uiImage: ui).resizable().scaledToFill()
+        } else if let url = profile.profileImageUrl.flatMap(URL.init) {
+            AsyncImage(url: url) { phase in
+                if case .success(let img) = phase { img.resizable().scaledToFill() }
+                else { avatarInitials }
+            }
+        } else {
+            avatarInitials
+        }
+    }
+
+    private var avatarInitials: some View {
+        let f = firstName.first.map(String.init) ?? ""
+        let l = lastName.first.map(String.init) ?? ""
+        let s = (f + l).uppercased()
+        return Text(s.isEmpty ? "C" : s)
+            .font(Typo.poster(38)).foregroundStyle(Palette.void0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func pickAndUpload(_ item: PhotosPickerItem) async {
+        guard let raw = try? await item.loadTransferable(type: Data.self),
+              let ui = UIImage(data: raw),
+              let jpeg = ui.jpegData(compressionQuality: 0.85) else {
+            photoError = "Immagine non valida."
+            return
+        }
+        avatarPreview = raw
+        uploadingPhoto = true
+        photoError = nil
+        do {
+            _ = try await APIClient.shared.uploadCoachPhoto(jpeg)
+            Haptics.success()
+        } catch {
+            Haptics.error()
+            photoError = error.localizedDescription
+            avatarPreview = nil
+        }
+        uploadingPhoto = false
     }
 
     private func field(_ label: String, _ text: Binding<String>) -> some View {

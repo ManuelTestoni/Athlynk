@@ -120,12 +120,17 @@ struct EditProfileView: View {
     }
 
     private func pickAndUpload(_ item: PhotosPickerItem) async {
-        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-        avatarPreview = data
+        guard let raw = try? await item.loadTransferable(type: Data.self),
+              let ui = UIImage(data: raw),
+              let jpeg = ui.jpegData(compressionQuality: 0.85) else {
+            self.error = "Immagine non valida."
+            return
+        }
+        avatarPreview = raw
         uploadingPhoto = true
         error = nil
         do {
-            let newUrl = try await APIClient.shared.uploadProfilePhoto(data)
+            let newUrl = try await APIClient.shared.uploadProfilePhoto(jpeg)
             imageUrl = newUrl
             app.avatarUrl = newUrl
             Haptics.success()

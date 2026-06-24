@@ -48,9 +48,11 @@ struct WorkoutHistoryView: View {
                             }
                             .foregroundStyle(Palette.violet).padding(.top, 6)
                             ForEach(g.sessions) { s in
-                                NavigationLink(value: s.id) {
-                                    card(s)
-                                }
+                                NavigationLink {
+                                    SessionDetailView(accent: Palette.violet) {
+                                        try await APIClient.shared.workoutSessionDetail(s.id)
+                                    }
+                                } label: { card(s) }
                                 .buttonStyle(.plain)
                                 .onAppear { if s.id == sessions.last?.id { Task { await loadMore() } } }
                             }
@@ -66,11 +68,6 @@ struct WorkoutHistoryView: View {
         .navigationTitle("Storico")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .navigationDestination(for: Int.self) { id in
-            SessionDetailView(accent: Palette.violet) {
-                try await APIClient.shared.workoutSessionDetail(id)
-            }
-        }
         .task { await load() }
     }
 
