@@ -674,6 +674,28 @@ struct FoodSearchResponse: Codable { let results: [FoodDTO] }
 struct MacroDayResponse: Codable { let macroDay: MacroDayDTO
     enum CodingKeys: String, CodingKey { case macroDay = "macro_day" } }
 
+/// One past day of the athlete's compiled meal log.
+struct MacroHistoryDayDTO: Codable, Identifiable, Hashable {
+    let date: String          // ISO yyyy-MM-dd — stable id
+    let dowShort: String      // LUN…DOM
+    let target: MacroMacrosDTO
+    let consumed: MacroMacrosDTO
+    let entries: [MacroEntryDTO]
+
+    var id: String { date }
+
+    enum CodingKeys: String, CodingKey {
+        case date, target, consumed, entries
+        case dowShort = "dow_short"
+    }
+}
+
+struct MacroHistoryResponse: Codable {
+    let days: [MacroHistoryDayDTO]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case days; case hasMore = "has_more" }
+}
+
 // MARK: - "Il mio percorso" timeline
 
 struct JourneyEventDTO: Codable, Identifiable, Hashable {

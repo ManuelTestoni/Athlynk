@@ -381,14 +381,24 @@ final class APIClient {
                           from: try await request("/api/v1/nutrition/foods?q=\(q)")).results
     }
 
-    func macroDay(assignment: Int) async throws -> MacroDayDTO {
-        try decode(MacroDayResponse.self,
-                   from: try await request("/api/v1/nutrition/assignments/\(assignment)/macro-day")).macroDay
+    /// `date` (ISO yyyy-MM-dd) loads a past day for review/edit; nil = today.
+    func macroDay(assignment: Int, date: String? = nil) async throws -> MacroDayDTO {
+        var path = "/api/v1/nutrition/assignments/\(assignment)/macro-day"
+        if let date { path += "?date=\(date)" }
+        return try decode(MacroDayResponse.self, from: try await request(path)).macroDay
     }
 
-    func addMacroLog(assignment: Int, foodId: Int, quantityG: Double, mealName: String?) async throws {
+    /// `offset` pages back through past logged days (14 per page).
+    func macroHistory(assignment: Int, offset: Int = 0) async throws -> MacroHistoryResponse {
+        try decode(MacroHistoryResponse.self,
+                   from: try await request("/api/v1/nutrition/assignments/\(assignment)/macro-history?offset=\(offset)"))
+    }
+
+    /// `date` (ISO yyyy-MM-dd) logs against a past day; nil = today.
+    func addMacroLog(assignment: Int, foodId: Int, quantityG: Double, mealName: String?, date: String? = nil) async throws {
         var body: [String: Any] = ["food_id": foodId, "quantity_g": quantityG]
         if let mealName, !mealName.isEmpty { body["meal_name"] = mealName }
+        if let date { body["date"] = date }
         _ = try await request("/api/v1/nutrition/assignments/\(assignment)/macro-log",
                               method: "POST", body: body)
     }

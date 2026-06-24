@@ -160,6 +160,9 @@ struct CoachClientDetailView: View {
         .navigationDestination(for: CoachSessionsRoute.self) { r in
             CoachSessionsView(clientId: r.clientId)
         }
+        .navigationDestination(for: CoachClientMacroHistoryRoute.self) { r in
+            CoachMacroHistoryView(clientId: r.clientId)
+        }
         .navigationDestination(for: CoachSessionRoute.self) { r in
             SessionDetailView(accent: Palette.magenta) {
                 try await APIClient.shared.coachSessionDetail(r.sessionId)
@@ -215,6 +218,13 @@ struct CoachClientDetailView: View {
             CoachSectionTitle(eyebrow: "Programma", title: "Assegnazioni attive")
             assignRow("dumbbell.fill", "Allenamento", d.activeWorkout?.title ?? "Nessuno", Palette.cyan)
             assignRow("flame.fill", "Nutrizione", d.activeNutrition?.title ?? "Nessuno", Palette.lime)
+            if d.activeNutrition?.planMode == "MACRO" {
+                NavigationLink(value: CoachClientMacroHistoryRoute(clientId: clientId)) {
+                    assignRow("clock.arrow.circlepath", "Storico pasti",
+                              "Vedi cosa ha registrato l'atleta", Palette.lime, chevron: true)
+                }
+                .buttonStyle(.plain)
+            }
             if let sub = d.activeSubscription {
                 assignRow("creditcard.fill", "Abbonamento",
                           "\(sub.name) · €\(String(format: "%.0f", sub.price))", Palette.amber)
@@ -226,7 +236,8 @@ struct CoachClientDetailView: View {
         }
     }
 
-    private func assignRow(_ icon: String, _ label: String, _ value: String, _ accent: Color) -> some View {
+    private func assignRow(_ icon: String, _ label: String, _ value: String, _ accent: Color,
+                           chevron: Bool = false) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon).font(.system(size: 16, weight: .bold))
                 .foregroundStyle(accent).frame(width: 30)
@@ -236,6 +247,10 @@ struct CoachClientDetailView: View {
                 Text(value).font(Typo.body(15, .medium)).foregroundStyle(Palette.textHi).lineLimit(1)
             }
             Spacer()
+            if chevron {
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .black))
+                    .foregroundStyle(accent.opacity(0.7))
+            }
         }
         .padding(14).voltPanel()
     }

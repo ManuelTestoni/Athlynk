@@ -371,6 +371,13 @@ extension APIClient {
                    from: try await request("/api/v1/coach/nutrition/\(planId)")).plan
     }
 
+    /// Read-only view of what the athlete actually logged (active MACRO plan).
+    /// Reuses the athlete's MacroHistory DTOs. `offset` pages back (14 per page).
+    func coachClientMacroHistory(clientId: Int, offset: Int = 0) async throws -> MacroHistoryResponse {
+        try decode(MacroHistoryResponse.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/macro-history?offset=\(offset)"))
+    }
+
     // MARK: Lightweight manual builders
 
     @discardableResult

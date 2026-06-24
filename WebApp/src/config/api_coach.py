@@ -390,7 +390,8 @@ def client_detail(request, user, client_id):
             'internal_notes': rel.internal_notes,
         },
         'active_workout': {'assignment_id': aw.id, 'title': aw.workout_plan.title} if aw else None,
-        'active_nutrition': {'assignment_id': an.id, 'title': an.nutrition_plan.title} if an else None,
+        'active_nutrition': {'assignment_id': an.id, 'title': an.nutrition_plan.title,
+                             'plan_mode': an.nutrition_plan.plan_mode} if an else None,
         'active_subscription': {
             'id': sub.id, 'name': sub.subscription_plan.name,
             'price': float(sub.subscription_plan.price), 'status': sub.status,
@@ -1775,6 +1776,29 @@ def _food_macros(item):
     }
 
 
+# Output key -> Food per-100g attribute. Mirrors the web micro flip card
+# (nutrition_wizard.js microDefs); the iOS coach card reuses the same keys.
+_MICRO_FIELDS = {
+    'iron': 'fe_mg', 'calcium': 'ca_mg', 'sodium': 'na_mg', 'potassium': 'k_mg',
+    'phosphorus': 'p_mg', 'zinc': 'zn_mg', 'magnesium': 'mg_mg', 'copper': 'cu_mg',
+    'selenium': 'se_ug', 'iodine': 'i_ug', 'manganese': 'mn_mg',
+    'vit_b1': 'vit_b1_mg', 'vit_b2': 'vit_b2_mg', 'vit_c': 'vit_c_mg',
+    'niacin': 'niacina_mg', 'vit_b6': 'vit_b6_mg', 'folate': 'folati_ug',
+    'vit_b12': 'vit_b12_ug', 'isoleucine': 'isoleucina_mg', 'leucine': 'leucina_mg',
+    'valine': 'valina_mg', 'lactose': 'lattosio_g',
+}
+
+
+def _accumulate_micros(item, acc):
+    """Add a MealItem's micronutrients (per-100g * quantity) into acc in place."""
+    f = item.food
+    if not f:
+        return
+    factor = (item.quantity_g or 0) / 100.0
+    for key, attr in _MICRO_FIELDS.items():
+        acc[key] += (getattr(f, attr, None) or 0) * factor
+
+
 @api_view(['GET'])
 def nutrition_detail(request, user, plan_id):
     coach, err = _require_coach(user)
@@ -1803,6 +1827,10 @@ def nutrition_detail(request, user, plan_id):
         for it in m['items']:
             for k in total:
                 total[k] += it.get(k) or 0
+    micros = {k: 0.0 for k in _MICRO_FIELDS}
+    for m in plan.meals.all():
+        for it in m.items.all():
+            _accumulate_micros(it, micros)
     day_targets = [{
         'day_of_week': WEEKDAY_REVERSE.get(d.day_of_week, d.day_of_week),
         'kcal': d.target_kcal,
@@ -1819,8 +1847,34 @@ def nutrition_detail(request, user, plan_id):
         'description': plan.description, 'status': plan.status,
         'meals': meals,
         'day_targets': day_targets,
-        'totals': {k: round(v, 1) for k, v in total.items()},
+        'totals': {
+            **{k: round(v, 1) for k, v in total.items()},
+            'micros': {k: round(v, 2) for k, v in micros.items()},
+        },
     }})
+
+
+@api_view(['GET'])
+def client_macro_history(request, user, client_id):
+    """Read-only view of the athlete's compiled meal log (active MACRO plan)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    a = (NutritionAssignment.objects
+         .select_related('nutrition_plan')
+         .filter(client=rel.client, coach=coach, status='ACTIVE',
+                 nutrition_plan__plan_mode='MACRO').first())
+    if not a:
+        return JsonResponse({'days': [], 'has_more': False})
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    from .api import macro_history_payload
+    return JsonResponse(macro_history_payload(a, offset))
 
 
 # ---------------------------------------------------------------------------

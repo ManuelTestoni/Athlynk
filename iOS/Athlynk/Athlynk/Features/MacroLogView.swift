@@ -10,6 +10,8 @@ import SwiftUI
 struct MacroLogView: View {
     let assignmentId: Int
     let planTitle: String
+    /// ISO yyyy-MM-dd of a past day to review/edit; nil = today's diary.
+    var logDate: String? = nil
 
     @State private var day: MacroDayDTO?
     @State private var loading = true
@@ -38,13 +40,13 @@ struct MacroLogView: View {
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 44)
             }
         }
-        .navigationTitle("Diario di oggi")
+        .navigationTitle(logDate == nil ? "Diario di oggi" : "Giorno passato")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Palette.lime)
         .task { await load() }
         .sheet(isPresented: $showSearch) {
-            FoodSearchSheet(assignmentId: assignmentId) {
+            FoodSearchSheet(assignmentId: assignmentId, logDate: logDate) {
                 Task { await load(animated: true) }
             }
         }
@@ -119,7 +121,7 @@ struct MacroLogView: View {
 
     @ViewBuilder
     private func entriesSection(_ day: MacroDayDTO) -> some View {
-        Text("ALIMENTI DI OGGI").voltEyebrow().padding(.top, 6)
+        Text(logDate == nil ? "ALIMENTI DI OGGI" : "ALIMENTI DEL GIORNO").voltEyebrow().padding(.top, 6)
         if day.entries.isEmpty {
             EmptyPanel(icon: "fork.knife", text: "Nessun alimento registrato.\nTocca «Aggiungi alimento».",
                        color: Palette.lime)
@@ -157,7 +159,7 @@ struct MacroLogView: View {
         if !animated { loading = true }
         error = nil
         do {
-            let d = try await APIClient.shared.macroDay(assignment: assignmentId)
+            let d = try await APIClient.shared.macroDay(assignment: assignmentId, date: logDate)
             if animated { withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) { day = d } }
             else { day = d }
         } catch { self.error = error.localizedDescription }
@@ -184,6 +186,7 @@ struct MacroLogView: View {
 
 private struct FoodSearchSheet: View {
     let assignmentId: Int
+    var logDate: String? = nil
     var onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -212,7 +215,7 @@ private struct FoodSearchSheet: View {
                             VStack(spacing: 8) {
                                 ForEach(results) { food in
                                     NavigationLink {
-                                        QuantityView(assignmentId: assignmentId, food: food) {
+                                        QuantityView(assignmentId: assignmentId, food: food, logDate: logDate) {
                                             onAdded(); dismiss()
                                         }
                                     } label: { resultRow(food) }
@@ -263,6 +266,7 @@ private struct FoodSearchSheet: View {
 private struct QuantityView: View {
     let assignmentId: Int
     let food: FoodDTO
+    var logDate: String? = nil
     var onConfirm: () -> Void
 
     @State private var grams: Double = 100
@@ -337,7 +341,7 @@ private struct QuantityView: View {
         saving = true
         do {
             try await APIClient.shared.addMacroLog(assignment: assignmentId, foodId: food.id,
-                                                    quantityG: grams, mealName: nil)
+                                                    quantityG: grams, mealName: nil, date: logDate)
             Haptics.success()
             onConfirm()
         } catch { flash.failure("Aggiunta non riuscita") }

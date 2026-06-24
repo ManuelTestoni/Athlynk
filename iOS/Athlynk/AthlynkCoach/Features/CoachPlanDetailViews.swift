@@ -153,7 +153,7 @@ struct CoachNutritionDetailView: View {
                 if p.planMode == "MACRO" {
                     macroTargetsSection(p)
                 } else {
-                    macroBar(p.totals)
+                    NutritionSummaryFlipCard(totals: p.totals)
                 }
                 if let d = p.description, !d.isEmpty { noteCard(d) }
                 if p.planMode == "MACRO" {
@@ -263,7 +263,8 @@ struct CoachNutritionDetailView: View {
             macroBar(CoachMacros(kcal: Double(p.dailyKcal ?? 0),
                                  protein: Double(p.proteinTargetG ?? 0),
                                  carb: Double(p.carbTargetG ?? 0),
-                                 fat: Double(p.fatTargetG ?? 0)))
+                                 fat: Double(p.fatTargetG ?? 0),
+                                 micros: nil))
         }
     }
 
@@ -311,6 +312,128 @@ struct CoachNutritionDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+    }
+}
+
+// MARK: - Macro / micro flip card (coach-only, mirrors the web flip)
+
+/// Plan totals card the coach can flip between macros (front) and the
+/// aggregated micronutrient grid (back) — same behaviour as the web builder.
+private struct NutritionSummaryFlipCard: View {
+    let totals: CoachMacros
+
+    @State private var flipped = false
+    @State private var squashed = false
+
+    /// (group title, [(label, value, unit)]) — mirrors web `microDefs()`.
+    private var microGroups: [(String, [(String, Double, String)])] {
+        guard let m = totals.micros else { return [] }
+        return [
+            ("Minerali", [
+                ("Ferro", m.iron, "mg"), ("Calcio", m.calcium, "mg"), ("Sodio", m.sodium, "mg"),
+                ("Potassio", m.potassium, "mg"), ("Fosforo", m.phosphorus, "mg"), ("Zinco", m.zinc, "mg"),
+                ("Magnesio", m.magnesium, "mg"), ("Rame", m.copper, "mg"), ("Selenio", m.selenium, "μg"),
+                ("Iodio", m.iodine, "μg"), ("Manganese", m.manganese, "mg"),
+            ]),
+            ("Vitamine", [
+                ("Vit. B1", m.vitB1, "mg"), ("Vit. B2", m.vitB2, "mg"), ("Vit. C", m.vitC, "mg"),
+                ("Niacina", m.niacin, "mg"), ("Vit. B6", m.vitB6, "mg"), ("Folati", m.folate, "μg"),
+                ("Vit. B12", m.vitB12, "μg"),
+            ]),
+            ("Amminoacidi", [
+                ("Isoleucina", m.isoleucine, "mg"), ("Leucina", m.leucine, "mg"), ("Valina", m.valine, "mg"),
+            ]),
+            ("Latticini", [("Lattosio", m.lactose, "g")]),
+        ]
+    }
+
+    private var hasMicros: Bool {
+        guard let m = totals.micros else { return false }
+        // Hide the toggle when the plan has no food-derived micros to show.
+        return [m.iron, m.calcium, m.sodium, m.potassium, m.phosphorus, m.zinc, m.magnesium,
+                m.copper, m.selenium, m.iodine, m.manganese, m.vitB1, m.vitB2, m.vitC, m.niacin,
+                m.vitB6, m.folate, m.vitB12, m.isoleucine, m.leucine, m.valine, m.lactose]
+            .contains { $0 > 0 }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if hasMicros {
+                Button(action: toggle) {
+                    HStack(spacing: 6) {
+                        Text(flipped ? "MICRONUTRIENTI" : "TOTALI PIANO")
+                            .font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                        Spacer()
+                        Image(systemName: flipped ? "chart.pie.fill" : "testtube.2")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(flipped ? "Macro" : "Micro").font(Typo.mono(10, .bold))
+                    }
+                    .foregroundStyle(Palette.lime)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Group {
+                if flipped { microGrid } else { macroRow }
+            }
+            .scaleEffect(x: squashed ? 0.0 : 1.0, anchor: .center)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func toggle() {
+        Haptics.soft()
+        withAnimation(.easeIn(duration: 0.16)) { squashed = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            flipped.toggle()
+            withAnimation(.easeOut(duration: 0.22)) { squashed = false }
+        }
+    }
+
+    private var macroRow: some View {
+        HStack(spacing: 10) {
+            cell("\(Int(totals.kcal))", "kcal", Palette.amber)
+            cell("\(Int(totals.protein))g", "Pro", Palette.cyan)
+            cell("\(Int(totals.carb))g", "Carb", Palette.lime)
+            cell("\(Int(totals.fat))g", "Fat", Palette.phase)
+        }
+    }
+
+    private func cell(_ v: String, _ l: String, _ a: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(v).font(Typo.poster(20)).foregroundStyle(a).lineLimit(1).minimumScaleFactor(0.6)
+            Text(l).font(Typo.mono(9, .semibold)).tracking(1).textCase(.uppercase).foregroundStyle(Palette.textMid)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 12).voltPanel(radius: 14)
+    }
+
+    private var microGrid: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(microGroups, id: \.0) { group in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(group.0.uppercased())
+                        .font(Typo.mono(9, .semibold)).tracking(1.5).foregroundStyle(Palette.lime)
+                    let cols = [GridItem(.flexible()), GridItem(.flexible())]
+                    LazyVGrid(columns: cols, alignment: .leading, spacing: 4) {
+                        ForEach(group.1, id: \.0) { item in
+                            HStack {
+                                Text(item.0).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                                Spacer(minLength: 6)
+                                Text("\(fmt(item.1)) \(item.2)")
+                                    .font(Typo.mono(11, .semibold)).foregroundStyle(Palette.textHi)
+                            }
+                        }
+                    }
+                }
+            }
+            Text("Valori stimati sull'intero piano")
+                .font(Typo.mono(9)).foregroundStyle(Palette.textLow).padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+    }
+
+    private func fmt(_ v: Double) -> String {
+        v >= 100 ? String(Int(v.rounded())) : String(format: "%.1f", v)
     }
 }
 

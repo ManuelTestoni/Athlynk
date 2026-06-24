@@ -357,7 +357,12 @@ enum AnyCodable: Codable, Hashable {
 struct TitleRef: Codable, Hashable {
     let assignmentId: Int?
     let title: String
-    enum CodingKeys: String, CodingKey { case title; case assignmentId = "assignment_id" }
+    let planMode: String?   // only set for nutrition refs ("FOOD" | "MACRO")
+    enum CodingKeys: String, CodingKey {
+        case title
+        case assignmentId = "assignment_id"
+        case planMode = "plan_mode"
+    }
 }
 
 struct CoachSubRef: Codable, Hashable {
@@ -769,6 +774,25 @@ struct CoachMacros: Codable, Hashable {
     let protein: Double
     let carb: Double
     let fat: Double
+    /// Aggregated micronutrients of the whole plan (coach-only). Nil on payloads
+    /// that don't compute them. Mirrors the web micro flip card.
+    let micros: CoachMicrosDTO?
+}
+
+/// Plan-level micronutrient totals. Keys mirror the web `microDefs()` grouping.
+struct CoachMicrosDTO: Codable, Hashable {
+    let iron, calcium, sodium, potassium, phosphorus, zinc, magnesium, copper: Double
+    let selenium, iodine, manganese: Double
+    let vitB1, vitB2, vitC, niacin, vitB6, folate, vitB12: Double
+    let isoleucine, leucine, valine, lactose: Double
+
+    enum CodingKeys: String, CodingKey {
+        case iron, calcium, sodium, potassium, phosphorus, zinc, magnesium, copper
+        case selenium, iodine, manganese
+        case vitB1 = "vit_b1", vitB2 = "vit_b2", vitC = "vit_c", niacin
+        case vitB6 = "vit_b6", folate, vitB12 = "vit_b12"
+        case isoleucine, leucine, valine, lactose
+    }
 }
 
 struct CoachMealItemDTO: Codable, Identifiable, Hashable {

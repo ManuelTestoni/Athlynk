@@ -575,6 +575,7 @@ def nutrition(request, user):
 # ---------------------------------------------------------------------------
 
 _WEEKDAY_CODES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+_DOW_SHORT = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM']
 
 
 def _today_weekday_code():
@@ -631,15 +632,20 @@ def food_search(request, user):
 
 @api_view(['GET'])
 def macro_day(request, user, assignment_id):
-    """Today's logged foods + consumed totals + the day's macro target."""
+    """Logged foods + consumed totals + macro target for a day (today by default,
+    or any past `?date=YYYY-MM-DD` so the athlete can review/edit a past day)."""
     a, err = _macro_assignment(user, assignment_id)
     if err:
         return err
     plan = a.nutrition_plan
     weekly = plan.plan_kind == 'WEEKLY'
-    day_code = _today_weekday_code()
 
-    qs = a.macro_log.filter(log_date=date.today()).select_related('food')
+    target_date = parse_date((request.GET.get('date') or '').strip()) or date.today()
+    if target_date > date.today():
+        target_date = date.today()
+    day_code = _WEEKDAY_CODES[target_date.weekday()]
+
+    qs = a.macro_log.filter(log_date=target_date).select_related('food')
     if weekly:
         qs = qs.filter(day_of_week=day_code)
     entries = list(qs.order_by('created_at', 'id'))
@@ -659,7 +665,7 @@ def macro_day(request, user, assignment_id):
         'fat': round(sum(e.fat for e in entries), 1),
     }
     return JsonResponse({'macro_day': {
-        'date': date.today().isoformat(),
+        'date': target_date.isoformat(),
         'target': target,
         'consumed': consumed,
         'entries': [_macro_entry_dict(e) for e in entries],
@@ -682,11 +688,17 @@ def macro_log_create(request, user, assignment_id):
     if qty <= 0:
         return JsonResponse({'error': 'La quantità deve essere positiva'}, status=400)
 
-    day_code = _today_weekday_code() if a.nutrition_plan.plan_kind == 'WEEKLY' else None
+    log_date = parse_date((data.get('date') or '').strip()) or date.today()
+    if log_date > date.today():
+        return JsonResponse({'error': 'Non puoi registrare un giorno futuro'}, status=400)
+    if a.start_date and log_date < a.start_date:
+        return JsonResponse({'error': 'Data precedente all\'inizio del piano'}, status=400)
+
+    day_code = _WEEKDAY_CODES[log_date.weekday()] if a.nutrition_plan.plan_kind == 'WEEKLY' else None
     entry = ClientMacroLogEntry.objects.create(
         assignment=a,
         day_of_week=day_code,
-        log_date=date.today(),
+        log_date=log_date,
         food=food,
         quantity_g=qty,
         meal_name=(data.get('meal_name') or '').strip()[:100] or None,
@@ -702,10 +714,63 @@ def macro_log_delete(request, user, entry_id):
     entry = ClientMacroLogEntry.objects.filter(id=entry_id, assignment__client=client).first()
     if not entry:
         return JsonResponse({'error': 'Voce non trovata'}, status=404)
-    if entry.log_date and entry.log_date < date.today():
-        return JsonResponse({'error': 'Non puoi modificare un giorno passato'}, status=403)
     entry.delete()
     return JsonResponse({'ok': True})
+
+
+def macro_history_payload(assignment, offset, page=14):
+    """Past logged days for a MACRO assignment, grouped by log_date (desc, paginated).
+
+    Shared by the athlete (api) and coach (api_coach) history endpoints.
+    """
+    plan = assignment.nutrition_plan
+    weekly = plan.plan_kind == 'WEEKLY'
+
+    day_targets = {}
+    if weekly:
+        for d in plan.days.all():
+            day_targets[d.day_of_week] = {
+                'kcal': d.target_kcal or 0, 'protein': d.target_protein_g or 0,
+                'carb': d.target_carb_g or 0, 'fat': d.target_fat_g or 0,
+            }
+    default_target = {'kcal': plan.daily_kcal or 0, 'protein': plan.protein_target_g or 0,
+                      'carb': plan.carb_target_g or 0, 'fat': plan.fat_target_g or 0}
+
+    all_dates = list(assignment.macro_log.order_by('-log_date')
+                     .values_list('log_date', flat=True).distinct())
+    page_dates = all_dates[offset:offset + page]
+
+    days = []
+    for ld in page_dates:
+        entries = list(assignment.macro_log.filter(log_date=ld)
+                       .select_related('food').order_by('created_at', 'id'))
+        target = day_targets.get(_WEEKDAY_CODES[ld.weekday()], default_target) if weekly else default_target
+        days.append({
+            'date': ld.isoformat(),
+            'dow_short': _DOW_SHORT[ld.weekday()],
+            'target': target,
+            'consumed': {
+                'kcal': round(sum(e.kcal for e in entries), 1),
+                'protein': round(sum(e.protein for e in entries), 1),
+                'carb': round(sum(e.carbs for e in entries), 1),
+                'fat': round(sum(e.fat for e in entries), 1),
+            },
+            'entries': [_macro_entry_dict(e) for e in entries],
+        })
+    return {'days': days, 'has_more': offset + page < len(all_dates)}
+
+
+@api_view(['GET'])
+def macro_history(request, user, assignment_id):
+    """Athlete's own past logged days for a MACRO plan (paginated)."""
+    a, err = _macro_assignment(user, assignment_id)
+    if err:
+        return err
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    return JsonResponse(macro_history_payload(a, offset))
 
 
 # ---------------------------------------------------------------------------

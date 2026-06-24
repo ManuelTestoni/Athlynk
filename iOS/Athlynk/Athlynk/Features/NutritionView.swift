@@ -42,6 +42,9 @@ struct NutritionView: View {
                     if let plan = plans.first {
                         if plan.planMode == "MACRO" {
                             macroDiaryLink(plan).revealUp(appear, index: 2)
+                            macroHistoryLink(plan).revealUp(appear, index: 3)
+                        } else if plan.planKind == "WEEKLY" {
+                            weekCarousel(plan)
                         } else {
                             mealsSection(plan)
                         }
@@ -50,6 +53,9 @@ struct NutritionView: View {
             }
             .navigationDestination(for: MealDTO.self) { meal in
                 MealDetailView(meal: meal)
+            }
+            .navigationDestination(for: DietDayDTO.self) { day in
+                DietDayDetailView(day: day)
             }
         }
         .tint(Palette.lime)
@@ -157,6 +163,106 @@ struct NutritionView: View {
             .padding(16).voltPanel(Palette.lime.opacity(0.4))
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    private func macroHistoryLink(_ plan: NutritionPlanDTO) -> some View {
+        NavigationLink {
+            MacroHistoryView(assignmentId: plan.assignmentId, planTitle: plan.title)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(Palette.cyan.opacity(0.16))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 21, weight: .black)).foregroundStyle(Palette.cyan)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Storico pasti").font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                    Text("Rivedi e modifica i giorni passati")
+                        .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 15, weight: .black))
+                    .foregroundStyle(Palette.cyan)
+            }
+            .padding(16).voltPanel(Palette.cyan.opacity(0.4))
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    /// WEEKLY FOOD plans: swipe through the 7 days (neighbours peek at the edges),
+    /// tap a day to open its meals.
+    @ViewBuilder
+    private func weekCarousel(_ plan: NutritionPlanDTO) -> some View {
+        let days = DietWeekday.sorted(plan.days)
+        if !days.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("PIANO SETTIMANALE").voltEyebrow().padding(.top, 6)
+                Text("Scorri i giorni · tocca per i dettagli")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+            }
+            .revealUp(appear, index: 2)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(days) { day in
+                        NavigationLink(value: day) { dayCarouselCard(day) }
+                            .buttonStyle(PressableButtonStyle())
+                            .containerRelativeFrame(.horizontal)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .contentMargins(.horizontal, 34, for: .scrollContent)
+            .scrollTargetBehavior(.viewAligned)
+            .revealUp(appear, index: 3)
+        }
+    }
+
+    private func dayCarouselCard(_ day: DietDayDTO) -> some View {
+        let kcal = Int(day.meals.reduce(0) { $0 + $1.kcal })
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text((DietWeekday.long[day.dayOfWeek] ?? day.dayOfWeek).uppercased())
+                    .font(Typo.display(20)).foregroundStyle(Palette.textHi)
+                Spacer()
+                Text(DietWeekday.short[day.dayOfWeek] ?? "")
+                    .font(Typo.mono(11, .black)).tracking(1.5).foregroundStyle(Palette.lime)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(kcal)").font(Typo.poster(34)).foregroundStyle(Palette.lime)
+                Text("kcal").font(Typo.mono(12, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
+                Spacer()
+            }
+            Divider().overlay(Palette.lime.opacity(0.2))
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(day.meals.prefix(4)) { meal in
+                    HStack {
+                        Circle().fill(Palette.lime).frame(width: 5, height: 5)
+                        Text(meal.name).font(Typo.body(13)).foregroundStyle(Palette.textHi).lineLimit(1)
+                        Spacer()
+                        Text("\(Int(meal.kcal))").font(Typo.mono(11)).foregroundStyle(Palette.textMid)
+                    }
+                }
+                if day.meals.count > 4 {
+                    Text("+\(day.meals.count - 4) altri pasti")
+                        .font(Typo.mono(10, .bold)).foregroundStyle(Palette.textLow)
+                }
+                if day.meals.isEmpty {
+                    Text("Nessun pasto previsto").font(Typo.body(12)).foregroundStyle(Palette.textLow)
+                }
+            }
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Text("Dettagli").font(Typo.mono(10, .bold)).foregroundStyle(Palette.lime)
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .black))
+                    .foregroundStyle(Palette.lime)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, minHeight: 240, alignment: .topLeading)
+        .voltPanel(Palette.lime.opacity(0.4))
     }
 
     @ViewBuilder
