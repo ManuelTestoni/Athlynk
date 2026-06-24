@@ -31,6 +31,7 @@ struct SettingsView: View {
                         accountCard
                         Text("NOTIFICHE EMAIL").voltEyebrow().padding(.top, 4)
                         ForEach(toggles) { t in toggleRow(t) }
+                        LegalLinks(accent: Palette.cyan)
                         accountActions
                     }
                 }

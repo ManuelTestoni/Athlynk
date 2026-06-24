@@ -15,6 +15,8 @@ struct CoachClientProgressView: View {
     @State private var adherence: [AdherencePointDTO] = []
     @State private var rpe: [RpePointDTO] = []
     @State private var loading = true
+    @State private var selAdh: Int?     // tapped adherence bar
+    @State private var selRpe: Int?     // dragged RPE node
 
     private let accent = Palette.magenta
 
@@ -66,18 +68,40 @@ struct CoachClientProgressView: View {
     // MARK: Adherence (vertical bars, colour by threshold)
 
     @ViewBuilder private var adherenceSection: some View {
-        if !adherence.isEmpty {
+        let pts = Array(adherence.suffix(12))
+        if !pts.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 CoachSectionTitle(eyebrow: "Programma", title: "Aderenza settimanale", accent: accent)
-                HStack(alignment: .bottom, spacing: 5) {
-                    ForEach(adherence.suffix(12)) { p in
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(adherenceColor(p.pct))
-                            .frame(height: max(4, 110 * p.pct / 100))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Allenamenti completati su quelli pianificati, per settimana. Tocca una barra.")
+                        .font(Typo.mono(9)).foregroundStyle(Palette.textMid)
+                    chartLegend([("≥ 80%", Palette.lime), ("50–79%", Palette.amber), ("< 50%", Palette.magenta)])
+                    HStack(alignment: .bottom, spacing: 5) {
+                        ForEach(Array(pts.enumerated()), id: \.element.id) { i, p in
+                            VStack(spacing: 4) {
+                                Text(selAdh == i ? "\(Int(p.pct))%" : " ")
+                                    .font(Typo.mono(8, .bold)).foregroundStyle(Palette.textHi)
+                                    .lineLimit(1).fixedSize()
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(adherenceColor(p.pct))
+                                    .frame(height: max(4, 110 * p.pct / 100))
+                                    .overlay(selAdh == i ? RoundedRectangle(cornerRadius: 3)
+                                        .stroke(Palette.textHi, lineWidth: 1.5) : nil)
+                            }
                             .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture { Haptics.tap(); selAdh = (selAdh == i ? nil : i) }
+                        }
+                    }
+                    .frame(height: 130, alignment: .bottom)
+                    HStack {
+                        Text(weekShort(pts.first?.week)).font(Typo.mono(8)).foregroundStyle(Palette.textLow)
+                        Spacer()
+                        Text("media \(avgAdh(pts))%").font(Typo.mono(8, .bold)).foregroundStyle(Palette.textMid)
+                        Spacer()
+                        Text(weekShort(pts.last?.week)).font(Typo.mono(8)).foregroundStyle(Palette.textLow)
                     }
                 }
-                .frame(height: 110, alignment: .bottom)
                 .padding(14).voltPanel()
             }
         }
@@ -87,28 +111,113 @@ struct CoachClientProgressView: View {
         pct >= 80 ? Palette.lime : (pct >= 50 ? Palette.amber : Palette.magenta)
     }
 
-    // MARK: RPE (sparkline)
+    private func avgAdh(_ pts: [AdherencePointDTO]) -> Int {
+        guard !pts.isEmpty else { return 0 }
+        return Int((pts.map(\.pct).reduce(0, +) / Double(pts.count)).rounded())
+    }
+
+    // MARK: RPE (line with y-axis + drag tooltip)
 
     @ViewBuilder private var rpeSection: some View {
-        let pts = rpe.compactMap { $0.avgRpe }
+        let pts = rpe.compactMap { p in p.avgRpe.map { (p.week, $0) } }
         if pts.count >= 2 {
             VStack(alignment: .leading, spacing: 10) {
                 CoachSectionTitle(eyebrow: "Intensità", title: "Andamento RPE medio", accent: accent)
-                GeometryReader { geo in
-                    let w = geo.size.width, h = geo.size.height
-                    Path { path in
-                        for (i, v) in pts.enumerated() {
-                            let x = w * CGFloat(i) / CGFloat(max(pts.count - 1, 1))
-                            let y = h * (1 - CGFloat(v) / 10)
-                            i == 0 ? path.move(to: .init(x: x, y: y)) : path.addLine(to: .init(x: x, y: y))
-                        }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Sforzo percepito medio per settimana · scala 1–10 (più alto = più intenso). Trascina per leggere i valori.")
+                        .font(Typo.mono(9)).foregroundStyle(Palette.textMid)
+                    rpeChart(pts)
+                    HStack {
+                        Text(weekShort(pts.first?.0)).font(Typo.mono(8)).foregroundStyle(Palette.textLow)
+                        Spacer()
+                        Text(weekShort(pts.last?.0)).font(Typo.mono(8)).foregroundStyle(Palette.textLow)
                     }
-                    .stroke(accent, style: .init(lineWidth: 2, lineJoin: .round))
+                    .padding(.leading, 26)
                 }
-                .frame(height: 90)
                 .padding(14).voltPanel()
             }
         }
+    }
+
+    private func rpeChart(_ pts: [(String, Double)]) -> some View {
+        let yAxisW: CGFloat = 26
+        return GeometryReader { geo in
+            let pw = geo.size.width - yAxisW
+            let ph = geo.size.height
+            func xf(_ i: Int) -> CGFloat { yAxisW + pw * CGFloat(i) / CGFloat(max(pts.count - 1, 1)) }
+            func yf(_ v: Double) -> CGFloat { ph * (1 - CGFloat(v) / 10) }
+            let nodes = pts.enumerated().map { CGPoint(x: xf($0.offset), y: yf($0.element.1)) }
+
+            ZStack(alignment: .topLeading) {
+                // Gridlines + Y labels (10 / 5 / 0)
+                ForEach([10, 5, 0], id: \.self) { val in
+                    let y = yf(Double(val))
+                    Path { p in p.move(to: .init(x: yAxisW, y: y)); p.addLine(to: .init(x: geo.size.width, y: y)) }
+                        .stroke(Palette.line.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    Text("\(val)").font(Typo.mono(8)).foregroundStyle(Palette.textLow)
+                        .frame(width: yAxisW - 6, alignment: .trailing)
+                        .position(x: (yAxisW - 6) / 2, y: max(6, min(ph - 6, y)))
+                }
+                Path { p in
+                    guard let f = nodes.first else { return }
+                    p.move(to: f); nodes.dropFirst().forEach { p.addLine(to: $0) }
+                }
+                .stroke(accent, style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+                ForEach(Array(nodes.enumerated()), id: \.offset) { i, n in
+                    Circle().fill(selRpe == i ? accent : Palette.void0)
+                        .overlay(Circle().stroke(accent, lineWidth: 2))
+                        .frame(width: selRpe == i ? 11 : 7, height: selRpe == i ? 11 : 7)
+                        .position(n)
+                }
+                if let i = selRpe, i < pts.count {
+                    let n = nodes[i]
+                    VStack(spacing: 1) {
+                        Text(String(format: "%.1f", pts[i].1)).font(Typo.mono(11, .bold)).foregroundStyle(Palette.textHi)
+                        Text(weekShort(pts[i].0)).font(Typo.mono(8)).foregroundStyle(Palette.textMid)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Palette.void1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(accent.opacity(0.5), lineWidth: 1))
+                    .position(x: min(max(n.x, 40), geo.size.width - 40), y: 14)
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        guard !nodes.isEmpty else { return }
+                        if let nr = nodes.enumerated().min(by: {
+                            abs($0.element.x - g.location.x) < abs($1.element.x - g.location.x)
+                        }) {
+                            if selRpe != nr.offset { Haptics.tap() }
+                            selRpe = nr.offset
+                        }
+                    }
+                    .onEnded { _ in selRpe = nil }
+            )
+        }
+        .frame(height: 120)
+    }
+
+    // Legend chip row shared by the charts.
+    private func chartLegend(_ items: [(String, Color)]) -> some View {
+        HStack(spacing: 12) {
+            ForEach(items, id: \.0) { label, color in
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 10, height: 10)
+                    Text(label).font(Typo.mono(9)).foregroundStyle(Palette.textMid)
+                }
+            }
+        }
+    }
+
+    /// "2026-W24" → "S24"; otherwise the raw label (e.g. a short date).
+    private func weekShort(_ week: String?) -> String {
+        guard let week, !week.isEmpty else { return "—" }
+        if let r = week.range(of: #"W\d{1,2}"#, options: .regularExpression) {
+            return "S" + week[r].dropFirst()  // e.g. "W24" → "S24"
+        }
+        return week
     }
 
     // MARK: Links to the richer screens

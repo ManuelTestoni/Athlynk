@@ -31,7 +31,9 @@ struct MainTabView: View {
             .ignoresSafeArea(.container, edges: .bottom)
             // Reserve the floating tab bar's footprint so the last bit of every
             // scroll view clears it instead of being hidden underneath.
-            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 84) }
+            // 120 = device home-indicator inset (~34, eaten by ignoresSafeArea above)
+            // + floating bar height (~69) + its bottom padding + a clearance gap.
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 120) }
 
             NeonTabBar(selection: $tab, onReselect: { reselectTab in
                 Haptics.tap()

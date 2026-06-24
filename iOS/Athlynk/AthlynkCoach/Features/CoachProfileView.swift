@@ -25,6 +25,7 @@ struct CoachProfileView: View {
                 detailsCard(p)
                 if hasSocials(p) { socialsCard(p) }
                 if let s = settings { settingsCard(s) }
+                LegalLinks(accent: Palette.bronze)
                 accountCard
             } else if loading {
                 CoachProfileSkeleton()

@@ -94,6 +94,51 @@ struct ScreenHeader: View {
     }
 }
 
+/// "Legale" card: opens the hosted legal documents in Safari. The documents
+/// themselves live on the web (app.athlynk.it) — single source of truth, shared
+/// by the athlete and coach apps; the app only links to them.
+struct LegalLinks: View {
+    var accent: Color = Palette.bronze
+
+    private var base: String { AppConfig.apiBaseURL }
+    // (title, SF Symbol, web path)
+    private let docs: [(String, String, String)] = [
+        ("Privacy & GDPR",            "lock.shield.fill",     "/privacy/"),
+        ("Termini di servizio",       "doc.text.fill",        "/termini-di-servizio/"),
+        ("Termini d'uso",             "doc.plaintext.fill",   "/termini-duso/"),
+        ("Cookie",                    "circle.grid.2x2.fill", "/cookie/"),
+        ("Trasparenza AI (AI Act)",   "sparkles",             "/ai-trasparenza/"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("LEGALE").voltEyebrow()
+            VStack(spacing: 0) {
+                ForEach(Array(docs.enumerated()), id: \.offset) { i, d in
+                    if i > 0 { Divider().background(Palette.line) }
+                    if let u = URL(string: base + d.2) {
+                        Link(destination: u) { row(d.0, d.1) }
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 4).voltPanel()
+        }
+    }
+
+    private func row(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon).font(.system(size: 15, weight: .bold))
+                .foregroundStyle(accent).frame(width: 26)
+            Text(title).font(Typo.body(14, .medium)).foregroundStyle(Palette.textHi)
+            Spacer()
+            Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Palette.textLow)
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+}
+
 /// Small rectangular status pill (Stitch "ATTIVO" / "DA COMPILARE" badges).
 struct StatusBadge: View {
     var text: String
