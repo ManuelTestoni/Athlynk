@@ -675,7 +675,10 @@ def coach_client_progressi_view(request, client_id):
 # ---------------------------------------------------------------------------
 
 def _check_coach_access(request, client_id):
-    coach = get_session_coach(request)
+    # Accept the mobile Bearer token as well as the web session, so the coach
+    # app can read the same progressi data (KPI, volume, adherence, RPE…).
+    from .api import _request_coach
+    coach = _request_coach(request)
     if not coach:
         return None, JsonResponse({'error': 'forbidden'}, status=403)
     try:

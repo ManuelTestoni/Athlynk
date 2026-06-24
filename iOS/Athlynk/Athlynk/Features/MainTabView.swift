@@ -29,6 +29,9 @@ struct MainTabView: View {
                 page(.altro) { AthleteMoreView(path: $altroPPath) }
             }
             .ignoresSafeArea(.container, edges: .bottom)
+            // Reserve the floating tab bar's footprint so the last bit of every
+            // scroll view clears it instead of being hidden underneath.
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 84) }
 
             NeonTabBar(selection: $tab, onReselect: { reselectTab in
                 Haptics.tap()

@@ -104,6 +104,9 @@ struct CoachMainTabView: View {
                 page(.altro)       { CoachMoreView(path: $altroPPath) }
             }
             .ignoresSafeArea(.container, edges: .bottom)
+            // Reserve the floating tab bar's footprint so the last bit of every
+            // scroll view clears it instead of being hidden underneath.
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 84) }
 
             CoachTabBar(selection: $tab, onReselect: { reselectTab in
                 Haptics.tap()

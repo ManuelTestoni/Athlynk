@@ -632,6 +632,25 @@ extension APIClient {
         return o
     }
 
+    // MARK: - Client progressi dashboard (reuses the web progressi endpoints)
+
+    func coachClientKpi(clientId: Int) async throws -> CoachProgressKpiDTO {
+        try decode(CoachProgressKpiDTO.self,
+                   from: try await request("/api/coach/clienti/\(clientId)/progressi/kpi/"))
+    }
+
+    func coachClientAdherence(clientId: Int) async throws -> [AdherencePointDTO] {
+        struct R: Codable { let series: [AdherencePointDTO] }
+        return try decode(R.self,
+                          from: try await request("/api/coach/clienti/\(clientId)/progressi/aderenza/")).series
+    }
+
+    func coachClientRpe(clientId: Int) async throws -> [RpePointDTO] {
+        struct R: Codable { let series: [RpePointDTO] }
+        return try decode(R.self,
+                          from: try await request("/api/coach/clienti/\(clientId)/progressi/rpe/")).series
+    }
+
     // MARK: - Client past sessions
 
     func coachClientSessions(clientId: Int, offset: Int = 0) async throws -> SessionBriefListDTO {

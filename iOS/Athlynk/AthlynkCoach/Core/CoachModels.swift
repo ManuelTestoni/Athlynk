@@ -1064,3 +1064,32 @@ struct CoachFabbisogniDTO: Codable {
         case data
     }
 }
+
+// MARK: - Client "Progressi" dashboard (mirrors the web progressi page)
+
+struct CoachProgressKpiDTO: Codable {
+    let totalSessions: Int
+    let avgSetsPerSession: Double
+    let streakDays: Int
+    let overallAdherencePct: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case totalSessions = "total_sessions"
+        case avgSetsPerSession = "avg_sets_per_session"
+        case streakDays = "streak_days"
+        case overallAdherencePct = "overall_adherence_pct"
+    }
+}
+
+struct AdherencePointDTO: Codable, Identifiable {
+    let week: String
+    let pct: Double
+    var id: String { week }
+}
+
+struct RpePointDTO: Codable, Identifiable {
+    let week: String
+    let avgRpe: Double?
+    var id: String { week }
+    enum CodingKeys: String, CodingKey { case week; case avgRpe = "avg_rpe" }
+}

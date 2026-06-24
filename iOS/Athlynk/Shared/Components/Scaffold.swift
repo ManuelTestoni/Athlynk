@@ -17,7 +17,9 @@ struct ScreenScroll<Content: View>: View {
             }
             .padding(.horizontal, 22)
             .padding(.top, 64)
-            .padding(.bottom, 120)
+            // Tab-bar clearance now comes from the shell's bottom safeAreaInset,
+            // so this only needs a small trailing margin (avoids double padding).
+            .padding(.bottom, 24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

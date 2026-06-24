@@ -154,6 +154,9 @@ struct CoachClientDetailView: View {
         .navigationDestination(for: CoachJourneyRoute.self) { r in
             CoachJourneyView(clientId: r.clientId)
         }
+        .navigationDestination(for: CoachProgressRoute.self) { r in
+            CoachClientProgressView(clientId: r.clientId)
+        }
         .navigationDestination(for: CoachSessionsRoute.self) { r in
             CoachSessionsView(clientId: r.clientId)
         }
@@ -307,31 +310,14 @@ struct CoachClientDetailView: View {
 
     private var workoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CoachSectionTitle(eyebrow: "Andamento", title: "Esercizi", accent: Palette.magenta)
-            NavigationLink(value: CoachClientWorkoutRoute(clientId: clientId)) {
+            CoachSectionTitle(eyebrow: "Andamento", title: "Allenamento", accent: Palette.magenta)
+            NavigationLink(value: CoachProgressRoute(clientId: clientId)) {
                 HStack(spacing: 14) {
-                    Image(systemName: "chart.bar.xaxis").font(.system(size: 16, weight: .bold))
+                    Image(systemName: "chart.line.uptrend.xyaxis").font(.system(size: 16, weight: .bold))
                         .foregroundStyle(Palette.magenta).frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Grafici per esercizio").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                        Text("Volume, top set e media per sessione")
-                            .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Palette.textLow)
-                }
-                .padding(14).voltPanel()
-            }
-            .buttonStyle(PressableButtonStyle())
-
-            NavigationLink(value: CoachSessionsRoute(clientId: clientId)) {
-                HStack(spacing: 14) {
-                    Image(systemName: "clock.arrow.circlepath").font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Palette.magenta).frame(width: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Storico sessioni").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                        Text("Allenamenti passati e serie registrate")
+                        Text("Progressi").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                        Text("KPI, aderenza, RPE, carichi e storico sessioni")
                             .font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
                     }
                     Spacer()
@@ -467,6 +453,7 @@ struct CoachTrendChart: View {
 struct CheckRoute: Hashable { let id: Int }
 struct CoachClientWorkoutRoute: Hashable { let clientId: Int }
 struct CoachJourneyRoute: Hashable { let clientId: Int }
+struct CoachProgressRoute: Hashable { let clientId: Int }
 struct CoachSessionsRoute: Hashable { let clientId: Int }
 struct CoachSessionRoute: Hashable { let sessionId: Int }
 
