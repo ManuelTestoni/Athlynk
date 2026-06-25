@@ -431,13 +431,13 @@
 
                         <!-- metrica -->
                         <template x-if="q.type === 'metrica'">
-                            <div class="flex items-center gap-2">
-                                <input type="number" step="0.1" min="0" placeholder="0.0" class="al-input" style="max-width: 200px;"
+                            <span class="antro-input" style="max-width: 200px;">
+                                <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="0.0"
                                        :value="answers[q.id] ?? ''" @input="answers[q.id] = $event.target.value">
                                 <template x-if="q.unit">
-                                    <span class="al-badge" style="background: var(--al-marble); color: var(--al-ink-mute); text-transform: none; letter-spacing: 0; font-size: 12px;" x-text="q.unit"></span>
+                                    <span class="antro-unit" x-text="q.unit"></span>
                                 </template>
-                            </div>
+                            </span>
                         </template>
 
                         <!-- antropometria -->
@@ -556,31 +556,23 @@
 
                         <!-- si_no -->
                         <template x-if="q.type === 'si_no'">
-                            <div class="flex gap-6">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" :name="'q_' + q.id" value="si" style="accent-color: var(--al-bronze);"
-                                           :checked="answers[q.id] === 'si'" @change="answers[q.id] = 'si'">
-                                    <span class="text-sm font-medium text-ink">Sì</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" :name="'q_' + q.id" value="no" style="accent-color: var(--al-bronze);"
-                                           :checked="answers[q.id] === 'no'" @change="answers[q.id] = 'no'">
-                                    <span class="text-sm font-medium text-ink">No</span>
-                                </label>
-                            </div>
+                            <select class="al-input al-select" style="max-width: 200px;"
+                                    :value="answers[q.id] ?? ''" @change="answers[q.id] = $event.target.value">
+                                <option value="">— Seleziona —</option>
+                                <option value="si">Sì</option>
+                                <option value="no">No</option>
+                            </select>
                         </template>
 
                         <!-- radio (single choice) -->
                         <template x-if="q.type === 'radio'">
-                            <div class="space-y-2">
+                            <select class="al-input al-select" style="max-width: 320px;"
+                                    :value="answers[q.id] ?? ''" @change="answers[q.id] = $event.target.value">
+                                <option value="">— Seleziona —</option>
                                 <template x-for="opt in (q.options || [])" :key="opt">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" :name="'q_' + q.id" :value="opt" style="accent-color: var(--al-bronze);"
-                                               :checked="answers[q.id] === opt" @change="answers[q.id] = opt">
-                                        <span class="text-sm text-ink" x-text="opt"></span>
-                                    </label>
+                                    <option :value="opt" x-text="opt"></option>
                                 </template>
-                            </div>
+                            </select>
                         </template>
 
                         <!-- checkbox (multi choice) -->
@@ -959,7 +951,13 @@ function checkFill() {
                 this.answers[q.id] = '';
             }
         },
-        goTo(i) { this.stepIdx = i; window.scrollTo({ top: 0, behavior: 'smooth' }); },
+        goTo(i) {
+            this.stepIdx = i;
+            // The page scrolls inside <main.al-canvas> (overflow-y-auto), not the window,
+            // so scroll that container back to the first question on step change.
+            const c = document.querySelector('main.al-canvas');
+            (c || window).scrollTo({ top: 0, behavior: 'smooth' });
+        },
         prev() { if (this.stepIdx > 0) this.goTo(this.stepIdx - 1); },
         next() { if (this.stepIdx < this.steps.length - 1) this.goTo(this.stepIdx + 1); },
 

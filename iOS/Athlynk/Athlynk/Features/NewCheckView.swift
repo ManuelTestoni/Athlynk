@@ -66,7 +66,7 @@ struct NewCheckView: View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    header
+                    header.id("__top")
                     progress
                     if let submitError {
                         Text(submitError).font(Typo.body(13)).foregroundStyle(Palette.magenta)
@@ -98,6 +98,10 @@ struct NewCheckView: View {
             .onChange(of: scrollNonce) { _, _ in
                 guard let t = scrollTarget else { return }
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { proxy.scrollTo(t, anchor: .center) }
+            }
+            // Step change → jump back above the first question.
+            .onChange(of: stepIdx) { _, _ in
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { proxy.scrollTo("__top", anchor: .top) }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { nav }
@@ -257,10 +261,23 @@ struct NewCheckView: View {
             }
 
         case "radio":
-            VStack(spacing: 8) {
+            Menu {
                 ForEach(q.options, id: \.self) { opt in
-                    choiceRow(opt, selected: text[q.id] == opt) { setChoice(q.id, opt) }
+                    Button(opt) { setChoice(q.id, opt) }
                 }
+            } label: {
+                let chosen = text[q.id] ?? ""
+                HStack(spacing: 8) {
+                    Text(chosen.isEmpty ? "Seleziona…" : chosen)
+                        .font(Typo.body(15))
+                        .foregroundStyle(chosen.isEmpty ? Palette.textLow : Palette.textHi)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.textLow)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 13)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Palette.void2))
             }
 
         case "checkbox":

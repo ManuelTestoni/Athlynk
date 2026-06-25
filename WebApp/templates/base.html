@@ -576,6 +576,12 @@
       window.COOKIE_CONSENT_NEEDED = {% if cookie_consent_needed %}true{% else %}false{% endif %};
     </script>
     <script src="{% static 'js/cookie_banner.js' %}?v={{ ASSET_VERSION }}"></script>
+    <script>
+      // bfcache guard: on back/forward restore, page JS (Alpine x-init) re-runs against an
+      // already-populated DOM and doubles data. Force one fresh load instead.
+      // ponytail: blanket reload on restore; dedup a specific page's x-init only if this flashes too much.
+      window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+    </script>
     {% block extra_js %}{% endblock %}
 
     {# CHIRON — assistente AI, solo coach loggati #}

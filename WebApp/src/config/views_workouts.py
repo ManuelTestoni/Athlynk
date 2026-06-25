@@ -390,6 +390,7 @@ def _serialize_plan_for_wizard(plan):
                 'rir': ex.rir,
                 'tempo': ex.tempo or '',
                 'superset_group_id': ex.superset_group_id,
+                'set_details': ex.set_details or [],
             })
         days.append({
             'local_id': f'srv-day-{d.id}',
@@ -612,6 +613,7 @@ def _apply_payload_to_plan(plan, data, coach):
             rpe_v = _opt_int(ex_data.get('rpe'), 1, 10)
             rir_v = _opt_int(ex_data.get('rir'), 0, 10)
             tempo_v = (ex_data.get('tempo') or '').strip()[:50] or None
+            set_details = _coerce_set_details(ex_data.get('set_details'), sets)
 
             if ex_pk and ex_pk in existing_ex:
                 we = existing_ex[ex_pk]
@@ -628,6 +630,7 @@ def _apply_payload_to_plan(plan, data, coach):
                 we.rpe = rpe_v
                 we.rir = rir_v
                 we.tempo = tempo_v
+                we.set_details = set_details
                 we.save()
                 seen_ex_ids.add(ex_pk)
             else:
@@ -646,6 +649,7 @@ def _apply_payload_to_plan(plan, data, coach):
                     rpe=rpe_v,
                     rir=rir_v,
                     tempo=tempo_v,
+                    set_details=set_details,
                 )
                 seen_ex_ids.add(we.id)
                 ex_data['pk'] = we.id
@@ -1024,6 +1028,7 @@ def api_plan_duplicate(request, plan_id):
                     starts_at_week=src_ex.starts_at_week,
                     ends_at_week=src_ex.ends_at_week,
                     inactive_weeks=list(src_ex.inactive_weeks or []),
+                    set_details=list(src_ex.set_details or []),
                 )
 
         # Progression metadata (week definitions + per-cell overrides).
@@ -1530,6 +1535,47 @@ def _coerce_load(ex_payload: dict) -> tuple[float | None, str | None]:
         return float(load), WorkoutExercise.LOAD_UNIT_KG
     except (TypeError, ValueError):
         return None, None
+
+
+def _coerce_set_details(raw, set_count: int) -> list:
+    """Sanitize the builder's per-set override list.
+
+    Returns a clean list (length capped to set_count, max 30) where each entry
+    keeps only the known keys. Empty/invalid input -> [] (uniform prescription).
+    """
+    if not isinstance(raw, list) or not raw:
+        return []
+
+    def _num(v):
+        try:
+            f = float(v)
+            return int(f) if f.is_integer() else f
+        except (TypeError, ValueError):
+            return None
+
+    out = []
+    for entry in raw[:min(set_count or len(raw), 30)]:
+        if not isinstance(entry, dict):
+            out.append({})
+            continue
+        clean = {}
+        for k in ('reps', 'rep_range', 'tempo'):
+            val = entry.get(k)
+            if val not in (None, ''):
+                clean[k] = str(val)[:50]
+        for k in ('rir', 'rpe', 'recovery_seconds'):
+            n = _num(entry.get(k))
+            if n is not None:
+                clean[k] = int(n)
+        lv = _num(entry.get('load_value'))
+        if lv is not None:
+            clean['load_value'] = lv
+        lu = entry.get('load_unit')
+        if lu in ('KG', 'PERCENT_1RM', 'BODYWEIGHT'):
+            clean['load_unit'] = lu
+        out.append(clean)
+    # If every entry is empty, treat as uniform.
+    return out if any(out) else []
 
 
 def _coerce_reps(ex_payload: dict) -> tuple[int | None, str | None]:

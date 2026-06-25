@@ -369,6 +369,7 @@ def client_session_active_view(request, assignment_id, day_id):
             'load_unit': ex.load_unit or 'KG',
             'recovery_seconds': ex.recovery_seconds or 90,
             'notes': ex.technique_notes or '',
+            'set_details': ex.set_details or [],
             'video_url': ex.exercise.video_url or '',
             'superset_group_id': ex.superset_group_id,
             'primary_muscle': ex.exercise.primary_muscle or '',
@@ -443,6 +444,7 @@ def api_session_start(request):
             'load_unit': ex.load_unit or 'KG',
             'recovery_seconds': ex.recovery_seconds or 90,
             'notes': ex.technique_notes or '',
+            'set_details': ex.set_details or [],
         })
 
     sets_logged = []

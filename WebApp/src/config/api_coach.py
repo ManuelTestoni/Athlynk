@@ -1762,6 +1762,7 @@ def workout_detail(request, user, plan_id):
             'recovery_seconds': we.recovery_seconds,
             'tempo': we.tempo,
             'notes': getattr(we, 'notes', None),
+            'set_details': we.set_details or [],
         } for we in d.exercises.order_by('order_index')],
     } for d in plan.days.order_by('day_order')]
     return JsonResponse({'plan': {
@@ -2014,6 +2015,7 @@ def workout_create(request, user):
                 exercise = Exercise.objects.filter(id=ex.get('exercise_id')).first()
                 if not exercise:
                     continue
+                _sd = ex.get('set_details')
                 WorkoutExercise.objects.create(
                     workout_day=wd, exercise=exercise, order_index=e_idx,
                     set_count=ex.get('sets'), rep_count=ex.get('reps'),
@@ -2022,6 +2024,7 @@ def workout_create(request, user):
                     rir=ex.get('rir'), rpe=ex.get('rpe'),
                     tempo=(ex.get('tempo') or None),
                     technique_notes=(ex.get('notes') or '').strip() or None,
+                    set_details=(_sd[:30] if isinstance(_sd, list) else []),
                 )
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
 

@@ -214,7 +214,7 @@ document.addEventListener('alpine:init', () => {
         description: init.description || '',
         goal: init.goal || '',
         level: init.level || '',
-        frequency_per_week: init.frequency_per_week || null,
+        frequency_per_week: init.frequency_per_week || 4,
         duration_weeks: init.duration_weeks || (initialKind === 'PROGRAM' ? 4 : 1),
         status: init.status || 'DRAFT',
         last_step: init.last_step || 1,
@@ -323,6 +323,7 @@ document.addEventListener('alpine:init', () => {
           rir: ex.rir ?? null,
           tempo: ex.tempo || '',
           superset_group_id: ex.superset_group_id ?? null,
+          set_details: Array.isArray(ex.set_details) ? ex.set_details : [],
           /* UI-only */
           _showAdvanced: !!(ex.rpe || ex.rir || ex.tempo),
           _showNote: !!(ex.notes || ex.coach_notes),
@@ -828,6 +829,7 @@ document.addEventListener('alpine:init', () => {
         rir: null,
         tempo: '',
         superset_group_id: null,
+        set_details: [],
         _showAdvanced: false,
         _showNote: false,
         _rpe_rir_type: 'RPE',
@@ -845,6 +847,38 @@ document.addEventListener('alpine:init', () => {
       if (!day) return;
       day.exercises.splice(idx, 1);
       this.markDirty();
+    },
+
+    /* Build one per-set row prefilled from the exercise's base values. */
+    _blankSetRow(ex) {
+      return {
+        reps: ex.reps ?? '',
+        load_value: ex.load_value ?? null,
+        load_unit: ex.load_unit || 'KG',
+        recovery_seconds: ex.recovery_seconds ?? null,
+        rpe: ex.rpe ?? null,
+        rir: ex.rir ?? null,
+        tempo: ex.tempo || '',
+      };
+    },
+
+    /* Toggle per-set editing: expand into N rows (N = sets) or collapse to uniform. */
+    toggleSetDetails(ex) {
+      if (ex.set_details && ex.set_details.length) {
+        ex.set_details = [];
+      } else {
+        const n = Math.max(1, parseInt(ex.sets, 10) || 1);
+        ex.set_details = Array.from({ length: n }, () => this._blankSetRow(ex));
+      }
+      this.markDirty();
+    },
+
+    /* Keep the per-set rows in sync when the set count changes while expanded. */
+    syncSetDetails(ex) {
+      if (!ex.set_details || !ex.set_details.length) return;
+      const n = Math.max(1, parseInt(ex.sets, 10) || 1);
+      while (ex.set_details.length < n) ex.set_details.push(this._blankSetRow(ex));
+      if (ex.set_details.length > n) ex.set_details.length = n;
     },
 
     // ---- Superset ----
@@ -1497,6 +1531,7 @@ document.addEventListener('alpine:init', () => {
             rir: ex.rir,
             tempo: ex.tempo || '',
             superset_group_id: ex.superset_group_id,
+            set_details: Array.isArray(ex.set_details) ? ex.set_details : [],
           })),
         })),
         progression: {

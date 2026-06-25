@@ -97,10 +97,7 @@
     padding-right: 10px;
   }
   .prog-cell-override::after {
-    content: '•';
-    color: var(--al-bronze, #8a6a3a);
-    font-weight: 900;
-    margin-left: 4px;
+    display: none;
   }
 
   .prog-preview-strip {
@@ -367,7 +364,7 @@
   }
   .prg-ex-week-v { font-size: 13px; font-weight: 600; }
   .prg-ex-week-v.is-override::after {
-    content: '●'; margin-left: 5px; color: var(--al-bronze-light, #c8a774);
+    display: none;
   }
 
   .prg-ex-rules { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1492,7 +1489,7 @@
                         <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:4px;">
                           <div class="wb-mini-field">
                             <label class="wb-mini-field-label">Serie</label>
-                            <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
+                            <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="syncSetDetails(ex); markDirty()">
                           </div>
                           <div class="wb-mini-field">
                             <label class="wb-mini-field-label">Reps</label>
@@ -1545,6 +1542,40 @@
                                   maxlength="500" placeholder="Es. scapole addotte…"
                                   class="wb-mini-input" style="flex:1; resize:none; min-height:58px; padding:4px 6px; font-size:11px;"></textarea>
                       </div>
+                    </div>
+                  </template>
+
+                  <!-- PER-SET: valori diversi per ogni serie (REPETITION) -->
+                  <template x-if="(ex.execution_type || 'REPETITION') === 'REPETITION'">
+                    <div style="margin-top:6px;">
+                      <button type="button"
+                              style="font-size:11px; color:var(--al-bronze); background:none; border:none; cursor:pointer; padding:2px 0; display:inline-flex; align-items:center; gap:4px;"
+                              @click="toggleSetDetails(ex)">
+                        <i class="ph" :class="(ex.set_details && ex.set_details.length) ? 'ph-caret-up' : 'ph-caret-down'"></i>
+                        <span x-text="(ex.set_details && ex.set_details.length) ? 'Valori uguali per ogni serie' : 'Valori diversi per ogni serie'"></span>
+                      </button>
+                      <template x-if="ex.set_details && ex.set_details.length">
+                        <div style="margin-top:4px; display:flex; flex-direction:column; gap:3px;">
+                          <div style="display:grid; grid-template-columns: 22px repeat(6, 1fr); gap:4px; font-size:9px; color:var(--al-ink-mute); text-transform:uppercase; letter-spacing:.04em;">
+                            <span></span><span>Reps</span><span>Carico</span><span>Unità</span><span>Rec s</span><span x-text="ex._rpe_rir_type"></span><span>TUT</span>
+                          </div>
+                          <template x-for="(sd, si) in ex.set_details" :key="si">
+                            <div style="display:grid; grid-template-columns: 22px repeat(6, 1fr); gap:4px; align-items:center;">
+                              <span style="font-size:11px; font-weight:700; color:var(--al-ink-mute); text-align:center;" x-text="si+1"></span>
+                              <input type="text" class="wb-mini-input" x-model="sd.reps" @input="markDirty()" placeholder="8-10">
+                              <input type="number" step="0.5" class="wb-mini-input" x-model.number="sd.load_value" @input="markDirty()">
+                              <select class="wb-mini-input" x-model="sd.load_unit" @change="markDirty()">
+                                <option value="KG">kg</option><option value="PERCENT_1RM">%1RM</option><option value="BODYWEIGHT">BW</option>
+                              </select>
+                              <input type="number" min="0" class="wb-mini-input" x-model.number="sd.recovery_seconds" @input="markDirty()">
+                              <input type="number" min="0" max="10" class="wb-mini-input"
+                                     :value="ex._rpe_rir_type==='RPE' ? sd.rpe : sd.rir"
+                                     @input="ex._rpe_rir_type==='RPE' ? (sd.rpe=+$event.target.value||null) : (sd.rir=+$event.target.value||null); markDirty()">
+                              <input type="text" class="wb-mini-input" x-model="sd.tempo" @input="markDirty()" placeholder="3-1-1">
+                            </div>
+                          </template>
+                        </div>
+                      </template>
                     </div>
                   </template>
 

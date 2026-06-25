@@ -209,6 +209,13 @@ class WorkoutExercise(models.Model):
     # (single-week removal). Lets the grid hide just one cell without breaking
     # earlier or later weeks. Stored as JSON list of ints.
     inactive_weeks = models.JSONField(default=list, blank=True)
+    # Optional per-set overrides. Empty list = uniform prescription (the scalar
+    # fields above apply to every set). When populated, it's a list of length
+    # `set_count`, each entry a dict with any of: reps, rep_range, load_value,
+    # load_unit, rir, rpe, recovery_seconds, tempo. Missing keys fall back to the
+    # scalar field. ponytail: JSON column, no child table — promote only if we
+    # ever need to query individual sets.
+    set_details = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

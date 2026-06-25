@@ -371,6 +371,7 @@ def _exercise_dict(we):
         'recovery_seconds': we.recovery_seconds,
         'tempo': we.tempo,
         'technique_notes': we.technique_notes,
+        'set_details': we.set_details or [],
         'superset_group_id': we.superset_group_id,
     }
 
@@ -1584,6 +1585,7 @@ def session_start(request, user):
         'recovery_seconds': ex.recovery_seconds or 90,
         'tempo': ex.tempo or '',
         'notes': ex.technique_notes or '',
+        'set_details': ex.set_details or [],
     } for ex in day.exercises.select_related('exercise').order_by('order_index')]
 
     sets_logged = [_logged_set_dict(sl) for sl in session.set_logs.all() if sl.set_number != 0]

@@ -166,11 +166,21 @@ struct CoachCheckFormView: View {
     }
 
     private func radioField(_ q: CheckQuestion) -> some View {
-        VStack(spacing: 8) {
+        Menu {
             ForEach(q.options, id: \.self) { opt in
-                let on = values[q.id] == opt
-                Button { values[q.id] = opt } label: { choiceRow(opt, on: on) }.buttonStyle(.plain)
+                Button(opt) { values[q.id] = opt }
             }
+        } label: {
+            let chosen = values[q.id] ?? ""
+            HStack {
+                Text(chosen.isEmpty ? "Seleziona…" : chosen)
+                    .font(Typo.body(14))
+                    .foregroundStyle(chosen.isEmpty ? Palette.textLow : Palette.textHi)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.textLow)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 12).voltPanel(radius: 10)
         }
     }
 

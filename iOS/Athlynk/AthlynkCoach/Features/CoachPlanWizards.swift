@@ -653,6 +653,18 @@ struct CoachWorkoutWizardView: View {
                 ex.rpeRirType = (ex.rir != nil) ? "RIR" : "RPE"
                 ex.tempo = e["tempo"] as? String ?? ""
                 ex.notes = (e["coach_notes"] as? String) ?? (e["notes"] as? String) ?? ""
+                ex.setDetails = (e["set_details"] as? [[String: Any]] ?? []).map { sd in
+                    var row = WBSetDraft()
+                    if let r = sd["reps"] { row.reps = "\(r)" }
+                    else if let r = sd["rep_range"] { row.reps = "\(r)" }
+                    row.loadValue = (sd["load_value"] as? Double) ?? (sd["load_value"] as? Int).map(Double.init)
+                    row.loadUnit = sd["load_unit"] as? String ?? ex.loadUnit
+                    row.recoverySeconds = sd["recovery_seconds"] as? Int
+                    row.rir = sd["rir"] as? Int
+                    row.rpe = sd["rpe"] as? Int
+                    row.tempo = sd["tempo"] as? String ?? ""
+                    return row
+                }
                 if let pk = ex.pk { pkToRef[pk] = ex.id }
                 return ex
             }
@@ -699,6 +711,18 @@ struct CoachWorkoutWizardView: View {
                 if let rpe = ex.rpe { e["rpe"] = rpe }
                 if !ex.tempo.isEmpty { e["tempo"] = ex.tempo }
                 if !ex.notes.isEmpty { e["coach_notes"] = ex.notes }
+                if !ex.setDetails.isEmpty {
+                    e["set_details"] = ex.setDetails.map { sd -> [String: Any] in
+                        var row: [String: Any] = [:]
+                        if !sd.reps.isEmpty { row["reps"] = sd.reps }
+                        if let lv = sd.loadValue { row["load_value"] = lv; row["load_unit"] = sd.loadUnit }
+                        if let rec = sd.recoverySeconds { row["recovery_seconds"] = rec }
+                        if let rir = sd.rir { row["rir"] = rir }
+                        if let rpe = sd.rpe { row["rpe"] = rpe }
+                        if !sd.tempo.isEmpty { row["tempo"] = sd.tempo }
+                        return row
+                    }
+                }
                 return e
             }
             return d

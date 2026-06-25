@@ -9,6 +9,18 @@ import SwiftUI
 
 // MARK: - Builder state models
 
+/// One per-set override. Empty `setDetails` on an exercise = uniform prescription.
+struct WBSetDraft: Identifiable {
+    let id = UUID()
+    var reps = ""                // string to allow ranges like "8-10"
+    var loadValue: Double? = nil
+    var loadUnit = "KG"
+    var recoverySeconds: Int? = nil
+    var rir: Int? = nil
+    var rpe: Int? = nil
+    var tempo = ""
+}
+
 struct WBExerciseDraft: Identifiable {
     let id = UUID()
     var pk: Int? = nil           // server WorkoutExercise id (edit round-trip)
@@ -26,6 +38,7 @@ struct WBExerciseDraft: Identifiable {
     var rpeRirType = "RPE"         // UI-only: "RPE" | "RIR"
     var tempo = ""
     var notes = ""
+    var setDetails: [WBSetDraft] = []   // per-set overrides; empty = uniform
 
     var rpeRirValue: Int? {
         get { rpeRirType == "RPE" ? rpe : rir }
@@ -46,6 +59,29 @@ struct WBExerciseDraft: Identifiable {
         if let rir { s += " · RIR \(rir)" }
         if let rpe { s += " · RPE \(rpe)" }
         return s
+    }
+
+    func blankSetRow() -> WBSetDraft {
+        WBSetDraft(reps: repRange.isEmpty ? "\(reps)" : repRange,
+                   loadValue: loadValue, loadUnit: loadUnit,
+                   recoverySeconds: recoverySeconds, rir: rir, rpe: rpe, tempo: tempo)
+    }
+
+    /// Expand into `sets` per-set rows (prefilled from the base) or collapse to uniform.
+    mutating func toggleSetDetails() {
+        if setDetails.isEmpty {
+            setDetails = (0..<max(1, sets)).map { _ in blankSetRow() }
+        } else {
+            setDetails = []
+        }
+    }
+
+    /// Keep per-set rows aligned to the set count while expanded.
+    mutating func syncSetDetails() {
+        guard !setDetails.isEmpty else { return }
+        let n = max(1, sets)
+        while setDetails.count < n { setDetails.append(blankSetRow()) }
+        if setDetails.count > n { setDetails.removeLast(setDetails.count - n) }
     }
 }
 
@@ -380,6 +416,27 @@ private struct WBExerciseRow: View {
                             .padding(.horizontal, 12).padding(.vertical, 9)
                             .voltPanel(radius: 10)
                     }
+                    // PER-SET — valori diversi per ogni serie
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { ex.toggleSetDetails() } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: ex.setDetails.isEmpty ? "chevron.down" : "chevron.up")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(ex.setDetails.isEmpty ? "Valori diversi per ogni serie"
+                                                           : "Valori uguali per ogni serie")
+                                    .font(Typo.mono(10, .semibold))
+                            }
+                            .foregroundStyle(accent)
+                        }
+                        .buttonStyle(.plain)
+                        if !ex.setDetails.isEmpty {
+                            ForEach(ex.setDetails.indices, id: \.self) { i in
+                                WBSetDetailRow(index: i, sd: $ex.setDetails[i],
+                                               rpeRirType: ex.rpeRirType, accent: accent)
+                            }
+                        }
+                    }
+                    .onChange(of: ex.sets) { _, _ in ex.syncSetDetails() }
                     HStack {
                         Button { onMoveUp() } label: {
                             Image(systemName: "arrow.up").frame(width: 36, height: 30)
@@ -405,6 +462,82 @@ private struct WBExerciseRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+    }
+}
+
+/// One editable per-set row: reps / load+unit on top, rest / RPE-RIR / tempo below.
+private struct WBSetDetailRow: View {
+    let index: Int
+    @Binding var sd: WBSetDraft
+    let rpeRirType: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("S\(index + 1)")
+                    .font(Typo.mono(10, .bold)).foregroundStyle(accent)
+                    .frame(width: 26, alignment: .leading)
+                field("REPS") {
+                    TextField("", text: $sd.reps, prompt: Text("8-10").foregroundStyle(Palette.textLow))
+                        .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                }
+                field("CARICO") {
+                    TextField("", value: $sd.loadValue, format: .number,
+                              prompt: Text("—").foregroundStyle(Palette.textLow))
+                        .keyboardType(.decimalPad).font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                }
+                unitMenu
+            }
+            HStack(spacing: 8) {
+                Spacer().frame(width: 26)
+                field("REC") {
+                    TextField("", value: $sd.recoverySeconds, format: .number,
+                              prompt: Text("—").foregroundStyle(Palette.textLow))
+                        .keyboardType(.numberPad).font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                }
+                field(rpeRirType) {
+                    TextField("", value: rpeRirBinding, format: .number,
+                              prompt: Text("—").foregroundStyle(Palette.textLow))
+                        .keyboardType(.numberPad).font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                }
+                field("TUT") {
+                    TextField("", text: $sd.tempo, prompt: Text("3-1-1").foregroundStyle(Palette.textLow))
+                        .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                }
+            }
+        }
+        .padding(8).voltPanel(radius: 10)
+    }
+
+    private var rpeRirBinding: Binding<Int?> {
+        Binding(get: { rpeRirType == "RPE" ? sd.rpe : sd.rir },
+                set: { if rpeRirType == "RPE" { sd.rpe = $0 } else { sd.rir = $0 } })
+    }
+
+    @ViewBuilder private func field<C: View>(_ label: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(Typo.mono(8, .semibold)).tracking(1).foregroundStyle(Palette.textMid)
+            content().padding(.horizontal, 8).padding(.vertical, 7).voltPanel(radius: 8)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var unitMenu: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("UNITÀ").font(Typo.mono(8, .semibold)).tracking(1).foregroundStyle(Palette.textMid)
+            Menu {
+                Button("kg") { sd.loadUnit = "KG" }
+                Button("% 1RM") { sd.loadUnit = "PERCENT_1RM" }
+                Button("BW") { sd.loadUnit = "BODYWEIGHT" }
+            } label: {
+                Text(sd.loadUnit == "PERCENT_1RM" ? "%1RM" : sd.loadUnit == "BODYWEIGHT" ? "BW" : "kg")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textHi)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 8).padding(.vertical, 7).voltPanel(radius: 8)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
