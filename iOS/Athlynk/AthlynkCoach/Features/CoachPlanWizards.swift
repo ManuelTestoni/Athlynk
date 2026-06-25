@@ -401,92 +401,51 @@ struct CoachWorkoutWizardView: View {
             WorkoutBuilderSection(days: $days, accent: accent)
             WZNavButtons(canBack: true, nextTitle: "Continua",
                          nextEnabled: days.contains { !$0.exercises.isEmpty },
-                         accent: accent, onBack: { back() }) { advance() }
+                         accent: accent, onBack: { back() }) { goFromStructure() }
         }
     }
 
-    // MARK: Step 3 — progression (PROGRAM only)
-
-    private var allExercises: [(day: WBDayDraft, exercise: WBExerciseDraft)] {
-        days.flatMap { d in d.exercises.map { (d, $0) } }
+    /// PROGRAM plans need the structure persisted (so days/exercises have server
+    /// PKs) before the manual progression grid can address them; WEEKLY skips
+    /// straight to finalize.
+    private func goFromStructure() {
+        guard kind == "PROGRAM" else { advance(); return }
+        Task { await prepareProgression() }
     }
+
+    private func prepareProgression() async {
+        busy = true; defer { busy = false }
+        do {
+            let saved = try await APIClient.shared.coachSaveWorkoutPlan(
+                planId: savedPlanId ?? planId, payload: buildPayload(lastStep: 3))
+            guard let pid = saved["id"] as? Int else { flash.failure("Salvataggio non riuscito"); return }
+            savedPlanId = pid
+            // Re-hydrate from the server so days/exercises carry their PKs.
+            let builder = try await APIClient.shared.coachWorkoutBuilder(planId: pid)
+            apply(builder: builder)
+            Haptics.tap()
+            withAnimation(.snappy) { step = min(step + 1, finalizeIndex) }
+        } catch {
+            flash.failure(error.localizedDescription)
+        }
+    }
+
+    // MARK: Step 3 — progression (PROGRAM only) — manual per-week grid, 1:1 with web
 
     private var progressionStep: some View {
         VStack(spacing: 14) {
-            VStack(spacing: 6) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 22, weight: .bold)).foregroundStyle(accent)
-                Text("Progressione su \(durationWeeks) settimane")
-                    .font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                Text("Aggiungi una regola di progressione agli esercizi: il motore calcola i valori di ogni settimana.")
-                    .font(Typo.body(12)).foregroundStyle(Palette.textMid)
-                    .multilineTextAlignment(.center)
+            if let pid = savedPlanId {
+                CoachProgressionGridView(
+                    planId: pid,
+                    days: days.compactMap { d in d.pk.map { (id: $0, name: d.name) } },
+                    durationWeeks: durationWeeks,
+                    accent: accent)
+            } else {
+                SwiftUI.ProgressView().tint(accent).padding(.vertical, 60)
             }
-            .frame(maxWidth: .infinity).padding(18).voltPanel()
-
-            ForEach(allExercises, id: \.exercise.id) { pair in
-                exerciseRulesCard(pair.day, pair.exercise)
-            }
-
-            if !opaqueRules.isEmpty {
-                Text("\(opaqueRules.count) progressioni avanzate create dal web verranno mantenute.")
-                    .font(Typo.body(12)).foregroundStyle(Palette.textLow)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
             WZNavButtons(canBack: true, nextTitle: "Continua", nextEnabled: true,
                          accent: accent, onBack: { back() }) { advance() }
         }
-    }
-
-    private func exerciseRulesCard(_ day: WBDayDraft, _ ex: WBExerciseDraft) -> some View {
-        let exRules = rules.filter { $0.exerciseRef == ex.id }
-        return VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ex.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                    Text(day.name.uppercased())
-                        .font(Typo.mono(9, .semibold)).tracking(1.5).foregroundStyle(Palette.textLow)
-                }
-                Spacer()
-                Menu {
-                    ForEach(WBProgressionType.allCases) { t in
-                        Button(t.label) {
-                            Haptics.soft()
-                            withAnimation(.snappy) {
-                                rules.append(WBRuleDraft(exerciseRef: ex.id, type: t))
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Regola")
-                    }
-                    .font(Typo.body(13, .semibold)).foregroundStyle(accent)
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-
-            ForEach($rules) { $rule in
-                if rule.exerciseRef == ex.id {
-                    Rectangle().fill(Palette.line.opacity(0.6)).frame(height: 1).padding(.leading, 16)
-                    WZRuleRow(rule: $rule, accent: accent) {
-                        Haptics.warning()
-                        withAnimation(.snappy) { rules.removeAll { $0.id == rule.id } }
-                    }
-                }
-            }
-
-            if exRules.isEmpty {
-                Rectangle().fill(Palette.line.opacity(0.6)).frame(height: 1).padding(.leading, 16)
-                Text("Nessuna progressione: valori costanti ogni settimana.")
-                    .font(Typo.body(12)).foregroundStyle(Palette.textLow)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-            }
-        }
-        .voltPanel()
     }
 
     // MARK: Step 4 — finalize
@@ -826,146 +785,6 @@ private struct WZIntStepper: View {
     }
 }
 
-/// One progression rule row with inline parameter editors.
-private struct WZRuleRow: View {
-    @Binding var rule: WBRuleDraft
-    let accent: Color
-    let onDelete: () -> Void
-
-    @State private var expanded = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Button {
-                Haptics.tap()
-                withAnimation(.snappy) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(rule.type.label)
-                            .font(Typo.body(13, .semibold)).foregroundStyle(accent)
-                        Text(rule.summary)
-                            .font(Typo.mono(10)).foregroundStyle(Palette.textMid)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold)).foregroundStyle(Palette.textLow)
-                        .rotationEffect(.degrees(expanded ? 180 : 0))
-                }
-                .padding(.horizontal, 16).padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if expanded {
-                VStack(spacing: 10) {
-                    switch rule.type {
-                    case .loadLinear:
-                        WZDoubleStepper(label: "DELTA KG", value: $rule.loadDelta, step: 0.5, range: 0.5...20)
-                    case .volSets:
-                        WZRuleIntStepper(label: "SERIE +", value: $rule.setsStep, range: 1...4)
-                    case .volReps:
-                        HStack(spacing: 10) {
-                            WZRuleIntStepper(label: "DA", value: $rule.repMin, range: 1...30)
-                            WZRuleIntStepper(label: "A", value: $rule.repMax, range: 1...50)
-                            WZRuleIntStepper(label: "STEP", value: $rule.repStep, range: 1...5)
-                        }
-                    case .intRpe:
-                        HStack(spacing: 10) {
-                            WZDoubleStepper(label: "RPE INIZIALE", value: $rule.rpeStart, step: 0.5, range: 5...10)
-                            WZDoubleStepper(label: "DELTA", value: $rule.rpeDelta, step: 0.5, range: -2...2)
-                        }
-                    case .intRir:
-                        HStack(spacing: 10) {
-                            WZRuleIntStepper(label: "RIR INIZIALE", value: $rule.rirStart, range: 0...6)
-                            WZRuleIntStepper(label: "DELTA", value: $rule.rirDelta, range: -3...3)
-                        }
-                    case .denRest:
-                        HStack(spacing: 10) {
-                            WZRuleIntStepper(label: "DELTA SEC", value: $rule.restDelta, range: -60...0, step: 5)
-                            WZRuleIntStepper(label: "MIN SEC", value: $rule.restMin, range: 15...180, step: 15)
-                        }
-                    }
-                    HStack {
-                        WZRuleIntStepper(label: "OGNI N SETT.", value: $rule.everyNWeeks, range: 1...8)
-                        Spacer()
-                        Button { onDelete() } label: {
-                            HStack(spacing: 5) { Image(systemName: "trash"); Text("Rimuovi") }
-                                .font(Typo.body(13, .semibold)).foregroundStyle(Palette.crimson)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16).padding(.bottom, 12)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-    }
-}
-
-private struct WZRuleIntStepper: View {
-    let label: String
-    @Binding var value: Int
-    let range: ClosedRange<Int>
-    var step = 1
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(Typo.mono(8, .semibold)).tracking(1.5).foregroundStyle(Palette.textMid)
-            HStack(spacing: 0) {
-                Button { adjust(-step) } label: { Image(systemName: "minus").frame(width: 26, height: 28) }
-                Text("\(value)")
-                    .font(Typo.mono(13, .bold)).foregroundStyle(Palette.textHi)
-                    .frame(minWidth: 34)
-                    .contentTransition(.numericText())
-                Button { adjust(step) } label: { Image(systemName: "plus").frame(width: 26, height: 28) }
-            }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(Palette.textMid)
-            .buttonStyle(.plain)
-            .voltPanel(radius: 9)
-        }
-    }
-
-    private func adjust(_ d: Int) {
-        let nv = min(max(value + d, range.lowerBound), range.upperBound)
-        guard nv != value else { return }
-        Haptics.tap()
-        withAnimation(.snappy) { value = nv }
-    }
-}
-
-private struct WZDoubleStepper: View {
-    let label: String
-    @Binding var value: Double
-    let step: Double
-    let range: ClosedRange<Double>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(Typo.mono(8, .semibold)).tracking(1.5).foregroundStyle(Palette.textMid)
-            HStack(spacing: 0) {
-                Button { adjust(-step) } label: { Image(systemName: "minus").frame(width: 26, height: 28) }
-                Text(value.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(value))" : String(format: "%.1f", value))
-                    .font(Typo.mono(13, .bold)).foregroundStyle(Palette.textHi)
-                    .frame(minWidth: 40)
-                    .contentTransition(.numericText())
-                Button { adjust(step) } label: { Image(systemName: "plus").frame(width: 26, height: 28) }
-            }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(Palette.textMid)
-            .buttonStyle(.plain)
-            .voltPanel(radius: 9)
-        }
-    }
-
-    private func adjust(_ d: Double) {
-        let nv = min(max(value + d, range.lowerBound), range.upperBound)
-        guard nv != value else { return }
-        Haptics.tap()
-        withAnimation(.snappy) { value = nv }
-    }
-}
 
 // MARK: - Nutrition wizard
 

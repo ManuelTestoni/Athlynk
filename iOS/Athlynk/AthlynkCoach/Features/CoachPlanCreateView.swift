@@ -32,6 +32,19 @@ struct CoachPlanCreateView: View {
     @State private var fileData: Data?
     @State private var extracted: [String: Any]?
     @State private var summary: String?
+    @State private var analyzing = false   // drives the progress overlay
+    @State private var phraseIdx = 0
+
+    // Rotating status phrases shown during analysis (mirrors the web importer).
+    private var importPhrases: [String] {
+        kind == .workout
+        ? ["Sto leggendo il documento…", "Sto identificando le sessioni…",
+           "Sto riconoscendo gli esercizi…", "Sto calcolando serie e ripetizioni…",
+           "Sto cercando i match nel database…"]
+        : ["Sto leggendo il documento…", "Sto identificando i giorni della dieta…",
+           "Sto riconoscendo gli alimenti…", "Sto normalizzando le unità di misura…",
+           "Sto cercando i match nel database…"]
+    }
 
     var body: some View {
         NavigationStack {
@@ -105,23 +118,118 @@ struct CoachPlanCreateView: View {
             }
             .buttonStyle(.plain)
 
-            if let summary {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("ANTEPRIMA").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                    Text(summary).font(Typo.body(14)).foregroundStyle(Palette.textHi)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+            if analyzing {
+                importProgress
             }
 
-            if fileData != nil && extracted == nil {
+            if let ex = extracted, !analyzing {
+                if let summary {
+                    Text(summary).font(Typo.mono(11, .semibold)).tracking(1)
+                        .foregroundStyle(kind.accent).frame(maxWidth: .infinity)
+                }
+                importReview(ex)
+            }
+
+            if fileData != nil && extracted == nil && !analyzing {
                 NeonButton(title: "Analizza con Chiron", icon: "wand.and.stars",
                            color: kind.accent, loading: busy) { Task { await analyze() } }
             }
-            if extracted != nil {
+            if extracted != nil && !analyzing {
                 NeonButton(title: "Salva bozza", icon: "tray.and.arrow.down.fill",
                            color: kind.accent, loading: busy) { Task { await confirmImport() } }
             }
         }
+    }
+
+    // Progress overlay: animated bar + rotating status phrase (web-style UX).
+    private var importProgress: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wand.and.stars").font(.system(size: 24, weight: .bold))
+                .foregroundStyle(kind.accent)
+                .symbolEffect(.pulse, options: .repeating)
+            ProgressView().tint(kind.accent).scaleEffect(1.1)
+            Text(importPhrases[phraseIdx % importPhrases.count])
+                .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                .multilineTextAlignment(.center)
+                .transition(.opacity)
+                .id(phraseIdx)
+            Capsule().fill(kind.accent.opacity(0.18)).frame(height: 4)
+                .overlay(alignment: .leading) {
+                    GeometryReader { geo in
+                        Capsule().fill(kind.accent)
+                            .frame(width: geo.size.width * 0.35)
+                            .offset(x: analyzing ? geo.size.width * 0.65 : -geo.size.width * 0.1)
+                            .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: analyzing)
+                    }
+                }
+        }
+        .frame(maxWidth: .infinity).padding(20).voltPanel()
+        .task(id: analyzing) {
+            guard analyzing else { return }
+            while analyzing && !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2.2))
+                if analyzing { withAnimation { phraseIdx += 1 } }
+            }
+        }
+    }
+
+    // Structured review of the parsed plan before saving the draft.
+    @ViewBuilder
+    private func importReview(_ ex: [String: Any]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("REVISIONE").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+            if kind == .workout {
+                let sessions = (ex["sessions"] as? [[String: Any]]) ?? []
+                if sessions.isEmpty {
+                    Text("Nessuna sessione rilevata. Controlla il file o riprova.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                }
+                ForEach(Array(sessions.enumerated()), id: \.offset) { _, s in
+                    reviewGroup(
+                        title: (s["name"] as? String) ?? (s["day_name"] as? String) ?? "Sessione",
+                        items: ((s["blocks"] as? [[String: Any]]) ?? []).flatMap { b in
+                            ((b["exercises"] as? [[String: Any]]) ?? []).map { e in
+                                let name = (e["name"] as? String) ?? (e["exercise_name"] as? String) ?? "Esercizio"
+                                let sets = (e["sets"] as? Int).map { "\($0)×" } ?? ""
+                                let reps = (e["reps"] as? Int).map { "\($0)" } ?? (e["rep_range"] as? String ?? "")
+                                return "\(name) — \(sets)\(reps)".trimmingCharacters(in: .whitespaces)
+                            }
+                        })
+                }
+            } else {
+                let days = (ex["days"] as? [[String: Any]]) ?? []
+                if days.isEmpty {
+                    Text("Nessun giorno rilevato. Controlla il file o riprova.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                }
+                ForEach(Array(days.enumerated()), id: \.offset) { _, d in
+                    reviewGroup(
+                        title: (d["name"] as? String) ?? (d["day_name"] as? String) ?? "Giorno",
+                        items: ((d["meals"] as? [[String: Any]]) ?? []).flatMap { m in
+                            let mealName = (m["name"] as? String) ?? "Pasto"
+                            let foods = ((m["items"] as? [[String: Any]]) ?? (m["foods"] as? [[String: Any]]) ?? [])
+                            return ["· \(mealName)"] + foods.map { f in
+                                let fn = (f["name"] as? String) ?? (f["food_name"] as? String) ?? "Alimento"
+                                let qty = (f["quantity"] as? Double).map { "  \(Int($0)) g" }
+                                    ?? (f["grams"] as? Double).map { "  \(Int($0)) g" } ?? ""
+                                return "   \(fn)\(qty)"
+                            }
+                        })
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+    }
+
+    private func reviewGroup(title: String, items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+            ForEach(Array(items.enumerated()), id: \.offset) { _, line in
+                Text(line).font(Typo.body(12)).foregroundStyle(Palette.textMid)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 4)
     }
 
     // MARK: Field helper
@@ -155,7 +263,9 @@ struct CoachPlanCreateView: View {
 
     private func analyze() async {
         guard let data = fileData, let name = fileName else { return }
-        busy = true; defer { busy = false }
+        busy = true; phraseIdx = 0
+        withAnimation { analyzing = true }
+        defer { busy = false; withAnimation { analyzing = false } }
         do {
             let result: [String: Any]
             if isPDF {

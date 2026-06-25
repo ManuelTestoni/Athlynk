@@ -757,13 +757,12 @@ def _apply_progression_payload(plan, payload, ex_local_to_pk):
         if rid not in seen_rule_ids:
             rule.delete()
 
-    # Overrides (full diff)
+    # Overrides — upsert only (the progression grid owns deletions, see note below)
     overrides_payload = payload.get('overrides') or []
     existing_overrides = {
         (ov.workout_exercise_id, ov.week_number, ov.metric): ov
         for ov in WeeklyOverride.objects.filter(workout_exercise__workout_day__workout_plan=plan)
     }
-    seen_override_keys = set()
     for o_data in overrides_payload:
         ex_id = _resolve_exercise_id(
             o_data.get('workout_exercise_id') or o_data.get('workout_exercise_local_id'),
@@ -789,11 +788,12 @@ def _apply_progression_payload(plan, payload, ex_local_to_pk):
         )
         ov.value_json = value_json
         ov.save()
-        seen_override_keys.add(key)
 
-    for key, ov in existing_overrides.items():
-        if key not in seen_override_keys:
-            ov.delete()
+    # NOTE: do not delete overrides absent from the payload. The per-week
+    # progression grid (api_progression_cell) is the authority for WeeklyOverride
+    # and owns its own clear/delete path; the builder save only knows the legacy
+    # `overrides` array, so a blanket diff-delete here wiped every grid edit on the
+    # next autosave. Out-of-range overrides are pruned by truncate_rules_to_duration.
 
 
 def api_plan_save(request, plan_id=None):

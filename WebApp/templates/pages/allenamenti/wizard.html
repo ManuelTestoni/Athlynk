@@ -791,6 +791,35 @@
     border-color: rgba(138,106,58,0.45);
   }
   .prg-field.is-override .prg-field-val { color: var(--al-bronze); }
+  /* Week 1 = builder-defined, read-only in the grid. */
+  .prg-field.is-readonly {
+    cursor: default; background: rgba(91,85,74,0.04);
+    border-style: dashed; border-color: rgba(91,85,74,0.16);
+  }
+  .prg-field.is-readonly:hover { box-shadow: none; border-color: rgba(91,85,74,0.16); }
+  .prg-field.is-readonly .prg-field-val { color: var(--al-ink-soft); cursor: default; }
+
+  /* Per-set differentiation panel inside a progression cell */
+  .prg-setdetails {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed rgba(91,85,74,0.18);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .prg-setdetails-head {
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase; color: var(--al-ink-mute);
+  }
+  .prg-setrow { display: grid; grid-template-columns: 16px repeat(5, minmax(0, 1fr)); gap: 4px; align-items: center; }
+  .prg-setrow-n { font-size: 10px; font-weight: 700; color: var(--al-ink-mute); text-align: center; }
+  .prg-setrow-in {
+    font-size: 11.5px; font-weight: 600; color: var(--al-ink);
+    font-variant-numeric: tabular-nums; width: 100%; min-width: 0;
+    background: #fff; border: 1px solid rgba(91,85,74,0.14);
+    border-radius: 7px; padding: 4px 5px; outline: 0;
+  }
+  .prg-setrow-in:focus { border-color: var(--al-ink); box-shadow: 0 0 0 2px rgba(28,25,23,0.08); }
+  .prg-setrow-in[readonly] { background: rgba(91,85,74,0.04); color: var(--al-ink-soft); border-style: dashed; }
+  .prg-setdetails-empty { font-size: 10.5px; color: var(--al-ink-mute); font-style: italic; }
 
   .prg-cell-inactive {
     background: repeating-linear-gradient(135deg, rgba(91,85,74,0.04) 0 8px, transparent 8px 16px);
@@ -1865,8 +1894,8 @@
                           :style="colIdx === 0 ? '' : 'visibility: hidden; pointer-events: none;'"
                           :tabindex="colIdx === 0 ? 0 : -1"
                           :aria-hidden="colIdx !== 0"
-                          :title="isCellExpanded(ex) ? 'Nascondi Carico / RPE / RIR' : 'Mostra Carico / RPE / RIR'">
-                    <i class="ph" :class="isCellExpanded(ex) ? 'ph-minus' : 'ph-plus'"></i>
+                          :title="isCellExpanded(ex) ? 'Nascondi valori per serie' : 'Valori diversi per ogni serie'">
+                    <i class="ph" :class="isCellExpanded(ex) ? 'ph-rows' : 'ph-list-numbers'"></i>
                   </button>
                   <button type="button" class="prg-cell-stats-btn"
                           @click="openExerciseStats(ex)"
@@ -1884,22 +1913,58 @@
                 </div>
 
                 <div class="prg-cell-fields">
-                  <template x-for="field in visibleCellFields(ex)" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
+                  <template x-for="field in cellFields(ex)" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
                     <label class="prg-field"
-                           :class="cellFieldClass(ex, w, field.metric)"
-                           :title="cellFieldHint(ex, w, field.metric)">
+                           :class="[cellFieldClass(ex, w, field.metric), w === 1 ? 'is-readonly' : '']"
+                           :title="w === 1 ? 'Valore impostato nel builder (Settimana 1)' : cellFieldHint(ex, w, field.metric)">
                       <span class="prg-field-lab" x-text="field.label"></span>
                       <input class="prg-field-val"
                              :type="field.type"
                              :step="field.step || null"
                              :min="field.min ?? null"
+                             :readonly="w === 1"
                              :placeholder="cellFieldPlaceholder(ex, w, field.metric)"
                              :value="cellFieldRawValue(ex, w, field.metric)"
-                             @focus="$event.target.classList.add('is-focused')"
+                             @focus="w !== 1 && $event.target.classList.add('is-focused')"
                              @blur="commitCellEdit(ex, w, field.metric, $event.target.value, $event)"
                              @keydown.enter.prevent="$event.target.blur()">
                     </label>
                   </template>
+                </div>
+
+                <!-- Per-set differentiation (toggled per exercise; opens in every
+                     visible week column → vertical symmetry). -->
+                <div class="prg-setdetails" x-show="isCellExpanded(ex)" x-cloak>
+                  <div class="prg-setdetails-head">
+                    <span x-text="w === 1 ? 'Serie (dal builder)' : 'Valori per serie'"></span>
+                  </div>
+                  <template x-for="si in progSetCount(ex, w)" :key="'sd-' + ex.pk + '-' + w + '-' + si">
+                    <div class="prg-setrow">
+                      <span class="prg-setrow-n" x-text="si"></span>
+                      <input class="prg-setrow-in" type="text" placeholder="Reps"
+                             :readonly="w === 1"
+                             :value="setDetailValue(ex, w, si - 1, 'reps')"
+                             @blur="setDetailEdit(ex, w, si - 1, 'reps', $event.target.value)">
+                      <input class="prg-setrow-in" type="number" step="0.25" min="0" placeholder="Car."
+                             :readonly="w === 1"
+                             :value="setDetailValue(ex, w, si - 1, 'load_value')"
+                             @blur="setDetailEdit(ex, w, si - 1, 'load_value', $event.target.value)">
+                      <input class="prg-setrow-in" type="number" step="5" min="0" placeholder="Rec"
+                             :readonly="w === 1"
+                             :value="setDetailValue(ex, w, si - 1, 'recovery_seconds')"
+                             @blur="setDetailEdit(ex, w, si - 1, 'recovery_seconds', $event.target.value)">
+                      <input class="prg-setrow-in" type="number" step="0.5" min="0"
+                             :placeholder="rpeRirMetricFor(ex) === 'rir' ? 'RIR' : 'RPE'"
+                             :readonly="w === 1"
+                             :value="setDetailValue(ex, w, si - 1, rpeRirMetricFor(ex))"
+                             @blur="setDetailEdit(ex, w, si - 1, rpeRirMetricFor(ex), $event.target.value)">
+                      <input class="prg-setrow-in" type="text" placeholder="TUT"
+                             :readonly="w === 1"
+                             :value="setDetailValue(ex, w, si - 1, 'tempo')"
+                             @blur="setDetailEdit(ex, w, si - 1, 'tempo', $event.target.value)">
+                    </div>
+                  </template>
+                  <p class="prg-setdetails-empty" x-show="progSetCount(ex, w) === 0">Imposta prima le serie.</p>
                 </div>
               </div>
             </template>

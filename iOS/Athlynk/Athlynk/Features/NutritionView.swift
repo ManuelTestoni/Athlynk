@@ -61,7 +61,7 @@ struct NutritionView: View {
         .tint(Palette.lime)
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { plans = []; await load() }
+        .refreshable { await load(force: true) }
         .onRemoteChange(["NUTRITION_ASSIGNED", "SUPPLEMENT_ASSIGNED"]) { plans = []; loadToken = UUID() }
     }
 
@@ -315,11 +315,12 @@ struct NutritionView: View {
         return s.isEmpty ? "A" : s
     }
 
-    private func load() async {
-        guard plans.isEmpty else { return }
+    private func load(force: Bool = false) async {
+        // Keep the current list on refresh; only replace on a successful refetch.
+        if !force, !plans.isEmpty { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.nutrition() }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.localizedDescription } // keep old data on failure
         loading = false
     }
 }

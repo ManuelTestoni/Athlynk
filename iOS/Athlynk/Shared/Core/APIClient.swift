@@ -394,9 +394,6 @@ final class APIClient {
         }
     }
 
-    func anamnesis() async throws -> AnamnesisDTO? {
-        try decode(AnamnesisResponse.self, from: try await request("/api/v1/anamnesis")).anamnesis
-    }
 
     func primaValutazione() async throws -> PrimaValutazioneDTO {
         try decode(PrimaValutazioneDTO.self, from: try await request("/api/v1/prima-valutazione"))

@@ -60,14 +60,16 @@ struct CoachWorkoutsView: View {
                 do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
                 await load()
             }
-            .refreshable { data = nil; await load() }
+            .refreshable { await load(force: true) }
         }
     }
 
-    private func load() async {
-        guard data == nil else { return }
+    private func load(force: Bool = false) async {
+        // Keep the current data on refresh; only replace it when the refetch
+        // succeeds (try? used to null it on any transient failure → empty page).
+        if !force, data != nil { return }
         loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachWorkouts()
+        if let fresh = try? await APIClient.shared.coachWorkouts() { data = fresh }
     }
 }
 
@@ -125,14 +127,15 @@ struct CoachNutritionView: View {
                 do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
                 await load()
             }
-            .refreshable { data = nil; await load() }
+            .refreshable { await load(force: true) }
         }
     }
 
-    private func load() async {
-        guard data == nil else { return }
+    private func load(force: Bool = false) async {
+        // Keep current data on refresh; only replace on a successful refetch.
+        if !force, data != nil { return }
         loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachNutrition()
+        if let fresh = try? await APIClient.shared.coachNutrition() { data = fresh }
     }
 }
 

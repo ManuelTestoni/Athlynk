@@ -763,7 +763,7 @@ def sync_week_definitions(plan: WorkoutPlan) -> None:
             wd.delete()
 
 
-_GRID_METRICS = ('set_count', 'rep_range', 'load_value', 'load_unit', 'rpe', 'rir', 'recovery_seconds', 'tempo')
+_GRID_METRICS = ('set_count', 'rep_range', 'load_value', 'load_unit', 'rpe', 'rir', 'recovery_seconds', 'tempo', 'set_details')
 
 
 def _ex_base_value(ex: WorkoutExercise, metric: str):
@@ -783,6 +783,8 @@ def _ex_base_value(ex: WorkoutExercise, metric: str):
         return ex.recovery_seconds
     if metric == 'tempo':
         return ex.tempo or ''
+    if metric == 'set_details':
+        return ex.set_details or []
     return None
 
 

@@ -15,12 +15,15 @@ from .session_utils import get_session_coach, can_manage_workouts
 
 _CELL_METRICS = {
     'set_count', 'rep_range', 'load_value', 'load_unit',
-    'rpe', 'rir', 'recovery_seconds', 'tempo',
+    'rpe', 'rir', 'recovery_seconds', 'tempo', 'set_details',
 }
 
 
 def _coach_plan_or_403(request, plan_id):
-    coach = get_session_coach(request)
+    # _request_coach resolves the acting coach from either the web session OR a
+    # mobile Bearer token, so the iOS coach app can drive the same grid endpoints.
+    from .api import _request_coach
+    coach = _request_coach(request)
     if not coach or not can_manage_workouts(coach):
         return None, JsonResponse({'error': 'forbidden'}, status=403)
     plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)

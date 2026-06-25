@@ -36,7 +36,6 @@ from . import views_client
 from . import views_settings
 from . import views_nutrition
 from . import views_nutrition_taxonomy
-from . import views_anamnesi
 from . import views_chat
 from . import views_notifications
 from . import views_session
@@ -141,9 +140,6 @@ urlpatterns = [
     path('api/nutrizione/alimenti-pasto/<int:item_id>/', views_nutrition.api_meal_item_detail, name='api_meal_item_detail'),
     path('api/nutrizione/piani/<int:plan_id>/giorni/<str:dest_day>/copia-da/<str:src_day>/', views_nutrition.api_plan_copy_day, name='api_plan_copy_day'),
     path('api/nutrizione/piani/<int:plan_id>/integratori/', views_nutrition.api_plan_supplements, name='api_plan_supplements'),
-    path('nutrizione/anamnesi/', views_anamnesi.anamnesi_view, name='nutrizione_anamnesi'),
-    path('nutrizione/anamnesi/crea/<int:client_id>/', views_anamnesi.anamnesi_create_view, name='nutrizione_anamnesi_crea'),
-    path('nutrizione/anamnesi/<int:anamnesis_id>/', views_anamnesi.anamnesi_detail_view, name='nutrizione_anamnesi_detail'),
     path('nutrizione/integratori/', views_nutrition.integratori_view, name='nutrizione_integratori'),
     path('nutrizione/integratori/crea/', views_nutrition.integratori_create_view, name='nutrizione_integratori_crea'),
     path('nutrizione/integratori/<int:sheet_id>/', views_nutrition.integratori_detail_view, name='nutrizione_integratori_detail'),
@@ -205,8 +201,8 @@ urlpatterns = [
     path('api/allenamenti/<int:plan_id>/duplica/', coach_dual_auth(views_workouts.api_plan_duplicate), name='api_plan_duplicate'),
     path('api/allenamenti/<int:plan_id>/progression/preview/', views_progression.api_progression_preview, name='api_progression_preview'),
     path('api/allenamenti/<int:plan_id>/progression/week/<int:week_number>/special/', views_progression.api_progression_special_week, name='api_progression_special_week'),
-    path('api/allenamenti/<int:plan_id>/progression/day/<int:day_id>/grid/', views_progression.api_progression_day_grid, name='api_progression_day_grid'),
-    path('api/allenamenti/<int:plan_id>/progression/cell/', views_progression.api_progression_cell, name='api_progression_cell'),
+    path('api/allenamenti/<int:plan_id>/progression/day/<int:day_id>/grid/', coach_dual_auth(views_progression.api_progression_day_grid), name='api_progression_day_grid'),
+    path('api/allenamenti/<int:plan_id>/progression/cell/', coach_dual_auth(views_progression.api_progression_cell), name='api_progression_cell'),
     path('api/allenamenti/<int:plan_id>/progression/add-exercise/', views_progression.api_progression_add_exercise, name='api_progression_add_exercise'),
     path('api/allenamenti/<int:plan_id>/progression/exercise/<int:exercise_id>/delete-cell/', views_progression.api_progression_delete_cell, name='api_progression_delete_cell'),
     path('api/clients/search/', views_workouts.api_search_clients, name='api_search_clients'),
@@ -348,7 +344,6 @@ urlpatterns = [
     path('api/v1/sessions/<int:session_id>/log-set', mobile_api.session_log_set, name='api_v1_session_log_set'),
     path('api/v1/sessions/<int:session_id>/finish', mobile_api.session_finish, name='api_v1_session_finish'),
     path('api/v1/checks/<int:instance_id>/submit', mobile_api.check_submit, name='api_v1_check_submit'),
-    path('api/v1/anamnesis', mobile_api.anamnesis, name='api_v1_anamnesis'),
     path('api/v1/prima-valutazione', mobile_api.prima_valutazione, name='api_v1_prima_valutazione'),
 
     # --- Coach app (Athlynk Coach) ---------------------------------------

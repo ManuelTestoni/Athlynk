@@ -15,7 +15,7 @@ from config.session_utils import (
     get_nutrition_coach,
 )
 from config.services import import_quota
-from domain.coaching.models import CoachingRelationship, ClientAnamnesis
+from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
 from domain.nutrition.models import (
@@ -177,8 +177,6 @@ def nutrizione_piani_view(request):
         nutrition_coach = get_nutrition_coach(client)
         if not nutrition_coach:
             return redirect('client_blocked')
-        if not ClientAnamnesis.objects.filter(client=client).exists():
-            return render(request, 'pages/nutrizione/no_prima_visita.html', {})
 
         active_assignment = (
             NutritionAssignment.objects

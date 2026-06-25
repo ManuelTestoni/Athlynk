@@ -22,7 +22,6 @@
       planDuplicate: "/api/nutrizione/piani/__ID__/duplica/",
       importExcel: "{% url 'nutrizione_import' %}",
       importPdf: "{% url 'nutrizione_import_pdf' %}",
-      anamnesi: "{% url 'nutrizione_anamnesi' %}",
     },
     csrf: "{{ csrf_token }}",
   };
@@ -62,10 +61,6 @@
       <div class="al-rule-bronze mt-5"></div>
     </div>
     <div class="flex gap-3 items-center">
-      <a :href="urls.anamnesi" class="al-btn al-btn-ghost">
-        <i class="ph ph-clipboard-text text-sm"></i>
-        <span>Prime Visite</span>
-      </a>
       <button type="button" @click="openNewPlanModal()" class="al-btn al-btn-bronze">
         <i class="ph ph-plus text-sm"></i>
         <span>Nuovo piano</span>

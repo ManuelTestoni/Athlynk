@@ -421,7 +421,6 @@ struct CoachClientDetailDTO: Codable {
     let activeSubscription: CoachSubRef?
     let checks: [CoachCheckRow]
     let supplementSheets: [IdTitle]
-    let hasAnamnesis: Bool
     let conversationId: Int?
 
     enum CodingKeys: String, CodingKey {
@@ -430,7 +429,6 @@ struct CoachClientDetailDTO: Codable {
         case activeNutrition = "active_nutrition"
         case activeSubscription = "active_subscription"
         case supplementSheets = "supplement_sheets"
-        case hasAnamnesis = "has_anamnesis"
         case conversationId = "conversation_id"
     }
 }

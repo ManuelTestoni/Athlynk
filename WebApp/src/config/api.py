@@ -33,7 +33,7 @@ from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
 from domain.chat.models import Conversation, Message, Notification
 from domain.checks.models import AssignedCheckInstance, QuestionAttachment, QuestionnaireResponse
-from domain.coaching.models import ClientAnamnesis, CoachingRelationship
+from domain.coaching.models import CoachingRelationship
 from domain.nutrition.models import (
     ClientMacroLogEntry, Food, NutritionAssignment, SupplementAssignment,
 )
@@ -1806,43 +1806,6 @@ def check_submit(request, user, instance_id):
     except Exception:
         pass
     return JsonResponse({'id': resp.id, 'status': 'completed'}, status=201)
-
-
-# ---------------------------------------------------------------------------
-# Anamnesis — read the coach-compiled intake form ("Questionario Anamnesi")
-# ---------------------------------------------------------------------------
-
-@api_view(['GET'])
-def anamnesis(request, user):
-    client = getattr(user, 'client_profile', None)
-    if not client:
-        return JsonResponse({'anamnesis': None})
-    a = (
-        ClientAnamnesis.objects
-        .filter(client=client).select_related('coach')
-        .order_by('-anamnesis_date').first()
-    )
-    if not a:
-        return JsonResponse({'anamnesis': None})
-    return JsonResponse({'anamnesis': {
-        'id': a.id,
-        'date': _iso(a.anamnesis_date),
-        'age': a.age,
-        'weight_kg': float(a.weight_kg) if a.weight_kg is not None else None,
-        'height_cm': float(a.height_cm) if a.height_cm is not None else None,
-        'medical_history': a.medical_history,
-        'medications': a.medications,
-        'injuries': a.injuries,
-        'allergies': a.allergies,
-        'intolerances': a.intolerances,
-        'lifestyle_notes': a.lifestyle_notes,
-        'sleep_quality': a.sleep_quality,
-        'stress_level': a.stress_level,
-        'food_habits': a.food_habits,
-        'weight_history': a.weight_history,
-        'path_goal': a.path_goal,
-        'coach': _coach_dict(a.coach),
-    }})
 
 
 # ---------------------------------------------------------------------------

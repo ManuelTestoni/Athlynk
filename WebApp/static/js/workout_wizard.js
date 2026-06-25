@@ -86,14 +86,6 @@ document.addEventListener('alpine:init', () => {
       slideDir: 0,         // -1 = slide-in from left, 1 = slide-in from right, 0 = no anim
       loading: false,
     },
-    PRG_FIELDS: [
-      { metric: 'set_count',        label: 'Serie',    type: 'number', step: '1',    min: 1, group: 'default' },
-      { metric: 'rep_range',        label: 'Reps',     type: 'text',                          group: 'default' },
-      { metric: 'recovery_seconds', label: 'Rec (s)',  type: 'number', step: '5',    min: 0, group: 'default' },
-      { metric: 'load_value',       label: 'Carico',   type: 'number', step: '0.25', min: 0, group: 'extra'   },
-      { metric: 'rpe',              label: 'RPE',      type: 'number', step: '0.5',  min: 0, group: 'extra'   },
-      { metric: 'rir',              label: 'RIR',      type: 'number', step: '1',    min: 0, group: 'extra'   },
-    ],
 
     // Delete-cell confirm modal
     deleteUi: {
@@ -2321,9 +2313,25 @@ document.addEventListener('alpine:init', () => {
       this.progGrid.expanded = { ...this.progGrid.expanded, [k]: !this.progGrid.expanded[k] };
     },
 
-    visibleCellFields(ex) {
-      const expanded = this.isCellExpanded(ex);
-      return this.PRG_FIELDS.filter(f => f.group === 'default' || (expanded && f.group === 'extra'));
+    // Which intensity field the exercise uses — RIR or RPE (never both).
+    rpeRirMetricFor(ex) {
+      const r = ex.base?.rir;
+      return (r !== null && r !== undefined && r !== '') ? 'rir' : 'rpe';
+    },
+
+    // All 6 progression fields, always shown (no "+" expand): top row
+    // Serie/Reps/Carico, bottom row Recupero/RIR-or-RPE/TUT.
+    cellFields(ex) {
+      const rr = this.rpeRirMetricFor(ex);
+      return [
+        { metric: 'set_count',        label: 'Serie',   type: 'number', step: '1',    min: 1 },
+        { metric: 'rep_range',        label: 'Reps',    type: 'text' },
+        { metric: 'load_value',       label: 'Carico',  type: 'number', step: '0.25', min: 0 },
+        { metric: 'recovery_seconds', label: 'Rec (s)', type: 'number', step: '5',    min: 0 },
+        { metric: rr,                 label: rr === 'rir' ? 'RIR' : 'RPE', type: 'number',
+          step: rr === 'rir' ? '1' : '0.5', min: 0 },
+        { metric: 'tempo',            label: 'TUT',     type: 'text' },
+      ];
     },
 
     progGridExercisesAtWeek(week) {
@@ -2385,6 +2393,8 @@ document.addEventListener('alpine:init', () => {
 
     async commitCellEdit(ex, week, metric, raw, evt) {
       if (evt && evt.target) evt.target.classList.remove('is-focused');
+      // Week 1 is set in the builder and stays read-only in the grid.
+      if (week <= 1) { await this.loadProgGrid(); return; }
       const current = this._cellFor(ex, week, metric);
       const currentVal = current ? current.value : ex.base?.[metric];
       const trimmed = raw == null ? '' : String(raw).trim();
@@ -2431,6 +2441,64 @@ document.addEventListener('alpine:init', () => {
             this._computeProgVolume();
             this._refreshProgChart();
           }
+        }
+      } catch (_) {
+        this._showToast('Errore di rete');
+      }
+      await this.loadProgGrid();
+    },
+
+    /* ---- Per-set differentiation inside the progression grid ----
+       set_details is forward-filled like any other metric: an override at a
+       week inherits to later weeks until the next override. Week 1 is read-only
+       (authored in the builder). */
+    cellSetDetails(ex, week) {
+      const c = this._cellFor(ex, week, 'set_details');
+      const v = c && c.value;
+      return Array.isArray(v) ? v : [];
+    },
+    progSetCount(ex, week) {
+      const c = this._cellFor(ex, week, 'set_count');
+      const raw = (c && c.value != null) ? c.value : ex.base?.set_count;
+      const n = parseInt(raw, 10);
+      return isNaN(n) ? 0 : Math.max(0, Math.min(n, 12));
+    },
+    setDetailValue(ex, week, setIdx, field) {
+      const rows = this.cellSetDetails(ex, week);
+      const r = rows[setIdx];
+      const v = r ? r[field] : null;
+      return (v === null || v === undefined) ? '' : String(v);
+    },
+    async setDetailEdit(ex, week, setIdx, field, rawValue) {
+      if (week <= 1) return;   // week 1 is builder-defined / read-only
+      const count = this.progSetCount(ex, week);
+      let rows = this.cellSetDetails(ex, week).map(r => ({ ...r }));
+      while (rows.length < count) rows.push({});
+      rows = rows.slice(0, Math.max(count, rows.length));
+      const v = (rawValue === '' || rawValue == null) ? null : rawValue;
+      rows[setIdx] = { ...rows[setIdx], [field]: v };
+      // Drop trailing all-empty rows; if nothing left, clear the override.
+      const isEmpty = (r) => Object.values(r).every(x => x === null || x === undefined || x === '');
+      if (rows.every(isEmpty)) rows = [];
+      await this.commitSetDetails(ex, week, rows);
+    },
+    async commitSetDetails(ex, week, rows) {
+      if (!this.plan?.id || week <= 1) return;
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/cell/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({
+            workout_exercise_id: ex.pk,
+            week_number: week,
+            metric: 'set_details',
+            value: rows.length ? rows : null,
+            clear: rows.length === 0,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          this._showToast(d.error || 'Errore aggiornamento serie');
         }
       } catch (_) {
         this._showToast('Errore di rete');

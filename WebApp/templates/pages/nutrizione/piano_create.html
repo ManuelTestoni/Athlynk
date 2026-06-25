@@ -261,6 +261,97 @@ window.NUTRITION_WIZARD_INIT = {
             <li class="flex gap-2"><span class="font-mono text-bronze">04</span><span>Riepilogo e assegnazione</span></li>
           </ol>
         </div>
+
+        <!-- Fabbisogni già calcolati? -->
+        <div class="al-card">
+          <div class="flex items-start gap-3 mb-3">
+            <i class="ph-fill ph-calculator text-bronze text-xl mt-0.5"></i>
+            <div class="min-w-0">
+              <p class="al-h-4">Hai già calcolato i fabbisogni?</p>
+              <p class="al-small mt-0.5" style="color: var(--al-ink-mute);">
+                Usa i valori dello strumento «Calcolo Fabbisogni» di un atleta come target del piano.
+              </p>
+            </div>
+          </div>
+
+          <button type="button" x-show="!fabCardOpen" @click="fabCardOpen = true"
+                  class="al-btn al-btn-ghost w-full"
+                  style="border-color: var(--al-bronze); color: var(--al-bronze);">
+            <i class="ph ph-user-list text-sm"></i> Scegli atleta
+          </button>
+
+          <div x-show="fabCardOpen" x-cloak class="space-y-3">
+            <div class="nz-search">
+              <i class="ph ph-magnifying-glass"></i>
+              <input type="text" x-model="fabSearch" placeholder="Cerca per nome…" class="nz-search-input">
+            </div>
+
+            <div class="nz-athlete-list" style="max-height: 200px;">
+              <template x-for="c in fabFilteredClients()" :key="c.id">
+                <button type="button" class="nz-athlete"
+                        :class="{ 'is-selected': fabClient?.id === c.id }"
+                        @click="pickFabClient(c)">
+                  <span class="nz-athlete-avatar"
+                        x-text="c.name.split(' ').filter(Boolean).slice(0,2).map(n => n[0]?.toUpperCase()).join('') || '?'"></span>
+                  <span class="nz-athlete-name" x-text="c.name"></span>
+                  <span class="nz-athlete-mark" aria-hidden="true"><i class="ph ph-check"></i></span>
+                </button>
+              </template>
+              <div class="nz-athlete-empty" x-show="fabFilteredClients().length === 0">
+                <i class="ph ph-user-circle-minus"></i>
+                <p>Nessun atleta.</p>
+              </div>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="fabClient && fabbisogniLoading" class="nz-fab-banner" style="opacity:.6;">
+              <i class="ph ph-circle-notch nz-spin" style="color: var(--al-bronze);"></i>
+              <span class="al-small" style="color: var(--al-ink-mute);">Caricamento fabbisogni…</span>
+            </div>
+
+            <!-- Fresh data found -->
+            <template x-if="fabPicked && !fabbisogniLoading && fabbisogniData">
+              <div class="nz-fab-banner">
+                <p class="al-eyebrow" style="color: var(--al-ink);">Calcolo Fabbisogni recente</p>
+                <p class="al-small mt-0.5" style="color: var(--al-ink-mute);">
+                  <span x-text="fabClient?.name"></span> ·
+                  <span class="font-mono font-semibold" style="color: var(--al-ink);"
+                    x-text="fabbisogniData.submitted_at ? new Date(fabbisogniData.submitted_at).toLocaleDateString('it-IT') : '—'"></span>
+                </p>
+                <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                  <template x-if="fabbisogniData.data.det_kcal">
+                    <span class="al-tag" style="font-size:10px;"><span class="font-mono font-semibold" x-text="fabbisogniData.data.det_kcal"></span> kcal</span>
+                  </template>
+                  <template x-if="fabbisogniData.data.proteine_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-aegean);">Pro <span class="font-mono font-semibold" x-text="fabbisogniData.data.proteine_g"></span>g</span>
+                  </template>
+                  <template x-if="fabbisogniData.data.carboidrati_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-warn);">Carb <span class="font-mono font-semibold" x-text="fabbisogniData.data.carboidrati_g"></span>g</span>
+                  </template>
+                  <template x-if="fabbisogniData.data.lipidi_g">
+                    <span class="al-tag" style="font-size:10px; color: var(--al-danger);">Fat <span class="font-mono font-semibold" x-text="fabbisogniData.data.lipidi_g"></span>g</span>
+                  </template>
+                </div>
+                <button type="button" @click="applyFabbisogniTargets()"
+                        class="al-btn al-btn-ghost mt-2" x-show="!fabApplied"
+                        style="font-size: 11px; padding: 5px 10px; border-color: var(--al-bronze); color: var(--al-bronze);">
+                  <i class="ph ph-arrow-square-in text-xs"></i> Usa questi target
+                </button>
+                <p class="al-small mt-2" x-show="fabApplied" style="color: var(--al-aegean);">
+                  <i class="ph-fill ph-check-circle"></i> Target applicati al piano.
+                </p>
+              </div>
+            </template>
+
+            <!-- Generic error: athlete has no computed fabbisogni -->
+            <template x-if="fabPicked && !fabbisogniLoading && !fabbisogniData">
+              <p class="nz-fab-banner al-small" style="color: var(--al-ink-mute);">
+                <span x-text="fabClient?.name"></span> non ha ancora un «Calcolo Fabbisogni» recente.
+                Compila lo strumento in un check, poi torna qui.
+              </p>
+            </template>
+          </div>
+        </div>
       </aside>
     </div>
   </div>

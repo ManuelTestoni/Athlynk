@@ -25,7 +25,7 @@ from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
 from domain.chat.models import AutomaticMessageTemplate, Conversation, Message, Notification
 from domain.checks.models import QuestionnaireResponse, QuestionnaireTemplate
-from domain.coaching.models import ClientAnamnesis, CoachingRelationship
+from domain.coaching.models import CoachingRelationship
 from domain.nutrition.models import (
     DietDay, Food, Meal, MealItem,
     NutritionAssignment, NutritionPlan, SupplementAssignment, SupplementSheet,
@@ -380,7 +380,6 @@ def client_detail(request, user, client_id):
         .select_related('sheet')
     )]
 
-    anamnesis = ClientAnamnesis.objects.filter(client=client, coach=coach).order_by('-anamnesis_date').first()
     conv = Conversation.objects.filter(coach=coach, client=client).first()
 
     brief = _client_brief(request, client)
@@ -411,7 +410,6 @@ def client_detail(request, user, client_id):
         } if sub else None,
         'checks': checks,
         'supplement_sheets': sheets,
-        'has_anamnesis': anamnesis is not None,
         'conversation_id': conv.id if conv else None,
     })
 

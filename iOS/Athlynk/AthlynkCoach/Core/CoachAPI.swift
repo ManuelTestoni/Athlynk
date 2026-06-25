@@ -557,6 +557,29 @@ extension APIClient {
         _ = try await request("/api/nutrizione/import/conferma/", method: "POST", body: body)
     }
 
+    // MARK: Manual progression grid (1:1 with the web Step-3 editor)
+
+    /// Per-week effective values for every exercise of a day (forward-filled).
+    /// Returns `{ exercises: [...], cells: {ex_id: {week: {metric: {...}}}}, duration_weeks }`.
+    func coachProgressionGrid(planId: Int, dayId: Int) async throws -> [String: Any] {
+        let data = try await request("/api/allenamenti/\(planId)/progression/day/\(dayId)/grid/")
+        return (try coachJSONObject(data)["grid"] as? [String: Any]) ?? [:]
+    }
+
+    /// Upsert (or clear) one (exercise, week, metric) override. Week 1 is the
+    /// builder-defined base and must not be edited here.
+    @discardableResult
+    func coachProgressionCell(planId: Int, exerciseId: Int, week: Int,
+                              metric: String, value: Any?, clear: Bool) async throws -> [String: Any] {
+        var body: [String: Any] = [
+            "workout_exercise_id": exerciseId, "week_number": week,
+            "metric": metric, "clear": clear,
+        ]
+        body["value"] = value ?? NSNull()
+        return try coachJSONObject(try await request(
+            "/api/allenamenti/\(planId)/progression/cell/", method: "POST", body: body))
+    }
+
     func coachImportWorkoutExcel(file: Data, filename: String, title: String, clientId: Int?) async throws -> [String: Any] {
         var fields = ["plan_title": title]
         if let clientId { fields["client_id"] = String(clientId) }

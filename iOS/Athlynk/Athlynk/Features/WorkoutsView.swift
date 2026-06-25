@@ -56,7 +56,7 @@ struct WorkoutsView: View {
         .tint(Palette.magenta)
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { plans = []; await load() }
+        .refreshable { await load(force: true) }
         .onRemoteChange(["WORKOUT_ASSIGNED"]) { plans = []; loadToken = UUID() }
     }
 
@@ -139,12 +139,15 @@ struct WorkoutsView: View {
         return s.isEmpty ? "A" : s
     }
 
-    private func load() async {
-        guard plans.isEmpty else { return }
+    private func load(force: Bool = false) async {
+        // On refresh (force) keep the current list on screen and only replace it
+        // when the refetch succeeds — clearing first made a transient failure or a
+        // decode break show as a permanently empty page.
+        if !force, !plans.isEmpty { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.workouts() }
         catch is CancellationError { } // task cancelled by token refresh — new task will reload
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.localizedDescription } // keep old data on failure
         loading = false
     }
 }

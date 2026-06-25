@@ -66,7 +66,7 @@ struct ChecksView: View {
         }
         .onAppear { appear = true }
         .task(id: loadToken) { await load() }
-        .refreshable { checks = []; await load() }
+        .refreshable { await load(force: true) }
         .onRemoteChange(["CHECK_REVIEWED"]) { checks = []; loadToken = UUID() }
     }
 
@@ -153,11 +153,12 @@ struct ChecksView: View {
         return s.isEmpty ? "A" : s
     }
 
-    private func load() async {
-        guard checks.isEmpty else { return }
+    private func load(force: Bool = false) async {
+        // Keep current checks on refresh; only replace on a successful refetch.
+        if !force, !checks.isEmpty { return }
         loading = true; error = nil
         do { checks = try await APIClient.shared.checks() }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.localizedDescription } // keep old data on failure
         loading = false
     }
 }

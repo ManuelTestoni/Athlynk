@@ -173,6 +173,12 @@ function nutritionWizard() {
     /* === fabbisogni suggestion state === */
     fabbisogniData: null,
     fabbisogniLoading: false,
+    // Info-step "Hai già calcolato i fabbisogni?" card
+    fabCardOpen: false,
+    fabSearch: '',
+    fabClient: null,        // athlete picked in the info-step card
+    fabPicked: false,       // a client was chosen (distinguishes "none" from "not yet")
+    fabApplied: false,      // targets pulled into the plan
 
     init() {
       const params = new URLSearchParams(window.location.search);
@@ -885,6 +891,20 @@ function nutritionWizard() {
       if (d.proteine_g)    this.protein_target_g = d.proteine_g;
       if (d.carboidrati_g) this.carb_target_g    = d.carboidrati_g;
       if (d.lipidi_g)      this.fat_target_g     = d.lipidi_g;
+      this.fabApplied = true;
+    },
+
+    /* Info-step card: pick an athlete and pull their computed fabbisogni. */
+    fabFilteredClients() {
+      const q = (this.fabSearch || '').toLowerCase();
+      return this.clientsAll.filter(c => !q || (c.name || '').toLowerCase().includes(q));
+    },
+    async pickFabClient(c) {
+      this.fabClient = c;
+      this.fabApplied = false;
+      this.fabPicked = false;
+      await this.loadClientFabbisogni(c.id);   // sets fabbisogniData (null if no fresh model)
+      this.fabPicked = true;
     },
 
     /* === Assign modal === */

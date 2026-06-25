@@ -361,26 +361,33 @@ private struct WBExerciseRow: View {
                         WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
                                   range: 0...600, step: 15)
                             .frame(maxWidth: .infinity)
-                        // RPE/RIR combined
+                        // RPE/RIR — type as a compact dropdown (label slot), value
+                        // typed directly (no +/- stepper). Matches the CARICO/TUT
+                        // text-field cells so the row stays symmetric.
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(ex.rpeRirType)
-                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                            HStack(spacing: 0) {
-                                Picker("", selection: $ex.rpeRirType) {
-                                    Text("RPE").tag("RPE")
-                                    Text("RIR").tag("RIR")
+                            Menu {
+                                Button("RPE") { ex.rpeRirType = "RPE" }
+                                Button("RIR") { ex.rpeRirType = "RIR" }
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Text(ex.rpeRirType)
+                                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 7, weight: .semibold)).foregroundStyle(Palette.textLow)
                                 }
-                                .pickerStyle(.segmented)
-                                .frame(width: 80)
-                                .onChange(of: ex.rpeRirType) { _, newType in
-                                    if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
-                                    else { ex.rir = ex.rpe; ex.rpe = nil }
-                                }
-                                WBOptStepper(label: "", value: Binding(
-                                    get: { ex.rpeRirValue },
-                                    set: { ex.rpeRirValue = $0 }
-                                ), range: 0...10)
                             }
+                            .onChange(of: ex.rpeRirType) { _, newType in
+                                if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
+                                else { ex.rir = ex.rpe; ex.rpe = nil }
+                            }
+                            TextField("", value: Binding(get: { ex.rpeRirValue },
+                                                         set: { ex.rpeRirValue = $0 }),
+                                      format: .number,
+                                      prompt: Text("—").foregroundStyle(Palette.textLow))
+                                .keyboardType(.numberPad)
+                                .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                                .padding(.horizontal, 10).padding(.vertical, 9)
+                                .voltPanel(radius: 10)
                         }
                         .frame(maxWidth: .infinity)
                         VStack(alignment: .leading, spacing: 5) {
@@ -815,51 +822,6 @@ private struct WBStepper: View {
     }
 }
 
-/// Stepper for an optional Int — "—" means unset; tapping + from unset starts at 0.
-private struct WBOptStepper: View {
-    let label: String
-    @Binding var value: Int?
-    let range: ClosedRange<Int>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-            HStack(spacing: 0) {
-                Button { decrement() } label: {
-                    Image(systemName: "minus").frame(maxWidth: .infinity).frame(height: 34)
-                }
-                Text(value.map(String.init) ?? "—")
-                    .font(Typo.mono(15, .bold)).foregroundStyle(Palette.textHi)
-                    .frame(minWidth: 44)
-                    .contentTransition(.numericText())
-                Button { increment() } label: {
-                    Image(systemName: "plus").frame(maxWidth: .infinity).frame(height: 34)
-                }
-            }
-            .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(Palette.textMid)
-            .buttonStyle(.plain)
-            .voltPanel(radius: 10)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func increment() {
-        Haptics.tap()
-        withAnimation(.snappy) {
-            if let v = value { value = min(v + 1, range.upperBound) }
-            else { value = range.lowerBound }
-        }
-    }
-
-    private func decrement() {
-        Haptics.tap()
-        withAnimation(.snappy) {
-            guard let v = value else { return }
-            value = v <= range.lowerBound ? nil : v - 1
-        }
-    }
-}
 
 // MARK: - Exercise picker sheet
 

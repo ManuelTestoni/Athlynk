@@ -66,7 +66,7 @@ struct CoachChecksView: View {
                 await load()
             }
             .onRemoteChange(["CHECK_SUBMITTED"]) { checks = []; loadToken = UUID() }
-            .refreshable { checks = []; await load() }
+            .refreshable { await load(force: true) }
         }
     }
 
@@ -89,8 +89,9 @@ struct CoachChecksView: View {
         .padding(14).voltPanel()
     }
 
-    private func load() async {
-        guard checks.isEmpty else { return }
+    private func load(force: Bool = false) async {
+        // Keep current checks on refresh; only replace on a successful refetch.
+        if !force, !checks.isEmpty { return }
         loading = true; defer { loading = false }
         if let res = try? await APIClient.shared.coachChecks(filter: filter) {
             checks = res.checks; pendingCount = res.pendingCount; visibleCount = 10

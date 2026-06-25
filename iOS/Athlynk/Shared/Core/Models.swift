@@ -985,43 +985,6 @@ struct SessionStartDTO: Codable {
     }
 }
 
-// MARK: - Anamnesis (Questionario Anamnesi, read-only)
-
-struct AnamnesisDTO: Codable, Hashable {
-    let id: Int
-    let date: String?
-    let age: Int?
-    let weightKg: Double?
-    let heightCm: Double?
-    let medicalHistory: String?
-    let medications: String?
-    let injuries: String?
-    let allergies: String?
-    let intolerances: String?
-    let lifestyleNotes: String?
-    let sleepQuality: String?
-    let stressLevel: String?
-    let foodHabits: String?
-    let weightHistory: String?
-    let pathGoal: String?
-    let coach: Coach?
-
-    enum CodingKeys: String, CodingKey {
-        case id, date, age, medications, injuries, allergies, intolerances, coach
-        case weightKg = "weight_kg"
-        case heightCm = "height_cm"
-        case medicalHistory = "medical_history"
-        case lifestyleNotes = "lifestyle_notes"
-        case sleepQuality = "sleep_quality"
-        case stressLevel = "stress_level"
-        case foodHabits = "food_habits"
-        case weightHistory = "weight_history"
-        case pathGoal = "path_goal"
-    }
-}
-
-struct AnamnesisResponse: Codable { let anamnesis: AnamnesisDTO? }
-
 struct PrimaValutazioneDTO: Codable {
     let submittedAt: String?
     let data: DataPayload?
