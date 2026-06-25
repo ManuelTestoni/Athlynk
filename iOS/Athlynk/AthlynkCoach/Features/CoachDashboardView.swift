@@ -36,7 +36,20 @@ struct CoachDashboardView: View {
         .onRemoteChange { loadToken = UUID() }
         .refreshable { await load(force: true) }
         .sheet(item: $sheetRoute) { route in
-            NavigationStack { sheetDestination(route) }
+            NavigationStack {
+                sheetDestination(route)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { sheetRoute = nil } label: {
+                                Image(systemName: "xmark").font(.system(size: 15, weight: .semibold))
+                            }
+                            .tint(Palette.textHi)
+                        }
+                    }
+            }
+            // A drill-in (client detail) hides the tab bar; restore it whenever
+            // the sheet closes so the shell isn't left without its bar.
+            .onDisappear { app.tabBarHidden = false }
         }
     }
 

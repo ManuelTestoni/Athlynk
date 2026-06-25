@@ -131,12 +131,16 @@ struct CoachCheckFormView: View {
         let lo = Int(q.min ?? 1), hi = Int(q.max ?? 5)
         let current = Int(values[q.id] ?? "") ?? lo
         VStack(spacing: 6) {
-            HStack(spacing: 8) {
+            // Flexible cells so any range (1–5, 1–10, …) fits the screen width
+            // instead of overflowing a fixed-diameter HStack. ponytail: even
+            // split; a 1–20 scale would get cramped — wrap to a grid if that ever ships.
+            HStack(spacing: 6) {
                 ForEach(lo...hi, id: \.self) { n in
                     Button { values[q.id] = String(n) } label: {
                         Text("\(n)").font(Typo.mono(14, .bold))
-                            .frame(width: 34, height: 34)
-                            .background(Circle().fill(current == n ? Palette.lime : Palette.void2))
+                            .frame(maxWidth: .infinity, minHeight: 38)
+                            .background(RoundedRectangle(cornerRadius: 9)
+                                .fill(current == n ? Palette.lime : Palette.void2))
                             .foregroundStyle(current == n ? Palette.void0 : Palette.textMid)
                     }.buttonStyle(.plain)
                 }
@@ -201,7 +205,7 @@ struct CoachCheckFormView: View {
 
     private func setup() async {
         if needsClient {
-            clients = (try? await APIClient.shared.coachClients(query: "", status: "ACTIVE").clients) ?? []
+            clients = (try? await APIClient.shared.coachClients(query: "", status: "ACTIVE", limit: 500).clients) ?? []
         }
         // Seed from prefill (edit mode).
         for q in questions where q.type == "checkbox" {

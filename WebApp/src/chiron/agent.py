@@ -228,3 +228,61 @@ def run_chiron(
         actions=_extract_actions(all_messages),
         pending_action=_extract_pending_action(all_messages),
     )
+
+
+def run_chiron_stream(
+    message: str,
+    user_role: str,
+    history: list[HistoryMessage] | None = None,
+    coach_id: int | None = None,
+    memory_summary: str = "",
+):
+    """Versione streaming di `run_chiron`: generatore che produce i token della
+    risposta finale man mano che il modello li genera, poi un evento finale con
+    la `ChatResponse` completa (fonti/azioni/conferma).
+
+    Yields dict: `{"token": str}` per ogni pezzo di testo, e infine
+    `{"done": ChatResponse}`. I round di tool-calling non emettono testo (i
+    chunk hanno content vuoto) quindi vengono saltati naturalmente.
+    """
+    history = history or []
+    initial_messages: list[BaseMessage] = _history_to_messages(history)
+    initial_messages.append(HumanMessage(content=message))
+
+    config = {"configurable": {"coach_id": coach_id}} if coach_id else None
+    final_state: dict | None = None
+    for mode, data in _get_graph().stream(
+        {
+            "messages": initial_messages,
+            "user_role": user_role,
+            "memory_summary": memory_summary or "",
+        },
+        config=config,
+        stream_mode=["messages", "values"],
+    ):
+        if mode == "messages":
+            chunk, meta = data
+            # Only the answer node's text tokens — tool-deciding chunks carry no
+            # content, so they're skipped without a tool_calls check.
+            if (isinstance(chunk, AIMessage)
+                    and meta.get("langgraph_node") == "chiron_agent"):
+                text = chunk.content if isinstance(chunk.content, str) else ""
+                if text:
+                    yield {"token": text}
+        elif mode == "values":
+            final_state = data
+
+    all_messages: list[BaseMessage] = (final_state or {}).get("messages", [])
+    answer = ""
+    for m in reversed(all_messages):
+        if isinstance(m, AIMessage) and not getattr(m, "tool_calls", None):
+            answer = m.content if isinstance(m.content, str) else str(m.content)
+            break
+
+    yield {"done": ChatResponse(
+        response=answer,
+        sources=_extract_sources(all_messages),
+        used_web_search=_used_web_search(all_messages),
+        actions=_extract_actions(all_messages),
+        pending_action=_extract_pending_action(all_messages),
+    )}

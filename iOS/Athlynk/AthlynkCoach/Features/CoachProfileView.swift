@@ -223,6 +223,7 @@ private struct CoachToggleRow: View {
 struct CoachEditProfileView: View {
     let profile: CoachProfileDTO
     var onSave: (CoachProfileDTO) -> Void
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
 
     @State private var firstName: String
@@ -351,7 +352,8 @@ struct CoachEditProfileView: View {
         uploadingPhoto = true
         photoError = nil
         do {
-            _ = try await APIClient.shared.uploadCoachPhoto(jpeg)
+            let newUrl = try await APIClient.shared.uploadCoachPhoto(jpeg)
+            app.avatarUrl = newUrl
             Haptics.success()
         } catch {
             Haptics.error()

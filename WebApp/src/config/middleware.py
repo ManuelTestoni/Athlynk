@@ -114,6 +114,9 @@ _API_FORM_EXEMPT_PREFIXES = (
     '/api/nutrizione/import/pdf/',
     '/api/allenamenti/import/excel/',
     '/api/allenamenti/import/pdf/',
+    # Avatar uploads (mobile): multipart JPEG → server re-encodes to WebP.
+    '/api/v1/profile/photo',
+    '/api/v1/coach/profile/photo',
 )
 
 
@@ -123,6 +126,12 @@ def _is_form_exempt(path):
         return True
     # Chat message send is multipart: text body + optional image/video attachment.
     if path.startswith('/api/chat/') and path.endswith('/send/'):
+        return True
+    # Athlete check submission carries `allegato` photo attachments as multipart.
+    if path.startswith('/api/v1/checks/') and path.endswith('/submit'):
+        return True
+    # Workout-session media upload (web) is a multipart photo POST.
+    if path.startswith('/api/sessioni/') and path.endswith('/media/'):
         return True
     return False
 
@@ -175,7 +184,8 @@ class SanitizationMiddleware:
         method = request.method or ''
 
         if path.startswith('/api/') and method in ('POST', 'PUT', 'PATCH'):
-            if not _is_form_exempt(path):
+            form_exempt = _is_form_exempt(path)
+            if not form_exempt:
                 ctype = (request.META.get('CONTENT_TYPE') or '').lower().split(';')[0].strip()
                 # I fetch() senza body (es. delete/duplicate) non hanno nulla da
                 # parsare ma Chromium li marca comunque text/plain: con body
@@ -193,12 +203,15 @@ class SanitizationMiddleware:
 
             # CONTENT_LENGTH is set by gunicorn/Django for buffered bodies. If
             # missing we let Django's own DATA_UPLOAD_MAX_MEMORY_SIZE catch
-            # oversized streamed bodies later.
+            # oversized streamed bodies later. This 1 MB cap guards JSON bodies
+            # only — multipart uploads (photos, PDF/Excel imports) legitimately
+            # exceed it and enforce their own per-view size limits, so exempt
+            # paths skip it.
             try:
                 length = int(request.META.get('CONTENT_LENGTH') or 0)
             except (TypeError, ValueError):
                 length = 0
-            if length and length > self._json_body_cap:
+            if length and length > self._json_body_cap and not form_exempt:
                 logger.warning('sanitize.body_too_large path=%s length=%s', path, length)
                 return JsonResponse(
                     {'error': f'Body troppo grande (max {self._json_body_cap // 1024}KB)'},

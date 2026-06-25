@@ -11,11 +11,12 @@ Shared, role-agnostic endpoints (notifications, settings, device registration,
 account deletion) are reused from the athlete API and are not duplicated here.
 """
 
+import json
 from datetime import date, timedelta
 
 from django.db import transaction
 from django.db.models import Q, Max, Count
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -55,7 +56,7 @@ from domain.checks.models import AssignedCheck
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import catalog_json, circ_label, skin_label
 from django.contrib.auth.hashers import make_password
-from chiron.agent import run_chiron
+from chiron.agent import run_chiron, run_chiron_stream
 from chiron.memory import build_context, reset as reset_chiron_memory
 from chiron.actions import execute_action as chiron_execute_action
 from domain.chiron.models import ChironMessage
@@ -275,7 +276,20 @@ def clients(request, user):
     if search:
         qs = qs.filter(Q(client__first_name__icontains=search) | Q(client__last_name__icontains=search))
 
-    rels = list(qs)
+    # Page the list (10 per page) but keep the header counts over the full set.
+    total = qs.count()
+    active = qs.filter(status='ACTIVE').count()
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    # Default page is 10 (the list view); the check-form client picker passes a
+    # large `limit` to fetch the full active roster in one go.
+    try:
+        page = min(max(int(request.GET.get('limit') or 10), 1), 500)
+    except (ValueError, TypeError):
+        page = 10
+    rels = list(qs[offset:offset + page])
     client_ids = [r.client_id for r in rels]
 
     active_workouts = {
@@ -313,8 +327,9 @@ def clients(request, user):
 
     return JsonResponse({
         'clients': out,
-        'total': len(out),
-        'active': sum(1 for r in rels if r.status == 'ACTIVE'),
+        'total': total,
+        'active': active,
+        'has_more': offset + _PAGE < total,
     })
 
 
@@ -2346,6 +2361,67 @@ def chiron_chat(request):
         'used_web_search': result.used_web_search,
         'pending_action': result.pending_action.model_dump() if result.pending_action else None,
     })
+
+
+@coach_dual_auth
+def chiron_chat_stream(request):
+    """Token-by-token streaming twin of `chiron_chat` (SSE over WSGI).
+
+    Emits `data: {"token": "..."}` per chunk as the model writes, then a final
+    `data: {"done": true, ...}` with sources/actions/pending_action. The non-stream
+    `chiron_chat` stays as a fallback for older clients.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    coach, err = _coach_or_401(request)
+    if err:
+        return err
+    user = coach.user
+    body = _body(request)
+    message = (body.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'message required'}, status=400)
+    history, memory_summary = build_context(user)
+    ChironMessage.objects.create(user=user, role='user', content=message)
+    user_role = _chiron_role(coach)
+    coach_id = coach.id
+
+    def _sse(obj):
+        return f'data: {json.dumps(obj)}\n\n'
+
+    def stream():
+        try:
+            for evt in run_chiron_stream(
+                message=message, user_role=user_role, history=history,
+                coach_id=coach_id, memory_summary=memory_summary,
+            ):
+                if 'token' in evt:
+                    yield _sse({'token': evt['token']})
+                elif 'done' in evt:
+                    result = evt['done']
+                    ChironMessage.objects.create(
+                        user=user, role='assistant', content=result.response,
+                        sources=[s.model_dump() for s in result.sources],
+                        actions=[a.model_dump() for a in result.actions],
+                        used_web_search=result.used_web_search,
+                    )
+                    yield _sse({
+                        'done': True,
+                        'response': result.response,
+                        'sources': [s.model_dump() for s in result.sources],
+                        'actions': [a.model_dump() for a in result.actions],
+                        'used_web_search': result.used_web_search,
+                        'pending_action': (result.pending_action.model_dump()
+                                           if result.pending_action else None),
+                    })
+        except Exception:
+            logger.exception('CHIRON mobile chat stream: errore')
+            yield _sse({'error': 'CHIRON non disponibile. Riprova tra poco.'})
+
+    resp = StreamingHttpResponse(stream(), content_type='text/event-stream')
+    resp['Cache-Control'] = 'no-cache'
+    resp['X-Accel-Buffering'] = 'no'   # defeat proxy buffering so tokens flush
+    return resp
 
 
 @coach_dual_auth

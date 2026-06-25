@@ -294,6 +294,7 @@ private struct WBExerciseRow: View {
                                 .padding(.horizontal, 10).padding(.vertical, 9)
                                 .voltPanel(radius: 10)
                         }
+                        .frame(maxWidth: .infinity)
                         VStack(alignment: .leading, spacing: 5) {
                             Text("UNITÀ")
                                 .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
@@ -314,62 +315,60 @@ private struct WBExerciseRow: View {
                                 .voltPanel(radius: 10)
                             }
                         }
-                        .frame(width: 70)
+                        .frame(maxWidth: .infinity)
                     }
-                    // Row 2: RECUPERO, RPE/RIR, TUT + NOTE (side)
+                    // Row 2: RECUPERO, RPE/RIR, TUT — three even, full-width columns.
+                    // The note used to sit in a fixed 120pt side column that
+                    // squeezed these fields on narrow phones; it's now its own
+                    // full-width row below so every column stays symmetric.
                     HStack(alignment: .top, spacing: 8) {
-                        VStack(spacing: 8) {
-                            // Row 2a
-                            HStack(spacing: 8) {
-                                WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
-                                          range: 0...600, step: 15)
-                                // RPE/RIR combined
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(ex.rpeRirType)
-                                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                                    HStack(spacing: 0) {
-                                        Picker("", selection: $ex.rpeRirType) {
-                                            Text("RPE").tag("RPE")
-                                            Text("RIR").tag("RIR")
-                                        }
-                                        .pickerStyle(.segmented)
-                                        .frame(width: 80)
-                                        .onChange(of: ex.rpeRirType) { _, newType in
-                                            if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
-                                            else { ex.rir = ex.rpe; ex.rpe = nil }
-                                        }
-                                        WBOptStepper(label: "", value: Binding(
-                                            get: { ex.rpeRirValue },
-                                            set: { ex.rpeRirValue = $0 }
-                                        ), range: 0...10)
-                                    }
+                        WBStepper(label: "REC (SEC)", value: $ex.recoverySeconds,
+                                  range: 0...600, step: 15)
+                            .frame(maxWidth: .infinity)
+                        // RPE/RIR combined
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(ex.rpeRirType)
+                                .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                            HStack(spacing: 0) {
+                                Picker("", selection: $ex.rpeRirType) {
+                                    Text("RPE").tag("RPE")
+                                    Text("RIR").tag("RIR")
                                 }
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text("TUT")
-                                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                                    TextField("", text: $ex.tempo,
-                                              prompt: Text("3-1-1").foregroundStyle(Palette.textLow))
-                                        .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
-                                        .padding(.horizontal, 10).padding(.vertical, 9)
-                                        .voltPanel(radius: 10)
+                                .pickerStyle(.segmented)
+                                .frame(width: 80)
+                                .onChange(of: ex.rpeRirType) { _, newType in
+                                    if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
+                                    else { ex.rir = ex.rpe; ex.rpe = nil }
                                 }
+                                WBOptStepper(label: "", value: Binding(
+                                    get: { ex.rpeRirValue },
+                                    set: { ex.rpeRirValue = $0 }
+                                ), range: 0...10)
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        // NOTE — side rectangle spanning
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("NOTE")
+                            Text("TUT")
                                 .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-                            TextField("", text: $ex.notes,
-                                      prompt: Text("Es. scapole addotte…").foregroundStyle(Palette.textLow),
-                                      axis: .vertical)
-                                .lineLimit(2...4)
+                            TextField("", text: $ex.tempo,
+                                      prompt: Text("3-1-1").foregroundStyle(Palette.textLow))
                                 .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
                                 .padding(.horizontal, 10).padding(.vertical, 9)
                                 .voltPanel(radius: 10)
-                                .frame(maxHeight: .infinity)
                         }
-                        .frame(width: 120)
+                        .frame(maxWidth: .infinity)
+                    }
+                    // NOTE — full-width row.
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("NOTE")
+                            .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                        TextField("", text: $ex.notes,
+                                  prompt: Text("Es. scapole addotte…").foregroundStyle(Palette.textLow),
+                                  axis: .vertical)
+                            .lineLimit(2...4)
+                            .font(Typo.body(13)).foregroundStyle(Palette.textHi).tint(accent)
+                            .padding(.horizontal, 10).padding(.vertical, 9)
+                            .voltPanel(radius: 10)
                     }
                     // Range reps (optional, below)
                     VStack(alignment: .leading, spacing: 5) {

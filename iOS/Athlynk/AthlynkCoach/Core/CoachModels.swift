@@ -200,6 +200,12 @@ struct CoachClientsResponse: Codable {
     let clients: [CoachClientRow]
     let total: Int
     let active: Int
+    var hasMore: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case clients, total, active
+        case hasMore = "has_more"
+    }
 }
 
 // MARK: - Onboarding (coach crea atleta)

@@ -12,6 +12,8 @@ struct CoachClientsView: View {
     @State private var query = ""
     @State private var statusFilter = ""   // "" | ACTIVE | INACTIVE
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
     @State private var showAddClient = false
 
@@ -57,6 +59,20 @@ struct CoachClientsView: View {
                     ForEach(rows) { r in
                         NavigationLink(value: r.id) { clientCard(r) }
                             .buttonStyle(PressableButtonStyle())
+                    }
+                    if hasMore {
+                        Button { Task { await loadMore() } } label: {
+                            HStack(spacing: 8) {
+                                if loadingMore { ProgressView().tint(Palette.cyan) }
+                                Text(loadingMore ? "Caricamento…" : "Carica ancora")
+                                    .font(Typo.mono(11, .bold)).tracking(1).textCase(.uppercase)
+                                    .foregroundStyle(Palette.cyan)
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(Capsule().stroke(Palette.line, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(loadingMore)
                     }
                 }
             }
@@ -112,7 +128,19 @@ struct CoachClientsView: View {
         loading = true; defer { loading = false }
         do {
             let res = try await APIClient.shared.coachClients(query: query, status: statusFilter)
-            rows = res.clients; total = res.total; active = res.active; error = nil
+            rows = res.clients; total = res.total; active = res.active
+            hasMore = res.hasMore; error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        do {
+            let res = try await APIClient.shared.coachClients(query: query, status: statusFilter,
+                                                              offset: rows.count)
+            rows.append(contentsOf: res.clients)
+            hasMore = res.hasMore
         } catch { self.error = error.localizedDescription }
     }
 }

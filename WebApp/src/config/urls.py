@@ -412,6 +412,7 @@ urlpatterns = [
     path('api/v1/coach/clients/<int:client_id>/percorso/phases/<int:phase_id>',
          coach_api.phase_detail, name='api_v1_coach_phase_detail'),
     path('api/v1/coach/chiron/chat/', coach_api.chiron_chat, name='api_v1_coach_chiron_chat'),
+    path('api/v1/coach/chiron/chat/stream/', coach_api.chiron_chat_stream, name='api_v1_coach_chiron_chat_stream'),
     path('api/v1/coach/chiron/history/', coach_api.chiron_history, name='api_v1_coach_chiron_history'),
     path('api/v1/coach/chiron/clear/', coach_api.chiron_clear, name='api_v1_coach_chiron_clear'),
     path('api/v1/coach/chiron/azione/esegui/', coach_api.chiron_execute, name='api_v1_coach_chiron_execute'),

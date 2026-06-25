@@ -50,6 +50,13 @@ struct ChironEntry: Identifiable {
     }
 }
 
+/// Streaming chat event: text arrives token-by-token, then one final `done`
+/// carrying the authoritative full text + sources/actions/pending_action.
+enum ChironStreamEvent {
+    case token(String)
+    case done(ChironChatResult)
+}
+
 struct ChironChatResult {
     let assistantContent: String
     let usedWebSearch: Bool
@@ -86,11 +93,14 @@ extension APIClient {
         try decode(CoachAgendaResponse.self, from: try await request("/api/v1/coach/agenda")).appointments
     }
 
-    func coachClients(query: String = "", status: String = "") async throws -> CoachClientsResponse {
+    func coachClients(query: String = "", status: String = "",
+                      offset: Int = 0, limit: Int? = nil) async throws -> CoachClientsResponse {
         var path = "/api/v1/coach/clients"
         var qs: [String] = []
         if !query.isEmpty { qs.append("q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") }
         if !status.isEmpty { qs.append("status=\(status)") }
+        if offset > 0 { qs.append("offset=\(offset)") }
+        if let limit { qs.append("limit=\(limit)") }
         if !qs.isEmpty { path += "?" + qs.joined(separator: "&") }
         return try decode(CoachClientsResponse.self, from: try await request(path))
     }
@@ -686,6 +696,48 @@ extension APIClient {
         let data = try await request("/api/v1/coach/chiron/chat/", method: "POST", body: ["message": message])
         let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         return ChironChatResult(json: json)
+    }
+
+    /// Streamed twin of `coachChironChat`: yields `.token` chunks as the model
+    /// writes, then a final `.done`. Reads the SSE response line by line.
+    func coachChironChatStream(message: String) -> AsyncThrowingStream<ChironStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    guard let url = URL(string: baseURL + "/api/v1/coach/chiron/chat/stream/") else {
+                        throw APIError.badURL
+                    }
+                    var req = URLRequest(url: url)
+                    req.httpMethod = "POST"
+                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                    if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+                    req.httpBody = try JSONSerialization.data(withJSONObject: ["message": message])
+
+                    let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+                    guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                        throw APIError.http((resp as? HTTPURLResponse)?.statusCode ?? 0, "")
+                    }
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data:") else { continue }   // SSE data frame
+                        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        guard !payload.isEmpty, let d = payload.data(using: .utf8),
+                              let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any]
+                        else { continue }
+                        if let err = obj["error"] as? String { throw APIError.transport(err) }
+                        if let tok = obj["token"] as? String {
+                            continuation.yield(.token(tok))
+                        } else if obj["done"] as? Bool == true {
+                            continuation.yield(.done(ChironChatResult(json: obj)))
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     func coachChironClear() async throws {

@@ -20,6 +20,8 @@ final class CoachChironVM: ObservableObject {
     @Published var errorMsg: String?
     @Published var hasMore = false
     @Published var loadingMore = false
+    /// Non-nil while a reply is streaming in: the live assistant bubble text.
+    @Published var streamingText: String?
     private var oldestId: Int?
 
     func loadHistory() async {
@@ -69,12 +71,26 @@ final class CoachChironVM: ObservableObject {
         let tmpId = -Int(Date().timeIntervalSince1970)
         entries.append(ChironEntry(id: tmpId, role: "user", content: msg, sources: [], actions: [], usedWebSearch: false))
         sending = true; defer { sending = false }
+        streamingText = ""
+        var acc = ""
         do {
-            let result = try await APIClient.shared.coachChironChat(message: msg)
-            pendingAction = result.pendingAction
-            pendingActionLabel = result.pendingActionLabel
-            await refreshHistory()
+            for try await event in APIClient.shared.coachChironChatStream(message: msg) {
+                switch event {
+                case .token(let t):
+                    acc += t
+                    streamingText = acc
+                case .done(let result):
+                    pendingAction = result.pendingAction
+                    pendingActionLabel = result.pendingActionLabel
+                    let finalText = result.assistantContent.isEmpty ? acc : result.assistantContent
+                    entries.append(ChironEntry(id: tmpId - 1, role: "assistant", content: finalText,
+                                               sources: result.sources, actions: result.actions,
+                                               usedWebSearch: result.usedWebSearch))
+                }
+            }
+            streamingText = nil
         } catch {
+            streamingText = nil
             entries.removeAll { $0.id == tmpId }
             errorMsg = error.localizedDescription
         }
@@ -181,7 +197,14 @@ struct CoachChironView: View {
                     ForEach(vm.entries) { entry in
                         ChironBubbleRow(entry: entry) { router.open($0); dismiss() }
                     }
-                    if vm.sending {
+                    if let streaming = vm.streamingText, !streaming.isEmpty {
+                        ChironBubbleRow(entry: ChironEntry(id: -999_999, role: "assistant",
+                                                           content: streaming, sources: [],
+                                                           actions: [], usedWebSearch: false)) {
+                            router.open($0); dismiss()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if vm.sending {
                         ChironTypingIndicator()
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -194,6 +217,7 @@ struct CoachChironView: View {
             // when older messages are prepended (last id unchanged then).
             .onChange(of: vm.entries.last?.id) { _, _ in scrollToBottom(proxy) }
             .onChange(of: vm.sending) { _, _ in scrollToBottom(proxy) }
+            .onChange(of: vm.streamingText) { _, _ in scrollToBottom(proxy) }
             .onAppear { scrollToBottom(proxy) }
         }
     }
