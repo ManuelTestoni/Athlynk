@@ -23,7 +23,9 @@ struct CoachWorkoutsView: View {
                 } else if let d = data {
                     CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(d.plans.count))", accent: Palette.cyan)
                     if d.plans.isEmpty {
-                        EmptyPanel(icon: "dumbbell", text: "Nessuna scheda creata.")
+                        EmptyPanel(icon: "dumbbell", text: "Nessuna scheda ancora creata.",
+                                   color: Palette.cyan,
+                                   actionTitle: "Creane una ora") { creating = true }
                     } else {
                         ForEach(d.plans) { p in
                             NavigationLink(value: CoachPlanRoute.workout(p.id)) {
@@ -86,7 +88,9 @@ struct CoachNutritionView: View {
                 } else if let d = data {
                     CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(d.plans.count))", accent: Palette.lime)
                     if d.plans.isEmpty {
-                        EmptyPanel(icon: "flame", text: "Nessun piano creato.")
+                        EmptyPanel(icon: "flame", text: "Nessun piano ancora creato.",
+                                   color: Palette.lime,
+                                   actionTitle: "Creane uno ora") { creating = true }
                     } else {
                         ForEach(d.plans) { p in
                             NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {

@@ -206,6 +206,15 @@ struct CoachClientsResponse: Codable {
         case clients, total, active
         case hasMore = "has_more"
     }
+
+    // `has_more` is optional so a backend that predates pagination still decodes.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        clients = try c.decode([CoachClientRow].self, forKey: .clients)
+        total = try c.decode(Int.self, forKey: .total)
+        active = try c.decode(Int.self, forKey: .active)
+        hasMore = try c.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
+    }
 }
 
 // MARK: - Onboarding (coach crea atleta)

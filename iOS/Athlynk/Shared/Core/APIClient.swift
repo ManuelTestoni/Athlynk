@@ -14,12 +14,23 @@ enum APIError: LocalizedError {
     case decoding(String)
     case transport(String)
 
+    /// User-facing copy only — never the raw server/technical string (those leak
+    /// internals like "Content-Type deve essere application/json"). Use
+    /// `debugDetail` for logging.
     var errorDescription: String? {
         switch self {
-        case .badURL: return "URL non valido"
-        case .http(let code, let msg): return msg.isEmpty ? "Errore server (\(code))" : msg
-        case .decoding(let d): return "Risposta non leggibile: \(d)"
-        case .transport(let t): return t
+        case .transport: return "Problema di connessione. Controlla la rete e riprova."
+        default:         return "Si è verificato un errore. Riprova."
+        }
+    }
+
+    /// Raw underlying detail, for logging/diagnostics — not for display.
+    var debugDetail: String {
+        switch self {
+        case .badURL: return "badURL"
+        case .http(let code, let msg): return "http \(code): \(msg)"
+        case .decoding(let d): return "decoding: \(d)"
+        case .transport(let t): return "transport: \(t)"
         }
     }
 }

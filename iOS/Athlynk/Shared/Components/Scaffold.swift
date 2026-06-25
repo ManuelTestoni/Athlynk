@@ -42,6 +42,10 @@ struct EmptyPanel: View {
     var icon: String
     var text: String
     var color: Color = Palette.textLow
+    /// Optional call-to-action (e.g. "Creane uno ora" → open the builder). Shown
+    /// only when both title and action are set.
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
@@ -51,6 +55,17 @@ struct EmptyPanel: View {
                 .font(Typo.body(14))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.textMid)
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(Typo.mono(12, .bold)).tracking(1).textCase(.uppercase)
+                        .foregroundStyle(Palette.void0)
+                        .padding(.horizontal, 18).padding(.vertical, 11)
+                        .background(Capsule().fill(color == Palette.textLow ? Palette.bronze : color))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 44)
