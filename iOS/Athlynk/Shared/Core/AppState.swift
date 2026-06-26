@@ -28,6 +28,9 @@ final class AppState: ObservableObject {
     /// Slides the floating tab bar off-screen for immersive screens (e.g. chat,
     /// where it would otherwise cover the message composer).
     @Published var tabBarHidden = false
+    /// True when the signed-in user still has to accept Terms + Privacy. Blocks
+    /// the app behind a consent screen until they do.
+    @Published var needsTermsConsent = false
 
     private let tokenKey = "athlynk.api.token"
     private let api = APIClient.shared
@@ -44,6 +47,7 @@ final class AppState: ObservableObject {
             self.me = me
             self.user = me.user
             self.avatarUrl = me.profile?.imageUrl
+            needsTermsConsent = me.user.needsTermsConsent
             showChiron = me.user.needsChironIntro
             if me.user.role.uppercased() == "COACH"
                 && !UserDefaults.standard.bool(forKey: "athlynk.coach.chiron.done") {
@@ -75,6 +79,7 @@ final class AppState: ObservableObject {
             avatarUrl = me?.profile?.imageUrl
             // Prefer the richer /me payload, but fall back to the login user.
             let identified = me?.user ?? res.user
+            needsTermsConsent = identified.needsTermsConsent
             showChiron = identified.needsChironIntro
             if identified.role.uppercased() == "COACH"
                 && !UserDefaults.standard.bool(forKey: "athlynk.coach.chiron.done") {
@@ -91,6 +96,17 @@ final class AppState: ObservableObject {
         } catch {
             Haptics.error()
             loginError = error.localizedDescription
+        }
+    }
+
+    /// Record consent to Terms + Privacy and lift the gate. On failure the gate
+    /// stays up so the user can retry.
+    func acceptTerms() async {
+        do {
+            try await api.acceptTerms()
+            needsTermsConsent = false
+        } catch {
+            Haptics.error()
         }
     }
 
@@ -139,5 +155,72 @@ final class AppState: ObservableObject {
     var greetingName: String {
         let n = user?.firstName ?? ""
         return n.isEmpty ? "Atleta" : n
+    }
+}
+
+/// Blocking consent gate shown when the signed-in user hasn't yet accepted the
+/// Terms of Service + Privacy Policy. Shared by both the athlete and coach apps.
+struct TermsConsentView: View {
+    @EnvironmentObject var app: AppState
+    @State private var working = false
+
+    private let tos = URL(string: "https://app.athlynk.it/termini-di-servizio/")!
+    private let privacy = URL(string: "https://app.athlynk.it/privacy/")!
+
+    var body: some View {
+        ZStack {
+            Palette.void0.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 22) {
+                Spacer()
+                Image(systemName: "hand.raised.fill")
+                    .font(.system(size: 34, weight: .bold)).foregroundStyle(Palette.bronze)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Prima di iniziare").font(Typo.poster(32)).foregroundStyle(Palette.textHi)
+                    Text("Per usare Athlynk devi accettare i nostri Termini di Servizio e la Privacy Policy.")
+                        .font(Typo.body(15)).foregroundStyle(Palette.textMid)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    Link(destination: tos) { docRow("Termini di Servizio") }
+                    Link(destination: privacy) { docRow("Privacy Policy") }
+                }
+
+                Spacer()
+
+                Button {
+                    working = true
+                    Task { await app.acceptTerms(); working = false }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if working { ProgressView().tint(Palette.void0) }
+                        else { Text("Accetto e continuo").font(Typo.body(16, .bold)) }
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Palette.bronze))
+                    .foregroundStyle(Palette.void0)
+                }
+                .disabled(working)
+
+                Button { app.logout() } label: {
+                    Text("Esci").font(Typo.body(14)).foregroundStyle(Palette.textLow)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 28).padding(.vertical, 40)
+        }
+        .interactiveDismissDisabled(true)
+    }
+
+    private func docRow(_ title: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "doc.text.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.bronze)
+            Text(title).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+            Spacer()
+            Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.textLow)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.void1))
     }
 }

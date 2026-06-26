@@ -21,10 +21,16 @@ window._suppSheets = {{ sheets_json|json_js }};
       <p class="al-body mt-2">Crea protocolli e assegnali agli atleti.</p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
-    <a href="{% url 'nutrizione_integratori_crea' %}" class="al-btn al-btn-bronze">
-      <i class="ph ph-plus text-sm"></i>
-      <span>Nuova Scheda</span>
-    </a>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'nutrizione_integratori_modelli' %}" class="al-btn al-btn-ghost">
+        <i class="ph ph-bookmarks-simple text-sm"></i>
+        <span>I miei modelli</span>
+      </a>
+      <a href="{% url 'nutrizione_integratori_crea' %}" class="al-btn al-btn-bronze">
+        <i class="ph ph-plus text-sm"></i>
+        <span>Nuovo Protocollo</span>
+      </a>
+    </div>
   </div>
 
   <!-- Search bar -->

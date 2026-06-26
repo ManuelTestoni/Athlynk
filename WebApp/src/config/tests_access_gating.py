@@ -68,11 +68,22 @@ class SignupTests(TestCase):
             'role': 'COACH', 'professional_type': 'ALLENATORE',
             'first_name': 'A', 'last_name': 'B',
             'email': 'pro@y.com', 'password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
+            'accept_terms': 'on',
         })
         self.assertEqual(resp.status_code, 200)
         u = User.objects.get(email='pro@y.com')
         self.assertEqual(u.role, 'COACH')
         self.assertEqual(u.coach_profile.professional_type, 'ALLENATORE')
+        self.assertIsNotNone(u.terms_accepted_at)
+
+    def test_signup_without_terms_rejected(self):
+        resp = self.client.post('/registrati/', {
+            'role': 'COACH', 'professional_type': 'COACH',
+            'first_name': 'A', 'last_name': 'B',
+            'email': 'noterms@y.com', 'password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(User.objects.filter(email='noterms@y.com').exists())
 
 
 class WebGatingTests(TestCase):
@@ -268,11 +279,13 @@ class ActivationFlowTests(TestCase):
 
         p = c.post('/attiva-account/', {
             'token': token, 'new_password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
+            'accept_terms': 'on',
         })
         self.assertEqual(p.status_code, 302)
         self.assertIn('activated=1', p['Location'])
         u.refresh_from_db()
         self.assertTrue(check_password('V0lt!Athlynk#9', u.password_hash))
+        self.assertIsNotNone(u.terms_accepted_at)
 
     def test_activation_invalid_token(self):
         from django.test import Client

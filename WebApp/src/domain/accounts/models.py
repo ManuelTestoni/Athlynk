@@ -19,8 +19,16 @@ class User(models.Model):
     # Per-notification opt-in flags. Settings page exposes one toggle per key.
     # Defaults: client receives assignment emails; toggle off to silence.
     email_prefs = models.JSONField(default=dict, blank=True)
+    # Proof of consent to Terms of Service + Privacy Policy, captured at the
+    # account-creation moment (coach signup, athlete activation, mobile gate).
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    terms_version = models.CharField(max_length=40, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def terms_accepted(self):
+        return self.terms_accepted_at is not None
 
     def email_pref(self, key, default=True):
         """Return True/False for a given notification key. Missing key → default."""

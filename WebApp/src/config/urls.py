@@ -142,6 +142,7 @@ urlpatterns = [
     path('api/nutrizione/piani/<int:plan_id>/integratori/', views_nutrition.api_plan_supplements, name='api_plan_supplements'),
     path('nutrizione/integratori/', views_nutrition.integratori_view, name='nutrizione_integratori'),
     path('nutrizione/integratori/crea/', views_nutrition.integratori_create_view, name='nutrizione_integratori_crea'),
+    path('nutrizione/integratori/modelli/', views_nutrition.integratori_modelli_view, name='nutrizione_integratori_modelli'),
     path('nutrizione/integratori/<int:sheet_id>/', views_nutrition.integratori_detail_view, name='nutrizione_integratori_detail'),
     path('nutrizione/integratori/<int:sheet_id>/modifica/', views_nutrition.integratori_edit_view, name='nutrizione_integratori_edit'),
     path('api/nutrizione/integratori/modelli/', views_nutrition.api_supplement_templates, name='nutrizione_supplement_templates'),
@@ -310,6 +311,7 @@ urlpatterns = [
     # Mobile API v1 (Athlete iOS app) — token auth, JSON only
     path('api/v1/auth/login', mobile_api.login, name='api_v1_login'),
     path('api/v1/me', mobile_api.me, name='api_v1_me'),
+    path('api/v1/accept-terms', mobile_api.accept_terms, name='api_v1_accept_terms'),
     path('api/v1/workouts', mobile_api.workouts, name='api_v1_workouts'),
     path('api/v1/nutrition', mobile_api.nutrition, name='api_v1_nutrition'),
     path('api/v1/checks', mobile_api.checks, name='api_v1_checks'),

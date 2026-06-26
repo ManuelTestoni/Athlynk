@@ -159,6 +159,16 @@
       </article>
     </div>
 
+    <div id="consentRow" style="max-width:560px;margin:22px auto 0;text-align:left;">
+      <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:1.5;">
+        <input type="checkbox" id="acceptTerms" style="margin-top:3px;width:18px;height:18px;flex:0 0 auto;">
+        <span>Ho letto e accetto i <a href="tos.html">Termini di Servizio</a> e la <a href="privacy.html">Privacy Policy</a>.</span>
+      </label>
+      <p id="consentError" role="alert" hidden style="color:#b3261e;font-size:13px;margin:8px 0 0;">
+        Per procedere, accetta i Termini di Servizio e la Privacy Policy.
+      </p>
+    </div>
+
     <p class="checkout-note">
       Pagamento sicuro con Stripe. Riceverai il codice di accesso all'email usata al checkout.<br>
       Domande? Scrivici a <a href="mailto:info@athlynk.it">info@athlynk.it</a>.
@@ -225,8 +235,20 @@
     const chironToggle = document.getElementById("chironToggle");
     const chironOn = () => chironToggle && chironToggle.getAttribute("aria-checked") === "true";
 
+    const acceptTerms = document.getElementById("acceptTerms");
+    const consentError = document.getElementById("consentError");
+    acceptTerms && acceptTerms.addEventListener("change", () => {
+      if (acceptTerms.checked && consentError) consentError.hidden = true;
+    });
+
     document.querySelectorAll("[data-checkout]").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (acceptTerms && !acceptTerms.checked) {
+          if (consentError) consentError.hidden = false;
+          document.getElementById("consentRow").scrollIntoView({ behavior: "smooth", block: "center" });
+          acceptTerms.focus();
+          return;
+        }
         const url = new URL(CHECKOUT_BASE);
         url.searchParams.set("plan", btn.dataset.plan);
         url.searchParams.set("chiron", chironOn() ? "1" : "0");

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
+from django.conf import settings
 import logging
 
 from domain.accounts.models import User, CoachProfile
@@ -121,6 +122,10 @@ def signup_view(request):
 
         if password != confirm_password:
             return render(request, 'pages/auth/signup.html', {'error': 'Le password non coincidono.'})
+        if request.POST.get('accept_terms') != 'on':
+            return render(request, 'pages/auth/signup.html', {
+                'error': 'Per registrarti devi accettare i Termini di Servizio e la Privacy Policy.',
+            }, status=400)
         if User.objects.filter(email__iexact=email).exists():
             return render(request, 'pages/auth/signup.html', {'error': 'Email già in uso. Accedi.'})
 
@@ -133,6 +138,8 @@ def signup_view(request):
             is_verified=False,
             email_verification_token=token,
             email_verification_sent_at=timezone.now(),
+            terms_accepted_at=timezone.now(),
+            terms_version=settings.CONSENT_VERSION,
         )
 
         CoachProfile.objects.create(
@@ -426,6 +433,13 @@ def activate_account_view(request):
                 'error': 'Le due password non coincidono.',
             }, status=400)
 
+        if request.POST.get('accept_terms') != 'on':
+            return render(request, 'pages/auth/set_password.html', {
+                'token': token_plain,
+                'email': token.user.email,
+                'error': 'Per attivare l\'account devi accettare i Termini di Servizio e la Privacy Policy.',
+            }, status=400)
+
         consumed = pwd_reset.consume_token(token_plain)
         if not consumed:
             return render(request, 'pages/auth/set_password.html', {'token_invalid': True}, status=400)
@@ -433,11 +447,11 @@ def activate_account_view(request):
         user = consumed.user
         user.password_hash = make_password(new_pw)
         # The activation link itself verifies the address — flip is_verified too.
-        if not user.is_verified:
-            user.is_verified = True
-            user.save(update_fields=['password_hash', 'is_verified'])
-        else:
-            user.save(update_fields=['password_hash'])
+        user.is_verified = True
+        if not user.terms_accepted_at:
+            user.terms_accepted_at = timezone.now()
+            user.terms_version = settings.CONSENT_VERSION
+        user.save(update_fields=['password_hash', 'is_verified', 'terms_accepted_at', 'terms_version'])
 
         return redirect(f"{reverse('login')}?activated=1")
 

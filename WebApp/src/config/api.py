@@ -349,6 +349,7 @@ def _user_dict(user):
         'last_name': last,
         'display_name': (f'{first} {last}'.strip() or user.email),
         'chiron_seen': bool(user.chiron_intro_seen),
+        'terms_accepted': user.terms_accepted,
     }
 
 
@@ -470,6 +471,17 @@ def me(request, user):
             'profile_image_url': img,
         }
     return JsonResponse(payload)
+
+
+@api_view(['POST'])
+def accept_terms(request, user):
+    """Record the signed-in user's acceptance of Terms of Service + Privacy Policy.
+    Idempotent — keeps the original acceptance timestamp once set."""
+    if not user.terms_accepted_at:
+        user.terms_accepted_at = timezone.now()
+        user.terms_version = settings.CONSENT_VERSION
+        user.save(update_fields=['terms_accepted_at', 'terms_version'])
+    return JsonResponse({'ok': True, 'terms_accepted': True})
 
 
 @api_view(['GET'])

@@ -40,14 +40,14 @@
     <link rel="stylesheet" href="{% static 'css/athlynk.css' %}?v={{ ASSET_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/cookie_banner.css' %}?v={{ ASSET_VERSION }}">
 </head>
-<body class="font-sans text-ink" style="background: var(--al-parchment); min-height: 100vh;">
+<body class="font-sans text-ink" style="background: var(--al-parchment); min-height: 100vh; overflow-x: hidden;">
   <header style="border-bottom: 1px solid var(--al-rule);">
-    <div class="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
+    <div class="max-w-4xl mx-auto px-5 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
       <a href="/" class="inline-flex items-center gap-2">
         <span class="al-mark" style="height: 24px; color: #14110d;"></span>
         <span class="al-display" style="font-size: 22px;">Athlynk</span>
       </a>
-      <nav class="flex items-center gap-5 text-[13px]">
+      <nav class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
         <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy</a>
         <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie</a>
         <a href="{% url 'ai_transparency' %}" class="al-link al-link-bronze">Trasparenza AI</a>
@@ -56,7 +56,7 @@
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-6 py-10">
+  <main class="max-w-4xl mx-auto px-5 sm:px-6 py-10" style="overflow-wrap: anywhere;">
     {% block legal_content %}{% endblock %}
   </main>
 

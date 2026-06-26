@@ -160,34 +160,37 @@ window._suppClients = {{ clients_json|json_js }};
     </div>
 
     <!-- Modal modelli -->
-    <div x-show="modelsOpen" x-cloak class="al-modal-backdrop" @click="modelsOpen = false"></div>
-    <div x-show="modelsOpen" x-cloak class="al-modal" style="max-width: 480px;">
-        <div class="al-modal-head">
-            <h3 class="al-h-3">I tuoi modelli</h3>
-            <button type="button" class="al-btn al-btn-icon al-btn-ghost" @click="modelsOpen = false"><i class="ph ph-x"></i></button>
-        </div>
-        <div class="al-modal-body" style="max-height: 420px; overflow-y: auto;">
-            <template x-if="modelsLoading">
-                <div class="al-empty" style="padding: 24px;"><i class="ph ph-spinner-gap animate-spin text-2xl"></i></div>
-            </template>
-            <template x-if="!modelsLoading && models.length === 0">
-                <div class="al-empty" style="padding: 28px 20px;">
-                    <i class="ph ph-bookmarks-simple text-3xl text-ink-line mb-2 block"></i>
-                    <p class="al-tag">Non hai ancora un integratore, creane uno.</p>
-                </div>
-            </template>
-            <div class="space-y-2">
-                <template x-for="m in models" :key="m.id">
-                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-marble" style="border: 1px solid var(--al-rule);">
-                        <button type="button" @click="addItem(m); modelsOpen = false" class="flex-1 text-left min-w-0">
-                            <p class="text-sm font-medium text-ink truncate" x-text="m.name"></p>
-                            <p class="al-tag mt-0.5" x-text="[ (m.quantity + ' ' + m.unit).trim(), m.timing ].filter(Boolean).join(' · ')"></p>
-                        </button>
-                        <button type="button" @click="deleteModel(m)" class="al-btn al-btn-icon al-btn-ghost" title="Elimina modello">
-                            <i class="ph ph-trash text-sm" style="color: var(--al-danger);"></i>
-                        </button>
+    <div x-show="modelsOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="al-modal-backdrop" @click="modelsOpen = false"></div>
+        <div class="al-modal-panel relative" style="max-width: 480px; width: 100%;">
+            <div class="al-modal-head flex items-center justify-between">
+                <h3 class="al-h-3">I tuoi modelli</h3>
+                <button type="button" class="al-btn-icon al-btn-ghost" @click="modelsOpen = false"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="al-modal-body" style="max-height: 420px; overflow-y: auto;">
+                <template x-if="modelsLoading">
+                    <div class="al-empty" style="padding: 24px;"><i class="ph ph-spinner-gap animate-spin text-2xl"></i></div>
+                </template>
+                <template x-if="!modelsLoading && models.length === 0">
+                    <div class="al-empty" style="padding: 28px 20px;">
+                        <i class="ph ph-bookmarks-simple text-3xl text-ink-line mb-2 block"></i>
+                        <p class="al-tag">Non hai ancora un integratore, creane uno.</p>
+                        <a href="{% url 'nutrizione_integratori_modelli' %}" class="al-link al-link-bronze mt-3 inline-block">Gestisci i tuoi modelli</a>
                     </div>
                 </template>
+                <div class="space-y-2">
+                    <template x-for="m in models" :key="m.id">
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-marble" style="border: 1px solid var(--al-rule);">
+                            <button type="button" @click="addItem(m); modelsOpen = false" class="flex-1 text-left min-w-0">
+                                <p class="text-sm font-medium text-ink truncate" x-text="m.name"></p>
+                                <p class="al-tag mt-0.5" x-text="[ (m.quantity + ' ' + m.unit).trim(), m.timing ].filter(Boolean).join(' · ')"></p>
+                            </button>
+                            <button type="button" @click="deleteModel(m)" class="al-btn-icon al-btn-ghost" title="Elimina modello">
+                                <i class="ph ph-trash text-sm" style="color: var(--al-danger);"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </div>

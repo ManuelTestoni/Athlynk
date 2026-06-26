@@ -1931,6 +1931,24 @@ def integratori_view(request):
     })
 
 
+def integratori_modelli_view(request):
+    """Coach's personal supplement models — compile once, reuse in any protocol."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+    models = coach.supplement_template_items.order_by('name')
+    models_json = json.dumps([{
+        'id': m.id, 'name': m.name, 'quantity': m.quantity or '',
+        'unit': m.unit or '', 'timing': m.timing or '', 'notes': m.notes or '',
+    } for m in models])
+    return render(request, 'pages/nutrizione/integratori_modelli.html', {
+        'models_json': models_json,
+    })
+
+
 def integratori_create_view(request):
     user = get_session_user(request)
     if not user:
@@ -2010,7 +2028,7 @@ def api_supplement_templates(request):
 
 @require_http_methods(["POST"])
 def api_supplement_save_template(request):
-    """Save one builder row as a reusable model for this coach."""
+    """Create (no id) or update (with id) a reusable supplement model for this coach."""
     coach = get_session_coach(request)
     if not get_session_user(request) or not coach:
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
@@ -2020,8 +2038,15 @@ def api_supplement_save_template(request):
         return JsonResponse({'error': 'JSON non valido'}, status=400)
     parsed = _parse_supplement_items([data])
     if not parsed:
-        return JsonResponse({'error': 'Inserisci il nome dell\'integratore prima di salvarlo come modello.'}, status=400)
-    model = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
+        return JsonResponse({'error': 'Inserisci il nome dell\'integratore.'}, status=400)
+    model_id = data.get('id')
+    if model_id:
+        model = get_object_or_404(SupplementTemplateItem, id=model_id, coach=coach)
+        for k, v in parsed[0].items():
+            setattr(model, k, v)
+        model.save()
+    else:
+        model = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
     return JsonResponse({'ok': True, 'id': model.id})
 
 

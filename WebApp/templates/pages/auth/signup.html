@@ -25,6 +25,7 @@
         professional_type: 'COACH',
         password: '',
         confirmPassword: '',
+        acceptTerms: false,
         get hasLen() { return this.password.length >= 12; },
         get hasLower() { return /[a-z]/.test(this.password); },
         get hasUpper() { return /[A-Z]/.test(this.password); },
@@ -110,14 +111,18 @@
         </span>
     </label>
 
-    <p class="al-small">
-        Creando l'account accetti la
-        <a href="{% url 'privacy' %}" class="al-link al-link-bronze">Privacy Policy</a>
-        e la
-        <a href="{% url 'cookie_policy' %}" class="al-link al-link-bronze">Cookie Policy</a>.
-    </p>
+    <!-- Accettazione obbligatoria Termini + Privacy (GDPR) -->
+    <label class="flex items-start gap-3 cursor-pointer pt-2">
+        <input type="checkbox" name="accept_terms" required x-model="acceptTerms" class="al-checkbox mt-0.5">
+        <span class="text-[13px] text-ink-soft leading-relaxed">
+            Ho letto e accetto i
+            <a href="{% url 'tos' %}" target="_blank" rel="noopener" class="al-link al-link-bronze">Termini di Servizio</a>
+            e la
+            <a href="{% url 'privacy' %}" target="_blank" rel="noopener" class="al-link al-link-bronze">Privacy Policy</a>.
+        </span>
+    </label>
 
-    <button type="submit" :disabled="!strong || !pwMatch" class="al-btn al-btn-lg w-full justify-center mt-2">
+    <button type="submit" :disabled="!strong || !pwMatch || !acceptTerms" class="al-btn al-btn-lg w-full justify-center mt-2">
         <span>Crea Account</span>
         <i class="ph ph-arrow-right text-sm"></i>
     </button>

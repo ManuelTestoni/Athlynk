@@ -124,6 +124,10 @@ final class APIClient {
         try decode(MeResponse.self, from: try await request("/api/v1/me"))
     }
 
+    func acceptTerms() async throws {
+        _ = try await request("/api/v1/accept-terms", method: "POST", body: [:])
+    }
+
     func workouts() async throws -> [WorkoutPlanDTO] {
         try decode(WorkoutsResponse.self, from: try await request("/api/v1/workouts")).plans
     }

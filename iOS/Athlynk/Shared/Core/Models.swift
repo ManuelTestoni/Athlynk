@@ -14,10 +14,17 @@ struct AuthUser: Codable, Identifiable, Hashable {
     let displayName: String
     /// Optional for back-compat with servers that predate the field.
     let chironSeen: Bool?
+    /// Whether the user has accepted Terms of Service + Privacy Policy.
+    /// Optional for back-compat; nil is treated as "already accepted" so older
+    /// servers don't trap users behind the consent gate.
+    let termsAccepted: Bool?
 
     var isClient: Bool { role.uppercased() == "CLIENT" }
     /// First-login mascot tutorial should run only for clients who haven't met Chiron.
     var needsChironIntro: Bool { isClient && (chironSeen != true) }
+    /// Gate the app until the user has consented, but only when the server
+    /// actually told us they haven't (false) — never on a missing field.
+    var needsTermsConsent: Bool { termsAccepted == false }
 
     enum CodingKeys: String, CodingKey {
         case id, email, role
@@ -25,6 +32,7 @@ struct AuthUser: Codable, Identifiable, Hashable {
         case lastName = "last_name"
         case displayName = "display_name"
         case chironSeen = "chiron_seen"
+        case termsAccepted = "terms_accepted"
     }
 }
 
