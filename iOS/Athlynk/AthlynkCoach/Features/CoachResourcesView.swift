@@ -111,6 +111,18 @@ struct CoachSupplementsView: View {
             }
             .buttonStyle(.plain)
 
+            NavigationLink { CoachSupplementModelsView() } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "bookmark.fill").font(.system(size: 15, weight: .bold))
+                    Text("I miei modelli").font(Typo.body(15, .semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.textLow)
+                }
+                .foregroundStyle(Palette.textHi)
+                .frame(maxWidth: .infinity).padding(.horizontal, 16).padding(.vertical, 13).voltPanel(radius: 14)
+            }
+            .buttonStyle(.plain)
+
             if loading && protocols.isEmpty {
                 ForEach(0..<3, id: \.self) { _ in SkelLinkRow(accent: Palette.lime) }
             } else if protocols.isEmpty {
@@ -440,5 +452,190 @@ struct CoachSupplementAssignView: View {
     private func assign(_ c: CoachClientRow) async {
         do { try await APIClient.shared.coachAssignSupplement(id: protocolId, clientId: c.id); onAssigned(); dismiss() }
         catch { self.error = error.localizedDescription }
+    }
+}
+
+// MARK: - I miei modelli (coach supplement models)
+
+struct CoachSupplementModelsView: View {
+    @State private var models: [CoachSupplementModel] = []
+    @State private var loading = true
+    @State private var error: String?
+    @State private var editing: CoachSupplementModel?
+    @State private var showEditor = false
+    @State private var deleteTarget: CoachSupplementModel?
+
+    var body: some View {
+        ScreenScroll {
+            ScreenHeader(eyebrow: "Studio", title: "I miei modelli",
+                         subtitle: "Compila una volta, riusa in ogni protocollo", accent: Palette.lime)
+
+            Button { Haptics.tap(); editing = nil; showEditor = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: 18, weight: .bold))
+                    Text("Nuovo modello").font(Typo.body(15, .semibold))
+                }
+                .foregroundStyle(Palette.lime)
+                .frame(maxWidth: .infinity).padding(.vertical, 14).voltPanel(radius: 14)
+            }
+            .buttonStyle(.plain)
+
+            if loading && models.isEmpty {
+                ForEach(0..<3, id: \.self) { _ in SkelLinkRow(accent: Palette.lime) }
+            } else if models.isEmpty {
+                Text("Non hai ancora un integratore, creane uno.")
+                    .font(Typo.body(14)).foregroundStyle(Palette.textLow)
+                    .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 24)
+            } else {
+                ForEach(models) { m in row(m) }
+            }
+        }
+        .navigationTitle("Modelli")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+        .refreshable { await load() }
+        .sheet(isPresented: $showEditor) {
+            CoachSupplementModelEditor(existing: editing) { Task { await load() } }
+        }
+        .confirmationDialog("Eliminare il modello?", isPresented: .init(
+            get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }
+        ), titleVisibility: .visible) {
+            Button("Elimina", role: .destructive) { if let m = deleteTarget { Task { await remove(m) } } }
+            Button("Annulla", role: .cancel) { deleteTarget = nil }
+        }
+        .alert("Errore", isPresented: .init(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(error ?? "") }
+    }
+
+    private func row(_ m: CoachSupplementModel) -> some View {
+        HStack(spacing: 12) {
+            Button { Haptics.tap(); editing = m; showEditor = true } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(m.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
+                    Text([("\(m.quantity) \(m.unit)").trimmingCharacters(in: .whitespaces), m.timing]
+                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(Typo.mono(11)).foregroundStyle(Palette.textLow)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            Menu {
+                Button { editing = m; showEditor = true } label: { Label("Modifica", systemImage: "pencil") }
+                Button(role: .destructive) { deleteTarget = m } label: { Label("Elimina", systemImage: "trash") }
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Palette.textMid).frame(width: 36, height: 36)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12).voltPanel()
+    }
+
+    private func load() async {
+        loading = true; defer { loading = false }
+        do { models = try await APIClient.shared.coachSupplementModels() }
+        catch { self.error = error.localizedDescription }
+    }
+
+    private func remove(_ m: CoachSupplementModel) async {
+        deleteTarget = nil
+        do { try await APIClient.shared.coachDeleteSupplementModel(id: m.id); await load() }
+        catch { self.error = error.localizedDescription }
+    }
+}
+
+struct CoachSupplementModelEditor: View {
+    let existing: CoachSupplementModel?
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var quantity = ""
+    @State private var unit = "g"
+    @State private var timing = ""
+    @State private var notes = ""
+    @State private var saving = false
+    @State private var error: String?
+    @State private var loaded = false
+
+    var body: some View {
+        NavigationStack {
+            ScreenScroll {
+                field("Nome", $name, placeholder: "Es. Creatina monoidrato")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("DOSE").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                    HStack(spacing: 8) {
+                        TextField("", text: $quantity, prompt: Text("Quantità").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(16)).foregroundStyle(Palette.textHi).tint(Palette.lime)
+                            .padding(.horizontal, 14).padding(.vertical, 13).voltPanel(radius: 12)
+                        Menu {
+                            ForEach(kSupplementUnits, id: \.self) { u in Button(u) { unit = u } }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(unit.isEmpty ? "g" : unit).font(Typo.mono(14, .bold))
+                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundStyle(Palette.textHi).padding(.horizontal, 14).padding(.vertical, 14).voltPanel(radius: 12)
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("QUANDO").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                    HStack(spacing: 8) {
+                        TextField("", text: $timing, prompt: Text("Quando").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(16)).foregroundStyle(Palette.textHi).tint(Palette.lime)
+                            .padding(.horizontal, 14).padding(.vertical, 13).voltPanel(radius: 12)
+                        Menu {
+                            ForEach(kSupplementTimings, id: \.self) { t in Button(t) { timing = t } }
+                        } label: {
+                            Image(systemName: "clock.fill").font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(Palette.textMid).frame(width: 48, height: 48).voltPanel(radius: 12)
+                        }
+                    }
+                }
+                field("Note", $notes, placeholder: "Note (facoltative)")
+            }
+            .navigationTitle(existing == nil ? "Nuovo modello" : "Modifica modello")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? "…" : "Salva") { Task { await save() } }.disabled(saving)
+                }
+            }
+            .alert("Errore", isPresented: .init(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: { Text(error ?? "") }
+            .onAppear(perform: hydrate)
+        }
+    }
+
+    private func field(_ label: String, _ text: Binding<String>, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label.uppercased()).font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+            TextField("", text: text, prompt: Text(placeholder).foregroundStyle(Palette.textLow))
+                .font(Typo.body(16)).foregroundStyle(Palette.textHi).tint(Palette.lime)
+                .padding(.horizontal, 14).padding(.vertical, 13).voltPanel(radius: 12)
+        }
+    }
+
+    private func hydrate() {
+        guard !loaded else { return }
+        loaded = true
+        if let e = existing {
+            name = e.name; quantity = e.quantity; unit = e.unit.isEmpty ? "g" : e.unit
+            timing = e.timing; notes = e.notes
+        }
+    }
+
+    private func save() async {
+        if name.trimmingCharacters(in: .whitespaces).isEmpty { error = "Inserisci il nome dell'integratore."; return }
+        saving = true; defer { saving = false }
+        var payload: [String: Any] = ["name": name, "quantity": quantity, "unit": unit, "timing": timing, "notes": notes]
+        if let id = existing?.id { payload["id"] = id }
+        do {
+            _ = try await APIClient.shared.coachSaveSupplementModel(payload)
+            onSaved(); dismiss()
+        } catch { self.error = error.localizedDescription }
     }
 }

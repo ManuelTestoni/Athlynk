@@ -2205,10 +2205,20 @@ def coach_supplement_template_save(request, user):
     if err:
         return err
     from .views_nutrition import _parse_supplement_items
-    parsed = _parse_supplement_items([_body(request)])
+    data = _body(request)
+    parsed = _parse_supplement_items([data])
     if not parsed:
         return JsonResponse({'error': "Inserisci il nome dell'integratore."}, status=400)
-    m = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
+    model_id = data.get('id')
+    if model_id:
+        m = SupplementTemplateItem.objects.filter(id=model_id, coach=coach).first()
+        if not m:
+            return JsonResponse({'error': 'Modello non trovato'}, status=404)
+        for k, v in parsed[0].items():
+            setattr(m, k, v)
+        m.save()
+    else:
+        m = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
     return JsonResponse({'ok': True, 'id': m.id})
 
 
