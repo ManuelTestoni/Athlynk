@@ -962,9 +962,12 @@ function nutritionWizard() {
     },
 
     /* Info-step card: pick an athlete and pull their computed fabbisogni. */
+    fabClientsAll() {
+      return this.clientsAll.filter(c => c.has_fab);
+    },
     fabFilteredClients() {
       const q = (this.fabSearch || '').toLowerCase();
-      return this.clientsAll.filter(c => !q || (c.name || '').toLowerCase().includes(q));
+      return this.fabClientsAll().filter(c => !q || (c.name || '').toLowerCase().includes(q));
     },
     async pickFabClient(c) {
       this.fabClient = c;

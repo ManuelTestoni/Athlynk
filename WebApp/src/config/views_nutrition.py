@@ -74,7 +74,29 @@ def _serialize_history_assignment(a, macros):
         'kcal': m['kcal'], 'prot': m['prot'], 'carb': m['carb'], 'fat': m['fat'],
     }
 from domain.accounts.models import ClientProfile
+from domain.checks.models import QuestionnaireResponse
 from config.services.email import send_nutrition_assigned
+
+
+def _fabbisogni_client_ids(coach):
+    """Client ids with at least one response containing the «Calcolo Fabbisogni»
+    tool — directly or inside a questionnaire (e.g. Prima Valutazione)."""
+    found = set()
+    responses = (QuestionnaireResponse.objects
+                 .filter(coach=coach)
+                 .select_related('questionnaire_template')
+                 .only('client_id', 'questions_snapshot',
+                       'questionnaire_template__questions_config'))
+    for r in responses:  # ponytail: linear scan; add config-flag column if it gets slow
+        if r.client_id in found:
+            continue
+        qs = r.questions_snapshot
+        if qs is None:
+            tpl = r.questionnaire_template
+            qs = (tpl.questions_config or []) if tpl else []
+        if any((q or {}).get('type') == 'strumento_fabbisogni' for q in (qs or [])):
+            found.add(r.client_id)
+    return found
 
 
 WEEKDAY_MAP = {
@@ -353,8 +375,11 @@ def nutrizione_piano_create_view(request):
             coaching_relationships_as_client__status='ACTIVE'
         ).select_related('user')
     )
+    fab_client_ids = _fabbisogni_client_ids(coach)
     clients_json = json.dumps([
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+        {'id': c.id,
+         'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
+         'has_fab': c.id in fab_client_ids}
         for c in clients
     ])
 
@@ -409,8 +434,11 @@ def nutrizione_piano_edit_view(request, plan_id):
             coaching_relationships_as_client__status='ACTIVE'
         ).select_related('user')
     )
+    fab_client_ids = _fabbisogni_client_ids(coach)
     clients_json = json.dumps([
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+        {'id': c.id,
+         'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
+         'has_fab': c.id in fab_client_ids}
         for c in clients
     ])
 

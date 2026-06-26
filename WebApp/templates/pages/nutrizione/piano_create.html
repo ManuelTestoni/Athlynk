@@ -182,7 +182,7 @@ window.NUTRITION_WIZARD_INIT = {
           <button type="button"
                   @click="jumpTo(s.id)"
                   :disabled="!canJump(s.id)"
-                  class="flex items-center gap-2.5 min-w-0"
+                  class="flex items-center gap-2.5"
                   :style="canJump(s.id) ? 'cursor: pointer;' : 'cursor: not-allowed; opacity: 0.55;'">
             <span class="flex items-center justify-center font-mono shrink-0 transition-all"
                   :style="stepBadgeStyle(s.id)">
@@ -193,9 +193,9 @@ window.NUTRITION_WIZARD_INIT = {
                 <span x-text="idx + 1" style="font-size: 11px; font-weight: 700;"></span>
               </template>
             </span>
-            <div class="min-w-0 hidden sm:block">
+            <div class="hidden sm:block">
               <p class="al-tag" style="font-size: 9px;" x-text="s.eyebrow"></p>
-              <p class="text-[13px] font-medium truncate"
+              <p class="text-[13px] font-medium whitespace-nowrap"
                  :style="stepState(s.id) === 'future' ? 'color: var(--al-ink-line);' : 'color: var(--al-ink);'"
                  x-text="s.label"></p>
             </div>
@@ -346,7 +346,7 @@ window.NUTRITION_WIZARD_INIT = {
               </template>
               <div class="nz-athlete-empty" x-show="fabFilteredClients().length === 0">
                 <i class="ph ph-user-circle-minus"></i>
-                <p>Nessun atleta.</p>
+                <p x-text="fabClientsAll().length === 0 ? 'Non hai ancora compilato i fabbisogni per i tuoi atleti.' : 'Nessun atleta.'"></p>
               </div>
             </div>
 
