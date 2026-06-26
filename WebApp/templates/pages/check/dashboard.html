@@ -215,7 +215,7 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                     <tr>
                         <th>Atleta</th>
                         <th>Ultimo check</th>
-                        <th>Peso</th>
+                        <th>Nome check</th>
                         <th>Stato</th>
                         <th class="text-right">&nbsp;</th>
                     </tr>
@@ -243,8 +243,10 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
                                     <template x-if="!r.latest_check_at"><span class="al-tag">Nessun check</span></template>
                                 </td>
                                 <td>
-                                    <template x-if="r.latest_weight"><span class="font-mono font-medium text-ink" x-text="r.latest_weight + ' kg'"></span></template>
-                                    <template x-if="!r.latest_weight"><span class="al-tag">—</span></template>
+                                    <template x-if="r.latest_check_name">
+                                        <span class="block max-w-[220px] truncate font-medium text-ink" x-text="r.latest_check_name" :title="r.latest_check_name"></span>
+                                    </template>
+                                    <template x-if="!r.latest_check_name"><span class="al-tag">—</span></template>
                                 </td>
                                 <td>
                                     <template x-if="r.status === 'da_revisionare'">

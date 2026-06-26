@@ -21,7 +21,7 @@ from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case,
 from domain.nutrition.models import (
     Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
     NutritionAssignment, DietDay, ClientMacroLogEntry,
-    Supplement, SupplementSheet, SupplementSheetItem, SupplementAssignment,
+    SupplementProtocol, SupplementItem, SupplementProtocolAssignment, SupplementTemplateItem,
 )
 
 
@@ -243,10 +243,10 @@ def nutrizione_piani_view(request):
         past_data = [_serialize_history_assignment(a, macros) for a in past_first]
 
         supp_assignment = (
-            SupplementAssignment.objects
+            SupplementProtocolAssignment.objects
             .filter(client=client, coach=nutrition_coach, status='ACTIVE')
-            .select_related('sheet')
-            .prefetch_related('sheet__items__supplement')
+            .select_related('protocol')
+            .prefetch_related('protocol__items')
             .order_by('-assigned_at')
             .first()
         )
@@ -351,11 +351,14 @@ def nutrizione_piani_view(request):
         ])
         cache.set(_nkey, (plans_payload, folders_payload, clients_json), 300)
 
-    return render(request, 'pages/nutrizione/piani_list.html', {
+    response = render(request, 'pages/nutrizione/piani_list.html', {
         'plans_json': json.dumps(plans_payload),
         'folders_json': json.dumps(folders_payload),
         'clients_json': clients_json,
     })
+    # Prevent the browser bfcache from restoring a stale list after a delete.
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 def nutrizione_piano_create_view(request):
@@ -536,11 +539,11 @@ def nutrizione_piano_edit_view(request, plan_id):
     sheet = plan.supplement_sheet
     if sheet:
         supplements_data['notes'] = sheet.notes or ''
-        for it in sheet.items.select_related('supplement').order_by('order'):
+        for it in sheet.items.order_by('order', 'id'):
             supplements_data['items'].append({
-                'supplement_id': it.supplement_id,
-                'supplement_name': it.supplement.name,
-                'dose': it.dose,
+                'name': it.name,
+                'quantity': it.quantity or '',
+                'unit': it.unit or '',
                 'timing': it.timing or '',
                 'notes': it.notes or '',
             })
@@ -1060,24 +1063,22 @@ def api_plan_supplements(request, plan_id):
     except ValueError:
         return JsonResponse({'error': 'JSON non valido'}, status=400)
 
-    items_raw = data.get('items') or []
     notes = data.get('notes') or ''
+    items = _parse_supplement_items(data.get('items'))
 
     with transaction.atomic():
-        if not items_raw:
-            sheet = plan.supplement_sheet
-            if sheet and not sheet.assignments.exists():
+        sheet = plan.supplement_sheet
+        if not items:
+            if sheet:
                 plan.supplement_sheet = None
                 plan.save(update_fields=['supplement_sheet'])
-                sheet.delete()
-            elif sheet:
-                plan.supplement_sheet = None
-                plan.save(update_fields=['supplement_sheet'])
+                # Drop the protocol only if no athlete is relying on it standalone.
+                if not sheet.assignments.exists():
+                    sheet.delete()
             return JsonResponse({'ok': True, 'sheet': None})
 
-        sheet = plan.supplement_sheet
         if sheet is None:
-            sheet = SupplementSheet.objects.create(
+            sheet = SupplementProtocol.objects.create(
                 coach=coach,
                 title=f'Integrazione · {plan.title}'[:200],
                 notes=notes,
@@ -1089,38 +1090,10 @@ def api_plan_supplements(request, plan_id):
             sheet.save(update_fields=['notes', 'updated_at'])
             sheet.items.all().delete()
 
-        for order, raw in enumerate(items_raw):
-            sup_id = raw.get('supplement_id')
-            if not sup_id:
-                continue
-            try:
-                supplement = Supplement.objects.get(id=int(sup_id))
-            except (Supplement.DoesNotExist, ValueError, TypeError):
-                continue
-            SupplementSheetItem.objects.create(
-                sheet=sheet,
-                supplement=supplement,
-                dose=(raw.get('dose') or '').strip(),
-                timing=(raw.get('timing') or '').strip() or None,
-                notes=(raw.get('notes') or '').strip() or None,
-                order=order,
-            )
+        for order, it in enumerate(items):
+            SupplementItem.objects.create(protocol=sheet, order=order, **it)
 
-    return JsonResponse({
-        'ok': True,
-        'sheet': {
-            'id': sheet.id, 'title': sheet.title, 'notes': sheet.notes or '',
-            'items': [
-                {
-                    'id': it.id, 'supplement_id': it.supplement_id,
-                    'supplement_name': it.supplement.name,
-                    'dose': it.dose, 'timing': it.timing or '',
-                    'notes': it.notes or '', 'order': it.order,
-                }
-                for it in sheet.items.select_related('supplement').order_by('order')
-            ],
-        },
-    })
+    return JsonResponse({'ok': True, 'sheet': _serialize_protocol(sheet)})
 
 
 # ─── API ────────────────────────────────────────────────────────────────────────
@@ -1878,6 +1851,45 @@ def _clients_json(coach):
     ])
 
 
+VALID_SUPPLEMENT_UNITS = {'mg', 'g', 'cps'}
+
+
+def _clean_unit(v):
+    v = (v or '').strip()
+    return v if v in VALID_SUPPLEMENT_UNITS else ''
+
+
+def _parse_supplement_items(items_raw):
+    """Validate/normalize free-text supplement rows. Rows without a name are skipped."""
+    items = []
+    for raw in items_raw or []:
+        name = (raw.get('name') or '').strip()
+        if not name:
+            continue
+        items.append({
+            'name': name[:200],
+            'quantity': (raw.get('quantity') or '').strip()[:50],
+            'unit': _clean_unit(raw.get('unit')),
+            'timing': (raw.get('timing') or '').strip()[:120],
+            'notes': (raw.get('notes') or '').strip(),
+        })
+    return items
+
+
+def _serialize_protocol(p):
+    return {
+        'id': p.id, 'title': p.title, 'notes': p.notes or '',
+        'items': [
+            {
+                'id': it.id, 'name': it.name, 'quantity': it.quantity or '',
+                'unit': it.unit or '', 'timing': it.timing or '',
+                'notes': it.notes or '', 'order': it.order,
+            }
+            for it in p.items.order_by('order', 'id')
+        ],
+    }
+
+
 def integratori_view(request):
     user = get_session_user(request)
     if not user:
@@ -1886,14 +1898,14 @@ def integratori_view(request):
     if not coach:
         return redirect('login')
 
-    sheets = (
-        coach.supplement_sheets
-        .prefetch_related('items__supplement', 'assignments')
-        .order_by('-created_at')
+    protocols = (
+        coach.supplement_protocols
+        .prefetch_related('items', 'assignments')
+        .order_by('-updated_at')
     )
     sheets_data = []
     sheets_json_data = []
-    for s in sheets:
+    for s in protocols:
         item_count = s.items.count()
         assigned_count = s.assignments.filter(status='ACTIVE').count()
         sheets_data.append({
@@ -1945,25 +1957,14 @@ def integratori_edit_view(request, sheet_id):
     if not coach:
         return redirect('dashboard')
 
-    sheet = get_object_or_404(SupplementSheet, id=sheet_id, coach=coach)
+    sheet = get_object_or_404(SupplementProtocol, id=sheet_id, coach=coach)
 
     if request.method == 'POST':
         return _handle_sheet_save(request, coach, sheet=sheet)
 
-    items_data = []
-    for item in sheet.items.select_related('supplement').all():
-        items_data.append({
-            'supplement_id': item.supplement_id,
-            'supplement_name': item.supplement.name,
-            'supplement_unit': item.supplement.unit,
-            'dose': item.dose,
-            'timing': item.timing or '',
-            'notes': item.notes or '',
-        })
-
     return render(request, 'pages/nutrizione/integratori_create.html', {
         'sheet': sheet,
-        'items_json': json.dumps(items_data),
+        'items_json': json.dumps(_serialize_protocol(sheet)['items']),
         'clients_json': _clients_json(coach),
     })
 
@@ -1976,8 +1977,8 @@ def integratori_detail_view(request, sheet_id):
     if not coach:
         return redirect('dashboard')
 
-    sheet = get_object_or_404(SupplementSheet, id=sheet_id, coach=coach)
-    items = sheet.items.select_related('supplement').all()
+    sheet = get_object_or_404(SupplementProtocol, id=sheet_id, coach=coach)
+    items = sheet.items.order_by('order', 'id')
     assignments = sheet.assignments.filter(status='ACTIVE').select_related('client')
 
     return render(request, 'pages/nutrizione/integratori_detail.html', {
@@ -1988,31 +1989,50 @@ def integratori_detail_view(request, sheet_id):
     })
 
 
-def api_supplement_search(request):
+def api_supplement_templates(request):
+    """Coach's saved supplement "modelli" — used by the builder's models picker."""
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
 
-    q = request.GET.get('q', '').strip()
-    category = request.GET.get('cat', '').strip()
-
-    supps = Supplement.objects.all()
-    if q:
-        supps = supps.filter(name__icontains=q)
-    if category:
-        supps = supps.filter(category=category)
-    supps = supps[:30]
-
+    models = coach.supplement_template_items.order_by('name')
     return JsonResponse({'results': [
         {
-            'id': s.id,
-            'name': s.name,
-            'category': s.category or '',
-            'unit': s.unit,
-            'description': s.description or '',
+            'id': m.id, 'name': m.name, 'quantity': m.quantity or '',
+            'unit': m.unit or '', 'timing': m.timing or '', 'notes': m.notes or '',
         }
-        for s in supps
+        for m in models
     ]})
+
+
+@require_http_methods(["POST"])
+def api_supplement_save_template(request):
+    """Save one builder row as a reusable model for this coach."""
+    coach = get_session_coach(request)
+    if not get_session_user(request) or not coach:
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON non valido'}, status=400)
+    parsed = _parse_supplement_items([data])
+    if not parsed:
+        return JsonResponse({'error': 'Inserisci il nome dell\'integratore prima di salvarlo come modello.'}, status=400)
+    model = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
+    return JsonResponse({'ok': True, 'id': model.id})
+
+
+@require_http_methods(["POST"])
+def api_supplement_template_delete(request, item_id):
+    coach = get_session_coach(request)
+    if not get_session_user(request) or not coach:
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    model = get_object_or_404(SupplementTemplateItem, id=item_id, coach=coach)
+    model.delete()
+    return JsonResponse({'ok': True})
 
 
 @require_http_methods(["POST"])
@@ -2024,7 +2044,7 @@ def api_sheet_assign(request, sheet_id):
     if not coach:
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
 
-    sheet = get_object_or_404(SupplementSheet, id=sheet_id, coach=coach)
+    sheet = get_object_or_404(SupplementProtocol, id=sheet_id, coach=coach)
     try:
         data = json.loads(request.body)
         client_id = int(data.get('client_id', 0))
@@ -2036,16 +2056,15 @@ def api_sheet_assign(request, sheet_id):
     if not rel:
         return JsonResponse({'error': 'Atleta non associato'}, status=403)
 
-    SupplementAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
-    assignment = SupplementAssignment.objects.create(
-        sheet=sheet, client=client, coach=coach, status='ACTIVE',
-        notes=data.get('notes', '') or None,
+    SupplementProtocolAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
+    assignment = SupplementProtocolAssignment.objects.create(
+        protocol=sheet, client=client, coach=coach, status='ACTIVE',
     )
     Notification.objects.create(
         target_user=client.user,
         notification_type='SUPPLEMENT_ASSIGNED',
-        title='Nuova scheda integratori',
-        body=f'Ti è stata assegnata la scheda "{sheet.name}".',
+        title='Nuovo protocollo integratori',
+        body=f'Ti è stato assegnato il protocollo "{sheet.title}".',
         link_url='/nutrizione/integratori/',
     )
     return JsonResponse({'ok': True, 'assignment_id': assignment.id})
@@ -2059,7 +2078,7 @@ def api_sheet_delete(request, sheet_id):
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
-    sheet = get_object_or_404(SupplementSheet, id=sheet_id, coach=coach)
+    sheet = get_object_or_404(SupplementProtocol, id=sheet_id, coach=coach)
     sheet.delete()
     return JsonResponse({'ok': True})
 
@@ -2070,42 +2089,27 @@ def _handle_sheet_save(request, coach, sheet):
     except ValueError:
         return JsonResponse({'error': 'JSON non valido'}, status=400)
 
-    title = data.get('title', '').strip()
+    title = (data.get('title') or '').strip()
     if not title:
-        return JsonResponse({'error': 'Titolo obbligatorio'}, status=400)
+        return JsonResponse({'error': 'Inserisci un titolo per il protocollo.'}, status=400)
 
-    items_raw = data.get('items', [])
+    items = _parse_supplement_items(data.get('items'))
+    if not items:
+        return JsonResponse({'error': 'Aggiungi almeno un integratore.'}, status=400)
 
     with transaction.atomic():
         if sheet is None:
-            sheet = SupplementSheet.objects.create(
-                coach=coach,
-                title=title,
-                notes=data.get('notes', '') or None,
+            sheet = SupplementProtocol.objects.create(
+                coach=coach, title=title[:200], notes=data.get('notes') or '',
             )
         else:
-            sheet.title = title
-            sheet.notes = data.get('notes', '') or None
-            sheet.save()
+            sheet.title = title[:200]
+            sheet.notes = data.get('notes') or ''
+            sheet.save(update_fields=['title', 'notes', 'updated_at'])
             sheet.items.all().delete()
 
-        for order, item_data in enumerate(items_raw):
-            supp_id = item_data.get('supplement_id')
-            dose = item_data.get('dose', '').strip()
-            if not supp_id or not dose:
-                continue
-            try:
-                supp = Supplement.objects.get(id=supp_id)
-            except Supplement.DoesNotExist:
-                continue
-            SupplementSheetItem.objects.create(
-                sheet=sheet,
-                supplement=supp,
-                dose=dose,
-                timing=item_data.get('timing', '') or None,
-                notes=item_data.get('notes', '') or None,
-                order=order,
-            )
+        for order, it in enumerate(items):
+            SupplementItem.objects.create(protocol=sheet, order=order, **it)
 
     return JsonResponse({'ok': True, 'sheet_id': sheet.id})
 
@@ -2328,30 +2332,26 @@ def api_diet_import_confirm(request):
                                 order=sub_idx,
                             )
 
-            # Persisti integratori in una SupplementSheet collegata
-            supplements_in = diet_json.get('supplements') or []
-            valid_supps = [s for s in supplements_in if s.get('supplement_id')]
-            if valid_supps:
-                sheet = SupplementSheet.objects.create(
+            # Persisti integratori (free-text) in un SupplementProtocol collegato.
+            # L'import usa "dose" come quantità libera (es. "5 g", "2 cps").
+            imported_items = _parse_supplement_items([
+                {
+                    'name': s.get('name'),
+                    'quantity': s.get('dose'),
+                    'timing': s.get('timing'),
+                    'notes': s.get('notes'),
+                }
+                for s in (diet_json.get('supplements') or [])
+            ])
+            if imported_items:
+                sheet = SupplementProtocol.objects.create(
                     coach=coach,
                     title=f'Integrazione · {plan.title}'[:200],
-                    notes=None,
                 )
                 plan.supplement_sheet = sheet
                 plan.save(update_fields=['supplement_sheet'])
-                for s_idx, s_in in enumerate(valid_supps):
-                    try:
-                        sup_obj = Supplement.objects.get(id=int(s_in.get('supplement_id')))
-                    except (Supplement.DoesNotExist, ValueError, TypeError):
-                        continue
-                    SupplementSheetItem.objects.create(
-                        sheet=sheet,
-                        supplement=sup_obj,
-                        dose=(s_in.get('dose') or '').strip()[:100],
-                        timing=(s_in.get('timing') or '').strip() or None,
-                        notes=(s_in.get('notes') or '').strip() or None,
-                        order=s_idx,
-                    )
+                for s_idx, it in enumerate(imported_items):
+                    SupplementItem.objects.create(protocol=sheet, order=s_idx, **it)
 
             assignment_id = None
             if assign_now and client:

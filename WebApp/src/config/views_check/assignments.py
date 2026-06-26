@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.db.models import Q, Count, OuterRef, Subquery
+from django.db.models import Q, Count, OuterRef, Subquery, JSONField
 from django.core.files.storage import default_storage
 from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
@@ -89,6 +89,32 @@ def api_check_search(request):
     })
 
 
+def _json_filled(v):
+    """True when a JSONField subquery value holds real data (dict on Postgres,
+    JSON string on sqlite)."""
+    if not v:
+        return False
+    if isinstance(v, str):
+        return v.strip() not in ('', '{}', 'null')
+    return bool(v)
+
+
+def _latest_check_name(rel):
+    """Display name for a client's most recent check. Single measurements have no
+    template title, so synthesize "Misurazione Singola - Pliche/Peso/Circonferenze"
+    from whichever metric was recorded."""
+    from .helpers import QUICK_MEASUREMENT_TYPE
+    if rel.latest_qtype == QUICK_MEASUREMENT_TYPE:
+        if _json_filled(rel.latest_skinfolds):
+            sub = 'Pliche'
+        elif _json_filled(rel.latest_circumferences):
+            sub = 'Circonferenze'
+        else:
+            sub = 'Peso'
+        return f'Misurazione Singola - {sub}'
+    return rel.latest_title or 'Check'
+
+
 def api_coach_clients_check_status(request):
     """Unique athletes for this coach with their latest check status."""
     user = get_session_user(request)
@@ -117,6 +143,10 @@ def api_coach_clients_check_status(request):
     relationships = relationships.annotate(
         latest_submitted_at=Subquery(latest_sq.values('submitted_at')[:1]),
         latest_weight_kg=Subquery(latest_sq.values('weight_kg')[:1]),
+        latest_title=Subquery(latest_sq.values('questionnaire_template__title')[:1]),
+        latest_qtype=Subquery(latest_sq.values('questionnaire_template__questionnaire_type')[:1]),
+        latest_skinfolds=Subquery(latest_sq.values('skinfolds')[:1], output_field=JSONField()),
+        latest_circumferences=Subquery(latest_sq.values('body_circumferences')[:1], output_field=JSONField()),
         pending_count=Count(
             'client__questionnaire_responses',
             filter=Q(client__questionnaire_responses__coach=coach,
@@ -129,7 +159,6 @@ def api_coach_clients_check_status(request):
         client = rel.client
         pending_count = rel.pending_count or 0
         latest_submitted_at = rel.latest_submitted_at
-        latest_weight_kg = rel.latest_weight_kg
 
         if pending_count > 0:
             status_val = 'da_revisionare'
@@ -148,7 +177,7 @@ def api_coach_clients_check_status(request):
             'pending_count': pending_count,
             'status': status_val,
             'latest_check_at': latest_submitted_at.strftime('%-d %b %Y') if latest_submitted_at else None,
-            'latest_weight': str(latest_weight_kg) if latest_weight_kg else None,
+            'latest_check_name': _latest_check_name(rel) if latest_submitted_at else None,
         })
 
     # da_revisionare first, then by latest check desc

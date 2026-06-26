@@ -33,7 +33,6 @@ window.NUTRITION_WIZARD_INIT = {
     create: "{% url 'nutrizione_piano_create' %}",
     editPattern: "/nutrizione/piani/__ID__/modifica/",
     foodSearch: "{% url 'nutrizione_food_search' %}",
-    supplementSearch: "{% url 'nutrizione_supplement_search' %}",
     assignPattern: "/api/nutrizione/piani/__ID__/assegna/",
     detailPattern: "/nutrizione/piani/__ID__/",
     piani: "{% url 'nutrizione_piani' %}",
@@ -121,8 +120,7 @@ window.NUTRITION_WIZARD_INIT = {
 <div class="max-w-6xl mx-auto"
      x-data="nutritionWizard()"
      x-init="init()"
-     @keydown.escape.window="assignModal=false"
-     @pick-supplement.window="applySupplementPick($event.detail.suppKey, $event.detail.supplement)">
+     @keydown.escape.window="assignModal=false">
 
   <!-- =================== BREADCRUMB =================== -->
   <nav class="al-tag flex items-center gap-2 mb-5">
@@ -831,10 +829,11 @@ window.NUTRITION_WIZARD_INIT = {
                   </div>
 
                   <!-- Add food → opens the left slide-in panel -->
-                  <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);">
+                  <div class="px-5 py-3 flex justify-start" style="border-top: 1px solid var(--al-rule);">
                     <button type="button" @click="openFoodPanel(meal._key)"
-                            class="al-btn al-btn-ghost w-full" style="border-style: dashed;">
-                      <i class="ph ph-plus"></i><span>Aggiungi alimento</span>
+                            class="al-btn al-btn-ghost w-9 h-9 inline-flex items-center justify-center rounded-lg p-0"
+                            title="Aggiungi alimento" aria-label="Aggiungi alimento">
+                      <i class="ph ph-plus"></i>
                     </button>
                   </div>
                 </div>
@@ -1536,50 +1535,25 @@ window.NUTRITION_WIZARD_INIT = {
                     x-text="String(idx + 1).padStart(2, '0')"></span>
 
               <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-3">
-                <div x-data="supplementPicker(supp._key, supp.supplement_name)">
+                <div>
                   <label class="al-label">Integratore</label>
-                  <div x-ref="searchBar" class="al-search" style="margin-top: 4px;"
-                       :style="supp.supplement_id ? 'background: var(--al-marble-warm); border-color: var(--al-bronze-soft);' : ''">
-                    <i class="ph" :class="supp.supplement_id ? 'ph-check-circle' : 'ph-magnifying-glass'"
-                       :style="supp.supplement_id ? 'color: var(--al-bronze);' : ''"></i>
-                    <input type="text" x-model="q" @input.debounce.300ms="search()"
-                           placeholder="Cerca integratore…"
-                           class="al-input"
-                           :style="supp.supplement_id ? 'font-weight: 600; color: var(--al-ink);' : ''">
-                    <button type="button"
-                            x-show="supp.supplement_id"
-                            @click="supp.supplement_id = null; supp.supplement_name = ''; q = ''; results = []; show = false; $nextTick(() => $refs.searchBar.querySelector('input').focus())"
-                            class="al-btn al-btn-icon al-btn-ghost"
-                            style="padding: 2px; margin-right: -4px;" title="Cambia integratore">
-                      <i class="ph ph-x text-xs"></i>
-                    </button>
-                  </div>
-                  <p class="al-tag mt-1" x-show="supp.supplement_id" style="color: var(--al-bronze); font-size: 9px;">
-                    <i class="ph ph-link text-[10px]"></i>
-                    <span>Collegato</span>
-                  </p>
-                  <template x-teleport="body">
-                    <div x-show="show && results.length > 0" @click.outside="show = false"
-                         :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '240px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
-                      <template x-for="s in results" :key="s.id">
-                        <button type="button" @click="pick(s)"
-                                class="w-full text-left px-4 py-2.5"
-                                style="border-bottom: 1px solid var(--al-rule); background: transparent;">
-                          <p class="text-sm font-medium text-ink" x-text="s.name"></p>
-                          <p class="al-tag" x-text="s.category"></p>
-                        </button>
-                      </template>
-                    </div>
-                  </template>
+                  <input type="text" x-model="supp.name" placeholder="Nome integratore" class="al-input">
                 </div>
 
                 <div>
                   <label class="al-label">Dose</label>
-                  <input type="text" x-model="supp.dose" placeholder="Es. 5 g" class="al-input">
+                  <div class="flex items-center gap-2">
+                    <input type="text" x-model="supp.quantity" placeholder="Quantità" class="al-input flex-1">
+                    <select x-model="supp.unit" class="al-input" style="width: 74px;">
+                      <option value="mg">mg</option>
+                      <option value="g">g</option>
+                      <option value="cps">cps</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label class="al-label">Timing</label>
+                  <label class="al-label">Quando</label>
                   <input type="text" x-model="supp.timing" placeholder="Es. post-workout" class="al-input">
                 </div>
               </div>
@@ -1911,8 +1885,8 @@ window.NUTRITION_WIZARD_INIT = {
             <template x-for="s in supplements" :key="s._key">
               <li class="flex items-center gap-3 py-2" style="border-bottom: 1px dashed var(--al-rule);">
                 <i class="ph ph-circle-fill text-bronze" style="font-size: 6px;"></i>
-                <span class="font-medium text-ink" x-text="s.supplement_name || '(senza nome)'"></span>
-                <span class="al-tag" x-show="s.dose" x-text="s.dose"></span>
+                <span class="font-medium text-ink" x-text="s.name || '(senza nome)'"></span>
+                <span class="al-tag" x-show="s.quantity || s.unit" x-text="(s.quantity + ' ' + s.unit).trim()"></span>
                 <span class="al-tag" x-show="s.timing" x-text="'· ' + s.timing"></span>
                 <span class="al-tag flex-1 truncate" style="color: var(--al-ink-mute);" x-show="s.notes" x-text="s.notes"></span>
               </li>

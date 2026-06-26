@@ -35,7 +35,7 @@ from domain.chat.models import Conversation, Message, Notification
 from domain.checks.models import AssignedCheckInstance, QuestionAttachment, QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship
 from domain.nutrition.models import (
-    ClientMacroLogEntry, Food, NutritionAssignment, SupplementAssignment,
+    ClientMacroLogEntry, Food, NutritionAssignment, SupplementProtocolAssignment,
 )
 from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSetLog,
@@ -1382,28 +1382,27 @@ def supplements(request, user):
     if not client:
         return JsonResponse({'sheets': []})
     assignments = (
-        SupplementAssignment.objects
+        SupplementProtocolAssignment.objects
         .filter(client=client, status='ACTIVE')
-        .select_related('sheet', 'coach')
-        .prefetch_related('sheet__items__supplement')
+        .select_related('protocol', 'coach')
+        .prefetch_related('protocol__items')
         .order_by('-assigned_at')
     )
     sheets = []
     for a in assignments:
-        sheet = a.sheet
+        sheet = a.protocol
         items = [{
             'id': it.id,
-            'name': it.supplement.name,
-            'category': it.supplement.category,
-            'unit': it.supplement.unit,
-            'dose': it.dose,
-            'timing': it.timing,
-            'notes': it.notes,
-        } for it in sheet.items.all()]
+            'name': it.name,
+            'quantity': it.quantity or '',
+            'unit': it.unit or '',
+            'timing': it.timing or '',
+            'notes': it.notes or '',
+        } for it in sheet.items.order_by('order', 'id')]
         sheets.append({
             'id': sheet.id,
             'title': sheet.title,
-            'notes': sheet.notes,
+            'notes': sheet.notes or '',
             'coach': _coach_dict(a.coach),
             'items': items,
         })

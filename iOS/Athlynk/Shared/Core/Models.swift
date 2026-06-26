@@ -852,11 +852,15 @@ struct SessionDetailDTO: Codable, Identifiable {
 struct SupplementItemDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
-    let category: String?
+    let quantity: String?
     let unit: String?
-    let dose: String
     let timing: String?
     let notes: String?
+
+    /// "5 g" / "2 cps" — quantity + unit, blanks tolerated.
+    var dose: String {
+        [quantity ?? "", unit ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
+    }
 }
 
 struct SupplementSheetDTO: Codable, Identifiable, Hashable {

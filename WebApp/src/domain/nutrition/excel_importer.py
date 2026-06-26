@@ -17,7 +17,6 @@ from pydantic import ValidationError
 
 from domain.nutrition.food_match import best_match
 from domain.nutrition.llm_client import build_extraction_llm
-from domain.nutrition.models import Supplement
 from domain.nutrition.schemas import DietExtraction, ConfidenceSummary
 from domain.shared.excel_text import ExcelParseError  # noqa: F401  (re-export)
 from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
@@ -255,26 +254,9 @@ def normalize_and_match(raw_json: dict) -> dict:
         order.append(nkey)
     out['supplements'] = [dedup_map[k] for k in order]
 
-    # Match integratori contro Supplement DB (lookup leggero per nome)
+    # Integratori free-text: nessun catalogo, si tiene solo name/dose/timing/notes.
     for supp in out.get('supplements', []) or []:
-        sname = (supp.get('name') or '').strip()
-        supp['candidates'] = []
-        supp['supplement_id'] = None
-        if not sname:
-            supp['uncertain'] = True
-            continue
-        cands = list(Supplement.objects.filter(name__icontains=sname)[:5])
-        if cands:
-            top = cands[0]
-            supp['supplement_id'] = top.id
-            supp['matched_name'] = top.name
-            supp['candidates'] = [
-                {'id': s.id, 'name': s.name, 'category': s.category or '', 'unit': s.unit}
-                for s in cands[1:]
-            ]
-            supp['uncertain'] = supp.get('uncertain', False)
-        else:
-            supp['uncertain'] = True
+        supp['uncertain'] = not (supp.get('name') or '').strip()
 
     return out
 

@@ -255,7 +255,7 @@ def allenamenti_list_view(request):
         ]
         cache.set(_wkey, (plans_data, folders_data, clients_data), 300)
 
-    return render(request, 'pages/allenamenti/library.html', {
+    response = render(request, 'pages/allenamenti/library.html', {
         'plans_json': json.dumps(plans_data),
         'folders_json': json.dumps(folders_data),
         'clients_json': json.dumps(clients_data),
@@ -264,6 +264,9 @@ def allenamenti_list_view(request):
         'is_coach': True,
         'coach': coach,
     })
+    # Prevent the browser bfcache from restoring a stale list after a delete.
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 # ---------------------------------------------------------------------------

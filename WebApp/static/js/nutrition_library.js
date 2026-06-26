@@ -70,7 +70,10 @@ function nutritionLibrary() {
     deleteFolderAction: 'move_to_unfiled',
     deleteFolderTarget: '',
 
-    init() {},
+    init() {
+      // bfcache restore (browser Back) can resurrect a deleted plan — reload fresh.
+      window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+    },
 
     /* === selectors === */
     selectFolder(id) { this.selectedFolderId = id; },

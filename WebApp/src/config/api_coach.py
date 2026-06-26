@@ -28,7 +28,8 @@ from domain.checks.models import QuestionnaireResponse, QuestionnaireTemplate
 from domain.coaching.models import CoachingRelationship
 from domain.nutrition.models import (
     DietDay, Food, Meal, MealItem,
-    NutritionAssignment, NutritionPlan, SupplementAssignment, SupplementSheet,
+    NutritionAssignment, NutritionPlan, SupplementProtocol, SupplementItem,
+    SupplementProtocolAssignment, SupplementTemplateItem,
 )
 from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutPlan,
@@ -373,11 +374,11 @@ def client_detail(request, user, client_id):
     )]
 
     sheets = [{
-        'id': sa.sheet.id,
-        'title': sa.sheet.title,
+        'id': sa.protocol.id,
+        'title': sa.protocol.title,
     } for sa in (
-        SupplementAssignment.objects.filter(client=client, coach=coach, status='ACTIVE')
-        .select_related('sheet')
+        SupplementProtocolAssignment.objects.filter(client=client, coach=coach, status='ACTIVE')
+        .select_related('protocol')
     )]
 
     conv = Conversation.objects.filter(coach=coach, client=client).first()
@@ -1160,7 +1161,7 @@ def resources(request, user):
     templates = [{'id': t.id, 'title': t.title, 'type': t.questionnaire_type, 'active': t.is_active}
                  for t in QuestionnaireTemplate.objects.filter(coach=coach).order_by('-created_at')[:80]]
     sheets = [{'id': s.id, 'title': s.title}
-              for s in SupplementSheet.objects.filter(coach=coach).order_by('-created_at')[:80]]
+              for s in SupplementProtocol.objects.filter(coach=coach).order_by('-updated_at')[:80]]
     return JsonResponse({
         'sections': [
             {'key': 'workouts', 'label': 'Schede Allenamento', 'icon': 'dumbbell.fill',
@@ -2077,6 +2078,150 @@ def nutrition_create(request, user):
                     uncertain=food_obj is None,
                 )
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
+
+
+# ---------------------------------------------------------------------------
+# Supplement protocols (Integratori) — coach builder, mobile
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def coach_supplements(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    protocols = (
+        coach.supplement_protocols
+        .prefetch_related('items', 'assignments')
+        .order_by('-updated_at')
+    )
+    return JsonResponse({'protocols': [{
+        'id': p.id,
+        'title': p.title,
+        'item_count': p.items.count(),
+        'assigned_count': p.assignments.filter(status='ACTIVE').count(),
+    } for p in protocols]})
+
+
+@api_view(['GET'])
+def coach_supplement_detail(request, user, protocol_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    from .views_nutrition import _serialize_protocol
+    p = SupplementProtocol.objects.filter(id=protocol_id, coach=coach).first()
+    if not p:
+        return JsonResponse({'error': 'Protocollo non trovato'}, status=404)
+    return JsonResponse(_serialize_protocol(p))
+
+
+@api_view(['POST'])
+def coach_supplement_save(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    from .views_nutrition import _parse_supplement_items, _serialize_protocol
+    data = _body(request)
+    title = (data.get('title') or '').strip()
+    if not title:
+        return JsonResponse({'error': 'Inserisci un titolo per il protocollo.'}, status=400)
+    items = _parse_supplement_items(data.get('items'))
+    if not items:
+        return JsonResponse({'error': 'Aggiungi almeno un integratore.'}, status=400)
+
+    with transaction.atomic():
+        pid = data.get('id')
+        if pid:
+            p = SupplementProtocol.objects.filter(id=pid, coach=coach).first()
+            if not p:
+                return JsonResponse({'error': 'Protocollo non trovato'}, status=404)
+            p.title = title[:200]
+            p.notes = data.get('notes') or ''
+            p.save(update_fields=['title', 'notes', 'updated_at'])
+            p.items.all().delete()
+        else:
+            p = SupplementProtocol.objects.create(coach=coach, title=title[:200], notes=data.get('notes') or '')
+        for order, it in enumerate(items):
+            SupplementItem.objects.create(protocol=p, order=order, **it)
+
+    return JsonResponse(_serialize_protocol(p))
+
+
+@api_view(['POST'])
+def coach_supplement_delete(request, user, protocol_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    p = SupplementProtocol.objects.filter(id=protocol_id, coach=coach).first()
+    if not p:
+        return JsonResponse({'error': 'Protocollo non trovato'}, status=404)
+    p.delete()
+    return JsonResponse({'ok': True})
+
+
+@api_view(['POST'])
+def coach_supplement_assign(request, user, protocol_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    p = SupplementProtocol.objects.filter(id=protocol_id, coach=coach).first()
+    if not p:
+        return JsonResponse({'error': 'Protocollo non trovato'}, status=404)
+    data = _body(request)
+    try:
+        client_id = int(data.get('client_id') or 0)
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Dati non validi'}, status=400)
+    client = ClientProfile.objects.filter(id=client_id).first()
+    if not client or not CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').exists():
+        return JsonResponse({'error': 'Atleta non associato'}, status=403)
+    SupplementProtocolAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
+    a = SupplementProtocolAssignment.objects.create(protocol=p, client=client, coach=coach, status='ACTIVE')
+    Notification.objects.create(
+        target_user=client.user,
+        notification_type='SUPPLEMENT_ASSIGNED',
+        title='Nuovo protocollo integratori',
+        body=f'Ti è stato assegnato il protocollo "{p.title}".',
+        link_url='/nutrizione/integratori/',
+    )
+    return JsonResponse({'ok': True, 'assignment_id': a.id})
+
+
+@api_view(['GET'])
+def coach_supplement_templates(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    return JsonResponse({'results': [{
+        'id': m.id, 'name': m.name, 'quantity': m.quantity or '', 'unit': m.unit or '',
+        'timing': m.timing or '', 'notes': m.notes or '',
+    } for m in coach.supplement_template_items.order_by('name')]})
+
+
+@api_view(['POST'])
+def coach_supplement_template_save(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    from .views_nutrition import _parse_supplement_items
+    parsed = _parse_supplement_items([_body(request)])
+    if not parsed:
+        return JsonResponse({'error': "Inserisci il nome dell'integratore."}, status=400)
+    m = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
+    return JsonResponse({'ok': True, 'id': m.id})
+
+
+@api_view(['POST'])
+def coach_supplement_template_delete(request, user, item_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    m = SupplementTemplateItem.objects.filter(id=item_id, coach=coach).first()
+    if not m:
+        return JsonResponse({'error': 'Modello non trovato'}, status=404)
+    m.delete()
+    return JsonResponse({'ok': True})
 
 
 @api_view(['POST'])

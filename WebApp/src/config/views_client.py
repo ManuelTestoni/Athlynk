@@ -12,7 +12,7 @@ from domain.accounts.models import ClientProfile, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship, CoachingPhase, ClientLabel
-from domain.nutrition.models import NutritionAssignment, SupplementAssignment
+from domain.nutrition.models import NutritionAssignment, SupplementProtocolAssignment
 from domain.workouts.models import WorkoutAssignment
 
 from .session_utils import (
@@ -199,9 +199,9 @@ def coach_client_detail_view(request, client_id):
     )
     recent_checks = all_checks[:5]
     supplement_assignments = (
-        SupplementAssignment.objects
+        SupplementProtocolAssignment.objects
         .filter(client=client, coach=coach)
-        .select_related('sheet')
+        .select_related('protocol')
         .order_by('-assigned_at')
     )
 

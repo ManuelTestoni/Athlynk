@@ -79,8 +79,6 @@ class SupplementEntry(BaseModel):
     timing: Optional[str] = None
     notes: Optional[str] = None
     uncertain: bool = False
-    supplement_id: Optional[int] = None
-    candidates: list[dict] = Field(default_factory=list)
     source_page: Optional[int] = None
 
 

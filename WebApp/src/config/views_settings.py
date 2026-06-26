@@ -361,16 +361,8 @@ def calendar_view(request):
         coach.calendar_feed_token = _secrets.token_urlsafe(24)
         coach.save(update_fields=['calendar_feed_token', 'updated_at'])
 
-    if not coach.calendar_feed_token:
-        import secrets as _secrets
-        coach.calendar_feed_token = _secrets.token_urlsafe(24)
-        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
-
-    from django.urls import reverse
-    feed_path = reverse('coach_calendar_feed', args=[coach.calendar_feed_token])
-    abs_url = request.build_absolute_uri(feed_path)
-    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
-    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + abs_url
+    from .views_agenda import coach_calendar_feed_urls
+    abs_url, webcal_url, google_subscribe = coach_calendar_feed_urls(coach)
 
     ctx = {
         'auth_user': user,

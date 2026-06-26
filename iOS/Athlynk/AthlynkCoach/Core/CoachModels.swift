@@ -413,6 +413,51 @@ struct IdTitle: Codable, Identifiable, Hashable {
     let title: String
 }
 
+// MARK: - Supplement protocols (Integratori)
+
+struct CoachSupplementSummary: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let itemCount: Int
+    let assignedCount: Int
+    enum CodingKeys: String, CodingKey {
+        case id, title
+        case itemCount = "item_count"
+        case assignedCount = "assigned_count"
+    }
+}
+struct CoachSupplementsResponse: Codable { let protocols: [CoachSupplementSummary] }
+
+/// One editable supplement row. `rowId` keeps SwiftUI identity stable while editing;
+/// the server item id (if any) is irrelevant once loaded into the builder.
+struct CoachSupplementItem: Codable, Identifiable, Hashable {
+    var rowId = UUID()
+    var name: String = ""
+    var quantity: String = ""
+    var unit: String = "g"
+    var timing: String = ""
+    var notes: String = ""
+    var id: UUID { rowId }
+    enum CodingKeys: String, CodingKey { case name, quantity, unit, timing, notes }
+}
+
+struct CoachSupplementDetail: Codable {
+    let id: Int
+    let title: String
+    let notes: String
+    let items: [CoachSupplementItem]
+}
+
+struct CoachSupplementModel: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let quantity: String
+    let unit: String
+    let timing: String
+    let notes: String
+}
+struct CoachSupplementModelsResponse: Codable { let results: [CoachSupplementModel] }
+
 struct CoachClientDetailDTO: Codable {
     let client: CoachClient
     let relationship: CoachRelationship

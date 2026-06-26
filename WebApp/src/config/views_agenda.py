@@ -85,12 +85,7 @@ def agenda_dashboard_view(request):
     events_data = [_serialize_event(e, coach_view=True) for e in events]
 
     # Calendar subscription links (Google / Apple) — surface them in agenda header.
-    from django.urls import reverse as _reverse
-    token = _ensure_coach_feed_token(coach)
-    feed_path = _reverse('coach_calendar_feed', args=[token])
-    abs_url = request.build_absolute_uri(feed_path)
-    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
-    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + abs_url
+    abs_url, webcal_url, google_subscribe = coach_calendar_feed_urls(coach)
 
     context = {
         'coach': coach,
@@ -262,6 +257,24 @@ def _ensure_coach_feed_token(coach):
         coach.calendar_feed_token = _secrets.token_urlsafe(24)
         coach.save(update_fields=['calendar_feed_token', 'updated_at'])
     return coach.calendar_feed_token
+
+
+def coach_calendar_feed_urls(coach):
+    """Return (https_url, webcal_url, google_subscribe_url) for a coach's feed.
+
+    Built from settings.SITE_URL (the deterministic public origin) rather than the
+    request Host, which is unreliable behind the Railway proxy. Google's `cid` must
+    be URL-encoded or Calendar refuses to add the subscription.
+    """
+    from django.conf import settings
+    from django.urls import reverse
+    import urllib.parse
+    token = _ensure_coach_feed_token(coach)
+    feed_path = reverse('coach_calendar_feed', args=[token])
+    abs_url = settings.SITE_URL.rstrip('/') + feed_path
+    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
+    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + urllib.parse.quote(abs_url, safe='')
+    return abs_url, webcal_url, google_subscribe
 
 
 def _ics_escape(text):

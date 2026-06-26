@@ -439,10 +439,7 @@
           timing: s.timing || '',
           notes: s.notes || '',
           uncertain: !!s.uncertain,
-          supplement_id: s.supplement_id || null,
           source_page: s.source_page ?? null,
-          matched_name: s.matched_name || null,
-          _candidates: s.candidates || [],
         }));
         return { ...raw, days, supplements };
       },
@@ -544,29 +541,12 @@
       subModeLabel(m) { return this.SUB_MODE_LABELS[m] || m; },
       subModeColor(m) { return this.SUB_MODE_COLORS[m] || 'var(--al-ink-mute)'; },
 
-      // ─── Integratori ─────────────────────────
-      async searchSupplementInline(supp, query) {
-        if (!query || query.length < 2) return;
-        try {
-          const r = await fetch('/api/nutrizione/integratori/?q=' + encodeURIComponent(query));
-          if (r.ok) {
-            const data = await r.json();
-            supp._candidates = data.results || [];
-          }
-        } catch (e) { console.error(e); }
-      },
-      pickSupplement(supp, candidate) {
-        supp.supplement_id = candidate.id;
-        supp.name = candidate.name;
-        supp._candidates = [];
-        supp.uncertain = false;
-      },
+      // ─── Integratori (free-text) ─────────────────────────
       addSupplement() {
         if (!this.diet.supplements) this.diet.supplements = [];
         this.diet.supplements.push({
           name: '', dose: '', timing: '', notes: '',
-          uncertain: true, supplement_id: null,
-          source_page: null, _candidates: [],
+          uncertain: false, source_page: null,
         });
       },
       removeSupplement(idx) {
@@ -683,7 +663,6 @@
               dose: s.dose || null,
               timing: s.timing || null,
               notes: s.notes || null,
-              supplement_id: s.supplement_id,
               uncertain: s.uncertain,
             })),
           },

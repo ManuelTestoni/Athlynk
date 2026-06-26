@@ -70,15 +70,11 @@ struct SupplementsView: View {
                     .font(.system(size: 22, weight: .black)).foregroundStyle(accent)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name).font(Typo.display(19)).foregroundStyle(Palette.textHi)
-                    if let cat = item.category, !cat.isEmpty {
-                        Text(cat.uppercased()).font(Typo.mono(9, .bold)).tracking(1)
-                            .foregroundStyle(Palette.textLow)
-                    }
                 }
                 Spacer()
             }
             HStack(spacing: 10) {
-                tag("scalemass.fill", item.dose)
+                if !item.dose.isEmpty { tag("scalemass.fill", item.dose) }
                 if let t = item.timing, !t.isEmpty { tag("clock.fill", t) }
             }
             if let n = item.notes, !n.isEmpty {

@@ -23,6 +23,7 @@
       planSave: "{% url 'api_plan_save_new' %}",
       planUpdateSave: "/api/allenamenti/__ID__/save/",
       planDelete: "/api/allenamenti/__ID__/elimina/",
+      planDuplicate: "/api/allenamenti/__ID__/duplica/",
     },
   };
   function csrfToken() {
@@ -264,6 +265,11 @@
                      class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
                     <i class="ph ph-pencil text-sm"></i>
                   </a>
+                  <button @click="duplicatePlan(plan.id)" type="button"
+                          :disabled="duplicatingId === plan.id"
+                          class="p-1 text-ink-line hover:text-bronze transition-colors" title="Duplica">
+                    <i class="ph text-sm" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
+                  </button>
                   <button @click="deletePlan(plan.id, plan.title, plan.assignment_count)" type="button"
                           class="p-1 transition-colors" title="Elimina"
                           style="color: var(--al-ink-line);"
@@ -556,8 +562,12 @@ function workoutLibrary() {
     assignNotes: '',
     saving: false,
     successFlash: false,
+    duplicatingId: null,
 
-    init() {},
+    init() {
+      // bfcache restore (browser Back) can resurrect a deleted plan — reload fresh.
+      window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+    },
 
     /* === selectors === */
     selectFolder(id) { this.selectedFolderId = id; },
@@ -698,6 +708,26 @@ function workoutLibrary() {
         }
         this.plans = this.plans.filter(p => p.id !== id);
       } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+    },
+
+    async duplicatePlan(id) {
+      if (this.duplicatingId) return;
+      this.duplicatingId = id;
+      try {
+        const res = await fetch(this.urls.planDuplicate.replace('__ID__', id), {
+          method: 'POST', headers: { 'X-CSRFToken': csrfToken() },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore duplicazione.' });
+          return;
+        }
+        window.location.href = data.redirect_url || this.urls.planEdit.replace('__ID__', data.plan_id);
+      } catch (e) {
+        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+      } finally {
+        this.duplicatingId = null;
+      }
     },
 
     /* === assign (stesso modal condiviso con nutrizione) === */

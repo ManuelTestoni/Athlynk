@@ -95,7 +95,7 @@ class NutritionPlan(models.Model):
         on_delete=models.SET_NULL, related_name='plans',
     )
     supplement_sheet = models.OneToOneField(
-        'SupplementSheet', null=True, blank=True,
+        'SupplementProtocol', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='nutrition_plan',
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -226,57 +226,69 @@ class MealItemSubstitution(models.Model):
         return f"[{self.mode}] {self.quantity_g}g {self.food.nome_alimento}"
 
 
-class Supplement(models.Model):
+# Free-text supplements: the coach types the name and quantity, picks a unit and
+# a timing. No catalog. A protocol doubles as a standalone "scheda" (assignable to
+# athletes) and as the per-diet supplement section (NutritionPlan.supplement_sheet).
+SUPPLEMENT_UNIT_CHOICES = [('mg', 'mg'), ('g', 'g'), ('cps', 'cps')]
+
+
+class SupplementProtocol(models.Model):
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_protocols')
+    title = models.CharField(max_length=200)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.title} (by {self.coach_id})"
+
+
+class SupplementItem(models.Model):
+    protocol = models.ForeignKey(SupplementProtocol, on_delete=models.CASCADE, related_name='items')
     name = models.CharField(max_length=200)
-    category = models.CharField(max_length=100, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    unit = models.CharField(max_length=20, default='g')
+    quantity = models.CharField(max_length=50, blank=True, default='')
+    unit = models.CharField(max_length=10, choices=SUPPLEMENT_UNIT_CHOICES, blank=True, default='g')
+    timing = models.CharField(max_length=120, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.quantity}{self.unit} {self.name}".strip()
+
+
+class SupplementProtocolAssignment(models.Model):
+    protocol = models.ForeignKey(SupplementProtocol, on_delete=models.CASCADE, related_name='assignments')
+    client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='supplement_assignments')
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_assignments_given')
+    status = models.CharField(max_length=20, default='ACTIVE')
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.protocol.title} → {self.client_id}"
+
+
+class SupplementTemplateItem(models.Model):
+    """A single supplement the coach saved as a reusable model ("modello"),
+    inserted into the builder from the coach's personal models."""
+    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_template_items')
+    name = models.CharField(max_length=200)
+    quantity = models.CharField(max_length=50, blank=True, default='')
+    unit = models.CharField(max_length=10, choices=SUPPLEMENT_UNIT_CHOICES, blank=True, default='g')
+    timing = models.CharField(max_length=120, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['name']
 
     def __str__(self):
         return self.name
-
-
-class SupplementSheet(models.Model):
-    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_sheets')
-    title = models.CharField(max_length=200)
-    notes = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.title} (by {self.coach})"
-
-
-class SupplementSheetItem(models.Model):
-    sheet = models.ForeignKey(SupplementSheet, on_delete=models.CASCADE, related_name='items')
-    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE)
-    dose = models.CharField(max_length=100)
-    timing = models.CharField(max_length=100, null=True, blank=True)
-    notes = models.TextField(null=True, blank=True)
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ['order']
-
-    def __str__(self):
-        return f"{self.dose} {self.supplement.name}"
-
-
-class SupplementAssignment(models.Model):
-    sheet = models.ForeignKey(SupplementSheet, on_delete=models.CASCADE, related_name='assignments')
-    client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='supplement_assignments')
-    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_assignments_given')
-    status = models.CharField(max_length=50, default='ACTIVE')
-    notes = models.TextField(null=True, blank=True)
-    assigned_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.sheet.title} → {self.client}"
 
 
 class NutritionAssignment(models.Model):

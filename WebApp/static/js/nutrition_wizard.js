@@ -131,9 +131,9 @@ function nutritionWizard() {
     /* === Step 3 state === */
     supplements: (INIT.supplements && INIT.supplements.items ? INIT.supplements.items : []).map((s, i) => ({
       _key: 's' + Date.now() + '_' + i,
-      supplement_id: s.supplement_id,
-      supplement_name: s.supplement_name || '',
-      dose: s.dose || '',
+      name: s.name || '',
+      quantity: s.quantity || '',
+      unit: s.unit || 'g',
       timing: s.timing || '',
       notes: s.notes || '',
     })),
@@ -449,10 +449,11 @@ function nutritionWizard() {
     async persistSupplements() {
       if (!this.planId) return;
       const items = this.supplements
-        .filter(s => s.supplement_id)
+        .filter(s => (s.name || '').trim())
         .map(s => ({
-          supplement_id: s.supplement_id,
-          dose: s.dose || '',
+          name: s.name,
+          quantity: s.quantity || '',
+          unit: s.unit || '',
           timing: s.timing || '',
           notes: s.notes || '',
         }));
@@ -857,13 +858,13 @@ function nutritionWizard() {
       return 'color: var(--al-danger);';
     },
 
-    /* === Step 3: supplements === */
+    /* === Step 3: supplements (free-text) === */
     addSupplement() {
       this.supplements.push({
         _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
-        supplement_id: null,
-        supplement_name: '',
-        dose: '',
+        name: '',
+        quantity: '',
+        unit: 'g',
         timing: '',
         notes: '',
       });
@@ -871,13 +872,6 @@ function nutritionWizard() {
     removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
       if (i >= 0) this.supplements.splice(i, 1);
-    },
-    applySupplementPick(suppKey, supplement) {
-      const target = this.supplements.find(x => x._key === suppKey);
-      if (target) {
-        target.supplement_id = supplement.id;
-        target.supplement_name = supplement.name;
-      }
     },
 
     /* === Step 4: riepilogo === */
@@ -1054,36 +1048,6 @@ function nutritionWizard() {
   return Object.assign({}, daily, weekly, charts, base);
 }
 
-/* Per-row supplement search popover. Bubbles via window event. */
-function supplementPicker(suppKey, initialName) {
-  return {
-    q: initialName || '', results: [], show: false,
-    top: '0px', left: '0px', width: '0px',
-    updatePos() {
-      const el = this.$refs.searchBar;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      this.top = (r.bottom + 6) + 'px';
-      this.left = r.left + 'px';
-      this.width = r.width + 'px';
-    },
-    async search() {
-      if (this.q.length < 2) { this.results = []; this.show = false; return; }
-      this.updatePos();
-      try {
-        const r = await fetch(window.NUTRITION_WIZARD_INIT.urls.supplementSearch + '?q=' + encodeURIComponent(this.q));
-        const d = await r.json();
-        this.results = d.results || [];
-      } catch (e) { this.results = []; }
-      this.show = true;
-    },
-    pick(s) {
-      window.dispatchEvent(new CustomEvent('pick-supplement', { detail: { suppKey, supplement: s } }));
-      this.q = s.name; this.results = []; this.show = false;
-    },
-  };
-}
-
 /* Substitution food picker — same UX as foodPicker, but bubbles the chosen food
    plus the substitution mode so the wizard can compute grams server-side rules. */
 function substitutionPicker(mealKey, itemKey, mode) {
@@ -1120,5 +1084,4 @@ function substitutionPicker(mealKey, itemKey, mode) {
 }
 
 window.nutritionWizard = nutritionWizard;
-window.supplementPicker = supplementPicker;
 window.substitutionPicker = substitutionPicker;

@@ -84,24 +84,24 @@
             <thead style="background: var(--al-marble); border-bottom: 1px solid var(--al-rule);">
               <tr>
                 <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Integratore</th>
-                <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Categoria</th>
                 <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Dose</th>
-                <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Timing</th>
+                <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Quando</th>
+                <th class="px-5 py-3 text-left al-eyebrow" style="color: var(--al-ink-mute);">Note</th>
               </tr>
             </thead>
             <tbody>
               {% for item in items %}
               <tr style="border-bottom: 1px solid var(--al-rule);">
                 <td class="px-5 py-3">
-                  <p class="font-medium text-ink">{{ item.supplement.name }}</p>
+                  <p class="font-medium text-ink">{{ item.name }}</p>
                 </td>
-                <td class="px-5 py-3"><span class="al-tag">{{ item.supplement.category }}</span></td>
                 <td class="px-5 py-3">
-                  {% if item.dose %}
-                  <span class="font-mono font-medium text-ink">{{ item.dose }}<span class="text-ink-mute"> {{ item.supplement.unit }}</span></span>
+                  {% if item.quantity or item.unit %}
+                  <span class="font-mono font-medium text-ink">{{ item.quantity }}<span class="text-ink-mute"> {{ item.unit }}</span></span>
                   {% else %}<span class="text-ink-mute">—</span>{% endif %}
                 </td>
                 <td class="px-5 py-3 text-ink">{{ item.timing|default:"—" }}</td>
+                <td class="px-5 py-3 text-ink-mute">{{ item.notes|default:"—" }}</td>
               </tr>
               {% endfor %}
             </tbody>

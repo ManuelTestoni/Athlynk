@@ -780,4 +780,44 @@ extension APIClient {
         let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         return (json["ok"] as? Bool ?? false, json["message"] as? String ?? "")
     }
+
+    // MARK: Supplement protocols (Integratori)
+
+    func coachSupplements() async throws -> [CoachSupplementSummary] {
+        try decode(CoachSupplementsResponse.self, from: try await request("/api/v1/coach/supplements")).protocols
+    }
+
+    func coachSupplementDetail(id: Int) async throws -> CoachSupplementDetail {
+        try decode(CoachSupplementDetail.self, from: try await request("/api/v1/coach/supplements/\(id)"))
+    }
+
+    @discardableResult
+    func coachSaveSupplement(id: Int?, title: String, notes: String, items: [[String: Any]]) async throws -> Int {
+        var payload: [String: Any] = ["title": title, "notes": notes, "items": items]
+        if let id { payload["id"] = id }
+        let data = try await request("/api/v1/coach/supplements/save", method: "POST", body: payload)
+        return try coachJSONObject(data)["id"] as? Int ?? 0
+    }
+
+    func coachDeleteSupplement(id: Int) async throws {
+        _ = try await request("/api/v1/coach/supplements/\(id)/delete", method: "POST")
+    }
+
+    func coachAssignSupplement(id: Int, clientId: Int) async throws {
+        _ = try await request("/api/v1/coach/supplements/\(id)/assign", method: "POST", body: ["client_id": clientId])
+    }
+
+    func coachSupplementModels() async throws -> [CoachSupplementModel] {
+        try decode(CoachSupplementModelsResponse.self, from: try await request("/api/v1/coach/supplements/templates")).results
+    }
+
+    @discardableResult
+    func coachSaveSupplementModel(_ item: [String: Any]) async throws -> Int {
+        let data = try await request("/api/v1/coach/supplements/templates/save", method: "POST", body: item)
+        return try coachJSONObject(data)["id"] as? Int ?? 0
+    }
+
+    func coachDeleteSupplementModel(id: Int) async throws {
+        _ = try await request("/api/v1/coach/supplements/templates/\(id)/delete", method: "POST")
+    }
 }

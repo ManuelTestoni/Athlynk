@@ -334,40 +334,17 @@
             <div class="space-y-2.5" x-show="diet.supplements && diet.supplements.length">
               <template x-for="(supp, si) in diet.supplements" :key="si">
                 <div class="al-card al-card-warm al-card-flush" style="padding: 12px 14px;"
-                     :style="supp.uncertain && !supp.supplement_id ? 'border-color: var(--al-warn);' : ''">
+                     :style="supp.uncertain && !supp.name ? 'border-color: var(--al-warn);' : ''">
                   <div class="flex items-start gap-3">
                     <span class="font-mono shrink-0 mt-1"
                           style="color: var(--al-ink-line); font-size: 11px;"
                           x-text="String(si + 1).padStart(2, '0')"></span>
 
                     <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-2">
-                      <!-- Nome integratore con search -->
-                      <div class="relative" x-data="{ open: false }">
-                        <div class="al-search" style="margin: 0;"
-                             :style="supp.supplement_id ? 'background: var(--al-marble-warm); border-color: var(--al-bronze-soft);' : ''">
-                          <i class="ph" :class="supp.supplement_id ? 'ph-check-circle' : 'ph-magnifying-glass'"
-                             :style="supp.supplement_id ? 'color: var(--al-bronze);' : ''"></i>
-                          <input type="text" x-model="supp.name"
-                                 @input.debounce.300="searchSupplementInline(supp, $event.target.value)"
-                                 @focus="open = true"
-                                 @click.away="open = false"
-                                 placeholder="Cerca integratore…"
-                                 class="al-input"
-                                 :style="supp.supplement_id ? 'font-weight: 600; color: var(--al-ink);' : ''">
-                        </div>
-                        <ul x-show="open && supp._candidates && supp._candidates.length"
-                            x-transition
-                            class="absolute z-30 mt-1 w-full al-card al-card-flush max-h-48 overflow-auto text-sm"
-                            style="background: var(--al-parchment); border: 1px solid var(--al-rule); box-shadow: var(--al-shadow-2);">
-                          <template x-for="c in supp._candidates" :key="c.id">
-                            <li @click="pickSupplement(supp, c); open = false"
-                                class="px-3 py-2 cursor-pointer hover:bg-marble-warm"
-                                style="border-bottom: 1px solid var(--al-rule);">
-                              <p class="text-sm font-medium text-ink" x-text="c.name"></p>
-                              <p class="al-tag" x-text="c.category || ''"></p>
-                            </li>
-                          </template>
-                        </ul>
+                      <!-- Nome integratore (testo libero) -->
+                      <div>
+                        <input type="text" x-model="supp.name"
+                               placeholder="Nome integratore" class="al-input">
                         {% if origin_pdf %}
                         <p x-show="cfg.showSourceBadge && supp.source_page"
                            class="al-tag mt-1" style="color: var(--al-bronze); font-size: 9px;">

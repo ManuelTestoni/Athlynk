@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load safejson %}
 
-{% block title %}{% if sheet %}Modifica Scheda Integrazione{% else %}Nuova Scheda Integrazione{% endif %}{% endblock %}
+{% block title %}{% if sheet %}Modifica Protocollo Integrazione{% else %}Nuovo Protocollo Integrazione{% endif %}{% endblock %}
 
 {% block content %}
 <script>
@@ -9,31 +9,28 @@ window._sheetItems = {{ items_json|json_js }};
 window._suppClients = {{ clients_json|json_js }};
 </script>
 
-<div class="max-w-5xl mx-auto"
-     x-data="sheetBuilder()"
-     x-init="init()"
-     @add-supp.window="addItem($event.detail.supp)">
+<div class="max-w-4xl mx-auto" x-data="sheetBuilder()" x-init="init()">
 
     <!-- Breadcrumb -->
     <nav class="al-tag flex items-center gap-2 mb-6">
         <a href="{% url 'nutrizione_integratori' %}" class="al-link al-link-quiet flex items-center gap-1">
-            <i class="ph ph-pill text-xs"></i><span>Schede Integrazione</span>
+            <i class="ph ph-pill text-xs"></i><span>Protocolli Integrazione</span>
         </a>
         <i class="ph ph-caret-right text-[9px]"></i>
-        <span class="text-ink">{% if sheet %}Modifica{% else %}Nuova{% endif %}</span>
+        <span class="text-ink">{% if sheet %}Modifica{% else %}Nuovo{% endif %}</span>
     </nav>
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
         <div>
             <p class="al-eyebrow mb-3">Studio &middot; Integrazione</p>
-            <h1 class="al-h-1">{% if sheet %}Modifica scheda{% else %}Nuova <span class="al-display-i">scheda integrazione</span>{% endif %}</h1>
-            <p class="al-body mt-2">Aggiungi integratori, dosi e timing in modo strutturato.</p>
+            <h1 class="al-h-1">{% if sheet %}Modifica protocollo{% else %}Nuovo <span class="al-display-i">protocollo integrazione</span>{% endif %}</h1>
+            <p class="al-body mt-2">Aggiungi gli integratori, la dose, il timing e le note.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <button @click="saveSheet()" :disabled="saving" class="al-btn al-btn-bronze" :class="{ 'is-loading': saving }">
             <i class="ph ph-floppy-disk text-sm"></i>
-            <span x-show="!saving">Salva Scheda</span>
+            <span x-show="!saving">Salva Protocollo</span>
             <span x-show="saving">Salvataggio…</span>
         </button>
     </div>
@@ -46,10 +43,9 @@ window._suppClients = {{ clients_json|json_js }};
                 <i class="ph ph-info text-bronze text-xl"></i>
                 <div>
                     <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
-                    <h2 class="al-h-3">Informazioni Scheda</h2>
+                    <h2 class="al-h-3">Informazioni Protocollo</h2>
                 </div>
             </div>
-
             <div class="space-y-5">
                 <div>
                     <label class="al-label">Titolo *</label>
@@ -62,176 +58,254 @@ window._suppClients = {{ clients_json|json_js }};
             </div>
         </div>
 
-        <!-- Sezione 2 — Cerca integratori -->
-        <div class="al-card"
-             x-data="{
-               q: '', results: [], searching: false, show: false,
-               async search() {
-                 if (this.q.length < 2) { this.results=[]; this.show=false; return; }
-                 this.searching=true;
-                 const r = await fetch('/api/nutrizione/integratori/?q='+encodeURIComponent(this.q));
-                 const d = await r.json();
-                 this.results=d.results; this.searching=false; this.show=true;
-               },
-               pick(s) {
-                 window.dispatchEvent(new CustomEvent('add-supp', {detail:{supp:s}}));
-               }
-             }">
-            <div class="flex items-center gap-3 mb-6">
-                <i class="ph ph-magnifying-glass text-bronze text-xl"></i>
-                <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
-                    <h2 class="al-h-3">Cerca integratori</h2>
-                </div>
-            </div>
-
-            <div class="al-search mb-4">
-                <i class="ph ph-magnifying-glass"></i>
-                <input type="text" x-model="q" @input.debounce.300ms="search()"
-                       placeholder="Digita almeno 2 caratteri (es. creatina, omega-3, magnesio…)"
-                       class="al-input" style="padding-right: 72px;">
-                <span x-show="searching" x-cloak class="al-tag font-mono"
-                      style="position: absolute; right: 40px; top: 50%; transform: translateY(-50%);">…</span>
-                <button type="button" x-show="q" x-cloak @click="q=''; results=[]; show=false"
-                        class="text-ink-mute hover:text-ink transition-colors"
-                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--al-marble);">
-                    <i class="ph ph-x text-xs"></i>
-                </button>
-            </div>
-
-            <!-- Risultati ricerca (full-width, sotto la barra) -->
-            <div x-show="show && results.length > 0" x-cloak
-                 class="al-card al-card-warm al-card-flush overflow-hidden">
-                <div class="px-5 py-3 flex items-center justify-between" style="border-bottom: 1px solid var(--al-rule); background: var(--al-marble);">
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">Risultati</p>
-                    <span class="al-tag font-mono" x-text="results.length + ' trovati'"></span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
-                    <template x-for="s in results" :key="s.id">
-                        <button type="button" @click="pick(s)"
-                                class="text-left px-4 py-3 hover:bg-marble transition-colors"
-                                style="border-bottom: 1px solid var(--al-rule); border-right: 1px solid var(--al-rule);">
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold text-ink truncate" x-text="s.name"></p>
-                                    <p class="al-tag mt-0.5" x-text="s.category"></p>
-                                </div>
-                                <div class="flex flex-col items-end gap-1 shrink-0">
-                                    <span class="al-tag font-mono" x-text="s.unit"></span>
-                                    <i class="ph ph-plus-circle text-bronze text-base"></i>
-                                </div>
-                            </div>
-                        </button>
-                    </template>
-                </div>
-            </div>
-
-            <div x-show="show && !searching && q.length >= 2 && results.length === 0" x-cloak
-                 class="al-empty" style="padding: 28px 20px;">
-                <i class="ph ph-magnifying-glass text-3xl text-ink-line mb-2 block"></i>
-                <p class="al-tag">Nessun integratore trovato per "<span x-text="q"></span>".</p>
-            </div>
-        </div>
-
-        <!-- Sezione 3 — Integratori selezionati -->
+        <!-- Sezione 2 — Integratori -->
         <div class="al-card">
             <div class="flex items-center gap-3 mb-6">
                 <i class="ph ph-pill text-bronze text-xl"></i>
                 <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
-                    <h2 class="al-h-3">Integratori in scheda</h2>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                    <h2 class="al-h-3">Integratori</h2>
                 </div>
-                <span class="ml-auto al-tag font-mono" x-text="items.length + ' selezionati'"></span>
+                <span class="ml-auto al-tag font-mono" x-text="items.length + (items.length === 1 ? ' integratore' : ' integratori')"></span>
             </div>
 
-            <div class="al-card al-card-warm al-card-flush overflow-hidden">
-                <div class="divide-y" style="--tw-divide-color: var(--al-rule);">
-                    <template x-for="(item, idx) in items" :key="idx">
-                        <div class="flex items-center gap-3 px-5 py-3" style="border-bottom: 1px solid var(--al-rule);">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-ink" x-text="item.supplement_name"></p>
-                                <p class="al-tag mt-0.5" x-text="item.supplement_category"></p>
+            <!-- Lista integratori -->
+            <div class="space-y-4">
+                <template x-for="(item, idx) in items" :key="item._key">
+                    <div class="al-card al-card-warm" style="padding: 16px;">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-1 space-y-3 min-w-0">
+                                <!-- Nome -->
+                                <input type="text" x-model="item.name" placeholder="Nome integratore (es. Creatina monoidrato)" class="al-input">
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <!-- Dose: quantità + unità -->
+                                    <div>
+                                        <label class="al-label">Dose</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="text" x-model="item.quantity" placeholder="Quantità (es. 5)" class="al-input flex-1">
+                                            <select x-model="item.unit" class="al-input" style="width: 80px;">
+                                                <option value="mg">mg</option>
+                                                <option value="g">g</option>
+                                                <option value="cps">cps</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <!-- Quando -->
+                                    <div>
+                                        <label class="al-label">Quando</label>
+                                        <select x-model="item.timingPreset"
+                                                @change="if (item.timingPreset !== 'Altro') item.timing = item.timingPreset"
+                                                class="al-input">
+                                            <option value="">—</option>
+                                            <template x-for="t in TIMINGS" :key="t">
+                                                <option :value="t" x-text="t"></option>
+                                            </template>
+                                            <option value="Altro">Altro…</option>
+                                        </select>
+                                        <input x-show="item.timingPreset === 'Altro'" x-cloak type="text"
+                                               x-model="item.timing" placeholder="Specifica il timing…"
+                                               class="al-input mt-2">
+                                    </div>
+                                </div>
+
+                                <!-- Note -->
+                                <input type="text" x-model="item.notes" placeholder="Note (facoltative)" class="al-input">
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <input type="text" x-model="item.dose"
-                                       class="al-input text-center" style="width: 90px; padding: 6px 10px;"
-                                       :placeholder="item.supplement_unit">
-                                <input type="text" x-model="item.timing"
-                                       class="al-input" style="width: 130px; padding: 6px 10px;"
-                                       placeholder="Quando…">
-                                <button type="button" @click="items.splice(idx,1)" class="al-btn al-btn-icon al-btn-ghost">
-                                    <i class="ph ph-x text-xs"></i>
+
+                            <!-- Menu tre puntini -->
+                            <div class="relative shrink-0" @click.outside="openMenuIdx = null">
+                                <button type="button" @click="openMenuIdx = (openMenuIdx === idx ? null : idx)"
+                                        class="al-btn al-btn-icon al-btn-ghost" title="Opzioni">
+                                    <i class="ph ph-dots-three-vertical"></i>
                                 </button>
+                                <div x-show="openMenuIdx === idx" x-cloak
+                                     class="al-card absolute right-0 z-20 mt-1 py-1"
+                                     style="min-width: 190px; box-shadow: var(--al-shadow, 0 8px 24px rgba(0,0,0,.12));">
+                                    <button type="button" @click="saveAsModel(item); openMenuIdx = null"
+                                            class="w-full text-left px-4 py-2 text-sm hover:bg-marble flex items-center gap-2">
+                                        <i class="ph ph-bookmark-simple"></i> Salva come modello
+                                    </button>
+                                    <button type="button" @click="removeItem(idx)"
+                                            class="w-full text-left px-4 py-2 text-sm hover:bg-marble flex items-center gap-2"
+                                            style="color: var(--al-danger);">
+                                        <i class="ph ph-trash"></i> Elimina
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </template>
-                    <div x-show="items.length === 0" class="al-empty" style="padding: 28px 20px;">
-                        <i class="ph ph-pill text-3xl text-ink-line mb-2 block"></i>
-                        <p class="al-tag">Nessun integratore. Usa la ricerca sopra.</p>
                     </div>
+                </template>
+
+                <!-- Empty state form -->
+                <div x-show="items.length === 0" class="al-empty" style="padding: 28px 20px;">
+                    <i class="ph ph-pill text-3xl text-ink-line mb-2 block"></i>
+                    <p class="al-tag">Nessun integratore. Aggiungine uno con il pulsante +.</p>
                 </div>
+            </div>
+
+            <!-- Azioni: aggiungi + da modelli -->
+            <div class="flex items-center gap-3 mt-5">
+                <button type="button" @click="addItem()" title="Aggiungi integratore" aria-label="Aggiungi integratore"
+                        class="al-btn al-btn-bronze w-9 h-9 inline-flex items-center justify-center rounded-lg p-0">
+                    <i class="ph ph-plus"></i>
+                </button>
+                <button type="button" @click="openModels()" class="al-btn al-btn-ghost">
+                    <i class="ph ph-bookmarks-simple text-sm"></i><span>Da modelli</span>
+                </button>
             </div>
         </div>
 
-        <div x-show="errorMsg" class="al-toast is-danger" x-text="errorMsg"></div>
+        <div x-show="errorMsg" x-cloak class="al-toast is-danger" x-text="errorMsg"></div>
+    </div>
+
+    <!-- Modal modelli -->
+    <div x-show="modelsOpen" x-cloak class="al-modal-backdrop" @click="modelsOpen = false"></div>
+    <div x-show="modelsOpen" x-cloak class="al-modal" style="max-width: 480px;">
+        <div class="al-modal-head">
+            <h3 class="al-h-3">I tuoi modelli</h3>
+            <button type="button" class="al-btn al-btn-icon al-btn-ghost" @click="modelsOpen = false"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="al-modal-body" style="max-height: 420px; overflow-y: auto;">
+            <template x-if="modelsLoading">
+                <div class="al-empty" style="padding: 24px;"><i class="ph ph-spinner-gap animate-spin text-2xl"></i></div>
+            </template>
+            <template x-if="!modelsLoading && models.length === 0">
+                <div class="al-empty" style="padding: 28px 20px;">
+                    <i class="ph ph-bookmarks-simple text-3xl text-ink-line mb-2 block"></i>
+                    <p class="al-tag">Non hai ancora un integratore, creane uno.</p>
+                </div>
+            </template>
+            <div class="space-y-2">
+                <template x-for="m in models" :key="m.id">
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-marble" style="border: 1px solid var(--al-rule);">
+                        <button type="button" @click="addItem(m); modelsOpen = false" class="flex-1 text-left min-w-0">
+                            <p class="text-sm font-medium text-ink truncate" x-text="m.name"></p>
+                            <p class="al-tag mt-0.5" x-text="[ (m.quantity + ' ' + m.unit).trim(), m.timing ].filter(Boolean).join(' · ')"></p>
+                        </button>
+                        <button type="button" @click="deleteModel(m)" class="al-btn al-btn-icon al-btn-ghost" title="Elimina modello">
+                            <i class="ph ph-trash text-sm" style="color: var(--al-danger);"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
 function sheetBuilder() {
   return {
+    TIMINGS: ['Mattina', 'Colazione', 'Pranzo', 'Pomeriggio', 'Cena', 'Sera', 'Pre Workout', 'Intra Workout', 'Post Workout', 'A digiuno', 'Con i pasti', 'Pre nanna'],
     title: '{{ sheet.title|escapejs|default:"" }}',
     notes: '{{ sheet.notes|escapejs|default:"" }}',
     items: [],
     saving: false,
     errorMsg: '',
+    openMenuIdx: null,
+    _seq: 0,
+    modelsOpen: false,
+    modelsLoading: false,
+    models: [],
 
     init() {
       const raw = window._sheetItems || [];
-      this.items = raw.map(i => ({
-        supplement_id: i.supplement_id,
-        supplement_name: i.supplement_name,
-        supplement_unit: i.supplement_unit,
-        supplement_category: '',
-        dose: i.dose,
-        timing: i.timing || '',
-        notes: i.notes || '',
-      }));
+      this.items = raw.map(i => this._mkItem(i));
     },
 
-    addItem(supp) {
-      this.items.push({
-        supplement_id: supp.id,
-        supplement_name: supp.name,
-        supplement_unit: supp.unit,
-        supplement_category: supp.category,
-        dose: '',
-        timing: '',
-        notes: '',
-      });
+    _mkItem(i = {}) {
+      const timing = i.timing || '';
+      const preset = timing && this.TIMINGS.includes(timing) ? timing : (timing ? 'Altro' : '');
+      return {
+        _key: this._seq++,
+        name: i.name || '',
+        quantity: i.quantity || '',
+        unit: i.unit || 'g',
+        timing: timing,
+        timingPreset: preset,
+        notes: i.notes || '',
+      };
+    },
+
+    addItem(model = null) {
+      this.items.push(this._mkItem(model || {}));
+    },
+
+    removeItem(idx) {
+      this.openMenuIdx = null;
+      const it = this.items[idx];
+      const label = (it && it.name.trim()) || 'questo integratore';
+      if (window.alConfirm) {
+        window.alConfirm({ icon: 'ph-trash', title: 'Eliminare\nl\'integratore?',
+          subtitle: '«' + label + '» verrà rimosso dal protocollo.', confirmLabel: 'Sì, elimina' })
+          .then(ok => { if (ok) this.items.splice(idx, 1); });
+      } else if (confirm('Eliminare «' + label + '»?')) {
+        this.items.splice(idx, 1);
+      }
+    },
+
+    async saveAsModel(item) {
+      if (!item.name.trim()) { this.errorMsg = 'Inserisci il nome dell\'integratore prima di salvarlo come modello.'; return; }
+      this.errorMsg = '';
+      try {
+        const res = await fetch('{% url "nutrizione_supplement_save_template" %}', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+          body: JSON.stringify({ name: item.name, quantity: item.quantity, unit: item.unit, timing: item.timing, notes: item.notes }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { this.errorMsg = d.error || 'Errore nel salvataggio del modello.'; return; }
+        if (window.Alpine && Alpine.store('toasts')) Alpine.store('toasts').push({ kind: 'success', msg: 'Modello salvato.' });
+      } catch (e) { this.errorMsg = 'Errore di rete.'; }
+    },
+
+    async openModels() {
+      this.modelsOpen = true;
+      this.modelsLoading = true;
+      try {
+        const res = await fetch('{% url "nutrizione_supplement_templates" %}');
+        const d = await res.json().catch(() => ({ results: [] }));
+        this.models = d.results || [];
+      } catch (e) { this.models = []; }
+      this.modelsLoading = false;
+    },
+
+    async deleteModel(m) {
+      try {
+        const res = await fetch('/api/nutrizione/integratori/modelli/' + m.id + '/elimina/', {
+          method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        });
+        if (res.ok) this.models = this.models.filter(x => x.id !== m.id);
+      } catch (e) {}
     },
 
     async saveSheet() {
-      if (!this.title.trim()) { this.errorMsg = 'Titolo obbligatorio.'; return; }
+      if (!this.title.trim()) { this.errorMsg = 'Inserisci un titolo per il protocollo.'; return; }
+      const clean = this.items.filter(i => i.name.trim());
+      if (clean.length === 0) { this.errorMsg = 'Aggiungi almeno un integratore.'; return; }
       this.errorMsg = '';
       this.saving = true;
       const url = {% if sheet %}'{% url "nutrizione_integratori_edit" sheet.id %}'{% else %}'{% url "nutrizione_integratori_crea" %}'{% endif %};
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-        body: JSON.stringify({
-          title: this.title,
-          notes: this.notes,
-          items: this.items,
-        })
-      });
-      this.saving = false;
-      if (res.ok) {
-        const d = await res.json();
-        window.location.href = '/nutrizione/integratori/' + d.sheet_id + '/';
-      } else {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+          body: JSON.stringify({
+            title: this.title,
+            notes: this.notes,
+            items: clean.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, timing: i.timing, notes: i.notes })),
+          })
+        });
         const d = await res.json().catch(() => ({}));
-        this.errorMsg = d.error || 'Errore durante il salvataggio.';
+        if (res.ok) {
+          window.location.href = '/nutrizione/integratori/' + d.sheet_id + '/';
+        } else {
+          this.errorMsg = d.error || 'Errore durante il salvataggio.';
+        }
+      } catch (e) {
+        this.errorMsg = 'Errore di rete.';
+      } finally {
+        this.saving = false;
       }
     }
   };
