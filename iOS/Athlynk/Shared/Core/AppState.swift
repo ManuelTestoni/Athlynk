@@ -99,14 +99,17 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Record consent to Terms + Privacy and lift the gate. On failure the gate
-    /// stays up so the user can retry.
-    func acceptTerms() async {
+    /// Record consent to Terms + Privacy and lift the gate. Returns false (gate
+    /// stays up) if the request fails, so the view can show a retry message.
+    @discardableResult
+    func acceptTerms() async -> Bool {
         do {
             try await api.acceptTerms()
             needsTermsConsent = false
+            return true
         } catch {
             Haptics.error()
+            return false
         }
     }
 
@@ -118,6 +121,8 @@ final class AppState: ObservableObject {
         user = nil
         me = nil
         avatarUrl = nil
+        // Drop any open gate so the consent cover doesn't linger over the login.
+        needsTermsConsent = false
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { phase = .login }
     }
 
@@ -163,6 +168,7 @@ final class AppState: ObservableObject {
 struct TermsConsentView: View {
     @EnvironmentObject var app: AppState
     @State private var working = false
+    @State private var failed = false
 
     private let tos = URL(string: "https://app.athlynk.it/termini-di-servizio/")!
     private let privacy = URL(string: "https://app.athlynk.it/privacy/")!
@@ -185,11 +191,22 @@ struct TermsConsentView: View {
                     Link(destination: privacy) { docRow("Privacy Policy") }
                 }
 
+                if failed {
+                    Text("Non è stato possibile registrare il consenso. Controlla la connessione e riprova.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.crimson)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 Spacer()
 
                 Button {
                     working = true
-                    Task { await app.acceptTerms(); working = false }
+                    failed = false
+                    Task {
+                        let ok = await app.acceptTerms()
+                        working = false
+                        failed = !ok
+                    }
                 } label: {
                     HStack {
                         Spacer()

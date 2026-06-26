@@ -42,7 +42,7 @@ struct CoachRootView: View {
         }
         .animation(.spring(response: 0.7, dampingFraction: 0.85), value: app.phase)
         .fullScreenCover(isPresented: $app.needsTermsConsent) {
-            TermsConsentView()
+            TermsConsentView().environmentObject(app)
         }
         .fullScreenCover(isPresented: $app.showCoachChiron) {
             CoachChironIntroView {
