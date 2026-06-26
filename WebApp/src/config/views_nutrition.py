@@ -1104,6 +1104,7 @@ def api_food_search(request):
 
     q = request.GET.get('q', '').strip()
     category = request.GET.get('cat', '').strip()
+    flt = request.GET.get('filter', '').strip()
 
     food_search_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
     foods = Food.objects.all()
@@ -1111,6 +1112,27 @@ def api_food_search(request):
         foods = foods.filter(nome_alimento__icontains='media')
     else:
         foods = foods.exclude(nome_alimento__icontains='media')
+
+    # "Recenti": foods this coach has recently put in any meal, newest first.
+    recent_order = None
+    if flt == 'recent':
+        coach = get_session_coach(request)
+        recent_ids = []
+        if coach:
+            seen = set()
+            for fid in (MealItem.objects
+                        .filter(meal__plan__coach=coach, food__isnull=False)
+                        .order_by('-id').values_list('food_id', flat=True)):
+                if fid not in seen:
+                    seen.add(fid)
+                    recent_ids.append(fid)
+                if len(recent_ids) >= 30:
+                    break
+        if not recent_ids:
+            return JsonResponse({'results': []})
+        foods = foods.filter(id__in=recent_ids)
+        recent_order = {fid: i for i, fid in enumerate(recent_ids)}
+
     if q:
         foods = foods.filter(nome_alimento__icontains=q)
         # Query-dependent relevance: exact > starts-with > word-boundary > contains.
@@ -1122,11 +1144,17 @@ def api_food_search(request):
             default=Value(1),
             output_field=IntegerField(),
         )).order_by('-relevance', '-genericity_score', 'nome_alimento')
+    elif recent_order is None:
+        # Empty-query browse (e.g. panel just opened) → surface common foods first.
+        foods = foods.order_by('-genericity_score', 'nome_alimento')
     if category:
         foods = foods.filter(categoria_alimento=category)
-    foods = foods[:30]
+    if recent_order is not None:
+        foods = sorted(foods, key=lambda f: recent_order.get(f.id, 1e9))[:30]
+    else:
+        foods = foods[:30]
 
-    return JsonResponse({
+    payload = {
         'results': [
             {
                 'id': f.id,
@@ -1165,7 +1193,20 @@ def api_food_search(request):
             }
             for f in foods
         ]
-    })
+    }
+    # Category chips (only when the panel asks, e.g. on first open).
+    if request.GET.get('include_cats'):
+        base = Food.objects.all()
+        if food_search_mode == 'media':
+            base = base.filter(nome_alimento__icontains='media')
+        else:
+            base = base.exclude(nome_alimento__icontains='media')
+        payload['categories'] = sorted(
+            c for c in base.exclude(categoria_alimento__isnull=True)
+                           .exclude(categoria_alimento='')
+                           .values_list('categoria_alimento', flat=True).distinct()
+        )
+    return JsonResponse(payload)
 
 
 @require_http_methods(["POST"])

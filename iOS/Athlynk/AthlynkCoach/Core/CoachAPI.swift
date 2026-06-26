@@ -518,10 +518,18 @@ extension APIClient {
                           from: try await request("/api/exercises/search/?q=\(q)"))
     }
 
-    func coachSearchFoods(query: String) async throws -> [BuilderFood] {
-        let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+    func coachSearchFoods(query: String, filter: String? = nil,
+                          cat: String? = nil, includeCats: Bool = false) async throws -> BuilderFoodSearchResponse {
+        var comps = URLComponents()
+        var items: [URLQueryItem] = []
+        if !query.isEmpty { items.append(.init(name: "q", value: query)) }
+        if let filter, !filter.isEmpty { items.append(.init(name: "filter", value: filter)) }
+        if let cat, !cat.isEmpty { items.append(.init(name: "cat", value: cat)) }
+        if includeCats { items.append(.init(name: "include_cats", value: "1")) }
+        comps.queryItems = items
+        let qs = comps.percentEncodedQuery ?? ""
         return try decode(BuilderFoodSearchResponse.self,
-                          from: try await request("/api/nutrizione/alimenti/?q=\(q)")).results
+                          from: try await request("/api/nutrizione/alimenti/?\(qs)"))
     }
 
     // MARK: Chiron AI import (reuses the web import endpoints via dual auth)

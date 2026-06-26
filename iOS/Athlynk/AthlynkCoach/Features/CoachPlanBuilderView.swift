@@ -733,16 +733,36 @@ private struct WBFoodRow: View {
     let accent: Color
     let onDelete: () -> Void
 
+    @State private var showSubs = false
+
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.food.name)
-                    .font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
-                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    Text(item.food.name)
+                        .font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                        .lineLimit(2)
+                    if !item.substitutions.isEmpty {
+                        Text("\(item.substitutions.count) alt")
+                            .font(Typo.mono(9, .semibold)).foregroundStyle(accent)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().stroke(accent.opacity(0.5), lineWidth: 1))
+                    }
+                }
                 Text("\(Int(item.kcal.rounded())) kcal · P \(fmt(item.protein)) · C \(fmt(item.carb)) · G \(fmt(item.fat))")
                     .font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
             }
             Spacer(minLength: 6)
+
+            // substitutions
+            Button { Haptics.tap(); showSubs = true } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(item.substitutions.isEmpty ? Palette.textLow : accent)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(item.substitutions.isEmpty ? Palette.void2 : accent.opacity(0.14)))
+            }
+            .buttonStyle(.plain)
 
             // grams stepper
             HStack(spacing: 0) {
@@ -771,6 +791,9 @@ private struct WBFoodRow: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
+        .sheet(isPresented: $showSubs) {
+            SubstitutionSheet(item: $item, accent: accent)
+        }
     }
 
     private func bump(_ delta: Double) {
@@ -780,6 +803,204 @@ private struct WBFoodRow: View {
 
     private func fmt(_ v: Double) -> String {
         v < 10 ? String(format: "%.1f", v) : "\(Int(v.rounded()))"
+    }
+}
+
+// MARK: - Substitutions (iso-kcal / iso-prot / iso-carb), parity with web
+
+private struct SubstitutionSheet: View {
+    @Binding var item: WBItemDraft
+    let accent: Color
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var mode = "ISOKCAL"
+    @State private var query = ""
+    @State private var results: [BuilderFood] = []
+    @State private var loading = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var errorText: String?
+
+    private let modes = [("ISOKCAL", "iso-kcal"), ("ISOPROT", "iso-prot"), ("ISOCARB", "iso-carb")]
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                // existing substitutions
+                if !item.substitutions.isEmpty {
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(Array(item.substitutions.enumerated()), id: \.offset) { idx, sub in
+                                existingRow(sub, idx)
+                            }
+                        }.padding(.horizontal, 16)
+                    }
+                    .frame(maxHeight: 150)
+                }
+
+                // mode picker
+                HStack(spacing: 8) {
+                    ForEach(modes, id: \.0) { key, label in
+                        Button {
+                            Haptics.tap(); mode = key
+                        } label: {
+                            Text(label)
+                                .font(Typo.body(12, .semibold))
+                                .foregroundStyle(mode == key ? Palette.void0 : Palette.textMid)
+                                .padding(.horizontal, 14).padding(.vertical, 7)
+                                .background(Capsule().fill(mode == key ? accent : Palette.void2))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+
+                VoltField(icon: "magnifyingglass", placeholder: "Cerca sostituto…",
+                          text: $query, accent: accent)
+                    .padding(.horizontal, 16)
+
+                if let errorText {
+                    Text(errorText).font(Typo.body(12)).foregroundStyle(Palette.crimson)
+                        .padding(.horizontal, 16)
+                }
+
+                if loading && results.isEmpty {
+                    Spacer(); SwiftUI.ProgressView().tint(accent); Spacer()
+                } else if results.isEmpty {
+                    Spacer()
+                    Text(query.isEmpty ? "Cerca un alimento da proporre come alternativa."
+                                       : "Nessun alimento trovato.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                        .multilineTextAlignment(.center).padding(.horizontal, 24)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(results) { food in
+                                Button { add(food) } label: {
+                                    HStack(spacing: 10) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(food.name).font(Typo.body(14, .semibold))
+                                                .foregroundStyle(Palette.textHi).multilineTextAlignment(.leading)
+                                            Text("\(Int(food.kcal.rounded())) kcal · P \(Int(food.protein.rounded())) · C \(Int(food.carb.rounded())) · G \(Int(food.fat.rounded()))  /100g")
+                                                .font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
+                                        }
+                                        Spacer(minLength: 4)
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 18, weight: .bold)).foregroundStyle(accent)
+                                    }
+                                    .padding(.horizontal, 14).padding(.vertical, 12)
+                                    .contentShape(Rectangle())
+                                    .voltPanel(radius: 12)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }.padding(.horizontal, 16).padding(.bottom, 24)
+                    }
+                }
+            }
+            .padding(.top, 8)
+            .background(Palette.void0.ignoresSafeArea())
+            .navigationTitle("Sostituzioni")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarLeading) {
+                Button("Chiudi") { dismiss() }.tint(Palette.textMid)
+            } }
+            .onChange(of: query) { _, _ in scheduleSearch() }
+        }
+        .presentationDetents([.large])
+    }
+
+    @ViewBuilder
+    private func existingRow(_ sub: [String: Any], _ idx: Int) -> some View {
+        let name = sub["food_name"] as? String ?? "Alimento"
+        let g = numd(sub["quantity_g"])
+        let m = sub["mode"] as? String ?? ""
+        HStack(spacing: 10) {
+            Text(modeLabel(m)).font(Typo.mono(9, .bold)).foregroundStyle(accent)
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(Capsule().stroke(accent.opacity(0.5), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(Typo.body(13, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
+                Text("\(Int(g))g").font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
+            }
+            Spacer(minLength: 4)
+            Button {
+                Haptics.warning()
+                withAnimation(.snappy) {
+                    if idx < item.substitutions.count { item.substitutions.remove(at: idx) }
+                }
+            } label: {
+                Image(systemName: "trash").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.crimson.opacity(0.8)).frame(width: 28, height: 28)
+            }.buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .voltPanel(radius: 12)
+    }
+
+    private func modeLabel(_ m: String) -> String {
+        m == "ISOKCAL" ? "iso-kcal" : m == "ISOPROT" ? "iso-prot" : m == "ISOCARB" ? "iso-carb" : m
+    }
+
+    private func numd(_ v: Any?) -> Double {
+        (v as? Double) ?? (v as? Int).map(Double.init) ?? 0
+    }
+
+    /// Mirrors the web computeSubGrams: keep the chosen macro constant.
+    private func computeGrams(_ food: BuilderFood) -> Double? {
+        let q = item.grams
+        func round5(_ g: Double) -> Double { max(5, (g / 5).rounded() * 5) }
+        switch mode {
+        case "ISOKCAL":
+            guard food.kcal > 0 else { return nil }
+            return round5(item.food.kcal * q / 100 / food.kcal * 100)
+        case "ISOPROT":
+            guard food.protein > 0 else { return nil }
+            return round5(item.food.protein * q / 100 / food.protein * 100)
+        case "ISOCARB":
+            guard food.carb > 0 else { return nil }
+            return round5(item.food.carb * q / 100 / food.carb * 100)
+        default: return nil
+        }
+    }
+
+    private func add(_ food: BuilderFood) {
+        guard let grams = computeGrams(food) else {
+            errorText = "Sostituzione non applicabile: macro target a zero."
+            return
+        }
+        errorText = nil
+        Haptics.soft()
+        withAnimation(.snappy) {
+            item.substitutions.append([
+                "food_id": food.id,
+                "food_name": food.name,
+                "mode": mode,
+                "quantity_g": grams,
+                "kcal_per_100g": food.kcal,
+                "protein_per_100g": food.protein,
+                "carb_per_100g": food.carb,
+                "fat_per_100g": food.fat,
+            ])
+        }
+    }
+
+    private func scheduleSearch() {
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await search()
+        }
+    }
+
+    private func search() async {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { results = []; return }
+        loading = true; defer { loading = false }
+        let resp = try? await APIClient.shared.coachSearchFoods(query: query)
+        guard !Task.isCancelled else { return }
+        results = resp?.results ?? []
     }
 }
 
@@ -934,6 +1155,9 @@ struct FoodPickerSheet: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var selected: BuilderFood?
     @State private var grams: Double = 100
+    @State private var filter = "all"        // all | cat | recent
+    @State private var categories: [String] = []
+    @State private var activeCat = ""
 
     var body: some View {
         NavigationStack {
@@ -942,13 +1166,56 @@ struct FoodPickerSheet: View {
                           text: $query, accent: accent)
                     .padding(.horizontal, 16).padding(.top, 8)
 
+                // Filter chips: Tutti / Categorie / Recenti
+                HStack(spacing: 8) {
+                    ForEach([("all", "Tutti"), ("cat", "Categorie"), ("recent", "Recenti")], id: \.0) { key, label in
+                        Button {
+                            Haptics.tap()
+                            filter = key; activeCat = ""; results = []
+                            scheduleSearch(immediate: true)
+                        } label: {
+                            Text(label)
+                                .font(Typo.body(12, .semibold))
+                                .foregroundStyle(filter == key ? Palette.void0 : Palette.textMid)
+                                .padding(.horizontal, 14).padding(.vertical, 7)
+                                .background(Capsule().fill(filter == key ? accent : Palette.void2))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+
+                // Category picker (only in Categorie mode)
+                if filter == "cat" {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(categories, id: \.self) { cat in
+                                Button {
+                                    Haptics.tap()
+                                    activeCat = cat
+                                    scheduleSearch(immediate: true)
+                                } label: {
+                                    Text(cat)
+                                        .font(Typo.body(11, .semibold))
+                                        .foregroundStyle(activeCat == cat ? accent : Palette.textMid)
+                                        .padding(.horizontal, 12).padding(.vertical, 6)
+                                        .background(Capsule().stroke(activeCat == cat ? accent : Palette.line, lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+
                 if loading && results.isEmpty {
                     Spacer(); SwiftUI.ProgressView().tint(accent); Spacer()
                 } else if results.isEmpty {
                     Spacer()
-                    Text(query.isEmpty ? "Scrivi per cercare nella banca dati alimenti."
-                                       : "Nessun alimento trovato.")
+                    Text(emptyText)
                         .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                        .multilineTextAlignment(.center).padding(.horizontal, 24)
                     Spacer()
                 } else {
                     ScrollView {
@@ -968,6 +1235,7 @@ struct FoodPickerSheet: View {
                 Button("Chiudi") { dismiss() }.tint(Palette.textMid)
             } }
             .onChange(of: query) { _, _ in scheduleSearch() }
+            .task { if results.isEmpty { await search() } }
         }
         .presentationDetents([.large])
     }
@@ -1052,20 +1320,41 @@ struct FoodPickerSheet: View {
         .voltPanel(isSel ? accent.opacity(0.5) : Palette.line, radius: 13)
     }
 
-    private func scheduleSearch() {
+    private var emptyText: String {
+        if filter == "recent" { return "Nessun alimento recente." }
+        if filter == "cat" && activeCat.isEmpty { return "Scegli una categoria." }
+        return query.isEmpty ? "Cerca nella banca dati o scegli un filtro." : "Nessun alimento trovato."
+    }
+
+    private func scheduleSearch(immediate: Bool = false) {
         searchTask?.cancel()
         searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
+            if !immediate { try? await Task.sleep(for: .milliseconds(300)) }
             guard !Task.isCancelled else { return }
             await search()
         }
     }
 
     private func search() async {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { results = []; return }
+        // In Categorie mode we wait for a category to be chosen.
+        if filter == "cat" && activeCat.isEmpty && categories.isEmpty {
+            // first load → fetch categories
+        } else if filter == "cat" && activeCat.isEmpty {
+            results = []; return
+        }
         loading = true; defer { loading = false }
-        let found = (try? await APIClient.shared.coachSearchFoods(query: query)) ?? []
+        let resp = try? await APIClient.shared.coachSearchFoods(
+            query: query,
+            filter: filter == "recent" ? "recent" : nil,
+            cat: filter == "cat" ? activeCat : nil,
+            includeCats: filter == "cat" && categories.isEmpty)
         guard !Task.isCancelled else { return }
-        results = found
+        if let cats = resp?.categories { categories = cats }
+        // Don't dump foods under Categorie until a category is picked.
+        if filter == "cat" && activeCat.isEmpty {
+            results = []
+        } else {
+            results = resp?.results ?? []
+        }
     }
 }

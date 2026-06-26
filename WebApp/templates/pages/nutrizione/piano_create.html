@@ -69,6 +69,54 @@ window.NUTRITION_WIZARD_INIT = {
   .mt-macro-input::-webkit-outer-spin-button,
   .mt-macro-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .mt-macro-input[type=number] { -moz-appearance: textfield; }
+
+  /* ── Meal → food tree (p-tree elbows) ───────────────────────────── */
+  .nz-item { position: relative; padding-left: 26px; }
+  .nz-item::before {            /* trunk segment (each row contributes its slice) */
+    content: ''; position: absolute; left: 12px; top: 0; bottom: 0;
+    width: 1px; background: var(--al-rule);
+  }
+  .nz-item:last-child::before { bottom: auto; height: 28px; }  /* stop at elbow */
+  .nz-item::after {             /* horizontal elbow into the row */
+    content: ''; position: absolute; left: 12px; top: 28px;
+    width: 12px; height: 1px; background: var(--al-rule);
+  }
+
+  /* ── Add-food slide-in panel (from left) ────────────────────────── */
+  .nzp-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(20,16,10,0.32); }
+  .nzp-panel {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 71;
+    width: min(420px, 92vw);
+    display: flex; flex-direction: column;
+    background: var(--al-parchment);
+    border-right: 1px solid var(--al-rule);
+    box-shadow: var(--al-elev-pop, 0 12px 48px rgba(0,0,0,0.18));
+  }
+  .nzp-head { padding: 22px 22px 14px; border-bottom: 1px solid var(--al-rule); }
+  .nzp-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .nzp-chip {
+    cursor: pointer; padding: 6px 14px; font-size: 12px;
+    border: 1px solid var(--al-rule); border-radius: 999px;
+    background: var(--al-parchment); color: var(--al-ink-soft);
+    transition: all .15s ease;
+  }
+  .nzp-chip:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); }
+  .nzp-chip.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: var(--al-parchment); }
+  .nzp-body { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
+  .nzp-cat {
+    cursor: pointer; padding: 5px 12px; font-size: 12px; margin: 0 6px 6px 0;
+    display: inline-block; border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm); background: var(--al-marble-warm); color: var(--al-ink-soft);
+  }
+  .nzp-cat.is-active { border-color: var(--al-bronze); color: var(--al-bronze); }
+  .nzp-row {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px; border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm); background: var(--al-parchment); margin-bottom: 8px;
+    transition: border-color .15s, background .15s;
+  }
+  .nzp-row:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble-warm); }
+  .nzp-row.is-added { border-color: var(--al-success, var(--al-bronze)); background: rgba(46,125,50,0.06); }
 </style>
 
 <div class="max-w-6xl mx-auto"
@@ -636,17 +684,17 @@ window.NUTRITION_WIZARD_INIT = {
                   <!-- Items -->
                   <div>
                     <template x-for="(item, iIndex) in meal.items" :key="item._key">
-                      <div style="border-bottom: 1px solid var(--al-rule);">
+                      <div class="nz-item" style="border-bottom: 1px solid var(--al-rule);">
                         <!-- Primary row -->
-                        <div class="flex items-center gap-3 px-5 py-3">
+                        <div class="flex items-center gap-3 pl-2 pr-5 py-3">
                           <button type="button"
                                   @click="item.subsOpen = !item.subsOpen"
                                   class="al-btn al-btn-icon al-btn-ghost shrink-0"
-                                  style="width: 22px; height: 22px;"
-                                  :title="item.subsOpen ? 'Chiudi sostituzioni' : 'Apri sostituzioni'">
-                            <i class="ph text-[11px]"
-                               :class="item.subsOpen ? 'ph-caret-down' : 'ph-caret-right'"
-                               :style="(item.substitutions && item.substitutions.length > 0) ? 'color: var(--al-bronze);' : 'color: var(--al-ink-line);'"></i>
+                                  style="width: 26px; height: 26px;"
+                                  :class="item.subsOpen ? 'al-btn-bronze' : ''"
+                                  :title="item.subsOpen ? 'Chiudi sostituzioni' : 'Sostituzioni'">
+                            <i class="ph ph-arrows-clockwise text-[12px]"
+                               :style="(item.subsOpen || (item.substitutions && item.substitutions.length > 0)) ? 'color: var(--al-bronze);' : 'color: var(--al-ink-line);'"></i>
                           </button>
                           <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
@@ -675,7 +723,7 @@ window.NUTRITION_WIZARD_INIT = {
                         </div>
 
                         <!-- Substitutions panel -->
-                        <div x-show="item.subsOpen" x-cloak
+                        <div x-show="item.subsOpen" x-collapse x-cloak
                              class="px-5 pb-4 pt-1"
                              style="background: var(--al-marble); border-top: 1px dashed var(--al-rule);">
                           <div class="flex items-center gap-2 mb-2">
@@ -782,36 +830,12 @@ window.NUTRITION_WIZARD_INIT = {
                     </template>
                   </div>
 
-                  <!-- Food search -->
-                  <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);"
-                       x-data="foodPicker(meal._key)">
-                    <div x-ref="searchBar" class="al-search" style="border-style: dashed;">
-                      <i class="ph ph-magnifying-glass"></i>
-                      <input type="text" x-model="q" @input.debounce.300ms="search()"
-                             placeholder="Cerca alimento da aggiungere…" class="al-input">
-                      <span x-show="searching" class="al-tag">…</span>
-                    </div>
-                    <template x-teleport="body">
-                      <div x-show="show && results.length > 0" @click.outside="show = false"
-                           :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '260px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
-                        <template x-for="food in results" :key="food.id">
-                          <button type="button" @click="pick(food)"
-                                  class="w-full text-left px-4 py-3"
-                                  style="border-bottom: 1px solid var(--al-rule); background: transparent;">
-                            <div class="flex items-center justify-between gap-3">
-                              <div>
-                                <p class="text-sm font-medium text-ink" x-text="food.name"></p>
-                                <p class="al-tag" x-text="food.category"></p>
-                              </div>
-                              <div class="text-right shrink-0">
-                                <p class="text-xs font-bold text-ink font-mono" x-text="food.kcal + ' kcal'"></p>
-                                <p class="al-tag font-mono" x-text="'P ' + food.protein + ' · C ' + food.carb + ' · F ' + food.fat"></p>
-                              </div>
-                            </div>
-                          </button>
-                        </template>
-                      </div>
-                    </template>
+                  <!-- Add food → opens the left slide-in panel -->
+                  <div class="px-5 py-3" style="border-top: 1px solid var(--al-rule);">
+                    <button type="button" @click="openFoodPanel(meal._key)"
+                            class="al-btn al-btn-ghost w-full" style="border-style: dashed;">
+                      <i class="ph ph-plus"></i><span>Aggiungi alimento</span>
+                    </button>
                   </div>
                 </div>
               </template>
@@ -825,6 +849,77 @@ window.NUTRITION_WIZARD_INIT = {
           </div>
         </template>
       </div>
+
+      <!-- ── Add-food slide-in panel ──────────────────────────────── -->
+      <template x-teleport="body">
+        <div x-show="foodPanel.open" x-cloak @keydown.escape.window="closeFoodPanel()">
+          <div class="nzp-backdrop"
+               x-show="foodPanel.open" x-transition.opacity.duration.200ms
+               @click="closeFoodPanel()"></div>
+          <div class="nzp-panel"
+               x-show="foodPanel.open"
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+               x-transition:leave="transition ease-in duration-200"
+               x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full">
+
+            <div class="nzp-head">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="al-eyebrow" style="color: var(--al-bronze);">Banca dati</p>
+                  <h2 class="al-h-3 mt-0.5">Aggiungi alimento</h2>
+                </div>
+                <button type="button" class="al-btn al-btn-icon al-btn-ghost" @click="closeFoodPanel()" title="Chiudi">
+                  <i class="ph ph-x"></i>
+                </button>
+              </div>
+
+              <div class="al-search mt-4">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" x-model="foodPanel.q" @input.debounce.300ms="foodPanelSearch()"
+                       placeholder="Cerca alimento…" class="al-input">
+                <span x-show="foodPanel.searching" class="al-tag">…</span>
+              </div>
+
+              <div class="nzp-chips">
+                <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'all' }"
+                        @click="setFoodFilter('all')">Tutti</button>
+                <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'cat' }"
+                        @click="setFoodFilter('cat')">Categorie</button>
+                <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'recent' }"
+                        @click="setFoodFilter('recent')">Recenti</button>
+              </div>
+            </div>
+
+            <div class="nzp-body">
+              <!-- Category picker -->
+              <div x-show="foodPanel.filter === 'cat'" class="mb-3">
+                <template x-for="cat in foodPanel.categories" :key="cat">
+                  <button type="button" class="nzp-cat" :class="{ 'is-active': foodPanel.activeCat === cat }"
+                          @click="pickFoodCat(cat)" x-text="cat"></button>
+                </template>
+              </div>
+
+              <p x-show="!foodPanel.searching && foodPanel.results.length === 0"
+                 class="al-small text-center mt-6" style="color: var(--al-ink-mute);"
+                 x-text="foodPanel.filter === 'recent' ? 'Nessun alimento recente.' : (foodPanel.filter === 'cat' && !foodPanel.activeCat ? 'Scegli una categoria.' : 'Nessun risultato.')"></p>
+
+              <template x-for="food in foodPanel.results" :key="food.id">
+                <button type="button" class="nzp-row" :class="{ 'is-added': foodPanel.justAdded === food.id }"
+                        @click="addFromPanel(food)">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-ink truncate" x-text="food.name"></p>
+                    <p class="al-tag font-mono" x-text="food.kcal + ' kcal · P ' + food.protein + ' · C ' + food.carb + ' · F ' + food.fat"></p>
+                  </div>
+                  <i class="ph shrink-0 text-lg"
+                     :class="foodPanel.justAdded === food.id ? 'ph-check-circle' : 'ph-plus-circle'"
+                     :style="foodPanel.justAdded === food.id ? 'color: var(--al-success, var(--al-bronze));' : 'color: var(--al-bronze);'"></i>
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <!-- Side panel -->
       <aside class="space-y-4 lg:sticky lg:top-6">

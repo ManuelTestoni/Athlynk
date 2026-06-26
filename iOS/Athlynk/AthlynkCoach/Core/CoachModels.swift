@@ -1035,6 +1035,7 @@ struct BuilderFood: Codable, Identifiable, Hashable {
 
 struct BuilderFoodSearchResponse: Codable {
     let results: [BuilderFood]
+    let categories: [String]?
 }
 
 // MARK: - Assignable clients (wizard finalize step)

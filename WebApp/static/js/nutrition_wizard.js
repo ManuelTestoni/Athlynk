@@ -488,6 +488,49 @@ function nutritionWizard() {
       }
       this.meals.splice(i, 1);
     },
+    /* === Add-food slide-in panel === */
+    foodPanel: {
+      open: false, mealKey: null, q: '', filter: 'all', activeCat: '',
+      categories: [], results: [], searching: false, justAdded: null,
+    },
+    openFoodPanel(mealKey) {
+      this.foodPanel.mealKey = mealKey;
+      this.foodPanel.q = ''; this.foodPanel.filter = 'all'; this.foodPanel.activeCat = '';
+      this.foodPanel.results = []; this.foodPanel.open = true;
+      this.foodPanelSearch(this.foodPanel.categories.length === 0);
+    },
+    closeFoodPanel() { this.foodPanel.open = false; },
+    setFoodFilter(f) {
+      this.foodPanel.filter = f; this.foodPanel.activeCat = '';
+      if (f === 'cat') { this.foodPanel.results = []; this.foodPanelSearch(this.foodPanel.categories.length === 0); }
+      else { this.foodPanelSearch(); }
+    },
+    pickFoodCat(cat) { this.foodPanel.activeCat = cat; this.foodPanelSearch(); },
+    async foodPanelSearch(loadCats = false) {
+      const p = this.foodPanel;
+      if (p.filter === 'cat' && !p.activeCat && !loadCats) { p.results = []; return; }
+      p.searching = true;
+      const u = new URL(window.NUTRITION_WIZARD_INIT.urls.foodSearch, window.location.origin);
+      if (p.q) u.searchParams.set('q', p.q);
+      if (p.filter === 'recent') u.searchParams.set('filter', 'recent');
+      if (p.filter === 'cat' && p.activeCat) u.searchParams.set('cat', p.activeCat);
+      if (loadCats) u.searchParams.set('include_cats', '1');
+      try {
+        const r = await fetch(u);
+        const d = await r.json();
+        p.results = d.results || [];
+        if (d.categories) p.categories = d.categories;
+        // In "Categorie" mode, don't dump foods until a category is chosen.
+        if (p.filter === 'cat' && !p.activeCat) p.results = [];
+      } catch (e) { p.results = []; }
+      p.searching = false;
+    },
+    addFromPanel(food) {
+      this.addFoodToMeal(this.foodPanel.mealKey, food);
+      const id = food.id;
+      this.foodPanel.justAdded = id;
+      setTimeout(() => { if (this.foodPanel.justAdded === id) this.foodPanel.justAdded = null; }, 900);
+    },
     addFoodToMeal(mealKey, food) {
       const m = this.meals.find(x => x._key === mealKey);
       if (!m) return;
@@ -984,38 +1027,6 @@ function nutritionWizard() {
   return Object.assign({}, daily, weekly, charts, base);
 }
 
-/* Per-meal food search popover. */
-function foodPicker(mealKey) {
-  return {
-    q: '', results: [], searching: false, show: false,
-    top: '0px', left: '0px', width: '0px',
-    updatePos() {
-      const el = this.$refs.searchBar;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      this.top = (r.bottom + 6) + 'px';
-      this.left = r.left + 'px';
-      this.width = r.width + 'px';
-    },
-    async search() {
-      if (this.q.length < 2) { this.results = []; this.show = false; return; }
-      this.searching = true;
-      this.updatePos();
-      try {
-        const r = await fetch(window.NUTRITION_WIZARD_INIT.urls.foodSearch + '?q=' + encodeURIComponent(this.q));
-        const d = await r.json();
-        this.results = d.results || [];
-      } catch (e) { this.results = []; }
-      this.searching = false;
-      this.show = true;
-    },
-    pick(food) {
-      window.dispatchEvent(new CustomEvent('add-food', { detail: { mealKey, food } }));
-      this.q = ''; this.results = []; this.show = false;
-    },
-  };
-}
-
 /* Per-row supplement search popover. Bubbles via window event. */
 function supplementPicker(suppKey, initialName) {
   return {
@@ -1082,6 +1093,5 @@ function substitutionPicker(mealKey, itemKey, mode) {
 }
 
 window.nutritionWizard = nutritionWizard;
-window.foodPicker = foodPicker;
 window.supplementPicker = supplementPicker;
 window.substitutionPicker = substitutionPicker;

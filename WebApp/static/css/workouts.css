@@ -399,12 +399,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-size: 12px;
   color: var(--al-ink-soft);
 }
-.wb-type-card-bullets li::before {
-  content: '\\2022';
-  color: var(--al-bronze);
-  margin-right: 8px;
-  font-weight: 700;
-}
+/* ponytail: no bullet marker — plain list lines */
 
 /* Import-variant card: subtle diagonal accent + pill at top-right. */
 .wb-type-card--import {
