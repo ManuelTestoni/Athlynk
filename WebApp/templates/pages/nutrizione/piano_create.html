@@ -77,6 +77,11 @@ window.NUTRITION_WIZARD_INIT = {
     width: 1px; background: var(--al-rule);
   }
   .nz-item:last-child::before { bottom: auto; height: 28px; }  /* stop at elbow */
+
+  /* Substitution panel: CSS-only collapse (cheaper than x-collapse, no reflow read) */
+  .nz-sub-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; }
+  .nz-sub-wrap.is-open { grid-template-rows: 1fr; }
+  .nz-sub-inner { overflow: hidden; min-height: 0; }
   .nz-item::after {             /* horizontal elbow into the row */
     content: ''; position: absolute; left: 12px; top: 28px;
     width: 12px; height: 1px; background: var(--al-rule);
@@ -103,12 +108,6 @@ window.NUTRITION_WIZARD_INIT = {
   .nzp-chip:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); }
   .nzp-chip.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: var(--al-parchment); }
   .nzp-body { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
-  .nzp-cat {
-    cursor: pointer; padding: 5px 12px; font-size: 12px; margin: 0 6px 6px 0;
-    display: inline-block; border: 1px solid var(--al-rule-faint);
-    border-radius: var(--al-r-sm); background: var(--al-marble-warm); color: var(--al-ink-soft);
-  }
-  .nzp-cat.is-active { border-color: var(--al-bronze); color: var(--al-bronze); }
   .nzp-row {
     width: 100%; text-align: left; display: flex; align-items: center; gap: 10px;
     padding: 11px 12px; border: 1px solid var(--al-rule-faint);
@@ -722,10 +721,10 @@ window.NUTRITION_WIZARD_INIT = {
                           </div>
                         </div>
 
-                        <!-- Substitutions panel -->
-                        <div x-show="item.subsOpen" x-collapse x-cloak
-                             class="px-5 pb-4 pt-1"
-                             style="background: var(--al-marble); border-top: 1px dashed var(--al-rule);">
+                        <!-- Substitutions panel (CSS grid collapse — no JS reflow on close) -->
+                        <div class="nz-sub-wrap" :class="{ 'is-open': item.subsOpen }">
+                          <div class="nz-sub-inner px-5 pb-4 pt-1"
+                               style="background: var(--al-marble); border-top: 1px dashed var(--al-rule);">
                           <div class="flex items-center gap-2 mb-2">
                             <i class="ph ph-swap text-bronze text-sm"></i>
                             <p class="al-eyebrow" style="font-size: 9px;">Sostituzioni</p>
@@ -825,6 +824,7 @@ window.NUTRITION_WIZARD_INIT = {
                               </template>
                             </div>
                           </template>
+                          </div>
                         </div>
                       </div>
                     </template>
@@ -891,18 +891,30 @@ window.NUTRITION_WIZARD_INIT = {
               </div>
             </div>
 
-            <div class="nzp-body">
-              <!-- Category picker -->
-              <div x-show="foodPanel.filter === 'cat'" class="mb-3">
-                <template x-for="cat in foodPanel.categories" :key="cat">
-                  <button type="button" class="nzp-cat" :class="{ 'is-active': foodPanel.activeCat === cat }"
-                          @click="pickFoodCat(cat)" x-text="cat"></button>
-                </template>
-              </div>
+            <div class="nzp-body" @scroll.passive="onFoodScroll($event)">
+              <!-- Category picker — single-row entries like the foods -->
+              <template x-if="foodPanel.filter === 'cat' && !foodPanel.activeCat">
+                <div>
+                  <template x-for="cat in foodPanel.categories" :key="cat">
+                    <button type="button" class="nzp-row" @click="pickFoodCat(cat)">
+                      <span class="text-sm font-medium text-ink truncate flex-1 min-w-0" x-text="cat"></span>
+                      <i class="ph ph-caret-right shrink-0" style="color: var(--al-ink-mute);"></i>
+                    </button>
+                  </template>
+                </div>
+              </template>
 
-              <p x-show="!foodPanel.searching && foodPanel.results.length === 0"
+              <!-- Back to categories -->
+              <template x-if="foodPanel.filter === 'cat' && foodPanel.activeCat">
+                <button type="button" class="al-link al-link-quiet flex items-center gap-1 mb-3"
+                        @click="foodPanel.activeCat = ''; foodPanel.results = []; foodPanel.hasMore = false">
+                  <i class="ph ph-caret-left text-xs"></i><span x-text="foodPanel.activeCat"></span>
+                </button>
+              </template>
+
+              <p x-show="!foodPanel.searching && foodPanel.results.length === 0 && !(foodPanel.filter === 'cat' && !foodPanel.activeCat)"
                  class="al-small text-center mt-6" style="color: var(--al-ink-mute);"
-                 x-text="foodPanel.filter === 'recent' ? 'Nessun alimento recente.' : (foodPanel.filter === 'cat' && !foodPanel.activeCat ? 'Scegli una categoria.' : 'Nessun risultato.')"></p>
+                 x-text="foodPanel.filter === 'recent' ? 'Nessun alimento recente.' : 'Nessun risultato.'"></p>
 
               <template x-for="food in foodPanel.results" :key="food.id">
                 <button type="button" class="nzp-row" :class="{ 'is-added': foodPanel.justAdded === food.id }"
@@ -916,6 +928,10 @@ window.NUTRITION_WIZARD_INIT = {
                      :style="foodPanel.justAdded === food.id ? 'color: var(--al-success, var(--al-bronze));' : 'color: var(--al-bronze);'"></i>
                 </button>
               </template>
+
+              <div x-show="foodPanel.loadingMore" class="text-center py-3">
+                <i class="ph ph-circle-notch animate-spin" style="color: var(--al-bronze);"></i>
+              </div>
             </div>
           </div>
         </div>

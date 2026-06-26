@@ -492,6 +492,7 @@ function nutritionWizard() {
     foodPanel: {
       open: false, mealKey: null, q: '', filter: 'all', activeCat: '',
       categories: [], results: [], searching: false, justAdded: null,
+      hasMore: false, loadingMore: false,
     },
     openFoodPanel(mealKey) {
       this.foodPanel.mealKey = mealKey;
@@ -519,11 +520,34 @@ function nutritionWizard() {
         const r = await fetch(u);
         const d = await r.json();
         p.results = d.results || [];
+        p.hasMore = !!d.has_more;
         if (d.categories) p.categories = d.categories;
         // In "Categorie" mode, don't dump foods until a category is chosen.
-        if (p.filter === 'cat' && !p.activeCat) p.results = [];
-      } catch (e) { p.results = []; }
+        if (p.filter === 'cat' && !p.activeCat) { p.results = []; p.hasMore = false; }
+      } catch (e) { p.results = []; p.hasMore = false; }
       p.searching = false;
+    },
+    async foodPanelLoadMore() {
+      const p = this.foodPanel;
+      if (p.loadingMore || !p.hasMore || p.searching) return;
+      if (p.filter === 'recent') return;
+      if (p.filter === 'cat' && !p.activeCat) return;
+      p.loadingMore = true;
+      const u = new URL(window.NUTRITION_WIZARD_INIT.urls.foodSearch, window.location.origin);
+      if (p.q) u.searchParams.set('q', p.q);
+      if (p.filter === 'cat' && p.activeCat) u.searchParams.set('cat', p.activeCat);
+      u.searchParams.set('offset', p.results.length);
+      try {
+        const r = await fetch(u);
+        const d = await r.json();
+        p.results = p.results.concat(d.results || []);
+        p.hasMore = !!d.has_more;
+      } catch (e) { p.hasMore = false; }
+      p.loadingMore = false;
+    },
+    onFoodScroll(e) {
+      const el = e.target;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) this.foodPanelLoadMore();
     },
     addFromPanel(food) {
       this.addFoodToMeal(this.foodPanel.mealKey, food);

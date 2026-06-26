@@ -1186,30 +1186,41 @@ struct FoodPickerSheet: View {
                 }
                 .padding(.horizontal, 16)
 
-                // Category picker (only in Categorie mode)
-                if filter == "cat" {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(categories, id: \.self) { cat in
-                                Button {
-                                    Haptics.tap()
-                                    activeCat = cat
-                                    scheduleSearch(immediate: true)
-                                } label: {
-                                    Text(cat)
-                                        .font(Typo.body(11, .semibold))
-                                        .foregroundStyle(activeCat == cat ? accent : Palette.textMid)
-                                        .padding(.horizontal, 12).padding(.vertical, 6)
-                                        .background(Capsule().stroke(activeCat == cat ? accent : Palette.line, lineWidth: 1))
-                                }
-                                .buttonStyle(.plain)
-                            }
+                // Back to categories (when a category is open)
+                if filter == "cat" && !activeCat.isEmpty {
+                    Button {
+                        Haptics.tap()
+                        activeCat = ""; results = []
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left").font(.system(size: 12, weight: .bold))
+                            Text(activeCat).font(Typo.body(13, .semibold))
+                            Spacer()
                         }
+                        .foregroundStyle(accent)
                         .padding(.horizontal, 16)
                     }
+                    .buttonStyle(.plain)
                 }
 
-                if loading && results.isEmpty {
+                if filter == "cat" && activeCat.isEmpty {
+                    // Category list — one per row, alphabetical, filtered by search
+                    if filteredCategories.isEmpty {
+                        Spacer()
+                        Text(categories.isEmpty ? "Caricamento categorie…" : "Nessuna categoria trovata.")
+                            .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(filteredCategories, id: \.self) { cat in
+                                    categoryRow(cat)
+                                }
+                            }
+                            .padding(.horizontal, 16).padding(.bottom, 24)
+                        }
+                    }
+                } else if loading && results.isEmpty {
                     Spacer(); SwiftUI.ProgressView().tint(accent); Spacer()
                 } else if results.isEmpty {
                     Spacer()
@@ -1318,6 +1329,36 @@ struct FoodPickerSheet: View {
             }
         }
         .voltPanel(isSel ? accent.opacity(0.5) : Palette.line, radius: 13)
+    }
+
+    private var filteredCategories: [String] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        let base = q.isEmpty ? categories : categories.filter { $0.lowercased().contains(q) }
+        return base.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    @ViewBuilder
+    private func categoryRow(_ cat: String) -> some View {
+        Button {
+            Haptics.tap()
+            activeCat = cat
+            scheduleSearch(immediate: true)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(accent)
+                Text(cat)
+                    .font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textMid)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .voltPanel(Palette.line, radius: 13)
     }
 
     private var emptyText: String {

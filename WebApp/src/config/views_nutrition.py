@@ -1105,6 +1105,11 @@ def api_food_search(request):
     q = request.GET.get('q', '').strip()
     category = request.GET.get('cat', '').strip()
     flt = request.GET.get('filter', '').strip()
+    try:
+        offset = max(0, int(request.GET.get('offset', '0')))
+    except ValueError:
+        offset = 0
+    PAGE = 30
 
     food_search_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
     foods = Food.objects.all()
@@ -1150,12 +1155,11 @@ def api_food_search(request):
     if category:
         foods = foods.filter(categoria_alimento=category)
     if recent_order is not None:
-        foods = sorted(foods, key=lambda f: recent_order.get(f.id, 1e9))[:30]
+        foods = sorted(foods, key=lambda f: recent_order.get(f.id, 1e9))[:PAGE]
     else:
-        foods = foods[:30]
+        foods = foods[offset:offset + PAGE]
 
-    payload = {
-        'results': [
+    items = [
             {
                 'id': f.id,
                 'name': f.nome_alimento,
@@ -1193,6 +1197,9 @@ def api_food_search(request):
             }
             for f in foods
         ]
+    payload = {
+        'results': items,
+        'has_more': recent_order is None and len(items) == PAGE,
     }
     # Category chips (only when the panel asks, e.g. on first open).
     if request.GET.get('include_cats'):
