@@ -1528,7 +1528,8 @@ window.NUTRITION_WIZARD_INIT = {
 
       <div class="space-y-3">
         <template x-for="(supp, idx) in supplements" :key="supp._key">
-          <div class="al-card al-card-warm al-card-flush" style="padding: 16px 18px;">
+          <div class="al-card al-card-warm al-card-flush" style="padding: 16px 18px;"
+               :class="supp._shake ? 'al-shake' : ''">
             <div class="flex items-start gap-3">
               <span class="font-mono shrink-0 mt-1"
                     style="color: var(--al-ink-line); font-size: 12px;"
@@ -1537,7 +1538,9 @@ window.NUTRITION_WIZARD_INIT = {
               <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-3">
                 <div>
                   <label class="al-label">Integratore</label>
-                  <input type="text" x-model="supp.name" placeholder="Nome integratore" class="al-input">
+                  <input type="text" x-model="supp.name" placeholder="Nome integratore" class="al-input"
+                         :class="supp._invalid ? 'is-error' : ''" @input="supp._invalid = false">
+                  <span x-show="supp._invalid" x-cloak class="al-input-error">Compila questo campo per proseguire o cancella integratore.</span>
                 </div>
 
                 <div>

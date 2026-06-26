@@ -136,6 +136,8 @@ function nutritionWizard() {
       unit: s.unit || 'g',
       timing: s.timing || '',
       notes: s.notes || '',
+      _invalid: false,
+      _shake: false,
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
 
@@ -265,6 +267,8 @@ function nutritionWizard() {
     },
     jumpTo(id) {
       if (!this.canJump(id)) return;
+      // Leaving integratori for a later step requires every row to be named.
+      if (this.step === 'integratori' && id === 'riepilogo' && !this.validateSupplements()) return;
       this.step = id;
       this.syncUrlStep();
     },
@@ -326,6 +330,7 @@ function nutritionWizard() {
         return;
       }
       if (this.step === 'integratori') {
+        if (!this.validateSupplements()) return;
         this.completedSteps.integratori = true;
         this.step = 'riepilogo';
         this.syncUrlStep();
@@ -867,11 +872,31 @@ function nutritionWizard() {
         unit: 'g',
         timing: '',
         notes: '',
+        _invalid: false,
+        _shake: false,
       });
     },
     removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
       if (i >= 0) this.supplements.splice(i, 1);
+    },
+    /* Block leaving the integratori step with nameless rows: flag + shake them. */
+    validateSupplements() {
+      let hasBad = false;
+      this.supplements.forEach(s => {
+        const bad = !(s.name || '').trim();
+        s._invalid = bad;
+        s._shake = false;
+        if (bad) hasBad = true;
+      });
+      if (hasBad) {
+        this.$nextTick(() => {
+          this.supplements.forEach(s => { if (s._invalid) s._shake = true; });
+          setTimeout(() => { this.supplements.forEach(s => { s._shake = false; }); }, 450);
+        });
+        return false;
+      }
+      return true;
     },
 
     /* === Step 4: riepilogo === */
