@@ -512,13 +512,14 @@ def check_feedback(request, user, response_id):
     return JsonResponse({'id': r.id, 'coach_feedback': r.coach_feedback})
 
 
-@api_view(['GET'])
-def client_fabbisogni(request, user, client_id):
+@coach_dual_auth
+def client_fabbisogni(request, client_id):
     """Ultimi fabbisogni calcolati per il cliente: prima risposta (più recente)
-    che contiene lo strumento «Calcolo Fabbisogni» (<90gg = fresh)."""
-    coach, err = _require_coach(user)
-    if err:
-        return err
+    che contiene lo strumento «Calcolo Fabbisogni» (<90gg = fresh).
+    Dual-auth: usato dall'app coach (token) e dal builder web (sessione)."""
+    coach = _request_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
     rel = _own_relationship(coach, client_id)
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
