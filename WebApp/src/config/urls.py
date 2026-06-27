@@ -387,6 +387,7 @@ urlpatterns = [
     path('api/v1/coach/nutrition/create', coach_api.nutrition_create, name='api_v1_coach_nutrition_create'),
     path('api/v1/coach/nutrition/<int:plan_id>', coach_api.nutrition_detail, name='api_v1_coach_nutrition_detail'),
     path('api/v1/coach/nutrition/<int:plan_id>/builder', coach_api.nutrition_builder, name='api_v1_coach_nutrition_builder'),
+    path('api/v1/coach/nutrition/<int:plan_id>/supplements', coach_api.coach_nutrition_supplements, name='api_v1_coach_nutrition_supplements'),
     path('api/v1/coach/supplements', coach_api.coach_supplements, name='api_v1_coach_supplements'),
     path('api/v1/coach/supplements/save', coach_api.coach_supplement_save, name='api_v1_coach_supplement_save'),
     path('api/v1/coach/supplements/templates', coach_api.coach_supplement_templates, name='api_v1_coach_supplement_templates'),

@@ -828,12 +828,18 @@ struct CoachNutritionWizardView: View {
     @State private var clients: [CoachAssignableClient] = []
     @State private var selectedClients: Set<Int> = []
 
+    // Supplement step
+    @State private var supplementItems: [CoachSupplementItem] = []
+    @State private var supplementNotes = ""
+    @State private var showSupplementModels = false
+    @State private var supplementModels: [CoachSupplementModel] = []
+
     @State private var busy = false
     @State private var loadingPlan = false
     @State private var fabbisogni: CoachFabbisogniDTO? = nil
 
     private let accent = Palette.lime
-    private let steps = ["Tipo", "Contenuto", "Finalizza"]
+    private let steps = ["Tipo", "Contenuto", "Integratori", "Finalizza"]
 
     var body: some View {
         Group {
@@ -863,6 +869,7 @@ struct CoachNutritionWizardView: View {
                     switch step {
                     case 0: typeStep
                     case 1: contentStep
+                    case 2: supplementStep
                     default: finalizeStep
                     }
                 }
@@ -933,7 +940,6 @@ struct CoachNutritionWizardView: View {
                          accent: accent, onBack: { withAnimation(.snappy) { step = 0 } }) {
                 Haptics.tap()
                 withAnimation(.snappy) { step = 2 }
-                Task { clients = (try? await APIClient.shared.coachAssignableClients()) ?? [] }
             }
         }
     }
@@ -942,6 +948,162 @@ struct CoachNutritionWizardView: View {
         if mode == "FOOD" { return meals.contains { !$0.items.isEmpty } }
         if kind == "DAILY" { return [kcal, protein, carb, fat].contains { Int($0) != nil } }
         return dayTargets.contains { !$0.isEmpty }
+    }
+
+    // MARK: Step 3 — supplement (optional)
+
+    private var supplementStep: some View {
+        VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: "pills.fill")
+                    .font(.system(size: 22, weight: .bold)).foregroundStyle(accent)
+                Text("Integratori (opzionale)")
+                    .font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                Text("Aggiungi un protocollo di integrazione a questo piano.")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            ForEach($supplementItems) { $item in wzSupplementCard($item) }
+
+            if supplementItems.isEmpty {
+                Text("Nessun integratore aggiunto. Puoi saltare questo passaggio.")
+                    .font(Typo.body(13)).foregroundStyle(Palette.textLow)
+                    .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
+            }
+
+            HStack(spacing: 12) {
+                Button {
+                    Haptics.tap()
+                    supplementItems.append(CoachSupplementItem())
+                } label: {
+                    Image(systemName: "plus").font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Palette.void0).frame(width: 38, height: 38)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(accent))
+                }
+                Button { Haptics.tap(); Task { await wzLoadSupplementModels() } } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bookmark.fill").font(.system(size: 13, weight: .bold))
+                        Text("Da modelli").font(Typo.body(14, .semibold))
+                    }
+                    .foregroundStyle(Palette.textHi).padding(.horizontal, 14).padding(.vertical, 10).voltPanel(radius: 12)
+                }
+                Spacer()
+            }
+
+            WZNavButtons(canBack: true,
+                         nextTitle: supplementItems.isEmpty ? "Salta" : "Continua",
+                         nextEnabled: true,
+                         accent: accent, onBack: { withAnimation(.snappy) { step = 1 } }) {
+                Haptics.tap()
+                withAnimation(.snappy) { step = 3 }
+                Task { clients = (try? await APIClient.shared.coachAssignableClients()) ?? [] }
+            }
+        }
+        .sheet(isPresented: $showSupplementModels) { wzSupplementModelsSheet }
+    }
+
+    private func wzSupplementCard(_ item: Binding<CoachSupplementItem>) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
+                    .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(accent)
+                Button { Task { await wzSaveSupplementModel(item.wrappedValue) } } label: {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.textMid)
+                }
+                Button(role: .destructive) { supplementItems.removeAll { $0.rowId == item.wrappedValue.rowId } } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.textLow)
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("", text: item.quantity, prompt: Text("Quantità").foregroundStyle(Palette.textLow))
+                    .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                    .frame(maxWidth: .infinity)
+                Menu {
+                    ForEach(["mg", "g", "cps"], id: \.self) { u in Button(u) { item.wrappedValue.unit = u } }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(item.wrappedValue.unit.isEmpty ? "g" : item.wrappedValue.unit).font(Typo.mono(13, .bold))
+                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(Palette.textHi).padding(.horizontal, 12).padding(.vertical, 9).voltPanel(radius: 10)
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("", text: item.timing, prompt: Text("Quando").foregroundStyle(Palette.textLow))
+                    .font(Typo.body(14)).foregroundStyle(Palette.textHi).tint(accent)
+                    .frame(maxWidth: .infinity)
+                Menu {
+                    ForEach(["Mattina", "Colazione", "Pranzo", "Pomeriggio", "Cena", "Sera",
+                             "Pre Workout", "Intra Workout", "Post Workout",
+                             "A digiuno", "Con i pasti", "Pre nanna"], id: \.self) { t in
+                        Button(t) { item.wrappedValue.timing = t }
+                    }
+                } label: {
+                    Image(systemName: "clock.fill").font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Palette.textMid).frame(width: 38, height: 38).voltPanel(radius: 10)
+                }
+            }
+            TextField("", text: item.notes, prompt: Text("Note").foregroundStyle(Palette.textLow))
+                .font(Typo.body(13)).foregroundStyle(Palette.textMid).tint(accent)
+        }
+        .padding(14).voltPanel(radius: 14)
+    }
+
+    private var wzSupplementModelsSheet: some View {
+        NavigationStack {
+            ScreenScroll {
+                if supplementModels.isEmpty {
+                    Text("Non hai ancora modelli salvati.")
+                        .font(Typo.body(14)).foregroundStyle(Palette.textLow)
+                        .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 24)
+                } else {
+                    ForEach(supplementModels) { m in
+                        Button {
+                            supplementItems.append(CoachSupplementItem(
+                                name: m.name, quantity: m.quantity,
+                                unit: m.unit.isEmpty ? "g" : m.unit,
+                                timing: m.timing, notes: m.notes))
+                            showSupplementModels = false
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(m.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                                Text([("\(m.quantity) \(m.unit)").trimmingCharacters(in: .whitespaces), m.timing]
+                                    .filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(Typo.mono(11)).foregroundStyle(Palette.textLow)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16).padding(.vertical, 12).voltPanel()
+                    }
+                }
+            }
+            .navigationTitle("I tuoi modelli")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { showSupplementModels = false } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func wzLoadSupplementModels() async {
+        do { supplementModels = try await APIClient.shared.coachSupplementModels(); showSupplementModels = true }
+        catch { flash.failure("Impossibile caricare i modelli") }
+    }
+
+    private func wzSaveSupplementModel(_ item: CoachSupplementItem) async {
+        guard !item.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        do {
+            _ = try await APIClient.shared.coachSaveSupplementModel(
+                ["name": item.name, "quantity": item.quantity, "unit": item.unit,
+                 "timing": item.timing, "notes": item.notes])
+            Haptics.tap()
+        } catch { flash.failure("Impossibile salvare il modello") }
     }
 
     private var weekdayTabs: some View {
@@ -1113,7 +1275,7 @@ struct CoachNutritionWizardView: View {
                 Task { await save() }
             }
 
-            wzBackLink { withAnimation(.snappy) { step = 1 } }
+            wzBackLink { withAnimation(.snappy) { step = 2 } }
         }
     }
 
@@ -1220,6 +1382,20 @@ struct CoachNutritionWizardView: View {
                 return dt
             }
         }
+
+        if let sheet = plan["supplement_sheet"] as? [String: Any],
+           let items = sheet["items"] as? [[String: Any]] {
+            supplementNotes = sheet["notes"] as? String ?? ""
+            supplementItems = items.compactMap { i -> CoachSupplementItem? in
+                guard let name = i["name"] as? String, !name.isEmpty else { return nil }
+                return CoachSupplementItem(
+                    name: name,
+                    quantity: i["quantity"] as? String ?? "",
+                    unit: i["unit"] as? String ?? "g",
+                    timing: i["timing"] as? String ?? "",
+                    notes: i["notes"] as? String ?? "")
+            }
+        }
     }
 
     private func buildPayload() -> [String: Any] {
@@ -1273,6 +1449,15 @@ struct CoachNutritionWizardView: View {
                 planId: savedPlanId ?? planId, payload: buildPayload())
             guard pid > 0 else { flash.failure("Salvataggio non riuscito"); return }
             savedPlanId = pid
+
+            let cleanedSupplements = supplementItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+            if !cleanedSupplements.isEmpty {
+                try await APIClient.shared.coachSaveNutritionSupplements(
+                    planId: pid,
+                    items: cleanedSupplements.map { ["name": $0.name, "quantity": $0.quantity,
+                                                     "unit": $0.unit, "timing": $0.timing, "notes": $0.notes] },
+                    notes: supplementNotes)
+            }
 
             for clientId in selectedClients {
                 try await APIClient.shared.coachAssignNutrition(planId: pid, clientId: clientId)

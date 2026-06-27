@@ -1965,6 +1965,9 @@ def nutrition_builder(request, user, plan_id):
             'fat': d.target_fat_g,
         } for d in plan.days.all()]
 
+    from .views_nutrition import _serialize_protocol
+    supplement = _serialize_protocol(plan.supplement_sheet) if plan.supplement_sheet else None
+
     return JsonResponse({'plan': {
         'id': plan.id,
         'title': plan.title,
@@ -1977,6 +1980,7 @@ def nutrition_builder(request, user, plan_id):
         'fat_target_g': plan.fat_target_g,
         'meals': meals,
         'day_targets': day_targets,
+        'supplement_sheet': supplement,
     }})
 
 
@@ -2178,14 +2182,55 @@ def coach_supplement_assign(request, user, protocol_id):
         return JsonResponse({'error': 'Atleta non associato'}, status=403)
     SupplementProtocolAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
     a = SupplementProtocolAssignment.objects.create(protocol=p, client=client, coach=coach, status='ACTIVE')
-    Notification.objects.create(
-        target_user=client.user,
-        notification_type='SUPPLEMENT_ASSIGNED',
-        title='Nuovo protocollo integratori',
-        body=f'Ti è stato assegnato il protocollo "{p.title}".',
-        link_url='/nutrizione/integratori/',
-    )
+    try:
+        Notification.objects.create(
+            target_user=client.user,
+            notification_type='SUPPLEMENT_ASSIGNED',
+            title='Nuovo protocollo integratori',
+            body=f'Ti è stato assegnato il protocollo "{p.title}".',
+            link_url='/nutrizione/integratori/',
+        )
+    except Exception:
+        pass
     return JsonResponse({'ok': True, 'assignment_id': a.id})
+
+
+@api_view(['POST'])
+def coach_nutrition_supplements(request, user, plan_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if not can_manage_nutrition(coach):
+        return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    from .views_nutrition import _parse_supplement_items, _serialize_protocol
+    plan = NutritionPlan.objects.filter(id=plan_id, coach=coach).first()
+    if not plan:
+        return JsonResponse({'error': 'Piano non trovato'}, status=404)
+    data = _body(request)
+    notes = data.get('notes') or ''
+    items = _parse_supplement_items(data.get('items'))
+
+    with transaction.atomic():
+        sheet = plan.supplement_sheet
+        if not items:
+            if sheet:
+                plan.supplement_sheet = None
+                plan.save(update_fields=['supplement_sheet'])
+                if not sheet.assignments.exists():
+                    sheet.delete()
+            return JsonResponse({'ok': True, 'sheet': None})
+        if sheet is None:
+            sheet = SupplementProtocol.objects.create(
+                coach=coach, title=f'Integrazione · {plan.title}'[:200], notes=notes)
+            plan.supplement_sheet = sheet
+            plan.save(update_fields=['supplement_sheet'])
+        else:
+            sheet.notes = notes
+            sheet.save(update_fields=['notes', 'updated_at'])
+            sheet.items.all().delete()
+        for order, it in enumerate(items):
+            SupplementItem.objects.create(protocol=sheet, order=order, **it)
+    return JsonResponse({'ok': True, 'sheet': _serialize_protocol(sheet)})
 
 
 @api_view(['GET'])

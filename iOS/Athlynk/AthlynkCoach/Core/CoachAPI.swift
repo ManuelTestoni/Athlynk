@@ -807,6 +807,11 @@ extension APIClient {
         _ = try await request("/api/v1/coach/supplements/\(id)/assign", method: "POST", body: ["client_id": clientId])
     }
 
+    func coachSaveNutritionSupplements(planId: Int, items: [[String: Any]], notes: String) async throws {
+        _ = try await request("/api/v1/coach/nutrition/\(planId)/supplements", method: "POST",
+                              body: ["items": items, "notes": notes])
+    }
+
     func coachSupplementModels() async throws -> [CoachSupplementModel] {
         try decode(CoachSupplementModelsResponse.self, from: try await request("/api/v1/coach/supplements/templates")).results
     }

@@ -263,14 +263,18 @@ struct CoachSupplementBuilderView: View {
 
     private func itemCard(_ item: Binding<CoachSupplementItem>) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 10) {
                 TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
                     .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(Palette.lime)
-                Menu {
-                    Button("Salva come modello") { Task { await saveModel(item.wrappedValue) } }
-                    Button("Elimina", role: .destructive) { items.removeAll { $0.rowId == item.wrappedValue.rowId } }
-                } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.textMid)
+                Button { Task { await saveModel(item.wrappedValue) } } label: {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.textMid)
+                }
+                Button(role: .destructive) { items.removeAll { $0.rowId == item.wrappedValue.rowId } } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.textLow)
                 }
             }
             HStack(spacing: 8) {
@@ -445,7 +449,7 @@ struct CoachSupplementAssignView: View {
 
     private func load() async {
         loading = true; defer { loading = false }
-        do { clients = try await APIClient.shared.coachClients().clients }
+        do { clients = try await APIClient.shared.coachClients(status: "ACTIVE").clients }
         catch { self.error = error.localizedDescription }
     }
 
