@@ -23,7 +23,7 @@ struct SupplementsView: View {
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.amber)
                     } else if sheets.isEmpty {
-                        EmptyPanel(icon: "pills", text: "Nessun integratore assegnato.")
+                        EmptyPanel(icon: "pills", text: "Non hai ancora un protocollo integratori. Chiedi al tuo coach o nutrizionista di assegnartene uno.")
                     } else {
                         ForEach(sheets) { sheet in
                             if sheets.count > 1 || !(sheet.title.isEmpty) {
@@ -97,6 +97,7 @@ struct SupplementsView: View {
     private func load() async {
         loading = true; error = nil
         do { sheets = try await APIClient.shared.supplements() }
+        catch is CancellationError { loading = false; return }
         catch { self.error = error.localizedDescription }
         loading = false
     }

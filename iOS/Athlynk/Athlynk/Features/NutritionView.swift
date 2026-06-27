@@ -34,7 +34,7 @@ struct NutritionView: View {
                 } else if let error {
                     EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
                 } else if plans.isEmpty {
-                    EmptyPanel(icon: "fork.knife", text: "Nessun piano nutrizionale attivo.")
+                    EmptyPanel(icon: "fork.knife", text: "Non hai ancora una dieta. Chiedi al tuo coach o nutrizionista di assegnartene una.")
                 } else {
                     ForEach(Array(plans.enumerated()), id: \.element.id) { i, plan in
                         planCard(plan, active: i == 0).revealUp(appear, index: i + 2)
@@ -320,7 +320,8 @@ struct NutritionView: View {
         if !force, !plans.isEmpty { return }
         loading = true; error = nil
         do { plans = try await APIClient.shared.nutrition() }
-        catch { self.error = error.localizedDescription } // keep old data on failure
+        catch is CancellationError { loading = false; return }
+        catch { self.error = error.localizedDescription }
         loading = false
     }
 }

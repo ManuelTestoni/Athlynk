@@ -2230,6 +2230,20 @@ def coach_nutrition_supplements(request, user, plan_id):
             sheet.items.all().delete()
         for order, it in enumerate(items):
             SupplementItem.objects.create(protocol=sheet, order=order, **it)
+
+        # Propagate to all athletes who have this plan actively assigned
+        active_clients = NutritionAssignment.objects.filter(
+            nutrition_plan=plan, status='ACTIVE'
+        ).values_list('client', flat=True)
+        for client_id in active_clients:
+            SupplementProtocolAssignment.objects.filter(
+                client_id=client_id, coach=coach, status='ACTIVE'
+            ).exclude(protocol=sheet).update(status='CANCELLED')
+            SupplementProtocolAssignment.objects.get_or_create(
+                protocol=sheet, client_id=client_id, coach=coach,
+                defaults={'status': 'ACTIVE'}
+            )
+
     return JsonResponse({'ok': True, 'sheet': _serialize_protocol(sheet)})
 
 

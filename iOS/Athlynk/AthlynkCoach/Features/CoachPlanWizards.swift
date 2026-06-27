@@ -833,6 +833,8 @@ struct CoachNutritionWizardView: View {
     @State private var supplementNotes = ""
     @State private var showSupplementModels = false
     @State private var supplementModels: [CoachSupplementModel] = []
+    @State private var supplementSavedModelIds: Set<UUID> = []
+    @State private var supplementPendingSaveItem: CoachSupplementItem? = nil
 
     @State private var busy = false
     @State private var loadingPlan = false
@@ -1002,17 +1004,32 @@ struct CoachNutritionWizardView: View {
             }
         }
         .sheet(isPresented: $showSupplementModels) { wzSupplementModelsSheet }
+        .confirmationDialog(
+            "Hai già questo integratore salvato, vuoi salvarlo comunque?",
+            isPresented: .init(get: { supplementPendingSaveItem != nil },
+                               set: { if !$0 { supplementPendingSaveItem = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Salva comunque") {
+                if let it = supplementPendingSaveItem {
+                    supplementPendingSaveItem = nil
+                    Task { await wzPerformSaveSupplementModel(it) }
+                }
+            }
+            Button("Annulla", role: .cancel) { supplementPendingSaveItem = nil }
+        }
     }
 
     private func wzSupplementCard(_ item: Binding<CoachSupplementItem>) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let isSaved = supplementSavedModelIds.contains(item.wrappedValue.rowId)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
                     .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(accent)
                 Button { Task { await wzSaveSupplementModel(item.wrappedValue) } } label: {
-                    Image(systemName: "bookmark")
+                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.textMid)
+                        .foregroundStyle(isSaved ? Palette.textHi : Palette.textMid)
                 }
                 Button(role: .destructive) { supplementItems.removeAll { $0.rowId == item.wrappedValue.rowId } } label: {
                     Image(systemName: "xmark")
@@ -1098,10 +1115,23 @@ struct CoachNutritionWizardView: View {
 
     private func wzSaveSupplementModel(_ item: CoachSupplementItem) async {
         guard !item.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        if supplementModels.isEmpty {
+            supplementModels = (try? await APIClient.shared.coachSupplementModels()) ?? []
+        }
+        let name = item.name.trimmingCharacters(in: .whitespaces).lowercased()
+        if supplementModels.contains(where: { $0.name.trimmingCharacters(in: .whitespaces).lowercased() == name }) {
+            supplementPendingSaveItem = item
+        } else {
+            await wzPerformSaveSupplementModel(item)
+        }
+    }
+
+    private func wzPerformSaveSupplementModel(_ item: CoachSupplementItem) async {
         do {
             _ = try await APIClient.shared.coachSaveSupplementModel(
                 ["name": item.name, "quantity": item.quantity, "unit": item.unit,
                  "timing": item.timing, "notes": item.notes])
+            supplementSavedModelIds.insert(item.rowId)
             Haptics.tap()
         } catch { flash.failure("Impossibile salvare il modello") }
     }

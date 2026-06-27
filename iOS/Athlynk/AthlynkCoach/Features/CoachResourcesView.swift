@@ -212,6 +212,8 @@ struct CoachSupplementBuilderView: View {
     @State private var error: String?
     @State private var showModels = false
     @State private var models: [CoachSupplementModel] = []
+    @State private var savedModelIds: Set<UUID> = []
+    @State private var pendingSaveItem: CoachSupplementItem? = nil
 
     var body: some View {
         NavigationStack {
@@ -257,19 +259,30 @@ struct CoachSupplementBuilderView: View {
             .alert("Errore", isPresented: .init(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(error ?? "") }
+            .confirmationDialog(
+                "Hai già questo integratore salvato, vuoi salvarlo comunque?",
+                isPresented: .init(get: { pendingSaveItem != nil }, set: { if !$0 { pendingSaveItem = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Salva comunque") {
+                    if let it = pendingSaveItem { pendingSaveItem = nil; Task { await performSaveModel(it) } }
+                }
+                Button("Annulla", role: .cancel) { pendingSaveItem = nil }
+            }
             .onAppear(perform: hydrate)
         }
     }
 
     private func itemCard(_ item: Binding<CoachSupplementItem>) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let isSaved = savedModelIds.contains(item.wrappedValue.rowId)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
                     .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(Palette.lime)
                 Button { Task { await saveModel(item.wrappedValue) } } label: {
-                    Image(systemName: "bookmark")
+                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.textMid)
+                        .foregroundStyle(isSaved ? Palette.textHi : Palette.textMid)
                 }
                 Button(role: .destructive) { items.removeAll { $0.rowId == item.wrappedValue.rowId } } label: {
                     Image(systemName: "xmark")
@@ -379,12 +392,23 @@ struct CoachSupplementBuilderView: View {
     }
 
     private func saveModel(_ item: CoachSupplementItem) async {
-        if item.name.trimmingCharacters(in: .whitespaces).isEmpty {
+        guard !item.name.trimmingCharacters(in: .whitespaces).isEmpty else {
             error = "Inserisci il nome dell'integratore prima di salvarlo come modello."; return
         }
+        if models.isEmpty { models = (try? await APIClient.shared.coachSupplementModels()) ?? [] }
+        let name = item.name.trimmingCharacters(in: .whitespaces).lowercased()
+        if models.contains(where: { $0.name.trimmingCharacters(in: .whitespaces).lowercased() == name }) {
+            pendingSaveItem = item
+        } else {
+            await performSaveModel(item)
+        }
+    }
+
+    private func performSaveModel(_ item: CoachSupplementItem) async {
         do {
             _ = try await APIClient.shared.coachSaveSupplementModel(
                 ["name": item.name, "quantity": item.quantity, "unit": item.unit, "timing": item.timing, "notes": item.notes])
+            savedModelIds.insert(item.rowId)
             Haptics.tap()
         } catch { self.error = error.localizedDescription }
     }
