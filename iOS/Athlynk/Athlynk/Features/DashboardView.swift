@@ -227,6 +227,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value).font(Typo.poster(30)).foregroundStyle(color)
+                    .lineLimit(1).minimumScaleFactor(0.5)
                 if !suffix.isEmpty {
                     Text(suffix).font(Typo.mono(10, .bold)).foregroundStyle(color.opacity(0.7))
                 }

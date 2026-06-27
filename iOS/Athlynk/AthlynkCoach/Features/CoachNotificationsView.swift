@@ -9,6 +9,8 @@ import SwiftUI
 struct CoachNotificationsView: View {
     @State private var items: [NotificationDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
 
     var body: some View {
         ScreenScroll {
@@ -20,6 +22,9 @@ struct CoachNotificationsView: View {
                 EmptyPanel(icon: "bell.slash", text: "Nessuna notifica.")
             } else {
                 ForEach(items) { n in row(n) }
+                if hasMore {
+                    LoadMoreButton(loading: loadingMore, accent: Palette.phase) { Task { await loadMore() } }
+                }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -63,6 +68,18 @@ struct CoachNotificationsView: View {
 
     private func load() async {
         loading = true; defer { loading = false }
-        items = (try? await APIClient.shared.notifications().notifications) ?? []
+        if let res = try? await APIClient.shared.notifications(offset: 0) {
+            items = res.notifications; hasMore = res.hasMore ?? false
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.notifications(offset: items.count) {
+            let known = Set(items.map(\.id))
+            items.append(contentsOf: res.notifications.filter { !known.contains($0.id) })
+            hasMore = res.hasMore ?? false
+        }
     }
 }

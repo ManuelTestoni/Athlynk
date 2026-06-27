@@ -624,19 +624,59 @@ def _macro_assignment(user, assignment_id):
 @api_view(['GET'])
 def food_search(request, user):
     q = (request.GET.get('q') or '').strip()
-    foods = Food.objects.exclude(nome_alimento__icontains='media')
+    category = (request.GET.get('cat') or '').strip()
+    flt = (request.GET.get('filter') or '').strip()
+    PAGE = 30
+
+    food_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
+    foods = Food.objects.all()
+    if food_mode == 'media':
+        foods = foods.filter(nome_alimento__icontains='media')
+    else:
+        foods = foods.exclude(nome_alimento__icontains='media')
+
+    recent_order = None
+    if flt == 'recent':
+        client = getattr(user, 'client_profile', None)
+        seen, recent_ids = set(), []
+        if client:
+            for fid in (ClientMacroLogEntry.objects
+                        .filter(assignment__client=client, food__isnull=False)
+                        .order_by('-id').values_list('food_id', flat=True)):
+                if fid not in seen:
+                    seen.add(fid); recent_ids.append(fid)
+                if len(recent_ids) >= PAGE:
+                    break
+        if not recent_ids:
+            return JsonResponse({'results': []})
+        foods = foods.filter(id__in=recent_ids)
+        recent_order = {fid: i for i, fid in enumerate(recent_ids)}
+
     if q:
         foods = foods.filter(nome_alimento__icontains=q)
-    foods = foods.order_by('-genericity_score', 'nome_alimento')[:30]
-    return JsonResponse({'results': [{
-        'id': f.id,
-        'name': f.nome_alimento,
-        'category': f.categoria_alimento or '',
-        'kcal': f.energia_kcal,
-        'protein': f.proteine_g,
-        'carb': f.carboidrati_g,
-        'fat': f.lipidi_g,
-    } for f in foods]})
+    if category:
+        foods = foods.filter(categoria_alimento=category)
+    if recent_order is not None:
+        foods = sorted(foods, key=lambda f: recent_order.get(f.id, 1e9))[:PAGE]
+    else:
+        foods = list(foods.order_by('-genericity_score', 'nome_alimento')[:PAGE])
+
+    items = [{'id': f.id, 'name': f.nome_alimento, 'category': f.categoria_alimento or '',
+              'kcal': f.energia_kcal, 'protein': f.proteine_g,
+              'carb': f.carboidrati_g, 'fat': f.lipidi_g} for f in foods]
+    payload = {'results': items}
+    if request.GET.get('include_cats'):
+        base = Food.objects.all()
+        if food_mode == 'media':
+            base = base.filter(nome_alimento__icontains='media')
+        else:
+            base = base.exclude(nome_alimento__icontains='media')
+        payload['categories'] = sorted(
+            c for c in base.exclude(categoria_alimento__isnull=True)
+                           .exclude(categoria_alimento='')
+                           .values_list('categoria_alimento', flat=True).distinct()
+        )
+    return JsonResponse(payload)
 
 
 @api_view(['GET'])
@@ -790,7 +830,7 @@ def macro_history(request, user, assignment_id):
 @api_view(['GET'])
 def journey(request, user):
     client = getattr(user, 'client_profile', None)
-    empty = {'events': [], 'window_start': '', 'window_end': '', 'relationship_start': ''}
+    empty = {'events': [], 'phases': [], 'window_start': '', 'window_end': '', 'relationship_start': '', 'has_more': False}
     if not client:
         return JsonResponse(empty)
     rels = get_active_relationships(client)
@@ -804,16 +844,26 @@ def journey(request, user):
         rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
     else:
         rel_start = (today - timedelta(days=365)).replace(day=1)
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
     from .views_client import _build_percorso_events, _serialize_phases, _one_year_after_month
     # Whole history for the timeline (see coach client_percorso): clipping to the
     # relationship-start month would drop older assignments and checks.
-    events = _build_percorso_events(client, rel.coach, date(2000, 1, 1), today)
+    all_events = _build_percorso_events(client, rel.coach, date(2000, 1, 1), today)
     phases = _serialize_phases(client, rel.coach)
+
+    # Paginate newest-first so the app sees the most recent events first.
+    all_events_desc = list(reversed(all_events))
+    events = all_events_desc[offset:offset + PAGE]
+    has_more = offset + PAGE < len(all_events_desc)
 
     # Open-ended forward bound: one year past the latest activity (event or phase end).
     last_activity = today
-    if events:
-        last_activity = max(last_activity, date.fromisoformat(events[-1]['date']))
+    if all_events:
+        last_activity = max(last_activity, date.fromisoformat(all_events[-1]['date']))
     for ph in phases:
         ph_end = date.fromisoformat(ph['end'])
         if ph_end > last_activity:
@@ -825,6 +875,7 @@ def journey(request, user):
         'window_start': rel_start.isoformat(),
         'window_end': window_end.isoformat(),
         'relationship_start': rel_start.isoformat(),
+        'has_more': has_more,
     })
 
 
@@ -1095,13 +1146,19 @@ def subscription(request, user):
 def appointments(request, user):
     client = getattr(user, 'client_profile', None)
     if not client:
-        return JsonResponse({'appointments': []})
-    items = (
+        return JsonResponse({'appointments': [], 'has_more': False})
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    qs = (
         Appointment.objects
         .filter(client=client)
         .select_related('coach')
         .order_by('start_datetime')
     )
+    total = qs.count()
     out = [{
         'id': a.id,
         'type': a.appointment_type,
@@ -1114,8 +1171,8 @@ def appointments(request, user):
         'meeting_url': a.meeting_url,
         'status': a.status,
         'coach': _coach_dict(a.coach),
-    } for a in items]
-    return JsonResponse({'appointments': out})
+    } for a in qs[offset:offset + PAGE]]
+    return JsonResponse({'appointments': out, 'has_more': offset + PAGE < total})
 
 
 # ---------------------------------------------------------------------------
@@ -1126,13 +1183,19 @@ def appointments(request, user):
 def progress(request, user):
     client = getattr(user, 'client_profile', None)
     if not client:
-        return JsonResponse({'entries': []})
-    responses = (
+        return JsonResponse({'entries': [], 'has_more': False})
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    qs = (
         QuestionnaireResponse.objects
         .filter(client=client, submitted_at__isnull=False)
         .prefetch_related('photos')
         .order_by('-submitted_at')
     )
+    total = qs.count()
     entries = [{
         'id': r.id,
         'submitted_at': _iso(r.submitted_at),
@@ -1147,8 +1210,8 @@ def progress(request, user):
             'type': p.photo_type,
             'captured_at': _iso(p.captured_at),
         } for p in r.photos.all()],
-    } for r in responses]
-    return JsonResponse({'entries': entries})
+    } for r in qs[offset:offset + PAGE]]
+    return JsonResponse({'entries': entries, 'has_more': offset + PAGE < total})
 
 
 # ---------------------------------------------------------------------------
@@ -1394,16 +1457,22 @@ def workout_session_detail(request, user, session_id):
 def supplements(request, user):
     client = getattr(user, 'client_profile', None)
     if not client:
-        return JsonResponse({'sheets': []})
-    assignments = (
+        return JsonResponse({'sheets': [], 'has_more': False})
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    qs = (
         SupplementProtocolAssignment.objects
         .filter(client=client, status='ACTIVE')
         .select_related('protocol', 'coach')
         .prefetch_related('protocol__items')
         .order_by('-assigned_at')
     )
+    total = qs.count()
     sheets = []
-    for a in assignments:
+    for a in qs[offset:offset + PAGE]:
         sheet = a.protocol
         items = [{
             'id': it.id,
@@ -1420,7 +1489,7 @@ def supplements(request, user):
             'coach': _coach_dict(a.coach),
             'items': items,
         })
-    return JsonResponse({'sheets': sheets})
+    return JsonResponse({'sheets': sheets, 'has_more': offset + PAGE < total})
 
 
 # ---------------------------------------------------------------------------
@@ -1485,6 +1554,8 @@ def settings(request, user):
         for key, _label, _desc in _EMAIL_NOTIF_KEYS:
             if key in data:
                 prefs[key] = bool(data[key])
+        if 'food_search_mode' in data and data['food_search_mode'] in ('alimento', 'media'):
+            prefs['food_search_mode'] = data['food_search_mode']
         user.email_prefs = prefs
         user.save(update_fields=['email_prefs', 'updated_at'])
     prefs = user.email_prefs or {}
@@ -1494,6 +1565,7 @@ def settings(request, user):
             {'key': k, 'label': label, 'desc': desc, 'enabled': bool(prefs.get(k, True))}
             for k, label, desc in _EMAIL_NOTIF_KEYS
         ],
+        'food_search_mode': prefs.get('food_search_mode', 'alimento'),
     }})
 
 

@@ -54,11 +54,10 @@ struct WorkoutHistoryView: View {
                                     }
                                 } label: { card(s) }
                                 .buttonStyle(.plain)
-                                .onAppear { if s.id == sessions.last?.id { Task { await loadMore() } } }
                             }
                         }
-                        if loadingMore {
-                            ProgressView().tint(Palette.violet).frame(maxWidth: .infinity).padding(.vertical, 8)
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }
                         }
                     }
                 }

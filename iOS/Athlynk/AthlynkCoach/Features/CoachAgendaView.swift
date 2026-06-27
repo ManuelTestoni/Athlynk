@@ -8,6 +8,8 @@ import SwiftUI
 struct CoachAgendaView: View {
     @State private var items: [CoachAgendaItem] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var creating = false
 
     var body: some View {
@@ -37,6 +39,9 @@ struct CoachAgendaView: View {
                                 .foregroundStyle(Palette.bronze)
                             ForEach(appts) { a in row(a) }
                         }
+                    }
+                    if hasMore {
+                        LoadMoreButton(loading: loadingMore, accent: Palette.amber) { Task { await loadMore() } }
                     }
                 }
             }
@@ -85,7 +90,17 @@ struct CoachAgendaView: View {
 
     private func load() async {
         loading = true; defer { loading = false }
-        items = (try? await APIClient.shared.coachAgenda()) ?? []
+        if let res = try? await APIClient.shared.coachAgenda(offset: 0) {
+            items = res.appointments; hasMore = res.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.coachAgenda(offset: items.count) {
+            items.append(contentsOf: res.appointments); hasMore = res.hasMore
+        }
     }
 }
 

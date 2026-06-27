@@ -8,8 +8,12 @@ import SwiftUI
 
 struct CoachWorkoutsView: View {
     @Binding var path: NavigationPath
-    @State private var data: CoachWorkoutsResponse?
+    @State private var plans: [CoachPlanRow] = []
+    @State private var assignments: [CoachAssignmentRow] = []
+    @State private var hasMore = false
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var query = ""
     @State private var creating = false
     @State private var loadToken = UUID()
 
@@ -18,16 +22,17 @@ struct CoachWorkoutsView: View {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Programmazione", title: "Allenamenti",
                              subtitle: "Le tue schede e assegnazioni", accent: Palette.cyan)
-                if loading && data == nil {
+                workoutSearchBar
+                if loading && plans.isEmpty {
                     CoachPlanLibrarySkeleton(accent: Palette.cyan)
-                } else if let d = data {
-                    CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(d.plans.count))", accent: Palette.cyan)
-                    if d.plans.isEmpty {
+                } else {
+                    CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(plans.count))", accent: Palette.cyan)
+                    if plans.isEmpty {
                         EmptyPanel(icon: "dumbbell", text: "Nessuna scheda ancora creata.",
                                    color: Palette.cyan,
                                    actionTitle: "Creane una ora") { creating = true }
                     } else {
-                        ForEach(d.plans) { p in
+                        ForEach(plans) { p in
                             NavigationLink(value: CoachPlanRoute.workout(p.id)) {
                                 planCard(title: p.title,
                                          subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
@@ -36,10 +41,13 @@ struct CoachWorkoutsView: View {
                             }
                             .buttonStyle(PressableButtonStyle())
                         }
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
+                        }
                     }
-                    if !d.assignments.isEmpty {
+                    if !assignments.isEmpty {
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
-                        ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.cyan) }
+                        ForEach(assignments) { a in assignmentCard(a, accent: Palette.cyan) }
                     }
                 }
             }
@@ -53,7 +61,7 @@ struct CoachWorkoutsView: View {
                 case .nutrition(let id): CoachNutritionDetailView(planId: id)
                 }
             }
-            .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
+            .sheet(isPresented: $creating, onDismiss: { plans = []; loadToken = UUID() }) {
                 CoachPlanCreateView(kind: .workout)
             }
             .task(id: loadToken) {
@@ -64,19 +72,46 @@ struct CoachWorkoutsView: View {
         }
     }
 
+    private var workoutSearchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Palette.cyan)
+            TextField("", text: $query, prompt: Text("Cerca scheda…").foregroundStyle(Palette.textLow))
+                .font(Typo.body(15)).tint(Palette.cyan)
+                .onSubmit { Task { await load(force: true) } }
+            if !query.isEmpty {
+                Button { query = ""; Task { await load(force: true) } } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Palette.textLow)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14).voltPanel(radius: 14)
+    }
+
     private func load(force: Bool = false) async {
-        // Keep the current data on refresh; only replace it when the refetch
-        // succeeds (try? used to null it on any transient failure → empty page).
-        if !force, data != nil { return }
+        if !force, !plans.isEmpty, query.isEmpty { return }
         loading = true; defer { loading = false }
-        if let fresh = try? await APIClient.shared.coachWorkouts() { data = fresh }
+        if let res = try? await APIClient.shared.coachWorkouts(q: query, offset: 0) {
+            plans = res.plans; assignments = res.assignments; hasMore = res.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.coachWorkouts(q: query, offset: plans.count) {
+            plans.append(contentsOf: res.plans); hasMore = res.hasMore
+        }
     }
 }
 
 struct CoachNutritionView: View {
     @Binding var path: NavigationPath
-    @State private var data: CoachNutritionResponse?
+    @State private var plans: [CoachPlanRow] = []
+    @State private var assignments: [CoachAssignmentRow] = []
+    @State private var hasMore = false
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var query = ""
     @State private var creating = false
     @State private var loadToken = UUID()
 
@@ -85,16 +120,17 @@ struct CoachNutritionView: View {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Programmazione", title: "Nutrizione",
                              subtitle: "I tuoi piani alimentari", accent: Palette.lime)
-                if loading && data == nil {
+                nutritionSearchBar
+                if loading && plans.isEmpty {
                     CoachPlanLibrarySkeleton(accent: Palette.lime)
-                } else if let d = data {
-                    CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(d.plans.count))", accent: Palette.lime)
-                    if d.plans.isEmpty {
+                } else {
+                    CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(plans.count))", accent: Palette.lime)
+                    if plans.isEmpty {
                         EmptyPanel(icon: "flame", text: "Nessun piano ancora creato.",
                                    color: Palette.lime,
                                    actionTitle: "Creane uno ora") { creating = true }
                     } else {
-                        ForEach(d.plans) { p in
+                        ForEach(plans) { p in
                             NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {
                                 planCard(title: p.title,
                                          subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
@@ -103,10 +139,13 @@ struct CoachNutritionView: View {
                             }
                             .buttonStyle(PressableButtonStyle())
                         }
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.lime) { Task { await loadMore() } }
+                        }
                     }
-                    if !d.assignments.isEmpty {
+                    if !assignments.isEmpty {
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
-                        ForEach(d.assignments) { a in assignmentCard(a, accent: Palette.lime) }
+                        ForEach(assignments) { a in assignmentCard(a, accent: Palette.lime) }
                     }
                 }
             }
@@ -120,7 +159,7 @@ struct CoachNutritionView: View {
                 case .nutrition(let id): CoachNutritionDetailView(planId: id)
                 }
             }
-            .sheet(isPresented: $creating, onDismiss: { data = nil; loadToken = UUID() }) {
+            .sheet(isPresented: $creating, onDismiss: { plans = []; loadToken = UUID() }) {
                 CoachPlanCreateView(kind: .nutrition)
             }
             .task(id: loadToken) {
@@ -131,13 +170,38 @@ struct CoachNutritionView: View {
         }
     }
 
+    private var nutritionSearchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Palette.lime)
+            TextField("", text: $query, prompt: Text("Cerca piano…").foregroundStyle(Palette.textLow))
+                .font(Typo.body(15)).tint(Palette.lime)
+                .onSubmit { Task { await load(force: true) } }
+            if !query.isEmpty {
+                Button { query = ""; Task { await load(force: true) } } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Palette.textLow)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14).voltPanel(radius: 14)
+    }
+
     private func load(force: Bool = false) async {
-        // Keep current data on refresh; only replace on a successful refetch.
-        if !force, data != nil { return }
+        if !force, !plans.isEmpty, query.isEmpty { return }
         loading = true; defer { loading = false }
-        if let fresh = try? await APIClient.shared.coachNutrition() { data = fresh }
+        if let res = try? await APIClient.shared.coachNutrition(q: query, offset: 0) {
+            plans = res.plans; assignments = res.assignments; hasMore = res.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.coachNutrition(q: query, offset: plans.count) {
+            plans.append(contentsOf: res.plans); hasMore = res.hasMore
+        }
     }
 }
+
 
 // MARK: - Shared cards (file-private helpers usable by both views above)
 

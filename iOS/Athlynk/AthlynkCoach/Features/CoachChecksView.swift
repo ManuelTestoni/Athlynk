@@ -12,7 +12,8 @@ struct CoachChecksView: View {
     @State private var pendingCount = 0
     @State private var filter = "pending"     // pending | all
     @State private var loading = true
-    @State private var visibleCount = 10      // paginazione: 10 + "carica ancora"
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var loadToken = UUID()
 
     var body: some View {
@@ -35,20 +36,14 @@ struct CoachChecksView: View {
                                ? "Nessun check da revisionare. Ottimo lavoro!"
                                : "Nessun check ricevuto.", color: Palette.lime)
                 } else {
-                    ForEach(checks.prefix(visibleCount)) { c in
+                    ForEach(checks) { c in
                         NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
                             .buttonStyle(PressableButtonStyle())
                     }
-                    if checks.count > visibleCount {
-                        Button {
-                            withAnimation(.easeOut(duration: 0.2)) { visibleCount += 10 }
-                        } label: {
-                            Label("Carica ancora (\(checks.count - visibleCount))", systemImage: "arrow.down.circle")
-                                .font(Typo.body(14, .semibold)).foregroundStyle(Palette.bronze)
-                                .frame(maxWidth: .infinity).padding(.vertical, 13)
-                                .background(RoundedRectangle(cornerRadius: 12).stroke(Palette.bronze.opacity(0.5), lineWidth: 1))
+                    if hasMore {
+                        LoadMoreButton(loading: loadingMore, accent: Palette.bronze) {
+                            Task { await loadMore() }
                         }
-                        .buttonStyle(.plain)
                     }
                 }
 
@@ -90,11 +85,20 @@ struct CoachChecksView: View {
     }
 
     private func load(force: Bool = false) async {
-        // Keep current checks on refresh; only replace on a successful refetch.
         if !force, !checks.isEmpty { return }
         loading = true; defer { loading = false }
-        if let res = try? await APIClient.shared.coachChecks(filter: filter) {
-            checks = res.checks; pendingCount = res.pendingCount; visibleCount = 10
+        if let res = try? await APIClient.shared.coachChecks(filter: filter, offset: 0) {
+            checks = res.checks; pendingCount = res.pendingCount; hasMore = res.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.coachChecks(filter: filter, offset: checks.count) {
+            checks.append(contentsOf: res.checks)
+            hasMore = res.hasMore
+            pendingCount = res.pendingCount
         }
     }
 }

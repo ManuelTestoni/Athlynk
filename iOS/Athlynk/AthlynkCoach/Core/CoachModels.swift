@@ -152,7 +152,16 @@ struct CoachDashboardDTO: Codable {
     let insight: CoachInsight
 }
 
-struct CoachAgendaResponse: Codable { let appointments: [CoachAgendaItem] }
+struct CoachAgendaResponse: Codable {
+    let appointments: [CoachAgendaItem]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case appointments; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        appointments = try c.decodeIfPresent([CoachAgendaItem].self, forKey: .appointments) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
+}
 
 // MARK: - Clients list
 
@@ -483,7 +492,14 @@ struct CoachClientDetailDTO: Codable {
 struct CoachChecksResponse: Codable {
     let checks: [CoachCheckRow]
     let pendingCount: Int
-    enum CodingKeys: String, CodingKey { case checks; case pendingCount = "pending_count" }
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case checks; case pendingCount = "pending_count"; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        checks = try c.decodeIfPresent([CoachCheckRow].self, forKey: .checks) ?? []
+        pendingCount = (try? c.decode(Int.self, forKey: .pendingCount)) ?? 0
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
 }
 
 struct CoachCheckPhoto: Codable, Identifiable, Hashable {
@@ -573,11 +589,27 @@ struct CoachAssignmentRow: Codable, Identifiable, Hashable {
 struct CoachWorkoutsResponse: Codable {
     let plans: [CoachPlanRow]
     let assignments: [CoachAssignmentRow]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case plans, assignments; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plans = try c.decodeIfPresent([CoachPlanRow].self, forKey: .plans) ?? []
+        assignments = try c.decodeIfPresent([CoachAssignmentRow].self, forKey: .assignments) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
 }
 
 struct CoachNutritionResponse: Codable {
     let plans: [CoachPlanRow]
     let assignments: [CoachAssignmentRow]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case plans, assignments; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plans = try c.decodeIfPresent([CoachPlanRow].self, forKey: .plans) ?? []
+        assignments = try c.decodeIfPresent([CoachAssignmentRow].self, forKey: .assignments) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
 }
 
 // MARK: - Subscriptions
@@ -624,10 +656,21 @@ struct CoachSubscriptionsDTO: Codable {
     let activeCount: Int
     let monthlyRevenue: Double
     let currency: String
+    let hasMore: Bool
     enum CodingKeys: String, CodingKey {
         case plans, subscriptions, currency
         case activeCount = "active_count"
         case monthlyRevenue = "monthly_revenue"
+        case hasMore = "has_more"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plans = try c.decodeIfPresent([CoachPlanSummary].self, forKey: .plans) ?? []
+        subscriptions = try c.decodeIfPresent([CoachSubscriptionRow].self, forKey: .subscriptions) ?? []
+        activeCount = (try? c.decode(Int.self, forKey: .activeCount)) ?? 0
+        monthlyRevenue = (try? c.decode(Double.self, forKey: .monthlyRevenue)) ?? 0
+        currency = (try? c.decode(String.self, forKey: .currency)) ?? "EUR"
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
     }
 }
 

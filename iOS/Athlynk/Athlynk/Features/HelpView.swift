@@ -82,8 +82,15 @@ struct HelpView: View {
         VStack(spacing: 10) {
             contactRow("bubble.left.and.bubble.right.fill", "Scrivi al tuo coach",
                        "Dalla sezione Messaggi", Palette.cyan)
-            contactRow("envelope.fill", "supporto@athlynk.app",
-                       "Risposta entro 24-48h", Palette.bronze)
+            Button {
+                if let url = URL(string: "mailto:info@athlynk.app?subject=Supporto%20Athlynk") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                contactRow("envelope.fill", "info@athlynk.app",
+                           "Risposta entro 24-48h", Palette.bronze)
+            }
+            .buttonStyle(.plain)
         }
     }
 

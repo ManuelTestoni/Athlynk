@@ -232,12 +232,19 @@ def agenda(request, user):
     if err:
         return err
     now = timezone.now()
-    items = (
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    qs = (
         Appointment.objects
         .filter(coach=coach, start_datetime__gte=now - timedelta(hours=12))
         .select_related('client', 'client__user')
-        .order_by('start_datetime')[:80]
+        .order_by('start_datetime')
     )
+    total = qs.count()
+    items = qs[offset:offset + PAGE]
     out = [{
         'id': a.id,
         'title': a.title,
@@ -250,7 +257,7 @@ def agenda(request, user):
         'status': a.status,
         'client': _client_brief(request, a.client),
     } for a in items]
-    return JsonResponse({'appointments': out})
+    return JsonResponse({'appointments': out, 'has_more': offset + PAGE < total})
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +337,7 @@ def clients(request, user):
         'clients': out,
         'total': total,
         'active': active,
-        'has_more': offset + _PAGE < total,
+        'has_more': offset + page < total,
     })
 
 
@@ -425,11 +432,16 @@ def _measurements(r):
 
 @api_view(['GET'])
 def checks_review(request, user):
-    """Submitted check-ins. ?filter=pending (default) | all."""
+    """Submitted check-ins. ?filter=pending (default) | all. ?offset=N for pagination."""
     coach, err = _require_coach(user)
     if err:
         return err
     which = (request.GET.get('filter') or 'pending').strip()
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
     qs = (
         QuestionnaireResponse.objects
         .filter(coach=coach, submitted_at__isnull=False)
@@ -439,6 +451,7 @@ def checks_review(request, user):
     if which == 'pending':
         qs = qs.filter(Q(coach_feedback__isnull=True) | Q(coach_feedback=''))
 
+    total = qs.count()
     out = [{
         'id': r.id,
         'title': r.questionnaire_template.title if r.questionnaire_template else 'Check',
@@ -446,8 +459,12 @@ def checks_review(request, user):
         'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
         'reviewed': bool(r.coach_feedback),
         'client': _client_brief(request, r.client),
-    } for r in qs[:60]]
-    return JsonResponse({'checks': out, 'pending_count': _pending_review_qs(coach).count()})
+    } for r in qs[offset:offset + PAGE]]
+    return JsonResponse({
+        'checks': out,
+        'pending_count': _pending_review_qs(coach).count(),
+        'has_more': offset + PAGE < total,
+    })
 
 
 @api_view(['GET'])
@@ -1038,6 +1055,20 @@ def workouts(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
+    q = (request.GET.get('q') or '').strip()
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    plans_qs = (
+        WorkoutPlan.objects.filter(coach=coach)
+        .annotate(assigned=Count('assignments', filter=Q(assignments__status='ACTIVE')))
+        .order_by('-created_at')
+    )
+    if q:
+        plans_qs = plans_qs.filter(title__icontains=q)
+    total = plans_qs.count()
     plans = [{
         'id': p.id,
         'title': p.title,
@@ -1046,11 +1077,7 @@ def workouts(request, user):
         'duration_weeks': p.duration_weeks,
         'frequency_per_week': p.frequency_per_week,
         'assigned_count': p.assigned,
-    } for p in (
-        WorkoutPlan.objects.filter(coach=coach)
-        .annotate(assigned=Count('assignments', filter=Q(assignments__status='ACTIVE')))
-        .order_by('-created_at')
-    )]
+    } for p in plans_qs[offset:offset + PAGE]]
     assignments = [{
         'id': wa.id,
         'title': wa.workout_plan.title,
@@ -1061,7 +1088,7 @@ def workouts(request, user):
         .select_related('workout_plan', 'client', 'client__user')
         .order_by('-created_at')[:50]
     )]
-    return JsonResponse({'plans': plans, 'assignments': assignments})
+    return JsonResponse({'plans': plans, 'assignments': assignments, 'has_more': offset + PAGE < total})
 
 
 @api_view(['GET'])
@@ -1069,6 +1096,20 @@ def nutrition(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
+    q = (request.GET.get('q') or '').strip()
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
+    plans_qs = (
+        NutritionPlan.objects.filter(coach=coach)
+        .annotate(assigned=Count('assignments', filter=Q(assignments__status='ACTIVE')))
+        .order_by('-created_at')
+    )
+    if q:
+        plans_qs = plans_qs.filter(title__icontains=q)
+    total = plans_qs.count()
     plans = [{
         'id': p.id,
         'title': p.title,
@@ -1076,11 +1117,7 @@ def nutrition(request, user):
         'plan_kind': p.plan_kind,
         'daily_kcal': p.daily_kcal,
         'assigned_count': p.assigned,
-    } for p in (
-        NutritionPlan.objects.filter(coach=coach)
-        .annotate(assigned=Count('assignments', filter=Q(assignments__status='ACTIVE')))
-        .order_by('-created_at')
-    )]
+    } for p in plans_qs[offset:offset + PAGE]]
     assignments = [{
         'id': na.id,
         'title': na.nutrition_plan.title,
@@ -1090,7 +1127,7 @@ def nutrition(request, user):
         .select_related('nutrition_plan', 'client', 'client__user')
         .order_by('-assigned_at')[:50]
     )]
-    return JsonResponse({'plans': plans, 'assignments': assignments})
+    return JsonResponse({'plans': plans, 'assignments': assignments, 'has_more': offset + PAGE < total})
 
 
 # ---------------------------------------------------------------------------
@@ -1117,6 +1154,11 @@ def subscriptions(request, user):
                                      filter=Q(client_subscriptions__status='ACTIVE')))
         .order_by('-created_at')
     )]
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
     subs_qs = (
         ClientSubscription.objects
         .filter(subscription_plan__coach=coach)
@@ -1125,6 +1167,7 @@ def subscriptions(request, user):
     )
     active = subs_qs.filter(status='ACTIVE')
     revenue = float(sum(s.subscription_plan.price for s in active))
+    total_subs = subs_qs.count()
     subs = [{
         'id': s.id,
         'client': _client_brief(request, s.client),
@@ -1134,13 +1177,14 @@ def subscriptions(request, user):
         'payment_status': s.payment_status,
         'start_date': _iso(s.start_date),
         'end_date': _iso(s.end_date),
-    } for s in subs_qs[:60]]
+    } for s in subs_qs[offset:offset + PAGE]]
     return JsonResponse({
         'plans': plans,
         'subscriptions': subs,
         'active_count': active.count(),
         'monthly_revenue': revenue,
         'currency': 'EUR',
+        'has_more': offset + PAGE < total_subs,
     })
 
 
@@ -1480,13 +1524,22 @@ def client_percorso(request, user, client_id):
         rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
     else:
         rel_start = (today - timedelta(days=365)).replace(day=1)
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (ValueError, TypeError):
+        offset = 0
+    PAGE = 10
     # Collect the whole history for the timeline, not just from the (possibly
     # renewed) relationship start — otherwise older plans/checks silently vanish.
-    events = _build_percorso_events(client, coach, date(2000, 1, 1), today)
+    all_events = _build_percorso_events(client, coach, date(2000, 1, 1), today)
+    # Paginate newest-first so the app sees the most recent events first.
+    all_events_desc = list(reversed(all_events))
+    events = all_events_desc[offset:offset + PAGE]
+    has_more = offset + PAGE < len(all_events_desc)
     phases = _serialize_phases(client, coach)
     last_activity = today
-    if events:
-        last_activity = max(last_activity, date.fromisoformat(events[-1]['date']))
+    if all_events:
+        last_activity = max(last_activity, date.fromisoformat(all_events[-1]['date']))
     for ph in phases:
         ph_end = date.fromisoformat(ph['end'])
         if ph_end > last_activity:
@@ -1498,6 +1551,7 @@ def client_percorso(request, user, client_id):
         'window_start': rel_start.isoformat(),
         'window_end': window_end.isoformat(),
         'relationship_start': rel_start.isoformat(),
+        'has_more': has_more,
     })
 
 

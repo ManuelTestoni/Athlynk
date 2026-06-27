@@ -13,6 +13,8 @@ import SwiftUI
 struct ProgressTrackerView: View {
     @State private var entries: [ProgressEntryDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
     @State private var showAdd = false
 
@@ -54,6 +56,9 @@ struct ProgressTrackerView: View {
                         Text("STORICO CHECK").voltEyebrow().padding(.top, 4)
                         ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
                             entryCard(e, index: i)
+                        }
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }
                         }
                     }
                 }
@@ -179,8 +184,21 @@ struct ProgressTrackerView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { entries = try await APIClient.shared.progress() }
+        do {
+            let res = try await APIClient.shared.progress(offset: 0)
+            entries = res.entries; hasMore = res.hasMore
+        }
         catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.progress(offset: entries.count) {
+            let known = Set(entries.map(\.id))
+            entries.append(contentsOf: res.entries.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
+        }
     }
 }

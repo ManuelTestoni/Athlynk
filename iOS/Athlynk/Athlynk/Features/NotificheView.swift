@@ -28,10 +28,9 @@ struct NotificheView: View {
                         ForEach(items) { n in
                             Button { Task { await markRead(n) } } label: { row(n) }
                                 .buttonStyle(PressableButtonStyle())
-                                .onAppear { if n.id == items.last?.id { Task { await loadMore() } } }
                         }
-                        if loadingMore {
-                            ProgressView().tint(Palette.cyan).frame(maxWidth: .infinity).padding(.vertical, 8)
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
                         }
                     }
                 }

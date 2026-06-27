@@ -61,18 +61,7 @@ struct CoachClientsView: View {
                             .buttonStyle(PressableButtonStyle())
                     }
                     if hasMore {
-                        Button { Task { await loadMore() } } label: {
-                            HStack(spacing: 8) {
-                                if loadingMore { ProgressView().tint(Palette.cyan) }
-                                Text(loadingMore ? "Caricamento…" : "Carica ancora")
-                                    .font(Typo.mono(11, .bold)).tracking(1).textCase(.uppercase)
-                                    .foregroundStyle(Palette.cyan)
-                            }
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(Capsule().stroke(Palette.line, lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(loadingMore)
+                        LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
                     }
                 }
             }
@@ -439,7 +428,7 @@ struct CoachClientDetailView: View {
     }
 
     private func loadPercorso() async {
-        percorso = try? await APIClient.shared.coachClientPercorso(clientId: clientId)
+        percorso = try? await APIClient.shared.coachClientPercorso(clientId: clientId, offset: 0)
     }
 }
 
@@ -517,10 +506,9 @@ struct CoachSessionsView: View {
                 ForEach(sessions) { s in
                     NavigationLink(value: CoachSessionRoute(sessionId: s.id)) { row(s) }
                         .buttonStyle(PressableButtonStyle())
-                        .onAppear { if s.id == sessions.last?.id { Task { await loadMore() } } }
                 }
-                if loadingMore {
-                    ProgressView().tint(Palette.magenta).frame(maxWidth: .infinity).padding(.vertical, 8)
+                if hasMore {
+                    LoadMoreButton(loading: loadingMore, accent: Palette.magenta) { Task { await loadMore() } }
                 }
             }
         }
@@ -925,6 +913,8 @@ struct CoachJourneyView: View {
     @State private var events: [JourneyEventDTO] = []
     @State private var phases: [JourneyPhaseDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var filter: String?               // nil = all
     @State private var showPhaseSheet = false
     @State private var editingPhase: JourneyPhaseDTO?
@@ -979,6 +969,9 @@ struct CoachJourneyView: View {
                     case .event(let ev): eventRow(ev)
                     case .phase(let ph): phaseRow(ph)
                     }
+                }
+                if hasMore && filter != "fase" {
+                    LoadMoreButton(loading: loadingMore, accent: Palette.phase) { Task { await loadMore() } }
                 }
             }
         }
@@ -1070,8 +1063,18 @@ struct CoachJourneyView: View {
 
     private func load() async {
         loading = true; defer { loading = false }
-        if let r = try? await APIClient.shared.coachClientPercorso(clientId: clientId) {
-            events = r.events; phases = r.phases
+        if let r = try? await APIClient.shared.coachClientPercorso(clientId: clientId, offset: 0) {
+            events = r.events; phases = r.phases; hasMore = r.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let r = try? await APIClient.shared.coachClientPercorso(clientId: clientId, offset: events.count) {
+            let known = Set(events.map(\.id))
+            events.append(contentsOf: r.events.filter { !known.contains($0.id) })
+            hasMore = r.hasMore
         }
     }
 }

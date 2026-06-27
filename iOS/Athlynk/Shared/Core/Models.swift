@@ -495,7 +495,16 @@ struct AppointmentDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct AppointmentsResponse: Codable { let appointments: [AppointmentDTO] }
+struct AppointmentsResponse: Codable {
+    let appointments: [AppointmentDTO]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case appointments; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        appointments = try c.decodeIfPresent([AppointmentDTO].self, forKey: .appointments) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
+}
 
 // MARK: - Progress (check history)
 
@@ -532,7 +541,16 @@ struct ProgressEntryDTO: Codable, Identifiable, Hashable {
     }
 }
 
-struct ProgressResponse: Codable { let entries: [ProgressEntryDTO] }
+struct ProgressResponse: Codable {
+    let entries: [ProgressEntryDTO]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case entries; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        entries = try c.decodeIfPresent([ProgressEntryDTO].self, forKey: .entries) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
+}
 
 // MARK: - Single measurement catalog ("pesata/circonferenza/plica del giorno X")
 
@@ -666,7 +684,10 @@ struct MacroDayDTO: Codable, Hashable {
     let entries: [MacroEntryDTO]
 }
 
-struct FoodSearchResponse: Codable { let results: [FoodDTO] }
+struct FoodSearchResponse: Codable {
+    let results: [FoodDTO]
+    let categories: [String]?
+}
 struct MacroDayResponse: Codable { let macroDay: MacroDayDTO
     enum CodingKeys: String, CodingKey { case macroDay = "macro_day" } }
 
@@ -727,13 +748,15 @@ struct JourneyPhaseDTO: Codable, Identifiable, Hashable {
 struct JourneyResponse: Codable {
     let events: [JourneyEventDTO]
     let phases: [JourneyPhaseDTO]
+    let hasMore: Bool
 
-    enum CodingKeys: String, CodingKey { case events, phases }
+    enum CodingKeys: String, CodingKey { case events, phases; case hasMore = "has_more" }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         events = try c.decodeIfPresent([JourneyEventDTO].self, forKey: .events) ?? []
         phases = try c.decodeIfPresent([JourneyPhaseDTO].self, forKey: .phases) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
     }
 }
 
@@ -879,7 +902,16 @@ struct SupplementSheetDTO: Codable, Identifiable, Hashable {
     let items: [SupplementItemDTO]
 }
 
-struct SupplementsResponse: Codable { let sheets: [SupplementSheetDTO] }
+struct SupplementsResponse: Codable {
+    let sheets: [SupplementSheetDTO]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case sheets; case hasMore = "has_more" }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sheets = try c.decodeIfPresent([SupplementSheetDTO].self, forKey: .sheets) ?? []
+        hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+    }
+}
 
 // MARK: - Coach detail (Profilo Coach)
 
@@ -930,6 +962,17 @@ struct SettingToggleDTO: Codable, Identifiable, Hashable {
 struct SettingsDTO: Codable, Hashable {
     let email: String
     let notifications: [SettingToggleDTO]
+    let foodSearchMode: String
+    enum CodingKeys: String, CodingKey {
+        case email, notifications
+        case foodSearchMode = "food_search_mode"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        email = try c.decode(String.self, forKey: .email)
+        notifications = try c.decodeIfPresent([SettingToggleDTO].self, forKey: .notifications) ?? []
+        foodSearchMode = (try? c.decode(String.self, forKey: .foodSearchMode)) ?? "alimento"
+    }
 }
 
 struct SettingsResponse: Codable { let settings: SettingsDTO }

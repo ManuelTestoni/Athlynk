@@ -10,6 +10,8 @@ import SwiftUI
 struct SupplementsView: View {
     @State private var sheets: [SupplementSheetDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
 
     var body: some View {
@@ -39,6 +41,9 @@ struct SupplementsView: View {
                             ForEach(Array(sheet.items.enumerated()), id: \.element.id) { i, item in
                                 itemCard(item, index: i)
                             }
+                        }
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.amber) { Task { await loadMore() } }
                         }
                     }
                 }
@@ -96,9 +101,21 @@ struct SupplementsView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { sheets = try await APIClient.shared.supplements() }
+        do {
+            let res = try await APIClient.shared.supplements(offset: 0)
+            sheets = res.sheets; hasMore = res.hasMore
+        }
         catch is CancellationError { loading = false; return }
         catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.supplements(offset: sheets.count) {
+            sheets.append(contentsOf: res.sheets)
+            hasMore = res.hasMore
+        }
     }
 }

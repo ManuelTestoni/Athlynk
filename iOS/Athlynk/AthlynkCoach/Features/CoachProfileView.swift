@@ -142,6 +142,28 @@ struct CoachProfileView: View {
                     }
                 }
             }
+
+            CoachSectionTitle(eyebrow: "Dieta", title: "Ricerca alimenti", accent: Palette.lime)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Modalità ricerca").font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                Text("Scegli quali alimenti compaiono nella ricerca del builder dieta.")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                Picker("Ricerca alimenti", selection: Binding(
+                    get: { s.foodSearchMode },
+                    set: { mode in
+                        Task {
+                            if let updated = try? await APIClient.shared.updateFoodSearchMode(mode) {
+                                settings = updated
+                            }
+                        }
+                    }
+                )) {
+                    Text("Alimenti precisi").tag("alimento")
+                    Text("Solo medie").tag("media")
+                }
+                .pickerStyle(.segmented)
+            }
+            .padding(14).voltPanel()
         }
     }
 

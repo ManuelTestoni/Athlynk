@@ -11,6 +11,8 @@ struct JourneyView: View {
     @State private var events: [JourneyEventDTO] = []
     @State private var phases: [JourneyPhaseDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
     @State private var filter: String?      // nil = all
     @State private var appear = false
@@ -76,6 +78,9 @@ struct JourneyView: View {
                                    : "Nessun evento di questo tipo.", color: Palette.bronze)
                     } else {
                         timeline
+                        if hasMore && filter != "fase" {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.bronze) { Task { await loadMore() } }
+                        }
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 44)
@@ -277,11 +282,21 @@ struct JourneyView: View {
     private func load() async {
         loading = true; error = nil
         do {
-            let r = try await APIClient.shared.journey()
-            events = r.events
-            phases = r.phases
+            let r = try await APIClient.shared.journey(offset: 0)
+            events = r.events; phases = r.phases; hasMore = r.hasMore
         }
         catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        do {
+            let r = try await APIClient.shared.journey(offset: events.count)
+            let known = Set(events.map(\.id))
+            events.append(contentsOf: r.events.filter { !known.contains($0.id) })
+            hasMore = r.hasMore
+        } catch {}
     }
 }

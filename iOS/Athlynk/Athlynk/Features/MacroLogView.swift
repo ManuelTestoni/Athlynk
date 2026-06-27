@@ -192,41 +192,95 @@ private struct FoodSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var results: [FoodDTO] = []
-    @State private var searching = false
+    @State private var loading = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var filter = "all"   // all | cat | recent
+    @State private var categories: [String] = []
+    @State private var activeCat = ""
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                VoltBackground(palette: [Palette.lime, Palette.cyan, Palette.amber, Palette.lime])
-                VStack(spacing: 14) {
-                    VoltField(icon: "magnifyingglass", placeholder: "Cerca un alimento…",
-                              text: $query, accent: Palette.lime)
-                        .padding(.horizontal, 20).padding(.top, 16)
+            VStack(spacing: 12) {
+                VoltField(icon: "magnifyingglass", placeholder: "Cerca un alimento…",
+                          text: $query, accent: Palette.lime)
+                    .padding(.horizontal, 16).padding(.top, 8)
 
-                    if searching && results.isEmpty {
-                        Spacer(); ProgressView().tint(Palette.lime); Spacer()
-                    } else if query.count >= 2 && results.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach([("all", "Tutti"), ("cat", "Categorie"), ("recent", "Recenti")], id: \.0) { key, label in
+                        Button {
+                            Haptics.tap()
+                            filter = key; activeCat = ""; results = []
+                            scheduleSearch(immediate: true)
+                        } label: {
+                            Text(label)
+                                .font(Typo.body(12, .semibold))
+                                .foregroundStyle(filter == key ? Palette.void0 : Palette.textMid)
+                                .padding(.horizontal, 14).padding(.vertical, 7)
+                                .background(Capsule().fill(filter == key ? Palette.lime : Palette.void2))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+
+                if filter == "cat" && !activeCat.isEmpty {
+                    Button {
+                        Haptics.tap()
+                        activeCat = ""; results = []
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left").font(.system(size: 12, weight: .bold))
+                            Text(activeCat).font(Typo.body(13, .semibold))
+                            Spacer()
+                        }
+                        .foregroundStyle(Palette.lime)
+                        .padding(.horizontal, 16)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if filter == "cat" && activeCat.isEmpty {
+                    if filteredCategories.isEmpty {
                         Spacer()
-                        EmptyPanel(icon: "magnifyingglass", text: "Nessun alimento trovato.", color: Palette.lime)
-                            .padding(.horizontal, 20)
+                        Text(categories.isEmpty ? "Caricamento categorie…" : "Nessuna categoria trovata.")
+                            .font(Typo.body(13)).foregroundStyle(Palette.textMid)
                         Spacer()
                     } else {
-                        ScrollView(showsIndicators: false) {
-                            VStack(spacing: 8) {
-                                ForEach(results) { food in
-                                    NavigationLink {
-                                        QuantityView(assignmentId: assignmentId, food: food, logDate: logDate) {
-                                            onAdded(); dismiss()
-                                        }
-                                    } label: { resultRow(food) }
-                                    .buttonStyle(.plain)
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(filteredCategories, id: \.self) { cat in
+                                    categoryRow(cat)
                                 }
                             }
-                            .padding(.horizontal, 20).padding(.bottom, 30)
+                            .padding(.horizontal, 16).padding(.bottom, 24)
                         }
+                    }
+                } else if loading && results.isEmpty {
+                    Spacer(); ProgressView().tint(Palette.lime); Spacer()
+                } else if results.isEmpty {
+                    Spacer()
+                    Text(emptyText)
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                        .multilineTextAlignment(.center).padding(.horizontal, 24)
+                    Spacer()
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(spacing: 8) {
+                            ForEach(results) { food in
+                                NavigationLink {
+                                    QuantityView(assignmentId: assignmentId, food: food, logDate: logDate) {
+                                        onAdded(); dismiss()
+                                    }
+                                } label: { resultRow(food) }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.bottom, 24)
                     }
                 }
             }
+            .background(Palette.void0.ignoresSafeArea())
             .navigationTitle("Aggiungi alimento")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -234,32 +288,88 @@ private struct FoodSearchSheet: View {
                     Button("Chiudi") { dismiss() }.tint(Palette.lime)
                 }
             }
+            .onChange(of: query) { _, _ in scheduleSearch() }
+            .task { if results.isEmpty { await search() } }
         }
-        .task(id: query) { await search() }
+        .presentationDetents([.large])
+    }
+
+    private var filteredCategories: [String] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        let base = q.isEmpty ? categories : categories.filter { $0.lowercased().contains(q) }
+        return base.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func categoryRow(_ cat: String) -> some View {
+        Button {
+            Haptics.tap()
+            activeCat = cat
+            scheduleSearch(immediate: true)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.lime)
+                Text(cat).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textMid)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .voltPanel(Palette.line, radius: 13)
     }
 
     private func resultRow(_ f: FoodDTO) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(f.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
-                Text("\(Int(f.kcal)) kcal · 100g").font(Typo.mono(10)).foregroundStyle(Palette.textMid)
+                Text("\(Int(f.kcal)) kcal · P \(Int(f.protein)) · C \(Int(f.carb)) · G \(Int(f.fat))  /100g")
+                    .font(Typo.mono(10)).foregroundStyle(Palette.textMid)
             }
             Spacer()
-            Image(systemName: "plus.circle.fill").font(.system(size: 20, weight: .black))
+            Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Palette.lime)
         }
         .padding(14).voltPanel(Palette.lime.opacity(0.3))
     }
 
+    private var emptyText: String {
+        if filter == "recent" { return "Nessun alimento recente." }
+        if filter == "cat" && activeCat.isEmpty { return "Scegli una categoria." }
+        return query.isEmpty ? "Cerca nella banca dati o scegli un filtro." : "Nessun alimento trovato."
+    }
+
+    private func scheduleSearch(immediate: Bool = false) {
+        searchTask?.cancel()
+        searchTask = Task {
+            if !immediate { try? await Task.sleep(for: .milliseconds(300)) }
+            guard !Task.isCancelled else { return }
+            await search()
+        }
+    }
+
     private func search() async {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard q.count >= 2 else { results = []; return }
-        try? await Task.sleep(nanoseconds: 280_000_000)   // debounce
-        if Task.isCancelled { return }
-        searching = true
-        defer { searching = false }
-        do { results = try await APIClient.shared.searchFoods(q) }
-        catch { results = [] }
+        if filter == "cat" && activeCat.isEmpty && categories.isEmpty {
+            // first load → fetch categories, don't show results yet
+        } else if filter == "cat" && activeCat.isEmpty {
+            results = []; return
+        }
+        loading = true; defer { loading = false }
+        let resp = try? await APIClient.shared.searchFoods(
+            query,
+            filter: filter == "recent" ? "recent" : nil,
+            cat: filter == "cat" ? activeCat : nil,
+            includeCats: filter == "cat" && categories.isEmpty)
+        guard !Task.isCancelled else { return }
+        if let cats = resp?.categories { categories = cats }
+        if filter == "cat" && activeCat.isEmpty {
+            results = []
+        } else {
+            results = resp?.results ?? []
+        }
     }
 }
 

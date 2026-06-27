@@ -176,12 +176,12 @@ final class APIClient {
         try decode(SubscriptionResponse.self, from: try await request("/api/v1/subscription")).subscription
     }
 
-    func appointments() async throws -> [AppointmentDTO] {
-        try decode(AppointmentsResponse.self, from: try await request("/api/v1/appointments")).appointments
+    func appointments(offset: Int = 0) async throws -> AppointmentsResponse {
+        try decode(AppointmentsResponse.self, from: try await request("/api/v1/appointments?offset=\(offset)"))
     }
 
-    func progress() async throws -> [ProgressEntryDTO] {
-        try decode(ProgressResponse.self, from: try await request("/api/v1/progress")).entries
+    func progress(offset: Int = 0) async throws -> ProgressResponse {
+        try decode(ProgressResponse.self, from: try await request("/api/v1/progress?offset=\(offset)"))
     }
 
     func exerciseTrend(workoutExerciseId id: Int) async throws -> ExerciseTrendDTO {
@@ -298,8 +298,8 @@ final class APIClient {
                    from: try await request("/api/v1/workout-history/\(id)"))
     }
 
-    func supplements() async throws -> [SupplementSheetDTO] {
-        try decode(SupplementsResponse.self, from: try await request("/api/v1/supplements")).sheets
+    func supplements(offset: Int = 0) async throws -> SupplementsResponse {
+        try decode(SupplementsResponse.self, from: try await request("/api/v1/supplements?offset=\(offset)"))
     }
 
     func coach(id: Int) async throws -> CoachDetailDTO {
@@ -417,10 +417,17 @@ final class APIClient {
 
     // MARK: MACRO-mode logging
 
-    func searchFoods(_ query: String) async throws -> [FoodDTO] {
-        let q = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return try decode(FoodSearchResponse.self,
-                          from: try await request("/api/v1/nutrition/foods?q=\(q)")).results
+    func searchFoods(_ query: String, filter: String? = nil,
+                     cat: String? = nil, includeCats: Bool = false) async throws -> FoodSearchResponse {
+        var comps = URLComponents()
+        var params: [URLQueryItem] = []
+        if !query.isEmpty { params.append(.init(name: "q", value: query)) }
+        if let filter { params.append(.init(name: "filter", value: filter)) }
+        if let cat { params.append(.init(name: "cat", value: cat)) }
+        if includeCats { params.append(.init(name: "include_cats", value: "1")) }
+        comps.queryItems = params
+        let qs = comps.percentEncodedQuery ?? ""
+        return try decode(FoodSearchResponse.self, from: try await request("/api/v1/nutrition/foods?\(qs)"))
     }
 
     /// `date` (ISO yyyy-MM-dd) loads a past day for review/edit; nil = today.
@@ -451,7 +458,13 @@ final class APIClient {
 
     // MARK: Journey timeline
 
-    func journey() async throws -> JourneyResponse {
-        try decode(JourneyResponse.self, from: try await request("/api/v1/journey"))
+    func journey(offset: Int = 0) async throws -> JourneyResponse {
+        try decode(JourneyResponse.self, from: try await request("/api/v1/journey?offset=\(offset)"))
+    }
+
+    @discardableResult
+    func updateFoodSearchMode(_ mode: String) async throws -> SettingsDTO {
+        try decode(SettingsResponse.self,
+                   from: try await request("/api/v1/settings", method: "PATCH", body: ["food_search_mode": mode])).settings
     }
 }

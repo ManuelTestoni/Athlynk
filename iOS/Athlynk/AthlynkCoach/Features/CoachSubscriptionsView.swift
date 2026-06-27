@@ -6,33 +6,39 @@
 import SwiftUI
 
 struct CoachSubscriptionsView: View {
-    @State private var data: CoachSubscriptionsDTO?
+    @State private var header: (activeCount: Int, monthlyRevenue: Double, currency: String, plans: [CoachPlanSummary])?
+    @State private var subs: [CoachSubscriptionRow] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Ricavi", title: "Abbonamenti",
                          subtitle: "Piani e clienti paganti", accent: Palette.amber)
-            if loading && data == nil {
+            if loading && header == nil {
                 CoachSubscriptionsSkeleton()
-            } else if let d = data {
+            } else if let h = header {
                 HStack(spacing: 14) {
-                    CoachStatTile(value: "€\(Int(d.monthlyRevenue))", label: "Ricavo attivo",
+                    CoachStatTile(value: "€\(Int(h.monthlyRevenue))", label: "Ricavo attivo",
                                   icon: "eurosign.circle.fill", accent: Palette.amber)
-                    CoachStatTile(value: "\(d.activeCount)", label: "Abbonati attivi",
+                    CoachStatTile(value: "\(h.activeCount)", label: "Abbonati attivi",
                                   icon: "person.badge.shield.checkmark.fill", accent: Palette.lime)
                 }
 
                 CoachSectionTitle(eyebrow: "Offerta", title: "Piani", accent: Palette.amber)
-                if d.plans.isEmpty {
+                if h.plans.isEmpty {
                     EmptyPanel(icon: "creditcard", text: "Nessun piano creato.")
                 } else {
-                    ForEach(d.plans) { p in planRow(p) }
+                    ForEach(h.plans) { p in planRow(p) }
                 }
 
-                if !d.subscriptions.isEmpty {
+                if !subs.isEmpty {
                     CoachSectionTitle(eyebrow: "Clienti", title: "Abbonamenti", accent: Palette.cyan)
-                    ForEach(d.subscriptions) { s in subRow(s) }
+                    ForEach(subs) { s in subRow(s) }
+                }
+                if hasMore {
+                    LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
                 }
             }
         }
@@ -72,6 +78,19 @@ struct CoachSubscriptionsView: View {
         .padding(14).voltPanel()
     }
 
-    private func load() async { loading = true; defer { loading = false }
-        data = try? await APIClient.shared.coachSubscriptions() }
+    private func load() async {
+        loading = true; defer { loading = false }
+        if let res = try? await APIClient.shared.coachSubscriptions(offset: 0) {
+            header = (res.activeCount, res.monthlyRevenue, res.currency, res.plans)
+            subs = res.subscriptions; hasMore = res.hasMore
+        }
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.coachSubscriptions(offset: subs.count) {
+            subs.append(contentsOf: res.subscriptions); hasMore = res.hasMore
+        }
+    }
 }

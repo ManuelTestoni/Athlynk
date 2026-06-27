@@ -89,8 +89,8 @@ extension APIClient {
         try decode(CoachDashboardDTO.self, from: try await request("/api/v1/coach/dashboard"))
     }
 
-    func coachAgenda() async throws -> [CoachAgendaItem] {
-        try decode(CoachAgendaResponse.self, from: try await request("/api/v1/coach/agenda")).appointments
+    func coachAgenda(offset: Int = 0) async throws -> CoachAgendaResponse {
+        try decode(CoachAgendaResponse.self, from: try await request("/api/v1/coach/agenda?offset=\(offset)"))
     }
 
     func coachClients(query: String = "", status: String = "",
@@ -109,8 +109,8 @@ extension APIClient {
         try decode(CoachClientDetailDTO.self, from: try await request("/api/v1/coach/clients/\(id)"))
     }
 
-    func coachChecks(filter: String = "pending") async throws -> CoachChecksResponse {
-        try decode(CoachChecksResponse.self, from: try await request("/api/v1/coach/checks?filter=\(filter)"))
+    func coachChecks(filter: String = "pending", offset: Int = 0) async throws -> CoachChecksResponse {
+        try decode(CoachChecksResponse.self, from: try await request("/api/v1/coach/checks?filter=\(filter)&offset=\(offset)"))
     }
 
     func coachCheck(id: Int) async throws -> CoachCheckDetailDTO {
@@ -125,16 +125,24 @@ extension APIClient {
         return true
     }
 
-    func coachWorkouts() async throws -> CoachWorkoutsResponse {
-        try decode(CoachWorkoutsResponse.self, from: try await request("/api/v1/coach/workouts"))
+    func coachWorkouts(q: String = "", offset: Int = 0) async throws -> CoachWorkoutsResponse {
+        var path = "/api/v1/coach/workouts?offset=\(offset)"
+        if !q.isEmpty, let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            path += "&q=\(enc)"
+        }
+        return try decode(CoachWorkoutsResponse.self, from: try await request(path))
     }
 
-    func coachNutrition() async throws -> CoachNutritionResponse {
-        try decode(CoachNutritionResponse.self, from: try await request("/api/v1/coach/nutrition"))
+    func coachNutrition(q: String = "", offset: Int = 0) async throws -> CoachNutritionResponse {
+        var path = "/api/v1/coach/nutrition?offset=\(offset)"
+        if !q.isEmpty, let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            path += "&q=\(enc)"
+        }
+        return try decode(CoachNutritionResponse.self, from: try await request(path))
     }
 
-    func coachSubscriptions() async throws -> CoachSubscriptionsDTO {
-        try decode(CoachSubscriptionsDTO.self, from: try await request("/api/v1/coach/subscriptions"))
+    func coachSubscriptions(offset: Int = 0) async throws -> CoachSubscriptionsDTO {
+        try decode(CoachSubscriptionsDTO.self, from: try await request("/api/v1/coach/subscriptions?offset=\(offset)"))
     }
 
     func coachResources() async throws -> [CoachResourceSection] {
@@ -310,9 +318,9 @@ extension APIClient {
 
     // MARK: Client percorso (journey + phases)
 
-    func coachClientPercorso(clientId: Int) async throws -> JourneyResponse {
+    func coachClientPercorso(clientId: Int, offset: Int = 0) async throws -> JourneyResponse {
         try decode(JourneyResponse.self,
-                   from: try await request("/api/v1/coach/clients/\(clientId)/percorso"))
+                   from: try await request("/api/v1/coach/clients/\(clientId)/percorso?offset=\(offset)"))
     }
 
     @discardableResult

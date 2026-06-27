@@ -38,16 +38,7 @@ struct MacroHistoryView: View {
                             .revealUp(true, index: i)
                         }
                         if hasMore {
-                            Button { Task { await loadMore() } } label: {
-                                HStack(spacing: 8) {
-                                    if loadingMore { ProgressView().tint(Palette.lime) }
-                                    Text(loadingMore ? "Carico…" : "Carica altri giorni")
-                                        .font(Typo.mono(12, .bold)).foregroundStyle(Palette.lime)
-                                }
-                                .frame(maxWidth: .infinity).padding(.vertical, 14)
-                                .background(RoundedRectangle(cornerRadius: 12).fill(Palette.lime.opacity(0.12)))
-                            }
-                            .disabled(loadingMore)
+                            LoadMoreButton(loading: loadingMore, accent: Palette.lime) { Task { await loadMore() } }
                         }
                     }
                 }

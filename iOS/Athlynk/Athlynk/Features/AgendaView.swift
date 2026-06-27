@@ -9,6 +9,8 @@ import SwiftUI
 struct AgendaView: View {
     @State private var items: [AppointmentDTO] = []
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var hasMore = false
     @State private var error: String?
 
     private var upcoming: [AppointmentDTO] { items.filter { isFuture($0.end ?? $0.start) } }
@@ -43,6 +45,9 @@ struct AgendaView: View {
                                 }
                                 .buttonStyle(PressableButtonStyle())
                             }
+                        }
+                        if hasMore {
+                            LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
                         }
                     }
                 }
@@ -134,8 +139,21 @@ struct AgendaView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { items = try await APIClient.shared.appointments() }
+        do {
+            let res = try await APIClient.shared.appointments(offset: 0)
+            items = res.appointments; hasMore = res.hasMore
+        }
         catch { self.error = error.localizedDescription }
         loading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true; defer { loadingMore = false }
+        if let res = try? await APIClient.shared.appointments(offset: items.count) {
+            let known = Set(items.map(\.id))
+            items.append(contentsOf: res.appointments.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
+        }
     }
 }
