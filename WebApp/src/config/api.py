@@ -154,6 +154,7 @@ def _bearer(request):
 _CLIENT_BLOCKED_ALLOW = {
     'me', 'profile', 'profile_photo', 'settings', 'delete_account',
     'register_device', 'notification_read', 'notifications', 'tutorial_complete',
+    'accept_terms',
 }
 
 
