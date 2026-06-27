@@ -478,11 +478,16 @@ def me(request, user):
 def accept_terms(request, user):
     """Record the signed-in user's acceptance of Terms of Service + Privacy Policy.
     Idempotent — keeps the original acceptance timestamp once set."""
-    if not user.terms_accepted_at:
-        user.terms_accepted_at = timezone.now()
-        user.terms_version = settings.CONSENT_VERSION
-        user.save(update_fields=['terms_accepted_at', 'terms_version'])
-    return JsonResponse({'ok': True, 'terms_accepted': True})
+    import traceback as _tb
+    try:
+        if not user.terms_accepted_at:
+            user.terms_accepted_at = timezone.now()
+            user.terms_version = settings.CONSENT_VERSION
+            user.save(update_fields=['terms_accepted_at', 'terms_version'])
+        return JsonResponse({'ok': True, 'terms_accepted': True})
+    except Exception as _e:
+        logger.error('accept_terms FAILED uid=%s: %s\n%s', user.id, _e, _tb.format_exc())
+        return JsonResponse({'error': f'DEBUG: {type(_e).__name__}: {_e}'}, status=500)
 
 
 @api_view(['GET'])
