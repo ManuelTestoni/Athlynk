@@ -108,8 +108,6 @@ final class AppState: ObservableObject {
             needsTermsConsent = false
             return true
         } catch {
-            print("[acceptTerms] FAILED:", error)
-            if let e = error as? APIError { print("[acceptTerms] detail:", e.debugDetail) }
             Haptics.error()
             return false
         }
