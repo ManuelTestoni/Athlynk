@@ -130,7 +130,7 @@
                     </div>
                     <span class="al-eyebrow" style="color: var(--al-ink-mute);">Nutrizione</span>
                 </div>
-                <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Tutti</a>
+                <a href="{% url 'coach_client_nutrition_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
             </div>
             {% if active_nutrition %}
             <p class="al-h-3 truncate">{{ active_nutrition.nutrition_plan.title }}</p>
@@ -144,6 +144,9 @@
             </div>
             {% endif %}
             {% endwith %}
+            <a href="{% url 'coach_client_nutrition_detail' client.id active_nutrition.id %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
+                <i class="ph ph-arrow-right text-xs"></i>Dettagli piano
+            </a>
             {% else %}
             <p class="al-body">Nessun piano attivo</p>
             <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">

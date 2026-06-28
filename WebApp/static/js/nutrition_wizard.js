@@ -133,11 +133,15 @@ function nutritionWizard() {
       _key: 's' + Date.now() + '_' + i,
       supplement_id: s.supplement_id,
       supplement_name: s.supplement_name || '',
+      category: s.category || '',
       dose: s.dose || '',
       timing: s.timing || '',
       notes: s.notes || '',
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
+    /* Coach's saved integration models (SupplementSheet) for the picker. */
+    supplementSheets: INIT.supplementSheets || [],
+    supplementModelMenuOpen: false,
 
     /* === Step 4 state === */
     recapDay: 'AVG',
@@ -785,15 +789,19 @@ function nutritionWizard() {
     },
 
     /* === Step 3: supplements === */
-    addSupplement() {
-      this.supplements.push({
+    _newSupplementRow(data = {}) {
+      return {
         _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
-        supplement_id: null,
-        supplement_name: '',
-        dose: '',
-        timing: '',
-        notes: '',
-      });
+        supplement_id: data.supplement_id || null,
+        supplement_name: data.supplement_name || '',
+        category: data.category || '',
+        dose: data.dose || '',
+        timing: data.timing || '',
+        notes: data.notes || '',
+      };
+    },
+    addSupplement() {
+      this.supplements.push(this._newSupplementRow());
     },
     removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
@@ -804,7 +812,21 @@ function nutritionWizard() {
       if (target) {
         target.supplement_id = supplement.id;
         target.supplement_name = supplement.name;
+        target.category = supplement.category || '';
       }
+    },
+    /* Load all items from a saved integration model (SupplementSheet). Replaces
+       the current list (after confirm if non-empty) and merges general notes. */
+    applySupplementSheet(sheetId) {
+      this.supplementModelMenuOpen = false;
+      const sheet = (this.supplementSheets || []).find(s => String(s.id) === String(sheetId));
+      if (!sheet) return;
+      const hasRows = this.supplements.some(s => s.supplement_id || s.dose || s.timing || s.notes);
+      if (hasRows && !window.confirm('Sostituire gli integratori attuali con il modello «' + sheet.title + '»?')) {
+        return;
+      }
+      this.supplements = (sheet.items || []).map(it => this._newSupplementRow(it));
+      if (sheet.notes && !this.supplementNotes) this.supplementNotes = sheet.notes;
     },
 
     /* === Step 4: riepilogo === */
