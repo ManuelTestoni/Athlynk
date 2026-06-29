@@ -257,7 +257,7 @@ def api_check_review(request, response_id):
 
     try:
         data = json.loads(request.body)
-        response = QuestionnaireResponse.objects.get(id=response_id, coach=coach)
+        response = QuestionnaireResponse.objects.select_related('client__user').get(id=response_id, coach=coach)
         response.status = 'REVIEWED'
         response.coach_feedback = data.get('coach_feedback', '')
         response.coach_private_notes = data.get('coach_private_notes', '')
@@ -296,6 +296,7 @@ def _generate_due_instances(client):
     today = timezone.localdate()
     assignments = list(
         AssignedCheck.objects.filter(client=client, is_active=True)
+        .select_related('template', 'client__user', 'coach')
         .prefetch_related('instances')
     )
     if not assignments:

@@ -1552,7 +1552,10 @@ def api_macro_log_history(request, assignment_id):
     if err:
         return err
     assignment = get_object_or_404(
-        NutritionAssignment, id=assignment_id, client=client,
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .prefetch_related('nutrition_plan__days'),
+        id=assignment_id, client=client,
     )
     if assignment.nutrition_plan.plan_mode != 'MACRO':
         return JsonResponse({'error': 'Piano non compatibile'}, status=400)

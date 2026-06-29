@@ -305,7 +305,7 @@ def coach_calendar_feed(request, token):
     be subscribed in Google Calendar / Apple Calendar without login."""
     coach = _get_or_404(_CoachProfile, calendar_feed_token=token)
 
-    appts = _Appointment.objects.filter(coach=coach).exclude(status='CANCELLED').order_by('start_datetime')
+    appts = _Appointment.objects.filter(coach=coach).exclude(status='CANCELLED').select_related('client').order_by('start_datetime')
 
     lines = [
         'BEGIN:VCALENDAR',

@@ -15,7 +15,7 @@ import json
 from datetime import date, timedelta
 
 from django.db import transaction
-from django.db.models import Q, Max, Count
+from django.db.models import Q, Max, Count, Sum, OuterRef, Subquery
 from django.http import JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -445,13 +445,15 @@ def checks_review(request, user):
     qs = (
         QuestionnaireResponse.objects
         .filter(coach=coach, submitted_at__isnull=False)
+        .defer('answers_json', 'questions_snapshot', 'steps_snapshot',
+               'body_circumferences', 'skinfolds')
         .select_related('client', 'client__user', 'questionnaire_template')
         .order_by('-submitted_at')
     )
     if which == 'pending':
         qs = qs.filter(Q(coach_feedback__isnull=True) | Q(coach_feedback=''))
 
-    total = qs.count()
+    window = list(qs[offset:offset + PAGE + 1])
     out = [{
         'id': r.id,
         'title': r.questionnaire_template.title if r.questionnaire_template else 'Check',
@@ -459,11 +461,11 @@ def checks_review(request, user):
         'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
         'reviewed': bool(r.coach_feedback),
         'client': _client_brief(request, r.client),
-    } for r in qs[offset:offset + PAGE]]
+    } for r in window[:PAGE]]
     return JsonResponse({
         'checks': out,
         'pending_count': _pending_review_qs(coach).count(),
-        'has_more': offset + PAGE < total,
+        'has_more': len(window) > PAGE,
     })
 
 
@@ -790,7 +792,8 @@ def check_templates(request, user):
         return err
     _ensure_preset_clones(coach)
     all_t = list(QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
-                 .exclude(questionnaire_type='quick_measurement'))
+                 .exclude(questionnaire_type='quick_measurement')
+                 .defer('report_config'))
     by_key = {t.preset_key: t for t in all_t if t.preset_key}
     presets = [_template_summary(by_key[k]) for k in PRESET_ORDER if k in by_key]
     customs = [_template_summary(t) for t in
@@ -1165,9 +1168,10 @@ def subscriptions(request, user):
         .select_related('client', 'client__user', 'subscription_plan')
         .order_by('-start_date')
     )
-    active = subs_qs.filter(status='ACTIVE')
-    revenue = float(sum(s.subscription_plan.price for s in active))
-    total_subs = subs_qs.count()
+    active_agg = subs_qs.filter(status='ACTIVE').aggregate(
+        total=Sum('subscription_plan__price'), n=Count('id'))
+    revenue = float(active_agg['total'] or 0)
+    window = list(subs_qs[offset:offset + PAGE + 1])
     subs = [{
         'id': s.id,
         'client': _client_brief(request, s.client),
@@ -1177,14 +1181,14 @@ def subscriptions(request, user):
         'payment_status': s.payment_status,
         'start_date': _iso(s.start_date),
         'end_date': _iso(s.end_date),
-    } for s in subs_qs[offset:offset + PAGE]]
+    } for s in window[:PAGE]]
     return JsonResponse({
         'plans': plans,
         'subscriptions': subs,
-        'active_count': active.count(),
+        'active_count': active_agg['n'],
         'monthly_revenue': revenue,
         'currency': 'EUR',
-        'has_more': offset + PAGE < total_subs,
+        'has_more': len(window) > PAGE,
     })
 
 
@@ -1199,13 +1203,13 @@ def resources(request, user):
     if err:
         return err
     workout_plans = [{'id': p.id, 'title': p.title, 'goal': p.goal}
-                     for p in WorkoutPlan.objects.filter(coach=coach).order_by('-created_at')[:80]]
+                     for p in WorkoutPlan.objects.filter(coach=coach).only('id', 'title', 'goal').order_by('-created_at')[:80]]
     nutrition_plans = [{'id': p.id, 'title': p.title, 'plan_mode': p.plan_mode}
-                       for p in NutritionPlan.objects.filter(coach=coach).order_by('-created_at')[:80]]
+                       for p in NutritionPlan.objects.filter(coach=coach).only('id', 'title', 'plan_mode').order_by('-created_at')[:80]]
     templates = [{'id': t.id, 'title': t.title, 'type': t.questionnaire_type, 'active': t.is_active}
-                 for t in QuestionnaireTemplate.objects.filter(coach=coach).order_by('-created_at')[:80]]
+                 for t in QuestionnaireTemplate.objects.filter(coach=coach).only('id', 'title', 'questionnaire_type', 'is_active').order_by('-created_at')[:80]]
     sheets = [{'id': s.id, 'title': s.title}
-              for s in SupplementProtocol.objects.filter(coach=coach).order_by('-updated_at')[:80]]
+              for s in SupplementProtocol.objects.filter(coach=coach).only('id', 'title').order_by('-updated_at')[:80]]
     return JsonResponse({
         'sections': [
             {'key': 'workouts', 'label': 'Schede Allenamento', 'icon': 'dumbbell.fill',
@@ -1268,24 +1272,29 @@ def conversations(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
+    last_msg = Message.objects.filter(conversation=OuterRef('pk')).order_by('-sent_at')
     out = []
     for conv in (
         Conversation.objects.filter(coach=coach)
         .select_related('client', 'client__user')
+        .annotate(
+            last_message_id=Subquery(last_msg.values('id')[:1]),
+            last_message_body=Subquery(last_msg.values('body')[:1]),
+            unread=Count('messages', filter=Q(messages__read_at__isnull=True)
+                         & ~Q(messages__sender_user=coach.user)),
+        )
         .order_by('-last_message_at')
     ):
-        last = conv.messages.order_by('-sent_at').first()
         # Skip empty threads — only real conversations belong in the list. New
         # threads are started explicitly via /messageable-clients + /start.
-        if last is None:
+        if conv.last_message_id is None:
             continue
-        unread = conv.messages.filter(read_at__isnull=True).exclude(sender_user=coach.user).count()
         out.append({
             'id': conv.id,
             'client': _client_brief(request, conv.client),
-            'last_message': last.body if last else None,
+            'last_message': conv.last_message_body,
             'last_message_at': _iso(conv.last_message_at),
-            'unread': unread,
+            'unread': conv.unread,
         })
     return JsonResponse({'conversations': out})
 
@@ -1414,6 +1423,7 @@ def client_progress(request, user, client_id):
     responses = (
         QuestionnaireResponse.objects
         .filter(client_id=client_id, coach=coach, submitted_at__isnull=False)
+        .defer('answers_json', 'questions_snapshot', 'steps_snapshot', 'coach_private_notes')
         .prefetch_related('photos')
         .order_by('-submitted_at')
     )
@@ -2149,14 +2159,17 @@ def coach_supplements(request, user):
         return err
     protocols = (
         coach.supplement_protocols
-        .prefetch_related('items', 'assignments')
+        .annotate(
+            item_count=Count('items', distinct=True),
+            assigned_count=Count('assignments', filter=Q(assignments__status='ACTIVE'), distinct=True),
+        )
         .order_by('-updated_at')
     )
     return JsonResponse({'protocols': [{
         'id': p.id,
         'title': p.title,
-        'item_count': p.items.count(),
-        'assigned_count': p.assignments.filter(status='ACTIVE').count(),
+        'item_count': p.item_count,
+        'assigned_count': p.assigned_count,
     } for p in protocols]})
 
 

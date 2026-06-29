@@ -24,6 +24,7 @@ from django.contrib.auth.hashers import check_password
 from django.utils.dateparse import parse_date
 from django.core import signing
 from django.core.files.storage import default_storage
+from django.db.models import OuterRef, Subquery
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -629,7 +630,10 @@ def food_search(request, user):
     PAGE = 30
 
     food_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
-    foods = Food.objects.all()
+    foods = Food.objects.only(
+        'id', 'nome_alimento', 'categoria_alimento', 'energia_kcal',
+        'proteine_g', 'carboidrati_g', 'lipidi_g', 'genericity_score',
+    )
     if food_mode == 'media':
         foods = foods.filter(nome_alimento__icontains='media')
     else:
@@ -789,10 +793,14 @@ def macro_history_payload(assignment, offset, page=14):
                      .values_list('log_date', flat=True).distinct())
     page_dates = all_dates[offset:offset + page]
 
+    entries_by_date = {}
+    for e in (assignment.macro_log.filter(log_date__in=page_dates)
+              .select_related('food').order_by('created_at', 'id')):
+        entries_by_date.setdefault(e.log_date, []).append(e)
+
     days = []
     for ld in page_dates:
-        entries = list(assignment.macro_log.filter(log_date=ld)
-                       .select_related('food').order_by('created_at', 'id'))
+        entries = entries_by_date.get(ld, [])
         target = day_targets.get(_WEEKDAY_CODES[ld.weekday()], default_target) if weekly else default_target
         days.append({
             'date': ld.isoformat(),
@@ -982,8 +990,9 @@ def notifications(request, user):
         offset = 0
     page = 20
     qs = Notification.objects.filter(target_user=user).order_by('-created_at')
-    items = list(qs[offset:offset + page])
-    has_more = qs.count() > offset + page
+    window = list(qs[offset:offset + page + 1])
+    items = window[:page]
+    has_more = len(window) > page
     return JsonResponse({
         'notifications': [{
             'id': n.id,
@@ -1015,14 +1024,16 @@ def conversations(request, user):
     client = getattr(user, 'client_profile', None)
     qs = Conversation.objects.none()
     if client:
-        qs = Conversation.objects.filter(client=client).select_related('coach')
+        last_body = (Message.objects.filter(conversation=OuterRef('pk'))
+                     .order_by('-sent_at').values('body')[:1])
+        qs = (Conversation.objects.filter(client=client).select_related('coach')
+              .annotate(last_message_body=Subquery(last_body)))
     out = []
     for conv in qs:
-        last = conv.messages.order_by('-sent_at').first()
         out.append({
             'id': conv.id,
             'coach': _coach_dict(conv.coach),
-            'last_message': last.body if last else None,
+            'last_message': conv.last_message_body,
             'last_message_at': _iso(conv.last_message_at),
         })
     return JsonResponse({'conversations': out})
@@ -1063,8 +1074,9 @@ def messages(request, user, conversation_id):
     before = request.GET.get('before')
     if before and before.isdigit():
         qs = qs.filter(id__lt=int(before))
-    window = list(qs[:page])
-    has_more = qs.count() > page
+    window = list(qs[:page + 1])
+    has_more = len(window) > page
+    window = window[:page]
     window.reverse()
     return JsonResponse({
         'messages': [_message_dict(m, user.id) for m in window],
@@ -1158,7 +1170,7 @@ def appointments(request, user):
         .select_related('coach')
         .order_by('start_datetime')
     )
-    total = qs.count()
+    window = list(qs[offset:offset + PAGE + 1])
     out = [{
         'id': a.id,
         'type': a.appointment_type,
@@ -1171,8 +1183,8 @@ def appointments(request, user):
         'meeting_url': a.meeting_url,
         'status': a.status,
         'coach': _coach_dict(a.coach),
-    } for a in qs[offset:offset + PAGE]]
-    return JsonResponse({'appointments': out, 'has_more': offset + PAGE < total})
+    } for a in window[:PAGE]]
+    return JsonResponse({'appointments': out, 'has_more': len(window) > PAGE})
 
 
 # ---------------------------------------------------------------------------
@@ -1192,10 +1204,11 @@ def progress(request, user):
     qs = (
         QuestionnaireResponse.objects
         .filter(client=client, submitted_at__isnull=False)
+        .defer('answers_json', 'questions_snapshot', 'steps_snapshot', 'coach_private_notes')
         .prefetch_related('photos')
         .order_by('-submitted_at')
     )
-    total = qs.count()
+    window = list(qs[offset:offset + PAGE + 1])
     entries = [{
         'id': r.id,
         'submitted_at': _iso(r.submitted_at),
@@ -1210,8 +1223,8 @@ def progress(request, user):
             'type': p.photo_type,
             'captured_at': _iso(p.captured_at),
         } for p in r.photos.all()],
-    } for r in qs[offset:offset + PAGE]]
-    return JsonResponse({'entries': entries, 'has_more': offset + PAGE < total})
+    } for r in window[:PAGE]]
+    return JsonResponse({'entries': entries, 'has_more': len(window) > PAGE})
 
 
 # ---------------------------------------------------------------------------
@@ -1412,8 +1425,9 @@ def workout_history(request, user):
         .prefetch_related('set_logs')
         .order_by('-started_at')
     )
-    sessions = list(qs[offset:offset + page])
-    has_more = qs.count() > offset + page
+    window = list(qs[offset:offset + page + 1])
+    sessions = window[:page]
+    has_more = len(window) > page
     out = []
     for s in sessions:
         day = s.workout_day
@@ -1470,9 +1484,9 @@ def supplements(request, user):
         .prefetch_related('protocol__items')
         .order_by('-assigned_at')
     )
-    total = qs.count()
+    window = list(qs[offset:offset + PAGE + 1])
     sheets = []
-    for a in qs[offset:offset + PAGE]:
+    for a in window[:PAGE]:
         sheet = a.protocol
         items = [{
             'id': it.id,
@@ -1481,7 +1495,7 @@ def supplements(request, user):
             'unit': it.unit or '',
             'timing': it.timing or '',
             'notes': it.notes or '',
-        } for it in sheet.items.order_by('order', 'id')]
+        } for it in sorted(sheet.items.all(), key=lambda it: ((it.order or 0), it.id))]
         sheets.append({
             'id': sheet.id,
             'title': sheet.title,
@@ -1489,7 +1503,7 @@ def supplements(request, user):
             'coach': _coach_dict(a.coach),
             'items': items,
         })
-    return JsonResponse({'sheets': sheets, 'has_more': offset + PAGE < total})
+    return JsonResponse({'sheets': sheets, 'has_more': len(window) > PAGE})
 
 
 # ---------------------------------------------------------------------------
@@ -1913,6 +1927,7 @@ def prima_valutazione(request, user):
             status='SUBMITTED',
             questionnaire_template__preset_key='prima_valutazione',
         )
+        .only('submitted_at', 'weight_kg', 'answers_json')
         .order_by('-submitted_at')
         .first()
     )

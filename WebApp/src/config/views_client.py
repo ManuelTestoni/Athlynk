@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Q, Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.http import JsonResponse
@@ -212,6 +212,9 @@ def coach_client_detail_view(request, client_id):
     from django.urls import reverse
     from domain.checks.anthropometry import measurement_options
 
+    assigned_labels = list(relationship.labels.all())
+    all_labels = list(coach.client_labels.all())
+
     return render(request, 'pages/clienti/detail.html', {
         'coach': coach,
         'client': client,
@@ -229,10 +232,10 @@ def coach_client_detail_view(request, client_id):
         'recent_checks': recent_checks,
         'all_checks': all_checks,
         'supplement_assignments': supplement_assignments,
-        'assigned_labels': list(relationship.labels.all()),
-        'all_labels': list(coach.client_labels.all()),
-        'all_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in coach.client_labels.all()]),
-        'assigned_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in relationship.labels.all()]),
+        'assigned_labels': assigned_labels,
+        'all_labels': all_labels,
+        'all_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in all_labels]),
+        'assigned_labels_json': json.dumps([{'id': l.id, 'name': l.name, 'color': l.color} for l in assigned_labels]),
     })
 
 
@@ -696,8 +699,10 @@ def abbonamenti_dashboard_view(request):
         .order_by('-is_active', '-created_at')
     )
     subscriptions = ClientSubscription.objects.filter(subscription_plan__coach=coach).select_related('client', 'subscription_plan').order_by('-created_at')
-    active_subs = subscriptions.filter(status='ACTIVE').count()
-    total_revenue = sum(s.subscription_plan.price for s in subscriptions.filter(status='ACTIVE'))
+    active_agg = subscriptions.filter(status='ACTIVE').aggregate(
+        n=Count('id'), revenue=Sum('subscription_plan__price'))
+    active_subs = active_agg['n']
+    total_revenue = active_agg['revenue'] or 0
     pending_payments = subscriptions.filter(status='ACTIVE', payment_status='PENDING').count()
 
     # Clients available for manual plan assignment
@@ -802,13 +807,14 @@ def subscription_plan_detail_view(request, plan_id):
 
     plan = get_object_or_404(SubscriptionPlan, id=plan_id, coach=coach)
     subscriptions = ClientSubscription.objects.filter(subscription_plan=plan).select_related('client').order_by('-created_at')
+    active_count = subscriptions.filter(status='ACTIVE').count()
 
     return render(request, 'pages/abbonamenti/plan_detail.html', {
         'plan': plan,
         'coach': coach,
         'subscriptions': subscriptions,
-        'active_count': subscriptions.filter(status='ACTIVE').count(),
-        'total_revenue': sum([s.subscription_plan.price for s in subscriptions.filter(status='ACTIVE')]),
+        'active_count': active_count,
+        'total_revenue': plan.price * active_count,
     })
 
 

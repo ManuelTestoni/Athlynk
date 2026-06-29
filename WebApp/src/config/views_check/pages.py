@@ -332,6 +332,9 @@ def check_detail_view(request, response_id):
     prev_response = QuestionnaireResponse.objects.filter(
         client=response.client,
         submitted_at__lt=response.submitted_at
+    ).defer(
+        'answers_json', 'questions_snapshot', 'steps_snapshot',
+        'coach_feedback', 'coach_private_notes',
     ).order_by('-submitted_at').first()
 
     check_number = QuestionnaireResponse.objects.filter(
