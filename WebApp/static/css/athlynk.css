@@ -1696,6 +1696,8 @@ body[data-page="chat"] .al-search { display: none !important; }
   display: inline-flex;
   border: 1px solid var(--al-rule-strong);
   background: var(--al-parchment);
+  border-radius: var(--al-r-sm);
+  overflow: hidden;
 }
 .al-pag a, .al-pag button, .al-pag span {
   padding: 8px 14px;

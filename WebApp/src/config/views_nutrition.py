@@ -1476,7 +1476,7 @@ def api_macro_log_detail(request, entry_id):
 
 @require_http_methods(['GET'])
 def api_macro_log_history(request, assignment_id):
-    """Last 7 closed days grouped by log_date, including per-day targets."""
+    """7 closed days grouped by log_date, paginated by week_offset (0=most recent)."""
     client, err = _require_client_json(request)
     if err:
         return err
@@ -1487,10 +1487,12 @@ def api_macro_log_history(request, assignment_id):
         return JsonResponse({'error': 'Piano non compatibile'}, status=400)
 
     today = date.today()
-    cutoff = today - timedelta(days=7)
+    week_offset = max(0, int(request.GET.get('week_offset', 0)))
+    end = today - timedelta(days=week_offset * 7)
+    cutoff = end - timedelta(days=7)
     entries = (
         assignment.macro_log
-        .filter(log_date__isnull=False, log_date__lt=today, log_date__gte=cutoff)
+        .filter(log_date__isnull=False, log_date__lt=end, log_date__gte=cutoff)
         .select_related('food')
         .order_by('-log_date', 'created_at')
     )
@@ -1535,7 +1537,19 @@ def api_macro_log_history(request, assignment_id):
             'entries': items,
             'target': target,
         })
-    return JsonResponse({'history': history})
+    has_older = assignment.macro_log.filter(
+        log_date__isnull=False, log_date__lt=cutoff,
+    ).exists()
+    window_label = (
+        f"{cutoff.day} {_MONTHS_IT_SHORT[cutoff.month].capitalize()} "
+        f"– {(end - timedelta(days=1)).day} {_MONTHS_IT_SHORT[(end - timedelta(days=1)).month].capitalize()}"
+    )
+    return JsonResponse({
+        'history': history,
+        'has_older': has_older,
+        'is_latest': week_offset == 0,
+        'window_label': window_label,
+    })
 
 
 def macro_log_day_view(request, assignment_id, date_str):

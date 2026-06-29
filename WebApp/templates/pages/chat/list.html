@@ -15,9 +15,9 @@
 
   <div class="al-card al-card-flush overflow-hidden">
     {% if partners %}
-    <div>
+    <div id="chat-rows-container">
       {% for p in partners %}
-      <a href="{% url 'chat_detail' p.conversation.id %}" class="flex items-center gap-4 px-5 py-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
+      <a href="{% url 'chat_detail' p.conversation.id %}" class="chat-row flex items-center gap-4 px-5 py-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
         <div class="al-avatar al-avatar-lg al-avatar-sq overflow-hidden" style="background: var(--al-aegean);">
           {% if p.partner_avatar %}
           <img src="{{ p.partner_avatar }}" alt="" class="w-full h-full object-cover">
@@ -44,8 +44,6 @@
               {% elif p.last_message.message_type == 'APPOINTMENT_RESPONSE' %}<i class="ph ph-calendar-check"></i> {{ p.last_message.body }}
               {% else %}{{ p.last_message.body|truncatechars:60 }}
               {% endif %}
-            {% else %}
-              <span class="italic text-ink-line">Nessun messaggio</span>
             {% endif %}
           </p>
         </div>
@@ -59,21 +57,82 @@
         </div>
       </a>
       {% endfor %}
+
+      {% if has_more %}
+      <div id="chat-load-more-wrap" class="px-5 py-4 text-center" style="border-top: 1px solid var(--al-rule-faint);">
+        <button type="button" id="chat-load-more-btn"
+                data-offset="{{ next_offset }}"
+                class="al-btn al-btn-ghost al-btn-sm">
+          <i class="ph ph-arrow-down text-xs"></i><span>Carica altro</span>
+        </button>
+      </div>
+      {% endif %}
     </div>
+
     {% else %}
     <div class="al-empty">
       <i class="ph ph-chats-circle al-empty-icon"></i>
-      <h3>Nessuna conversazione</h3>
+      <h3>Nessuna conversazione con messaggi</h3>
       {% if is_coach %}
-      <p>Le chat con i tuoi atleti appariranno qui. Registra il tuo primo atleta per iniziare.</p>
-      <a href="{% url 'clienti_list' %}" class="al-btn al-btn-bronze">
-        <i class="ph ph-users-three"></i> <span>Vai ai tuoi atleti</span>
-      </a>
+      <p>Le chat attive con i tuoi atleti appariranno qui. Usa "Scrivi messaggio" per iniziare.</p>
       {% else %}
       <p>Chiedi al tuo professionista di aggiungerti per iniziare a chattare.</p>
       {% endif %}
     </div>
     {% endif %}
   </div>
+
+  {% if is_coach and new_chat_clients %}
+  <div class="mt-8">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="al-rule-bronze" style="width:32px;"></div>
+      <p class="al-eyebrow" style="color:var(--al-bronze);">Atleti senza messaggi</p>
+    </div>
+    <div class="al-card al-card-flush overflow-hidden">
+      {% for client in new_chat_clients %}
+      <div class="flex items-center gap-4 px-5 py-3" style="border-bottom: 1px solid var(--al-rule-faint);">
+        <div class="al-avatar al-avatar-sq" style="background: var(--al-marble-warm); color: var(--al-ink-mute); font-size:.75rem;">
+          {{ client.name|slice:":2" }}
+        </div>
+        <span class="al-body flex-1 font-medium">{{ client.name }}</span>
+        <a href="{% url 'chat_detail' client.conversation_id %}" class="al-btn al-btn-ghost al-btn-sm">
+          <i class="ph ph-paper-plane-tilt text-xs"></i>
+          <span>Scrivi messaggio</span>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
+{% if is_coach %}
+<script>
+(function() {
+  var btn = document.getElementById('chat-load-more-btn');
+  if (!btn) return;
+
+  function attachLoadMore() {
+    var b = document.getElementById('chat-load-more-btn');
+    if (!b) return;
+    b.addEventListener('click', function() {
+      var offset = b.dataset.offset;
+      b.disabled = true;
+      b.innerHTML = '<i class="ph ph-spinner-gap ph-spin text-xs"></i><span>Carico…</span>';
+      fetch('?offset=' + offset, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.text())
+        .then(html => {
+          var wrap = document.getElementById('chat-load-more-wrap');
+          if (wrap) wrap.remove();
+          var container = document.getElementById('chat-rows-container');
+          container.insertAdjacentHTML('beforeend', html);
+          attachLoadMore();
+        });
+    });
+  }
+  attachLoadMore();
+})();
+</script>
+{% endif %}
 {% endblock %}

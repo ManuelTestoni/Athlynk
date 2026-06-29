@@ -773,13 +773,29 @@
             @click="toggleHistory()">
       <span class="mh-toggle-left">
         <i class="ph ph-clock-counter-clockwise mh-toggle-icon"></i>
-        Storico ultimi 7 giorni
-        <span class="mh-toggle-count" x-show="historyLoaded"
-              x-text="history.length + ' ' + (history.length === 1 ? 'giorno' : 'giorni')"></span>
+        Storico
+        <span class="mh-toggle-count" x-show="historyLoaded && historyWindowLabel"
+              x-text="historyWindowLabel"></span>
       </span>
       <i class="ph ph-caret-down mh-toggle-caret"></i>
     </button>
     <div class="mh-body" x-show="historyOpen" x-collapse x-cloak>
+      <!-- Week navigation -->
+      <div class="flex items-center justify-between px-4 py-2 border-b"
+           style="border-color: var(--al-rule-faint); background: var(--al-marble-warm);"
+           x-show="historyLoaded">
+        <button type="button" @click="historyPrev()" :disabled="!historyHasOlder || historyLoading"
+                class="flex items-center gap-1 al-mono text-xs font-bold uppercase tracking-wider transition"
+                :class="historyHasOlder && !historyLoading ? 'text-bronze hover:text-ink cursor-pointer' : 'text-ink-line cursor-default'">
+          <i class="ph ph-caret-left"></i> Precedente
+        </button>
+        <span class="al-mono text-xs" style="color: var(--al-ink-mute);" x-text="historyWindowLabel"></span>
+        <button type="button" @click="historyNext()" :disabled="historyIsLatest || historyLoading"
+                class="flex items-center gap-1 al-mono text-xs font-bold uppercase tracking-wider transition"
+                :class="!historyIsLatest && !historyLoading ? 'text-bronze hover:text-ink cursor-pointer' : 'text-ink-line cursor-default'">
+          Successivo <i class="ph ph-caret-right"></i>
+        </button>
+      </div>
       <template x-if="historyLoading">
         <div class="mh-empty">
           <i class="ph ph-spinner-gap" style="font-size:1.5rem; color:var(--al-bronze); animation: spin 1s linear infinite;"></i>
@@ -789,7 +805,7 @@
       <template x-if="!historyLoading && historyLoaded && history.length === 0">
         <div class="mh-empty">
           <i class="ph ph-calendar-blank" style="font-size:1.8rem; color:var(--al-rule);"></i>
-          <p class="mt-2" style="font-size:.88rem;">Nessun giorno registrato negli ultimi 7 giorni.</p>
+          <p class="mt-2" style="font-size:.88rem;">Nessun giorno registrato in questa settimana.</p>
         </div>
       </template>
       <template x-for="(day, idx) in history" :key="day.date">

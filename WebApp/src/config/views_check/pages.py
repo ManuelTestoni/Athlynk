@@ -125,6 +125,8 @@ def check_dashboard_view(request):
             'upcoming_check': upcoming_check,
             'pending_instances': list(pending_instances),
         }
+        if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+            return render(request, 'pages/check/_check_table_fragment.html', context)
         return render(request, 'pages/check/dashboard_client.html', context)
 
     # ── COACH ──────────────────────────────────────────────────────
@@ -625,32 +627,7 @@ def check_comparator_view(request, client_id=None):
 
 
 def client_assigned_checks_view(request):
-    user = get_session_user(request)
-    if not user or user.role != 'CLIENT':
-        return redirect('login')
-
-    client = get_session_client(request)
-    _generate_due_instances(client)
-
-    now = timezone.now()
-    instances = AssignedCheckInstance.objects.filter(
-        assignment__client=client
-    ).select_related('assignment__template', 'assignment__coach').order_by('-due_date')
-
-    # Auto-expire
-    to_expire = [i.id for i in instances if i.status == 'pending' and i.expires_at < now]
-    if to_expire:
-        AssignedCheckInstance.objects.filter(id__in=to_expire).update(status='expired')
-
-    pending   = [i for i in instances if i.status == 'pending' and i.expires_at >= now]
-    completed = [i for i in instances if i.status == 'completed']
-    expired   = [i for i in instances if i.status == 'expired' or (i.status == 'pending' and i.expires_at < now)]
-
-    return render(request, 'pages/check/assigned_checks_client.html', {
-        'pending': pending,
-        'completed': completed,
-        'expired': expired,
-    })
+    return redirect('check_dashboard')
 
 
 def fill_assigned_check_view(request, instance_id):

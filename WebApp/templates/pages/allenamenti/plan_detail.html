@@ -194,7 +194,7 @@
         </div>
         <div class="space-y-2">
           {% for day in plan.days.all %}
-          <div class="rcp-day plan-print-day" x-data="{ open: true }" :class="{ 'is-open': open }">
+          <div class="rcp-day plan-print-day" x-data="{ open: false, loaded: false }" :class="{ 'is-open': open }">
             <button type="button" class="rcp-day-btn" @click="open = !open">
               <span class="rcp-day-title">
                 <i class="ph ph-list-bullets" style="color: var(--al-bronze);"></i>
@@ -261,9 +261,9 @@
       </div>
 
       {% if plan.assignments.count %}
-      <div class="pd-assign-card">
+      <div class="pd-assign-card" id="assign-list" x-data="{ showAll: false }">
         {% for a in plan.assignments.all %}
-        <div class="pd-assign-row">
+        <div class="pd-assign-row" x-show="showAll || {{ forloop.counter }} <= 5">
           <div class="pd-assign-avatar">{{ a.client.first_name|slice:":1" }}{{ a.client.last_name|slice:":1" }}</div>
           <div style="flex:1; min-width:0;">
             <p class="pd-assign-name">{{ a.client.first_name }} {{ a.client.last_name }}</p>
@@ -274,6 +274,15 @@
           <span class="al-badge {% if a.status == 'ACTIVE' %}al-badge-success{% endif %}">{{ a.status }}</span>
         </div>
         {% endfor %}
+        {% if plan.assignments.count > 5 %}
+        <div class="pd-assign-row" x-show="!showAll">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm w-full justify-center"
+                  @click="showAll = true">
+            <i class="ph ph-arrow-down text-xs"></i>
+            <span>Mostra tutti ({{ plan.assignments.count }})</span>
+          </button>
+        </div>
+        {% endif %}
       </div>
       {% endif %}
 

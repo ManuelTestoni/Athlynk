@@ -39,23 +39,33 @@ function checkLibrary() {
     /* delete template */
     deleteModal: false,
     deleteTemplateId: null,
+    showLimit: 10,
 
     init() {},
 
     /* === selectors === */
-    selectFolder(id) { this.selectedFolderId = id; },
+    selectFolder(id) { this.selectedFolderId = id; this.showLimit = 10; },
     templatesInFolder() {
       if (this.selectedFolderId === 'all') return this.templates;
       if (this.selectedFolderId === 'unfiled') return this.templates.filter(t => !t.folder_id);
       return this.templates.filter(t => t.folder_id === this.selectedFolderId);
     },
-    visibleTemplates() {
+    _filteredTemplates() {
       const q = (this.search || '').toLowerCase().trim();
       return this.templatesInFolder().filter(t => {
         if (!q) return true;
         const hay = (t.title || '').toLowerCase() + ' ' + (t.description || '').toLowerCase();
         return hay.includes(q);
       });
+    },
+    visibleTemplates() {
+      return this._filteredTemplates().slice(0, this.showLimit);
+    },
+    hasMoreTemplates() {
+      return this._filteredTemplates().length > this.showLimit;
+    },
+    loadMoreTemplates() {
+      this.showLimit += 10;
     },
     emptyTitle() {
       if (this.selectedFolderId === 'all' && !this.search) return 'Nessun modello personale';

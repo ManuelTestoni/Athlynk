@@ -276,7 +276,7 @@
                 </template>
 
                 <!-- Cards grid -->
-                <div class="wb-card-grid">
+                <div class="wb-card-grid" @change.search="showLimit = 10">
                     <template x-for="t in visibleTemplates()" :key="t.id">
                         <article class="wb-card"
                                  draggable="true"
@@ -326,6 +326,14 @@
                             </div>
                         </article>
                     </template>
+                </div>
+
+                <!-- Load more -->
+                <div class="mt-5 text-center" x-show="hasMoreTemplates()">
+                    <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="loadMoreTemplates()">
+                        <i class="ph ph-arrow-down text-xs"></i>
+                        <span>Carica altri modelli</span>
+                    </button>
                 </div>
             </main>
         </div>

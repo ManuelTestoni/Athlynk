@@ -54,6 +54,8 @@
       allRiskClients: [],
       riskClients: [],
       riskFilter: 'all',
+      riskPage: 1,
+      riskPageSize: 10,
       trendMetric: 'at_risk_clients_count',
 
       async init() {
@@ -104,12 +106,21 @@
         return { high: 'Alto', medium: 'Medio', low: 'Basso', all: 'Tutti' }[this.riskFilter];
       },
 
-      setRiskFilter(cls) { this.riskFilter = cls; this.applyRiskFilter(); },
+      setRiskFilter(cls) { this.riskFilter = cls; this.riskPage = 1; this.applyRiskFilter(); },
       applyRiskFilter() {
         this.riskClients = this.riskFilter === 'all'
           ? this.allRiskClients
           : this.allRiskClients.filter(c => c.risk_class === this.riskFilter);
       },
+      get pagedRiskClients() {
+        const start = (this.riskPage - 1) * this.riskPageSize;
+        return this.riskClients.slice(start, start + this.riskPageSize);
+      },
+      get riskTotalPages() {
+        return Math.max(1, Math.ceil(this.riskClients.length / this.riskPageSize));
+      },
+      riskPrevPage() { if (this.riskPage > 1) this.riskPage--; },
+      riskNextPage() { if (this.riskPage < this.riskTotalPages) this.riskPage++; },
 
       setTrend(metric) {
         this.trendMetric = metric;

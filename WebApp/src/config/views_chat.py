@@ -74,6 +74,8 @@ def chat_list_view(request):
         if not coach:
             return redirect('login')
 
+        CHAT_PAGE_SIZE = 20
+
         active_rels = list(
             CoachingRelationship.objects.filter(coach=coach, status='ACTIVE')
             .select_related('client').only('id', 'client')
@@ -83,13 +85,21 @@ def chat_list_view(request):
         if to_create:
             Conversation.objects.bulk_create(to_create, ignore_conflicts=True)
 
-        conversations = list(_annotate_conversations(
+        all_convs = list(_annotate_conversations(
             Conversation.objects.filter(coach=coach)
             .select_related('client', 'client__user')
             .order_by(F('last_message_at').desc(nulls_last=True), '-created_at'),
             user,
         ))
-        unread_map = _unread_counts([c.id for c in conversations], user)
+
+        with_msgs = [c for c in all_convs if c.last_msg_sent_at is not None]
+        no_msgs   = [c for c in all_convs if c.last_msg_sent_at is None]
+
+        offset = max(0, int(request.GET.get('offset', 0)))
+        page_convs = with_msgs[offset:offset + CHAT_PAGE_SIZE]
+        has_more = len(with_msgs) > offset + CHAT_PAGE_SIZE
+
+        unread_map = _unread_counts([c.id for c in page_convs], user)
 
         partners = [{
             'conversation': conv,
@@ -97,10 +107,36 @@ def chat_list_view(request):
             'partner_avatar': '',
             'last_message': _last_message_view(conv),
             'unread_count': unread_map.get(conv.id, 0),
-        } for conv in conversations]
+        } for conv in page_convs]
+
+        new_chat_clients = [{
+            'conversation_id': conv.id,
+            'name': f"{conv.client.first_name} {conv.client.last_name}".strip(),
+        } for conv in no_msgs]
+
+        if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+            next_offset = offset + CHAT_PAGE_SIZE
+            more_convs = with_msgs[next_offset:next_offset + CHAT_PAGE_SIZE]
+            more_unread = _unread_counts([c.id for c in more_convs], user)
+            more_partners = [{
+                'conversation': conv,
+                'partner_name': f"{conv.client.first_name} {conv.client.last_name}".strip(),
+                'partner_avatar': '',
+                'last_message': _last_message_view(conv),
+                'unread_count': more_unread.get(conv.id, 0),
+            } for conv in more_convs]
+            return render(request, 'pages/chat/_chat_rows_fragment.html', {
+                'partners': more_partners,
+                'has_more': len(with_msgs) > next_offset + CHAT_PAGE_SIZE,
+                'next_offset': next_offset + CHAT_PAGE_SIZE,
+                'is_coach': True,
+            })
 
         return render(request, 'pages/chat/list.html', {
             'partners': partners,
+            'has_more': has_more,
+            'next_offset': offset + CHAT_PAGE_SIZE,
+            'new_chat_clients': new_chat_clients,
             'is_coach': True,
         })
 

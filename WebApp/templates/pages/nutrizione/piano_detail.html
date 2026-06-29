@@ -366,9 +366,9 @@
         </button>
       </div>
 
-      <div class="pd-assigns">
+      <div class="pd-assigns" x-data="{ showAll: false }">
         {% for a in assignments %}
-          <div class="pd-assign">
+          <div class="pd-assign" x-show="showAll || {{ forloop.counter }} <= 8">
             <span class="pd-assign-avatar">
               {{ a.client.first_name|first|default:"?" }}{{ a.client.last_name|first|default:"" }}
             </span>
@@ -384,6 +384,14 @@
             </span>
           </div>
         {% endfor %}
+        {% if assignments_count > 8 %}
+        <div class="pd-assign" x-show="!showAll" style="justify-content:center; padding:.75rem;">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="showAll = true">
+            <i class="ph ph-arrow-down text-xs"></i>
+            <span>Mostra tutti ({{ assignments_count }})</span>
+          </button>
+        </div>
+        {% endif %}
       </div>
     </section>
   {% endif %}

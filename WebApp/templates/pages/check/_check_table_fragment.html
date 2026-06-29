@@ -1,0 +1,104 @@
+{% if page_obj.object_list %}
+<div id="check-table-wrap" class="al-card al-card-flush overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="al-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Data</th>
+                    <th>Peso</th>
+                    <th class="hidden sm:table-cell">Umore</th>
+                    <th class="hidden md:table-cell">Note</th>
+                    <th>Stato</th>
+                    <th class="text-right">&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resp in page_obj %}
+                <tr>
+                    <td><span class="al-table-num font-mono text-ink-mute">#{{ page_obj.start_index|add:forloop.counter0 }}</span></td>
+                    <td>
+                        <p class="font-medium text-ink">{{ resp.submitted_at|date:"d M Y" }}</p>
+                        <p class="al-tag font-mono">{{ resp.submitted_at|date:"H:i" }}</p>
+                    </td>
+                    <td>
+                        {% if resp.weight_kg %}
+                        <span class="font-mono font-bold text-ink">{{ resp.weight_kg }}<span class="text-ink-mute"> kg</span></span>
+                        {% else %}
+                        <span class="al-tag">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="hidden sm:table-cell">
+                        {% with mood=resp.answers_json.mood %}
+                        {% if mood %}
+                        <div class="flex items-center gap-1.5">
+                            {% for i in "12345" %}
+                            <span class="w-2 h-2 rounded-full" style="background: {% if forloop.counter <= mood|add:0 %}var(--al-aegean){% else %}var(--al-marble-warm){% endif %};"></span>
+                            {% endfor %}
+                            <span class="font-mono font-bold text-ink ml-1 text-sm">{{ mood }}/5</span>
+                        </div>
+                        {% else %}
+                        <span class="al-tag">—</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="hidden md:table-cell">
+                        {% if resp.notes %}
+                        <span class="al-small line-clamp-2 max-w-[180px]">{{ resp.notes|truncatechars:60 }}</span>
+                        {% else %}
+                        <span class="al-tag">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if resp.status == 'REVIEWED' %}
+                        <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Revisionato</span>
+                        {% else %}
+                        <span class="al-badge"><span class="dot"></span>In attesa</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        <a href="{% url 'check_detail' resp.id %}" class="al-btn al-btn-ghost al-btn-sm">
+                            <span>Vedi</span>
+                            <i class="ph ph-arrow-right text-xs"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="px-6 py-4 border-t flex items-center justify-between gap-4" style="border-color: var(--al-rule); background: var(--al-marble-warm);">
+        <span class="al-tag">
+            {{ page_obj.start_index }}–{{ page_obj.end_index }} di {{ page_obj.paginator.count }} check
+        </span>
+        <div class="al-pag" id="check-pagination">
+            {% if page_obj.has_previous %}
+            <a href="#" data-page="{{ page_obj.previous_page_number }}" data-per-page="{{ per_page }}"><i class="ph-bold ph-caret-left"></i></a>
+            {% else %}<span class="opacity-40"><i class="ph-bold ph-caret-left"></i></span>{% endif %}
+
+            {% for p in page_obj.paginator.page_range %}
+              {% if p == page_obj.number %}
+              <span class="is-active">{{ p }}</span>
+              {% elif p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+              <a href="#" data-page="{{ p }}" data-per-page="{{ per_page }}">{{ p }}</a>
+              {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <a href="#" data-page="{{ page_obj.next_page_number }}" data-per-page="{{ per_page }}"><i class="ph-bold ph-caret-right"></i></a>
+            {% else %}<span class="opacity-40"><i class="ph-bold ph-caret-right"></i></span>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div id="check-table-wrap" class="al-card al-card-warm">
+    <div class="al-empty" style="padding: 60px 32px;">
+        <i class="ph ph-clipboard-text al-empty-icon"></i>
+        <h3>Nessun check ancora</h3>
+        <p>Compila il tuo primo check per inviare le tue misurazioni al coach.</p>
+    </div>
+</div>
+{% endif %}

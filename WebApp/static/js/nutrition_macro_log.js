@@ -40,6 +40,10 @@ function macroLog() {
     historyLoaded: false,
     history: [],
     historyDayOpen: {},
+    historyWeekOffset: 0,
+    historyHasOlder: false,
+    historyIsLatest: true,
+    historyWindowLabel: '',
 
     init() {
       if (this.isWeekly) {
@@ -356,15 +360,22 @@ function macroLog() {
       this.historyOpen = !this.historyOpen;
       if (this.historyOpen && !this.historyLoaded) await this.loadHistory();
     },
-    async loadHistory() {
+    async loadHistory(offset) {
+      if (offset !== undefined) { this.historyWeekOffset = offset; this.historyDayOpen = {}; }
       this.historyLoading = true;
       try {
-        const r = await fetch(INIT.urls.historyPattern);
-        this.history = (await r.json()).history || [];
+        const r = await fetch(INIT.urls.historyPattern + '?week_offset=' + this.historyWeekOffset);
+        const data = await r.json();
+        this.history = data.history || [];
+        this.historyHasOlder = data.has_older || false;
+        this.historyIsLatest = data.is_latest !== false;
+        this.historyWindowLabel = data.window_label || '';
         this.historyLoaded = true;
       } catch (_) { this.toast('Errore nel caricamento dello storico.'); }
       this.historyLoading = false;
     },
+    async historyPrev() { await this.loadHistory(this.historyWeekOffset + 1); },
+    async historyNext() { await this.loadHistory(this.historyWeekOffset - 1); },
     toggleHistoryDay(dateStr) {
       this.historyDayOpen[dateStr] = !this.historyDayOpen[dateStr];
       this.historyDayOpen = { ...this.historyDayOpen };

@@ -1,0 +1,50 @@
+{% for p in partners %}
+<a href="{% url 'chat_detail' p.conversation.id %}" class="chat-row flex items-center gap-4 px-5 py-4 hover:bg-marble-warm transition-colors" style="border-bottom: 1px solid var(--al-rule-faint);">
+  <div class="al-avatar al-avatar-lg al-avatar-sq overflow-hidden" style="background: var(--al-aegean);">
+    {% if p.partner_avatar %}
+    <img src="{{ p.partner_avatar }}" alt="" class="w-full h-full object-cover">
+    {% else %}
+    {{ p.partner_name|slice:":2" }}
+    {% endif %}
+  </div>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2 mb-1">
+      <h3 class="al-h-3 truncate">{{ p.partner_name }}</h3>
+      {% if p.partner_role == 'COACH' %}
+        <span class="al-badge al-badge-ink">Coach</span>
+      {% elif p.partner_role == 'ALLENATORE' %}
+        <span class="al-badge al-badge-aegean">Allenatore</span>
+      {% elif p.partner_role == 'NUTRIZIONISTA' %}
+        <span class="al-badge al-badge-success">Nutrizionista</span>
+      {% endif %}
+    </div>
+    <p class="al-small truncate">
+      {% if p.last_message %}
+        {% if p.last_message.message_type == 'IMAGE' %}<i class="ph ph-image"></i> Foto
+        {% elif p.last_message.message_type == 'VIDEO' %}<i class="ph ph-video"></i> Video
+        {% elif p.last_message.message_type == 'APPOINTMENT_REQUEST' %}<i class="ph ph-calendar"></i> Richiesta appuntamento
+        {% elif p.last_message.message_type == 'APPOINTMENT_RESPONSE' %}<i class="ph ph-calendar-check"></i> {{ p.last_message.body }}
+        {% else %}{{ p.last_message.body|truncatechars:60 }}
+        {% endif %}
+      {% endif %}
+    </p>
+  </div>
+  <div class="text-right shrink-0">
+    {% if p.last_message %}
+    <p class="al-tag" style="font-size:10px;">{{ p.last_message.sent_at|date:"d M H:i" }}</p>
+    {% endif %}
+    {% if p.unread_count > 0 %}
+    <span class="inline-block mt-1 px-2 py-0.5 font-mono text-[10px] font-bold" style="background: var(--al-bronze); color: var(--al-parchment); border-radius: var(--al-r-sm);">{{ p.unread_count }}</span>
+    {% endif %}
+  </div>
+</a>
+{% endfor %}
+{% if has_more %}
+<div id="chat-load-more-wrap" class="px-5 py-4 text-center" style="border-top: 1px solid var(--al-rule-faint);">
+  <button type="button" id="chat-load-more-btn"
+          data-offset="{{ next_offset }}"
+          class="al-btn al-btn-ghost al-btn-sm">
+    <i class="ph ph-arrow-down text-xs"></i><span>Carica altro</span>
+  </button>
+</div>
+{% endif %}

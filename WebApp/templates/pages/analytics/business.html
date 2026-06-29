@@ -151,7 +151,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-for="c in riskClients" :key="c.id">
+                    <template x-for="c in pagedRiskClients" :key="c.id">
                         <tr>
                             <td>
                                 <div class="flex items-center gap-3">
@@ -175,6 +175,23 @@
                     </template>
                 </tbody>
             </table>
+            <div class="px-6 py-3 border-t flex items-center justify-between"
+                 style="border-color: var(--al-rule); background: var(--al-marble-warm);"
+                 x-show="riskClients.length > riskPageSize">
+                <span class="al-tag">
+                    Pagina <span class="font-mono text-ink" x-text="riskPage"></span> di <span class="font-mono text-ink" x-text="riskTotalPages"></span>
+                    · <span x-text="riskClients.length"></span> totali
+                </span>
+                <div class="al-pag">
+                    <button type="button" @click="riskPrevPage()" :disabled="riskPage <= 1" :class="riskPage <= 1 ? 'opacity-40' : ''">
+                        <i class="ph-bold ph-caret-left"></i>
+                    </button>
+                    <span class="is-active" x-text="riskPage"></span>
+                    <button type="button" @click="riskNextPage()" :disabled="riskPage >= riskTotalPages" :class="riskPage >= riskTotalPages ? 'opacity-40' : ''">
+                        <i class="ph-bold ph-caret-right"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

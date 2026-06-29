@@ -22,6 +22,7 @@ document.addEventListener('alpine:init', () => {
     rpe: { series: [] },
 
     sessions: [],
+    sessionsVisible: 10,
     media: [],
 
     sessionModal: { open: false, data: null, sessionId: null },
@@ -242,6 +243,7 @@ document.addEventListener('alpine:init', () => {
       try {
         const r = await fetch(this.urls.sessions);
         this.sessions = await r.json();
+        this.sessionsVisible = 10;
       } catch (e) { this.sessions = []; }
     },
 
