@@ -464,17 +464,57 @@ def allenamenti_plan_detail_view(request, plan_id):
     plan = get_object_or_404(
         WorkoutPlan.objects
             .select_related('folder', 'sport')
-            .prefetch_related('days__exercises__exercise', 'assignments__client'),
+            .prefetch_related('days__exercises__exercise'),
         id=plan_id, coach=coach,
     )
 
     if plan.status == 'DRAFT':
         return redirect('allenamenti_wizard_resume', plan_id=plan.id)
 
+    qs = plan.assignments.select_related('client').order_by('-assigned_at')
+    assignments_count = qs.count()
+    _first = list(qs[:5])
+    assignments_first_json = json.dumps([
+        {
+            'id': a.id, 'client_id': a.client.id,
+            'first_name': a.client.first_name, 'last_name': a.client.last_name,
+            'status': a.status,
+            'start_date': a.start_date.isoformat() if a.start_date else None,
+            'end_date': a.end_date.isoformat() if a.end_date else None,
+        }
+        for a in _first
+    ])
+    assignments_first_count = len(_first)
+
     return render(request, 'pages/allenamenti/plan_detail.html', {
         'coach': coach,
         'plan': plan,
+        'assignments_count': assignments_count,
+        'assignments_first_json': assignments_first_json,
+        'assignments_first_count': assignments_first_count,
     })
+
+
+def api_plan_assignments_list(request, plan_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
+    LIMIT = 10
+    offset = max(0, int(request.GET.get('offset', 0)))
+    qs = plan.assignments.select_related('client').order_by('-assigned_at')
+    total = qs.count()
+    data = [
+        {
+            'id': a.id, 'client_id': a.client.id,
+            'first_name': a.client.first_name, 'last_name': a.client.last_name,
+            'status': a.status,
+            'start_date': a.start_date.isoformat() if a.start_date else None,
+            'end_date': a.end_date.isoformat() if a.end_date else None,
+        }
+        for a in qs[offset:offset + LIMIT]
+    ]
+    return JsonResponse({'assignments': data, 'has_more': total > offset + LIMIT})
 
 
 # ---------------------------------------------------------------------------

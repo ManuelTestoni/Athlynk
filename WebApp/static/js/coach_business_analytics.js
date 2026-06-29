@@ -51,15 +51,15 @@
       kpis: {},
       series: [],
       kpiCards: [],
-      allRiskClients: [],
       riskClients: [],
+      riskHasMore: false,
+      riskLoadingMore: false,
+      riskBreakdownData: { all: 0, high: 0, medium: 0, low: 0 },
       riskFilter: 'all',
-      riskPage: 1,
-      riskPageSize: 10,
       trendMetric: 'at_risk_clients_count',
 
       async init() {
-        await Promise.all([this.loadBusiness(), this.loadRisk()]);
+        await Promise.all([this.loadBusiness(), this.loadRisk('all', 0)]);
         this.loading = false;
         if (this.hasData) {
           this.$nextTick(() => this.renderTrend());
@@ -81,24 +81,35 @@
         } catch (e) { /* leave empty state */ }
       },
 
-      async loadRisk() {
+      async loadRisk(cls, offset) {
+        cls = cls ?? this.riskFilter;
+        offset = offset ?? 0;
         try {
-          const r = await fetch('/api/v1/coach/analytics/risk?class=all', { credentials: 'same-origin' });
+          const r = await fetch(`/api/v1/coach/analytics/risk?class=${cls}&offset=${offset}`, { credentials: 'same-origin' });
           const data = await r.json();
-          this.allRiskClients = data.clients || [];
-          this.applyRiskFilter();
+          if (offset === 0) {
+            this.riskClients = data.clients || [];
+          } else {
+            this.riskClients = this.riskClients.concat(data.clients || []);
+          }
+          this.riskHasMore = data.has_more || false;
+          this.riskBreakdownData = data.breakdown || { all: 0, high: 0, medium: 0, low: 0 };
           if (data.snapshot_date) this.hasData = true;
         } catch (e) { /* ignore */ }
       },
+      async loadMoreRisk() {
+        this.riskLoadingMore = true;
+        await this.loadRisk(this.riskFilter, this.riskClients.length);
+        this.riskLoadingMore = false;
+      },
 
       get riskBreakdown() {
-        const count = (cls) => this.allRiskClients.filter(c => c.risk_class === cls).length;
-        // Colori espliciti: bg-danger/warn/success non esistono nella config Tailwind.
+        const bd = this.riskBreakdownData;
         return [
-          { cls: 'all', label: 'Tutti', count: this.allRiskClients.length, dot: '#8a8270' },
-          { cls: 'high', label: 'Alto', count: count('high'), dot: '#ef4444' },
-          { cls: 'medium', label: 'Medio', count: count('medium'), dot: '#f59e0b' },
-          { cls: 'low', label: 'Basso', count: count('low'), dot: '#4ade80' },
+          { cls: 'all',    label: 'Tutti',  count: bd.all,    dot: '#8a8270' },
+          { cls: 'high',   label: 'Alto',   count: bd.high,   dot: '#ef4444' },
+          { cls: 'medium', label: 'Medio',  count: bd.medium, dot: '#f59e0b' },
+          { cls: 'low',    label: 'Basso',  count: bd.low,    dot: '#4ade80' },
         ];
       },
 
@@ -106,21 +117,7 @@
         return { high: 'Alto', medium: 'Medio', low: 'Basso', all: 'Tutti' }[this.riskFilter];
       },
 
-      setRiskFilter(cls) { this.riskFilter = cls; this.riskPage = 1; this.applyRiskFilter(); },
-      applyRiskFilter() {
-        this.riskClients = this.riskFilter === 'all'
-          ? this.allRiskClients
-          : this.allRiskClients.filter(c => c.risk_class === this.riskFilter);
-      },
-      get pagedRiskClients() {
-        const start = (this.riskPage - 1) * this.riskPageSize;
-        return this.riskClients.slice(start, start + this.riskPageSize);
-      },
-      get riskTotalPages() {
-        return Math.max(1, Math.ceil(this.riskClients.length / this.riskPageSize));
-      },
-      riskPrevPage() { if (this.riskPage > 1) this.riskPage--; },
-      riskNextPage() { if (this.riskPage < this.riskTotalPages) this.riskPage++; },
+      async setRiskFilter(cls) { this.riskFilter = cls; await this.loadRisk(cls, 0); },
 
       setTrend(metric) {
         this.trendMetric = metric;

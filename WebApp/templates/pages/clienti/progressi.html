@@ -172,7 +172,7 @@
     <div class="al-card">
       <h2 class="al-h-3 mb-3">Storico sessioni</h2>
       <div class="space-y-2">
-        <template x-for="s in sessions.slice(0, sessionsVisible)" :key="s.id">
+        <template x-for="s in sessions" :key="s.id">
           <div class="border rounded p-3 cursor-pointer hover:bg-stone" style="border-color: var(--al-rule-faint);" @click="openSession(s.id)">
             <div class="flex items-center justify-between">
               <div>
@@ -195,13 +195,11 @@
         <template x-if="sessions.length === 0">
           <p class="text-center py-8 al-small" style="color: var(--al-ink-faint);">Nessuna sessione registrata.</p>
         </template>
-        <template x-if="sessions.length > sessionsVisible">
-          <button type="button" @click="sessionsVisible += 10"
+        <template x-if="sessionsHasMore">
+          <button type="button" @click="loadMoreSessions()"
                   class="w-full mt-2 py-2.5 border rounded al-mono text-xs font-bold uppercase tracking-wider transition"
                   style="border-color: var(--al-rule); color: var(--al-bronze); background: var(--al-parchment);">
-            <i class="ph ph-caret-down"></i>
-            Carica ancora
-            <span x-text="'(' + Math.min(10, sessions.length - sessionsVisible) + ')'"></span>
+            <i class="ph ph-caret-down"></i> Carica ancora
           </button>
         </template>
       </div>

@@ -923,9 +923,13 @@ def api_progress_sessions(request, client_id):
         return err
     coach, client = res
 
-    sessions = WorkoutSession.objects.filter(client=client).select_related(
+    LIMIT = 10
+    offset = max(0, int(request.GET.get('offset', 0)))
+    qs = WorkoutSession.objects.filter(client=client).select_related(
         'workout_day', 'assignment__workout_plan',
-    ).order_by('-started_at')[:100]
+    ).order_by('-started_at')
+    total = qs.count()
+    sessions = qs[offset:offset + LIMIT]
     data = [{
         'id': s.id,
         'date': s.started_at.isoformat(),
@@ -940,7 +944,7 @@ def api_progress_sessions(request, client_id):
         'sets_total': WorkoutExercise.objects.filter(workout_day=s.workout_day).aggregate(
             t=Sum('set_count'))['t'] or 0,
     } for s in sessions]
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'sessions': data, 'has_more': total > offset + LIMIT})
 
 
 def api_session_detail(request, session_id):

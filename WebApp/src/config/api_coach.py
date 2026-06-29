@@ -2535,26 +2535,35 @@ def analytics_business(request):
 
 @coach_dual_auth
 def analytics_risk(request):
-    """At-risk clients from the latest scored day. ?class=high|medium|all (default all)."""
+    """At-risk clients from the latest scored day. ?class=high|medium|all&offset=0 (default all)."""
     coach = _request_coach(request)
     if not coach:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
 
     latest_day = (RiskScoreDaily.objects.filter(coach=coach)
                   .order_by('-snapshot_date').values_list('snapshot_date', flat=True).first())
+    _empty_bd = {'all': 0, 'high': 0, 'medium': 0, 'low': 0}
     if not latest_day:
-        return JsonResponse({'snapshot_date': None, 'clients': []})
+        return JsonResponse({'snapshot_date': None, 'clients': [], 'has_more': False, 'breakdown': _empty_bd})
 
-    rows = (RiskScoreDaily.objects
-            .filter(coach=coach, snapshot_date=latest_day)
-            .select_related('client', 'client__user').order_by('-risk_score_rule_based'))
+    all_rows = RiskScoreDaily.objects.filter(coach=coach, snapshot_date=latest_day)
+    bd_qs = all_rows.values('risk_class').annotate(n=Count('id'))
+    breakdown = {'all': all_rows.count(), 'high': 0, 'medium': 0, 'low': 0}
+    for b in bd_qs:
+        if b['risk_class'] in breakdown:
+            breakdown[b['risk_class']] = b['n']
 
+    LIMIT = 10
+    offset = max(0, int(request.GET.get('offset', 0)))
+    rows = all_rows.select_related('client', 'client__user').order_by('-risk_score_rule_based')
     wanted = (request.GET.get('class') or 'all').lower()
     if wanted in ('high', 'medium', 'low'):
         rows = rows.filter(risk_class=wanted)
+    total = rows.count()
+    page_rows = rows[offset:offset + LIMIT]
 
     out = []
-    for r in rows:
+    for r in page_rows:
         brief = _client_brief(request, r.client)
         brief.update({
             'risk_score': r.risk_score_rule_based,
@@ -2564,7 +2573,12 @@ def analytics_risk(request):
             'reasons': _reasons_payload(r.top_reason_codes),
         })
         out.append(brief)
-    return JsonResponse({'snapshot_date': latest_day.isoformat(), 'clients': out})
+    return JsonResponse({
+        'snapshot_date': latest_day.isoformat(),
+        'clients': out,
+        'has_more': total > offset + LIMIT,
+        'breakdown': breakdown,
+    })
 
 
 @coach_dual_auth

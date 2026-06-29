@@ -572,7 +572,23 @@
   <!-- ============== INTEGRATORI ============== -->
   {% if supp_assignment %}
     {% with sheet=supp_assignment.protocol %}
-    <section class="nu-supp" x-data="{ suppShowAll: false }">
+    {{ supp_items_first_json|json_script:"supp-items-init-data" }}
+    <section class="nu-supp"
+             x-data="{
+               items: JSON.parse(document.getElementById('supp-items-init-data').textContent),
+               hasMore: {{ supp_items_count }} > {{ supp_items_first_count }},
+               loading: false,
+               async loadMore() {
+                 this.loading = true;
+                 try {
+                   const r = await fetch('{% url 'api_supplement_protocol_items' supp_assignment.id %}?offset=' + this.items.length);
+                   const d = await r.json();
+                   this.items = this.items.concat(d.items);
+                   this.hasMore = d.has_more;
+                 } catch(_) {}
+                 this.loading = false;
+               }
+             }">
       <div class="nu-supp-header">
         <div>
           <p class="al-eyebrow mb-2">Integrazione attiva</p>
@@ -582,50 +598,41 @@
         <span class="al-tag">dal {{ supp_assignment.assigned_at|date:"d M Y" }}</span>
       </div>
 
-      {% with items=sheet.items.all %}
-      {% if items %}
+      {% if supp_items_count %}
       <div class="al-card al-card-flush overflow-hidden">
-        {% for item in items %}
-        <div class="nu-supp-item" {% if forloop.counter > 5 %}x-show="suppShowAll"{% endif %}>
-          <div class="nu-supp-icon">
-            <i class="ph ph-pill"></i>
+        <template x-for="item in items" :key="item.id">
+          <div class="nu-supp-item">
+            <div class="nu-supp-icon"><i class="ph ph-pill"></i></div>
+            <div class="flex-1 min-w-0">
+              <p class="nu-supp-name" x-text="item.name"></p>
+              <p class="nu-supp-note" x-show="item.notes" x-text="item.notes"></p>
+            </div>
+            <div class="nu-supp-pills">
+              <span class="nu-supp-pill" x-show="item.quantity || item.unit">
+                <i class="ph ph-scales"></i>
+                <span x-text="item.quantity + (item.unit ? ' ' + item.unit : '')"></span>
+              </span>
+              <span class="nu-supp-pill" x-show="item.timing">
+                <i class="ph ph-clock"></i>
+                <span x-text="item.timing"></span>
+              </span>
+            </div>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="nu-supp-name">{{ item.name }}</p>
-            {% if item.notes %}<p class="nu-supp-note">{{ item.notes }}</p>{% endif %}
-          </div>
-          <div class="nu-supp-pills">
-            {% if item.quantity or item.unit %}
-            <span class="nu-supp-pill">
-              <i class="ph ph-scales"></i>
-              {{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}
-            </span>
-            {% endif %}
-            {% if item.timing %}
-            <span class="nu-supp-pill">
-              <i class="ph ph-clock"></i>
-              {{ item.timing }}
-            </span>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
+        </template>
 
-        {% if items|length > 5 %}
-        <div class="nu-supp-item" x-show="!suppShowAll" style="justify-content:center; border-bottom:none; padding:.65rem;">
-          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="suppShowAll = true">
+        <div class="nu-supp-item" x-show="hasMore" style="justify-content:center; border-bottom:none; padding:.65rem;">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="loadMore()" :disabled="loading">
             <i class="ph ph-arrow-down text-xs"></i>
-            <span>Mostra tutti ({{ items|length }})</span>
+            <span x-show="!loading">Carica altri</span>
+            <span x-show="loading">…</span>
           </button>
         </div>
-        {% endif %}
       </div>
       {% else %}
       <div class="al-card al-card-warm">
         <p class="al-body text-center" style="color: var(--al-ink-mute); padding: 1.5rem 0;">Nessun integratore in questa scheda.</p>
       </div>
       {% endif %}
-      {% endwith %}
     </section>
     {% endwith %}
   {% endif %}

@@ -22,7 +22,7 @@ document.addEventListener('alpine:init', () => {
     rpe: { series: [] },
 
     sessions: [],
-    sessionsVisible: 10,
+    sessionsHasMore: false,
     media: [],
 
     sessionModal: { open: false, data: null, sessionId: null },
@@ -241,10 +241,19 @@ document.addEventListener('alpine:init', () => {
 
     async loadSessions() {
       try {
-        const r = await fetch(this.urls.sessions);
-        this.sessions = await r.json();
-        this.sessionsVisible = 10;
+        const r = await fetch(this.urls.sessions + '?offset=0');
+        const d = await r.json();
+        this.sessions = d.sessions || [];
+        this.sessionsHasMore = d.has_more || false;
       } catch (e) { this.sessions = []; }
+    },
+    async loadMoreSessions() {
+      try {
+        const r = await fetch(this.urls.sessions + '?offset=' + this.sessions.length);
+        const d = await r.json();
+        this.sessions = this.sessions.concat(d.sessions || []);
+        this.sessionsHasMore = d.has_more || false;
+      } catch (e) {}
     },
 
     async loadMedia() {

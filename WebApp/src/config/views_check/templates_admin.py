@@ -331,3 +331,48 @@ def api_bmr_formula_create(request):
     coach.custom_bmr_formulas = formulas
     coach.save(update_fields=['custom_bmr_formulas', 'updated_at'])
     return JsonResponse({'success': True, 'formulas': formulas}, status=201)
+
+
+def check_templates_api(request):
+    """Paginated custom-only templates for the library. ?folder_id=&q=&offset=&limit="""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    LIMIT = 10
+    offset = max(0, int(request.GET.get('offset', 0)))
+    folder_id_raw = request.GET.get('folder_id', 'all')
+    q = (request.GET.get('q') or '').strip().lower()
+
+    qs = QuestionnaireTemplate.objects.filter(
+        coach=coach, is_active=True,
+    ).exclude(preset_key__isnull=False).exclude(preset_key='')
+
+    if folder_id_raw == 'unfiled':
+        qs = qs.filter(folder__isnull=True)
+    elif folder_id_raw != 'all':
+        try:
+            qs = qs.filter(folder_id=int(folder_id_raw))
+        except (ValueError, TypeError):
+            pass
+
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+
+    qs = qs.order_by('-updated_at')
+    total = qs.count()
+    page = qs[offset:offset + LIMIT]
+    data = [
+        {
+            'id': t.id, 'title': t.title, 'description': t.description or '',
+            'questions_count': len(t.questions_config or []),
+            'steps_count': len(t.steps_config or []),
+            'folder_id': t.folder_id,
+            'updated_at': t.updated_at.isoformat() if t.updated_at else '',
+        }
+        for t in page
+    ]
+    return JsonResponse({'templates': data, 'has_more': total > offset + LIMIT, 'total': total})

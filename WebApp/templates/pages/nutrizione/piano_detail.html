@@ -354,7 +354,7 @@
   {% endif %}
 
   <!-- =================== ASSIGNMENTS =================== -->
-  {% if assignments %}
+  {% if assignments_count %}
     <section class="mt-12 al-reveal plan-print-aside" style="--d:200ms;">
       <div class="flex items-end justify-between mb-5">
         <div>
@@ -366,32 +366,42 @@
         </button>
       </div>
 
-      <div class="pd-assigns" x-data="{ showAll: false }">
-        {% for a in assignments %}
-          <div class="pd-assign" x-show="showAll || {{ forloop.counter }} <= 8">
-            <span class="pd-assign-avatar">
-              {{ a.client.first_name|first|default:"?" }}{{ a.client.last_name|first|default:"" }}
-            </span>
+      {{ assignments_first_json|json_script:"assigns-init-data" }}
+      <div class="pd-assigns"
+           x-data="{
+             assigns: JSON.parse(document.getElementById('assigns-init-data').textContent),
+             hasMore: {{ assignments_count }} > {{ assignments_first_count }},
+             loading: false,
+             async loadMore() {
+               this.loading = true;
+               try {
+                 const r = await fetch('{% url 'api_nutrition_plan_assignments_list' plan.id %}?offset=' + this.assigns.length);
+                 const d = await r.json();
+                 this.assigns = this.assigns.concat(d.assignments);
+                 this.hasMore = d.has_more;
+               } catch(_) {}
+               this.loading = false;
+             }
+           }">
+        <template x-for="a in assigns" :key="a.id">
+          <div class="pd-assign">
+            <span class="pd-assign-avatar" x-text="(a.first_name||'?')[0].toUpperCase() + (a.last_name||'')[0].toUpperCase()"></span>
             <div class="pd-assign-info">
-              <p class="pd-assign-name">{{ a.client.first_name }} {{ a.client.last_name }}</p>
-              <p class="pd-assign-meta">
-                Assegnato il {{ a.assigned_at|date:"d M Y" }}
-                {% if a.end_date %} · scade {{ a.end_date|date:"d M Y" }}{% endif %}
-              </p>
+              <p class="pd-assign-name" x-text="a.first_name + ' ' + a.last_name"></p>
+              <p class="pd-assign-meta" x-text="'Assegnato il ' + (a.assigned_at ? new Date(a.assigned_at).toLocaleDateString('it-IT') : '—') + (a.end_date ? ' · scade ' + new Date(a.end_date).toLocaleDateString('it-IT') : '')"></p>
             </div>
-            <span class="al-badge {% if a.status == 'ACTIVE' %}al-badge-success{% else %}al-badge-ink{% endif %}">
-              <span class="dot"></span>{{ a.status }}
+            <span class="al-badge" :class="a.status === 'ACTIVE' ? 'al-badge-success' : 'al-badge-ink'">
+              <span class="dot"></span><span x-text="a.status"></span>
             </span>
           </div>
-        {% endfor %}
-        {% if assignments_count > 8 %}
-        <div class="pd-assign" x-show="!showAll" style="justify-content:center; padding:.75rem;">
-          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="showAll = true">
+        </template>
+        <div class="pd-assign" x-show="hasMore" style="justify-content:center; padding:.75rem;">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="loadMore()" :disabled="loading">
             <i class="ph ph-arrow-down text-xs"></i>
-            <span>Mostra tutti ({{ assignments_count }})</span>
+            <span x-show="!loading">Carica altri</span>
+            <span x-show="loading">…</span>
           </button>
         </div>
-        {% endif %}
       </div>
     </section>
   {% endif %}

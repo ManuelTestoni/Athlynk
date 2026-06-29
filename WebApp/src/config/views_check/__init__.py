@@ -21,5 +21,5 @@ from .assignments import (  # noqa: F401
 from .templates_admin import (  # noqa: F401
     check_templates_list_view, check_template_new_view, check_template_edit_view,
     api_check_template_restore, api_check_template_duplicate, api_check_template_delete,
-    api_bmr_formula_create,
+    api_bmr_formula_create, check_templates_api,
 )

@@ -246,10 +246,21 @@ def nutrizione_piani_view(request):
             SupplementProtocolAssignment.objects
             .filter(client=client, coach=nutrition_coach, status='ACTIVE')
             .select_related('protocol')
-            .prefetch_related('protocol__items')
             .order_by('-assigned_at')
             .first()
         )
+        supp_items_first = []
+        supp_items_count = 0
+        if supp_assignment:
+            all_items = list(supp_assignment.protocol.items.all().order_by('order'))
+            supp_items_count = len(all_items)
+            supp_items_first = [
+                {
+                    'id': it.id, 'name': it.name, 'notes': it.notes or '',
+                    'quantity': it.quantity or '', 'unit': it.unit or '', 'timing': it.timing or '',
+                }
+                for it in all_items[:5]
+            ]
 
         return render(request, 'pages/nutrizione/client_piani.html', {
             'active_data': active_data,
@@ -260,6 +271,9 @@ def nutrizione_piani_view(request):
             'history_page_size': NUTRITION_HISTORY_PAGE_SIZE,
             'coach': nutrition_coach,
             'supp_assignment': supp_assignment,
+            'supp_items_first_json': json.dumps(supp_items_first),
+            'supp_items_count': supp_items_count,
+            'supp_items_first_count': len(supp_items_first),
         })
 
     coach = get_session_coach(request)
@@ -633,6 +647,20 @@ def nutrizione_piano_detail_view(request, plan_id):
 
     macro_targets = _plan_macro_targets(plan) if plan.plan_mode == 'MACRO' else None
 
+    assignments_count = assignments.count()
+    _first = list(assignments[:8])
+    assignments_first_json = json.dumps([
+        {
+            'id': a.id, 'client_id': a.client.id,
+            'first_name': a.client.first_name, 'last_name': a.client.last_name,
+            'status': a.status,
+            'assigned_at': a.assigned_at.isoformat() if a.assigned_at else None,
+            'end_date': a.end_date.isoformat() if a.end_date else None,
+        }
+        for a in _first
+    ])
+    assignments_first_count = len(_first)
+
     return render(request, 'pages/nutrizione/piano_detail.html', {
         'plan': plan,
         'meals_detail': meals_detail,
@@ -641,9 +669,10 @@ def nutrizione_piano_detail_view(request, plan_id):
         'total_carb': round(total_carb),
         'total_fat': round(total_fat),
         'total_fiber': round(total_fiber),
-        'assignments': assignments,
         'clients_json': clients_json,
-        'assignments_count': assignments.count(),
+        'assignments_count': assignments_count,
+        'assignments_first_json': assignments_first_json,
+        'assignments_first_count': assignments_first_count,
         'macro_targets': macro_targets,
     })
 
@@ -1094,6 +1123,48 @@ def api_plan_supplements(request, plan_id):
             SupplementItem.objects.create(protocol=sheet, order=order, **it)
 
     return JsonResponse({'ok': True, 'sheet': _serialize_protocol(sheet)})
+
+
+def api_nutrition_plan_assignments_list(request, plan_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
+    LIMIT = 10
+    offset = max(0, int(request.GET.get('offset', 0)))
+    qs = NutritionAssignment.objects.filter(nutrition_plan=plan).select_related('client').order_by('-assigned_at')
+    total = qs.count()
+    data = [
+        {
+            'id': a.id, 'client_id': a.client.id,
+            'first_name': a.client.first_name, 'last_name': a.client.last_name,
+            'status': a.status,
+            'assigned_at': a.assigned_at.isoformat() if a.assigned_at else None,
+            'end_date': a.end_date.isoformat() if a.end_date else None,
+        }
+        for a in qs[offset:offset + LIMIT]
+    ]
+    return JsonResponse({'assignments': data, 'has_more': total > offset + LIMIT})
+
+
+def api_supplement_protocol_items(request, assignment_id):
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    assignment = get_object_or_404(SupplementProtocolAssignment, id=assignment_id, client=client)
+    LIMIT = 5
+    offset = max(0, int(request.GET.get('offset', 0)))
+    items = list(assignment.protocol.items.all().order_by('order'))
+    total = len(items)
+    page = items[offset:offset + LIMIT]
+    data = [
+        {
+            'id': it.id, 'name': it.name, 'notes': it.notes or '',
+            'quantity': it.quantity or '', 'unit': it.unit or '', 'timing': it.timing or '',
+        }
+        for it in page
+    ]
+    return JsonResponse({'items': data, 'has_more': total > offset + LIMIT})
 
 
 # ─── API ────────────────────────────────────────────────────────────────────────

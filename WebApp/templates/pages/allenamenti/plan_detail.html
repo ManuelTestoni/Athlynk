@@ -134,7 +134,7 @@
         <i class="ph ph-pencil-simple text-sm"></i><span>Modifica</span>
       </a>
       {% include 'partials/_print_button.html' with print_label="Stampa scheda" %}
-      <button @click="window.alConfirm({ icon:'ph-trash', title:'Eliminare la\nscheda?', subtitle:{% with n=plan.assignments.count %}{% if n %}'Attenzione: la scheda è assegnata a {{ n }} atlet{{ n|pluralize:'a,i' }}. Verrà rimossa anche dal loro profilo e riceveranno un messaggio automatico in chat.'{% else %}'La scheda verrà rimossa definitivamente.'{% endif %}{% endwith %}, confirmLabel:'Sì, elimina' }).then(ok => { if(!ok) return; busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) })"
+      <button @click="window.alConfirm({ icon:'ph-trash', title:'Eliminare la\nscheda?', subtitle:{% if assignments_count %}'Attenzione: la scheda è assegnata a {{ assignments_count }} atlet{{ assignments_count|pluralize:'a,i' }}. Verrà rimossa anche dal loro profilo e riceveranno un messaggio automatico in chat.'{% else %}'La scheda verrà rimossa definitivamente.'{% endif %}, confirmLabel:'Sì, elimina' }).then(ok => { if(!ok) return; busy=true; fetch('{% url 'api_plan_delete' plan.id %}', {method:'POST', headers:{'X-CSRFToken': document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1]}}).then(r=>r.ok && (window.location.href='{% url 'allenamenti_list' %}')) })"
               type="button" class="al-btn-icon al-btn al-btn-ghost" :disabled="busy" title="Elimina">
         <i class="ph ph-trash" style="color: #b91c1c;"></i>
       </button>
@@ -257,32 +257,45 @@
     <div class="pd-rcp-col plan-print-aside">
       <div class="rcp-head" style="padding: 1.1rem 1.25rem;">
         <p class="al-eyebrow" style="margin-bottom: .35rem;">Assegnazioni</p>
-        <p class="al-small" style="color: var(--al-ink-mute);">{{ plan.assignments.count }} atleta{{ plan.assignments.count|pluralize:'i' }} con questa scheda</p>
+        <p class="al-small" style="color: var(--al-ink-mute);">{{ assignments_count }} atleta{{ assignments_count|pluralize:'i' }} con questa scheda</p>
       </div>
 
-      {% if plan.assignments.count %}
-      <div class="pd-assign-card" id="assign-list" x-data="{ showAll: false }">
-        {% for a in plan.assignments.all %}
-        <div class="pd-assign-row" x-show="showAll || {{ forloop.counter }} <= 5">
-          <div class="pd-assign-avatar">{{ a.client.first_name|slice:":1" }}{{ a.client.last_name|slice:":1" }}</div>
-          <div style="flex:1; min-width:0;">
-            <p class="pd-assign-name">{{ a.client.first_name }} {{ a.client.last_name }}</p>
-            <p class="pd-assign-meta">
-              {{ a.start_date|default:"—" }}{% if a.end_date %} → {{ a.end_date }}{% endif %}
-            </p>
+      {% if assignments_count %}
+      {{ assignments_first_json|json_script:"assigns-init-data" }}
+      <div class="pd-assign-card" id="assign-list"
+           x-data="{
+             assigns: JSON.parse(document.getElementById('assigns-init-data').textContent),
+             hasMore: {{ assignments_count }} > {{ assignments_first_count }},
+             loading: false,
+             async loadMore() {
+               this.loading = true;
+               try {
+                 const r = await fetch('{% url 'api_plan_assignments_list' plan.id %}?offset=' + this.assigns.length);
+                 const d = await r.json();
+                 this.assigns = this.assigns.concat(d.assignments);
+                 this.hasMore = d.has_more;
+               } catch(_) {}
+               this.loading = false;
+             }
+           }">
+        <template x-for="a in assigns" :key="a.id">
+          <div class="pd-assign-row">
+            <div class="pd-assign-avatar" x-text="(a.first_name||'?')[0].toUpperCase() + (a.last_name||'')[0].toUpperCase()"></div>
+            <div style="flex:1; min-width:0;">
+              <p class="pd-assign-name" x-text="a.first_name + ' ' + a.last_name"></p>
+              <p class="pd-assign-meta" x-text="(a.start_date || '—') + (a.end_date ? ' → ' + a.end_date : '')"></p>
+            </div>
+            <span class="al-badge" :class="a.status === 'ACTIVE' ? 'al-badge-success' : ''" x-text="a.status"></span>
           </div>
-          <span class="al-badge {% if a.status == 'ACTIVE' %}al-badge-success{% endif %}">{{ a.status }}</span>
-        </div>
-        {% endfor %}
-        {% if plan.assignments.count > 5 %}
-        <div class="pd-assign-row" x-show="!showAll">
+        </template>
+        <div class="pd-assign-row" x-show="hasMore">
           <button type="button" class="al-btn al-btn-ghost al-btn-sm w-full justify-center"
-                  @click="showAll = true">
+                  @click="loadMore()" :disabled="loading">
             <i class="ph ph-arrow-down text-xs"></i>
-            <span>Mostra tutti ({{ plan.assignments.count }})</span>
+            <span x-show="!loading">Carica altri</span>
+            <span x-show="loading">…</span>
           </button>
         </div>
-        {% endif %}
       </div>
       {% endif %}
 

@@ -11,7 +11,9 @@ function chkCsrfToken() {
 function checkLibrary() {
   return {
     /* === state === */
-    templates: window.CHECK_LIBRARY_INIT.templates || [],
+    templates: [],
+    templatesLoading: false,
+    templatesHasMore: false,
     folders: window.CHECK_LIBRARY_INIT.folders || [],
     urls: window.CHECK_LIBRARY_INIT.urls,
     search: '',
@@ -39,33 +41,37 @@ function checkLibrary() {
     /* delete template */
     deleteModal: false,
     deleteTemplateId: null,
-    showLimit: 10,
 
-    init() {},
+    init() {
+      this.$watch('search', () => {
+        clearTimeout(this._searchT);
+        this._searchT = setTimeout(() => this._loadTemplates(true), 350);
+      });
+      this._loadTemplates(true);
+    },
 
     /* === selectors === */
-    selectFolder(id) { this.selectedFolderId = id; this.showLimit = 10; },
-    templatesInFolder() {
-      if (this.selectedFolderId === 'all') return this.templates;
-      if (this.selectedFolderId === 'unfiled') return this.templates.filter(t => !t.folder_id);
-      return this.templates.filter(t => t.folder_id === this.selectedFolderId);
+    selectFolder(id) { this.selectedFolderId = id; this._loadTemplates(true); },
+    visibleTemplates() { return this.templates; },
+    hasMoreTemplates() { return this.templatesHasMore; },
+    async loadMoreTemplates() {
+      await this._loadTemplates(false);
     },
-    _filteredTemplates() {
-      const q = (this.search || '').toLowerCase().trim();
-      return this.templatesInFolder().filter(t => {
-        if (!q) return true;
-        const hay = (t.title || '').toLowerCase() + ' ' + (t.description || '').toLowerCase();
-        return hay.includes(q);
-      });
-    },
-    visibleTemplates() {
-      return this._filteredTemplates().slice(0, this.showLimit);
-    },
-    hasMoreTemplates() {
-      return this._filteredTemplates().length > this.showLimit;
-    },
-    loadMoreTemplates() {
-      this.showLimit += 10;
+    async _loadTemplates(reset) {
+      if (reset) { this.templates = []; this.templatesHasMore = false; }
+      this.templatesLoading = true;
+      try {
+        const params = new URLSearchParams({
+          folder_id: this.selectedFolderId,
+          q: this.search || '',
+          offset: this.templates.length,
+        });
+        const r = await fetch(this.urls.templatesApi + '?' + params);
+        const d = await r.json();
+        this.templates = this.templates.concat(d.templates || []);
+        this.templatesHasMore = d.has_more || false;
+      } catch (_) {}
+      this.templatesLoading = false;
     },
     emptyTitle() {
       if (this.selectedFolderId === 'all' && !this.search) return 'Nessun modello personale';
