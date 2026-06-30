@@ -205,6 +205,9 @@
             </div>
             {% endif %}
             {% endwith %}
+            <a href="{% url 'coach_client_nutrition_detail' client.id active_nutrition.id %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">
+                <i class="ph ph-arrow-right text-xs"></i>Dettagli piano
+            </a>
             {% else %}
             <p class="al-body">L'atleta non ha un piano nutrizionale attivo.</p>
             <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze inline-flex items-center gap-1 mt-3 text-[11px] uppercase tracking-widest">

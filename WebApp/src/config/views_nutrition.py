@@ -375,6 +375,37 @@ def nutrizione_piani_view(request):
     return response
 
 
+def _coach_supplement_sheets_json(coach):
+    """Coach's saved supplement sheets (models) with their items, for the diet
+    builder's 'load from model' control."""
+    sheets = (
+        SupplementSheet.objects
+        .filter(coach=coach)
+        .prefetch_related('items__supplement')
+        .order_by('-updated_at')
+    )
+    out = []
+    for sh in sheets:
+        items = []
+        for it in sorted(sh.items.all(), key=lambda i: i.order):
+            items.append({
+                'supplement_id': it.supplement_id,
+                'supplement_name': it.supplement.name if it.supplement else '',
+                'category': (it.supplement.category or '') if it.supplement else '',
+                'dose': it.dose,
+                'timing': it.timing or '',
+                'notes': it.notes or '',
+            })
+        out.append({
+            'id': sh.id,
+            'title': sh.title,
+            'notes': sh.notes or '',
+            'item_count': len(items),
+            'items': items,
+        })
+    return json.dumps(out)
+
+
 def nutrizione_piano_create_view(request):
     user = get_session_user(request)
     if not user:
@@ -429,6 +460,7 @@ def nutrizione_piano_create_view(request):
         'day_targets_json': '[]',
         'folders_json': folders_json,
         'supplements_json': '{"items": [], "notes": ""}',
+        'supplement_sheets_json': _coach_supplement_sheets_json(coach),
     })
 
 
@@ -555,6 +587,10 @@ def nutrizione_piano_edit_view(request, plan_id):
         supplements_data['notes'] = sheet.notes or ''
         for it in sheet.items.order_by('order', 'id'):
             supplements_data['items'].append({
+                'supplement_id': it.supplement_id,
+                'supplement_name': it.supplement.name if it.supplement else '',
+                'category': (it.supplement.category or '') if it.supplement else '',
+                'dose': it.dose,
                 'name': it.name,
                 'quantity': it.quantity or '',
                 'unit': it.unit or '',
@@ -571,6 +607,7 @@ def nutrizione_piano_edit_view(request, plan_id):
         'day_targets_json': json.dumps(day_targets_data),
         'folders_json': folders_json,
         'supplements_json': json.dumps(supplements_data),
+        'supplement_sheets_json': _coach_supplement_sheets_json(coach),
     })
 
 
@@ -1340,20 +1377,9 @@ def api_piano_assign(request, plan_id):
 
 # ─── Client views ────────────────────────────────────────────────────────────────
 
-def nutrizione_client_detail_view(request, assignment_id):
-    user = get_session_user(request)
-    if not user:
-        return redirect('login')
-    client = get_session_client(request)
-    if not client:
-        return redirect('login')
-
-    assignment = get_object_or_404(NutritionAssignment, id=assignment_id, client=client)
-    plan = assignment.nutrition_plan
-
-    if plan.plan_mode == 'MACRO':
-        return _render_client_macro_detail(request, assignment, plan)
-
+def _render_food_plan_detail(request, assignment, plan, back_url, back_label,
+                             detail_eyebrow='Piano attivo'):
+    """Shared read-only render of a FOOD plan (used by client and coach views)."""
     meals = plan.meals.prefetch_related('items__food', 'items__substitutions__food').all()
 
     include_subs = bool(plan.include_substitutions_in_avg)
@@ -1397,7 +1423,118 @@ def nutrizione_client_detail_view(request, assignment_id):
         'total_carb': round(total_carb),
         'total_fat': round(total_fat),
         'include_subs': include_subs,
+        'back_url': back_url,
+        'back_label': back_label,
+        'detail_eyebrow': detail_eyebrow,
     })
+
+
+def nutrizione_client_detail_view(request, assignment_id):
+    from django.urls import reverse
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    client = get_session_client(request)
+    if not client:
+        return redirect('login')
+
+    assignment = get_object_or_404(NutritionAssignment, id=assignment_id, client=client)
+    plan = assignment.nutrition_plan
+
+    if plan.plan_mode == 'MACRO':
+        return _render_client_macro_detail(request, assignment, plan)
+
+    return _render_food_plan_detail(
+        request, assignment, plan,
+        back_url=reverse('nutrizione_piani'),
+        back_label='La mia nutrizione',
+    )
+
+
+# ─── Coach views: per-athlete nutrition history & detail ──────────────────────────
+
+def _coach_client_or_redirect(request, client_id):
+    """Returns (coach, client, None) or (None, None, redirect) when the coach is
+    not authenticated or the athlete is not one of their clients."""
+    coach = get_session_coach(request)
+    if not coach:
+        return None, None, redirect('login')
+    relationship = get_object_or_404(
+        CoachingRelationship.objects.select_related('client', 'client__user'),
+        coach=coach,
+        client_id=client_id,
+    )
+    return coach, relationship.client, None
+
+
+def coach_client_nutrition_history_view(request, client_id):
+    """All nutrition assignments (active + past) the coach gave this athlete."""
+    from django.urls import reverse
+    coach, client, resp = _coach_client_or_redirect(request, client_id)
+    if resp:
+        return resp
+
+    assignments = list(
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .filter(client=client, coach=coach)
+        .order_by('-created_at')
+    )
+    plan_ids = {a.nutrition_plan_id for a in assignments}
+    macros = _bulk_plan_macros(plan_ids)
+    for a in assignments:
+        if a.nutrition_plan.plan_mode == 'MACRO':
+            t = _plan_macro_targets(a.nutrition_plan)['avg']
+            macros[a.nutrition_plan_id] = {
+                'kcal': t['kcal'], 'prot': t['prot'], 'carb': t['carb'], 'fat': t['fat'],
+            }
+
+    rows = []
+    for a in assignments:
+        row = _serialize_history_assignment(a, macros)
+        row['detail_url'] = reverse('coach_client_nutrition_detail', args=[client.id, a.id])
+        rows.append(row)
+
+    return render(request, 'pages/nutrizione/coach_client_storico.html', {
+        'coach': coach,
+        'client': client,
+        'rows': rows,
+        'total': len(rows),
+    })
+
+
+def coach_client_nutrition_detail_view(request, client_id, assignment_id):
+    """Read-only detail of one of the athlete's diets, for the coach."""
+    from django.urls import reverse
+    coach, client, resp = _coach_client_or_redirect(request, client_id)
+    if resp:
+        return resp
+
+    assignment = get_object_or_404(
+        NutritionAssignment.objects.select_related('nutrition_plan'),
+        id=assignment_id, client=client, coach=coach,
+    )
+    plan = assignment.nutrition_plan
+    back_url = reverse('coach_client_nutrition_history', args=[client.id])
+    back_label = 'Storico nutrizione'
+
+    if plan.plan_mode == 'MACRO':
+        return render(request, 'pages/nutrizione/coach_client_macro_detail.html', {
+            'coach': coach,
+            'client': client,
+            'assignment': assignment,
+            'plan': plan,
+            'targets': _plan_macro_targets(plan),
+            'back_url': back_url,
+            'back_label': back_label,
+        })
+
+    return _render_food_plan_detail(
+        request, assignment, plan,
+        back_url=back_url,
+        back_label=back_label,
+        detail_eyebrow='Dettaglio piano',
+    )
 
 
 def _macro_log_json(entry):

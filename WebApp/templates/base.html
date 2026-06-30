@@ -122,6 +122,13 @@
                     <span>Atleti</span>
                 </a>
 
+                <a href="{% url 'check_dashboard' %}"
+                   class="al-nav-link {% if s == 'check' %}is-active{% endif %}">
+                    <i class="ph ph-chart-line"></i>
+                    <span>Check Progressi</span>
+                    {% if sidebar_notifications.check %}<span class="al-nav-dot"></span>{% endif %}
+                </a>
+
                 {% if can_manage_workouts %}
                 <a href="{% url 'allenamenti_list' %}"
                    class="al-nav-link {% if s == 'allenamenti' %}is-active{% endif %}">
@@ -140,24 +147,11 @@
                 </a>
                 {% endif %}
 
-                <a href="{% url 'agenda_dashboard' %}"
-                   class="al-nav-link {% if s == 'agenda' %}is-active{% endif %}">
-                    <i class="ph ph-calendar-blank"></i>
-                    <span>Agenda</span>
-                </a>
-
                 <a href="{% url 'chat_list' %}"
                    class="al-nav-link {% if s == 'chat' %}is-active{% endif %}">
                     <i class="ph ph-chats-circle"></i>
                     <span>Chat</span>
                     {% if sidebar_notifications.chat %}<span class="al-nav-dot"></span>{% endif %}
-                </a>
-
-                <a href="{% url 'check_dashboard' %}"
-                   class="al-nav-link {% if s == 'check' %}is-active{% endif %}">
-                    <i class="ph ph-chart-line"></i>
-                    <span>Check Progressi</span>
-                    {% if sidebar_notifications.check %}<span class="al-nav-dot"></span>{% endif %}
                 </a>
 
                 <a href="{% url 'abbonamenti_dashboard' %}"
@@ -170,6 +164,12 @@
                    class="al-nav-link {% if s == 'analisi' %}is-active{% endif %}">
                     <i class="ph ph-chart-pie-slice"></i>
                     <span>Analisi</span>
+                </a>
+
+                <a href="{% url 'agenda_dashboard' %}"
+                   class="al-nav-link {% if s == 'agenda' %}is-active{% endif %}">
+                    <i class="ph ph-calendar-blank"></i>
+                    <span>Agenda</span>
                 </a>
 
                 {% elif is_client %}

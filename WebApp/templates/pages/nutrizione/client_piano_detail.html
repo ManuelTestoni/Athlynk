@@ -371,15 +371,15 @@
 <div class="max-w-4xl mx-auto">
 
   <div class="flex items-center justify-between gap-3 plan-print-actions">
-    <a href="{% url 'nutrizione_piani' %}" class="pd-back">
-      <i class="ph ph-arrow-left"></i> La mia nutrizione
+    <a href="{{ back_url|default:'/nutrizione/piani/' }}" class="pd-back">
+      <i class="ph ph-arrow-left"></i> {{ back_label|default:'La mia nutrizione' }}
     </a>
     {% include 'partials/_print_button.html' with print_label="Stampa dieta" %}
   </div>
 
   <!-- Hero -->
   <section class="pd-hero">
-    <span class="pd-eyebrow">Piano attivo</span>
+    <span class="pd-eyebrow">{{ detail_eyebrow|default:'Piano attivo' }}</span>
     <h1 class="pd-title">{{ plan.title }}{% if plan.nutrition_goal %} <em>· {{ plan.nutrition_goal|lower }}</em>{% endif %}</h1>
 
     <div class="pd-meta">

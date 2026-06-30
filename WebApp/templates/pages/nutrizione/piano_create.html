@@ -27,6 +27,7 @@ window.NUTRITION_WIZARD_INIT = {
   clients: {{ clients_json|json_js }},
   folders: {{ folders_json|json_js }},
   supplements: {{ supplements_json|json_js }},
+  supplementSheets: {{ supplement_sheets_json|json_js }},
   initialFolderId: {{ initial_folder_id|default:"null" }},
   csrf: "{{ csrf_token }}",
   urls: {
@@ -1511,18 +1512,58 @@ window.NUTRITION_WIZARD_INIT = {
           <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
           <h2 class="al-h-3">Integrazione</h2>
         </div>
-        <button type="button" @click="addSupplement()" class="al-btn al-btn-ghost al-btn-sm ml-auto">
-          <i class="ph ph-plus"></i><span>Aggiungi integratore</span>
-        </button>
+        <div class="ml-auto flex items-center gap-2">
+          <!-- Carica da modello (scheda integrazione salvata) -->
+          <div class="relative" @click.outside="supplementModelMenuOpen = false">
+            <button type="button"
+                    @click="supplementSheets.length && (supplementModelMenuOpen = !supplementModelMenuOpen)"
+                    class="al-btn al-btn-ghost al-btn-sm"
+                    :class="!supplementSheets.length ? 'opacity-50 cursor-not-allowed' : ''"
+                    :title="!supplementSheets.length ? 'Nessun modello salvato' : 'Carica un modello salvato'">
+              <i class="ph ph-stack"></i><span>Carica da modello</span>
+              <i class="ph ph-caret-down text-xs" x-show="supplementSheets.length"></i>
+            </button>
+            <div x-show="supplementModelMenuOpen" x-cloak x-transition.opacity
+                 class="absolute right-0 mt-1 z-50"
+                 style="min-width: 260px; max-height: 280px; overflow-y: auto; background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md); box-shadow: var(--al-shadow-2);">
+              <template x-for="sheet in supplementSheets" :key="sheet.id">
+                <button type="button" @click="applySupplementSheet(sheet.id)"
+                        class="w-full text-left px-4 py-2.5"
+                        style="border-bottom: 1px solid var(--al-rule-faint); background: transparent;">
+                  <p class="text-sm font-medium text-ink" x-text="sheet.title"></p>
+                  <p class="al-tag" x-text="sheet.item_count + ' integratori'"></p>
+                </button>
+              </template>
+            </div>
+          </div>
+          <button type="button" @click="addSupplement()" class="al-btn al-btn-ghost al-btn-sm">
+            <i class="ph ph-plus"></i><span>Aggiungi integratore</span>
+          </button>
+        </div>
       </div>
 
       <template x-if="supplements.length === 0">
         <div class="al-empty" style="padding: 36px 20px;">
           <i class="ph ph-pill al-empty-icon"></i>
-          <h3 class="al-h-4">Nessun integratore</h3>
-          <p class="al-small mt-1" style="color: var(--al-ink-mute);">
-            Aggiungi gli integratori del protocollo o salta questo passaggio.
-          </p>
+          <template x-if="supplementSheets.length > 0">
+            <div>
+              <h3 class="al-h-4">Nessun integratore</h3>
+              <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                Carica un modello salvato, aggiungi gli integratori manualmente o salta questo passaggio.
+              </p>
+            </div>
+          </template>
+          <template x-if="supplementSheets.length === 0">
+            <div>
+              <h3 class="al-h-4">Nessun modello salvato</h3>
+              <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                Non hai ancora schede di integrazione riutilizzabili. Creane una oppure aggiungi gli integratori manualmente.
+              </p>
+              <a href="{% url 'nutrizione_integratori_crea' %}" class="al-btn al-btn-ghost al-btn-sm mt-3">
+                <i class="ph ph-plus"></i><span>Crea un modello</span>
+              </a>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -1538,9 +1579,43 @@ window.NUTRITION_WIZARD_INIT = {
               <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-3">
                 <div>
                   <label class="al-label">Integratore</label>
-                  <input type="text" x-model="supp.name" placeholder="Nome integratore" class="al-input"
-                         :class="supp._invalid ? 'is-error' : ''" @input="supp._invalid = false">
-                  <span x-show="supp._invalid" x-cloak class="al-input-error">Compila questo campo per proseguire o cancella integratore.</span>
+                  <div x-ref="searchBar" class="al-search" style="margin-top: 4px;"
+                       :style="supp.supplement_id ? 'background: var(--al-marble-warm); border-color: var(--al-bronze-soft);' : ''">
+                    <i class="ph" :class="supp.supplement_id ? 'ph-check-circle' : 'ph-magnifying-glass'"
+                       :style="supp.supplement_id ? 'color: var(--al-bronze);' : ''"></i>
+                    <input type="text" x-model="q" @input.debounce.300ms="search()"
+                           placeholder="Cerca integratore…"
+                           class="al-input"
+                           :style="supp.supplement_id ? 'font-weight: 600; color: var(--al-ink);' : ''">
+                    <button type="button"
+                            x-show="supp.supplement_id"
+                            @click="supp.supplement_id = null; supp.supplement_name = ''; q = ''; results = []; show = false; $nextTick(() => $refs.searchBar.querySelector('input').focus())"
+                            class="al-btn al-btn-icon al-btn-ghost"
+                            style="padding: 2px; margin-right: -4px;" title="Cambia integratore">
+                      <i class="ph ph-x text-xs"></i>
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 mt-1" x-show="supp.supplement_id">
+                    <p class="al-tag" style="color: var(--al-bronze); font-size: 9px;">
+                      <i class="ph ph-link text-[10px]"></i>
+                      <span>Collegato</span>
+                    </p>
+                    <p class="al-tag" x-show="supp.category" x-text="supp.category"
+                       style="font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: var(--al-ink-faint);"></p>
+                  </div>
+                  <template x-teleport="body">
+                    <div x-show="show && results.length > 0" @click.outside="show = false"
+                         :style="{ position: 'fixed', top: top, left: left, width: width, zIndex: 9999, maxHeight: '240px', overflowY: 'auto', background: 'var(--al-parchment)', border: '1px solid var(--al-rule)', borderRadius: 'var(--al-r-md)', boxShadow: 'var(--al-shadow-2)' }">
+                      <template x-for="s in results" :key="s.id">
+                        <button type="button" @click="pick(s)"
+                                class="w-full text-left px-4 py-2.5"
+                                style="border-bottom: 1px solid var(--al-rule); background: transparent;">
+                          <p class="text-sm font-medium text-ink" x-text="s.name"></p>
+                          <p class="al-tag" x-text="s.category"></p>
+                        </button>
+                      </template>
+                    </div>
+                  </template>
                 </div>
 
                 <div>
