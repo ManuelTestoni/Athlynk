@@ -145,6 +145,13 @@ function nutritionWizard() {
     supplementSheets: INIT.supplementSheets || [],
     supplementModelMenuOpen: false,
 
+    /* === Step 3: supplement models (modelli) panel === */
+    suppModelsOpen: false,
+    suppModelsLoading: false,
+    suppModels: [],
+    suppSavedKeys: {},   // supplement _key -> true once saved as model (bookmark feedback)
+    suppEditId: null,    // model id being edited inline in the panel
+
     /* === Step 4 state === */
     recapDay: 'AVG',
 
@@ -885,6 +892,85 @@ function nutritionWizard() {
     removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
       if (i >= 0) this.supplements.splice(i, 1);
+    },
+
+    /* --- supplement models (modelli) --- */
+    async openSupplementModels() {
+      this.suppModelsOpen = true;
+      this.suppEditId = null;
+      await this.loadSupplementModels();
+    },
+    async loadSupplementModels() {
+      this.suppModelsLoading = true;
+      try {
+        const r = await fetch('/api/nutrizione/integratori/modelli/');
+        const d = await r.json().catch(() => ({ results: [] }));
+        this.suppModels = d.results || [];
+      } catch (_) { this.suppModels = []; }
+      this.suppModelsLoading = false;
+    },
+    addFromModel(m) {
+      this.supplements.push({
+        _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
+        name: m.name || '', quantity: m.quantity || '', unit: m.unit || 'g',
+        timing: m.timing || '', notes: m.notes || '', _invalid: false, _shake: false,
+      });
+      this.suppModelsOpen = false;
+    },
+    async saveSupplementAsModel(supp) {
+      if (!(supp.name || '').trim()) { supp._invalid = true; return; }
+      // Duplicate-name confirm (client-side, mirrors iOS coach builder).
+      if (!this.suppModels.length) await this.loadSupplementModels();
+      const name = supp.name.trim().toLowerCase();
+      const dup = this.suppModels.some(m => (m.name || '').trim().toLowerCase() === name);
+      if (dup && window.alConfirm) {
+        const ok = await window.alConfirm({
+          icon: 'ph-bookmarks-simple',
+          title: 'Hai già questo\nintegratore salvato',
+          subtitle: 'Vuoi salvarlo comunque?',
+          confirmLabel: 'Salva comunque',
+        });
+        if (!ok) return;
+      }
+      try {
+        const r = await fetch('/api/nutrizione/integratori/modelli/salva/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.nutCsrfToken() },
+          body: JSON.stringify({ name: supp.name, quantity: supp.quantity, unit: supp.unit, timing: supp.timing, notes: supp.notes }),
+        });
+        if (r.ok) {
+          this.suppSavedKeys[supp._key] = true;
+          await this.loadSupplementModels();
+        }
+      } catch (_) {}
+    },
+    async saveModelEdit(m) {
+      if (!(m.name || '').trim()) return;
+      try {
+        const r = await fetch('/api/nutrizione/integratori/modelli/salva/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.nutCsrfToken() },
+          body: JSON.stringify({ id: m.id, name: m.name, quantity: m.quantity, unit: m.unit, timing: m.timing, notes: m.notes }),
+        });
+        if (r.ok) { this.suppEditId = null; await this.loadSupplementModels(); }
+      } catch (_) {}
+    },
+    async deleteSupplementModel(m) {
+      let ok = true;
+      if (window.alConfirm) {
+        ok = await window.alConfirm({
+          icon: 'ph-trash', title: 'Eliminare\nil modello?',
+          subtitle: '«' + (m.name || '') + '» verrà rimosso dai tuoi modelli.',
+          confirmLabel: 'Sì, elimina',
+        });
+      }
+      if (!ok) return;
+      try {
+        const r = await fetch('/api/nutrizione/integratori/modelli/' + m.id + '/elimina/', {
+          method: 'POST', headers: { 'X-CSRFToken': window.nutCsrfToken() },
+        });
+        if (r.ok) this.suppModels = this.suppModels.filter(x => x.id !== m.id);
+      } catch (_) {}
     },
     /* Block leaving the integratori step with nameless rows: flag + shake them. */
     validateSupplements() {

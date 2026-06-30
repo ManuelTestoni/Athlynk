@@ -171,6 +171,8 @@ urlpatterns = [
     path('api/allenamenti/esercizio/<int:workout_exercise_id>/andamento/', views_session.api_client_exercise_trend, name='api_client_exercise_trend'),
     path('api/allenamenti/cliente/storico/', views_workouts.api_client_workout_history, name='api_client_workout_history'),
     path('clienti/<int:client_id>/progressi/', views_session.coach_client_progressi_view, name='coach_client_progressi'),
+    path('clienti/<int:client_id>/storico-allenamenti/', views_workouts.coach_client_workout_history_view, name='coach_client_workout_history'),
+    path('clienti/<int:client_id>/storico-diete/', views_nutrition.coach_client_nutrition_history_view, name='coach_client_nutrition_history'),
     path('allenamenti/<int:plan_id>/', views_workouts.allenamenti_plan_detail_view, name='allenamenti_plan_detail'),
     path('api/allenamenti/<int:plan_id>/assegnazioni/', views_workouts.api_plan_assignments_list, name='api_plan_assignments_list'),
     # Session APIs

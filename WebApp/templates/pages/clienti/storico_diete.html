@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static safejson %}
+
+{% block title %}Storico diete — {{ client.first_name }} {{ client.last_name }}{% endblock %}
+
+{% block content %}
+{{ items|json_script:"storico-init" }}
+<div class="max-w-4xl mx-auto"
+     x-data="{
+       items: JSON.parse(document.getElementById('storico-init').textContent),
+       hasMore: {{ has_more|yesno:'true,false' }},
+       loading: false,
+       async loadMore() {
+         this.loading = true;
+         try {
+           const r = await fetch('{% url 'coach_client_nutrition_history' client.id %}?partial=1&offset=' + this.items.length);
+           const d = await r.json();
+           this.items = this.items.concat(d.items);
+           this.hasMore = d.has_more;
+         } catch (_) {}
+         this.loading = false;
+       }
+     }">
+
+  <!-- Header -->
+  <div class="al-card mb-6">
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="al-avatar al-avatar-md al-avatar-sq" style="background: var(--al-success); width:56px; height:56px; font-size:1.25rem;">
+        {{ client.first_name|slice:":1" }}{{ client.last_name|slice:":1" }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <a href="{% url 'clienti_detail' client.id %}" class="al-link al-link-quiet text-[12px] mb-1 inline-block">
+          <i class="ph ph-arrow-left"></i> Torna all'atleta
+        </a>
+        <h1 class="al-h-2">Storico diete</h1>
+        <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+          {{ client.first_name }} {{ client.last_name }} · {{ total }} piano{{ total|pluralize:'i' }} passat{{ total|pluralize:'o,i' }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty -->
+  <template x-if="items.length === 0">
+    <div class="al-card al-empty" style="padding: 48px 20px;">
+      <i class="ph ph-leaf al-empty-icon"></i>
+      <h3 class="al-h-4">Nessuna dieta passata</h3>
+      <p class="al-small mt-1" style="color: var(--al-ink-mute);">L'atleta non ha ancora terminato un piano nutrizionale.</p>
+    </div>
+  </template>
+
+  <!-- List -->
+  <div class="space-y-3">
+    <template x-for="a in items" :key="a.id">
+      <a :href="'/nutrizione/piani/' + a.plan_id + '/'" class="al-card flex items-center gap-4 hover:border-bronze transition" style="padding: 16px 18px;">
+        <div class="al-avatar al-avatar-sm al-avatar-sq shrink-0" style="background: var(--al-success-bg); color: var(--al-success);">
+          <i class="ph ph-leaf"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="al-h-4 truncate" x-text="a.plan_title"></p>
+          <p class="al-tag mt-0.5" x-text="[a.plan_type, a.plan_mode === 'MACRO' ? 'Macro' : ''].filter(Boolean).join(' · ')"></p>
+          <p class="al-small mt-1" style="color: var(--al-ink-faint);"
+             x-text="(a.start_date || a.assigned_at || '—') + (a.end_date ? ' → ' + a.end_date : '') + (a.kcal ? ' · ' + a.kcal + ' kcal' : '')"></p>
+        </div>
+        <span class="al-badge shrink-0" :class="a.status === 'ACTIVE' ? 'al-badge-success' : ''" x-text="a.status"></span>
+        <i class="ph ph-caret-right text-sm shrink-0" style="color: var(--al-ink-line);"></i>
+      </a>
+    </template>
+  </div>
+
+  <!-- Load more -->
+  <div class="text-center mt-6" x-show="hasMore" x-cloak>
+    <button type="button" @click="loadMore()" :disabled="loading" class="al-btn al-btn-ghost">
+      <template x-if="loading"><i class="ph ph-spinner-gap animate-spin"></i></template>
+      <span x-text="loading ? 'Caricamento…' : 'Carica altri'"></span>
+    </button>
+  </div>
+</div>
+{% endblock %}

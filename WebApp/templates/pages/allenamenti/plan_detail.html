@@ -261,7 +261,7 @@
       </div>
 
       {% if assignments_count %}
-      {{ assignments_first_json|json_script:"assigns-init-data" }}
+      {{ assignments_first|json_script:"assigns-init-data" }}
       <div class="pd-assign-card" id="assign-list"
            x-data="{
              assigns: JSON.parse(document.getElementById('assigns-init-data').textContent),

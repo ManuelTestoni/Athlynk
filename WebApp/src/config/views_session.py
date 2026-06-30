@@ -756,6 +756,20 @@ def api_progress_loads(request, client_id):
     })
 
 
+def _exercise_muscle_names(ex):
+    """Muscle names for an exercise: normalized M2M when present, else legacy
+    free-text scalar fields. Returns (primaries, secondaries) name lists."""
+    primaries = [m.name for m in ex.primary_muscles.all()]
+    secondaries = [m.name for m in ex.secondary_muscles.all()]
+    if not primaries:
+        fallback = ex.target_muscle_group or ex.primary_muscle or ''
+        if fallback:
+            primaries = [fallback]
+    if not secondaries and ex.secondary_muscle:
+        secondaries = [ex.secondary_muscle]
+    return primaries, secondaries
+
+
 def api_progress_volume(request, client_id):
     res, err = _check_coach_access(request, client_id)
     if err:
@@ -767,7 +781,10 @@ def api_progress_volume(request, client_id):
     sets = WorkoutSetLog.objects.filter(
         session__client=client, completed=True,
         session__started_at__date__gte=date_from,
-    ).select_related('session', 'workout_exercise__exercise')
+    ).select_related('session', 'workout_exercise__exercise').prefetch_related(
+        'workout_exercise__exercise__primary_muscles',
+        'workout_exercise__exercise__secondary_muscles',
+    )
 
     weekly = {}
     for sl in sets:
@@ -775,19 +792,37 @@ def api_progress_volume(request, client_id):
         # Monday of week
         monday = d - timedelta(days=d.weekday())
         wkey = monday.isoformat()
-        ex = sl.workout_exercise.exercise
-        primary = ex.target_muscle_group or ex.primary_muscle or ''
-        secondary = ex.secondary_muscle or ''
+        primaries, secondaries = _exercise_muscle_names(sl.workout_exercise.exercise)
         reps = sl.reps_done or 0
-        if primary:
+        for primary in primaries:
             weekly.setdefault(wkey, {}).setdefault(primary, 0)
             weekly[wkey][primary] += reps
-        if secondary:
+        for secondary in secondaries:
             weekly.setdefault(wkey, {}).setdefault(secondary, 0)
             weekly[wkey][secondary] += reps * 0.5
 
+    # Seed the muscle list from the athlete's active plan so every muscle group
+    # in the scheda they're following appears — even those not yet trained (0).
+    plan_muscles = set()
+    active = WorkoutAssignment.objects.filter(
+        client=client, status='ACTIVE'
+    ).select_related('workout_plan').order_by('-start_date').first()
+    if active and active.workout_plan_id:
+        plan_exs = (
+            WorkoutExercise.objects
+            .filter(workout_day__workout_plan=active.workout_plan)
+            .select_related('exercise')
+            .prefetch_related('exercise__primary_muscles', 'exercise__secondary_muscles')
+        )
+        for we in plan_exs:
+            if not we.exercise:
+                continue
+            p, s = _exercise_muscle_names(we.exercise)
+            plan_muscles.update(p)
+            plan_muscles.update(s)
+
     weeks = sorted(weekly.keys())
-    muscles_set = set()
+    muscles_set = set(plan_muscles)
     for w, mm in weekly.items():
         muscles_set.update(mm.keys())
     muscles_list = sorted(muscles_set)

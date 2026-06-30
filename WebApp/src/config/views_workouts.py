@@ -13,6 +13,7 @@ from domain.workouts.models import (
     WorkoutFolder, Sport,
 )
 from domain.workouts import progression_engine
+from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 
 from .services.email import send_workout_assigned
@@ -81,6 +82,7 @@ def _serialize_history_row(a):
     plan = a.workout_plan
     return {
         'id': a.id,
+        'plan_id': plan.id,
         'plan_title': plan.title,
         'plan_kind': plan.plan_kind,
         'goal': plan.goal or '',
@@ -471,10 +473,10 @@ def allenamenti_plan_detail_view(request, plan_id):
     if plan.status == 'DRAFT':
         return redirect('allenamenti_wizard_resume', plan_id=plan.id)
 
-    qs = plan.assignments.select_related('client').order_by('-assigned_at')
+    qs = plan.assignments.select_related('client').order_by('-created_at')
     assignments_count = qs.count()
     _first = list(qs[:5])
-    assignments_first_json = json.dumps([
+    assignments_first = [
         {
             'id': a.id, 'client_id': a.client.id,
             'first_name': a.client.first_name, 'last_name': a.client.last_name,
@@ -483,14 +485,14 @@ def allenamenti_plan_detail_view(request, plan_id):
             'end_date': a.end_date.isoformat() if a.end_date else None,
         }
         for a in _first
-    ])
+    ]
     assignments_first_count = len(_first)
 
     return render(request, 'pages/allenamenti/plan_detail.html', {
         'coach': coach,
         'plan': plan,
         'assignments_count': assignments_count,
-        'assignments_first_json': assignments_first_json,
+        'assignments_first': assignments_first,
         'assignments_first_count': assignments_first_count,
     })
 
@@ -502,7 +504,7 @@ def api_plan_assignments_list(request, plan_id):
     plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
     LIMIT = 10
     offset = max(0, int(request.GET.get('offset', 0)))
-    qs = plan.assignments.select_related('client').order_by('-assigned_at')
+    qs = plan.assignments.select_related('client').order_by('-created_at')
     total = qs.count()
     data = [
         {
@@ -1340,6 +1342,61 @@ def api_client_workout_history(request):
         'offset': offset,
         'limit': limit,
         'has_more': (offset + limit) < total,
+    })
+
+
+def coach_client_workout_history_view(request, client_id):
+    """Coach-facing storico of the workout plans (schede) an athlete followed.
+    Page render on GET; JSON page when ?partial=1 (Carica altri)."""
+    coach = get_session_coach(request)
+    if not coach or not can_manage_workouts(coach):
+        return redirect('dashboard')
+    relationship = get_object_or_404(
+        CoachingRelationship.objects.select_related('client'),
+        coach=coach, client_id=client_id,
+    )
+    client = relationship.client
+
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except (TypeError, ValueError):
+        offset = 0
+    limit = WORKOUT_HISTORY_PAGE_SIZE
+
+    current = (
+        WorkoutAssignment.objects
+        .filter(client=client, status='ACTIVE')
+        .order_by('-start_date', '-created_at')
+        .values_list('id', flat=True)
+        .first()
+    )
+    qs = (
+        WorkoutAssignment.objects
+        .filter(client=client, coach=coach)
+        .select_related('workout_plan', 'workout_plan__sport')
+        .annotate(_completed=Count('sessions', filter=Q(sessions__client=client, sessions__completed=True), distinct=True))
+        .order_by('-start_date', '-created_at')
+    )
+    if current is not None:
+        qs = qs.exclude(id=current)
+    total = qs.count()
+    today = date.today()
+    page = list(qs[offset:offset + limit])
+    for a in page:
+        _enrich_client_history_row(a, today)
+    items = [_serialize_history_row(a) for a in page]
+    has_more = (offset + limit) < total
+
+    if request.GET.get('partial'):
+        return JsonResponse({'items': items, 'has_more': has_more})
+
+    return render(request, 'pages/clienti/storico_allenamenti.html', {
+        'coach': coach,
+        'client': client,
+        'items': items,
+        'total': total,
+        'has_more': has_more,
+        'page_size': limit,
     })
 
 

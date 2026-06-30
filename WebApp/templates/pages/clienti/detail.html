@@ -157,7 +157,7 @@
                     {% if active_workout %}
                     <a href="{% url 'allenamenti_plan_detail' active_workout.workout_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Dettagli Piano</a>
                     {% endif %}
-                    <a href="{% url 'coach_client_progressi' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
+                    <a href="{% url 'coach_client_workout_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
                 </div>
             </div>
             {% if active_workout %}
@@ -189,7 +189,7 @@
                 {% if active_nutrition %}
                 <div class="flex items-center gap-3">
                     <a href="{% url 'nutrizione_piano_detail' active_nutrition.nutrition_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Dettagli piano</a>
-                    <a href="{% url 'nutrizione_client_detail' active_nutrition.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
+                    <a href="{% url 'coach_client_nutrition_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
                 </div>
                 {% endif %}
             </div>

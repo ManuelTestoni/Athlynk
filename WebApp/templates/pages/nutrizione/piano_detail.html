@@ -366,7 +366,7 @@
         </button>
       </div>
 
-      {{ assignments_first_json|json_script:"assigns-init-data" }}
+      {{ assignments_first|json_script:"assigns-init-data" }}
       <div class="pd-assigns"
            x-data="{
              assigns: JSON.parse(document.getElementById('assigns-init-data').textContent),

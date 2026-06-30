@@ -63,6 +63,7 @@ def _serialize_history_assignment(a, macros):
     m = macros.get(plan.id, {'kcal': 0, 'prot': 0, 'carb': 0, 'fat': 0})
     return {
         'id': a.id,
+        'plan_id': plan.id,
         'plan_title': plan.title,
         'plan_type': plan.plan_type or '',
         'plan_kind': plan.plan_kind,
@@ -686,7 +687,7 @@ def nutrizione_piano_detail_view(request, plan_id):
 
     assignments_count = assignments.count()
     _first = list(assignments[:8])
-    assignments_first_json = json.dumps([
+    assignments_first = [
         {
             'id': a.id, 'client_id': a.client.id,
             'first_name': a.client.first_name, 'last_name': a.client.last_name,
@@ -695,7 +696,7 @@ def nutrizione_piano_detail_view(request, plan_id):
             'end_date': a.end_date.isoformat() if a.end_date else None,
         }
         for a in _first
-    ])
+    ]
     assignments_first_count = len(_first)
 
     return render(request, 'pages/nutrizione/piano_detail.html', {
@@ -708,7 +709,7 @@ def nutrizione_piano_detail_view(request, plan_id):
         'total_fiber': round(total_fiber),
         'clients_json': clients_json,
         'assignments_count': assignments_count,
-        'assignments_first_json': assignments_first_json,
+        'assignments_first': assignments_first,
         'assignments_first_count': assignments_first_count,
         'macro_targets': macro_targets,
     })
@@ -2836,4 +2837,48 @@ def api_client_nutrition_history(request):
         'offset': offset,
         'limit': limit,
         'has_more': (offset + limit) < total,
+    })
+
+
+def coach_client_nutrition_history_view(request, client_id):
+    """Coach-facing storico of the nutrition plans (diete) an athlete followed.
+    Page render on GET; JSON page when ?partial=1 (Carica altri)."""
+    coach = get_session_coach(request)
+    if not coach or not can_manage_nutrition(coach):
+        return redirect('dashboard')
+    relationship = get_object_or_404(
+        CoachingRelationship.objects.select_related('client'),
+        coach=coach, client_id=client_id,
+    )
+    client = relationship.client
+
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except (TypeError, ValueError):
+        offset = 0
+    limit = NUTRITION_HISTORY_PAGE_SIZE
+
+    qs = (
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .filter(client=client, coach=coach)
+        .exclude(status='ACTIVE')
+        .order_by('-created_at')
+    )
+    total = qs.count()
+    page = list(qs[offset:offset + limit])
+    macros = _bulk_plan_macros({a.nutrition_plan_id for a in page})
+    items = [_serialize_history_assignment(a, macros) for a in page]
+    has_more = (offset + limit) < total
+
+    if request.GET.get('partial'):
+        return JsonResponse({'items': items, 'has_more': has_more})
+
+    return render(request, 'pages/clienti/storico_diete.html', {
+        'coach': coach,
+        'client': client,
+        'items': items,
+        'total': total,
+        'has_more': has_more,
+        'page_size': limit,
     })
