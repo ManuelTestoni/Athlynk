@@ -377,12 +377,10 @@ def nutrizione_piani_view(request):
 
 
 def _coach_supplement_sheets_json(coach):
-    """Coach's saved supplement sheets (models) with their items, for the diet
-    builder's 'load from model' control."""
     sheets = (
-        SupplementSheet.objects
+        SupplementProtocol.objects
         .filter(coach=coach)
-        .prefetch_related('items__supplement')
+        .prefetch_related('items')
         .order_by('-updated_at')
     )
     out = []
@@ -390,10 +388,9 @@ def _coach_supplement_sheets_json(coach):
         items = []
         for it in sorted(sh.items.all(), key=lambda i: i.order):
             items.append({
-                'supplement_id': it.supplement_id,
-                'supplement_name': it.supplement.name if it.supplement else '',
-                'category': (it.supplement.category or '') if it.supplement else '',
-                'dose': it.dose,
+                'name': it.name,
+                'quantity': it.quantity or '',
+                'unit': it.unit or '',
                 'timing': it.timing or '',
                 'notes': it.notes or '',
             })
@@ -588,10 +585,6 @@ def nutrizione_piano_edit_view(request, plan_id):
         supplements_data['notes'] = sheet.notes or ''
         for it in sheet.items.order_by('order', 'id'):
             supplements_data['items'].append({
-                'supplement_id': it.supplement_id,
-                'supplement_name': it.supplement.name if it.supplement else '',
-                'category': (it.supplement.category or '') if it.supplement else '',
-                'dose': it.dose,
                 'name': it.name,
                 'quantity': it.quantity or '',
                 'unit': it.unit or '',
@@ -1986,8 +1979,6 @@ def _handle_plan_save(request, coach, plan):
 
         saved_meals = 0
         for meal_data in meals_raw:
-            # Resolve valid food items first. A meal with no foods is never
-            # persisted — we don't fill the DB with empty meals/days.
             valid_items = []
             for item_data in meal_data.get('items', []):
                 food_id = item_data.get('food_id')
@@ -2049,7 +2040,6 @@ def _handle_plan_save(request, coach, plan):
                         order=s_order,
                     )
 
-        # Keep meals_per_day in sync with what we actually stored (empties skipped).
         if plan.meals_per_day != (saved_meals or None):
             plan.meals_per_day = saved_meals or None
             plan.save(update_fields=['meals_per_day'])

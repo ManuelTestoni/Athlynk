@@ -3,7 +3,11 @@ from django.http import JsonResponse
 
 
 def _is_api(request):
-    return request.path.startswith('/api/')
+    if request.path.startswith('/api/'):
+        return True
+    accept = request.META.get('HTTP_ACCEPT', '')
+    content_type = request.META.get('CONTENT_TYPE', '')
+    return 'application/json' in accept or 'application/json' in content_type
 
 
 def bad_request(request, exception=None):
