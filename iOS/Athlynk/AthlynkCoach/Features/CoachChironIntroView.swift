@@ -27,7 +27,11 @@ struct CoachChironIntroView: View {
     @State private var entered = false
     @State private var saving = false
 
-    private let professionalTypes = ["Personal Trainer", "Nutrizionista", "Fisioterapista", "Coach sportivo", "Altro"]
+    private let professionalTypes: [(code: String, label: String)] = [
+        ("COACH", "Coach"),
+        ("ALLENATORE", "Allenatore"),
+        ("NUTRIZIONISTA", "Nutrizionista"),
+    ]
     private let certOptions = ["ISSA", "CONI", "ACE", "NASM", "EREPS", "FIF", "FIPE", "Altra"]
 
     private var stepCount: Int { 8 }
@@ -286,7 +290,7 @@ struct CoachChironIntroView: View {
 
     private var recap: some View {
         VStack(spacing: 9) {
-            recapRow("Tipo",     professionalType ?? "—")
+            recapRow("Tipo",     professionalTypes.first(where: { $0.code == professionalType })?.label ?? "—")
             if !specialization.isEmpty { recapRow("Disciplina", specialization) }
             recapRow("Esperienza", "\(Int(yearsExperience)) anni")
             if !selectedCerts.isEmpty { recapRow("Certificazioni", selectedCerts.sorted().joined(separator: ", ")) }
@@ -366,7 +370,7 @@ struct CoachChironIntroView: View {
 // MARK: - Single-select chip grid (mirrors athlete ChipGrid)
 
 private struct CoachChipGrid: View {
-    let options: [String]
+    let options: [(code: String, label: String)]
     @Binding var selection: String?
     var accent: Color
 
@@ -374,13 +378,13 @@ private struct CoachChipGrid: View {
 
     var body: some View {
         LazyVGrid(columns: cols, spacing: 10) {
-            ForEach(options, id: \.self) { opt in
-                let on = selection == opt
+            ForEach(options, id: \.code) { opt in
+                let on = selection == opt.code
                 Button {
                     Haptics.tap()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selection = opt }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selection = opt.code }
                 } label: {
-                    Text(opt)
+                    Text(opt.label)
                         .font(Typo.body(14, .semibold))
                         .foregroundStyle(on ? Palette.void0 : Palette.textHi)
                         .frame(maxWidth: .infinity)

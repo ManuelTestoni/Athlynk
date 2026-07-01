@@ -1371,10 +1371,15 @@ def profile(request, user):
             if data.get(field):
                 setattr(coach, field, data[field].strip())
         for field in ('phone', 'specialization', 'city', 'bio', 'description',
-                      'certifications', 'professional_type', 'social_instagram',
+                      'certifications', 'social_instagram',
                       'social_youtube', 'social_tiktok', 'social_website'):
             if field in data:
                 setattr(coach, field, (data.get(field) or '').strip() or None)
+        if 'professional_type' in data:
+            value = (data.get('professional_type') or '').strip()
+            valid_types = dict(CoachProfile.PROFESSIONAL_TYPES)
+            if value in valid_types:
+                coach.professional_type = value
         if 'years_experience' in data:
             raw = data.get('years_experience')
             try:
