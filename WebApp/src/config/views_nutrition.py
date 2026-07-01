@@ -376,34 +376,6 @@ def nutrizione_piani_view(request):
     return response
 
 
-def _coach_supplement_sheets_json(coach):
-    sheets = (
-        SupplementProtocol.objects
-        .filter(coach=coach)
-        .prefetch_related('items')
-        .order_by('-updated_at')
-    )
-    out = []
-    for sh in sheets:
-        items = []
-        for it in sorted(sh.items.all(), key=lambda i: i.order):
-            items.append({
-                'name': it.name,
-                'quantity': it.quantity or '',
-                'unit': it.unit or '',
-                'timing': it.timing or '',
-                'notes': it.notes or '',
-            })
-        out.append({
-            'id': sh.id,
-            'title': sh.title,
-            'notes': sh.notes or '',
-            'item_count': len(items),
-            'items': items,
-        })
-    return json.dumps(out)
-
-
 def nutrizione_piano_create_view(request):
     user = get_session_user(request)
     if not user:
@@ -458,7 +430,6 @@ def nutrizione_piano_create_view(request):
         'day_targets_json': '[]',
         'folders_json': folders_json,
         'supplements_json': '{"items": [], "notes": ""}',
-        'supplement_sheets_json': _coach_supplement_sheets_json(coach),
     })
 
 
@@ -601,7 +572,6 @@ def nutrizione_piano_edit_view(request, plan_id):
         'day_targets_json': json.dumps(day_targets_data),
         'folders_json': folders_json,
         'supplements_json': json.dumps(supplements_data),
-        'supplement_sheets_json': _coach_supplement_sheets_json(coach),
     })
 
 
@@ -1459,42 +1429,6 @@ def _coach_client_or_redirect(request, client_id):
         client_id=client_id,
     )
     return coach, relationship.client, None
-
-
-def coach_client_nutrition_history_view(request, client_id):
-    """All nutrition assignments (active + past) the coach gave this athlete."""
-    from django.urls import reverse
-    coach, client, resp = _coach_client_or_redirect(request, client_id)
-    if resp:
-        return resp
-
-    assignments = list(
-        NutritionAssignment.objects
-        .select_related('nutrition_plan')
-        .filter(client=client, coach=coach)
-        .order_by('-created_at')
-    )
-    plan_ids = {a.nutrition_plan_id for a in assignments}
-    macros = _bulk_plan_macros(plan_ids)
-    for a in assignments:
-        if a.nutrition_plan.plan_mode == 'MACRO':
-            t = _plan_macro_targets(a.nutrition_plan)['avg']
-            macros[a.nutrition_plan_id] = {
-                'kcal': t['kcal'], 'prot': t['prot'], 'carb': t['carb'], 'fat': t['fat'],
-            }
-
-    rows = []
-    for a in assignments:
-        row = _serialize_history_assignment(a, macros)
-        row['detail_url'] = reverse('coach_client_nutrition_detail', args=[client.id, a.id])
-        rows.append(row)
-
-    return render(request, 'pages/nutrizione/coach_client_storico.html', {
-        'coach': coach,
-        'client': client,
-        'rows': rows,
-        'total': len(rows),
-    })
 
 
 def coach_client_nutrition_detail_view(request, client_id, assignment_id):

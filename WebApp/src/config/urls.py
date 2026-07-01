@@ -115,7 +115,6 @@ urlpatterns = [
     path('nutrizione/piani/<int:plan_id>/', views_nutrition.nutrizione_piano_detail_view, name='nutrizione_piano_detail'),
     path('nutrizione/piani/<int:plan_id>/modifica/', coach_dual_auth(views_nutrition.nutrizione_piano_edit_view), name='nutrizione_piano_edit'),
     path('nutrizione/dettaglio/<int:assignment_id>/', views_nutrition.nutrizione_client_detail_view, name='nutrizione_client_detail'),
-    path('clienti/<int:client_id>/nutrizione/storico/', views_nutrition.coach_client_nutrition_history_view, name='coach_client_nutrition_history'),
     path('clienti/<int:client_id>/nutrizione/dettaglio/<int:assignment_id>/', views_nutrition.coach_client_nutrition_detail_view, name='coach_client_nutrition_detail'),
     path('api/nutrizione/dettaglio/<int:assignment_id>/log/', views_nutrition.api_macro_log_create, name='api_macro_log_create'),
     path('api/nutrizione/dettaglio/<int:assignment_id>/storico/', views_nutrition.api_macro_log_history, name='api_macro_log_history'),

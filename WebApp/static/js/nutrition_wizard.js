@@ -132,7 +132,6 @@ function nutritionWizard() {
     supplements: (INIT.supplements && INIT.supplements.items ? INIT.supplements.items : []).map((s, i) => ({
       _key: 's' + Date.now() + '_' + i,
       name: s.name || '',
-      category: s.category || '',
       quantity: s.quantity || '',
       unit: s.unit || 'g',
       timing: s.timing || '',
@@ -141,9 +140,6 @@ function nutritionWizard() {
       _shake: false,
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
-    /* Coach's saved integration models (SupplementSheet) for the picker. */
-    supplementSheets: INIT.supplementSheets || [],
-    supplementModelMenuOpen: false,
 
     /* === Step 3: supplement models (modelli) panel === */
     suppModelsOpen: false,
@@ -878,16 +874,14 @@ function nutritionWizard() {
     addSupplement() {
       this.supplements.push({
         _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
-        supplement_id: data.supplement_id || null,
-        supplement_name: data.supplement_name || '',
-        category: data.category || '',
-        dose: data.dose || '',
-        timing: data.timing || '',
-        notes: data.notes || '',
-      };
-    },
-    addSupplement() {
-      this.supplements.push(this._newSupplementRow());
+        name: '',
+        quantity: '',
+        unit: 'g',
+        timing: '',
+        notes: '',
+        _invalid: false,
+        _shake: false,
+      });
     },
     removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
