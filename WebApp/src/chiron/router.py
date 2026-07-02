@@ -1,4 +1,4 @@
-"""Routing tra modelli LLM. Stub per Fase 1."""
+"""Routing tra modelli LLM."""
 
 from decouple import config
 
@@ -6,8 +6,12 @@ from decouple import config
 def pick_model(intent: str = "chat") -> str:
     """
     Sceglie il modello in base all'intento.
-    Fase 1: sempre il modello chat da OLLAMA_MODEL (default gpt-oss:120b).
-    Fase 2: routing verso modelli più capaci per output strutturati (diete, allenamenti).
+    Chat semplice va sul modello leggero (OLLAMA_MODEL_LIGHT) per costo; summary
+    ed extraction (import PDF/Excel) restano sul modello pesante (OLLAMA_MODEL)
+    perché qualità/affidabilità contano più del costo. Se OLLAMA_MODEL_LIGHT non
+    è impostata, "chat" ricade sullo stesso modello pesante (no-op).
     """
-    # TODO Fase 2: if intent in ("create_diet", "create_workout"): return config("OLLAMA_MODEL_STRUCTURED", default="gpt-oss:120b")
-    return config("OLLAMA_MODEL", default="gpt-oss:120b")
+    heavy = config("OLLAMA_MODEL", default="gpt-oss:120b")
+    if intent == "chat":
+        return config("OLLAMA_MODEL_LIGHT", default=heavy)
+    return heavy

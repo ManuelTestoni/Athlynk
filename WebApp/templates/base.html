@@ -504,6 +504,8 @@
         document.addEventListener('DOMContentLoaded', watch);
         document.addEventListener('alpine:initialized', watch);
         watch();
+        // Re-arm for nodes rendered later (e.g. "carica altro", filtered re-renders).
+        new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
       })();
     </script>
 

@@ -143,7 +143,17 @@
       <!-- Upcoming -->
       <div class="agenda-sidebar-section">
         <p class="agenda-sidebar-title">Prossimi 7 giorni</p>
-        <template x-if="upcomingItems().length === 0">
+        <template x-if="loading">
+          <div class="space-y-3">
+            <template x-for="i in 3" :key="i">
+              <div>
+                <div class="al-skel al-skel-line-sm al-skel-w-1/3" style="margin-bottom:6px;"></div>
+                <div class="al-skel al-skel-line al-skel-w-2/3"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template x-if="!loading && upcomingItems().length === 0">
           <p class="text-xs text-ink-mute">Nessun appuntamento.</p>
         </template>
         <template x-for="item in upcomingItems()" :key="item.event.id">
@@ -189,7 +199,15 @@
                x-text="todayEvents().length + ' ' + (todayEvents().length === 1 ? 'appuntamento' : 'appuntamenti')"></p>
           </div>
 
-          <template x-if="todayEvents().length === 0">
+          <template x-if="loading">
+            <div class="agenda-day-group space-y-2">
+              <template x-for="i in 3" :key="i">
+                <div class="al-skel" style="height:44px; border-radius: var(--al-r-sm);"></div>
+              </template>
+            </div>
+          </template>
+
+          <template x-if="!loading && todayEvents().length === 0">
             <div class="agenda-empty">
               <i class="ph ph-calendar-x"></i>
               <p>Nessun appuntamento per questa giornata.</p>
@@ -201,7 +219,7 @@
             </div>
           </template>
 
-          <div class="agenda-day-group" x-show="todayEvents().length">
+          <div class="agenda-day-group" x-show="!loading && todayEvents().length">
             <template x-for="e in todayEvents()" :key="e.id">
               <div class="agenda-event-row" :class="typeClass(e._type)" @click="openDetail(e)">
                 <div class="agenda-event-time">

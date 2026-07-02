@@ -4,6 +4,7 @@ document.addEventListener('alpine:init', () => {
     // Proxy corrupts internals and .update() silently no-ops (chart frozen).
     const charts = { loads: null, volume: null, adherence: null, rpe: null };
     return {
+    loading: true,
     activeTab: 'loads',
     tabs: [
       { key: 'loads', label: 'Progressioni Carichi' },
@@ -33,11 +34,11 @@ document.addEventListener('alpine:init', () => {
     urls: window.PROGRESS_INIT.urls,
 
     async init() {
-      this.loadKpi();
       if (this.exercisesInProgram.length) {
         this.loads.exerciseId = this.exercisesInProgram[0].exercise_id;
       }
-      this.loadTab('loads');
+      await Promise.all([this.loadKpi(), this.loadTab('loads')]).catch(() => {});
+      this.loading = false;
     },
 
     _csrf() {

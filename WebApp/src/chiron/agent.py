@@ -29,15 +29,17 @@ class ChironState(TypedDict):
     memory_summary: str
 
 
-@lru_cache(maxsize=1)
-def _get_llm_with_tools():
+@lru_cache(maxsize=2)
+def _get_llm_with_tools(model: str):
     """
     Istanzia il LLM legato ai tool. Usa Ollama Cloud via endpoint OpenAI-compatibile.
     Richiede OLLAMA_API_KEY in env. Endpoint configurabile via OLLAMA_BASE_URL.
+    Cache per nome modello (max 2: light + heavy) per il fallback in _chiron_node.
     """
     llm = ChatOpenAI(
-        model=pick_model("chat"),
+        model=model,
         temperature=0.3,
+        max_tokens=1500,
         api_key=config("OLLAMA_API_KEY"),
         base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
     )
@@ -60,7 +62,12 @@ def _chiron_node(state: ChironState) -> dict:
             "non ripeterlo all'utente):\n" + summary
         )))
     messages += state["messages"]
-    response = _get_llm_with_tools().invoke(messages)
+    model = pick_model("chat")
+    response = _get_llm_with_tools(model).invoke(messages)
+    heavy = config("OLLAMA_MODEL", default="gpt-oss:120b")
+    if model != heavy and not response.content and not getattr(response, "tool_calls", None):
+        # ponytail: gpt-oss:20b su Ollama Cloud a volte torna content vuoto, retry sul modello pesante
+        response = _get_llm_with_tools(heavy).invoke(messages)
     return {"messages": [response]}
 
 

@@ -114,11 +114,11 @@
                     <span class="al-badge al-badge-aegean">{{ plan.goal|default:"Generale" }}</span>
                     <div class="flex items-center gap-2">
                         {% if plan.status == 'DRAFT' %}
-                        <span class="al-badge" style="background: #fef3c7; color: #92400e;"><i class="ph ph-pencil-simple"></i>Bozza</span>
+                        <span class="al-badge al-badge-warn"><i class="ph ph-pencil-simple"></i>Bozza</span>
                         {% elif plan.status == 'TEMPLATE' %}
-                        <span class="al-badge" style="background: #dbeafe; color: #1e40af;"><i class="ph ph-bookmark-simple"></i>Template</span>
+                        <span class="al-badge al-badge-aegean"><i class="ph ph-bookmark-simple"></i>Template</span>
                         {% elif plan.status == 'ACTIVE' %}
-                        <span class="al-badge" style="background: #d1fae5; color: #065f46;"><i class="ph ph-check-circle"></i>Attiva</span>
+                        <span class="al-badge al-badge-success"><i class="ph ph-check-circle"></i>Attiva</span>
                         {% endif %}
                     </div>
                 </div>

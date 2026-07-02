@@ -96,6 +96,9 @@
     // 6) Staggered reveal — cascade repeated content (rows/cards/list items)
     //    into view. Pure class/CSS-var toggles, no business logic.
     //    Opt-in: [data-stagger] container. Auto: .al-table with a <tbody>.
+    //    Re-scanned on alpine:initialized and on DOM mutations (segMo, below)
+    //    so content rendered by Alpine x-for after an async fetch is armed too.
+    var scanStagger = function () {};
     if (!reducedMotion && 'IntersectionObserver' in window) {
       var STAGGER_CAP = 24; // beyond this, children share the final delay
       var staggerIO = new IntersectionObserver(function (entries) {
@@ -106,41 +109,45 @@
         });
       }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
 
-      // Auto-detect card grids: any container with >=2 direct .al-card
-      // children is a list — arm it like a table. Skip ones whose children
-      // already animate via .al-reveal (base.html) to avoid double motion.
-      var seenParents = [];
-      document.querySelectorAll('.al-card').forEach(function (card) {
-        var p = card.parentElement;
-        if (!p || seenParents.indexOf(p) !== -1) return;
-        seenParents.push(p);
-        if (p.hasAttribute('data-stagger') || p.classList.contains('al-table')) return;
-        var cards = 0, j;
-        for (j = 0; j < p.children.length; j++) {
-          if (p.children[j].classList.contains('al-card')) cards++;
+      var armEl = function (el, kids) {
+        if (el.classList.contains('al-armed') || !kids || !kids.length) return;
+        for (var i = 0; i < kids.length; i++) {
+          kids[i].style.setProperty('--i', Math.min(i, STAGGER_CAP));
         }
-        if (cards < 2) return;
-        if (p.querySelector(':scope > .al-reveal, :scope > .al-card.al-reveal')) return;
-        p.setAttribute('data-stagger', '');
-      });
+        el.classList.add('al-armed');
+        staggerIO.observe(el);
+      };
 
-      var staggerTargets = [];
-      document.querySelectorAll('[data-stagger]').forEach(function (el) {
-        staggerTargets.push({ el: el, kids: el.children });
-      });
-      document.querySelectorAll('.al-table').forEach(function (tbl) {
-        var body = tbl.tBodies && tbl.tBodies[0];
-        if (body && body.rows.length) staggerTargets.push({ el: tbl, kids: body.rows });
-      });
+      scanStagger = function () {
+        // Auto-detect card grids: any container with >=2 direct .al-card
+        // children is a list — arm it like a table. Skip ones whose children
+        // already animate via .al-reveal (base.html) to avoid double motion.
+        var seenParents = [];
+        document.querySelectorAll('.al-card').forEach(function (card) {
+          var p = card.parentElement;
+          if (!p || seenParents.indexOf(p) !== -1) return;
+          seenParents.push(p);
+          if (p.hasAttribute('data-stagger') || p.classList.contains('al-table')) return;
+          var cards = 0, j;
+          for (j = 0; j < p.children.length; j++) {
+            if (p.children[j].classList.contains('al-card')) cards++;
+          }
+          if (cards < 2) return;
+          if (p.querySelector(':scope > .al-reveal, :scope > .al-card.al-reveal')) return;
+          p.setAttribute('data-stagger', '');
+        });
 
-      staggerTargets.forEach(function (t) {
-        if (!t.kids || !t.kids.length) return;
-        for (var i = 0; i < t.kids.length; i++) {
-          t.kids[i].style.setProperty('--i', Math.min(i, STAGGER_CAP));
-        }
-        t.el.classList.add('al-armed');
-        staggerIO.observe(t.el);
-      });
+        document.querySelectorAll('[data-stagger]').forEach(function (el) {
+          armEl(el, el.children);
+        });
+        document.querySelectorAll('.al-table').forEach(function (tbl) {
+          var body = tbl.tBodies && tbl.tBodies[0];
+          if (body) armEl(tbl, body.rows);
+        });
+      };
+
+      scanStagger();
+      document.addEventListener('alpine:initialized', scanStagger);
     }
 
     // 7) Count-up — numeric values tick from 0 to target as they enter view.
@@ -285,12 +292,17 @@
     // Teleported drawers (volume / exercise-stats) mount their .va-segctl into
     // <body> after Alpine inits — watch for them and attach lazily.
     var segMo = new MutationObserver(function (muts) {
+      var sawElement = false;
       for (var i = 0; i < muts.length; i++) {
         var added = muts[i].addedNodes;
         for (var j = 0; j < added.length; j++) {
-          if (added[j].nodeType === 1) scanSliders(added[j]);
+          if (added[j].nodeType === 1) {
+            scanSliders(added[j]);
+            sawElement = true;
+          }
         }
       }
+      if (sawElement) scanStagger();
     });
     segMo.observe(document.body, { childList: true, subtree: true });
   });
