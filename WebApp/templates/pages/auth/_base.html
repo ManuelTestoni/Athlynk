@@ -11,7 +11,7 @@
     {# Solo login e registrazione sono indicizzabili; le pagine di servizio (reset, verifica) restano fuori dall'indice. #}
     <meta name="robots" content="{% block auth_robots %}noindex, follow{% endblock %}">
     <link rel="canonical" href="{{ SITE_URL }}{{ request.path }}">
-    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=2">
     <meta property="og:site_name" content="Athlynk">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Athlynk | {% block auth_og_title %}Coach & Atleta{% endblock %}">

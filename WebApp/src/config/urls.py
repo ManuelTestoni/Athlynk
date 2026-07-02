@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 from . import views
 from . import views_errors
 
@@ -79,6 +79,7 @@ urlpatterns = [
     path('robots.txt', views_seo.robots_txt, name='robots_txt'),
     path('sitemap.xml', views_seo.sitemap_xml, name='sitemap_xml'),
     path('llms.txt', views_seo.llms_txt, name='llms_txt'),
+    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'img/favicon.png', permanent=True), name='favicon'),
 
     # Newsletter
     path('newsletter/conferma/<str:token>/', views_newsletter.confirm_subscription, name='newsletter_confirm'),

@@ -365,32 +365,66 @@
     });
   });
 
-  /* ---------- Chiron toggle: add supplement to every plan ---------- */
+  /* ---------- Pricing: Chiron add-on + monthly/annual billing toggle ---------- */
   const chironSwitch = document.getElementById("chironSwitch");
   const chironToggle = document.getElementById("chironToggle");
-  if (chironSwitch && chironToggle) {
-    const supplement = parseInt(chironSwitch.dataset.chironSupplement, 10) || 0;
-    const cards = [...document.querySelectorAll(".price-card[data-base]")];
+  const billingSwitch = document.getElementById("billingSwitch");
+  const priceCards = [...document.querySelectorAll(".price-card[data-monthly]")];
 
-    const setChiron = (on) => {
-      chironToggle.setAttribute("aria-checked", String(on));
-      cards.forEach((card) => {
-        const base = parseInt(card.dataset.base, 10);
+  if (priceCards.length && (chironToggle || billingSwitch)) {
+    const chironMonthly = parseFloat(chironSwitch?.dataset.chironMonthly) || 0;
+    const chironAnnual = parseFloat(chironSwitch?.dataset.chironAnnual) || 0;
+    const fmtMonthly = new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtAnnual = new Intl.NumberFormat("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const fmtOld = new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let chironOn = false;
+    let annual = false;
+
+    const render = () => {
+      priceCards.forEach((card) => {
+        const base = parseFloat(card.dataset[annual ? "annual" : "monthly"]);
+        const baseOld = parseFloat(card.dataset[annual ? "annualOld" : "monthlyOld"]);
+        const supplement = chironOn ? (annual ? chironAnnual : chironMonthly) : 0;
+
         const numEl = card.querySelector("[data-price]");
+        const oldEl = card.querySelector("[data-price-old]");
+        const perEl = card.querySelector("[data-price-per]");
         const chironLine = card.querySelector(".price-chiron");
+
         if (numEl) {
           numEl.classList.add("flip");
           setTimeout(() => {
-            numEl.textContent = on ? base + supplement : base;
+            numEl.textContent = (annual ? fmtAnnual : fmtMonthly).format(base + supplement);
             numEl.classList.remove("flip");
           }, 130);
         }
-        if (chironLine) chironLine.hidden = !on;
+        if (oldEl) oldEl.textContent = "€" + fmtOld.format(baseOld);
+        if (perEl) perEl.textContent = annual ? "/ anno" : "/ mese";
+        if (chironLine) chironLine.hidden = !chironOn;
       });
     };
 
-    chironToggle.addEventListener("click", () => {
-      setChiron(chironToggle.getAttribute("aria-checked") !== "true");
-    });
+    if (chironToggle) {
+      chironToggle.addEventListener("click", () => {
+        chironOn = chironToggle.getAttribute("aria-checked") !== "true";
+        chironToggle.setAttribute("aria-checked", String(chironOn));
+        render();
+      });
+    }
+
+    if (billingSwitch) {
+      const billingOpts = [...billingSwitch.querySelectorAll("[data-billing]")];
+      billingOpts.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          annual = btn.dataset.billing === "annual";
+          billingOpts.forEach((b) => {
+            b.classList.toggle("is-active", b === btn);
+            b.setAttribute("aria-selected", String(b === btn));
+          });
+          render();
+        });
+      });
+    }
   }
 })();

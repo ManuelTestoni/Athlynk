@@ -2100,6 +2100,10 @@ input[type="number"] { -moz-appearance: textfield; }
   .plan-print-day { break-before: page; }
   .plan-print-day:first-child { break-before: auto; }
 
+  /* force day accordions open on paper even if Alpine's x-show hasn't
+     flipped the inline display before the print snapshot is taken */
+  .rcp-day-body { display: block !important; height: auto !important; overflow: visible !important; }
+
   /* nutrition plan: each day/meal-set starts a new page */
   .plan-print-meal-day { break-before: page; }
   .plan-print-meal-day:first-child { break-before: auto; }

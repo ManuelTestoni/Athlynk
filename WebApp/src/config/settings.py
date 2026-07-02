@@ -129,12 +129,17 @@ SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
-# Recurring (monthly) price IDs, one per plan, plus the Chiron add-on. Empty by
-# default; a plan whose price ID is unset is treated as unavailable at checkout.
+# Recurring price IDs, one per plan per billing interval, plus the Chiron
+# add-on. Empty by default; a plan/interval whose price ID is unset is treated
+# as unavailable at checkout.
 STRIPE_PRICE_ATHENA = config('STRIPE_PRICE_ATHENA', default='')
 STRIPE_PRICE_APOLLO = config('STRIPE_PRICE_APOLLO', default='')
 STRIPE_PRICE_ZEUS = config('STRIPE_PRICE_ZEUS', default='')
+STRIPE_PRICE_ATHENA_ANNUALE = config('STRIPE_PRICE_ATHENA_ANNUALE', default='')
+STRIPE_PRICE_APOLLO_ANNUALE = config('STRIPE_PRICE_APOLLO_ANNUALE', default='')
+STRIPE_PRICE_ZEUS_ANNUALE = config('STRIPE_PRICE_ZEUS_ANNUALE', default='')
 STRIPE_PRICE_CHIRON = config('STRIPE_PRICE_CHIRON', default='')
+STRIPE_PRICE_CHIRON_ANNUALE = config('STRIPE_PRICE_CHIRON_ANNUALE', default='')
 # Public marketing site (Vercel) — Stripe success/cancel redirects land here.
 WEBSITE_URL = config('WEBSITE_URL', default='https://athlynk.it')
 

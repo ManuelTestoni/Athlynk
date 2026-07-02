@@ -194,7 +194,7 @@
         </div>
         <div class="space-y-2">
           {% for day in plan.days.all %}
-          <div class="rcp-day plan-print-day" x-data="{ open: false, loaded: false }" :class="{ 'is-open': open }">
+          <div class="rcp-day plan-print-day" x-data="{ open: false, loaded: false }" :class="{ 'is-open': open }" @beforeprint.window="open = true">
             <button type="button" class="rcp-day-btn" @click="open = !open">
               <span class="rcp-day-title">
                 <i class="ph ph-list-bullets" style="color: var(--al-bronze);"></i>

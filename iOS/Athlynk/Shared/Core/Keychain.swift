@@ -9,7 +9,7 @@ import Foundation
 import Security
 
 enum Keychain {
-    private static let service = "it.Atlynk.Athlynk.auth"
+    private static let service = "it.athlynk.Athlynk.auth"
 
     static func set(_ value: String?, for account: String) {
         // Always clear first so set() is idempotent (no duplicate-item errors).

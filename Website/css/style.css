@@ -1091,6 +1091,41 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   align-items: stretch;
 }
 
+/* ---- Billing cycle toggle ---- */
+.billing-switch {
+  display: inline-flex; gap: 4px;
+  width: fit-content;
+  margin: 0 auto 20px;
+  padding: 4px;
+  border: 1px solid var(--line-gold);
+  border-radius: 999px;
+  background: var(--carbon-soft);
+}
+.billing-opt {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ivory-mute);
+  padding: 9px 20px;
+  border: none; border-radius: 999px;
+  background: transparent; cursor: pointer;
+  transition: background 0.35s var(--ease-out), color 0.35s var(--ease-out);
+}
+.billing-opt.is-active {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: var(--obsidian);
+}
+.billing-save {
+  font-size: 10px; padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(201, 169, 106, 0.16);
+  color: var(--gold-light);
+}
+.billing-opt.is-active .billing-save {
+  background: rgba(11, 10, 8, 0.15);
+  color: var(--obsidian);
+}
+
 /* ---- Chiron toggle ---- */
 .chiron-switch {
   display: flex; align-items: center; gap: 18px;
@@ -1208,10 +1243,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 
 .price-amount {
-  display: flex; align-items: baseline; gap: 6px;
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
   margin-block: 30px 34px;
   padding-bottom: 30px;
   border-bottom: 1px solid var(--line);
+}
+.price-old {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--ivory-mute);
+  text-decoration: line-through;
+  text-decoration-color: var(--gold-deep);
+  opacity: 0.6;
+  margin-right: 4px;
+  flex-basis: 100%;
 }
 .price-cur { font-family: var(--font-display); font-size: 24px; color: var(--gold-light); }
 .price-num {

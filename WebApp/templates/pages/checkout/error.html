@@ -1,15 +1,16 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pagamento non completato · Athlynk</title>
+<title>{{ error_title|default:"Pagamento non completato" }} · Athlynk</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0b0a08">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L28 28 H23.5 L16 12 L8.5 28 H4 Z' fill='%23c9a96a'/%3E%3Crect x='11' y='21' width='10' height='2' fill='%23c9a96a'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=2">
 <style>
   :root { --ink:#0b0a08; --ivory:#f4efe4; --ivory-mute:#9b9181; --gold:#c9a96a; --line:rgba(201,169,106,0.22); }
   * { box-sizing:border-box; }
@@ -34,11 +35,11 @@
     <div class="mark" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
     </div>
-    <p class="eyebrow">Pagamento non completato</p>
-    <h1>Qualcosa è andato storto.</h1>
-    <p class="lede">Il pagamento non è andato a buon fine e nessun importo è stato addebitato. Puoi riprovare quando vuoi.</p>
+    <p class="eyebrow">{{ error_title|default:"Pagamento non completato" }}</p>
+    <h1>{{ error_heading|default:"Qualcosa è andato storto." }}</h1>
+    <p class="lede">{{ error_message|default:"Il pagamento non è andato a buon fine e nessun importo è stato addebitato. Puoi riprovare quando vuoi." }}</p>
     <div class="actions">
-      <a href="{{ website_url }}/acquista.html" class="btn btn-gold">Riprova</a>
+      <a href="{{ cta_url }}" class="btn btn-gold">{{ cta_label|default:"Riprova" }}</a>
       <a href="{{ website_url }}" class="btn btn-ghost">Torna al sito</a>
     </div>
     <p class="note">Continua a non funzionare? Scrivici a <a href="mailto:info@athlynk.it">info@athlynk.it</a>.</p>

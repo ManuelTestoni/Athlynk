@@ -208,7 +208,7 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
     </div>
 
     <!-- Clients Table -->
-    <div class="al-card al-card-flush">
+    <div class="al-card al-card-flush al-reveal" :class="{ 'in': !loading }">
         <div class="overflow-x-auto">
             <table class="al-table">
                 <thead>

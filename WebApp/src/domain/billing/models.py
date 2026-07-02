@@ -62,9 +62,17 @@ class PlatformPurchase(models.Model):
     STATUS_PAST_DUE = 'past_due'
     STATUS_CANCELED = 'canceled'
 
+    BILLING_MONTHLY = 'mensile'
+    BILLING_ANNUAL = 'annuale'
+    BILLING_CHOICES = [
+        (BILLING_MONTHLY, 'Mensile'),
+        (BILLING_ANNUAL, 'Annuale'),
+    ]
+
     email = models.EmailField()
     code = models.CharField(max_length=32, unique=True)
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default=PLAN_APOLLO)
+    billing_interval = models.CharField(max_length=10, choices=BILLING_CHOICES, default=BILLING_MONTHLY)
     has_chiron = models.BooleanField(default=False)
     status = models.CharField(max_length=20, default=STATUS_ACTIVE)
     stripe_session_id = models.CharField(max_length=255, unique=True)

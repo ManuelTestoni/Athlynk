@@ -129,18 +129,18 @@
     </div>
 
     <!-- At-risk client table -->
-    <div class="al-card mt-6" x-show="hasData" x-cloak>
+    <div class="al-card al-card-flush mt-6" x-show="hasData" x-cloak
+         x-transition:enter="al-slide-up-enter"
+         x-transition:enter-start="al-slide-up-enter-start"
+         x-transition:enter-end="al-slide-up-enter-end">
         <div class="al-card-head">
             <h3 class="al-h-3">Clienti a rischio
                 <span class="al-mono text-ink-mute text-xs" x-show="riskFilter!=='all'"
                       x-text="'· ' + riskFilterLabel"></span>
             </h3>
         </div>
-        <div class="al-card-body">
-            <div x-show="riskClients.length===0" class="al-body text-ink-mute py-6 text-center">
-                Nessun cliente in questa fascia di rischio. Ottimo lavoro.
-            </div>
-            <table class="al-table" x-show="riskClients.length>0">
+        <div class="overflow-x-auto">
+            <table class="al-table">
                 <thead>
                     <tr>
                         <th>Atleta</th>
@@ -151,6 +151,14 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <template x-if="riskClients.length===0">
+                        <tr><td colspan="5">
+                            <div class="al-empty">
+                                <i class="ph ph-check-circle al-empty-icon"></i>
+                                <h3>Nessun cliente in questa fascia di rischio</h3>
+                            </div>
+                        </td></tr>
+                    </template>
                     <template x-for="c in riskClients" :key="c.id">
                         <tr>
                             <td>
@@ -175,16 +183,16 @@
                     </template>
                 </tbody>
             </table>
-            <div class="px-6 py-3 border-t" style="border-color: var(--al-rule); background: var(--al-marble-warm);"
-                 x-show="riskHasMore">
-                <button type="button" @click="loadMoreRisk()" :disabled="riskLoadingMore"
-                        class="w-full al-mono text-xs font-bold uppercase tracking-wider py-2 transition"
-                        style="color: var(--al-bronze);">
-                    <i class="ph ph-caret-down"></i>
-                    <span x-show="!riskLoadingMore">Carica altri</span>
-                    <span x-show="riskLoadingMore">Caricamento…</span>
-                </button>
-            </div>
+        </div>
+        <div class="px-6 py-3 border-t" style="border-color: var(--al-rule); background: var(--al-marble-warm);"
+             x-show="riskHasMore">
+            <button type="button" @click="loadMoreRisk()" :disabled="riskLoadingMore"
+                    class="w-full al-mono text-xs font-bold uppercase tracking-wider py-2 transition"
+                    style="color: var(--al-bronze);">
+                <i class="ph ph-caret-down"></i>
+                <span x-show="!riskLoadingMore">Carica altri</span>
+                <span x-show="riskLoadingMore">Caricamento…</span>
+            </button>
         </div>
     </div>
 </div>

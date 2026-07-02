@@ -191,7 +191,8 @@ def send_newsletter_confirm(subscriber):
 
 def send_platform_purchase_confirmation(purchase):
     """Subscription confirmation for a platform purchase, carrying the access code."""
-    amount_display = f"{purchase.amount_total / 100:.2f} {purchase.currency.upper()} / mese"
+    period_label = '/ anno' if purchase.billing_interval == 'annuale' else '/ mese'
+    amount_display = f"{purchase.amount_total / 100:.2f} {purchase.currency.upper()} {period_label}"
     return send_html_mail(
         to=purchase.email,
         subject='Abbonamento attivo · il tuo codice di accesso Athlynk',

@@ -58,11 +58,11 @@
     {
       "@type": "Product",
       "name": "Athena",
-      "description": "Piano per coach, fino a 15 atleti gestiti: console gestionale completa, builder programmi e template, tracking atleti e check, app coach e app atleta.",
+      "description": "Piano per coach, fino a 15 atleti gestiti: console gestionale completa, builder schede con progressioni settimanali, piani nutrizionali, check progressi e agenda, app coach e app atleta.",
       "brand": { "@id": "https://athlynk.it/#org" },
       "offers": {
         "@type": "Offer",
-        "price": "39",
+        "price": "29.90",
         "priceCurrency": "EUR",
         "url": "https://athlynk.it/#pricing"
       }
@@ -70,11 +70,11 @@
     {
       "@type": "Product",
       "name": "Apollo",
-      "description": "Piano per coach, fino a 50 atleti gestiti: tutto Athena più roster esteso, nutrizione periodizzata avanzata, report aggregati sullo studio e comunicazione in-app illimitata.",
+      "description": "Piano per coach, fino a 50 atleti gestiti: tutto Athena più protocolli integratori, analytics business, gestione abbonamenti e modelli riutilizzabili.",
       "brand": { "@id": "https://athlynk.it/#org" },
       "offers": {
         "@type": "Offer",
-        "price": "79",
+        "price": "59.90",
         "priceCurrency": "EUR",
         "url": "https://athlynk.it/#pricing"
       }
@@ -82,11 +82,11 @@
     {
       "@type": "Product",
       "name": "Zeus",
-      "description": "Piano per coach e team con atleti illimitati: multi-coach, branding personalizzato, account manager dedicato, API e integrazioni. Add-on Chiron disponibile a +15€/mese su ogni piano.",
+      "description": "Piano per coach e team con atleti illimitati: multi-coach, branding personalizzato, account manager dedicato, API e integrazioni. Add-on Chiron disponibile a +9,90€/mese su ogni piano.",
       "brand": { "@id": "https://athlynk.it/#org" },
       "offers": {
         "@type": "Offer",
-        "price": "149",
+        "price": "99.90",
         "priceCurrency": "EUR",
         "url": "https://athlynk.it/#pricing"
       }
@@ -107,7 +107,7 @@
         {
           "@type": "Question",
           "name": "Cosa include Chiron?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Chiron è l'add-on adattivo attivabile su qualsiasi piano a +15€/mese: ricalibrazione automatica di carichi e macro a ogni check, analisi di recupero e carico interno, nutrizione periodizzata sul ciclo. Si aggiunge ad Athena, Apollo o Zeus con un solo tocco." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Chiron è l'add-on adattivo attivabile su qualsiasi piano a +9,90€/mese: ricalibrazione automatica di carichi e macro a ogni check, analisi di recupero e carico interno, nutrizione periodizzata sul ciclo. Si aggiunge ad Athena, Apollo o Zeus con un solo tocco." }
         },
         {
           "@type": "Question",
@@ -154,7 +154,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260616a">
+<link rel="stylesheet" href="css/style.css?v=20260702a">
 <link rel="preload" as="image" href="assets/hero.webp" fetchpriority="high">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
@@ -532,74 +532,92 @@
       <p class="section-lede">Scegli in base agli atleti che gestisci. Aggiungi Chiron quando vuoi, con un solo tocco.</p>
     </header>
 
+    <!-- Billing cycle toggle -->
+    <div class="billing-switch reveal" id="billingSwitch" role="tablist" aria-label="Ciclo di fatturazione">
+      <button type="button" class="billing-opt is-active" data-billing="monthly" role="tab" aria-selected="true">Mensile</button>
+      <button type="button" class="billing-opt" data-billing="annual" role="tab" aria-selected="false">Annuale <span class="billing-save">2 mesi gratis</span></button>
+    </div>
+
     <!-- Chiron toggle -->
-    <div class="chiron-switch reveal" id="chironSwitch" data-chiron-supplement="15">
+    <div class="chiron-switch reveal" id="chironSwitch" data-chiron-monthly="9.90" data-chiron-annual="99">
       <button class="switch-btn" id="chironToggle" role="switch" aria-checked="false" aria-label="Aggiungi Chiron a tutti i piani">
         <span class="switch-track"><span class="switch-thumb"></span></span>
       </button>
       <div class="switch-copy">
         <span class="switch-title">Aggiungi <em>Chiron</em> — il protocollo adattivo</span>
-        <span class="switch-sub">Ricalibrazione automatica di carichi e macro a ogni check · <b>+€15</b> / mese per coach</span>
+        <span class="switch-sub">Ricalibrazione automatica di carichi e macro a ogni check · <b>+€9,90</b> / mese per coach</span>
       </div>
     </div>
 
     <div class="pricing-grid pricing-grid-3">
       <!-- Athena -->
-      <article class="price-card reveal" data-base="39">
+      <article class="price-card reveal" data-monthly="29.90" data-monthly-old="49.90" data-annual="299" data-annual-old="598.80">
         <div class="price-head">
           <h3 class="price-name">Athena</h3>
           <p class="price-tag">Lo studio agile</p>
         </div>
         <p class="price-cap"><b data-cap>Fino a 15</b> atleti gestiti</p>
-        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>39</span><span class="price-per">/ mese</span></div>
-        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€49,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>29,90</span><span class="price-per" data-price-per>/ mese</span>
+        </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
         <ul class="price-features">
           <li>Console gestionale completa</li>
-          <li>Builder programmi e template</li>
-          <li>Tracking atleti, serie e check</li>
-          <li>Linee guida nutrizionali</li>
+          <li>Builder schede con progressioni settimanali</li>
+          <li>Piani nutrizionali e linee guida</li>
+          <li>Check progressi e agenda appuntamenti</li>
+          <li>Chat con i tuoi atleti</li>
           <li>App coach + app atleta sincronizzate</li>
         </ul>
         <a href="acquista.html?plan=athena" class="btn btn-ghost btn-full">Inizia con Athena</a>
       </article>
 
       <!-- Apollo -->
-      <article class="price-card price-card-pro reveal" data-base="79">
+      <article class="price-card price-card-pro reveal" data-monthly="59.90" data-monthly-old="99.90" data-annual="599" data-annual-old="718.80">
         <span class="price-badge">Il più scelto</span>
         <div class="price-head">
           <h3 class="price-name">Apollo</h3>
           <p class="price-tag">Lo studio in crescita</p>
         </div>
         <p class="price-cap"><b data-cap>Fino a 50</b> atleti gestiti</p>
-        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>79</span><span class="price-per">/ mese</span></div>
-        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€99,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>59,90</span><span class="price-per" data-price-per>/ mese</span>
+        </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
         <ul class="price-features">
           <li><b>Tutto Athena, più:</b></li>
           <li>Roster esteso fino a 50 atleti</li>
-          <li>Nutrizione periodizzata avanzata</li>
-          <li>Report e analisi aggregati sullo studio</li>
-          <li>Code di check e scadenze prioritarie</li>
-          <li>Comunicazione in-app illimitata</li>
+          <li>Protocolli integratori personalizzati</li>
+          <li>Analytics business e rischio abbandono</li>
+          <li>Gestione abbonamenti e pagamenti atleti</li>
+          <li>Modelli e template riutilizzabili</li>
+          <li>Supporto prioritario</li>
         </ul>
         <a href="acquista.html?plan=apollo" class="btn btn-bronze btn-full">Scegli Apollo</a>
         <p class="price-note">La scelta dei coach con un roster attivo.</p>
       </article>
 
       <!-- Zeus -->
-      <article class="price-card reveal" data-base="149">
+      <article class="price-card reveal" data-monthly="99.90" data-monthly-old="149.90" data-annual="999" data-annual-old="1798.80">
         <div class="price-head">
           <h3 class="price-name">Zeus</h3>
           <p class="price-tag">Il team senza limiti</p>
         </div>
         <p class="price-cap"><b data-cap>Atleti illimitati</b></p>
-        <div class="price-amount"><span class="price-cur">€</span><span class="price-num" data-price>149</span><span class="price-per">/ mese</span></div>
-        <p class="price-chiron" hidden>Chiron incluso · <b>+€15</b></p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€149,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>99,90</span><span class="price-per" data-price-per>/ mese</span>
+        </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
         <ul class="price-features">
           <li><b>Tutto Apollo, più:</b></li>
           <li>Atleti illimitati, nessun tetto</li>
           <li>Multi-coach e gestione del team</li>
           <li>Branding personalizzato dello studio</li>
           <li>Account manager dedicato</li>
+          <li>Accesso anticipato alle nuove funzionalità</li>
           <li>API e integrazioni su misura</li>
         </ul>
         <a href="acquista.html?plan=zeus" class="btn btn-ghost btn-full">Passa a Zeus</a>
@@ -653,7 +671,7 @@
       </details>
       <details class="faq-item reveal">
         <summary><span>Cosa include Chiron?</span><i class="faq-icon"></i></summary>
-        <div class="faq-body"><p>Chiron è l'add-on adattivo attivabile su qualsiasi piano a +15€/mese: ricalibrazione automatica di carichi e macro a ogni check, analisi di recupero e carico interno, nutrizione periodizzata sul ciclo. Si aggiunge ad Athena, Apollo o Zeus con un solo tocco, direttamente dal pricing.</p></div>
+        <div class="faq-body"><p>Chiron è l'add-on adattivo attivabile su qualsiasi piano a +9,90€/mese: ricalibrazione automatica di carichi e macro a ogni check, analisi di recupero e carico interno, nutrizione periodizzata sul ciclo. Si aggiunge ad Athena, Apollo o Zeus con un solo tocco, direttamente dal pricing.</p></div>
       </details>
       <details class="faq-item reveal">
         <summary><span>È adatto a sportivi avanzati?</span><i class="faq-icon"></i></summary>
@@ -730,7 +748,7 @@
   </div>
 </div>
 
-<script src="js/main.js?v=20260615f"></script>
+<script src="js/main.js?v=20260702a"></script>
 
 <!-- Cookie consent banner -->
 <div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Preferenze cookie" aria-modal="true">

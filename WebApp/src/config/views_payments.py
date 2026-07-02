@@ -39,32 +39,60 @@ PLAN_LABELS = {
 }
 
 
-def _plan_prices():
-    """Map of plan slug -> recurring price ID, skipping plans with no price set."""
+def _plan_prices(billing):
+    """Map of plan slug -> recurring price ID for the given billing interval."""
+    if billing == PlatformPurchase.BILLING_ANNUAL:
+        return {
+            PlatformPurchase.PLAN_ATHENA: settings.STRIPE_PRICE_ATHENA_ANNUALE,
+            PlatformPurchase.PLAN_APOLLO: settings.STRIPE_PRICE_APOLLO_ANNUALE,
+            PlatformPurchase.PLAN_ZEUS: settings.STRIPE_PRICE_ZEUS_ANNUALE,
+        }
     return {
         PlatformPurchase.PLAN_ATHENA: settings.STRIPE_PRICE_ATHENA,
         PlatformPurchase.PLAN_APOLLO: settings.STRIPE_PRICE_APOLLO,
         PlatformPurchase.PLAN_ZEUS: settings.STRIPE_PRICE_ZEUS,
     }
 
-# Shown when Stripe is not configured / temporarily failing. Dark, on-brand,
-# self-contained so it needs no template or base layout.
-_UNAVAILABLE_HTML = (
-    '<!doctype html><html lang="it"><head><meta charset="utf-8">'
-    '<meta name="viewport" content="width=device-width, initial-scale=1">'
-    '<title>Pagamenti non disponibili · Athlynk</title></head>'
-    '<body style="background:#0b0a08;color:#f4efe4;font-family:system-ui,sans-serif;'
-    'display:flex;min-height:100vh;align-items:center;justify-content:center;'
-    'text-align:center;padding:24px;margin:0">'
-    '<div><h1 style="font-weight:400;font-size:22px">Pagamenti temporaneamente non disponibili</h1>'
-    '<p style="color:#9b9181">Riprova tra poco o scrivici a supporto@athlynk.it.</p>'
-    '<p><a href="https://athlynk.it" style="color:#c9a96a;text-decoration:none">&larr; Torna al sito</a></p>'
-    '</div></body></html>'
-)
+
+def _chiron_price(billing):
+    if billing == PlatformPurchase.BILLING_ANNUAL:
+        return settings.STRIPE_PRICE_CHIRON_ANNUALE
+    return settings.STRIPE_PRICE_CHIRON
+
+# Distinct, actionable copy per failure reason — never a stack trace or
+# internal detail, just enough for the buyer to understand what to do next.
+# Rendered through the same branded error.html used for checkout_return.
+_ERROR_COPY = {
+    'not_configured': {
+        'error_title': 'Pagamenti non disponibili',
+        'error_heading': 'Pagamenti temporaneamente non disponibili.',
+        'error_message': 'Il servizio di pagamento non è al momento raggiungibile. Riprova tra poco o scrivici a supporto@athlynk.it.',
+    },
+    'invalid_plan': {
+        'error_title': 'Piano non valido',
+        'error_heading': 'Il piano selezionato non esiste.',
+        'error_message': 'Torna alla pagina dei prezzi e scegli un piano disponibile.',
+    },
+    'rate_limited': {
+        'error_title': 'Troppi tentativi',
+        'error_heading': 'Troppi tentativi di pagamento.',
+        'error_message': 'Attendi qualche minuto e riprova.',
+    },
+    'create_failed': {
+        'error_title': 'Pagamento non avviato',
+        'error_heading': 'Non siamo riusciti ad avviare il pagamento.',
+        'error_message': 'Nessun importo è stato addebitato. Riprova tra poco; se il problema persiste scrivici a supporto@athlynk.it.',
+    },
+}
 
 
-def _unavailable(status):
-    return HttpResponse(_UNAVAILABLE_HTML, status=status)
+def _unavailable(request, reason, status):
+    copy = _ERROR_COPY[reason]
+    return render(request, 'pages/checkout/error.html', {
+        **copy,
+        'website_url': settings.WEBSITE_URL,
+        'cta_url': f'{settings.WEBSITE_URL}/acquista.html',
+    }, status=status)
 
 
 @require_GET
@@ -78,16 +106,20 @@ def checkout_page(request):
     """
     if not settings.STRIPE_SECRET_KEY or not settings.STRIPE_PUBLISHABLE_KEY:
         logger.error('stripe.checkout.not_configured')
-        return _unavailable(503)
+        return _unavailable(request, 'not_configured', 503)
 
     plan = (request.GET.get('plan') or '').strip().lower()
-    price_id = _plan_prices().get(plan)
+    billing = (request.GET.get('billing') or '').strip().lower()
+    if billing not in (PlatformPurchase.BILLING_MONTHLY, PlatformPurchase.BILLING_ANNUAL):
+        billing = PlatformPurchase.BILLING_MONTHLY
+
+    price_id = _plan_prices(billing).get(plan)
     if not price_id:
-        logger.error('stripe.checkout.invalid_plan plan=%s', plan)
-        return _unavailable(503)
+        logger.error('stripe.checkout.invalid_plan plan=%s billing=%s', plan, billing)
+        return _unavailable(request, 'invalid_plan', 404)
 
     wants_chiron = request.GET.get('chiron') == '1'
-    chiron_price = settings.STRIPE_PRICE_CHIRON
+    chiron_price = _chiron_price(billing)
     if wants_chiron and not chiron_price:
         # Chiron requested but not configured: fall back to the plan alone
         # rather than failing the whole checkout.
@@ -100,7 +132,7 @@ def checkout_page(request):
     )
     if not allowed:
         logger.warning('stripe.checkout.rate_limited ip=%s', ip)
-        return _unavailable(429)
+        return _unavailable(request, 'rate_limited', 429)
 
     line_items = [{'price': price_id, 'quantity': 1}]
     if wants_chiron:
@@ -113,21 +145,22 @@ def checkout_page(request):
             mode='subscription',
             line_items=line_items,
             # Carried back on checkout.session.completed so fulfilment knows the
-            # plan/add-on without re-deriving them from price IDs.
-            metadata={'plan': plan, 'chiron': '1' if wants_chiron else '0'},
+            # plan/add-on/interval without re-deriving them from price IDs.
+            metadata={'plan': plan, 'chiron': '1' if wants_chiron else '0', 'billing': billing},
             return_url=(
                 f'{settings.SITE_URL}/acquista/esito/?session_id={{CHECKOUT_SESSION_ID}}'
             ),
         )
     except Exception:
         logger.exception('stripe.checkout.create_failed')
-        return _unavailable(502)
+        return _unavailable(request, 'create_failed', 502)
 
     return render(request, 'pages/checkout/checkout.html', {
         'publishable_key': settings.STRIPE_PUBLISHABLE_KEY,
         'client_secret': session.client_secret,
         'plan_label': PLAN_LABELS.get(plan, 'Athlynk'),
         'has_chiron': wants_chiron,
+        'billing_label': 'Fatturazione annuale' if billing == PlatformPurchase.BILLING_ANNUAL else 'Fatturazione mensile',
     })
 
 
@@ -153,9 +186,31 @@ def checkout_return(request):
             'login_url': f'{settings.SITE_URL}/login/',
         })
 
-    # Payment not completed (open/expired/unknown) or lookup failed.
+    if status == 'expired':
+        copy = {
+            'error_title': 'Sessione scaduta',
+            'error_heading': 'La sessione di pagamento è scaduta.',
+            'error_message': 'Nessun importo è stato addebitato. Ripeti l\'acquisto dalla pagina dei prezzi.',
+        }
+    elif status == 'open':
+        copy = {
+            'error_title': 'Pagamento non completato',
+            'error_heading': 'Il pagamento non è stato completato.',
+            'error_message': 'Nessun importo è stato addebitato. Puoi riprovare quando vuoi.',
+        }
+    else:
+        # Missing/invalid session_id or the Stripe lookup itself failed —
+        # don't imply anything about whether a charge went through.
+        copy = {
+            'error_title': 'Verifica non riuscita',
+            'error_heading': 'Non siamo riusciti a verificare il pagamento.',
+            'error_message': 'Se hai completato il pagamento riceverai comunque il codice via email a breve. Altrimenti riprova dalla pagina dei prezzi.',
+        }
+
     return render(request, 'pages/checkout/error.html', {
+        **copy,
         'website_url': settings.WEBSITE_URL,
+        'cta_url': f'{settings.WEBSITE_URL}/acquista.html',
     }, status=402 if status else 400)
 
 
@@ -214,6 +269,9 @@ def _fulfil_checkout(session):
     meta = session.get('metadata') or {}
     plan = (meta.get('plan') or PlatformPurchase.PLAN_APOLLO).lower()
     has_chiron = meta.get('chiron') == '1'
+    billing = meta.get('billing') or PlatformPurchase.BILLING_MONTHLY
+    if billing not in (PlatformPurchase.BILLING_MONTHLY, PlatformPurchase.BILLING_ANNUAL):
+        billing = PlatformPurchase.BILLING_MONTHLY
     subscription_id = session.get('subscription') or ''
 
     # Pull live status + renewal date from the subscription object (the session
@@ -241,6 +299,7 @@ def _fulfil_checkout(session):
             'email': email,
             'code': generate_platform_code(),
             'plan': plan,
+            'billing_interval': billing,
             'has_chiron': has_chiron,
             'status': status,
             'stripe_subscription_id': subscription_id,
