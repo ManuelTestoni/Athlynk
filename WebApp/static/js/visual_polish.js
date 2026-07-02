@@ -110,12 +110,19 @@
       }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
 
       var armEl = function (el, kids) {
-        if (el.classList.contains('al-armed') || !kids || !kids.length) return;
+        if (!kids || !kids.length) return;
+        // Always refresh --i on whatever children currently exist: a loading
+        // placeholder row (skeleton/empty-state) can get armed first, and the
+        // real rows that replace it need their own index recomputed — CSS
+        // applies the animation to newly-inserted rows automatically as long
+        // as --i and .al-armed/.is-in are correct at insertion time.
         for (var i = 0; i < kids.length; i++) {
           kids[i].style.setProperty('--i', Math.min(i, STAGGER_CAP));
         }
-        el.classList.add('al-armed');
-        staggerIO.observe(el);
+        if (!el.classList.contains('al-armed')) {
+          el.classList.add('al-armed');
+          staggerIO.observe(el);
+        }
       };
 
       scanStagger = function () {

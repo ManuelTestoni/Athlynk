@@ -82,8 +82,10 @@
     if (/^\/nutrizione\/integratori\/?$/.test(path) ||
         /^\/check\/(modelli|trova-coach)\/?$/.test(path)) return 'cards';
 
-    // workout library — coach: chips + card grid; athlete: hero + history
-    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'clienthero' : 'cards';
+    // workout library — coach: folder sidebar + card grid (same wb-shell
+    // layout as the nutrition library, hence sharing its 'nutrition'
+    // archetype); athlete: hero + history
+    if (/^\/allenamenti\/?$/.test(path)) return role === 'client' ? 'clienthero' : 'nutrition';
 
     // subscriptions — coach: KPI + tabs + plan grid; athlete: hero + plan grid
     if (/^\/abbonamenti\/?$/.test(path)) return role === 'client' ? 'subsclient' : 'subs';
@@ -111,7 +113,6 @@
       case 'chatlist':  return '56rem';   // max-w-4xl
       case 'form':      return '48rem';   // max-w-3xl
       case 'checklist': return '48rem';   // max-w-3xl
-      case 'settings':  return '61.25rem';// ~max-w of setgrid (980px)
       case 'home':      return '72rem';   // max-w-6xl
       case 'timeline':  return '72rem';   // max-w-6xl
       case 'subs':      return '';        // w-full
@@ -173,11 +174,9 @@
     return '<div class="al-pageskel-panel al-pageskel-chart">' +
              '<div class="al-skel"></div><div class="al-skel"></div></div>';
   }
-  function setcard() {
-    return '<div class="al-pageskel-panel al-pageskel-setcard">' +
-             '<div class="al-skel al-skel-circle al-skel-circle-md"></div>' +
-             '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
-           '</div>';
+  // settings vertical-tab nav item — icon dot + label
+  function setnavItem() {
+    return '<div class="al-pageskel-setnav-item"><div class="al-skel"></div><div class="al-skel"></div></div>';
   }
   function panel(inner) { return '<div class="al-pageskel-panel" style="padding:0">' + inner + '</div>'; }
 
@@ -220,6 +219,18 @@
              '<div class="al-pageskel-wcard-foot">' +
                '<div class="al-skel"></div><div class="al-skel al-pageskel-wcard-icon"></div>' +
              '</div>' +
+           '</div>';
+  }
+
+  // athlete subscription plan card — informational only, no footer/CTA:
+  // tag, title, description, price+interval (mirrors client_dashboard.html).
+  function plancardClient() {
+    return '<div class="al-pageskel-panel al-pageskel-plancard-client">' +
+             '<div class="al-skel al-pageskel-plcTag"></div>' +
+             '<div class="al-skel al-pageskel-plcTitle"></div>' +
+             '<div class="al-skel al-pageskel-plcDesc"></div>' +
+             '<div class="al-skel al-pageskel-plcDesc" style="width:70%"></div>' +
+             '<div class="al-skel al-pageskel-plcPrice"></div>' +
            '</div>';
   }
 
@@ -438,18 +449,25 @@
         panel(rep(row(), 6));
     }
     if (variant === 'subsclient') {
-      // athlete subscriptions — current-plan hero (4-stat) + plan card grid
+      // athlete subscriptions — current-plan hero (status pill + title +
+      // desc + price, then 4-stat row) + informational plan card grid
       return head(0) +
         '<div class="al-pageskel-panel al-pageskel-subhero" style="padding:0">' +
+          '<div class="al-pageskel-subhero-rule"></div>' +
           '<div class="al-pageskel-subhero-top">' +
-            '<div class="al-skel" style="width:160px;height:18px"></div>' +
-            '<div class="al-skel" style="width:90px;height:24px;border-radius:999px"></div>' +
+            '<div class="al-pageskel-subhero-main">' +
+              '<div class="al-skel al-pageskel-subhero-pill"></div>' +
+              '<div class="al-skel al-pageskel-subhero-title"></div>' +
+              '<div class="al-skel al-pageskel-subhero-desc"></div>' +
+            '</div>' +
+            '<div class="al-skel al-pageskel-subhero-price"></div>' +
           '</div>' +
+          '<div class="al-pageskel-subhero-divider"></div>' +
           '<div class="al-pageskel-substats">' +
             rep('<div class="al-pageskel-substat"><div class="al-skel"></div><div class="al-skel"></div></div>', 4) +
           '</div>' +
         '</div>' +
-        '<div class="al-pageskel-plangrid al-pageskel-plangrid-client">' + rep(plancard(), 6) + '</div>';
+        '<div class="al-pageskel-plangrid al-pageskel-plangrid-client">' + rep(plancardClient(), 6) + '</div>';
     }
     if (variant === 'checklist') {
       // athlete check inbox — to-do cards + completed table
@@ -460,8 +478,16 @@
         tableSkel(3, 4);
     }
     if (variant === 'settings') {
+      // vertical tab rail (Profilo/Sicurezza/Newsletter/Nutrizione/…) +
+      // single form card (section head + 2-col field grid)
       return head(0) +
-        '<div class="al-pageskel-setgrid">' + rep(setcard(), 6) + '</div>';
+        '<div class="al-pageskel-settings">' +
+          '<div class="al-pageskel-setnav">' + rep(setnavItem(), 6) + '</div>' +
+          '<div class="al-pageskel-panel al-pageskel-setmain">' +
+            '<div class="al-pageskel-setmain-head"><div class="al-skel"></div><div class="al-skel"></div><div class="al-skel"></div></div>' +
+            '<div class="al-pageskel-fieldgrid">' + rep(field(), 4) + '</div>' +
+          '</div>' +
+        '</div>';
     }
     if (variant === 'profile') {
       return head(1) +
@@ -486,16 +512,24 @@
           rep(clrow(), 6) + '</div>';
     }
     if (variant === 'chat') {
+      // Mirrors pages/chat/detail.html: back button, square avatar, name
+      // line, right-aligned action button, then bubbles and the composer
+      // (paperclip + input + send) with the same asymmetric padding the
+      // real page uses to clear the Chiron FAB.
       return '<div class="al-pageskel-chat">' +
           '<div class="al-pageskel-chatbar">' +
+            '<div class="al-skel al-pageskel-chatback"></div>' +
             '<div class="al-skel al-skel-circle al-skel-circle-md"></div>' +
             '<div class="al-pageskel-row-main"><div class="al-skel"></div><div class="al-skel"></div></div>' +
+            '<div class="al-skel al-pageskel-chatact"></div>' +
           '</div>' +
           '<div class="al-pageskel-chatbody">' +
-            bubble('in') + bubble('out') + bubble('in') + bubble('in') + bubble('out') +
+            bubble('in') + bubble('out') + bubble('in') + bubble('in') + bubble('out') + bubble('out') +
           '</div>' +
           '<div class="al-pageskel-chatcompose">' +
-            '<div class="al-skel"></div><div class="al-skel al-pageskel-btn"></div>' +
+            '<div class="al-skel al-pageskel-chatclip"></div>' +
+            '<div class="al-skel al-pageskel-chatinput"></div>' +
+            '<div class="al-skel al-pageskel-chatsend"></div>' +
           '</div>' +
         '</div>';
     }

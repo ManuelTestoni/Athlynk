@@ -1237,14 +1237,16 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-pageskel-btn { width: 132px; height: 42px; border-radius: var(--al-r-pill); }
 @media (max-width: 640px) { .al-pageskel-head-actions { display: none; } }
 
-/* dashboard KPI row */
+/* dashboard KPI row — mirrors the live grid-cols-1 md:grid-cols-2 lg:grid-cols-4
+   pattern shared by dashboard/analytics/abbonamenti (Tailwind md=768, lg=1024). */
 .al-pageskel-kpis {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--al-s-4, 16px);
   margin-bottom: var(--al-s-7, 28px);
 }
-@media (min-width: 768px) { .al-pageskel-kpis { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 768px)  { .al-pageskel-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .al-pageskel-kpis { grid-template-columns: repeat(4, 1fr); } }
 .al-pageskel-kpi .al-skel:nth-child(1) { width: 54%; height: 9px;  margin-bottom: 18px; }
 .al-pageskel-kpi .al-skel:nth-child(2) { width: 46%; height: 30px; margin-bottom: 14px; border-radius: var(--al-r-sm); }
 .al-pageskel-kpi .al-skel:nth-child(3) { width: 70%; height: 9px; }
@@ -1266,35 +1268,45 @@ body[data-page="chat"] .al-search { display: none !important; }
   .al-pageskel-builder { grid-template-columns: 320px 1fr; }
 }
 
-/* chat conversation — bar + bubbles + composer */
+/* chat conversation — bar + bubbles + composer.
+   Mirrors pages/chat/detail.html 1:1: full-bleed flush header/composer bars
+   (px-4/sm:px-5 py-3) around a marble message column, exact viewport height
+   (100vh - topbar - footer) so nothing jumps when the real page commits. */
 .al-pageskel-chat {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 220px);
+  height: calc(100vh - 64px - var(--al-footer-h, 32px));
+  min-height: 0;
 }
 .al-pageskel-chatbar {
   display: flex;
   align-items: center;
-  gap: var(--al-s-4, 16px);
-  padding-bottom: var(--al-s-4, 16px);
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08));
 }
-.al-pageskel-chatbody { flex: 1; padding: var(--al-s-5, 20px) 0; }
-.al-pageskel-bubble { display: flex; margin-bottom: 16px; }
-.al-pageskel-bubble .al-skel { height: 44px; border-radius: var(--al-r-md); }
+@media (min-width: 640px) { .al-pageskel-chatbar { padding: 12px 20px; } }
+.al-pageskel-chatback { width: 36px; height: 36px; border-radius: var(--al-r-sm); flex: none; }
+.al-pageskel-chatact  { width: 36px; height: 36px; border-radius: var(--al-r-pill); flex: none; margin-left: auto; }
+.al-pageskel-chatbody { flex: 1; overflow: hidden; padding: 16px; background: var(--al-marble); }
+@media (min-width: 640px) { .al-pageskel-chatbody { padding: 16px 24px; } }
+.al-pageskel-bubble { display: flex; margin-bottom: 14px; }
+.al-pageskel-bubble .al-skel { height: 40px; border-radius: var(--al-r-sm); }
 .al-pageskel-bubble-in  { justify-content: flex-start; }
 .al-pageskel-bubble-out { justify-content: flex-end; }
 .al-pageskel-bubble-in  .al-skel { width: 58%; }
-.al-pageskel-bubble-out .al-skel { width: 46%; }
+.al-pageskel-bubble-out .al-skel { width: 42%; }
 .al-pageskel-chatcompose {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-top: var(--al-s-4, 16px);
+  gap: 10px;
+  padding: 12px 84px 12px 16px;
   border-top: 1px solid var(--al-rule-faint, rgba(20,17,13,0.08));
 }
-.al-pageskel-chatcompose .al-skel:first-child { flex: 1; height: 46px; border-radius: var(--al-r-md); }
-.al-pageskel-chatcompose .al-pageskel-btn { width: 46px; flex: none; }
+@media (min-width: 640px) { .al-pageskel-chatcompose { padding: 12px 84px 12px 20px; } }
+.al-pageskel-chatclip  { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.al-pageskel-chatinput { flex: 1; height: 40px; border-radius: var(--al-r-md); }
+.al-pageskel-chatsend  { width: 40px; height: 40px; border-radius: var(--al-r-pill); flex: none; }
 
 .al-pageskel-panel {
   background: var(--al-marble);
@@ -1439,19 +1451,40 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-pageskel-evmark { width: 4px; height: 32px; border-radius: 2px; }
 .al-pageskel-evtag  { width: 70px; height: 18px; border-radius: var(--al-r-pill); }
 
-/* settings hub — two-column grid of preference panels */
-.al-pageskel-setgrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--al-s-4, 16px);
-  max-width: 980px;
+/* settings hub — vertical tab rail (left) + single form card (right),
+   mirrors impostazioni/dashboard.html's flex-col md:flex-row shell. */
+.al-pageskel-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--al-s-6, 24px);
 }
-@media (min-width: 768px) { .al-pageskel-setgrid { grid-template-columns: repeat(2, 1fr); } }
-.al-pageskel-setcard {
+@media (min-width: 768px) { .al-pageskel-settings { flex-direction: row; } }
+.al-pageskel-setnav {
+  width: 100%;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (min-width: 768px) { .al-pageskel-setnav { width: 224px; } }
+.al-pageskel-setnav-item {
   display: flex;
   align-items: center;
-  gap: var(--al-s-4, 16px);
+  gap: 12px;
+  padding: 12px 16px;
 }
+.al-pageskel-setnav-item .al-skel:first-child { width: 18px; height: 18px; border-radius: 50%; flex: none; }
+.al-pageskel-setnav-item .al-skel:last-child  { flex: 1; height: 11px; }
+.al-pageskel-setmain {
+  flex: 1;
+  min-height: 500px;
+  padding: 24px;
+}
+@media (min-width: 768px) { .al-pageskel-setmain { padding: 32px; } }
+.al-pageskel-setmain-head { margin-bottom: 24px; }
+.al-pageskel-setmain-head .al-skel:nth-child(1) { width: 24px;  height: 9px;  margin-bottom: 10px; }
+.al-pageskel-setmain-head .al-skel:nth-child(2) { width: 140px; height: 22px; margin-bottom: 10px; }
+.al-pageskel-setmain-head .al-skel:nth-child(3) { width: 60%;  height: 10px; }
 
 /* profile — main column + narrow side rail */
 .al-pageskel-profile {
@@ -1462,8 +1495,8 @@ body[data-page="chat"] .al-search { display: none !important; }
 }
 @media (min-width: 1024px) { .al-pageskel-profile { grid-template-columns: 1fr 320px; } }
 
-/* stat trio (il mio percorso) */
-@media (min-width: 768px) { .al-pageskel-kpis.al-pageskel-kpis-3 { grid-template-columns: repeat(3, 1fr); } }
+/* stat trio (il mio percorso) — real page is grid-cols-3 unconditionally */
+.al-pageskel-kpis.al-pageskel-kpis-3 { grid-template-columns: repeat(3, 1fr); }
 
 /* full-bleed (chat conversation) — cancel the .al-page p-4/sm:p-8 padding */
 .al-pageskel-bleed { margin: -16px; }
@@ -1646,19 +1679,39 @@ body[data-page="chat"] .al-search { display: none !important; }
 .al-pageskel-herostat .al-skel:first-child { width: 60%; height: 24px; margin-bottom: 8px; }
 .al-pageskel-herostat .al-skel:last-child  { width: 80%; height: 9px; }
 
-/* athlete subscriptions — current-plan hero + stat row */
+/* athlete subscriptions — current-plan hero + stat row. Mirrors
+   client_dashboard.html's al-card-flush hero: thin top rule, then a
+   p-6/lg:p-8 block with (status pill + title + description) on the left
+   and a price block on the right, a divider, then a 2/4-col stat grid. */
 .al-pageskel-subhero { margin-bottom: 32px; overflow: hidden; }
+.al-pageskel-subhero-rule { height: 3px; background: linear-gradient(90deg, var(--al-aegean, #1c4a52), var(--al-bronze, #9a7b4f)); opacity: 0.6; }
 .al-pageskel-subhero-top {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 22px 24px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;
+  padding: 24px 24px 20px;
 }
+@media (min-width: 1024px) { .al-pageskel-subhero-top { padding: 32px 32px 24px; } }
+.al-pageskel-subhero-main { flex: 1; min-width: 0; }
+.al-pageskel-subhero-pill  { width: 90px; height: 22px; border-radius: 999px; margin-bottom: 14px; }
+.al-pageskel-subhero-title { width: 45%; height: 22px; margin-bottom: 12px; }
+.al-pageskel-subhero-desc  { width: 70%; height: 11px; }
+.al-pageskel-subhero-price { flex: none; width: 110px; height: 34px; }
+.al-pageskel-subhero-divider { height: 1px; background: var(--al-rule-faint, rgba(20,17,13,0.08)); margin: 0 24px; }
+@media (min-width: 1024px) { .al-pageskel-subhero-divider { margin: 0 32px; } }
 .al-pageskel-substats {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
-  padding: 0 24px 24px;
+  padding: 20px 24px 24px;
 }
+@media (min-width: 1024px) { .al-pageskel-substats { padding: 24px 32px 32px; } }
 @media (min-width: 768px) { .al-pageskel-substats { grid-template-columns: repeat(4, 1fr); } }
-.al-pageskel-substat .al-skel:first-child { width: 70%; height: 22px; margin-bottom: 8px; }
-.al-pageskel-substat .al-skel:last-child  { width: 90%; height: 9px; }
+.al-pageskel-substat .al-skel:first-child { width: 50%; height: 9px; margin-bottom: 8px; }
+.al-pageskel-substat .al-skel:last-child  { width: 80%; height: 13px; }
+
+/* athlete plan card — informational only, no head/price-right/footer split */
+.al-pageskel-plancard-client { padding: 20px; }
+.al-pageskel-plcTag   { width: 70px;  height: 16px; margin-bottom: 12px; border-radius: var(--al-r-xs, 4px); }
+.al-pageskel-plcTitle { width: 55%;   height: 18px; margin-bottom: 14px; }
+.al-pageskel-plcDesc  { width: 100%;  height: 10px; margin-bottom: 8px; }
+.al-pageskel-plcPrice { width: 90px;  height: 26px; margin-top: 14px; }
 @media (min-width: 1280px) { .al-pageskel-plangrid-client { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 1536px) { .al-pageskel-plangrid-client { grid-template-columns: repeat(3, 1fr); } }
 
