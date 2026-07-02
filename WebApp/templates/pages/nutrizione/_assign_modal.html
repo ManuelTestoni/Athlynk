@@ -169,6 +169,20 @@
                     class="nz-textarea"></textarea>
         </label>
 
+        <!-- Overwrite warning: athlete already has a different active plan -->
+        <template x-if="selectedClient?.active_plan_id && selectedClient.active_plan_id !== assignPlanId">
+          <div class="nz-overwrite">
+            <strong><i class="ph ph-warning-circle"></i> Piano attivo già presente</strong>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+              Ha già in corso «<span x-text="selectedClient.active_plan_title"></span>». Assegnando questo piano, quello attivo verrà sostituito.
+            </p>
+            <label class="nz-overwrite-confirm">
+              <input type="checkbox" x-model="overwriteConfirmed">
+              <span>Sovrascrivi il piano attivo</span>
+            </label>
+          </div>
+        </template>
+
         <!-- Recap -->
         <div class="nz-recap" :class="{ 'is-ready': selectedClient }">
           <div class="nz-recap-left">
@@ -195,7 +209,7 @@
       <button @click="submitAssign()"
               type="button"
               class="al-btn al-btn-bronze nz-confirm"
-              :disabled="!selectedClient || saving">
+              :disabled="!selectedClient || saving || (selectedClient?.active_plan_id && selectedClient.active_plan_id !== assignPlanId && !overwriteConfirmed)">
         <span x-show="!saving && !successFlash" class="inline-flex items-center gap-2">
           <i class="ph ph-handshake"></i> Conferma assegnazione
         </span>
@@ -564,6 +578,28 @@
 .nz-spin {
   display: inline-block;
   animation: nzSpin .9s linear infinite;
+}
+
+/* Overwrite warning banner */
+.nz-overwrite {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fdba74;
+  border-left: 3px solid #ea580c;
+  border-radius: var(--al-r-sm);
+  padding: .7rem .85rem;
+  font-size: .8rem;
+  color: #7c2d12;
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+.nz-overwrite strong { color: #9a3412; }
+.nz-overwrite-confirm {
+  display: flex; align-items: center; gap: .5rem;
+  margin-top: .55rem;
+  padding-top: .55rem;
+  border-top: 1px dashed rgba(234,88,12,0.4);
+  font-size: .8rem; cursor: pointer; user-select: none;
+  color: #7c2d12; font-weight: 600;
 }
 
 /* Fabbisogni suggestion banner */

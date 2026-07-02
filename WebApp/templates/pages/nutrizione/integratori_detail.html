@@ -13,12 +13,14 @@
        selectedClient: null,
        assignNotes: '',
        saving: false,
+       overwriteConfirmed: false,
        get filteredClients() {
          const q = this.clientSearch.toLowerCase();
          return window._suppClients.filter(c => !q || c.name.toLowerCase().includes(q));
        },
        openAssign() {
          this.clientSearch=''; this.selectedClient=null; this.assignNotes='';
+         this.overwriteConfirmed=false;
          this.assignModal=true;
        },
        async submitAssign() {
@@ -218,10 +220,24 @@
           <label class="al-label">Note (opzionale)</label>
           <textarea x-model="assignNotes" rows="2" class="al-textarea"></textarea>
         </div>
+        <template x-if="selectedClient?.active_protocol_id && selectedClient.active_protocol_id !== {{ sheet.id }}">
+          <div style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fdba74; border-left: 3px solid #ea580c; border-radius: var(--al-r-sm); padding: .7rem .85rem; font-size: .8rem; color: #7c2d12; line-height: 1.4;">
+            <strong style="color: #9a3412;"><i class="ph ph-warning-circle"></i> Protocollo attivo già presente</strong>
+            <p class="al-small mt-1" style="color: #7c2d12;">
+              Ha già in corso «<span x-text="selectedClient.active_protocol_title"></span>». Assegnando questo protocollo, quello attivo verrà sostituito.
+            </p>
+            <label style="display: flex; align-items: center; gap: .5rem; margin-top: .55rem; padding-top: .55rem; border-top: 1px dashed rgba(234,88,12,0.4); font-size: .8rem; cursor: pointer; user-select: none; color: #7c2d12; font-weight: 600;">
+              <input type="checkbox" x-model="overwriteConfirmed">
+              <span>Sovrascrivi il protocollo attivo</span>
+            </label>
+          </div>
+        </template>
       </div>
       <div class="al-modal-foot">
         <button @click="assignModal=false" type="button" class="al-btn al-btn-ghost">Annulla</button>
-        <button @click="submitAssign()" :disabled="!selectedClient || saving" type="button" class="al-btn al-btn-bronze">
+        <button @click="submitAssign()"
+                :disabled="!selectedClient || saving || (selectedClient?.active_protocol_id && selectedClient.active_protocol_id !== {{ sheet.id }} && !overwriteConfirmed)"
+                type="button" class="al-btn al-btn-bronze">
           <span x-show="!saving">Assegna</span>
           <span x-show="saving">Salvo…</span>
         </button>

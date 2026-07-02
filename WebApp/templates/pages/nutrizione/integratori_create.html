@@ -122,10 +122,6 @@ window._suppClients = {{ clients_json|json_js }};
                                 <div x-show="openMenuIdx === idx" x-cloak
                                      class="al-card absolute right-0 z-20 mt-1 py-1"
                                      style="min-width: 190px; box-shadow: var(--al-shadow, 0 8px 24px rgba(0,0,0,.12));">
-                                    <button type="button" @click="saveAsModel(item); openMenuIdx = null"
-                                            class="w-full text-left px-4 py-2 text-sm hover:bg-marble flex items-center gap-2">
-                                        <i class="ph ph-bookmark-simple"></i> Salva come modello
-                                    </button>
                                     <button type="button" @click="removeItem(idx)"
                                             class="w-full text-left px-4 py-2 text-sm hover:bg-marble flex items-center gap-2"
                                             style="color: var(--al-danger);">
@@ -144,55 +140,16 @@ window._suppClients = {{ clients_json|json_js }};
                 </div>
             </div>
 
-            <!-- Azioni: aggiungi + da modelli -->
+            <!-- Azioni: aggiungi -->
             <div class="flex items-center gap-3 mt-5">
                 <button type="button" @click="addItem()" title="Aggiungi integratore" aria-label="Aggiungi integratore"
                         class="al-btn al-btn-bronze w-9 h-9 inline-flex items-center justify-center rounded-lg p-0">
                     <i class="ph ph-plus"></i>
                 </button>
-                <button type="button" @click="openModels()" class="al-btn al-btn-ghost">
-                    <i class="ph ph-bookmarks-simple text-sm"></i><span>Da modelli</span>
-                </button>
             </div>
         </div>
 
         <div x-show="errorMsg" x-cloak class="al-toast is-danger" x-text="errorMsg"></div>
-    </div>
-
-    <!-- Modal modelli -->
-    <div x-show="modelsOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="al-modal-backdrop" @click="modelsOpen = false"></div>
-        <div class="al-modal-panel relative" style="max-width: 480px; width: 100%;">
-            <div class="al-modal-head flex items-center justify-between">
-                <h3 class="al-h-3">I tuoi modelli</h3>
-                <button type="button" class="al-btn-icon al-btn-ghost" @click="modelsOpen = false"><i class="ph ph-x"></i></button>
-            </div>
-            <div class="al-modal-body" style="max-height: 420px; overflow-y: auto;">
-                <template x-if="modelsLoading">
-                    <div class="al-empty" style="padding: 24px;"><i class="ph ph-spinner-gap animate-spin text-2xl"></i></div>
-                </template>
-                <template x-if="!modelsLoading && models.length === 0">
-                    <div class="al-empty" style="padding: 28px 20px;">
-                        <i class="ph ph-bookmarks-simple text-3xl text-ink-line mb-2 block"></i>
-                        <p class="al-tag">Non hai ancora un integratore, creane uno.</p>
-                        <a href="{% url 'nutrizione_integratori_modelli' %}" class="al-link al-link-bronze mt-3 inline-block">Gestisci i tuoi modelli</a>
-                    </div>
-                </template>
-                <div class="space-y-2">
-                    <template x-for="m in models" :key="m.id">
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-marble" style="border: 1px solid var(--al-rule);">
-                            <button type="button" @click="addItem(m); modelsOpen = false" class="flex-1 text-left min-w-0">
-                                <p class="text-sm font-medium text-ink truncate" x-text="m.name"></p>
-                                <p class="al-tag mt-0.5" x-text="[ (m.quantity + ' ' + m.unit).trim(), m.timing ].filter(Boolean).join(' · ')"></p>
-                            </button>
-                            <button type="button" @click="deleteModel(m)" class="al-btn-icon al-btn-ghost" title="Elimina modello">
-                                <i class="ph ph-trash text-sm" style="color: var(--al-danger);"></i>
-                            </button>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -207,9 +164,6 @@ function sheetBuilder() {
     errorMsg: '',
     openMenuIdx: null,
     _seq: 0,
-    modelsOpen: false,
-    modelsLoading: false,
-    models: [],
 
     init() {
       const raw = window._sheetItems || [];
@@ -230,8 +184,8 @@ function sheetBuilder() {
       };
     },
 
-    addItem(model = null) {
-      this.items.push(this._mkItem(model || {}));
+    addItem() {
+      this.items.push(this._mkItem({}));
     },
 
     removeItem(idx) {
@@ -245,41 +199,6 @@ function sheetBuilder() {
       } else if (confirm('Eliminare «' + label + '»?')) {
         this.items.splice(idx, 1);
       }
-    },
-
-    async saveAsModel(item) {
-      if (!item.name.trim()) { this.errorMsg = 'Inserisci il nome dell\'integratore prima di salvarlo come modello.'; return; }
-      this.errorMsg = '';
-      try {
-        const res = await fetch('{% url "nutrizione_supplement_save_template" %}', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-          body: JSON.stringify({ name: item.name, quantity: item.quantity, unit: item.unit, timing: item.timing, notes: item.notes }),
-        });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok) { this.errorMsg = d.error || 'Errore nel salvataggio del modello.'; return; }
-        if (window.Alpine && Alpine.store('toasts')) Alpine.store('toasts').push({ kind: 'success', msg: 'Modello salvato.' });
-      } catch (e) { this.errorMsg = 'Errore di rete.'; }
-    },
-
-    async openModels() {
-      this.modelsOpen = true;
-      this.modelsLoading = true;
-      try {
-        const res = await fetch('{% url "nutrizione_supplement_templates" %}');
-        const d = await res.json().catch(() => ({ results: [] }));
-        this.models = d.results || [];
-      } catch (e) { this.models = []; }
-      this.modelsLoading = false;
-    },
-
-    async deleteModel(m) {
-      try {
-        const res = await fetch('/api/nutrizione/integratori/modelli/' + m.id + '/elimina/', {
-          method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'},
-        });
-        if (res.ok) this.models = this.models.filter(x => x.id !== m.id);
-      } catch (e) {}
     },
 
     async saveSheet() {

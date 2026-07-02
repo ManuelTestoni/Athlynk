@@ -59,6 +59,7 @@ function nutritionLibrary() {
     assignNotes: '',
     saving: false,
     successFlash: false,
+    overwriteConfirmed: false,
 
     /* delete plan */
     deleteModal: false,
@@ -334,6 +335,7 @@ function nutritionLibrary() {
       this.clientSearch = ''; this.selectedClient = null;
       this.startDate = ''; this.endDate = ''; this.assignNotes = '';
       this.successFlash = false;
+      this.overwriteConfirmed = false;
       this.assignModal = true;
     },
     async submitAssign() {

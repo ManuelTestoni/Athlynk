@@ -1528,15 +1528,24 @@ window.NUTRITION_WIZARD_INIT = {
   <!-- ============================================================== -->
   <div x-show="step === 'integratori'" x-cloak>
     <div class="al-card mb-6">
-      <div class="flex items-center gap-3 mb-6">
+      <div class="flex items-center gap-3 mb-6 flex-wrap">
         <i class="ph ph-pill text-bronze text-xl"></i>
         <div>
           <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
           <h2 class="al-h-3">Integrazione</h2>
         </div>
-        <button type="button" @click="addSupplement()" class="al-btn al-btn-ghost al-btn-sm ml-auto">
-          <i class="ph ph-plus"></i><span>Aggiungi integratore</span>
-        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button type="button" @click="openSupplementModels()" class="al-btn al-btn-ghost al-btn-sm">
+            <i class="ph ph-bookmarks-simple"></i><span>Da protocollo</span>
+          </button>
+          <button type="button" @click="saveSupplementSheet()"
+                  :disabled="!supplements.length || suppSaving || !suppIsDirty()"
+                  class="al-btn al-btn-bronze al-btn-sm" :class="{ 'is-loading': suppSaving }">
+            <i class="ph" :class="suppIsDirty() ? 'ph-floppy-disk' : 'ph-check'"></i>
+            <span x-show="!suppSaving" x-text="suppIsDirty() ? 'Salva come protocollo' : 'Salvato'"></span>
+            <span x-show="suppSaving">Salvataggio…</span>
+          </button>
+        </div>
       </div>
 
       <template x-if="supplements.length === 0">
@@ -1551,65 +1560,58 @@ window.NUTRITION_WIZARD_INIT = {
 
       <div class="space-y-3">
         <template x-for="(supp, idx) in supplements" :key="supp._key">
-          <div class="al-card al-card-warm al-card-flush" style="padding: 16px 18px;"
-               :class="supp._shake ? 'al-shake' : ''">
-            <div class="flex items-start gap-3">
-              <span class="font-mono shrink-0 mt-1"
-                    style="color: var(--al-ink-line); font-size: 12px;"
-                    x-text="String(idx + 1).padStart(2, '0')"></span>
-
-              <div class="flex-1 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-3">
-                <div>
-                  <label class="al-label">Integratore</label>
-                  <input type="text" x-model="supp.name" placeholder="Nome integratore" class="al-input"
-                         :class="supp._invalid ? 'is-error' : ''" @input="supp._invalid = false">
+          <div class="al-card al-card-warm al-card-flush" :class="supp._shake ? 'al-shake' : ''">
+            <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid var(--al-rule);">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0"
+                     style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
+                     x-text="idx + 1"></div>
+                <div class="flex-1 min-w-0">
+                  <input type="text" x-model="supp.name" placeholder="Nome integratore"
+                         class="w-full bg-transparent text-sm font-bold text-ink focus:outline-none placeholder-ink-mute"
+                         :class="supp._invalid ? 'is-error' : ''" @input="supp._invalid = false"
+                         style="border: none; padding: 0;">
                   <span x-show="supp._invalid" x-cloak class="al-input-error">Compila questo campo per proseguire o cancella integratore.</span>
                 </div>
-
-                <div>
-                  <label class="al-label">Dose</label>
-                  <div class="flex items-center gap-2">
-                    <input type="text" x-model="supp.quantity" placeholder="Quantità" class="al-input flex-1">
-                    <select x-model="supp.unit" class="al-input" style="width: 74px;">
-                      <option value="mg">mg</option>
-                      <option value="g">g</option>
-                      <option value="cps">cps</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="al-label">Quando</label>
-                  <input type="text" x-model="supp.timing" placeholder="Es. post-workout" class="al-input">
-                </div>
               </div>
-
-              <button type="button" @click="saveSupplementAsModel(supp)"
-                      class="al-btn al-btn-icon al-btn-ghost shrink-0 mt-5"
-                      :title="suppSavedKeys[supp._key] ? 'Salvato nei modelli' : 'Salva come modello'">
-                <i class="ph text-sm"
-                   :class="suppSavedKeys[supp._key] ? 'ph-bookmark-simple-fill' : 'ph-bookmark-simple'"
-                   :style="suppSavedKeys[supp._key] ? 'color: var(--al-bronze);' : ''"></i>
-              </button>
               <button type="button" @click="removeSupplement(supp._key)"
-                      class="al-btn al-btn-icon al-btn-ghost shrink-0 mt-5"
-                      title="Rimuovi">
-                <i class="ph ph-x text-sm"></i>
+                      class="al-btn al-btn-icon al-btn-ghost shrink-0" title="Rimuovi">
+                <i class="ph ph-trash text-sm"></i>
               </button>
             </div>
 
-            <div class="mt-3">
-              <input type="text" x-model="supp.notes" placeholder="Note (opzionale)…" class="al-input">
+            <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-[1fr_1fr_1.4fr] gap-3">
+              <div>
+                <label class="al-label">Dose</label>
+                <div class="flex items-center gap-2">
+                  <input type="text" x-model="supp.quantity" placeholder="Quantità" class="al-input flex-1">
+                  <select x-model="supp.unit" class="al-input" style="width: 74px;">
+                    <option value="mg">mg</option>
+                    <option value="g">g</option>
+                    <option value="cps">cps</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="al-label">Quando</label>
+                <input type="text" x-model="supp.timing" placeholder="Es. post-workout" class="al-input">
+              </div>
+
+              <div>
+                <label class="al-label">Note</label>
+                <input type="text" x-model="supp.notes" placeholder="Note (opzionale)…" class="al-input">
+              </div>
             </div>
           </div>
         </template>
       </div>
 
-      <div class="mt-6">
-        <label class="al-label">Note generali integrazione</label>
-        <textarea x-model="supplementNotes" rows="3" class="al-textarea"
-                  placeholder="Istruzioni complessive, ciclizzazioni, contesto…"></textarea>
-      </div>
+      <button type="button" @click="addSupplement()"
+              class="al-btn al-btn-ghost w-full mt-4"
+              style="border-style: dashed; padding: 18px;">
+        <i class="ph ph-plus text-lg"></i><span>Aggiungi integratore</span>
+      </button>
 
       <p class="al-tag mt-4 flex items-start gap-2" style="color: var(--al-ink-mute);">
         <i class="ph ph-info text-xs mt-0.5"></i>
@@ -1632,15 +1634,15 @@ window.NUTRITION_WIZARD_INIT = {
       </div>
     </div>
 
-    <!-- Pannello modelli integratori (drawer scorrevole) -->
+    <!-- Pannello protocolli integratori (drawer scorrevole) — importa una scheda salvata -->
     <template x-teleport="body">
       <div>
         <div class="sm-backdrop" :class="{ 'is-open': suppModelsOpen }" @click="suppModelsOpen = false" x-cloak></div>
-        <aside class="sm-drawer" :class="{ 'is-open': suppModelsOpen }" x-cloak role="dialog" aria-label="I tuoi modelli">
+        <aside class="sm-drawer" :class="{ 'is-open': suppModelsOpen }" x-cloak role="dialog" aria-label="I tuoi protocolli">
           <div class="sm-drawer-head">
             <div>
               <p class="al-eyebrow mb-1" style="color: var(--al-ink-mute);">Integrazione</p>
-              <h3 class="al-h-3">I tuoi modelli</h3>
+              <h3 class="al-h-3">I tuoi protocolli</h3>
             </div>
             <button type="button" class="al-btn-icon al-btn-ghost" @click="suppModelsOpen = false" title="Chiudi"><i class="ph ph-x"></i></button>
           </div>
@@ -1648,40 +1650,22 @@ window.NUTRITION_WIZARD_INIT = {
             <template x-if="suppModelsLoading">
               <div class="al-empty" style="padding: 24px;"><i class="ph ph-spinner-gap animate-spin text-2xl"></i></div>
             </template>
-            <template x-if="!suppModelsLoading && suppModels.length === 0">
+            <template x-if="!suppModelsLoading && suppProtocols.length === 0">
               <div class="al-empty" style="padding: 28px 20px;">
                 <i class="ph ph-bookmarks-simple text-3xl mb-2 block" style="color: var(--al-ink-line);"></i>
-                <p class="al-tag">Nessun modello salvato. Usa l'icona segnalibro su un integratore per salvarlo qui.</p>
+                <p class="al-tag">Nessun protocollo salvato. Usa "Salva come protocollo" per crearne uno.</p>
               </div>
             </template>
             <div class="space-y-2">
-              <template x-for="m in suppModels" :key="m.id">
-                <div class="rounded-lg" style="border: 1px solid var(--al-rule);">
-                  <!-- vista -->
-                  <div x-show="suppEditId !== m.id" class="flex items-center gap-2 px-3 py-2">
-                    <button type="button" @click="addFromModel(m)" class="flex-1 text-left min-w-0">
-                      <p class="text-sm font-medium text-ink truncate" x-text="m.name"></p>
-                      <p class="al-tag mt-0.5" x-text="[(m.quantity + ' ' + m.unit).trim(), m.timing].filter(Boolean).join(' · ')"></p>
-                    </button>
-                    <button type="button" @click="suppEditId = m.id" class="al-btn-icon al-btn-ghost" title="Modifica"><i class="ph ph-pencil-simple text-sm"></i></button>
-                    <button type="button" @click="deleteSupplementModel(m)" class="al-btn-icon al-btn-ghost" title="Elimina"><i class="ph ph-trash text-sm" style="color: var(--al-danger);"></i></button>
+              <template x-for="p in suppProtocols" :key="p.id">
+                <button type="button" @click="importProtocol(p)" class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg"
+                        style="border: 1px solid var(--al-rule);">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-ink truncate" x-text="p.title"></p>
+                    <p class="al-tag mt-0.5" x-text="p.item_count + ' integratori'"></p>
                   </div>
-                  <!-- modifica -->
-                  <div x-show="suppEditId === m.id" x-cloak class="p-3 space-y-2">
-                    <input type="text" x-model="m.name" placeholder="Nome" class="al-input">
-                    <div class="flex gap-2">
-                      <input type="text" x-model="m.quantity" placeholder="Quantità" class="al-input flex-1">
-                      <select x-model="m.unit" class="al-input" style="width: 74px;">
-                        <option value="mg">mg</option><option value="g">g</option><option value="cps">cps</option>
-                      </select>
-                    </div>
-                    <input type="text" x-model="m.timing" placeholder="Quando" class="al-input">
-                    <div class="flex justify-end gap-2 pt-1">
-                      <button type="button" @click="suppEditId = null; loadSupplementModels()" class="al-btn al-btn-ghost al-btn-sm">Annulla</button>
-                      <button type="button" @click="saveModelEdit(m)" class="al-btn al-btn-bronze al-btn-sm">Salva</button>
-                    </div>
-                  </div>
-                </div>
+                  <i class="ph ph-arrow-square-in text-sm" style="color: var(--al-ink-line);"></i>
+                </button>
               </template>
             </div>
           </div>
@@ -1982,8 +1966,6 @@ window.NUTRITION_WIZARD_INIT = {
               </li>
             </template>
           </ul>
-          <p class="al-small mt-3" x-show="supplementNotes" style="color: var(--al-ink-soft);"
-             x-text="supplementNotes"></p>
         </div>
       </div>
 

@@ -827,14 +827,17 @@ struct CoachNutritionWizardView: View {
     @State private var savedPlanId: Int?
     @State private var clients: [CoachAssignableClient] = []
     @State private var selectedClients: Set<Int> = []
+    @State private var showOverwriteConfirm = false
 
     // Supplement step
     @State private var supplementItems: [CoachSupplementItem] = []
     @State private var supplementNotes = ""
-    @State private var showSupplementModels = false
-    @State private var supplementModels: [CoachSupplementModel] = []
-    @State private var supplementSavedModelIds: Set<UUID> = []
-    @State private var supplementPendingSaveItem: CoachSupplementItem? = nil
+    @State private var showSupplementProtocols = false
+    @State private var supplementProtocolsLoading = false
+    @State private var supplementProtocols: [CoachSupplementSummary] = []
+    @State private var supplementPendingDeleteItem: CoachSupplementItem? = nil
+    @State private var supplementsSaved = false
+    @State private var supplementsSavedSnapshot: String? = nil
 
     @State private var busy = false
     @State private var loadingPlan = false
@@ -984,14 +987,25 @@ struct CoachNutritionWizardView: View {
                         .foregroundStyle(Palette.void0).frame(width: 38, height: 38)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(accent))
                 }
-                Button { Haptics.tap(); Task { await wzLoadSupplementModels() } } label: {
+                Button { Haptics.tap(); Task { await wzLoadSupplementProtocols() } } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "bookmark.fill").font(.system(size: 13, weight: .bold))
-                        Text("Da modelli").font(Typo.body(14, .semibold))
+                        Text("Da protocollo").font(Typo.body(14, .semibold))
                     }
                     .foregroundStyle(Palette.textHi).padding(.horizontal, 14).padding(.vertical, 10).voltPanel(radius: 12)
                 }
                 Spacer()
+                if !supplementItems.isEmpty {
+                    Button { Task { await wzSaveSupplementSheet() } } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: supplementIsDirty ? "square.and.arrow.down" : "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                            Text(supplementIsDirty ? "Salva come protocollo" : "Salvato").font(Typo.body(13, .semibold))
+                        }
+                        .foregroundStyle(Palette.textHi).padding(.horizontal, 12).padding(.vertical, 9).voltPanel(radius: 12)
+                    }
+                    .disabled(!supplementIsDirty)
+                }
             }
 
             WZNavButtons(canBack: true,
@@ -1000,38 +1014,40 @@ struct CoachNutritionWizardView: View {
                          accent: accent, onBack: { withAnimation(.snappy) { step = 1 } }) {
                 Haptics.tap()
                 withAnimation(.snappy) { step = 3 }
-                Task { clients = (try? await APIClient.shared.coachAssignableClients()) ?? [] }
+                Task { clients = (try? await APIClient.shared.coachNutritionAssignableClients(excludePlanId: savedPlanId ?? planId)) ?? [] }
             }
         }
-        .sheet(isPresented: $showSupplementModels) { wzSupplementModelsSheet }
+        .sheet(isPresented: $showSupplementProtocols) { wzSupplementProtocolsSheet }
         .confirmationDialog(
-            "Hai già questo integratore salvato, vuoi salvarlo comunque?",
-            isPresented: .init(get: { supplementPendingSaveItem != nil },
-                               set: { if !$0 { supplementPendingSaveItem = nil } }),
+            "Eliminare l'integratore?",
+            isPresented: .init(get: { supplementPendingDeleteItem != nil },
+                               set: { if !$0 { supplementPendingDeleteItem = nil } }),
             titleVisibility: .visible
         ) {
-            Button("Salva comunque") {
-                if let it = supplementPendingSaveItem {
-                    supplementPendingSaveItem = nil
-                    Task { await wzPerformSaveSupplementModel(it) }
-                }
+            Button("Elimina", role: .destructive) {
+                if let it = supplementPendingDeleteItem { supplementItems.removeAll { $0.rowId == it.rowId } }
+                supplementPendingDeleteItem = nil
             }
-            Button("Annulla", role: .cancel) { supplementPendingSaveItem = nil }
+            Button("Annulla", role: .cancel) { supplementPendingDeleteItem = nil }
         }
     }
 
+    private var supplementIsDirty: Bool {
+        wzSupplementSerialize() != supplementsSavedSnapshot
+    }
+
+    private func wzSupplementSerialize() -> String {
+        let clean = supplementItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+        let parts = clean.map { "\($0.name)|\($0.quantity)|\($0.unit)|\($0.timing)|\($0.notes)" }
+        return parts.joined(separator: "\n")
+    }
+
     private func wzSupplementCard(_ item: Binding<CoachSupplementItem>) -> some View {
-        let isSaved = supplementSavedModelIds.contains(item.wrappedValue.rowId)
-        return VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
                     .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(accent)
-                Button { Task { await wzSaveSupplementModel(item.wrappedValue) } } label: {
-                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isSaved ? Palette.textHi : Palette.textMid)
-                }
-                Button(role: .destructive) { supplementItems.removeAll { $0.rowId == item.wrappedValue.rowId } } label: {
+                Button(role: .destructive) { supplementPendingDeleteItem = item.wrappedValue } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Palette.textLow)
@@ -1072,68 +1088,77 @@ struct CoachNutritionWizardView: View {
         .padding(14).voltPanel(radius: 14)
     }
 
-    private var wzSupplementModelsSheet: some View {
+    private var wzSupplementProtocolsSheet: some View {
         NavigationStack {
             ScreenScroll {
-                if supplementModels.isEmpty {
-                    Text("Non hai ancora modelli salvati.")
+                if supplementProtocolsLoading {
+                    ForEach(0..<3, id: \.self) { _ in SkelLinkRow(accent: accent) }
+                } else if supplementProtocols.isEmpty {
+                    Text("Non hai ancora un protocollo salvato.")
                         .font(Typo.body(14)).foregroundStyle(Palette.textLow)
                         .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 24)
                 } else {
-                    ForEach(supplementModels) { m in
-                        Button {
-                            supplementItems.append(CoachSupplementItem(
-                                name: m.name, quantity: m.quantity,
-                                unit: m.unit.isEmpty ? "g" : m.unit,
-                                timing: m.timing, notes: m.notes))
-                            showSupplementModels = false
-                        } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(m.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                                Text([("\(m.quantity) \(m.unit)").trimmingCharacters(in: .whitespaces), m.timing]
-                                    .filter { !$0.isEmpty }.joined(separator: " · "))
-                                    .font(Typo.mono(11)).foregroundStyle(Palette.textLow)
+                    ForEach(supplementProtocols) { p in
+                        Button { Task { await wzImportSupplementProtocol(p) } } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(p.title).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                                    Text("\(p.itemCount) integratori").font(Typo.mono(11)).foregroundStyle(Palette.textLow)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: "arrow.down.doc").foregroundStyle(Palette.textLow)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16).padding(.vertical, 12).voltPanel()
                         }
                         .buttonStyle(.plain)
-                        .padding(.horizontal, 16).padding(.vertical, 12).voltPanel()
                     }
                 }
             }
-            .navigationTitle("I tuoi modelli")
+            .navigationTitle("I tuoi protocolli")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { showSupplementModels = false } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { showSupplementProtocols = false } } }
         }
         .presentationDetents([.medium, .large])
     }
 
-    private func wzLoadSupplementModels() async {
-        do { supplementModels = try await APIClient.shared.coachSupplementModels(); showSupplementModels = true }
-        catch { flash.failure("Impossibile caricare i modelli") }
+    private func wzLoadSupplementProtocols() async {
+        supplementProtocolsLoading = true
+        defer { supplementProtocolsLoading = false }
+        showSupplementProtocols = true
+        do { supplementProtocols = try await APIClient.shared.coachSupplements() }
+        catch { flash.failure("Impossibile caricare i protocolli") }
     }
 
-    private func wzSaveSupplementModel(_ item: CoachSupplementItem) async {
-        guard !item.name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        if supplementModels.isEmpty {
-            supplementModels = (try? await APIClient.shared.coachSupplementModels()) ?? []
-        }
-        let name = item.name.trimmingCharacters(in: .whitespaces).lowercased()
-        if supplementModels.contains(where: { $0.name.trimmingCharacters(in: .whitespaces).lowercased() == name }) {
-            supplementPendingSaveItem = item
-        } else {
-            await wzPerformSaveSupplementModel(item)
-        }
-    }
-
-    private func wzPerformSaveSupplementModel(_ item: CoachSupplementItem) async {
+    private func wzImportSupplementProtocol(_ p: CoachSupplementSummary) async {
         do {
-            _ = try await APIClient.shared.coachSaveSupplementModel(
-                ["name": item.name, "quantity": item.quantity, "unit": item.unit,
-                 "timing": item.timing, "notes": item.notes])
-            supplementSavedModelIds.insert(item.rowId)
+            let detail = try await APIClient.shared.coachSupplementDetail(id: p.id)
+            supplementItems.append(contentsOf: detail.items)
+            showSupplementProtocols = false
+        } catch { flash.failure("Impossibile importare il protocollo") }
+    }
+
+    private func wzSaveSupplementSheet() async {
+        guard let pid = savedPlanId ?? planId else {
+            let saved = try? await APIClient.shared.coachSaveNutritionPlan(planId: planId, payload: buildPayload())
+            guard let saved, saved > 0 else { flash.failure("Salvataggio non riuscito"); return }
+            savedPlanId = saved
+            await wzPersistSupplementSheet(planId: saved)
+            return
+        }
+        await wzPersistSupplementSheet(planId: pid)
+    }
+
+    private func wzPersistSupplementSheet(planId: Int) async {
+        let clean = supplementItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+        do {
+            try await APIClient.shared.coachSaveNutritionSupplements(
+                planId: planId,
+                items: clean.map { ["name": $0.name, "quantity": $0.quantity,
+                                    "unit": $0.unit, "timing": $0.timing, "notes": $0.notes] },
+                notes: supplementNotes)
+            supplementsSavedSnapshot = wzSupplementSerialize()
             Haptics.tap()
-        } catch { flash.failure("Impossibile salvare il modello") }
+        } catch { flash.failure("Integratori non salvati") }
     }
 
     private var weekdayTabs: some View {
@@ -1302,7 +1327,19 @@ struct CoachNutritionWizardView: View {
                            ? "Salva piano"
                            : "Salva e assegna a \(selectedClients.count)",
                        icon: "tray.and.arrow.down.fill", color: accent, loading: busy) {
-                Task { await save() }
+                let conflicts = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }
+                if conflicts.isEmpty {
+                    Task { await save() }
+                } else {
+                    showOverwriteConfirm = true
+                }
+            }
+            .alert("Piano attivo presente", isPresented: $showOverwriteConfirm) {
+                Button("Sostituisci", role: .destructive) { Task { await save() } }
+                Button("Annulla", role: .cancel) {}
+            } message: {
+                let n = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }.count
+                Text("\(n == 1 ? "Un atleta ha" : "\(n) atleti hanno") già un piano attivo. Continuare sostituirà il piano corrente con quello nuovo.")
             }
 
             wzBackLink { withAnimation(.snappy) { step = 2 } }
@@ -1426,6 +1463,7 @@ struct CoachNutritionWizardView: View {
                     notes: i["notes"] as? String ?? "")
             }
         }
+        supplementsSavedSnapshot = wzSupplementSerialize()
     }
 
     private func buildPayload() -> [String: Any] {

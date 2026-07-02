@@ -273,24 +273,6 @@ class SupplementProtocolAssignment(models.Model):
         return f"{self.protocol.title} → {self.client_id}"
 
 
-class SupplementTemplateItem(models.Model):
-    """A single supplement the coach saved as a reusable model ("modello"),
-    inserted into the builder from the coach's personal models."""
-    coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_template_items')
-    name = models.CharField(max_length=200)
-    quantity = models.CharField(max_length=50, blank=True, default='')
-    unit = models.CharField(max_length=10, choices=SUPPLEMENT_UNIT_CHOICES, blank=True, default='g')
-    timing = models.CharField(max_length=120, blank=True, default='')
-    notes = models.TextField(blank=True, default='')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
 class NutritionAssignment(models.Model):
     nutrition_plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='assignments')
     client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='nutrition_assignments')

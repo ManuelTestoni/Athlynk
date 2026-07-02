@@ -21,7 +21,7 @@ from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case,
 from domain.nutrition.models import (
     Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
     NutritionAssignment, DietDay, ClientMacroLogEntry,
-    SupplementProtocol, SupplementItem, SupplementProtocolAssignment, SupplementTemplateItem,
+    SupplementProtocol, SupplementItem, SupplementProtocolAssignment,
 )
 
 
@@ -360,8 +360,13 @@ def nutrizione_piani_view(request):
                 coaching_relationships_as_client__status='ACTIVE'
             ).select_related('user')
         )
+        plan_map = _active_plan_map(coach)
         clients_json = json.dumps([
-            {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+            {
+                'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
+                'active_plan_id': plan_map.get(c.id, {}).get('id'),
+                'active_plan_title': plan_map.get(c.id, {}).get('title'),
+            }
             for c in clients
         ])
         cache.set(_nkey, (plans_payload, folders_payload, clients_json), 300)
@@ -394,10 +399,13 @@ def nutrizione_piano_create_view(request):
         ).select_related('user')
     )
     fab_client_ids = _fabbisogni_client_ids(coach)
+    plan_map = _active_plan_map(coach)
     clients_json = json.dumps([
         {'id': c.id,
          'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
-         'has_fab': c.id in fab_client_ids}
+         'has_fab': c.id in fab_client_ids,
+         'active_plan_id': plan_map.get(c.id, {}).get('id'),
+         'active_plan_title': plan_map.get(c.id, {}).get('title')}
         for c in clients
     ])
 
@@ -453,10 +461,13 @@ def nutrizione_piano_edit_view(request, plan_id):
         ).select_related('user')
     )
     fab_client_ids = _fabbisogni_client_ids(coach)
+    plan_map = _active_plan_map(coach)
     clients_json = json.dumps([
         {'id': c.id,
          'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
-         'has_fab': c.id in fab_client_ids}
+         'has_fab': c.id in fab_client_ids,
+         'active_plan_id': plan_map.get(c.id, {}).get('id'),
+         'active_plan_title': plan_map.get(c.id, {}).get('title')}
         for c in clients
     ])
 
@@ -641,8 +652,13 @@ def nutrizione_piano_detail_view(request, plan_id):
         ).select_related('user')
     )
     assignable_clients = [c for c in clients if c.id not in already_assigned_ids]
+    plan_map = _active_plan_map(coach)
     clients_json = json.dumps([
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+        {
+            'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
+            'active_plan_id': plan_map.get(c.id, {}).get('id'),
+            'active_plan_title': plan_map.get(c.id, {}).get('title'),
+        }
         for c in assignable_clients
     ])
 
@@ -1990,13 +2006,36 @@ def _handle_plan_save(request, coach, plan):
 
 # ─── Supplement views ────────────────────────────────────────────────────────────
 
+def _active_plan_map(coach):
+    """client_id -> currently active diet plan (id/title), for overwrite warnings."""
+    return {
+        a.client_id: {'id': a.nutrition_plan_id, 'title': a.nutrition_plan.title}
+        for a in NutritionAssignment.objects.filter(coach=coach, status='ACTIVE')
+                 .select_related('nutrition_plan').order_by('-id')
+    }
+
+
+def _active_protocol_map(coach):
+    """client_id -> currently active supplement protocol (id/title), for overwrite warnings."""
+    return {
+        a.client_id: {'id': a.protocol_id, 'title': a.protocol.title}
+        for a in SupplementProtocolAssignment.objects.filter(coach=coach, status='ACTIVE')
+                 .select_related('protocol').order_by('-id')
+    }
+
+
 def _clients_json(coach):
     clients = ClientProfile.objects.filter(
         coaching_relationships_as_client__coach=coach,
         coaching_relationships_as_client__status='ACTIVE'
     ).select_related('user')
+    protocol_map = _active_protocol_map(coach)
     return json.dumps([
-        {'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email}
+        {
+            'id': c.id, 'name': f'{c.first_name} {c.last_name}'.strip() or c.user.email,
+            'active_protocol_id': protocol_map.get(c.id, {}).get('id'),
+            'active_protocol_title': protocol_map.get(c.id, {}).get('title'),
+        }
         for c in clients
     ])
 
@@ -2081,24 +2120,6 @@ def integratori_view(request):
     })
 
 
-def integratori_modelli_view(request):
-    """Coach's personal supplement models — compile once, reuse in any protocol."""
-    user = get_session_user(request)
-    if not user:
-        return redirect('login')
-    coach = get_session_coach(request)
-    if not coach:
-        return redirect('login')
-    models = coach.supplement_template_items.order_by('name')
-    models_json = json.dumps([{
-        'id': m.id, 'name': m.name, 'quantity': m.quantity or '',
-        'unit': m.unit or '', 'timing': m.timing or '', 'notes': m.notes or '',
-    } for m in models])
-    return render(request, 'pages/nutrizione/integratori_modelli.html', {
-        'models_json': models_json,
-    })
-
-
 def integratori_create_view(request):
     user = get_session_user(request)
     if not user:
@@ -2157,8 +2178,8 @@ def integratori_detail_view(request, sheet_id):
     })
 
 
-def api_supplement_templates(request):
-    """Coach's saved supplement "modelli" — used by the builder's models picker."""
+def api_supplement_protocols_list(request):
+    """Coach's saved supplement protocols (whole sheets) — used by the embedded builder's import picker."""
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
@@ -2166,48 +2187,15 @@ def api_supplement_templates(request):
     if not coach:
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
 
-    models = coach.supplement_template_items.order_by('name')
+    protocols = coach.supplement_protocols.prefetch_related('items').order_by('-updated_at')
     return JsonResponse({'results': [
         {
-            'id': m.id, 'name': m.name, 'quantity': m.quantity or '',
-            'unit': m.unit or '', 'timing': m.timing or '', 'notes': m.notes or '',
+            'id': p.id, 'title': p.title,
+            'item_count': p.items.count(),
+            'items': _serialize_protocol(p)['items'],
         }
-        for m in models
+        for p in protocols
     ]})
-
-
-@require_http_methods(["POST"])
-def api_supplement_save_template(request):
-    """Create (no id) or update (with id) a reusable supplement model for this coach."""
-    coach = get_session_coach(request)
-    if not get_session_user(request) or not coach:
-        return JsonResponse({'error': 'Non autorizzato'}, status=403)
-    try:
-        data = json.loads(request.body or '{}')
-    except ValueError:
-        return JsonResponse({'error': 'JSON non valido'}, status=400)
-    parsed = _parse_supplement_items([data])
-    if not parsed:
-        return JsonResponse({'error': 'Inserisci il nome dell\'integratore.'}, status=400)
-    model_id = data.get('id')
-    if model_id:
-        model = get_object_or_404(SupplementTemplateItem, id=model_id, coach=coach)
-        for k, v in parsed[0].items():
-            setattr(model, k, v)
-        model.save()
-    else:
-        model = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
-    return JsonResponse({'ok': True, 'id': model.id})
-
-
-@require_http_methods(["POST"])
-def api_supplement_template_delete(request, item_id):
-    coach = get_session_coach(request)
-    if not get_session_user(request) or not coach:
-        return JsonResponse({'error': 'Non autorizzato'}, status=403)
-    model = get_object_or_404(SupplementTemplateItem, id=item_id, coach=coach)
-    model.delete()
-    return JsonResponse({'ok': True})
 
 
 @require_http_methods(["POST"])

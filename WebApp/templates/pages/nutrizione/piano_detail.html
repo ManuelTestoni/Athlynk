@@ -943,6 +943,7 @@ function planDetail() {
   return {
     /* assign modal state (shared with _assign_modal.html) */
     assignModal: false,
+    assignPlanId: {{ plan.id }},
     assignPlanName: '{{ plan.title|escapejs }}',
     clientSearch: '',
     selectedClient: null,
@@ -951,6 +952,7 @@ function planDetail() {
     assignNotes: '',
     saving: false,
     successFlash: false,
+    overwriteConfirmed: false,
     blockedIds: new Set(),
 
     /* macros */
@@ -981,6 +983,7 @@ function planDetail() {
       this.clientSearch = ''; this.selectedClient = null;
       this.startDate = ''; this.endDate = ''; this.assignNotes = '';
       this.successFlash = false;
+      this.overwriteConfirmed = false;
       this.assignModal = true;
     },
 

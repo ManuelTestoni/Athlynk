@@ -549,8 +549,14 @@
           uncertain: false, source_page: null,
         });
       },
-      removeSupplement(idx) {
-        this.diet.supplements.splice(idx, 1);
+      async removeSupplement(idx) {
+        const s = this.diet.supplements[idx];
+        const label = (s && s.name || '').trim() || 'questo integratore';
+        const ok = window.alConfirm ? await window.alConfirm({
+          icon: 'ph-trash', title: 'Eliminare\nl\'integratore?',
+          subtitle: '«' + label + '» verrà rimosso.', confirmLabel: 'Sì, elimina',
+        }) : confirm('Eliminare «' + label + '»?');
+        if (ok) this.diet.supplements.splice(idx, 1);
       },
 
       macro(food, key) {

@@ -457,15 +457,26 @@ struct CoachSupplementDetail: Codable {
     let items: [CoachSupplementItem]
 }
 
-struct CoachSupplementModel: Codable, Identifiable, Hashable {
+struct CoachSupplementActiveAssignmentRef: Codable, Hashable {
+    let assignmentId: Int
+    let protocolId: Int
+    let protocolTitle: String
+    enum CodingKeys: String, CodingKey {
+        case assignmentId = "assignment_id"
+        case protocolId = "protocol_id"
+        case protocolTitle = "protocol_title"
+    }
+}
+
+struct CoachSupplementAssignableClient: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
-    let quantity: String
-    let unit: String
-    let timing: String
-    let notes: String
+    let activeAssignment: CoachSupplementActiveAssignmentRef?
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case activeAssignment = "active_assignment"
+    }
 }
-struct CoachSupplementModelsResponse: Codable { let results: [CoachSupplementModel] }
 
 struct CoachClientDetailDTO: Codable {
     let client: CoachClient

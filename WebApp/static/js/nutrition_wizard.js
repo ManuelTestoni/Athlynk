@@ -141,12 +141,12 @@ function nutritionWizard() {
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
 
-    /* === Step 3: supplement models (modelli) panel === */
+    /* === Step 3: import-from-protocol panel + whole-sheet save tracking === */
     suppModelsOpen: false,
     suppModelsLoading: false,
-    suppModels: [],
-    suppSavedKeys: {},   // supplement _key -> true once saved as model (bookmark feedback)
-    suppEditId: null,    // model id being edited inline in the panel
+    suppProtocols: [],
+    suppSavedSnapshot: null,   // JSON string of last-saved {items, notes}; null until first save
+    suppSaving: false,
 
     /* === Step 4 state === */
     recapDay: 'AVG',
@@ -178,6 +178,7 @@ function nutritionWizard() {
     endDate: '',
     assignNotes: '',
     successFlash: false,
+    overwriteConfirmed: false,
 
     /* === fabbisogni suggestion state === */
     fabbisogniData: null,
@@ -213,6 +214,7 @@ function nutritionWizard() {
       } else {
         this._originalSnapshot = null;
       }
+      this.suppSavedSnapshot = this._suppSerialize();
     },
 
     _snapshotState() {
@@ -458,6 +460,24 @@ function nutritionWizard() {
         })),
       }));
     },
+    _suppSerialize() {
+      return JSON.stringify(this.supplements
+        .filter(s => (s.name || '').trim())
+        .map(s => ({
+          name: s.name, quantity: s.quantity || '', unit: s.unit || '',
+          timing: s.timing || '', notes: s.notes || '',
+        })));
+    },
+    suppIsDirty() {
+      return this._suppSerialize() !== this.suppSavedSnapshot;
+    },
+    async saveSupplementSheet() {
+      if (!this.supplements.length) return;
+      this.suppSaving = true;
+      const ok = await this.persist();
+      if (ok) await this.persistSupplements();
+      this.suppSaving = false;
+    },
     async persistSupplements() {
       if (!this.planId) return;
       const items = this.supplements
@@ -475,6 +495,7 @@ function nutritionWizard() {
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.nutCsrfToken() },
           body: JSON.stringify({ items, notes: this.supplementNotes || '' }),
         });
+        this.suppSavedSnapshot = this._suppSerialize();
       } catch (e) {
         this.tryFallbackToast('Integratori non salvati.');
       }
@@ -883,88 +904,40 @@ function nutritionWizard() {
         _shake: false,
       });
     },
-    removeSupplement(key) {
+    async removeSupplement(key) {
       const i = this.supplements.findIndex(s => s._key === key);
-      if (i >= 0) this.supplements.splice(i, 1);
+      if (i < 0) return;
+      const label = (this.supplements[i].name || '').trim() || 'questo integratore';
+      const ok = window.alConfirm ? await window.alConfirm({
+        icon: 'ph-trash', title: 'Eliminare\nl\'integratore?',
+        subtitle: '«' + label + '» verrà rimosso.', confirmLabel: 'Sì, elimina',
+      }) : confirm('Eliminare «' + label + '»?');
+      if (ok) this.supplements.splice(i, 1);
     },
 
-    /* --- supplement models (modelli) --- */
+    /* --- import da un protocollo esistente (scheda intera) --- */
     async openSupplementModels() {
       this.suppModelsOpen = true;
-      this.suppEditId = null;
       await this.loadSupplementModels();
     },
     async loadSupplementModels() {
       this.suppModelsLoading = true;
       try {
-        const r = await fetch('/api/nutrizione/integratori/modelli/');
+        const r = await fetch('/api/nutrizione/integratori/schede/lista/');
         const d = await r.json().catch(() => ({ results: [] }));
-        this.suppModels = d.results || [];
-      } catch (_) { this.suppModels = []; }
+        this.suppProtocols = d.results || [];
+      } catch (_) { this.suppProtocols = []; }
       this.suppModelsLoading = false;
     },
-    addFromModel(m) {
-      this.supplements.push({
-        _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
-        name: m.name || '', quantity: m.quantity || '', unit: m.unit || 'g',
-        timing: m.timing || '', notes: m.notes || '', _invalid: false, _shake: false,
+    importProtocol(p) {
+      (p.items || []).forEach(it => {
+        this.supplements.push({
+          _key: 's' + Date.now() + Math.random().toString(36).slice(2, 5),
+          name: it.name || '', quantity: it.quantity || '', unit: it.unit || 'g',
+          timing: it.timing || '', notes: it.notes || '', _invalid: false, _shake: false,
+        });
       });
       this.suppModelsOpen = false;
-    },
-    async saveSupplementAsModel(supp) {
-      if (!(supp.name || '').trim()) { supp._invalid = true; return; }
-      // Duplicate-name confirm (client-side, mirrors iOS coach builder).
-      if (!this.suppModels.length) await this.loadSupplementModels();
-      const name = supp.name.trim().toLowerCase();
-      const dup = this.suppModels.some(m => (m.name || '').trim().toLowerCase() === name);
-      if (dup && window.alConfirm) {
-        const ok = await window.alConfirm({
-          icon: 'ph-bookmarks-simple',
-          title: 'Hai già questo\nintegratore salvato',
-          subtitle: 'Vuoi salvarlo comunque?',
-          confirmLabel: 'Salva comunque',
-        });
-        if (!ok) return;
-      }
-      try {
-        const r = await fetch('/api/nutrizione/integratori/modelli/salva/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.nutCsrfToken() },
-          body: JSON.stringify({ name: supp.name, quantity: supp.quantity, unit: supp.unit, timing: supp.timing, notes: supp.notes }),
-        });
-        if (r.ok) {
-          this.suppSavedKeys[supp._key] = true;
-          await this.loadSupplementModels();
-        }
-      } catch (_) {}
-    },
-    async saveModelEdit(m) {
-      if (!(m.name || '').trim()) return;
-      try {
-        const r = await fetch('/api/nutrizione/integratori/modelli/salva/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.nutCsrfToken() },
-          body: JSON.stringify({ id: m.id, name: m.name, quantity: m.quantity, unit: m.unit, timing: m.timing, notes: m.notes }),
-        });
-        if (r.ok) { this.suppEditId = null; await this.loadSupplementModels(); }
-      } catch (_) {}
-    },
-    async deleteSupplementModel(m) {
-      let ok = true;
-      if (window.alConfirm) {
-        ok = await window.alConfirm({
-          icon: 'ph-trash', title: 'Eliminare\nil modello?',
-          subtitle: '«' + (m.name || '') + '» verrà rimosso dai tuoi modelli.',
-          confirmLabel: 'Sì, elimina',
-        });
-      }
-      if (!ok) return;
-      try {
-        const r = await fetch('/api/nutrizione/integratori/modelli/' + m.id + '/elimina/', {
-          method: 'POST', headers: { 'X-CSRFToken': window.nutCsrfToken() },
-        });
-        if (r.ok) this.suppModels = this.suppModels.filter(x => x.id !== m.id);
-      } catch (_) {}
     },
     /* Block leaving the integratori step with nameless rows: flag + shake them. */
     validateSupplements() {
@@ -1097,6 +1070,7 @@ function nutritionWizard() {
         this.endDate = '';
         this.assignNotes = '';
         this.successFlash = false;
+        this.overwriteConfirmed = false;
         this.fabbisogniData = null;
         this.assignModal = true;
       });

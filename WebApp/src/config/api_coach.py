@@ -29,7 +29,7 @@ from domain.coaching.models import CoachingRelationship
 from domain.nutrition.models import (
     DietDay, Food, Meal, MealItem,
     NutritionAssignment, NutritionPlan, SupplementProtocol, SupplementItem,
-    SupplementProtocolAssignment, SupplementTemplateItem,
+    SupplementProtocolAssignment,
 )
 from domain.workouts.models import (
     Exercise, WorkoutAssignment, WorkoutDay, WorkoutExercise, WorkoutPlan,
@@ -2320,49 +2320,79 @@ def coach_nutrition_supplements(request, user, plan_id):
 
 
 @api_view(['GET'])
-def coach_supplement_templates(request, user):
+def coach_nutrition_assignable_clients(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
-    return JsonResponse({'results': [{
-        'id': m.id, 'name': m.name, 'quantity': m.quantity or '', 'unit': m.unit or '',
-        'timing': m.timing or '', 'notes': m.notes or '',
-    } for m in coach.supplement_template_items.order_by('name')]})
+    exclude_plan_id = request.GET.get('exclude_plan_id', '').strip()
+
+    clients = list(ClientProfile.objects.filter(
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    ).distinct().order_by('first_name', 'last_name'))
+
+    active_map = {}
+    if clients:
+        active_qs = NutritionAssignment.objects.filter(
+            client_id__in=[c.id for c in clients], coach=coach, status='ACTIVE',
+        ).select_related('nutrition_plan').order_by('-id')
+        if exclude_plan_id:
+            try:
+                active_qs = active_qs.exclude(nutrition_plan_id=int(exclude_plan_id))
+            except (ValueError, TypeError):
+                pass
+        for a in active_qs:
+            if a.client_id in active_map:
+                continue
+            active_map[a.client_id] = {
+                'assignment_id': a.id,
+                'plan_id': a.nutrition_plan_id,
+                'plan_title': a.nutrition_plan.title,
+            }
+
+    return JsonResponse([{
+        'id': c.id,
+        'name': f"{c.first_name} {c.last_name}".strip(),
+        'active_assignment': active_map.get(c.id),
+    } for c in clients], safe=False)
 
 
-@api_view(['POST'])
-def coach_supplement_template_save(request, user):
+@api_view(['GET'])
+def coach_supplement_assignable_clients(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
-    from .views_nutrition import _parse_supplement_items
-    data = _body(request)
-    parsed = _parse_supplement_items([data])
-    if not parsed:
-        return JsonResponse({'error': "Inserisci il nome dell'integratore."}, status=400)
-    model_id = data.get('id')
-    if model_id:
-        m = SupplementTemplateItem.objects.filter(id=model_id, coach=coach).first()
-        if not m:
-            return JsonResponse({'error': 'Modello non trovato'}, status=404)
-        for k, v in parsed[0].items():
-            setattr(m, k, v)
-        m.save()
-    else:
-        m = SupplementTemplateItem.objects.create(coach=coach, **parsed[0])
-    return JsonResponse({'ok': True, 'id': m.id})
+    exclude_protocol_id = request.GET.get('exclude_protocol_id', '').strip()
 
+    clients = list(ClientProfile.objects.filter(
+        coaching_relationships_as_client__coach=coach,
+        coaching_relationships_as_client__status='ACTIVE',
+    ).distinct().order_by('first_name', 'last_name'))
 
-@api_view(['POST'])
-def coach_supplement_template_delete(request, user, item_id):
-    coach, err = _require_coach(user)
-    if err:
-        return err
-    m = SupplementTemplateItem.objects.filter(id=item_id, coach=coach).first()
-    if not m:
-        return JsonResponse({'error': 'Modello non trovato'}, status=404)
-    m.delete()
-    return JsonResponse({'ok': True})
+    active_map = {}
+    if clients:
+        active_qs = SupplementProtocolAssignment.objects.filter(
+            client_id__in=[c.id for c in clients], coach=coach, status='ACTIVE',
+        ).select_related('protocol').order_by('-id')
+        if exclude_protocol_id:
+            try:
+                active_qs = active_qs.exclude(protocol_id=int(exclude_protocol_id))
+            except (ValueError, TypeError):
+                pass
+        for a in active_qs:
+            if a.client_id in active_map:
+                continue
+            active_map[a.client_id] = {
+                'assignment_id': a.id,
+                'protocol_id': a.protocol_id,
+                'protocol_title': a.protocol.title,
+            }
+
+    return JsonResponse([{
+        'id': c.id,
+        'name': f"{c.first_name} {c.last_name}".strip(),
+        'active_assignment': active_map.get(c.id),
+    } for c in clients], safe=False)
 
 
 @api_view(['POST'])

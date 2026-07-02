@@ -820,17 +820,17 @@ extension APIClient {
                               body: ["items": items, "notes": notes])
     }
 
-    func coachSupplementModels() async throws -> [CoachSupplementModel] {
-        try decode(CoachSupplementModelsResponse.self, from: try await request("/api/v1/coach/supplements/templates")).results
+    /// Assignable athletes with their currently active diet plan (for overwrite warnings).
+    func coachNutritionAssignableClients(excludePlanId: Int? = nil) async throws -> [CoachAssignableClient] {
+        var path = "/api/v1/coach/nutrition/assignable-clients"
+        if let excludePlanId { path += "?exclude_plan_id=\(excludePlanId)" }
+        return try decode([CoachAssignableClient].self, from: try await request(path))
     }
 
-    @discardableResult
-    func coachSaveSupplementModel(_ item: [String: Any]) async throws -> Int {
-        let data = try await request("/api/v1/coach/supplements/templates/save", method: "POST", body: item)
-        return try coachJSONObject(data)["id"] as? Int ?? 0
-    }
-
-    func coachDeleteSupplementModel(id: Int) async throws {
-        _ = try await request("/api/v1/coach/supplements/templates/\(id)/delete", method: "POST")
+    /// Assignable athletes with their currently active supplement protocol (for overwrite warnings).
+    func coachSupplementAssignableClients(excludeProtocolId: Int? = nil) async throws -> [CoachSupplementAssignableClient] {
+        var path = "/api/v1/coach/supplements/assignable-clients"
+        if let excludeProtocolId { path += "?exclude_protocol_id=\(excludeProtocolId)" }
+        return try decode([CoachSupplementAssignableClient].self, from: try await request(path))
     }
 }
