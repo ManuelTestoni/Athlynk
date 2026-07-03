@@ -30,6 +30,7 @@ except ImportError:
     from domain.appointments.models import Appointment
 
 from ..session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+from ..http_utils import safe_int
 
 
 
@@ -343,7 +344,7 @@ def check_templates_api(request):
         return JsonResponse({'error': 'forbidden'}, status=403)
 
     LIMIT = 10
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     folder_id_raw = request.GET.get('folder_id', 'all')
     q = (request.GET.get('q') or '').strip().lower()
 

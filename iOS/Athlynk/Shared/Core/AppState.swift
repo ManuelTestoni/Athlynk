@@ -31,6 +31,10 @@ final class AppState: ObservableObject {
     /// True when the signed-in user still has to accept Terms + Privacy. Blocks
     /// the app behind a consent screen until they do.
     @Published var needsTermsConsent = false
+    /// Set when `bootstrap()` fails for a reason other than an invalid token
+    /// (offline, server hiccup) — the token is kept and the splash screen
+    /// offers a retry instead of dropping the user back to the login form.
+    @Published var bootstrapRetryable = false
 
     private let tokenKey = "athlynk.api.token"
     private let api = APIClient.shared
@@ -59,10 +63,15 @@ final class AppState: ObservableObject {
             Analytics.shared.capture(.appOpened)
             enablePushNotifications()
         } catch {
-            // Token stale / server down → back to login.
-            api.token = nil
-            Keychain.delete(tokenKey)
-            phase = .login
+            // Only a genuine auth rejection means the token is stale — a
+            // connectivity blip or server-side failure shouldn't log the user out.
+            if case APIError.http(401, _) = error {
+                api.token = nil
+                Keychain.delete(tokenKey)
+                phase = .login
+            } else {
+                bootstrapRetryable = true
+            }
         }
     }
 

@@ -17,6 +17,7 @@ from domain.chat.models import Notification
 from .session_utils import (
     get_session_user, get_session_client, get_session_coach, can_manage_workouts,
 )
+from .http_utils import safe_int
 
 
 # ---------------------------------------------------------------------------
@@ -959,7 +960,7 @@ def api_progress_sessions(request, client_id):
     coach, client = res
 
     LIMIT = 10
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     qs = WorkoutSession.objects.filter(client=client).select_related(
         'workout_day', 'assignment__workout_plan',
     ).order_by('-started_at')

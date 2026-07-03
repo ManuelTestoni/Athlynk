@@ -30,6 +30,7 @@ except ImportError:
     from domain.appointments.models import Appointment
 
 from ..session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+from ..http_utils import safe_int
 
 
 
@@ -44,8 +45,8 @@ def api_check_search(request):
 
     q = request.GET.get('q', '').strip()
     tab = request.GET.get('tab', 'da_revisionare')
-    page = max(1, int(request.GET.get('page', 1)))
-    per_page = int(request.GET.get('per_page', 10))
+    page = max(1, safe_int(request.GET, 'page', 1))
+    per_page = safe_int(request.GET, 'per_page', 10)
     if per_page not in [10, 20]:
         per_page = 10
 

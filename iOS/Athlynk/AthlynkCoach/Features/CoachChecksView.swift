@@ -96,7 +96,8 @@ struct CoachChecksView: View {
         guard hasMore, !loadingMore else { return }
         loadingMore = true; defer { loadingMore = false }
         if let res = try? await APIClient.shared.coachChecks(filter: filter, offset: checks.count) {
-            checks.append(contentsOf: res.checks)
+            let known = Set(checks.map(\.id))
+            checks.append(contentsOf: res.checks.filter { !known.contains($0.id) })
             hasMore = res.hasMore
             pendingCount = res.pendingCount
         }

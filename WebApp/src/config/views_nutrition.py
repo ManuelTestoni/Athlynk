@@ -15,6 +15,7 @@ from config.session_utils import (
     get_nutrition_coach,
 )
 from config.services import import_quota
+from config.http_utils import safe_int
 from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
@@ -1000,10 +1001,14 @@ def api_meal_item_create(request, meal_id):
         food = Food.objects.get(id=int(food_id))
     except (Food.DoesNotExist, ValueError, TypeError):
         return JsonResponse({'error': 'Alimento non trovato'}, status=404)
+    try:
+        qty_g = float(qty)
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Quantità non valida'}, status=400)
 
     item = MealItem.objects.create(
         meal=meal, food=food,
-        quantity_g=float(qty),
+        quantity_g=qty_g,
         notes=(data.get('notes') or '').strip() or None,
     )
     return JsonResponse(_item_json(item), status=201)
@@ -1148,7 +1153,7 @@ def api_nutrition_plan_assignments_list(request, plan_id):
         return JsonResponse({'error': 'forbidden'}, status=403)
     plan = get_object_or_404(NutritionPlan, id=plan_id, coach=coach)
     LIMIT = 10
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     qs = NutritionAssignment.objects.filter(nutrition_plan=plan).select_related('client').order_by('-assigned_at')
     total = qs.count()
     data = [
@@ -1170,7 +1175,7 @@ def api_supplement_protocol_items(request, assignment_id):
         return JsonResponse({'error': 'forbidden'}, status=403)
     assignment = get_object_or_404(SupplementProtocolAssignment, id=assignment_id, client=client)
     LIMIT = 5
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     items = list(assignment.protocol.items.all().order_by('order'))
     total = len(items)
     page = items[offset:offset + LIMIT]

@@ -1714,13 +1714,19 @@ def session_log_set(request, user, session_id):
     reps = data.get('reps_done')
     load = data.get('load_used')
     rpe = data.get('rpe')
+    try:
+        set_number = int(data.get('set_number') or 1)
+        reps_done = int(reps) if reps not in (None, '') else None
+        rpe_value = int(rpe) if rpe not in (None, '') else None
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Valore numerico non valido'}, status=400)
     log, _ = WorkoutSetLog.objects.update_or_create(
-        session=session, workout_exercise=we, set_number=int(data.get('set_number') or 1),
+        session=session, workout_exercise=we, set_number=set_number,
         defaults={
-            'reps_done': int(reps) if reps not in (None, '') else None,
+            'reps_done': reps_done,
             'load_used': load if load not in (None, '') else None,
             'load_unit': data.get('load_unit') or 'KG',
-            'rpe': int(rpe) if rpe not in (None, '') else None,
+            'rpe': rpe_value,
             'completed': bool(data.get('completed', True)),
         },
     )

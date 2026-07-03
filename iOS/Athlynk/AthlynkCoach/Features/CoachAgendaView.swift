@@ -99,7 +99,9 @@ struct CoachAgendaView: View {
         guard hasMore, !loadingMore else { return }
         loadingMore = true; defer { loadingMore = false }
         if let res = try? await APIClient.shared.coachAgenda(offset: items.count) {
-            items.append(contentsOf: res.appointments); hasMore = res.hasMore
+            let known = Set(items.map(\.id))
+            items.append(contentsOf: res.appointments.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
         }
     }
 }

@@ -99,7 +99,9 @@ struct CoachWorkoutsView: View {
         guard hasMore, !loadingMore else { return }
         loadingMore = true; defer { loadingMore = false }
         if let res = try? await APIClient.shared.coachWorkouts(q: query, offset: plans.count) {
-            plans.append(contentsOf: res.plans); hasMore = res.hasMore
+            let known = Set(plans.map(\.id))
+            plans.append(contentsOf: res.plans.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
         }
     }
 }
@@ -197,7 +199,9 @@ struct CoachNutritionView: View {
         guard hasMore, !loadingMore else { return }
         loadingMore = true; defer { loadingMore = false }
         if let res = try? await APIClient.shared.coachNutrition(q: query, offset: plans.count) {
-            plans.append(contentsOf: res.plans); hasMore = res.hasMore
+            let known = Set(plans.map(\.id))
+            plans.append(contentsOf: res.plans.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
         }
     }
 }

@@ -11,6 +11,7 @@ from domain.coaching.models import CoachingRelationship
 from domain.calendar.models import Appointment
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
+from .http_utils import safe_int
 from .services.images import is_image, to_webp
 from .services.uploads import is_valid_video, safe_filename
 
@@ -95,7 +96,7 @@ def chat_list_view(request):
         with_msgs = [c for c in all_convs if c.last_msg_sent_at is not None]
         no_msgs   = [c for c in all_convs if c.last_msg_sent_at is None]
 
-        offset = max(0, int(request.GET.get('offset', 0)))
+        offset = max(0, safe_int(request.GET, 'offset', 0))
         page_convs = with_msgs[offset:offset + CHAT_PAGE_SIZE]
         has_more = len(with_msgs) > offset + CHAT_PAGE_SIZE
 

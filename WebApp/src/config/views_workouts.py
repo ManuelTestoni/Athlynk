@@ -22,6 +22,7 @@ from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
     get_workout_coach, can_manage_workouts,
 )
+from .http_utils import safe_int
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +504,7 @@ def api_plan_assignments_list(request, plan_id):
         return JsonResponse({'error': 'forbidden'}, status=403)
     plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
     LIMIT = 10
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     qs = plan.assignments.select_related('client').order_by('-created_at')
     total = qs.count()
     data = [

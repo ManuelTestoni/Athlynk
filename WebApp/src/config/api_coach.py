@@ -923,12 +923,15 @@ def check_template_assign(request, user, template_id):
     if client_ids is None and data.get('client_id'):
         client_ids = [data.get('client_id')]
     recurrence = data.get('recurrence_type', 'once')
-    weekly_day = data.get('weekly_day')
-    monthly_day = data.get('monthly_day')
-    duration_hrs = max(1, int(data.get('duration_hours', 72)))
     notes = (data.get('notes') or '').strip()
     if not client_ids:
         return JsonResponse({'error': 'Seleziona almeno un atleta.'}, status=400)
+    try:
+        duration_hrs = max(1, int(data.get('duration_hours', 72)))
+        weekly_day = int(data.get('weekly_day')) if data.get('weekly_day') not in (None, '') else None
+        monthly_day = int(data.get('monthly_day')) if data.get('monthly_day') not in (None, '') else None
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Valore numerico non valido'}, status=400)
 
     clients = list(ClientProfile.objects.filter(
         id__in=client_ids,
@@ -1698,6 +1701,7 @@ def client_workout(request, user, client_id):
 # ---------------------------------------------------------------------------
 
 _APPT_TYPES = {'check', 'prima_visita', 'visita', 'consulenza'}
+_APPT_STATUSES = {'SCHEDULED', 'CANCELLED', 'COMPLETED'}
 
 
 def _appointment_dict(request, a):
@@ -1789,7 +1793,9 @@ def agenda_detail(request, user, appointment_id):
     if 'meeting_url' in data:
         appt.meeting_url = (data.get('meeting_url') or '').strip()
     if 'status' in data and data.get('status'):
-        appt.status = data['status']
+        s = (data.get('status') or '').strip().upper()
+        if s in _APPT_STATUSES:
+            appt.status = s
     if 'client_id' in data and data.get('client_id'):
         c = ClientProfile.objects.filter(
             id=data['client_id'], coaching_relationships_as_client__coach=coach
@@ -2412,10 +2418,17 @@ def workout_assign(request, user, plan_id):
     if not client:
         return JsonResponse({'error': 'Atleta non associato'}, status=403)
 
+    start_date = date.today()
+    if data.get('start_date'):
+        parsed = parse_date(data.get('start_date'))
+        if not parsed:
+            return JsonResponse({'error': 'Data non valida'}, status=400)
+        start_date = parsed
+
     WorkoutAssignment.objects.filter(client=client, coach=coach, status='ACTIVE').update(status='CANCELLED')
     a = WorkoutAssignment.objects.create(
         workout_plan=plan, client=client, coach=coach,
-        start_date=data.get('start_date') or date.today(), status='ACTIVE',
+        start_date=start_date, status='ACTIVE',
     )
     Notification.objects.create(
         target_user=client.user, notification_type='WORKOUT_ASSIGNED',

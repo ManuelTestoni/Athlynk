@@ -109,7 +109,10 @@
         .then(html => {
             document.getElementById('check-table-container').innerHTML = html;
             attachPagination();
-            window.scrollTo({ top: document.getElementById('check-table-container').offsetTop - 80, behavior: 'smooth' });
+            const main = document.querySelector('main.al-canvas');
+            if (main) {
+                main.scrollTo({ top: document.getElementById('check-table-container').offsetTop - 80, behavior: 'smooth' });
+            }
             history.replaceState(null, '', url.toString());
         });
     }

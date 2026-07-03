@@ -1039,7 +1039,7 @@ struct CoachNutritionWizardView: View {
     private func wzSupplementSerialize() -> String {
         let clean = supplementItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
         let parts = clean.map { "\($0.name)|\($0.quantity)|\($0.unit)|\($0.timing)|\($0.notes)" }
-        return parts.joined(separator: "\n")
+        return parts.joined(separator: "\n") + "\n#\(supplementNotes)"
     }
 
     private func wzSupplementCard(_ item: Binding<CoachSupplementItem>) -> some View {
@@ -1519,13 +1519,11 @@ struct CoachNutritionWizardView: View {
             savedPlanId = pid
 
             let cleanedSupplements = supplementItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-            if !cleanedSupplements.isEmpty {
-                try await APIClient.shared.coachSaveNutritionSupplements(
-                    planId: pid,
-                    items: cleanedSupplements.map { ["name": $0.name, "quantity": $0.quantity,
-                                                     "unit": $0.unit, "timing": $0.timing, "notes": $0.notes] },
-                    notes: supplementNotes)
-            }
+            try await APIClient.shared.coachSaveNutritionSupplements(
+                planId: pid,
+                items: cleanedSupplements.map { ["name": $0.name, "quantity": $0.quantity,
+                                                 "unit": $0.unit, "timing": $0.timing, "notes": $0.notes] },
+                notes: supplementNotes)
 
             for clientId in selectedClients {
                 try await APIClient.shared.coachAssignNutrition(planId: pid, clientId: clientId)

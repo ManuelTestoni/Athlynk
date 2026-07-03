@@ -20,6 +20,8 @@ def consent_api(request):
         data = json.loads(request.body.decode('utf-8') or '{}')
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     prefs = {
         'necessary': True,
@@ -27,7 +29,7 @@ def consent_api(request):
         'analytics': bool(data.get('analytics', False)),
         'marketing': bool(data.get('marketing', False)),
     }
-    consent_id = (data.get('consent_id') or '').strip() or secrets.token_urlsafe(16)
+    consent_id = str(data.get('consent_id') or '').strip()[:64] or secrets.token_urlsafe(16)
     user = get_session_user(request)
 
     CookieConsentRecord.objects.create(

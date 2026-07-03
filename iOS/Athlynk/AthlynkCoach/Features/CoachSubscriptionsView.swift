@@ -90,7 +90,9 @@ struct CoachSubscriptionsView: View {
         guard hasMore, !loadingMore else { return }
         loadingMore = true; defer { loadingMore = false }
         if let res = try? await APIClient.shared.coachSubscriptions(offset: subs.count) {
-            subs.append(contentsOf: res.subscriptions); hasMore = res.hasMore
+            let known = Set(subs.map(\.id))
+            subs.append(contentsOf: res.subscriptions.filter { !known.contains($0.id) })
+            hasMore = res.hasMore
         }
     }
 }

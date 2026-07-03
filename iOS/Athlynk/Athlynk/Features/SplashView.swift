@@ -47,6 +47,25 @@ struct SplashView: View {
                 }
                 .frame(width: 180, height: 6)
                 .padding(.top, 8)
+
+                if app.bootstrapRetryable {
+                    Text("Connessione assente. Riprova.")
+                        .font(Typo.mono(12, .bold))
+                        .foregroundStyle(Palette.textMid)
+                        .padding(.top, 12)
+                    Button {
+                        app.bootstrapRetryable = false
+                        Task { await app.bootstrap() }
+                    } label: {
+                        Text("RIPROVA")
+                            .font(Typo.mono(13, .bold))
+                            .tracking(2)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(Capsule().fill(Palette.magenta))
+                    }
+                }
             }
         }
         .task {

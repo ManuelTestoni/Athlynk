@@ -63,6 +63,7 @@ struct ChatDetailView: View {
     @State private var hasOlder = false
     @State private var loadingOlder = false
     @FocusState private var focused: Bool
+    @StateObject private var flash = StatusFlash()
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -111,6 +112,7 @@ struct ChatDetailView: View {
         // restore it on the way out.
         .onAppear { app.tabBarHidden = true }
         .onDisappear { app.tabBarHidden = false }
+        .statusOverlay(flash)
     }
 
     private func bubble(_ m: MessageDTO) -> some View {
@@ -197,9 +199,11 @@ struct ChatDetailView: View {
         let text = draft.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
         sending = true; draft = ""; Haptics.tap()
-        try? await APIClient.shared.send(conversation: conversation.id, body: text)
-        // Empty chat has no "last id" to poll against — reload the first page.
-        if messages.isEmpty { await reload() } else { await pollOnce() }
+        do {
+            try await APIClient.shared.send(conversation: conversation.id, body: text)
+            // Empty chat has no "last id" to poll against — reload the first page.
+            if messages.isEmpty { await reload() } else { await pollOnce() }
+        } catch { flash.failure("Invio non riuscito"); draft = text }
         sending = false
     }
 }

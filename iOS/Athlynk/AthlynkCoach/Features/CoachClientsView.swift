@@ -128,7 +128,8 @@ struct CoachClientsView: View {
         do {
             let res = try await APIClient.shared.coachClients(query: query, status: statusFilter,
                                                               offset: rows.count)
-            rows.append(contentsOf: res.clients)
+            let known = Set(rows.map(\.id))
+            rows.append(contentsOf: res.clients.filter { !known.contains($0.id) })
             hasMore = res.hasMore
         } catch { self.error = error.localizedDescription }
     }

@@ -20,6 +20,7 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .transport: return "Problema di connessione. Controlla la rete e riprova."
+        case .http(401, _): return "Email o password errati."
         default:         return "Si è verificato un errore. Riprova."
         }
     }
