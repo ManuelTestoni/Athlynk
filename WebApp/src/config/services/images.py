@@ -8,9 +8,12 @@ and the frontend can serve a single format.
 from __future__ import annotations
 
 import io
+import logging
 import os
 
 from django.core.files.base import ContentFile
+
+logger = logging.getLogger(__name__)
 
 
 WEBP_QUALITY = 90  # high-efficiency setting; visually lossless for photos
@@ -54,7 +57,7 @@ def to_webp(uploaded_file, *, max_dim: int = MAX_DIM, quality: int = WEBP_QUALIT
         try:
             uploaded_file.seek(0)
         except Exception:
-            pass
+            logger.exception('to_webp.seek_reset failed, reading from current position')
 
     img = Image.open(uploaded_file)
     img = ImageOps.exif_transpose(img)  # honor camera rotation
@@ -102,5 +105,5 @@ def is_image(uploaded_file) -> bool:
         try:
             uploaded_file.seek(0)
         except Exception:
-            pass
+            logger.exception('is_image.seek_reset failed after rejecting upload')
         return False

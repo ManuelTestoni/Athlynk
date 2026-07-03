@@ -1,7 +1,11 @@
+import logging
+
 from django.db.models import Q
 
 from domain.accounts.models import User, CoachProfile, ClientProfile
 from domain.coaching.models import CoachingRelationship
+
+logger = logging.getLogger(__name__)
 
 
 def get_session_user(request):
@@ -164,7 +168,7 @@ def enforce_client_access(client):
                 from domain.chat.services import send_automatic_message
                 send_automatic_message(coach, client, 'SUBSCRIPTION_EXPIRING')
             except Exception:
-                pass
+                logger.exception('subscription_expiring_message.failed client_id=%s', client.id)
 
     return deactivated_total
 

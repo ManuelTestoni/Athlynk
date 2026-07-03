@@ -124,8 +124,7 @@
                 if (!this.selectedClientId) { this.errorMsg = 'Seleziona un atleta.'; return; }
                 this.loading = true; this.errorMsg = '';
                 try {
-                    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value
-                        || document.cookie.split('; ').find(r => r.startsWith('csrftoken=')).split('=')[1];
+                    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || window.csrfToken();
                     const res = await fetch('/api/abbonamenti/piano/' + this.planId + '/assegna/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
@@ -206,15 +205,14 @@
                 payFilter: 'all',
                 async markPaid(subId) {
                     if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-currency-eur', title: 'Segnare come\npagato?', subtitle: 'Lo stato pagamento passerà a Pagato.', confirmLabel: 'Sì, segna pagato' })) return;
-                    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value
-                        || document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+                    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || window.csrfToken();
                     try {
                         const res = await fetch('/api/abbonamenti/iscrizioni/' + subId + '/pagato/', {
                             method: 'POST', headers: { 'X-CSRFToken': csrf },
                         });
                         if (res.ok) { window.location.reload(); }
-                        else { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore nel salvataggio.' }); }
-                    } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+                        else { toastError('Errore nel salvataggio.'); }
+                    } catch (e) { toastError('Errore di rete.'); }
                 }
              }" class="flex-1 flex flex-col min-h-0">
 

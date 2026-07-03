@@ -748,7 +748,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       },
 
       getCsrf() {
-        return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+        return window.csrfToken();
       },
 
       // Normalizza il testo del messaggio: niente righe vuote in testa/coda e

@@ -1005,7 +1005,7 @@ function planDetail() {
         this.successFlash = true;
         setTimeout(() => window.location.reload(), 700);
       } else {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore durante l\'assegnazione.' });
+        toastError('Errore durante l\'assegnazione.');
       }
     },
   };

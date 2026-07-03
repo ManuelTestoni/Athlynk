@@ -320,8 +320,7 @@ function labelManager(assignedData, allLabelsData, clientId) {
         },
         openModal() { this.error = ''; this.newName = ''; this.open = true; },
         _csrf() {
-            return document.querySelector('meta[name="csrf-token"]')?.content
-              || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1];
+            return window.csrfToken();
         },
         async assignLabel(labelId) {
             const resp = await fetch(`/api/coach/clienti/${clientId}/etichette/`, {

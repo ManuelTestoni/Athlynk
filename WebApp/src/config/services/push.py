@@ -131,4 +131,4 @@ def _deactivate(token) -> None:
         from domain.accounts.models import DeviceToken
         DeviceToken.objects.filter(token=token).update(is_active=False)
     except Exception:
-        pass
+        logger.exception('device_token_deactivate.failed')

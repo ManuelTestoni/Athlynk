@@ -312,9 +312,7 @@
       closeForm() { this.formOpen = false; },
 
       _csrf() {
-        return document.querySelector('[name=csrfmiddlewaretoken]')?.value
-          || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1]
-          || '';
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || window.csrfToken();
       },
 
       async submitPhase() {

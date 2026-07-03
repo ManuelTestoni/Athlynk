@@ -85,8 +85,7 @@
         this.open = true;
       },
       _csrf() {
-        return document.querySelector('meta[name="csrf-token"]')?.content
-          || (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1];
+        return window.csrfToken();
       },
       async submit() {
         this.error = '';

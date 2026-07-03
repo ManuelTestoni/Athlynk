@@ -3,9 +3,7 @@
    Source data is bootstrapped via window.CHECK_LIBRARY_INIT in the template. */
 
 function chkCsrfToken() {
-  return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1]
-    || (window.CHECK_LIBRARY_INIT && window.CHECK_LIBRARY_INIT.csrf)
-    || '';
+  return window.csrfToken() || (window.CHECK_LIBRARY_INIT && window.CHECK_LIBRARY_INIT.csrf) || '';
 }
 
 function checkLibrary() {
@@ -104,11 +102,11 @@ function checkLibrary() {
           body: JSON.stringify({ title }),
         });
         const data = await res.json();
-        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); return; }
+        if (!res.ok) { toastError(data.error || 'Errore'); return; }
         this.folders.push(data);
         this.selectedFolderId = data.id;
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+        toastError('Errore di rete.');
       }
       this.cancelCreateFolder();
     },
@@ -132,9 +130,9 @@ function checkLibrary() {
           body: JSON.stringify({ title: newTitle }),
         });
         const data = await res.json();
-        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); this.cancelEditFolder(); return; }
+        if (!res.ok) { toastError(data.error || 'Errore'); this.cancelEditFolder(); return; }
         folder.title = data.title;
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { toastError('Errore di rete.'); }
       this.cancelEditFolder();
     },
 
@@ -183,7 +181,7 @@ function checkLibrary() {
         });
         if (!res.ok) {
           const data = await res.json();
-          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
+          toastError(data.error || 'Errore');
           return;
         }
         const deletedId = this.folderToDelete.id;
@@ -199,7 +197,7 @@ function checkLibrary() {
         }
         this.folders = this.folders.filter(f => f.id !== deletedId);
         if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { toastError('Errore di rete.'); }
       this.deleteFolderOpen = false;
       this.folderToDelete = null;
     },
@@ -230,7 +228,7 @@ function checkLibrary() {
         });
         if (!res.ok) throw new Error('save');
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Riordino non salvato. Riprova.' });
+        toastError('Riordino non salvato. Riprova.');
       }
     },
     async dropTemplateOnFolder(folderId) {
@@ -258,7 +256,7 @@ function checkLibrary() {
           const f = this.folders.find(f => f.id === folderId);
           if (f) f.template_count += 1;
         }
-      } catch (e) { tpl.folder_id = previousFolderId; Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { tpl.folder_id = previousFolderId; toastError('Errore di rete.'); }
     },
 
     /* === template actions === */
@@ -270,8 +268,8 @@ function checkLibrary() {
         });
         const data = await res.json();
         if (data.success) { window.location.reload(); }
-        else { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); }
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
+        else { toastError(data.error || 'Errore'); }
+      } catch (e) { toastError('Errore di rete'); }
     },
     async restore(id) {
       if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ripristinare il\nmodello?', subtitle: 'Tornerà alla configurazione di base. Le modifiche andranno perse.', confirmLabel: 'Sì, ripristina' })) return;
@@ -282,8 +280,8 @@ function checkLibrary() {
         });
         const data = await res.json();
         if (data.success) { window.location.reload(); }
-        else { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); }
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
+        else { toastError(data.error || 'Errore'); }
+      } catch (e) { toastError('Errore di rete'); }
     },
     async openDelete(id) {
       if (!(await window.alConfirm({
@@ -302,7 +300,7 @@ function checkLibrary() {
           method: 'POST', headers: { 'X-CSRFToken': chkCsrfToken() },
         });
         const data = await res.json();
-        if (!data.success) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); return; }
+        if (!data.success) { toastError(data.error || 'Errore'); return; }
         const tpl = this.templates.find(t => t.id === id);
         if (tpl && tpl.folder_id) {
           const f = this.folders.find(f => f.id === tpl.folder_id);
@@ -310,7 +308,7 @@ function checkLibrary() {
         }
         this.templates = this.templates.filter(t => t.id !== id);
         this.deleteModal = false;
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
+      } catch (e) { toastError('Errore di rete'); }
     },
 
     editUrl(id) { return this.urls.templateEdit.replace('__ID__', id); },

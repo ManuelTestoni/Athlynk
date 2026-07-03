@@ -79,6 +79,9 @@ struct MeResponse: Codable {
 
 // MARK: - Workouts
 
+/// Athlete-facing exercise shape. Coach counterpart: `CoachWorkoutExerciseDTO`
+/// (AthlynkCoach/Core/CoachModels.swift) — same backend resource, kept separate
+/// because the coach payload carries editing-only fields. Keep field names in sync.
 struct ExerciseDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -129,6 +132,8 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
     }
 }
 
+/// Athlete-facing workout day shape. Coach counterpart: `CoachWorkoutDayDTO`
+/// (AthlynkCoach/Core/CoachModels.swift). Keep field names in sync.
 struct WorkoutDayDTO: Codable, Identifiable, Hashable {
     let id: Int
     let dayOrder: Int
@@ -155,6 +160,8 @@ struct WorkoutDaySelection: Hashable {
     let assignmentId: Int
 }
 
+/// Athlete-facing workout plan shape. Coach counterpart: `CoachWorkoutDetailDTO`
+/// (AthlynkCoach/Core/CoachModels.swift). Keep field names in sync.
 struct WorkoutPlanDTO: Codable, Identifiable, Hashable {
     let assignmentId: Int
     let planId: Int
@@ -184,6 +191,12 @@ struct WorkoutsResponse: Codable { let plans: [WorkoutPlanDTO] }
 
 // MARK: - Nutrition
 
+/// Athlete-facing meal item shape, backed by `config/api.py`'s athlete nutrition
+/// endpoints (JSON key `carbs`, plural). Coach counterpart: `CoachMealItemDTO`
+/// (AthlynkCoach/Core/CoachModels.swift) is backed by a *different* endpoint
+/// (`config/api_coach.py`'s `_food_macros()`, JSON key `carb`, singular) — the
+/// key mismatch is real but each DTO is correct for its own endpoint. Don't
+/// "fix" one to match the other without changing the backend serializer too.
 struct MealItemDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String?
@@ -199,6 +212,8 @@ struct MealItemDTO: Codable, Identifiable, Hashable {
     }
 }
 
+/// Athlete-facing meal shape. Coach counterpart: `CoachMealDTO`
+/// (AthlynkCoach/Core/CoachModels.swift). Keep field names in sync.
 struct MealDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -520,6 +535,9 @@ struct ProgressPhotoDTO: Codable, Identifiable, Hashable {
     }
 }
 
+/// Athlete-facing progress-check entry. Coach counterpart: `CoachProgressEntry`
+/// (AthlynkCoach/Core/CoachModels.swift) — near-identical shape, differs in
+/// `measurements`/`skinfolds` optionality and photo type. Keep field names in sync.
 struct ProgressEntryDTO: Codable, Identifiable, Hashable {
     let id: Int
     let submittedAt: String?
@@ -653,6 +671,9 @@ struct FoodDTO: Codable, Identifiable, Hashable {
     let fat: Double
 }
 
+/// Athlete-facing macro totals. Coach counterpart: `CoachMacros`
+/// (AthlynkCoach/Core/CoachModels.swift) adds a `micros` field. Keep the
+/// shared fields (kcal/protein/carb/fat) in sync.
 struct MacroMacrosDTO: Codable, Hashable {
     let kcal: Double
     let protein: Double
@@ -880,6 +901,8 @@ struct SessionDetailDTO: Codable, Identifiable {
 
 // MARK: - Supplements (Integratori)
 
+/// Athlete-facing supplement item. Coach counterpart: `CoachSupplementItem`
+/// (AthlynkCoach/Core/CoachModels.swift). Keep field names in sync.
 struct SupplementItemDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String

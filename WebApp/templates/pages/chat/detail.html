@@ -347,7 +347,7 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
     },
     clearAttachment() { this.attachment = null; this.attachmentName = ''; },
     getCsrf() {
-      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+      return window.csrfToken();
     },
 
     async loadOlder() {

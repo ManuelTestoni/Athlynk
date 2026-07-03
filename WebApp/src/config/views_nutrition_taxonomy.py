@@ -7,17 +7,14 @@ workouts and vice-versa.
 
 from __future__ import annotations
 
-import json
-
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 from domain.nutrition.models import NutritionFolder, NutritionPlan
 
-from .session_utils import (
-    can_manage_nutrition, get_session_coach, get_session_user,
-)
+from .http_utils import parse_json_body, require_coach, serialize_folder
+from .session_utils import can_manage_nutrition
 
 
 ALLOWED_LABEL_COLORS = {
@@ -27,32 +24,16 @@ ALLOWED_LABEL_COLORS = {
 
 
 def _require_coach(request):
-    user = get_session_user(request)
-    if not user:
-        return None, JsonResponse({'error': 'Unauthenticated'}, status=401)
-    coach = get_session_coach(request)
-    if not coach or not can_manage_nutrition(coach):
-        return None, JsonResponse({'error': 'forbidden'}, status=403)
-    return coach, None
+    return require_coach(request, can_manage_nutrition)
 
 
 def _serialize_folder(folder, plan_count=None):
-    return {
-        'id': folder.id,
-        'title': folder.title,
-        'label_text': folder.label_text or '',
-        'label_color': folder.label_color or '',
-        'order': folder.order,
-        'plan_count': plan_count if plan_count is not None else folder.plans.count(),
-    }
+    count = plan_count if plan_count is not None else folder.plans.count()
+    return serialize_folder(folder, 'plan_count', count)
 
 
 def _parse_body(request):
-    try:
-        body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
-        return json.loads(body) if body else {}, None
-    except Exception:
-        return None, JsonResponse({'error': 'invalid json'}, status=400)
+    return parse_json_body(request)
 
 
 def api_nutrition_folders(request):

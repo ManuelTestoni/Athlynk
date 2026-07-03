@@ -1085,7 +1085,7 @@ function checkFill() {
             if (taken) { this.fbFormulaError = 'Esiste già una formula con questo nome.'; return; }
             this.fbSaving = true;
             try {
-                const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+                const csrf = window.csrfToken();
                 const res = await fetch('{% url "api_bmr_formula_create" %}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },

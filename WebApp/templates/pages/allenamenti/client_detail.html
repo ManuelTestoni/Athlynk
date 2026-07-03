@@ -291,7 +291,7 @@ function sessionsHistory(assignmentId, hasMoreInitial, totalInitial) {
         this.hasMore = !!d.has_more;
         this.total = d.total ?? this.total;
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore nel caricamento delle sessioni.' });
+        toastError('Errore nel caricamento delle sessioni.');
       } finally {
         this.loading = false;
       }

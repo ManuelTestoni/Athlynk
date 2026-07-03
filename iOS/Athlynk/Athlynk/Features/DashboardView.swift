@@ -35,10 +35,14 @@ final class DashboardVM: ObservableObject {
         async let n = APIClient.shared.nutrition()
         async let c = APIClient.shared.checks()
         async let v = APIClient.shared.conversations()
-        if let r = try? await w { workouts = r;      cache.set("dashboard.workouts", r) }
-        if let r = try? await n { nutrition = r;     cache.set("dashboard.nutrition", r) }
-        if let r = try? await c { checks = r;        cache.set("dashboard.checks", r) }
-        if let r = try? await v { conversations = r; cache.set("dashboard.conversations", r) }
+        do { workouts = try await w;      cache.set("dashboard.workouts", workouts) }
+        catch { print("DashboardVM.load workouts failed: \(error.localizedDescription)") }
+        do { nutrition = try await n;     cache.set("dashboard.nutrition", nutrition) }
+        catch { print("DashboardVM.load nutrition failed: \(error.localizedDescription)") }
+        do { checks = try await c;        cache.set("dashboard.checks", checks) }
+        catch { print("DashboardVM.load checks failed: \(error.localizedDescription)") }
+        do { conversations = try await v; cache.set("dashboard.conversations", conversations) }
+        catch { print("DashboardVM.load conversations failed: \(error.localizedDescription)") }
         loading = false
     }
 

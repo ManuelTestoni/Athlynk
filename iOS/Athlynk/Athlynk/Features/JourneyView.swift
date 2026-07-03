@@ -297,6 +297,8 @@ struct JourneyView: View {
             let known = Set(events.map(\.id))
             events.append(contentsOf: r.events.filter { !known.contains($0.id) })
             hasMore = r.hasMore
-        } catch {}
+        } catch {
+            print("JourneyView.loadMore failed: \(error.localizedDescription)")
+        }
     }
 }

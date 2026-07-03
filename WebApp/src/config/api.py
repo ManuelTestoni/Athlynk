@@ -1909,7 +1909,7 @@ def check_submit(request, user, instance_id):
         from .views_check.assignments import _notify_coach_check_completed
         _notify_coach_check_completed(instance)
     except Exception:
-        pass
+        logger.exception('check_completed_email.failed check_id=%s', resp.id)
     return JsonResponse({'id': resp.id, 'status': 'completed'}, status=201)
 
 

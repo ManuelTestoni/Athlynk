@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.db import transaction
@@ -18,6 +20,8 @@ from domain.chat.models import Notification
 
 from .services.email import send_workout_assigned
 from .services import import_quota
+
+logger = logging.getLogger(__name__)
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
     get_workout_coach, can_manage_workouts,
@@ -968,7 +972,7 @@ def api_plan_finalize(request, plan_id):
                     plan_url = f"{_settings.SITE_URL}/allenamenti/"
                     send_workout_assigned(client, coach, plan, plan_url)
                 except Exception:
-                    pass
+                    logger.exception('workout_assigned_email.failed plan_id=%s', plan.id)
             plan.status = 'ACTIVE'
             plan.save()
 
@@ -1904,7 +1908,7 @@ def api_workout_import_confirm(request):
                     plan_url = f"{_settings.SITE_URL}/allenamenti/"
                     send_workout_assigned(client, coach, plan, plan_url)
                 except Exception:
-                    pass
+                    logger.exception('workout_assigned_email.failed plan_id=%s', plan.id)
                 plan.status = WorkoutPlan.STATUS_ACTIVE
                 plan.save(update_fields=['status'])
     except Exception as e:

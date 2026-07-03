@@ -12,6 +12,7 @@ account deletion) are reused from the athlete API and are not duplicated here.
 """
 
 import json
+import logging
 from datetime import date, timedelta
 
 from django.db import transaction
@@ -39,7 +40,9 @@ from domain.workouts.models import (
 from .api import (
     api_view, _body, _iso, _abs_media, _coach_dict, _message_dict,
     coach_dual_auth, _request_coach, _parse_measurement_body,
+    _bearer, _user_from_token, _day_dict, macro_history_payload,
 )
+from .http_utils import safe_int
 from .session_utils import can_manage_nutrition, can_manage_workouts
 from .views_check import (
     create_quick_measurement, QuickMeasurementError,
@@ -48,7 +51,20 @@ from .views_check import (
 from .views_check.helpers import _response_config, _build_prefill
 from .views_check.templates_admin import _ensure_preset_clones, PRESET_ORDER
 from .views_check.assignments import _create_instance
-from .views_client import _create_client_subscription, _rel_type_for
+from .views_client import (
+    _create_client_subscription, _rel_type_for,
+    _build_percorso_events, _serialize_phases, _one_year_after_month,
+)
+from .views_nutrition import WEEKDAY_REVERSE, _serialize_protocol, _parse_supplement_items
+from .views_session import (
+    build_exercise_trend, _serialize_session_brief, _serialize_session_full,
+)
+from .views_workouts import _serialize_plan_for_wizard
+
+from domain.analytics.models import (
+    CoachBusinessMetricsDaily, DailyFeatureStore, RiskScoreDaily,
+)
+from domain.analytics.services import rules_engine as _rules
 from .services import password_reset as pwd_reset
 from .services.email import send_account_activation
 from .services.tokens import get_client_ip
@@ -62,7 +78,7 @@ from chiron.memory import build_context, reset as reset_chiron_memory
 from chiron.actions import execute_action as chiron_execute_action
 from domain.chiron.models import ChironMessage
 
-logger = __import__('logging').getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +96,6 @@ def _require_coach(user):
 def _coach_or_401(request):
     """Return (coach, error_response) for dual-auth (bearer OR session) coach views.
     Gives specific 401 messages so iOS can distinguish invalid-token from missing-profile."""
-    from .api import _bearer, _user_from_token
     coach = _request_coach(request)
     if coach:
         return coach, None
@@ -232,10 +247,7 @@ def agenda(request, user):
     if err:
         return err
     now = timezone.now()
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     qs = (
         Appointment.objects
@@ -287,10 +299,7 @@ def clients(request, user):
     # Page the list (10 per page) but keep the header counts over the full set.
     total = qs.count()
     active = qs.filter(status='ACTIVE').count()
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     # Default page is 10 (the list view); the check-form client picker passes a
     # large `limit` to fetch the full active roster in one go.
     try:
@@ -437,10 +446,7 @@ def checks_review(request, user):
     if err:
         return err
     which = (request.GET.get('filter') or 'pending').strip()
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     qs = (
         QuestionnaireResponse.objects
@@ -1062,10 +1068,7 @@ def workouts(request, user):
     if err:
         return err
     q = (request.GET.get('q') or '').strip()
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     plans_qs = (
         WorkoutPlan.objects.filter(coach=coach)
@@ -1103,10 +1106,7 @@ def nutrition(request, user):
     if err:
         return err
     q = (request.GET.get('q') or '').strip()
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     plans_qs = (
         NutritionPlan.objects.filter(coach=coach)
@@ -1160,10 +1160,7 @@ def subscriptions(request, user):
                                      filter=Q(client_subscriptions__status='ACTIVE')))
         .order_by('-created_at')
     )]
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     subs_qs = (
         ClientSubscription.objects
@@ -1466,7 +1463,6 @@ def client_exercise_trend(request, user, client_id, workout_exercise_id):
     rel = _own_relationship(coach, client_id)
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
-    from .views_session import build_exercise_trend
     we = (WorkoutExercise.objects
           .select_related('exercise', 'workout_day__workout_plan')
           .filter(id=workout_exercise_id).first())
@@ -1487,11 +1483,7 @@ def client_sessions(request, user, client_id):
     rel = _own_relationship(coach, client_id)
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
-    from .views_session import _serialize_session_brief
-    try:
-        offset = max(0, int(request.GET.get('offset', 0)))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     page = 20
     qs = (WorkoutSession.objects
           .filter(client=rel.client)
@@ -1510,7 +1502,6 @@ def session_detail(request, user, session_id):
     coach, err = _require_coach(user)
     if err:
         return err
-    from .views_session import _serialize_session_full
     s = (WorkoutSession.objects
          .select_related('workout_day', 'client')
          .filter(id=session_id).first())
@@ -1534,7 +1525,6 @@ def client_percorso(request, user, client_id):
     rel = _own_relationship(coach, client_id)
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
-    from .views_client import _build_percorso_events, _serialize_phases, _one_year_after_month
     client = rel.client
     today = date.today()
     start = getattr(rel, 'start_date', None)
@@ -1542,10 +1532,7 @@ def client_percorso(request, user, client_id):
         rel_start = (start if isinstance(start, date) else start.date()).replace(day=1)
     else:
         rel_start = (today - timedelta(days=365)).replace(day=1)
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (ValueError, TypeError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 10
     # Collect the whole history for the timeline, not just from the (possibly
     # renewed) relationship start — otherwise older plans/checks silently vanish.
@@ -1678,7 +1665,6 @@ def client_workout(request, user, client_id):
     rel = _own_relationship(coach, client_id)
     if not rel:
         return JsonResponse({'error': 'Cliente non trovato'}, status=404)
-    from .api import _day_dict
     # Prefer the active plan, but fall back to the most recent assignment of any
     # status: the athlete may have logged sessions under a plan that's since been
     # completed/replaced, and the coach still needs to drill into those trends
@@ -1897,7 +1883,6 @@ def nutrition_detail(request, user, plan_id):
     if not plan:
         return JsonResponse({'error': 'Piano non trovato'}, status=404)
 
-    from .views_nutrition import WEEKDAY_REVERSE
 
     def meal_dict(m):
         items = [{
@@ -1957,11 +1942,7 @@ def client_macro_history(request, user, client_id):
                  nutrition_plan__plan_mode='MACRO').first())
     if not a:
         return JsonResponse({'days': [], 'has_more': False})
-    try:
-        offset = max(0, int(request.GET.get('offset') or 0))
-    except (TypeError, ValueError):
-        offset = 0
-    from .api import macro_history_payload
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     return JsonResponse(macro_history_payload(a, offset))
 
 
@@ -1979,7 +1960,6 @@ def workout_builder(request, user, plan_id):
     plan = WorkoutPlan.objects.filter(id=plan_id, coach=coach).first()
     if not plan:
         return JsonResponse({'error': 'Scheda non trovata'}, status=404)
-    from .views_workouts import _serialize_plan_for_wizard
     return JsonResponse({'plan': _serialize_plan_for_wizard(plan)})
 
 
@@ -1997,7 +1977,6 @@ def nutrition_builder(request, user, plan_id):
     if not plan:
         return JsonResponse({'error': 'Piano non trovato'}, status=404)
 
-    from .views_nutrition import WEEKDAY_REVERSE
 
     meals = []
     for meal in plan.meals.all():
@@ -2040,7 +2019,6 @@ def nutrition_builder(request, user, plan_id):
             'fat': d.target_fat_g,
         } for d in plan.days.all()]
 
-    from .views_nutrition import _serialize_protocol
     supplement = _serialize_protocol(plan.supplement_sheet) if plan.supplement_sheet else None
 
     return JsonResponse({'plan': {
@@ -2189,7 +2167,6 @@ def coach_supplement_detail(request, user, protocol_id):
     coach, err = _require_coach(user)
     if err:
         return err
-    from .views_nutrition import _serialize_protocol
     p = SupplementProtocol.objects.filter(id=protocol_id, coach=coach).first()
     if not p:
         return JsonResponse({'error': 'Protocollo non trovato'}, status=404)
@@ -2203,7 +2180,6 @@ def coach_supplement_save(request, user):
         return err
     if not can_manage_nutrition(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
-    from .views_nutrition import _parse_supplement_items, _serialize_protocol
     data = _body(request)
     title = (data.get('title') or '').strip()
     if not title:
@@ -2269,7 +2245,7 @@ def coach_supplement_assign(request, user, protocol_id):
             link_url='/nutrizione/integratori/',
         )
     except Exception:
-        pass
+        logger.exception('supplement_assigned_notification.failed assignment_id=%s', a.id)
     return JsonResponse({'ok': True, 'assignment_id': a.id})
 
 
@@ -2280,7 +2256,6 @@ def coach_nutrition_supplements(request, user, plan_id):
         return err
     if not can_manage_nutrition(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
-    from .views_nutrition import _parse_supplement_items, _serialize_protocol
     plan = NutritionPlan.objects.filter(id=plan_id, coach=coach).first()
     if not plan:
         return JsonResponse({'error': 'Piano non trovato'}, status=404)
@@ -2444,7 +2419,7 @@ def workout_assign(request, user, plan_id):
         plan_url = f"{_settings.SITE_URL}/allenamenti/"
         send_workout_assigned(client, coach, plan, plan_url)
     except Exception:
-        pass
+        logger.exception('workout_assigned_email.failed plan_id=%s', plan.id)
     return JsonResponse({'ok': True, 'assignment_id': a.id})
 
 
@@ -2547,11 +2522,6 @@ def start_conversation(request, user):
 # reads and shapes them for the UI.
 # ---------------------------------------------------------------------------
 
-from domain.analytics.models import (  # noqa: E402
-    CoachBusinessMetricsDaily, DailyFeatureStore, RiskScoreDaily,
-)
-from domain.analytics.services import rules_engine as _rules  # noqa: E402
-
 _BUSINESS_FIELDS = [
     'active_clients_count', 'renewals_due_7d', 'renewals_completed_30d',
     'churn_rate_30d', 'avg_first_response_minutes', 'sla_adherence_rate',
@@ -2615,7 +2585,7 @@ def analytics_risk(request):
             breakdown[b['risk_class']] = b['n']
 
     LIMIT = 10
-    offset = max(0, int(request.GET.get('offset', 0)))
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     rows = all_rows.select_related('client', 'client__user').order_by('-risk_score_rule_based')
     wanted = (request.GET.get('class') or 'all').lower()
     if wanted in ('high', 'medium', 'low'):

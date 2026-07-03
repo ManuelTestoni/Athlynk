@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import uuid
 import calendar as cal_lib
@@ -19,11 +20,14 @@ from config.http_utils import safe_int
 from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
+
 from domain.nutrition.models import (
     Food, NutritionPlan, NutritionFolder, Meal, MealItem, MealItemSubstitution,
     NutritionAssignment, DietDay, ClientMacroLogEntry,
     SupplementProtocol, SupplementItem, SupplementProtocolAssignment,
 )
+
+logger = logging.getLogger(__name__)
 
 
 NUTRITION_HISTORY_PAGE_SIZE = 5
@@ -1199,10 +1203,7 @@ def api_food_search(request):
     q = request.GET.get('q', '').strip()
     category = request.GET.get('cat', '').strip()
     flt = request.GET.get('filter', '').strip()
-    try:
-        offset = max(0, int(request.GET.get('offset', '0')))
-    except ValueError:
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     PAGE = 30
 
     food_search_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
@@ -1356,7 +1357,7 @@ def api_piano_assign(request, plan_id):
         plan_url = f"{_settings.SITE_URL}/nutrizione/dettaglio/{assignment.id}/"
         send_nutrition_assigned(client, coach, plan, plan_url)
     except Exception:
-        pass
+        logger.exception('nutrition_assigned_email.failed plan_id=%s', plan.id)
     return JsonResponse({'ok': True, 'assignment_id': assignment.id})
 
 
@@ -2547,7 +2548,7 @@ def api_diet_import_confirm(request):
                     plan_url = f"{_settings.SITE_URL}/nutrizione/dettaglio/{assignment.id}/"
                     send_nutrition_assigned(client, coach, plan, plan_url)
                 except Exception:
-                    pass
+                    logger.exception('nutrition_assigned_email.failed plan_id=%s', plan.id)
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
@@ -2731,11 +2732,8 @@ def api_client_nutrition_history(request):
     nutrition_coach = get_nutrition_coach(client)
     if not nutrition_coach:
         return JsonResponse({'error': 'no_coach'}, status=404)
-    try:
-        offset = max(0, int(request.GET.get('offset', 0)))
-        limit = min(20, max(1, int(request.GET.get('limit', NUTRITION_HISTORY_PAGE_SIZE))))
-    except (TypeError, ValueError):
-        offset, limit = 0, NUTRITION_HISTORY_PAGE_SIZE
+    offset = max(0, safe_int(request.GET, 'offset', 0))
+    limit = min(20, max(1, safe_int(request.GET, 'limit', NUTRITION_HISTORY_PAGE_SIZE)))
 
     qs = (
         NutritionAssignment.objects
@@ -2769,10 +2767,7 @@ def coach_client_nutrition_history_view(request, client_id):
     )
     client = relationship.client
 
-    try:
-        offset = max(0, int(request.GET.get('offset', 0)))
-    except (TypeError, ValueError):
-        offset = 0
+    offset = max(0, safe_int(request.GET, 'offset', 0))
     limit = NUTRITION_HISTORY_PAGE_SIZE
 
     qs = (

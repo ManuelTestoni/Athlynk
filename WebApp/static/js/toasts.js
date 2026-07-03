@@ -2,8 +2,12 @@
    Usage:
      Alpine.store('toasts').push({ kind: 'success', msg: 'Salvato' });
      Alpine.store('toasts').push({ kind: 'danger',  msg: 'Errore', ttl: 8000 });
+   window.toastError(msg) is a shortcut for the common danger-toast case.
    The host renders in base.html via Alpine.
 */
+window.toastError = function (msg) {
+  Alpine.store('toasts').push({ kind: 'danger', msg });
+};
 (function () {
   const KIND_ICONS = {
     success: 'ph-fill ph-check-circle',

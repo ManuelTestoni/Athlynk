@@ -17,7 +17,7 @@
         this.saving = true;
         this.saveError = '';
         try {
-            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            const csrf = window.csrfToken();
             const res = await fetch('/api/check/{{ response.id }}/revisiona/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },

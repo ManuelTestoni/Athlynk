@@ -6,7 +6,7 @@
 (function () {
   if (!window.nutCsrfToken) {
     window.nutCsrfToken = function () {
-      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1]
+      return window.csrfToken()
         || (window.NUTRITION_WIZARD_INIT && window.NUTRITION_WIZARD_INIT.csrf)
         || '';
     };

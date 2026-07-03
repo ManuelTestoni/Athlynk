@@ -42,7 +42,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     _csrf() {
-      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+      return window.csrfToken();
     },
 
     async loadKpi() {

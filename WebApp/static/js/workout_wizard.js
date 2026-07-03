@@ -326,7 +326,7 @@ document.addEventListener('alpine:init', () => {
 
     // ---- CSRF helper ----
     getCsrf() {
-      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+      return window.csrfToken();
     },
 
     // ---- Step navigation ----

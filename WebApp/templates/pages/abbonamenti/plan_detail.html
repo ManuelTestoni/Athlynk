@@ -240,10 +240,10 @@ async function deletePlan(planId) {
         if (data.success) {
             window.location.href = '{% url "abbonamenti_dashboard" %}';
         } else {
-            Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore eliminazione.' });
+            toastError(data.error || 'Errore eliminazione.');
         }
     } catch {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+        toastError('Errore di rete.');
     }
 }
 </script>

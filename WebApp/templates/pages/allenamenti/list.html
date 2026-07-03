@@ -176,7 +176,7 @@
 
 <script>
   function _getCsrfToken() {
-    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+    return window.csrfToken();
   }
   async function duplicatePlan(planId, btn) {
     if (!planId) return;
@@ -193,12 +193,12 @@
       });
       const d = await r.json();
       if (!r.ok) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: d.error || 'Errore duplicazione.' });
+        toastError(d.error || 'Errore duplicazione.');
         return;
       }
       window.location.href = d.redirect_url || window.location.href;
     } catch (e) {
-      Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+      toastError('Errore di rete.');
     } finally {
       if (btn) {
         btn.disabled = false;

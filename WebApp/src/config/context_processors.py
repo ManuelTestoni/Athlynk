@@ -1,6 +1,10 @@
 import json
+import logging
+
 from django.conf import settings
 from .session_utils import build_identity_context, get_session_user
+
+logger = logging.getLogger(__name__)
 
 _NOTIF_SECTION = {
     'CHECK_SUBMITTED': 'check',
@@ -171,6 +175,6 @@ def _cookie_consent_needed(request, user):
             if not exists:
                 return True
         except Exception:
-            pass
+            logger.exception('cookie_consent_check.failed user_id=%s', user.id)
 
     return False

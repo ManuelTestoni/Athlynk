@@ -10,11 +10,14 @@ strength, unique email) stay in the views or models.
 """
 
 import json
+import logging
 import re
 import unicodedata
 from typing import Iterable
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidInput(Exception):
@@ -141,7 +144,7 @@ def validate_password_strength(value, *, email: str | None = None,
     except InvalidInput:
         raise
     except Exception:
-        pass
+        logger.exception('common_password_check.failed, skipping check for this signup')
     return pw
 
 

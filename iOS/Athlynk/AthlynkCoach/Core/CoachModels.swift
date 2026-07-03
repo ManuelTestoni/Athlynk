@@ -439,6 +439,7 @@ struct CoachSupplementsResponse: Codable { let protocols: [CoachSupplementSummar
 
 /// One editable supplement row. `rowId` keeps SwiftUI identity stable while editing;
 /// the server item id (if any) is irrelevant once loaded into the builder.
+/// Athlete counterpart: `SupplementItemDTO` (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachSupplementItem: Codable, Identifiable, Hashable {
     var rowId = UUID()
     var name: String = ""
@@ -758,6 +759,9 @@ struct CoachMessagesResponse: Codable {
 
 // MARK: - Client progress / charts
 
+/// Coach-facing progress-check entry. Athlete counterpart: `ProgressEntryDTO`
+/// (Shared/Core/Models.swift) — near-identical shape, differs in
+/// `measurements`/`skinfolds` optionality and photo type. Keep field names in sync.
 struct CoachProgressEntry: Codable, Identifiable, Hashable {
     let id: Int
     let submittedAt: String?
@@ -811,6 +815,8 @@ struct CoachClientWorkoutDTO: Codable {
 
 // MARK: - Plan detail (workout)
 
+/// Coach-facing exercise shape (editable, so carries extra builder-only fields).
+/// Athlete counterpart: `ExerciseDTO` (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachWorkoutExerciseDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -841,6 +847,8 @@ struct CoachWorkoutExerciseDTO: Codable, Identifiable, Hashable {
     }
 }
 
+/// Coach-facing workout day shape. Athlete counterpart: `WorkoutDayDTO`
+/// (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachWorkoutDayDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -850,6 +858,8 @@ struct CoachWorkoutDayDTO: Codable, Identifiable, Hashable {
     let exercises: [CoachWorkoutExerciseDTO]
 }
 
+/// Coach-facing workout plan shape. Athlete counterpart: `WorkoutPlanDTO`
+/// (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachWorkoutDetailDTO: Codable, Identifiable, Hashable {
     let id: Int
     let title: String
@@ -873,6 +883,9 @@ struct CoachWorkoutDetailResponse: Codable { let plan: CoachWorkoutDetailDTO }
 
 // MARK: - Plan detail (nutrition)
 
+/// Coach-facing macro totals (adds `micros` over the athlete side). Athlete
+/// counterpart: `MacroMacrosDTO` (Shared/Core/Models.swift). Keep the shared
+/// fields (kcal/protein/carb/fat) in sync.
 struct CoachMacros: Codable, Hashable {
     let kcal: Double
     let protein: Double
@@ -899,6 +912,12 @@ struct CoachMicrosDTO: Codable, Hashable {
     }
 }
 
+/// Coach-facing meal item shape, backed by `config/api_coach.py`'s
+/// `_food_macros()` (JSON key `carb`, singular). Athlete counterpart:
+/// `MealItemDTO` (Shared/Core/Models.swift) is backed by a *different*
+/// endpoint (`config/api.py`, JSON key `carbs`, plural) — the key mismatch is
+/// real but each DTO is correct for its own endpoint. Don't "fix" one to
+/// match the other without changing the backend serializer too.
 struct CoachMealItemDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -913,6 +932,8 @@ struct CoachMealItemDTO: Codable, Identifiable, Hashable {
     }
 }
 
+/// Coach-facing meal shape. Athlete counterpart: `MealDTO`
+/// (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachMealDTO: Codable, Identifiable, Hashable {
     let id: Int
     let name: String

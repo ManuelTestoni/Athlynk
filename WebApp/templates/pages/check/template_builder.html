@@ -1217,15 +1217,15 @@ function templateBuilder() {
         async restorePreset() {
             {% if template %}
             if (!await window.alConfirm({ variant: 'neutral', icon: 'ph-arrow-counter-clockwise', title: 'Ripristinare la\nconfigurazione?', subtitle: 'Tornerà alla configurazione di base. Le modifiche verranno perse.', confirmLabel: 'Sì, ripristina' })) return;
-            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            const csrf = window.csrfToken();
             try {
                 const res = await fetch('/api/check/modelli/{{ template.id }}/ripristina/', {
                     method: 'POST', headers: { 'X-CSRFToken': csrf },
                 });
                 const data = await res.json();
                 if (data.success) window.location.reload();
-                else Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
-            } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete' }); }
+                else toastError(data.error || 'Errore');
+            } catch (e) { toastError('Errore di rete'); }
             {% endif %}
         },
     };

@@ -3,9 +3,7 @@
    Source data is bootstrapped via window.NUTRITION_LIBRARY_INIT in the template. */
 
 function nutCsrfToken() {
-  return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1]
-    || (window.NUTRITION_LIBRARY_INIT && window.NUTRITION_LIBRARY_INIT.csrf)
-    || '';
+  return window.csrfToken() || (window.NUTRITION_LIBRARY_INIT && window.NUTRITION_LIBRARY_INIT.csrf) || '';
 }
 
 function nutritionLibrary() {
@@ -171,11 +169,11 @@ function nutritionLibrary() {
           body: JSON.stringify({ title }),
         });
         const data = await res.json();
-        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); return; }
+        if (!res.ok) { toastError(data.error || 'Errore'); return; }
         this.folders.push(data);
         this.selectedFolderId = data.id;
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+        toastError('Errore di rete.');
       }
       this.cancelCreateFolder();
     },
@@ -199,9 +197,9 @@ function nutritionLibrary() {
           body: JSON.stringify({ title: newTitle }),
         });
         const data = await res.json();
-        if (!res.ok) { Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' }); this.cancelEditFolder(); return; }
+        if (!res.ok) { toastError(data.error || 'Errore'); this.cancelEditFolder(); return; }
         folder.title = data.title;
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { toastError('Errore di rete.'); }
       this.cancelEditFolder();
     },
 
@@ -250,7 +248,7 @@ function nutritionLibrary() {
         });
         if (!res.ok) {
           const data = await res.json();
-          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore' });
+          toastError(data.error || 'Errore');
           return;
         }
         const deletedId = this.folderToDelete.id;
@@ -266,7 +264,7 @@ function nutritionLibrary() {
         }
         this.folders = this.folders.filter(f => f.id !== deletedId);
         if (this.selectedFolderId === deletedId) this.selectedFolderId = 'all';
-      } catch (e) { Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { toastError('Errore di rete.'); }
       this.deleteFolderOpen = false;
       this.folderToDelete = null;
     },
@@ -297,7 +295,7 @@ function nutritionLibrary() {
         });
         if (!res.ok) throw new Error('save');
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Riordino non salvato. Riprova.' });
+        toastError('Riordino non salvato. Riprova.');
       }
     },
     async dropPlanOnFolder(folderId) {
@@ -325,7 +323,7 @@ function nutritionLibrary() {
           const f = this.folders.find(f => f.id === folderId);
           if (f) f.plan_count += 1;
         }
-      } catch (e) { plan.folder_id = previousFolderId; Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' }); }
+      } catch (e) { plan.folder_id = previousFolderId; toastError('Errore di rete.'); }
     },
 
     /* === assign === */
@@ -367,7 +365,7 @@ function nutritionLibrary() {
           this.successFlash = false;
         }, 700);
       } else {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore durante l\'assegnazione.' });
+        toastError('Errore durante l\'assegnazione.');
       }
     },
 
@@ -395,7 +393,7 @@ function nutritionLibrary() {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore eliminazione.' });
+          toastError(data.error || 'Errore eliminazione.');
           return;
         }
         const deletedId = this.deletePlanId;
@@ -407,7 +405,7 @@ function nutritionLibrary() {
         this.plans = this.plans.filter(p => p.id !== deletedId);
         this.deleteModal = false;
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+        toastError('Errore di rete.');
       }
     },
 
@@ -421,13 +419,13 @@ function nutritionLibrary() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          Alpine.store('toasts').push({ kind: 'danger', msg: data.error || 'Errore duplicazione.' });
+          toastError(data.error || 'Errore duplicazione.');
           return;
         }
         // Open the new draft straight in the editor so the coach can tweak it.
         window.location.href = this.urls.planEdit.replace('__ID__', data.id);
       } catch (e) {
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore di rete.' });
+        toastError('Errore di rete.');
       } finally {
         this.duplicatingId = null;
       }

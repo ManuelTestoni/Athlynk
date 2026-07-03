@@ -7,8 +7,7 @@ function macroLog() {
   const JS_DAY = { 0: 'DOM', 1: 'LUN', 2: 'MAR', 3: 'MER', 4: 'GIO', 5: 'VEN', 6: 'SAB' };
 
   function csrfToken() {
-    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1]
-      || INIT.csrf || '';
+    return window.csrfToken() || INIT.csrf || '';
   }
 
   return {

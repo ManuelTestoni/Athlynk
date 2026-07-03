@@ -9,12 +9,15 @@ can't be cheaply re-encoded, plus a safe-filename helper for stored objects.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 
 from django.conf import settings
 
 from .images import is_image, to_webp
+
+logger = logging.getLogger(__name__)
 
 
 def _video_max_bytes() -> int:
@@ -29,13 +32,14 @@ def _read_head(f, n: int = 16) -> bytes:
         try:
             f.seek(0)
         except Exception:
+            logger.exception('read_head.seek_reset failed before read')
             can_seek = False
     head = f.read(n) or b''
     if can_seek:
         try:
             f.seek(0)
         except Exception:
-            pass
+            logger.exception('read_head.seek_reset failed after read')
     return head
 
 

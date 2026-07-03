@@ -151,7 +151,7 @@ function sessionRunner() {
     },
 
     _csrf() {
-      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+      return window.csrfToken();
     },
 
     _key(exId, setN) { return exId + '-' + setN; },
@@ -486,7 +486,7 @@ function sessionRunner() {
         window.location.href = this.urls.back;
       } catch (e) {
         this.finalizing = false;
-        Alpine.store('toasts').push({ kind: 'danger', msg: 'Errore salvataggio.' });
+        toastError('Errore salvataggio.');
       }
     },
 

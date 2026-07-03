@@ -449,7 +449,7 @@ function comparatore() {
                 this.modal.phase = 'slider';
             } catch (e) {
                 console.error('[comparatore] preload failed', e);
-                Alpine.store('toasts').push({ kind: 'danger', msg: 'Impossibile caricare le foto. Riprova.' });
+                toastError('Impossibile caricare le foto. Riprova.');
                 this.closeComparison();
             }
         },
@@ -553,7 +553,7 @@ function comparatore() {
                 setTimeout(() => URL.revokeObjectURL(url), 4000);
             } catch (err) {
                 console.error('[comparatore] export failed', err);
-                Alpine.store('toasts').push({ kind: 'danger', msg: 'Export non riuscito. Le foto potrebbero non essere accessibili (CORS).' });
+                toastError('Export non riuscito. Le foto potrebbero non essere accessibili (CORS).');
             } finally {
                 this.exporting = false;
             }

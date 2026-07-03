@@ -98,7 +98,7 @@ window._coachTemplates = {{ coach_templates_json|json_js }};
         if (this.aRecurrence === 'monthly' && (this.aMonthday === null || this.aMonthday === '')) { this.aError = 'Scegli il giorno del mese.'; return; }
         this.aSending = true;
         try {
-            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+            const csrf = window.csrfToken();
             const res = await fetch('/api/check/assegna/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
