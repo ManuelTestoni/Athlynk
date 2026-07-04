@@ -14,12 +14,19 @@ from chiron.schemas import ChatRequest
 from domain.chiron.models import ChironMessage
 
 from .session_utils import get_session_user, get_session_coach
+from .services import ratelimit
 
 logger = logging.getLogger(__name__)
 
 # Paginazione history: pagina di default e tetto massimo per richiesta.
 HISTORY_PAGE_DEFAULT = 10
 HISTORY_PAGE_MAX = 50
+
+# CHIRON invoca un LLM (+ web search): endpoint più costoso dell'app, throttle
+# dedicato per utente oltre al backstop globale per-IP.
+CHIRON_RATE_LIMIT = 30
+CHIRON_RATE_WINDOW_SECONDS = 60
+CHIRON_BLOCKED_MESSAGE = 'Troppe richieste a CHIRON. Riprova tra un minuto.'
 
 
 def _role_from_coach(coach) -> str:
@@ -41,6 +48,10 @@ def api_chiron_chat(request):
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Solo i coach possono usare CHIRON in questa fase.'}, status=403)
+
+    allowed, _ = ratelimit.hit('chiron_chat', str(user.id), CHIRON_RATE_LIMIT, CHIRON_RATE_WINDOW_SECONDS)
+    if not allowed:
+        return JsonResponse({'error': CHIRON_BLOCKED_MESSAGE}, status=429)
 
     try:
         body = json.loads(request.body.decode('utf-8'))
@@ -112,6 +123,10 @@ def api_chiron_action_execute(request):
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    allowed, _ = ratelimit.hit('chiron_action', str(user.id), CHIRON_RATE_LIMIT, CHIRON_RATE_WINDOW_SECONDS)
+    if not allowed:
+        return JsonResponse({'error': CHIRON_BLOCKED_MESSAGE}, status=429)
 
     try:
         body = json.loads(request.body.decode('utf-8'))

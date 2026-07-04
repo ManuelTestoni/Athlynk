@@ -101,6 +101,12 @@ class NutritionPlan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'status']),
+            models.Index(fields=['coach', 'is_template']),
+        ]
+
     def __str__(self):
         return f"{self.title} (by {self.coach})"
 
@@ -268,6 +274,11 @@ class SupplementProtocolAssignment(models.Model):
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='supplement_assignments_given')
     status = models.CharField(max_length=20, default='ACTIVE')
     assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'status']),
+        ]
 
     def __str__(self):
         return f"{self.protocol.title} → {self.client_id}"

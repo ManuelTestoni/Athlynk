@@ -149,6 +149,12 @@ class WorkoutPlan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['coach', 'status']),
+            models.Index(fields=['coach', 'is_template']),
+        ]
+
     def __str__(self):
         return self.title
 

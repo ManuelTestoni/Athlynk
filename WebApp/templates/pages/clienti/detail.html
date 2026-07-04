@@ -50,7 +50,7 @@
                 {% endif %}
             </div>
 
-            <div class="flex flex-wrap gap-2 shrink-0" x-data="labelManager({{ assigned_labels_json|safe }}, {{ all_labels_json|safe }}, {{ client.id }})">
+            <div class="flex flex-wrap gap-2 shrink-0" x-data="labelManager({{ assigned_labels_json }}, {{ all_labels_json }}, {{ client.id }})">
                 <a href="{% url 'agenda_dashboard' %}" class="al-btn al-btn-sm al-btn-ghost">
                     <i class="ph ph-calendar-plus text-xs"></i><span>Prenota</span>
                 </a>

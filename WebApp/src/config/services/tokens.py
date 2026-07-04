@@ -17,8 +17,8 @@ def is_expired(created_at, days: int) -> bool:
 
 
 def get_client_ip(request):
-    """Best-effort client IP (respects X-Forwarded-For)."""
-    xff = request.META.get('HTTP_X_FORWARDED_FOR')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    """Best-effort client IP. Delegates to ratelimit.client_ip, which only
+    honors X-Forwarded-For when settings.TRUSTED_PROXY_COUNT > 0 — otherwise
+    the header is attacker-controlled and trivially spoofed."""
+    from config.services.ratelimit import client_ip
+    return client_ip(request)

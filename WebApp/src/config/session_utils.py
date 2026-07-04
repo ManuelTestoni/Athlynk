@@ -7,8 +7,17 @@ from domain.coaching.models import CoachingRelationship
 
 logger = logging.getLogger(__name__)
 
+_UNSET = object()
+
 
 def get_session_user(request):
+    # Memoized per-request: identity_context, get_session_coach/client, and
+    # middleware each call this, so an un-cached lookup re-fetches the same
+    # User row 3-5x per page.
+    cached = getattr(request, '_session_user', _UNSET)
+    if cached is not _UNSET:
+        return cached
+
     user_id = request.session.get('user_id')
     if not user_id:
         # Mobile fallback: the iOS apps authenticate with a signed Bearer token
@@ -16,15 +25,17 @@ def get_session_user(request):
         # coach web views (import, assign, …) serve both clients unchanged.
         from config.api import _bearer, _user_from_token
         bearer = _bearer(request)
-        if bearer:
-            return _user_from_token(bearer)
-        return None
+        user = _user_from_token(bearer) if bearer else None
+        request._session_user = user
+        return user
 
     try:
-        return User.objects.get(id=user_id)
+        user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         request.session.flush()
-        return None
+        user = None
+    request._session_user = user
+    return user
 
 
 def get_session_coach(request):

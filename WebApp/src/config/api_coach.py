@@ -1894,7 +1894,7 @@ def nutrition_detail(request, user, plan_id):
                 'day_of_week': WEEKDAY_REVERSE.get(m.day.day_of_week) if m.day else None,
                 'notes': m.notes, 'items': items}
 
-    meals = [meal_dict(m) for m in plan.meals.order_by('order')]
+    meals = [meal_dict(m) for m in plan.meals.all()]
     total = {'kcal': 0.0, 'protein': 0.0, 'carb': 0.0, 'fat': 0.0}
     for m in meals:
         for it in m['items']:

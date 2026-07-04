@@ -36,6 +36,12 @@ LOGIN_BLOCKED_MESSAGE = (
     'Troppi tentativi di accesso. Riprova tra qualche minuto.'
 )
 
+SIGNUP_RATE_LIMIT = 5
+SIGNUP_RATE_WINDOW_SECONDS = 15 * 60
+SIGNUP_BLOCKED_MESSAGE = (
+    'Troppe registrazioni da questo indirizzo. Riprova tra qualche minuto.'
+)
+
 
 def login_view(request):
     if request.method == 'POST':
@@ -96,6 +102,16 @@ def login_view(request):
 
 def signup_view(request):
     if request.method == 'POST':
+        ip = ratelimit.client_ip(request)
+        ip_allowed, _ = ratelimit.hit(
+            'signup_ip', ip, SIGNUP_RATE_LIMIT, SIGNUP_RATE_WINDOW_SECONDS,
+        )
+        if not ip_allowed:
+            logger.warning('signup.rate_limited ip=%s', ip)
+            return render(request, 'pages/auth/signup.html', {
+                'error': SIGNUP_BLOCKED_MESSAGE,
+            }, status=429)
+
         try:
             email = clean_email(request.POST.get('email'))
             first_name = clean_short_text(request.POST.get('first_name'), field='nome')

@@ -1257,6 +1257,7 @@ def api_search_exercises(request):
     if custom_only:
         qs = qs.filter(is_custom=True)
 
+    qs = qs.prefetch_related('primary_muscles', 'secondary_muscles', 'sports')
     qs = qs.distinct().order_by('name')[:30]
 
     def _card(ex):

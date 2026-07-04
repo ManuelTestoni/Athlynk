@@ -53,7 +53,8 @@ from .api import coach_dual_auth
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
+    path('healthz/', views.healthz_view, name='healthz'),
+
     # Auth
     path('login/', views_auth.login_view, name='login'),
     path('registrati/', views_auth.signup_view, name='signup'),

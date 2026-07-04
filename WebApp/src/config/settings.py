@@ -217,7 +217,11 @@ _DATABASE_URL = config('DATABASE_URL')
 DATABASES = {
     'default': dj_database_url.parse(
         _DATABASE_URL,
-        conn_max_age=0,
+        # Riusa la connessione tra richieste sullo stesso worker invece di
+        # aprirne una nuova ogni volta (4 worker sync = max ~4 connessioni
+        # tenute, ben dentro i limiti del transaction pooler Supabase).
+        conn_max_age=60,
+        conn_health_checks=True,
         # sslmode è un'opzione solo Postgres: con un DATABASE_URL sqlite locale
         # va omessa o la connessione fallisce.
         ssl_require=_DATABASE_URL.startswith('postgres'),
@@ -256,7 +260,7 @@ CACHES = {
 # (e.g. 1 behind a single Railway/Fly/Cloudflare hop) so client_ip() honors
 # X-Forwarded-For. Keep at 0 in dev/single-host setups — otherwise attackers can
 # spoof the header and bypass IP-based rate limiting.
-TRUSTED_PROXY_COUNT = 0
+TRUSTED_PROXY_COUNT = config('TRUSTED_PROXY_COUNT', default=0, cast=int)
 
 
 # Request body / upload limits. Hard caps to block DoS via giant uploads or
@@ -362,25 +366,30 @@ MEDIA_ROOT = BASE_DIR.parent / 'media'
 # .url() returns short-lived signed URLs (querystring_auth).
 SUPABASE_S3_ENDPOINT = config('SUPABASE_S3_ENDPOINT', default='')
 
+# Precompresses static files (gzip/brotli) at collectstatic time; whitenoise
+# serves the precompressed variant when the browser accepts it. No hashed
+# filenames (that's a separate, riskier change — cache-busting stays on the
+# existing ?v=ASSET_VERSION querystring).
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
+
 if SUPABASE_S3_ENDPOINT:
-    STORAGES = {
-        'default': {
-            'BACKEND': 'storages.backends.s3.S3Storage',
-            'OPTIONS': {
-                'endpoint_url': SUPABASE_S3_ENDPOINT,
-                'access_key': config('SUPABASE_S3_ACCESS_KEY'),
-                'secret_key': config('SUPABASE_S3_SECRET_KEY'),
-                'bucket_name': config('SUPABASE_S3_BUCKET', default='media'),
-                'region_name': config('SUPABASE_S3_REGION', default='eu-central-1'),
-                'addressing_style': 'path',     # Supabase requires path-style URLs
-                'signature_version': 's3v4',
-                'querystring_auth': True,        # private bucket -> signed URLs
-                'querystring_expire': 3600,      # 1h signed-URL lifetime
-                'file_overwrite': False,         # never clobber an existing key
-            },
-        },
-        'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'endpoint_url': SUPABASE_S3_ENDPOINT,
+            'access_key': config('SUPABASE_S3_ACCESS_KEY'),
+            'secret_key': config('SUPABASE_S3_SECRET_KEY'),
+            'bucket_name': config('SUPABASE_S3_BUCKET', default='media'),
+            'region_name': config('SUPABASE_S3_REGION', default='eu-central-1'),
+            'addressing_style': 'path',     # Supabase requires path-style URLs
+            'signature_version': 's3v4',
+            'querystring_auth': True,        # private bucket -> signed URLs
+            'querystring_expire': 3600,      # 1h signed-URL lifetime
+            'file_overwrite': False,         # never clobber an existing key
         },
     }
 

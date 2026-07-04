@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
@@ -9,6 +11,13 @@ from domain.billing.models import SubscriptionPlan, ClientSubscription
 from domain.calendar.models import Appointment
 
 from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+
+
+def healthz_view(request):
+    """Readiness probe: confirms the app can reach the database."""
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT 1')
+    return JsonResponse({'status': 'ok'})
 
 
 def dashboard_view(request):
