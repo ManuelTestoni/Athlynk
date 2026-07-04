@@ -47,22 +47,9 @@
     });
   });
 
-  /* ---------- active nav link on scroll ---------- */
-  const sections = ["hero", "chiron", "studio", "pricing", "about", "faq"]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
-  const navLinks = [...document.querySelectorAll(".main-nav .nav-link")];
-
-  const sectionSpy = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      navLinks.forEach((l) =>
-        l.classList.toggle("active", l.getAttribute("href") === `#${entry.target.id}`)
-      );
-    });
-  }, { rootMargin: "-40% 0px -55% 0px" });
-
-  sections.forEach((s) => sectionSpy.observe(s));
+  /* ---------- active nav link (multi-pagina: impostato via aria-current nel markup) ---------- */
+  document.querySelectorAll('.main-nav .nav-link[aria-current="page"]')
+    .forEach((l) => l.classList.add("active"));
 
   /* ---------- reveal on scroll (staggered) ---------- */
   const reveals = [...document.querySelectorAll(".reveal")];
@@ -317,6 +304,8 @@
   const modalDesc = document.getElementById("modalDesc");
   let lastFocused = null;
 
+  if (modal) {
+
   function openDemo(card) {
     const scene = card.querySelector(".demo-scene");
     const title = card.querySelector(".demo-title");
@@ -356,6 +345,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !modal.hidden) closeDemo();
   });
+  } // fine guardia modal
 
   /* ---------- FAQ: close others when one opens ---------- */
   const faqItems = [...document.querySelectorAll(".faq-item")];
