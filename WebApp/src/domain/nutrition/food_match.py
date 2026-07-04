@@ -122,7 +122,7 @@ def fuzzy_match_food(name: str, limit: int = 5) -> list[dict]:
         food_tokens = set(_tokenize(f.nome_alimento))
         # match per token singolarizzato (set intersection)
         common = name_tokens_set & food_tokens
-        matched = len(common)
+        matched: float = len(common)
         # fallback: anche substring match su radici
         for t in tokens:
             root = t[:-1] if len(t) >= 5 else t

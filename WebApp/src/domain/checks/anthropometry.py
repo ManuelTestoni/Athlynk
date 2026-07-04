@@ -66,9 +66,9 @@ _SKIN_BY_KEY = {s['key']: s for s in SKINFOLDS}
 CIRC_STORED_ORDER = []
 for _c in CIRCUMFERENCES:
     if _c['is_limb']:
-        CIRC_STORED_ORDER += [_c['key'] + '_l', _c['key'] + '_r']
+        CIRC_STORED_ORDER += [str(_c['key']) + '_l', str(_c['key']) + '_r']
     else:
-        CIRC_STORED_ORDER.append(_c['key'])
+        CIRC_STORED_ORDER.append(str(_c['key']))
 SKIN_STORED_ORDER = [s['key'] for s in SKINFOLDS]
 
 # ──────────────────────────────────────────────────────────────────────────

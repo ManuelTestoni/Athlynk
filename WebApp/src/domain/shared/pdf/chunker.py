@@ -8,6 +8,7 @@ both qualify).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Sequence
 
 from .ingestion import PdfPage
 
@@ -70,7 +71,7 @@ def _apply_overlap(parts: list[str], overlap: int) -> list[str]:
     return out
 
 
-def chunk_pages(pages_with_meta: list[tuple[PdfPage, object]]) -> list[Chunk]:
+def chunk_pages(pages_with_meta: Sequence[tuple[PdfPage, object]]) -> list[Chunk]:
     """Chunk pages. Each meta must expose `.page_type` and `.relevance_score`."""
     out: list[Chunk] = []
     for page, meta in pages_with_meta:

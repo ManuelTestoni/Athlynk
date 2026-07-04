@@ -10,6 +10,7 @@ Strategia:
 from __future__ import annotations
 
 import re
+from typing import Any
 
 DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 MEAL_ORDER = ['BREAKFAST', 'MORNING_SNACK', 'LUNCH', 'AFTERNOON_SNACK', 'DINNER']
@@ -166,7 +167,7 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
         notes_collected.extend([n for n in extra_notes if n])
     notes_str = ' | '.join(notes_collected) if notes_collected else None
 
-    out = {
+    out: dict[str, Any] = {
         'diet_name': diet_name or None,
         'days': days_out,
         'supplements': supplements_out,

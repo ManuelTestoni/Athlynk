@@ -11,7 +11,7 @@ from dataclasses import dataclass
 try:
     import fitz  # PyMuPDF
 except ImportError:  # pragma: no cover
-    fitz = None  # type: ignore
+    fitz = None
 
 
 class PdfParseError(Exception):

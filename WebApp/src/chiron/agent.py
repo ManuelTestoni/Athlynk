@@ -3,7 +3,7 @@
 import json
 import operator
 from functools import lru_cache
-from typing import Annotated, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from decouple import config
 from langchain_core.messages import (
@@ -39,7 +39,7 @@ def _get_llm_with_tools(model: str):
     llm = ChatOpenAI(
         model=model,
         temperature=0.3,
-        max_tokens=1500,
+        max_completion_tokens=1500,
         api_key=config("OLLAMA_API_KEY"),
         base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
     )
@@ -54,7 +54,7 @@ def _chiron_node(state: ChironState) -> dict:
     contesto senza tenere tutta la cronologia (meno token, meno allucinazioni).
     """
     system_prompt = get_system_prompt(state["user_role"])
-    messages = [SystemMessage(content=system_prompt)]
+    messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
     summary = state.get("memory_summary") or ""
     if summary:
         messages.append(SystemMessage(content=(
@@ -111,7 +111,7 @@ def _extract_sources(messages: list[BaseMessage]) -> list[Source]:
                 payload = json.loads(payload)
             except (json.JSONDecodeError, ValueError):
                 continue
-        results = []
+        results: list[Any] = []
         if isinstance(payload, dict):
             results = payload.get("results", []) or []
         elif isinstance(payload, list):

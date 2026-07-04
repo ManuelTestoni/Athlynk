@@ -17,7 +17,7 @@ def build_extraction_llm(max_tokens: int = 4000, timeout: int = 30) -> ChatOpenA
         temperature=0.0,
         api_key=config("OLLAMA_API_KEY"),
         base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         timeout=timeout,
         model_kwargs={
             "response_format": {"type": "json_object"},

@@ -72,7 +72,7 @@ def is_valid_video(f) -> bool:
 _SAFE_NAME_RE = re.compile(r'[^A-Za-z0-9._-]+')
 
 
-def safe_filename(name: str, *, default_stem: str = 'file', default_ext: str = 'mp4') -> str:
+def safe_filename(name: str | None, *, default_stem: str = 'file', default_ext: str = 'mp4') -> str:
     """Strip any directory components and reduce to a conservative charset.
 
     Defends storage keys against path traversal and odd bytes. Keeps a single

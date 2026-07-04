@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from django.db import transaction
 
@@ -938,7 +938,8 @@ def _families_for_exercise(base: dict, overrides_by_metric: dict) -> set:
 
         if metric == 'rep_range':
             base_n = _max_int(base.get('rep_range'))
-            ov_max = max((_max_int(v) for v in values if _max_int(v) is not None), default=None)
+            ov_ints = [n for n in (_max_int(v) for v in values) if n is not None]
+            ov_max = max(ov_ints, default=None)
             if ov_max is not None and (base_n is None or ov_max > base_n):
                 families.add(family)
             continue
@@ -950,17 +951,17 @@ def _families_for_exercise(base: dict, overrides_by_metric: dict) -> set:
             continue
 
         # Numeric metrics.
-        nums = [_as_float(v) for v in values]
-        nums = [n for n in nums if n is not None]
+        raw_nums = [_as_float(v) for v in values]
+        nums = [n for n in raw_nums if n is not None]
         if not nums:
             continue
-        base_n = _as_float(base.get(metric))
+        base_num = _as_float(base.get(metric))
         if trend == 'up':
-            ref = base_n if base_n is not None else 0.0
+            ref = base_num if base_num is not None else 0.0
             if max(nums) > ref:
                 families.add(family)
         elif trend == 'down':
-            if base_n is not None and min(nums) < base_n:
+            if base_num is not None and min(nums) < base_num:
                 families.add(family)
     return families
 
@@ -995,7 +996,7 @@ def classify_progressions_for_plans(plan_ids) -> dict:
             'tempo': r['tempo'] or '',
         }
 
-    ov_by_ex = defaultdict(lambda: defaultdict(list))
+    ov_by_ex: dict[Any, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     for ov in (WeeklyOverride.objects
                .filter(workout_exercise__workout_day__workout_plan_id__in=plan_ids)
                .values('workout_exercise_id', 'metric', 'value_json')):
@@ -1010,7 +1011,7 @@ def classify_progressions_for_plans(plan_ids) -> dict:
         if r['family']:
             rules_by_ex[r['workout_exercise_id']].add(r['family'])
 
-    plan_counts = defaultdict(lambda: defaultdict(int))
+    plan_counts: dict[Any, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for ex_id, plan_id in ex_plan.items():
         families = _families_for_exercise(ex_base[ex_id], ov_by_ex.get(ex_id, {}))
         families |= rules_by_ex.get(ex_id, set())

@@ -10,6 +10,7 @@ Strategy:
 from __future__ import annotations
 
 import re
+from typing import Any
 
 
 def _norm(s: str) -> str:
@@ -38,7 +39,7 @@ def merge_chunks(parts: list[dict],
     sessions_map: dict[str, dict] = {}
     session_order: list[str] = []
 
-    plan_meta = {
+    plan_meta: dict[str, str | int | None] = {
         'plan_name': plan_name or None,
         'frequency_per_week': None,
         'goal': None,
@@ -149,7 +150,7 @@ def merge_chunks(parts: list[dict],
     if extra_notes:
         notes_collected.extend([n for n in extra_notes if n])
 
-    out = {
+    out: dict[str, Any] = {
         **plan_meta,
         'sessions': sessions_out,
         'extraction_notes': notes_collected,

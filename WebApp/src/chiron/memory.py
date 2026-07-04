@@ -55,7 +55,7 @@ def build_context(user) -> tuple[list[HistoryMessage], str]:
         # Se il riassunto fallisce non avanziamo: nessuna perdita di memoria,
         # al massimo questo turno usa qualche messaggio in più.
 
-    history = [HistoryMessage(role=m.role, content=m.content) for m in unsummed]
+    history = [HistoryMessage(role=m.role, content=m.content) for m in unsummed]  # type: ignore[arg-type]
     return history, mem.summary
 
 
@@ -87,7 +87,7 @@ def _summarize(prev_summary: str, messages: list) -> str | None:
             temperature=0.2,
             api_key=config("OLLAMA_API_KEY"),
             base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
-            max_tokens=400,
+            max_completion_tokens=400,
             timeout=30,
         )
         resp = llm.invoke([SystemMessage(content=sys), HumanMessage(content=usr)])

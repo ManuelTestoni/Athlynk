@@ -9,7 +9,7 @@ from domain.accounts.models import ClientProfile
 try:
     from domain.calendar.models import Appointment
 except ImportError:
-    from domain.appointments.models import Appointment
+    from domain.appointments.models import Appointment  # type: ignore[no-redef]
 
 from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
 

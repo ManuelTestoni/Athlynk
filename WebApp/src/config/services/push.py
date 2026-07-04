@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 # Provider tokens are valid ~1h; Apple rejects regenerating them too often.
 # Cache and reuse for 30 minutes.
-_jwt_cache = {'token': None, 'ts': 0.0}
+_jwt_token: str | None = None
+_jwt_ts: float = 0.0
 _JWT_TTL = 1800
 
 
@@ -48,16 +49,22 @@ def _b64url(data: bytes) -> str:
 
 
 def _provider_jwt() -> str:
+    global _jwt_token, _jwt_ts
     now = time.time()
-    if _jwt_cache['token'] and (now - _jwt_cache['ts']) < _JWT_TTL:
-        return _jwt_cache['token']
+    if _jwt_token and (now - _jwt_ts) < _JWT_TTL:
+        return _jwt_token
 
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
     from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-    key = load_pem_private_key(_load_key().encode(), password=None)
+    raw_key = _load_key()
+    if raw_key is None:
+        raise RuntimeError("APNs key not configured")
+    key = load_pem_private_key(raw_key.encode(), password=None)
+    if not isinstance(key, ec.EllipticCurvePrivateKey):
+        raise RuntimeError("APNs key is not an EC private key")
     header = {'alg': 'ES256', 'kid': settings.APNS_KEY_ID}
     payload = {'iss': settings.APNS_TEAM_ID, 'iat': int(now)}
     signing_input = (
@@ -69,7 +76,7 @@ def _provider_jwt() -> str:
     r, s = decode_dss_signature(der)
     raw_sig = r.to_bytes(32, 'big') + s.to_bytes(32, 'big')  # JOSE wants raw r||s
     token = signing_input + '.' + _b64url(raw_sig)
-    _jwt_cache.update(token=token, ts=now)
+    _jwt_token, _jwt_ts = token, now
     return token
 
 

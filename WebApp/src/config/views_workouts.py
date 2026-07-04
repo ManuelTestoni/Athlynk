@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -1624,6 +1625,8 @@ def _coerce_load(ex_payload: dict) -> tuple[float | None, str | None]:
     load_type = (ex_payload.get('load_type') or '').lower() or None
 
     if load_type == 'percentage_1rm':
+        if load is None:
+            return None, WorkoutExercise.LOAD_UNIT_PERCENT
         try:
             return float(load), WorkoutExercise.LOAD_UNIT_PERCENT
         except (TypeError, ValueError):
@@ -1659,12 +1662,12 @@ def _coerce_set_details(raw, set_count: int) -> list:
         except (TypeError, ValueError):
             return None
 
-    out = []
+    out: list[dict[str, Any]] = []
     for entry in raw[:min(set_count or len(raw), 30)]:
         if not isinstance(entry, dict):
             out.append({})
             continue
-        clean = {}
+        clean: dict[str, Any] = {}
         for k in ('reps', 'rep_range', 'tempo'):
             val = entry.get(k)
             if val not in (None, ''):

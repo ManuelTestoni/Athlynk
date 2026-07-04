@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import dj_database_url
 from decouple import config, Csv
@@ -241,7 +242,7 @@ if 'test' not in sys.argv and 'postgresql' in DATABASES['default']['ENGINE']:
 if 'test' in sys.argv:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_test.sqlite3',
+        'NAME': str(BASE_DIR / 'db_test.sqlite3'),
     }
 
 
@@ -370,7 +371,7 @@ SUPABASE_S3_ENDPOINT = config('SUPABASE_S3_ENDPOINT', default='')
 # serves the precompressed variant when the browser accepts it. No hashed
 # filenames (that's a separate, riskier change — cache-busting stays on the
 # existing ?v=ASSET_VERSION querystring).
-STORAGES = {
+STORAGES: dict[str, dict[str, Any]] = {
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },

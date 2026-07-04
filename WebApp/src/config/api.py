@@ -1561,7 +1561,7 @@ _EMAIL_NOTIF_KEYS = [
 
 
 @api_view(['GET', 'PATCH'])
-def settings(request, user):
+def notification_settings(request, user):
     if request.method == 'PATCH':
         data = _body(request)
         prefs = dict(user.email_prefs or {})
