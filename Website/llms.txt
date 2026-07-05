@@ -24,9 +24,11 @@
 
 ## Piani (per coach)
 
-- **Athena** — piano base: gestione atleti, programmazione, tracking, nutrizione, app mobile.
-- **Apollo** — piano avanzato: tutto il piano base + Chiron AI, analisi business, priorità supporto.
-- **Zeus** — piano enterprise: tutto Apollo + funzionalità avanzate, onboarding dedicato.
+- **Athena** (29,90€/mese) — fino a 15 atleti gestiti: programmazione, tracking, nutrizione, check, chat, app mobile.
+- **Apollo** (59,90€/mese) — fino a 50 atleti: tutto Athena + protocolli integratori, analytics business, gestione abbonamenti, modelli riutilizzabili.
+- **Zeus** (99,90€/mese) — atleti illimitati: tutto Apollo + multi-coach, branding personalizzato, account manager dedicato, API e integrazioni.
+- **Chiron AI** — add-on attivabile su qualsiasi piano a +9,90€/mese per coach.
+- Fatturazione mensile o annuale (2 mesi gratis con l'annuale).
 
 ## Documenti legali
 

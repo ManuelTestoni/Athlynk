@@ -2320,6 +2320,7 @@ body.modal-open { overflow: hidden; }
 }
 
 /* ---------- zoombox lightbox ---------- */
+.zoombox[hidden] { display: none; }
 .zoombox {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(11,10,8,0.94);
