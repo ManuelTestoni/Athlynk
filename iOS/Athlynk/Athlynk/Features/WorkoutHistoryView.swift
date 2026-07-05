@@ -36,7 +36,7 @@ struct WorkoutHistoryView: View {
                     if loading {
                         DateCardsSkeleton(accent: Palette.violet, count: 3)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if sessions.isEmpty {
                         EmptyPanel(icon: "clock.arrow.circlepath",
                                    text: "Nessuna sessione registrata.\nIl tuo storico apparirà qui.")

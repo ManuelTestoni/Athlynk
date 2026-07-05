@@ -74,16 +74,6 @@ struct CoachMoreView: View {
     }
 
     private func card(_ item: Item) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: item.icon).font(.system(size: 22, weight: .bold))
-                .foregroundStyle(item.accent)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).font(Typo.body(15, .bold)).foregroundStyle(Palette.textHi)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text(item.subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(2)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .padding(16).voltPanel()
+        HubTile(icon: item.icon, title: item.title, subtitle: item.subtitle, accent: item.accent)
     }
 }

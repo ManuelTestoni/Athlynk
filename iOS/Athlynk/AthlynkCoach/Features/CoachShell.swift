@@ -191,18 +191,16 @@ struct ChironFAB: View {
         Button { Haptics.tap(); show = true } label: {
             ZStack {
                 Circle()
-                    .fill(LinearGradient(
-                        colors: [Palette.bronze, Palette.amber],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(Palette.bronze)
                     .frame(width: 56, height: 56)
-                    .neonGlow(Palette.bronze, radius: 16)
-                    .shadow(color: Palette.bronze.opacity(0.45), radius: 12, y: 6)
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+                    .shadow(color: Color(hex: 0x14110D, alpha: 0.22), radius: 14, y: 8)
                 Image(systemName: "sparkles")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Palette.void0)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
         .accessibilityLabel("Apri Chiron AI")
     }
 }

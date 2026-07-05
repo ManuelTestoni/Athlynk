@@ -26,7 +26,7 @@ struct SettingsView: View {
                     if loading {
                         SettingsSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else {
                         accountCard
                         Text("NOTIFICHE EMAIL").voltEyebrow().padding(.top, 4)
@@ -47,58 +47,27 @@ struct SettingsView: View {
     }
 
     private var accountActions: some View {
-        VStack(spacing: 12) {
-            NeonButton(title: "Esci", icon: "power", color: Palette.cyan, filled: false) {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { confirm = .logout }
-            }
-            NeonButton(title: "Elimina account", icon: "trash.fill", color: Palette.magenta, filled: false) {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { confirm = .delete }
-            }
-        }
-        .padding(.top, 10)
+        AccountActions(
+            onLogout: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { confirm = .logout } },
+            onDelete: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { confirm = .delete } }
+        )
     }
 
     @ViewBuilder
     private func confirmOverlay(_ kind: ConfirmKind) -> some View {
         let isDelete = kind == .delete
-        let accent = isDelete ? Palette.magenta : Palette.cyan
-
-        ZStack {
-            Color(hex: 0x14110D, alpha: 0.45)
-                .ignoresSafeArea()
-                .onTapGesture { dismissConfirm() }
-
-            VStack(alignment: .leading, spacing: 14) {
-                Image(systemName: isDelete ? "trash.fill" : "power")
-                    .font(.system(size: 26, weight: .black))
-                    .foregroundStyle(accent)
-                Text(isDelete ? "Elimina account" : "Esci dall'account")
-                    .font(Typo.display(22)).foregroundStyle(Palette.textHi)
-                Text(isDelete
-                     ? "Il tuo account verrà disattivato e non potrai più accedere. Questa azione non è reversibile dall'app."
-                     : "Verrai disconnesso da questo dispositivo. Potrai rientrare con le tue credenziali.")
-                    .font(Typo.body(14)).foregroundStyle(Palette.textMid)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                VStack(spacing: 10) {
-                    NeonButton(title: isDelete ? "Elimina definitivamente" : "Esci",
-                               icon: isDelete ? "trash.fill" : "power",
-                               color: accent, filled: true, loading: deleting) {
-                        Task { await performConfirm(kind) }
-                    }
-                    NeonButton(title: "Annulla", color: Palette.cyan, filled: false) {
-                        dismissConfirm()
-                    }
-                }
-                .padding(.top, 4)
-            }
-            .padding(22)
-            .frame(maxWidth: 360)
-            .voltPanel(accent.opacity(0.35))
-            .padding(.horizontal, 28)
-            .transition(.scale(scale: 0.92).combined(with: .opacity))
-        }
-        .zIndex(1)
+        ConfirmDialogCard(
+            icon: isDelete ? "trash" : "rectangle.portrait.and.arrow.right",
+            title: isDelete ? "Elimina account" : "Esci dall'account",
+            message: isDelete
+                ? "Il tuo account verrà disattivato e non potrai più accedere. Questa azione non è reversibile dall'app."
+                : "Verrai disconnesso da questo dispositivo. Potrai rientrare con le tue credenziali.",
+            confirmTitle: isDelete ? "Elimina definitivamente" : "Esci",
+            accent: isDelete ? Palette.danger : Palette.control,
+            loading: deleting,
+            onConfirm: { Task { await performConfirm(kind) } },
+            onCancel: { dismissConfirm() }
+        )
     }
 
     private func dismissConfirm() {
@@ -134,15 +103,7 @@ struct SettingsView: View {
             get: { toggles.first(where: { $0.key == t.key })?.enabled ?? t.enabled },
             set: { newValue in Task { await update(key: t.key, enabled: newValue) } }
         )
-        return Toggle(isOn: binding) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(t.label).font(Typo.display(16)).foregroundStyle(Palette.textHi)
-                Text(t.desc).font(Typo.body(12)).foregroundStyle(Palette.textMid)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .tint(Palette.cyan)
-        .padding(16).voltPanel(Palette.cyan.opacity(0.3))
+        return SettingsToggleRow(label: t.label, desc: t.desc, isOn: binding)
     }
 
     private func update(key: String, enabled: Bool) async {

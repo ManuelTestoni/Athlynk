@@ -56,15 +56,10 @@ struct EmptyPanel: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.textMid)
             if let actionTitle, let action {
-                Button(action: action) {
-                    Text(actionTitle)
-                        .font(Typo.mono(12, .bold)).tracking(1).textCase(.uppercase)
-                        .foregroundStyle(Palette.void0)
-                        .padding(.horizontal, 18).padding(.vertical, 11)
-                        .background(Capsule().fill(color == Palette.textLow ? Palette.bronze : color))
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
+                NeonButton(title: actionTitle,
+                           color: color == Palette.textLow ? Palette.primary : color,
+                           compact: true, action: action)
+                    .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity)
@@ -151,6 +146,166 @@ struct LegalLinks: View {
         }
         .padding(.vertical, 12)
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Shared settings building blocks (identical in athlete + coach)
+
+/// One email-notification (or generic) toggle row. Both apps must use this so
+/// the settings screens stay visually identical.
+struct SettingsToggleRow: View {
+    var label: String
+    var desc: String
+    @Binding var isOn: Bool
+    /// Local mirror so the switch flips instantly; the source of truth catches
+    /// up when the backing store (usually an API roundtrip) confirms.
+    @State private var local: Bool
+
+    init(label: String, desc: String, isOn: Binding<Bool>) {
+        self.label = label; self.desc = desc; _isOn = isOn
+        _local = State(initialValue: isOn.wrappedValue)
+    }
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { local },
+            set: { v in local = v; isOn = v }
+        )) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                Text(desc).font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .tint(Palette.control)
+        .padding(16).voltPanel()
+        .onChange(of: isOn) { _, v in local = v }
+    }
+}
+
+/// Navigation row: icon + title/subtitle + chevron. The chevron is the
+/// affordance — every tappable row that pushes or presents uses this.
+struct NavListRow: View {
+    var icon: String
+    var title: String
+    var subtitle: String? = nil
+    var accent: Color = Palette.primary
+    var action: () -> Void
+
+    var body: some View {
+        Button { Haptics.tap(); action() } label: {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(accent).frame(width: 26)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                    if let subtitle {
+                        Text(subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
+            }
+            .padding(14).voltPanel()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+}
+
+/// Hub grid tile ("Altro" sections in both apps): icon top-left, chevron
+/// top-right as the tap affordance, title + subtitle below.
+struct HubTile: View {
+    var icon: String
+    var title: String
+    var subtitle: String
+    var accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Image(systemName: icon).font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(accent)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Palette.textLow)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(Typo.body(15, .bold)).foregroundStyle(Palette.textHi)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text(subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .padding(16).voltPanel()
+        .contentShape(Rectangle())
+    }
+}
+
+/// The shared logout + delete-account block. One look for both apps:
+/// logout is a neutral ghost, delete is unmistakably destructive.
+struct AccountActions: View {
+    var onLogout: () -> Void
+    var onDelete: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            NeonButton(title: "Esci", icon: "rectangle.portrait.and.arrow.right",
+                       color: Palette.control, filled: false, action: onLogout)
+            NeonButton(title: "Elimina account", icon: "trash",
+                       color: Palette.danger, filled: false, action: onDelete)
+        }
+        .padding(.top, 10)
+    }
+}
+
+/// Shared destructive-action confirmation card (logout / delete / discard).
+/// Presented as an overlay; both apps use this instead of ad-hoc dialogs.
+struct ConfirmDialogCard: View {
+    var icon: String
+    var title: String
+    var message: String
+    var confirmTitle: String
+    var accent: Color = Palette.danger
+    var loading: Bool = false
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color(hex: 0x14110D, alpha: 0.45)
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(alignment: .leading, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 26, weight: .black))
+                    .foregroundStyle(accent)
+                Text(title)
+                    .font(Typo.display(22)).foregroundStyle(Palette.textHi)
+                Text(message)
+                    .font(Typo.body(14)).foregroundStyle(Palette.textMid)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: 10) {
+                    NeonButton(title: confirmTitle, icon: icon, color: accent,
+                               filled: true, loading: loading, action: onConfirm)
+                    NeonButton(title: "Annulla", color: Palette.control,
+                               filled: false, action: onCancel)
+                }
+                .padding(.top, 4)
+            }
+            .padding(22)
+            .frame(maxWidth: 360)
+            .voltPanel(accent.opacity(0.35))
+            .padding(.horizontal, 28)
+            .transition(.scale(scale: 0.92).combined(with: .opacity))
+        }
+        .zIndex(1)
     }
 }
 

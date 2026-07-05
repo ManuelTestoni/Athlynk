@@ -46,7 +46,7 @@ struct ProgressTrackerView: View {
                     if loading {
                         ProgressSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if entries.isEmpty {
                         EmptyPanel(icon: "chart.xyaxis.line",
                                    text: "Nessun check completato.\nI tuoi progressi appariranno qui.")

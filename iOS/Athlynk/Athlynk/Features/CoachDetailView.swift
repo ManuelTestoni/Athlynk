@@ -22,7 +22,7 @@ struct CoachDetailView: View {
                     if loading {
                         CoachDetailSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let coach {
                         hero(coach)
                         if coach.yearsExperience != nil || coach.city != nil { statsRow(coach) }
@@ -47,9 +47,8 @@ struct CoachDetailView: View {
     private func hero(_ coach: CoachDetailDTO) -> some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle().fill(LinearGradient(colors: [Palette.violet, Palette.cyan],
-                                             startPoint: .top, endPoint: .bottom))
-                    .frame(width: 110, height: 110).neonGlow(Palette.violet, radius: 14)
+                Circle().fill(Palette.bronze)
+                    .frame(width: 110, height: 110).neonGlow(Palette.bronze, radius: 14)
                 if let u = coach.profileImageUrl, let url = URL(string: u) {
                     AsyncImage(url: url) { phase in
                         if case .success(let img) = phase {

@@ -21,7 +21,7 @@ struct SessionDetailView: View {
                 if loading {
                     ProgressView().tint(accent).frame(maxWidth: .infinity).padding(.top, 60)
                 } else if let error {
-                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: accent)
+                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                 } else if let d = data {
                     header(d)
                     if d.exercises.isEmpty {

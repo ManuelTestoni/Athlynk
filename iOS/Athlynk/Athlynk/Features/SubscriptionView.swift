@@ -20,7 +20,7 @@ struct SubscriptionView: View {
                     if loading {
                         SubscriptionSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let sub {
                         planCard(sub)
                         if !sub.plan.includedServices.isEmpty { servicesCard(sub.plan.includedServices) }

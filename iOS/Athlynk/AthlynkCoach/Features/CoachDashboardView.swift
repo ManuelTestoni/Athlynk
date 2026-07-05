@@ -29,7 +29,7 @@ struct CoachDashboardView: View {
                 insightCard(data.insight)
                 if !data.activity.isEmpty { activitySection(data.activity) }
             } else if let error {
-                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.bronze)
+                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
             }
         }
         .task(id: loadToken) { await load() }

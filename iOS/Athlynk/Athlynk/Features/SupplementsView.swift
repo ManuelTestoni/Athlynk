@@ -23,7 +23,7 @@ struct SupplementsView: View {
                     if loading {
                         SupplementsSkeleton(count: 3)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.amber)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if sheets.isEmpty {
                         EmptyPanel(icon: "pills", text: "Non hai ancora un protocollo integratori. Chiedi al tuo coach o nutrizionista di assegnartene uno.")
                     } else {

@@ -69,7 +69,7 @@ struct NewCheckView: View {
                     header.id("__top")
                     progress
                     if let submitError {
-                        Text(submitError).font(Typo.body(13)).foregroundStyle(Palette.magenta)
+                        Text(submitError).font(Typo.body(13)).foregroundStyle(Palette.danger)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     let step = steps[stepIdx]
@@ -155,7 +155,7 @@ struct NewCheckView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 4) {
                 Text(q.label.uppercased()).voltEyebrow()
-                if q.required { Text("*").font(Typo.mono(10, .black)).foregroundStyle(Palette.magenta) }
+                if q.required { Text("*").font(Typo.mono(10, .black)).foregroundStyle(Palette.danger) }
             }
             if let msg = fieldErrors[q.id] {
                 HStack(spacing: 6) {
@@ -163,7 +163,7 @@ struct NewCheckView: View {
                         .font(.system(size: 11, weight: .bold))
                     Text(msg).font(Typo.body(12, .semibold))
                 }
-                .foregroundStyle(Palette.magenta)
+                .foregroundStyle(Palette.danger)
                 .fixedSize(horizontal: false, vertical: true)
                 .transition(.opacity.combined(with: .offset(y: -4)))
             }

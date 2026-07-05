@@ -186,7 +186,7 @@ struct ActiveSessionView: View {
             if vm.loading {
                 LoadingPanel(text: "Avvio sessione…")
             } else if let error = vm.error, vm.sessionId == nil {
-                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta).padding(22)
+                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger).padding(22)
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {

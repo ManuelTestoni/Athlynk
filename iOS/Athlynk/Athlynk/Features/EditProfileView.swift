@@ -30,18 +30,18 @@ struct EditProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     if loading {
-                        FormSkeleton(accent: Palette.amber, count: 6)
+                        FormSkeleton(accent: Palette.bronze, count: 6)
                     } else {
                         avatarPicker
                         if let error {
-                            Text(error).font(Typo.body(13)).foregroundStyle(Palette.magenta)
+                            Text(error).font(Typo.body(13)).foregroundStyle(Palette.danger)
                         }
                         field("Nome", text: $firstName)
                         field("Cognome", text: $lastName)
                         field("Telefono", text: $phone, keyboard: .phonePad)
 
                         NeonButton(title: saving ? "Salvataggio…" : "Salva modifiche",
-                                   icon: "checkmark", color: Palette.amber, loading: saving) {
+                                   icon: "checkmark", color: Palette.primary, loading: saving) {
                             Task { await save() }
                         }
                         .padding(.top, 4)
@@ -63,10 +63,9 @@ struct EditProfileView: View {
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                 ZStack {
                     Circle()
-                        .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
-                                             startPoint: .top, endPoint: .bottom))
+                        .fill(Palette.bronze)
                         .frame(width: 104, height: 104)
-                        .neonGlow(Palette.amber, radius: 10)
+                        .neonGlow(Palette.bronze, radius: 10)
                     avatarImage
                         .frame(width: 104, height: 104)
                         .clipShape(Circle())
@@ -77,8 +76,8 @@ struct EditProfileView: View {
                     // Camera badge
                     Circle().fill(Palette.void0).frame(width: 34, height: 34)
                         .overlay(Image(systemName: "camera.fill")
-                            .font(.system(size: 14, weight: .black)).foregroundStyle(Palette.amber))
-                        .overlay(Circle().stroke(Palette.amber, lineWidth: 2))
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(Palette.bronze))
+                        .overlay(Circle().stroke(Palette.bronze, lineWidth: 2))
                         .offset(x: 36, y: 36)
                 }
             }
@@ -144,13 +143,11 @@ struct EditProfileView: View {
 
     private func field(_ label: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased()).font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
+            Text(label.uppercased()).voltEyebrow()
             TextField("", text: text)
-                .font(Typo.body(16)).foregroundStyle(Palette.textHi).tint(Palette.amber)
+                .font(Typo.body(16)).foregroundStyle(Palette.textHi).tint(Palette.bronze)
                 .keyboardType(keyboard)
-                .padding(.horizontal, 14).padding(.vertical, 12)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Palette.void2))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.line, lineWidth: 1))
+                .padding(.horizontal, 14).padding(.vertical, 13).voltPanel(radius: 12)
         }
     }
 

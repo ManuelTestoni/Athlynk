@@ -38,6 +38,12 @@ enum Palette {
     static let bronze  = magenta
     static let aegean  = cyan
 
+    // Semantic roles — use these instead of raw slots so intent survives reskins.
+    static let danger  = crimson    // destructive actions, errors
+    static let success = lime
+    static let primary = bronze     // imperial seal — primary CTA / brand accent
+    static let control = cyan       // interactive controls (toggles, pickers, links)
+
     /// Rotating accent set used to colour cards / rings by index.
     static let accents: [Color] = [cyan, magenta, lime, violet, amber]
     static func accent(_ i: Int) -> Color { accents[((i % accents.count) + accents.count) % accents.count] }

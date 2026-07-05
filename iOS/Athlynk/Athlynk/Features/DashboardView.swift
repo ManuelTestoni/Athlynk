@@ -184,6 +184,8 @@ struct DashboardView: View {
                     Spacer()
                     Text("\(Int(meal.kcal)) kcal")
                         .font(Typo.mono(14, .bold)).foregroundStyle(Palette.lime)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
                 }
                 HStack(spacing: 10) {
                     macroChip("PRO", grams: meal.items.reduce(0) { $0 + $1.protein }, Palette.magenta)
@@ -219,6 +221,9 @@ struct DashboardView: View {
                     Text(message)
                         .font(Typo.body(14)).foregroundStyle(Palette.textMid).lineLimit(2)
                 }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
+                    .padding(.top, 14)
             }
             .padding(16).voltPanel(Palette.cyan.opacity(0.35))
         }

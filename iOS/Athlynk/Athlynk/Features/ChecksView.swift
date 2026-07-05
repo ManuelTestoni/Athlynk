@@ -47,7 +47,7 @@ struct ChecksView: View {
             if loading {
                 TimelineSkeleton(accent: Palette.violet, count: 3)
             } else if let error {
-                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.violet)
+                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
             } else if checks.isEmpty {
                 EmptyPanel(icon: "checkmark.seal.fill",
                            text: "Tutto in regola.\nNessun check-in da compilare.",

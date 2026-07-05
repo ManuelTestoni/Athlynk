@@ -25,7 +25,7 @@ struct AnamnesisView: View {
                     if loading {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let d = dto, d.hasData {
                         header(d)
                         if let antrop = d.data?.antropometria { vitals(antrop) }

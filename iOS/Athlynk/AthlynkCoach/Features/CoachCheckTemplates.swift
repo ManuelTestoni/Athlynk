@@ -157,7 +157,7 @@ struct CoachCheckTemplateDetailView: View {
                 if d.isPreset {
                     secondary("Ripristina", "arrow.counterclockwise") { Task { await restore() } }
                 } else {
-                    secondary("Elimina", "trash", tint: Palette.amber) { Task { await remove() } }
+                    secondary("Elimina", "trash", tint: Palette.danger) { Task { await remove() } }
                 }
             }
         }

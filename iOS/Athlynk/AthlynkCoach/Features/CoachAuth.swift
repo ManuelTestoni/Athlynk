@@ -39,8 +39,7 @@ struct CoachSplashView: View {
                     ZStack(alignment: .leading) {
                         Capsule().fill(Palette.void2)
                         Capsule()
-                            .fill(LinearGradient(colors: [Palette.bronze, Palette.amber],
-                                                 startPoint: .leading, endPoint: .trailing))
+                            .fill(Palette.bronze)
                             .frame(width: geo.size.width * charge)
                             .neonGlow(Palette.bronze, radius: 8)
                     }
@@ -52,17 +51,10 @@ struct CoachSplashView: View {
                         .font(Typo.mono(12, .bold))
                         .foregroundStyle(Palette.textMid)
                         .padding(.top, 12)
-                    Button {
+                    NeonButton(title: "Riprova", icon: "arrow.clockwise",
+                               color: Palette.primary, compact: true) {
                         app.bootstrapRetryable = false
                         Task { await app.bootstrap() }
-                    } label: {
-                        Text("RIPROVA")
-                            .font(Typo.mono(13, .bold))
-                            .tracking(2)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
-                            .background(Capsule().fill(Palette.bronze))
                     }
                 }
             }
@@ -116,12 +108,12 @@ struct CoachLoginView: View {
 
                     if let err = app.loginError {
                         Label(err, systemImage: "exclamationmark.triangle.fill")
-                            .font(Typo.body(13, .semibold)).foregroundStyle(Palette.bronze)
+                            .font(Typo.body(13, .semibold)).foregroundStyle(Palette.danger)
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    NeonButton(title: "Accedi", icon: "key.fill",
-                               color: Palette.bronze, loading: app.isAuthenticating) {
+                    NeonButton(title: "Accedi", icon: "arrow.right",
+                               color: Palette.primary, loading: app.isAuthenticating) {
                         focus = nil
                         Task { await app.login(email: email, password: password, role: "COACH") }
                     }

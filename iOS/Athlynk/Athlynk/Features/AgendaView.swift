@@ -24,7 +24,7 @@ struct AgendaView: View {
                     if loading {
                         DateCardsSkeleton(accent: Palette.cyan, count: 3)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if items.isEmpty {
                         EmptyPanel(icon: "calendar", text: "Nessun appuntamento in agenda.")
                     } else {

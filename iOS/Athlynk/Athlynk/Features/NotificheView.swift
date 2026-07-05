@@ -21,7 +21,7 @@ struct NotificheView: View {
                     if loading {
                         AvatarRowsSkeleton(accent: Palette.cyan, count: 6)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.cyan)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if items.isEmpty {
                         EmptyPanel(icon: "bell.slash", text: "Nessuna notifica.")
                     } else {

@@ -71,7 +71,7 @@ struct JourneyView: View {
                     if loading {
                         TimelineSkeleton(accent: Palette.bronze, count: 4, railWidth: 44)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.bronze)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if shown.isEmpty {
                         EmptyPanel(icon: "map", text: filter == nil
                                    ? "Il tuo percorso apparirà qui.\nPiani, diete e check assegnati."

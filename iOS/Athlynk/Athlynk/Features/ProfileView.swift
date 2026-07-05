@@ -50,8 +50,11 @@ struct AthleteMoreView: View {
               subtitle: "Guida e supporto", accent: Palette.violet),
     ]
 
+    @State private var showLogoutConfirm = false
+
     var body: some View {
         NavigationStack(path: $path) {
+            ZStack {
             ScreenScroll {
                 identityCard.revealUp(appear, index: 0)
 
@@ -69,11 +72,27 @@ struct AthleteMoreView: View {
                 }
                 .revealUp(appear, index: 5)
 
-                NeonButton(title: "Esci", icon: "power", color: Palette.magenta, filled: false) {
-                    app.logout()
+                NeonButton(title: "Esci", icon: "rectangle.portrait.and.arrow.right",
+                           color: Palette.control, filled: false) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true }
                 }
                 .padding(.top, 8)
                 .revealUp(appear, index: 6)
+            }
+
+            if showLogoutConfirm {
+                ConfirmDialogCard(
+                    icon: "rectangle.portrait.and.arrow.right",
+                    title: "Esci dall'account",
+                    message: "Verrai disconnesso da questo dispositivo. Potrai rientrare con le tue credenziali.",
+                    confirmTitle: "Esci",
+                    accent: Palette.control,
+                    onConfirm: { app.logout() },
+                    onCancel: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showLogoutConfirm = false }
+                    }
+                )
+            }
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -98,17 +117,7 @@ struct AthleteMoreView: View {
     }
 
     private func card(_ item: Item) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: item.icon).font(.system(size: 22, weight: .bold))
-                .foregroundStyle(item.accent)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).font(Typo.body(15, .bold)).foregroundStyle(Palette.textHi)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text(item.subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(2)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .padding(16).voltPanel(item.accent.opacity(0.35))
+        HubTile(icon: item.icon, title: item.title, subtitle: item.subtitle, accent: item.accent)
     }
 
     private var identityCard: some View {

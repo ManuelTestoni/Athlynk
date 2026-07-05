@@ -500,7 +500,7 @@ struct CoachSessionsView: View {
             if loading {
                 ProgressView().tint(Palette.magenta).frame(maxWidth: .infinity).padding(.top, 60)
             } else if let error {
-                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
+                EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
             } else if sessions.isEmpty {
                 EmptyPanel(icon: "clock.arrow.circlepath", text: "Nessuna sessione registrata.")
             } else {

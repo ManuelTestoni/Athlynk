@@ -21,7 +21,7 @@ struct PricingView: View {
                     if loading {
                         PricingSkeleton(count: 2)
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.bronze)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if plans.isEmpty {
                         EmptyPanel(icon: "tag", text: "Nessun piano disponibile al momento.")
                     } else {

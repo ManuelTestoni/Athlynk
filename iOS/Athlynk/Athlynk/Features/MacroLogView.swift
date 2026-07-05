@@ -27,7 +27,7 @@ struct MacroLogView: View {
                     if loading {
                         MacroLogSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let day {
                         ringCard(day)
                         macrosCard(day)
@@ -144,9 +144,9 @@ struct MacroLogView: View {
             Text("kcal").font(Typo.mono(9, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
             Button { Task { await delete(e) } } label: {
                 Image(systemName: "trash.fill").font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Palette.magenta)
+                    .foregroundStyle(Palette.danger)
                     .frame(width: 34, height: 34)
-                    .background(Circle().fill(Palette.magenta.opacity(0.12)))
+                    .background(Circle().fill(Palette.danger.opacity(0.12)))
             }
             .accessibilityLabel("Elimina \(e.name)")
         }

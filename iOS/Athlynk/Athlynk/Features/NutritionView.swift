@@ -32,7 +32,7 @@ struct NutritionView: View {
                 if loading {
                     NutritionSkeleton()
                 } else if let error {
-                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
+                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                 } else if plans.isEmpty {
                     EmptyPanel(icon: "fork.knife", text: "Non hai ancora una dieta. Chiedi al tuo coach o nutrizionista di assegnartene una.")
                 } else {

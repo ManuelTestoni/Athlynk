@@ -117,9 +117,10 @@ struct CoachQuickAction: View {
             VStack(spacing: 8) {
                 Image(systemName: icon).font(.system(size: 19, weight: .bold))
                     .foregroundStyle(accent)
-                Text(label).font(Typo.mono(9, .semibold)).tracking(0.5)
-                    .textCase(.uppercase).foregroundStyle(Palette.textMid)
+                Text(label).font(Typo.mono(10, .semibold)).tracking(0.5)
+                    .textCase(.uppercase).foregroundStyle(Palette.textHi)
                     .multilineTextAlignment(.center).lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, minHeight: 76)
             .padding(.vertical, 12)
@@ -145,12 +146,27 @@ struct CoachClientAvatar: View {
 struct CoachListCard<Content: View>: View {
     var accent: Color = Palette.bronze
     var action: (() -> Void)? = nil
+    /// Tappable cards show a trailing chevron so they read as navigable;
+    /// pass false for tap actions that are not navigation (e.g. toggles).
+    var chevron: Bool = true
     @ViewBuilder var content: Content
 
     var body: some View {
         if let action {
-            Button { Haptics.tap(); action() } label: { card }
-                .buttonStyle(PressableButtonStyle())
+            Button { Haptics.tap(); action() } label: {
+                HStack(spacing: 12) {
+                    content.frame(maxWidth: .infinity, alignment: .leading)
+                    if chevron {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Palette.textLow)
+                    }
+                }
+                .padding(16)
+                .voltPanel()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
         } else { card }
     }
 

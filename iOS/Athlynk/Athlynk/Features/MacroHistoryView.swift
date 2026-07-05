@@ -25,7 +25,7 @@ struct MacroHistoryView: View {
                     if loading {
                         MacroLogSkeleton()
                     } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.lime)
+                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if days.isEmpty {
                         EmptyPanel(icon: "calendar", text: "Nessun giorno registrato.\nInizia dal diario di oggi.",
                                    color: Palette.lime)

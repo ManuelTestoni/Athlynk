@@ -19,19 +19,48 @@ struct CoachProfileView: View {
     @State private var deleting = false
 
     var body: some View {
-        ScreenScroll {
-            if let p = profile {
-                header(p)
-                if let bio = p.bio, !bio.isEmpty { bioCard(bio) }
-                detailsCard(p)
-                if hasSocials(p) { socialsCard(p) }
-                if let s = settings { settingsCard(s) }
-                LegalLinks(accent: Palette.bronze)
-                accountCard
-            } else if loading {
-                CoachProfileSkeleton()
-            } else {
-                EmptyPanel(icon: "person.crop.circle.badge.exclamationmark", text: "Profilo non disponibile.")
+        ZStack {
+            ScreenScroll {
+                if let p = profile {
+                    header(p)
+                    if let bio = p.bio, !bio.isEmpty { bioCard(bio) }
+                    detailsCard(p)
+                    if hasSocials(p) { socialsCard(p) }
+                    if let s = settings { settingsCard(s) }
+                    LegalLinks(accent: Palette.bronze)
+                    accountCard
+                } else if loading {
+                    CoachProfileSkeleton()
+                } else {
+                    EmptyPanel(icon: "person.crop.circle.badge.exclamationmark", text: "Profilo non disponibile.")
+                }
+            }
+
+            if showLogoutConfirm {
+                ConfirmDialogCard(
+                    icon: "rectangle.portrait.and.arrow.right",
+                    title: "Esci dall'account",
+                    message: "Verrai disconnesso da questo dispositivo. Potrai rientrare con le tue credenziali.",
+                    confirmTitle: "Esci",
+                    accent: Palette.control,
+                    onConfirm: { app.logout() },
+                    onCancel: { dismissConfirms() }
+                )
+            }
+            if showDeleteConfirm {
+                ConfirmDialogCard(
+                    icon: "trash",
+                    title: "Elimina account",
+                    message: "Il tuo account verrà disattivato e verrai disconnesso da tutti i dispositivi. Questa azione non è reversibile.",
+                    confirmTitle: "Elimina definitivamente",
+                    accent: Palette.danger,
+                    loading: deleting,
+                    onConfirm: {
+                        deleting = true
+                        Task { await app.deleteAccount() }
+                    },
+                    onCancel: { dismissConfirms() }
+                )
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -47,20 +76,13 @@ struct CoachProfileView: View {
                 CoachEditProfileView(profile: p) { updated in profile = updated }
             }
         }
-        .confirmationDialog("Vuoi uscire?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
-            Button("Esci", role: .destructive) { app.logout() }
-            Button("Annulla", role: .cancel) {}
-        }
-        .confirmationDialog("Eliminare l'account?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Elimina definitivamente", role: .destructive) {
-                deleting = true
-                Task { await app.deleteAccount() }
-            }
-            Button("Annulla", role: .cancel) {}
-        } message: {
-            Text("Il tuo account verrà disattivato e verrai disconnesso da tutti i dispositivi. Questa azione non è reversibile.")
-        }
         .sheet(isPresented: $showAutoReplies) { CoachAutoMessagesView() }
+    }
+
+    private func dismissConfirms() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            showLogoutConfirm = false; showDeleteConfirm = false
+        }
     }
 
     private func header(_ p: CoachProfileDTO) -> some View {
@@ -132,18 +154,24 @@ struct CoachProfileView: View {
 
     private func settingsCard(_ s: SettingsDTO) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            CoachSectionTitle(eyebrow: "Preferenze", title: "Notifiche email", accent: Palette.cyan)
+            Text("NOTIFICHE EMAIL").voltEyebrow().padding(.top, 4)
             ForEach(s.notifications) { toggle in
-                CoachToggleRow(toggle: toggle) { enabled in
-                    Task {
-                        if let updated = try? await APIClient.shared.updateSetting(key: toggle.key, enabled: enabled) {
-                            settings = updated
+                SettingsToggleRow(label: toggle.label, desc: toggle.desc, isOn: Binding(
+                    get: {
+                        settings?.notifications.first(where: { $0.key == toggle.key })?.enabled ?? toggle.enabled
+                    },
+                    set: { enabled in
+                        Haptics.tap()
+                        Task {
+                            if let updated = try? await APIClient.shared.updateSetting(key: toggle.key, enabled: enabled) {
+                                settings = updated
+                            }
                         }
                     }
-                }
+                ))
             }
 
-            CoachSectionTitle(eyebrow: "Dieta", title: "Ricerca alimenti", accent: Palette.lime)
+            Text("RICERCA ALIMENTI").voltEyebrow().padding(.top, 4)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Modalità ricerca").font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
                 Text("Scegli quali alimenti compaiono nella ricerca del builder dieta.")
@@ -169,37 +197,15 @@ struct CoachProfileView: View {
 
     private var accountCard: some View {
         VStack(spacing: 12) {
-            Button { Haptics.tap(); showAutoReplies = true } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.violet).frame(width: 26)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Risposte automatiche").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                        Text("Messaggi inviati in automatico").font(Typo.body(12)).foregroundStyle(Palette.textMid)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
-                }
-                .padding(14).voltPanel()
-            }
-            .buttonStyle(PressableButtonStyle())
+            NavListRow(icon: "bubble.left.and.text.bubble.right.fill",
+                       title: "Risposte automatiche",
+                       subtitle: "Messaggi inviati in automatico",
+                       accent: Palette.violet) { showAutoReplies = true }
 
-            NeonButton(title: "Esci", icon: "rectangle.portrait.and.arrow.right",
-                       color: Palette.bronze, filled: false) { showLogoutConfirm = true }
-
-            Button(role: .destructive) { Haptics.tap(); showDeleteConfirm = true } label: {
-                HStack(spacing: 8) {
-                    if deleting { ProgressView().tint(Palette.crimson) }
-                    Image(systemName: "trash")
-                    Text("Elimina account").font(Typo.body(14, .semibold))
-                }
-                .foregroundStyle(Palette.crimson)
-                .frame(maxWidth: .infinity).padding(.vertical, 13)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Palette.crimson.opacity(0.5), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(deleting)
+            AccountActions(
+                onLogout: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true } },
+                onDelete: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showDeleteConfirm = true } }
+            )
         }
         .padding(.top, 8)
     }
@@ -214,29 +220,6 @@ struct CoachProfileView: View {
         async let sett = APIClient.shared.settings()
         profile = try? await prof
         settings = try? await sett
-    }
-}
-
-private struct CoachToggleRow: View {
-    let toggle: SettingToggleDTO
-    var onChange: (Bool) -> Void
-    @State private var on: Bool
-
-    init(toggle: SettingToggleDTO, onChange: @escaping (Bool) -> Void) {
-        self.toggle = toggle; self.onChange = onChange
-        _on = State(initialValue: toggle.enabled)
-    }
-
-    var body: some View {
-        Toggle(isOn: $on) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(toggle.label).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                Text(toggle.desc).font(Typo.body(12)).foregroundStyle(Palette.textMid)
-            }
-        }
-        .tint(Palette.bronze)
-        .onChange(of: on) { _, v in Haptics.tap(); onChange(v) }
-        .padding(14).voltPanel()
     }
 }
 
@@ -310,8 +293,7 @@ struct CoachEditProfileView: View {
             PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                 ZStack {
                     Circle()
-                        .fill(LinearGradient(colors: [Palette.bronze, Palette.phase],
-                                             startPoint: .top, endPoint: .bottom))
+                        .fill(Palette.bronze)
                         .frame(width: 104, height: 104)
                         .neonGlow(Palette.bronze, radius: 10)
                     avatarImage

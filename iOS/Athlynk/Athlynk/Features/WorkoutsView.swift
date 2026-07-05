@@ -32,7 +32,7 @@ struct WorkoutsView: View {
                 if loading {
                     ListCardsSkeleton(accent: Palette.magenta, count: 2)
                 } else if let error {
-                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.magenta)
+                    EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                 } else if plans.isEmpty {
                     EmptyPanel(icon: "dumbbell", text: "Nessuna scheda attiva.\nIl tuo coach non te ne ha ancora assegnata una.")
                 } else {

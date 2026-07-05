@@ -39,10 +39,9 @@ struct SplashView: View {
                     ZStack(alignment: .leading) {
                         Capsule().fill(Palette.void2)
                         Capsule()
-                            .fill(LinearGradient(colors: [Palette.cyan, Palette.magenta],
-                                                 startPoint: .leading, endPoint: .trailing))
+                            .fill(Palette.bronze)
                             .frame(width: geo.size.width * charge)
-                            .neonGlow(Palette.magenta, radius: 8)
+                            .neonGlow(Palette.bronze, radius: 8)
                     }
                 }
                 .frame(width: 180, height: 6)
@@ -53,17 +52,10 @@ struct SplashView: View {
                         .font(Typo.mono(12, .bold))
                         .foregroundStyle(Palette.textMid)
                         .padding(.top, 12)
-                    Button {
+                    NeonButton(title: "Riprova", icon: "arrow.clockwise",
+                               color: Palette.primary, compact: true) {
                         app.bootstrapRetryable = false
                         Task { await app.bootstrap() }
-                    } label: {
-                        Text("RIPROVA")
-                            .font(Typo.mono(13, .bold))
-                            .tracking(2)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
-                            .background(Capsule().fill(Palette.magenta))
                     }
                 }
             }

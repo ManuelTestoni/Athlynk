@@ -39,7 +39,7 @@ struct LoginView: View {
                             .keyboardType(.emailAddress)
                             .focused($focus, equals: .email)
                         VoltField(icon: "lock.fill", placeholder: "Password",
-                                  text: $password, secure: true, accent: Palette.magenta)
+                                  text: $password, secure: true, accent: Palette.bronze)
                             .focused($focus, equals: .password)
                     }
                     .revealUp(appear, index: 1)
@@ -47,12 +47,12 @@ struct LoginView: View {
                     if let err = app.loginError {
                         Label(err, systemImage: "exclamationmark.triangle.fill")
                             .font(Typo.body(13, .semibold))
-                            .foregroundStyle(Palette.magenta)
+                            .foregroundStyle(Palette.danger)
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    NeonButton(title: "Accedi", icon: "bolt.fill",
-                               color: Palette.cyan, loading: app.isAuthenticating) {
+                    NeonButton(title: "Accedi", icon: "arrow.right",
+                               color: Palette.primary, loading: app.isAuthenticating) {
                         focus = nil
                         Task { await app.login(email: email, password: password, role: "CLIENT") }
                     }

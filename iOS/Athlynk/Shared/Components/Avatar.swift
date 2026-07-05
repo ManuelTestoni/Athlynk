@@ -17,8 +17,7 @@ struct AvatarView: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(LinearGradient(colors: [Palette.amber, Palette.magenta],
-                                     startPoint: .top, endPoint: .bottom))
+                .fill(Palette.bronze)
 
             if let url, let u = URL(string: url) {
                 AsyncImage(url: u) { phase in
