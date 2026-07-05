@@ -7,6 +7,7 @@ import SwiftUI
 struct ChatListView: View {
     @State private var convos: [ConversationDTO] = []
     @State private var loading = true
+    @State private var appear = false
 
     var body: some View {
         ZStack {
@@ -19,9 +20,10 @@ struct ChatListView: View {
                     } else if convos.isEmpty {
                         EmptyPanel(icon: "bubble.left", text: "Nessuna conversazione.")
                     } else {
-                        ForEach(convos) { c in
+                        ForEach(Array(convos.enumerated()), id: \.element.id) { i, c in
                             NavigationLink(value: c) { row(c) }
                                 .buttonStyle(PressableButtonStyle())
+                                .revealUp(appear, index: min(i, 8))
                         }
                     }
                 }
@@ -30,7 +32,7 @@ struct ChatListView: View {
         }
         .navigationTitle("").navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .task { convos = (try? await APIClient.shared.conversations()) ?? []; loading = false }
+        .task { convos = (try? await APIClient.shared.conversations()) ?? []; loading = false; appear = true }
         .onRemoteChange(["MESSAGE"]) { Task { convos = (try? await APIClient.shared.conversations()) ?? [] } }
     }
 

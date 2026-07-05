@@ -1641,12 +1641,16 @@ def plans(request, user):
 def _logged_set_dict(sl):
     return {
         'workout_exercise_id': sl.workout_exercise_id,
+        'exercise_id': sl.actual_exercise_id if sl.workout_exercise_id is None else None,
         'set_number': sl.set_number,
         'reps_done': sl.reps_done,
         'load_used': float(sl.load_used) if sl.load_used is not None else None,
         'load_unit': sl.load_unit,
         'rpe': sl.rpe,
         'completed': sl.completed,
+        'is_extra_set': sl.is_extra_set,
+        'exercise_substituted': sl.exercise_substituted,
+        'actual_exercise_id': sl.actual_exercise_id,
     }
 
 
@@ -1675,6 +1679,7 @@ def session_start(request, user):
 
     exercises = [{
         'workout_exercise_id': ex.id,
+        'exercise_catalog_id': ex.exercise_id,
         'name': ex.exercise.name,
         'target_muscle_group': ex.exercise.target_muscle_group,
         'sets': ex.set_count or 3,
@@ -1687,12 +1692,42 @@ def session_start(request, user):
         'set_details': ex.set_details or [],
     } for ex in day.exercises.select_related('exercise').order_by('order_index')]
 
+    # Session-only deviations (removed/substituted/added), same shape as web.
+    from .views_session import session_override_state
+    removed, subs, added = session_override_state(session)
+    for item in exercises:
+        we_id = item['workout_exercise_id']
+        se = subs.get(we_id)
+        item['exercise_id'] = None
+        item['added'] = False
+        item['removed'] = we_id in removed
+        item['substituted_with'] = {'id': se.id, 'name': se.name} if se else None
+    for ex_obj, _order in added:
+        exercises.append({
+            'workout_exercise_id': None,
+            'exercise_id': ex_obj.id,
+            'name': ex_obj.name,
+            'target_muscle_group': ex_obj.target_muscle_group,
+            'sets': 3,
+            'reps': '10',
+            'load_value': None,
+            'load_unit': 'KG',
+            'recovery_seconds': 90,
+            'tempo': '',
+            'notes': '',
+            'set_details': [],
+            'added': True,
+            'removed': False,
+            'substituted_with': None,
+        })
+
     sets_logged = [_logged_set_dict(sl) for sl in session.set_logs.all() if sl.set_number != 0]
 
     return JsonResponse({
         'session_id': session.id,
         'exercises': exercises,
         'sets_logged': sets_logged,
+        'overrides': session.overrides or {},
         'started_at': _iso(session.started_at),
     })
 
@@ -1706,9 +1741,14 @@ def session_log_set(request, user, session_id):
     if not session:
         return JsonResponse({'error': 'Sessione non trovata'}, status=404)
     data = _body(request)
-    we = WorkoutExercise.objects.filter(id=data.get('workout_exercise_id'),
-                                        workout_day=session.workout_day).first()
-    if not we:
+    we = None
+    added_exercise_id = data.get('exercise_id')
+    if data.get('workout_exercise_id'):
+        we = WorkoutExercise.objects.filter(id=data.get('workout_exercise_id'),
+                                            workout_day=session.workout_day).first()
+        if not we:
+            return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
+    elif not added_exercise_id:
         return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
 
     reps = data.get('reps_done')
@@ -1720,16 +1760,35 @@ def session_log_set(request, user, session_id):
         rpe_value = int(rpe) if rpe not in (None, '') else None
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Valore numerico non valido'}, status=400)
-    log, _ = WorkoutSetLog.objects.update_or_create(
-        session=session, workout_exercise=we, set_number=set_number,
-        defaults={
-            'reps_done': reps_done,
-            'load_used': load if load not in (None, '') else None,
-            'load_unit': data.get('load_unit') or 'KG',
-            'rpe': rpe_value,
-            'completed': bool(data.get('completed', True)),
-        },
-    )
+
+    actual_exercise_id = data.get('actual_exercise_id') or added_exercise_id
+    actual_exercise = Exercise.objects.filter(id=actual_exercise_id).first() if actual_exercise_id else None
+    defaults = {
+        'reps_done': reps_done,
+        'load_used': load if load not in (None, '') else None,
+        'load_unit': data.get('load_unit') or 'KG',
+        'rpe': rpe_value,
+        'notes': data.get('notes') or '',
+        'completed': bool(data.get('completed', True)),
+        'is_extra_set': bool(data.get('is_extra_set', False)),
+        'exercise_substituted': bool(data.get('exercise_substituted', False)),
+        'actual_exercise': actual_exercise,
+    }
+    if we is None:
+        # Exercise added in-session: no plan slot, keyed by the actual exercise.
+        if actual_exercise is None:
+            return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
+        defaults['is_extra_set'] = True
+        log, _ = WorkoutSetLog.objects.update_or_create(
+            session=session, workout_exercise=None,
+            actual_exercise=actual_exercise, set_number=set_number,
+            defaults={k: v for k, v in defaults.items() if k != 'actual_exercise'},
+        )
+    else:
+        log, _ = WorkoutSetLog.objects.update_or_create(
+            session=session, workout_exercise=we, set_number=set_number,
+            defaults=defaults,
+        )
     return JsonResponse({'set_id': log.id, 'success': True})
 
 
@@ -1754,6 +1813,67 @@ def session_finish(request, user, session_id):
         'duration_minutes': session.duration_minutes,
         'avg_rpe': session.avg_rpe,
     })
+
+
+@api_view(['POST'])
+def session_overrides(request, user, session_id):
+    """Session-only plan deviations (add/remove/substitute exercises)."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    session = WorkoutSession.objects.filter(id=session_id, client=client).first()
+    if not session:
+        return JsonResponse({'error': 'Sessione non trovata'}, status=404)
+    from .views_session import apply_session_overrides
+    err = apply_session_overrides(session, _body(request))
+    if err:
+        return JsonResponse({'error': err}, status=400)
+    return JsonResponse({'success': True, 'overrides': session.overrides})
+
+
+@api_view(['GET'])
+def exercises_search(request, user):
+    """Exercise catalog search: ?q= name, ?muscle_group= browse,
+    ?similar_to=<exercise_id> same primary muscle, ?include_groups=1."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    from .views_session import search_exercises_for_client, muscle_groups_payload
+    from .http_utils import safe_int
+    items = search_exercises_for_client(
+        client,
+        q=(request.GET.get('q') or '').strip(),
+        muscle_group=(request.GET.get('muscle_group') or '').strip(),
+        similar_to=safe_int(request.GET, 'similar_to', None),
+        limit=safe_int(request.GET, 'limit', 30),
+    )
+    payload = {'results': items}
+    if request.GET.get('include_groups'):
+        payload['muscle_groups'] = muscle_groups_payload()
+    return JsonResponse(payload)
+
+
+@api_view(['GET'])
+def progress_exercises(request, user):
+    """Exercises the athlete has actually performed (history-based), for the
+    progress charts list — includes substituted/added movements."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    from .views_session import exercises_with_history
+    return JsonResponse({'exercises': exercises_with_history(client)})
+
+
+@api_view(['GET'])
+def exercise_trend_by_name(request, user):
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non disponibile'}, status=403)
+    name = (request.GET.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'error': 'Nome richiesto'}, status=400)
+    from .views_session import build_exercise_trend_by_name
+    return JsonResponse(build_exercise_trend_by_name(name, client))
 
 
 # ---------------------------------------------------------------------------

@@ -12,11 +12,13 @@ import SwiftUI
 
 struct ProgressTrackerView: View {
     @State private var entries: [ProgressEntryDTO] = []
+    @State private var exerciseHistory: [ExerciseHistoryItemDTO] = []
     @State private var loading = true
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
     @State private var showAdd = false
+    @State private var appear = false
 
     /// Entries oldest → newest.
     private var chrono: [ProgressEntryDTO] {
@@ -51,15 +53,19 @@ struct ProgressTrackerView: View {
                         EmptyPanel(icon: "chart.xyaxis.line",
                                    text: "Nessun check completato.\nI tuoi progressi appariranno qui.")
                     } else {
-                        MeasurementTrends(samples: samples)
-                        if photoEntries.count >= 2 { comparatorCard }
-                        Text("STORICO CHECK").voltEyebrow().padding(.top, 4)
+                        MeasurementTrends(samples: samples).revealUp(appear, index: 0)
+                        if photoEntries.count >= 2 { comparatorCard.revealUp(appear, index: 1) }
+                        Text("STORICO CHECK").voltEyebrow().padding(.top, 4).revealUp(appear, index: 2)
                         ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
-                            entryCard(e, index: i)
+                            entryCard(e, index: i).revealUp(appear, index: min(i, 5) + 3)
                         }
                         if hasMore {
                             LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }
                         }
+                    }
+                    if !loading, !exerciseHistory.isEmpty {
+                        GreekDivider(color: Palette.control).padding(.top, 8)
+                        exercisesSection.revealUp(appear, index: 4)
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
@@ -86,6 +92,7 @@ struct ProgressTrackerView: View {
             .presentationDetents([.medium, .large])
         }
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     // MARK: Photo comparator
@@ -182,6 +189,39 @@ struct ProgressTrackerView: View {
         return f.string(from: d).uppercased()
     }
 
+    // MARK: Exercise trends (history-based: includes substituted/added movements)
+
+    private var exercisesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PROGRESSI PER ESERCIZIO").voltEyebrow().padding(.top, 4)
+            Text("Tutti gli esercizi che hai eseguito — anche quelli sostituiti o aggiunti in sessione.")
+                .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+            ForEach(exerciseHistory) { item in
+                NavigationLink {
+                    ExerciseTrendByNameView(name: item.name)
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name).font(Typo.body(15, .semibold))
+                                .foregroundStyle(Palette.textHi).lineLimit(1)
+                            Text("\(item.sessionsCount) sessioni\(item.lastDone.map { " · ultima \($0)" } ?? "")")
+                                .font(Typo.mono(10)).foregroundStyle(Palette.textMid)
+                        }
+                        Spacer()
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.control)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textMid)
+                    }
+                    .padding(14)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .voltPanel(Palette.control.opacity(0.3), radius: 13)
+            }
+        }
+    }
+
     private func load() async {
         loading = true; error = nil
         do {
@@ -189,6 +229,7 @@ struct ProgressTrackerView: View {
             entries = res.entries; hasMore = res.hasMore
         }
         catch { self.error = error.localizedDescription }
+        exerciseHistory = (try? await APIClient.shared.progressExercises()) ?? []
         loading = false
     }
 
@@ -200,5 +241,35 @@ struct ProgressTrackerView: View {
             entries.append(contentsOf: res.entries.filter { !known.contains($0.id) })
             hasMore = res.hasMore
         }
+    }
+}
+
+// MARK: - Trend by exercise NAME (history-based, works for substituted/added)
+
+struct ExerciseTrendByNameView: View {
+    let name: String
+
+    var body: some View {
+        ZStack {
+            VoltBackground(palette: [Palette.violet, Palette.cyan, Palette.magenta, Palette.violet])
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("ANDAMENTO ESERCIZIO")
+                            .font(Typo.mono(10, .bold)).tracking(2).foregroundStyle(Palette.control)
+                        Text(name).font(Typo.poster(30)).foregroundStyle(Palette.textHi)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Rectangle().fill(Palette.control).frame(height: 1).opacity(0.5)
+                    }
+                    ExerciseTrendCard(load: {
+                        try await APIClient.shared.exerciseTrend(name: name)
+                    }, accent: Palette.control)
+                }
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+            }
+        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 }

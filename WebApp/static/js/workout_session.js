@@ -23,8 +23,18 @@ function sessionRunner() {
     // exerciseNotes[exId] = string
     exerciseNotes: {},
     notesOpen: {},
-    // substituted[exId] = { id, name } (alternative chosen)
+    // substituted[exId] = { id, name } (alternative or free pick)
     substituted: {},
+    // removed[exId] = true (session-only, restorable)
+    removed: {},
+    // Exercise picker (add / substitute). Added exercises get id 'add-<catalog id>'.
+    pickerModal: {
+      open: false, mode: 'add', forEx: null,
+      q: '', group: '', groups: [], results: [],
+      similar: [], exploreAll: false, loading: false,
+    },
+    removeModal: { open: false, ex: null },
+    _pickerT: null,
 
     // timers[exId] = { active, paused, sec, _h }
     timers: {},
@@ -101,14 +111,30 @@ function sessionRunner() {
     },
 
     _hydrateFromServer(d) {
+      // Session-only overrides first, so added exercises exist before their sets
+      const ov = d.overrides || {};
+      const newRemoved = {};
+      for (const id of (ov.removed || [])) newRemoved[id] = true;
+      this.removed = newRemoved;
+      for (const se of (d.exercises || [])) {
+        if (se.added && se.exercise_id) {
+          this._appendAdded({ id: se.exercise_id, name: se.name, video_url: se.video_url || '' });
+        }
+      }
+
       // Restore prior progress on reload / mid-session resume
       const sets = d.sets_logged || [];
       const newDone = { ...this.doneSets };
       const newLocal = { ...this.localValues };
       const newExtra = { ...this.extraSets };
       const newSubst = { ...this.substituted };
+      for (const se of (d.exercises || [])) {
+        if (se.workout_exercise_id && se.substituted_with) {
+          newSubst[se.workout_exercise_id] = se.substituted_with;
+        }
+      }
       for (const s of sets) {
-        const exId = s.workout_exercise_id;
+        const exId = s.workout_exercise_id ?? ('add-' + s.exercise_id);
         const k = exId + '-' + s.set_number;
         newLocal[k] = {
           reps_done: s.reps_done,
@@ -142,12 +168,153 @@ function sessionRunner() {
       this.exerciseNotes = newNotes;
       // Auto-expand first non-complete exercise
       for (const ex of this.exercises) {
-        if (!this.isExComplete(ex)) {
+        if (!this.isExComplete(ex) && !this.removed[ex.id]) {
           this.expanded[ex.id] = true;
           this.activeExId = ex.id;
           break;
         }
       }
+    },
+
+    // ---- Session-only overrides (add / remove / substitute) ----
+    _appendAdded(item) {
+      const id = 'add-' + item.id;
+      if (this.exercises.some(e => e.id === id)) return;
+      this.exercises.push({
+        id,
+        exercise_id: item.id,
+        exercise_catalog_id: item.id,
+        name: item.name,
+        sets: 3,
+        reps: '10',
+        load_value: null,
+        load_unit: 'KG',
+        recovery_seconds: 90,
+        notes: '',
+        set_details: [],
+        video_url: item.video_url || '',
+        alternative_exercise: null,
+        added: true,
+      });
+      this.expanded[id] = false;
+      this.notesOpen[id] = false;
+      this.extraSets[id] = 0;
+      this.exerciseNotes[id] = '';
+      this.doneSets[id] = this.doneSets[id] || [];
+      this.timers[id] = { active: false, paused: false, sec: 0, _h: null };
+    },
+
+    async saveOverrides() {
+      if (!this.sessionId) return;
+      const substituted = {};
+      for (const [weId, sub] of Object.entries(this.substituted)) {
+        if (!String(weId).startsWith('add-')) substituted[weId] = sub.id;
+      }
+      const payload = {
+        removed: Object.keys(this.removed).filter(k => this.removed[k] && !String(k).startsWith('add-')).map(Number),
+        substituted,
+        added: this.exercises.filter(e => e.added).map((e, i) => ({ exercise_id: e.exercise_id, order: i })),
+      };
+      try {
+        await fetch(this.urls.overrides_tpl.replace('__SID__', this.sessionId), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+          body: JSON.stringify(payload),
+        });
+      } catch (_) {}
+    },
+
+    askRemove(ex) {
+      this.removeModal = { open: true, ex };
+    },
+
+    confirmRemove() {
+      const ex = this.removeModal.ex;
+      this.removeModal.open = false;
+      if (!ex) return;
+      if (ex.added) {
+        this.exercises = this.exercises.filter(e => e.id !== ex.id);
+      } else {
+        this.removed = { ...this.removed, [ex.id]: true };
+        this.expanded[ex.id] = false;
+      }
+      this.saveOverrides();
+    },
+
+    restoreExercise(ex) {
+      const next = { ...this.removed };
+      delete next[ex.id];
+      this.removed = next;
+      this.saveOverrides();
+    },
+
+    // ---- Exercise picker (add / substitute) ----
+    openAddPicker() {
+      this.pickerModal = {
+        open: true, mode: 'add', forEx: null,
+        q: '', group: '', groups: [], results: [],
+        similar: [], exploreAll: true, loading: true,
+      };
+      this._pickerFetch(true);
+    },
+
+    async openSubstitutePicker(ex) {
+      this.pickerModal = {
+        open: true, mode: 'substitute', forEx: ex,
+        q: '', group: '', groups: [], results: [],
+        similar: [], exploreAll: false, loading: true,
+      };
+      try {
+        const catId = ex.exercise_catalog_id || ex.exercise_id;
+        const r = await fetch(this.urls.search + '?similar_to=' + catId + '&limit=30');
+        const d = await r.json();
+        this.pickerModal.similar = d.results || [];
+      } catch (_) {}
+      this.pickerModal.loading = false;
+    },
+
+    exploreAllExercises() {
+      this.pickerModal.exploreAll = true;
+      this.pickerModal.loading = true;
+      this._pickerFetch(true);
+    },
+
+    pickerInput() {
+      clearTimeout(this._pickerT);
+      this._pickerT = setTimeout(() => this._pickerFetch(), 250);
+    },
+
+    pickerGroup(slug) {
+      this.pickerModal.group = this.pickerModal.group === slug ? '' : slug;
+      this._pickerFetch();
+    },
+
+    async _pickerFetch(withGroups = false) {
+      const p = this.pickerModal;
+      const params = new URLSearchParams();
+      if (p.q) params.set('q', p.q);
+      if (p.group) params.set('muscle_group', p.group);
+      if (withGroups || !p.groups.length) params.set('include_groups', '1');
+      params.set('limit', '30');
+      try {
+        const r = await fetch(this.urls.search + '?' + params.toString());
+        const d = await r.json();
+        p.results = d.results || [];
+        if (d.muscle_groups) p.groups = d.muscle_groups;
+      } catch (_) {}
+      p.loading = false;
+    },
+
+    choosePicked(item) {
+      const p = this.pickerModal;
+      if (p.mode === 'add') {
+        this._appendAdded(item);
+        this.expanded['add-' + item.id] = true;
+      } else if (p.forEx) {
+        this.substituted = { ...this.substituted, [p.forEx.id]: { id: item.id, name: item.name } };
+      }
+      p.open = false;
+      this.saveOverrides();
     },
 
     _csrf() {
@@ -164,11 +331,15 @@ function sessionRunner() {
     },
 
     nextExercise() {
-      // First exercise that has sets remaining
+      // First exercise that has sets remaining (removed ones don't count)
       for (const ex of this.exercises) {
-        if (!this.isExComplete(ex)) return ex;
+        if (!this.isExComplete(ex) && !this.removed[ex.id]) return ex;
       }
       return null;
+    },
+
+    activeExercises() {
+      return this.exercises.filter(ex => !this.removed[ex.id]);
     },
 
     showInstructions(ex) {
@@ -233,7 +404,7 @@ function sessionRunner() {
 
     // ---- Stats ----
     get completedExCount() {
-      return this.exercises.filter(ex => this.isExComplete(ex)).length;
+      return this.activeExercises().filter(ex => this.isExComplete(ex)).length;
     },
 
     get totalDoneSets() {
@@ -241,15 +412,18 @@ function sessionRunner() {
     },
 
     get progressPct() {
-      const tot = this.exercises.reduce((a, e) => a + this.totalSetsFor(e), 0);
+      const tot = this.activeExercises().reduce((a, e) => a + this.totalSetsFor(e), 0);
       if (!tot) return 0;
-      return Math.round((this.totalDoneSets / tot) * 100);
+      return Math.min(100, Math.round((this.totalDoneSets / tot) * 100));
     },
 
     get avgRpe() {
       const all = [];
       Object.entries(this.localValues).forEach(([k, v]) => {
-        const [exId, setN] = k.split('-').map(Number);
+        // exId may be 'add-<id>' — split on the LAST dash only
+        const i = k.lastIndexOf('-');
+        const exId = k.slice(0, i);
+        const setN = Number(k.slice(i + 1));
         if (this.isSetDone(exId, setN) && v && v.rpe) all.push(v.rpe);
       });
       if (!all.length) return null;
@@ -280,7 +454,8 @@ function sessionRunner() {
       const sub = this.substituted[ex.id];
 
       const payload = {
-        workout_exercise_id: ex.id,
+        workout_exercise_id: ex.added ? null : ex.id,
+        exercise_id: ex.added ? ex.exercise_id : null,
         set_number: setNum,
         reps_done: reps !== '' && reps !== null ? parseInt(reps) : null,
         load_used: load !== '' && load !== null ? parseFloat(load) : null,
@@ -288,9 +463,9 @@ function sessionRunner() {
         rpe: rpe ? parseInt(rpe) : null,
         notes: notes || '',
         completed,
-        is_extra_set: setNum > ex.sets,
-        exercise_substituted: !!sub,
-        actual_exercise_id: sub ? sub.id : null,
+        is_extra_set: ex.added || setNum > ex.sets,
+        exercise_substituted: !ex.added && !!sub,
+        actual_exercise_id: ex.added ? ex.exercise_id : (sub ? sub.id : null),
       };
 
       // Mark done locally — reassign array to trigger Alpine reactivity
@@ -321,7 +496,7 @@ function sessionRunner() {
       // Find next non-complete exercise
       const idx = this.exercises.findIndex(x => x.id === ex.id);
       for (let i = idx + 1; i < this.exercises.length; i++) {
-        if (!this.isExComplete(this.exercises[i])) {
+        if (!this.isExComplete(this.exercises[i]) && !this.removed[this.exercises[i].id]) {
           this.expanded[this.exercises[i].id] = true;
           this.activeExId = this.exercises[i].id;
           // Scroll into view
@@ -345,12 +520,14 @@ function sessionRunner() {
         this.substituted = { ...this.substituted, [ex.id]: ex.alternative_exercise };
       }
       this.substituteModal.open = false;
+      this.saveOverrides();
     },
 
     undoSubstitute(ex) {
       const next = { ...this.substituted };
       delete next[ex.id];
       this.substituted = next;
+      this.saveOverrides();
     },
 
     // ---- Timer (per exercise) ----
@@ -425,8 +602,9 @@ function sessionRunner() {
     },
 
     _collectExerciseNotes() {
+      // Added exercises ('add-<id>') have no plan slot to attach notes to
       return Object.entries(this.exerciseNotes || {})
-        .filter(([_, v]) => v && String(v).trim())
+        .filter(([id, v]) => !String(id).startsWith('add-') && v && String(v).trim())
         .map(([id, v]) => ({ workout_exercise_id: Number(id), notes: String(v).trim() }));
     },
 

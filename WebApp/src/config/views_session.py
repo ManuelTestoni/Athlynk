@@ -2,13 +2,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden
 from django.utils import timezone
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Max, Q
+from django.db.models.functions import Coalesce
 from datetime import timedelta
 import json
 
 from domain.accounts.models import ClientProfile
 from domain.workouts.models import (
-    Exercise, WorkoutDay, WorkoutExercise, WorkoutAssignment,
+    Exercise, MuscleGroup, WorkoutDay, WorkoutExercise, WorkoutAssignment,
     WorkoutSession, WorkoutSetLog, SessionMedia, SessionCoachNote,
 )
 from domain.coaching.models import CoachingRelationship
@@ -50,11 +51,44 @@ def _serialize_session_brief(s):
 def _serialize_session_full(s):
     out = _serialize_session_brief(s)
     sets = list(s.set_logs.select_related(
-        'workout_exercise__exercise', 'workout_exercise__alternative_exercise'
+        'workout_exercise__exercise', 'workout_exercise__alternative_exercise',
+        'actual_exercise',
     ).order_by('workout_exercise__order_index', 'set_number'))
     by_ex = {}
     exercise_notes_by_we = {}
     for sl in sets:
+        if sl.workout_exercise is None:
+            # Exercise added in-session: no plan slot, grouped by actual exercise.
+            key = f'added-{sl.actual_exercise_id}'
+            if sl.set_number == 0:
+                continue
+            if key not in by_ex:
+                by_ex[key] = {
+                    'workout_exercise_id': None,
+                    'exercise_name': sl.actual_exercise.name if sl.actual_exercise else 'Esercizio',
+                    'added': True,
+                    'prescribed_sets': None,
+                    'prescribed_reps': None,
+                    'prescribed_load': None,
+                    'prescribed_load_unit': sl.load_unit or 'KG',
+                    'prescribed_recovery': None,
+                    'alternative_exercise': None,
+                    'exercise_note': '',
+                    'sets': [],
+                }
+            by_ex[key]['sets'].append({
+                'set_number': sl.set_number,
+                'reps_done': sl.reps_done,
+                'load_used': float(sl.load_used) if sl.load_used else None,
+                'load_unit': sl.load_unit,
+                'rpe': sl.rpe,
+                'notes': sl.notes or '',
+                'completed': sl.completed,
+                'is_extra_set': sl.is_extra_set,
+                'exercise_substituted': False,
+                'actual_exercise': None,
+            })
+            continue
         we_id = sl.workout_exercise.id
         if sl.set_number == 0:
             exercise_notes_by_we[we_id] = sl.notes or ''
@@ -64,6 +98,7 @@ def _serialize_session_full(s):
             by_ex[we_id] = {
                 'workout_exercise_id': we_id,
                 'exercise_name': sl.workout_exercise.exercise.name,
+                'added': False,
                 'prescribed_sets': sl.workout_exercise.set_count,
                 'prescribed_reps': sl.workout_exercise.rep_range,
                 'prescribed_load': float(sl.workout_exercise.load_value) if sl.workout_exercise.load_value else None,
@@ -218,8 +253,8 @@ def api_assignment_sessions_list(request, assignment_id):
 # Single-exercise trend (per-session over time)
 # ---------------------------------------------------------------------------
 
-def build_exercise_trend(workout_exercise, client):
-    """Per-session trend for one planned exercise slot, from real logged sets.
+def build_exercise_trend_by_name(name, client, load_unit_default='KG'):
+    """Per-session trend for one exercise NAME, from real logged sets.
 
     One data point per completed session (not per set), so the athlete reads a
     clean line; the per-set breakdown lives in each session's ``sets`` list for
@@ -244,11 +279,15 @@ def build_exercise_trend(workout_exercise, client):
     # WorkoutExercise — and may even be a different Exercise record that shares
     # the name. The name is the stable, unique key, so the athlete sees one
     # continuous trend over time.
-    ex_name = workout_exercise.exercise.name
+    # The name performed is actual_exercise when the set was substituted (or the
+    # exercise was added in-session, workout_exercise NULL), else the plan slot's
+    # exercise — so substituted work counts under the movement actually done.
     logs = (
         WorkoutSetLog.objects
-        .filter(workout_exercise__exercise__name__iexact=ex_name,
-                session__client=client, completed=True)
+        .annotate(done_name=Coalesce('actual_exercise__name',
+                                     'workout_exercise__exercise__name'))
+        .filter(done_name__iexact=name, session__client=client, completed=True)
+        .exclude(set_number=0)
         .select_related('session', 'actual_exercise')
         .order_by('session__started_at', 'set_number')
     )
@@ -272,7 +311,7 @@ def build_exercise_trend(workout_exercise, client):
             'set_number': sl.set_number,
             'reps': sl.reps_done,
             'load': float(sl.load_used) if sl.load_used is not None else None,
-            'load_unit': sl.load_unit or workout_exercise.load_unit or 'KG',
+            'load_unit': sl.load_unit or load_unit_default,
             'rpe': sl.rpe,
             'is_extra': sl.is_extra_set,
             'substituted': sl.exercise_substituted,
@@ -304,18 +343,27 @@ def build_exercise_trend(workout_exercise, client):
             'volume': round(volume, 1) if volume is not None else None,
             'top_set': top['load'] if top else None,
             'weighted_avg_load': weighted_avg_load,
-            'load_unit': (top['load_unit'] if top else None) or workout_exercise.load_unit or 'KG',
+            'load_unit': (top['load_unit'] if top else None) or load_unit_default,
         })
 
     return {
         'exercise': {
-            'workout_exercise_id': workout_exercise.id,
-            'name': workout_exercise.exercise.name,
-            'load_unit': workout_exercise.load_unit or 'KG',
+            'name': name,
+            'load_unit': load_unit_default,
         },
         'has_data': len(series) > 0,
         'sessions': series,
     }
+
+
+def build_exercise_trend(workout_exercise, client):
+    """Back-compat wrapper: trend for a plan slot = trend of its exercise name."""
+    payload = build_exercise_trend_by_name(
+        workout_exercise.exercise.name, client,
+        load_unit_default=workout_exercise.load_unit or 'KG',
+    )
+    payload['exercise']['workout_exercise_id'] = workout_exercise.id
+    return payload
 
 
 def api_client_exercise_trend(request, workout_exercise_id):
@@ -335,6 +383,177 @@ def api_client_exercise_trend(request, workout_exercise_id):
     ).exists():
         return JsonResponse({'error': 'forbidden'}, status=403)
     return JsonResponse(build_exercise_trend(we, client))
+
+
+# ---------------------------------------------------------------------------
+# Exercise catalog (athlete-facing) + session overrides
+# ---------------------------------------------------------------------------
+
+def _client_exercise_catalog(client):
+    """Global catalog + custom exercises of the athlete's active coaches."""
+    coach_ids = list(CoachingRelationship.objects.filter(
+        client=client, status='ACTIVE').values_list('coach_id', flat=True))
+    return Exercise.objects.filter(Q(is_custom=False) | Q(created_by_id__in=coach_ids))
+
+
+def _exercise_item(ex):
+    primaries, _ = _exercise_muscle_names(ex)
+    return {
+        'id': ex.id,
+        'name': ex.name,
+        'primary_muscle': primaries[0] if primaries else '',
+        'muscles': primaries,
+        'equipment': ex.equipment or '',
+        'video_url': ex.video_url or '',
+    }
+
+
+def search_exercises_for_client(client, q='', muscle_group='', similar_to=None, limit=30):
+    """Catalog search: by name, by muscle group, or 'similar to' an exercise
+    (same primary muscle). Muscle matching covers both the normalized M2M and
+    the legacy free-text scalar fields."""
+    qs = _client_exercise_catalog(client)
+    if similar_to:
+        base = Exercise.objects.filter(id=similar_to).first()
+        if base:
+            names, _ = _exercise_muscle_names(base)
+            if names:
+                qs = qs.filter(Q(primary_muscles__name__in=names) |
+                               Q(primary_muscle__in=names) |
+                               Q(target_muscle_group__in=names))
+            qs = qs.exclude(id=base.id)
+    if muscle_group:
+        qs = qs.filter(Q(primary_muscles__name__iexact=muscle_group) |
+                       Q(primary_muscles__slug=muscle_group) |
+                       Q(primary_muscle__iexact=muscle_group) |
+                       Q(target_muscle_group__iexact=muscle_group))
+    if q:
+        qs = qs.filter(name__icontains=q)
+    limit = max(1, min(limit or 30, 100))
+    qs = qs.prefetch_related('primary_muscles').distinct().order_by('name')[:limit]
+    return [_exercise_item(ex) for ex in qs]
+
+
+def muscle_groups_payload():
+    return [{'name': m.name, 'slug': m.slug, 'region': m.region}
+            for m in MuscleGroup.objects.all()]
+
+
+def apply_session_overrides(session, data):
+    """Validate and persist the session-only plan deviations (the assigned plan
+    is never modified). Returns an error string or None."""
+    day_we_ids = set(session.workout_day.exercises.values_list('id', flat=True))
+    try:
+        removed = sorted({int(x) for x in (data.get('removed') or [])})
+        substituted = {int(k): int(v) for k, v in (data.get('substituted') or {}).items()}
+        added = [{'exercise_id': int(a.get('exercise_id')), 'order': int(a.get('order', i))}
+                 for i, a in enumerate(data.get('added') or [])]
+    except (TypeError, ValueError, AttributeError):
+        return 'Overrides non validi'
+    if not set(removed) <= day_we_ids or not set(substituted) <= day_we_ids:
+        return 'Esercizio non appartenente alla scheda'
+    ex_ids = set(substituted.values()) | {a['exercise_id'] for a in added}
+    found = set(Exercise.objects.filter(id__in=ex_ids).values_list('id', flat=True))
+    if ex_ids - found:
+        return 'Esercizio non trovato'
+    session.overrides = {
+        'removed': removed,
+        'substituted': {str(k): v for k, v in substituted.items()},
+        'added': added,
+    }
+    session.save(update_fields=['overrides', 'updated_at'])
+    return None
+
+
+def session_override_state(session):
+    """Resolve the overrides JSON → (removed_we_ids, {we_id: Exercise},
+    [(Exercise, order)] sorted). Silently drops dangling exercise ids."""
+    ov = session.overrides or {}
+    removed = {int(x) for x in (ov.get('removed') or [])}
+    subs_raw = {int(k): int(v) for k, v in (ov.get('substituted') or {}).items()}
+    added_raw = [(int(a.get('exercise_id')), int(a.get('order', i)))
+                 for i, a in enumerate(ov.get('added') or [])]
+    ex_by_id = {e.id: e for e in Exercise.objects.filter(
+        id__in=set(subs_raw.values()) | {eid for eid, _ in added_raw})}
+    subs = {we: ex_by_id[eid] for we, eid in subs_raw.items() if eid in ex_by_id}
+    added = sorted(((ex_by_id[eid], order) for eid, order in added_raw if eid in ex_by_id),
+                   key=lambda t: t[1])
+    return removed, subs, added
+
+
+def exercises_with_history(client):
+    """Distinct exercise names the athlete has actually performed (including
+    substituted/added movements), most recent first — the progress list source."""
+    rows = (WorkoutSetLog.objects
+            .annotate(done_name=Coalesce('actual_exercise__name',
+                                         'workout_exercise__exercise__name'))
+            .filter(session__client=client, completed=True)
+            .exclude(set_number=0)
+            .values('done_name')
+            .annotate(last_done=Max('session__started_at'),
+                      sessions_count=Count('session_id', distinct=True))
+            .order_by('-last_done'))
+    return [{'name': r['done_name'],
+             'last_done': r['last_done'].date().isoformat() if r['last_done'] else None,
+             'sessions_count': r['sessions_count']}
+            for r in rows if r['done_name']]
+
+
+def api_client_exercise_search(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    items = search_exercises_for_client(
+        client,
+        q=(request.GET.get('q') or '').strip(),
+        muscle_group=(request.GET.get('muscle_group') or '').strip(),
+        similar_to=safe_int(request.GET, 'similar_to', None),
+        limit=safe_int(request.GET, 'limit', 30),
+    )
+    payload = {'results': items}
+    if request.GET.get('include_groups'):
+        payload['muscle_groups'] = muscle_groups_payload()
+    return JsonResponse(payload)
+
+
+def api_session_overrides(request, session_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    session = get_object_or_404(WorkoutSession, id=session_id, client=client)
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'invalid json'}, status=400)
+    err = apply_session_overrides(session, data)
+    if err:
+        return JsonResponse({'error': err}, status=400)
+    return JsonResponse({'success': True, 'overrides': session.overrides})
+
+
+def api_client_progress_exercises(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse({'exercises': exercises_with_history(client)})
+
+
+def api_client_trend_by_name(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    name = (request.GET.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'error': 'name required'}, status=400)
+    return JsonResponse(build_exercise_trend_by_name(name, client))
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +582,7 @@ def client_session_active_view(request, assignment_id, day_id):
         alt = ex.alternative_exercise
         exercises_data.append({
             'id': ex.id,
+            'exercise_catalog_id': ex.exercise_id,
             'name': ex.exercise.name,
             'sets': ex.set_count or 3,
             'reps': ex.rep_range or '10',
@@ -448,15 +668,47 @@ def api_session_start(request):
             'set_details': ex.set_details or [],
         })
 
+    # Session-only deviations: flag removed/substituted plan slots, append
+    # exercises the athlete added for this session.
+    removed, subs, added = session_override_state(session)
+    for item in exercises:
+        we_id = item['workout_exercise_id']
+        se = subs.get(we_id)
+        item['exercise_id'] = None
+        item['added'] = False
+        item['removed'] = we_id in removed
+        item['substituted_with'] = (
+            {'id': se.id, 'name': se.name, 'video_url': se.video_url or ''}
+            if se else None
+        )
+    for ex_obj, _order in added:
+        exercises.append({
+            'workout_exercise_id': None,
+            'exercise_id': ex_obj.id,
+            'name': ex_obj.name,
+            'video_url': ex_obj.video_url or '',
+            'sets': 3,
+            'reps': '10',
+            'load_value': None,
+            'load_unit': 'KG',
+            'recovery_seconds': 90,
+            'notes': '',
+            'set_details': [],
+            'added': True,
+            'removed': False,
+            'substituted_with': None,
+        })
+
     sets_logged = []
     exercise_notes_map = {}
     for sl in session.set_logs.all():
-        if sl.set_number == 0:
+        if sl.set_number == 0 and sl.workout_exercise_id:
             # Sentinel row used to persist exercise-level notes
             exercise_notes_map[sl.workout_exercise_id] = sl.notes or ''
             continue
         sets_logged.append({
             'workout_exercise_id': sl.workout_exercise_id,
+            'exercise_id': sl.actual_exercise_id if sl.workout_exercise_id is None else None,
             'set_number': sl.set_number,
             'reps_done': sl.reps_done,
             'load_used': float(sl.load_used) if sl.load_used is not None else None,
@@ -474,6 +726,7 @@ def api_session_start(request):
         'exercises': exercises,
         'sets_logged': sets_logged,
         'exercise_notes': exercise_notes_map,
+        'overrides': session.overrides or {},
         'started_at': session.started_at.isoformat(),
     })
 
@@ -493,9 +746,12 @@ def api_session_log_set(request, session_id):
         return JsonResponse({'error': 'invalid json'}, status=400)
 
     we_id = data.get('workout_exercise_id')
-    if not we_id:
+    added_exercise_id = data.get('exercise_id')
+    we = None
+    if we_id:
+        we = get_object_or_404(WorkoutExercise, id=we_id, workout_day=session.workout_day)
+    elif not added_exercise_id:
         return JsonResponse({'error': 'workout_exercise_id required'}, status=400)
-    we = get_object_or_404(WorkoutExercise, id=we_id, workout_day=session.workout_day)
 
     set_number = int(data.get('set_number') or 1)
     reps = data.get('reps_done')
@@ -506,7 +762,7 @@ def api_session_log_set(request, session_id):
     completed = bool(data.get('completed', True))
     is_extra_set = bool(data.get('is_extra_set', False))
     exercise_substituted = bool(data.get('exercise_substituted', False))
-    actual_exercise_id = data.get('actual_exercise_id')
+    actual_exercise_id = data.get('actual_exercise_id') or added_exercise_id
     actual_exercise = None
     if actual_exercise_id:
         try:
@@ -514,20 +770,32 @@ def api_session_log_set(request, session_id):
         except Exercise.DoesNotExist:
             actual_exercise = None
 
-    log, _ = WorkoutSetLog.objects.update_or_create(
-        session=session, workout_exercise=we, set_number=set_number,
-        defaults={
-            'reps_done': int(reps) if reps not in (None, '') else None,
-            'load_used': load if load not in (None, '') else None,
-            'load_unit': load_unit,
-            'rpe': int(rpe) if rpe not in (None, '') else None,
-            'notes': notes,
-            'completed': completed,
-            'is_extra_set': is_extra_set,
-            'exercise_substituted': exercise_substituted,
-            'actual_exercise': actual_exercise,
-        },
-    )
+    defaults = {
+        'reps_done': int(reps) if reps not in (None, '') else None,
+        'load_used': load if load not in (None, '') else None,
+        'load_unit': load_unit,
+        'rpe': int(rpe) if rpe not in (None, '') else None,
+        'notes': notes,
+        'completed': completed,
+        'is_extra_set': is_extra_set,
+        'exercise_substituted': exercise_substituted,
+        'actual_exercise': actual_exercise,
+    }
+    if we is None:
+        # Exercise added in-session: no plan slot, keyed by the actual exercise.
+        if actual_exercise is None:
+            return JsonResponse({'error': 'Esercizio non trovato'}, status=404)
+        defaults['is_extra_set'] = True
+        log, _ = WorkoutSetLog.objects.update_or_create(
+            session=session, workout_exercise=None,
+            actual_exercise=actual_exercise, set_number=set_number,
+            defaults={k: v for k, v in defaults.items() if k != 'actual_exercise'},
+        )
+    else:
+        log, _ = WorkoutSetLog.objects.update_or_create(
+            session=session, workout_exercise=we, set_number=set_number,
+            defaults=defaults,
+        )
     return JsonResponse({'set_id': log.id, 'success': True})
 
 
@@ -782,9 +1050,11 @@ def api_progress_volume(request, client_id):
     sets = WorkoutSetLog.objects.filter(
         session__client=client, completed=True,
         session__started_at__date__gte=date_from,
-    ).select_related('session', 'workout_exercise__exercise').prefetch_related(
+    ).select_related('session', 'workout_exercise__exercise', 'actual_exercise').prefetch_related(
         'workout_exercise__exercise__primary_muscles',
         'workout_exercise__exercise__secondary_muscles',
+        'actual_exercise__primary_muscles',
+        'actual_exercise__secondary_muscles',
     )
 
     weekly = {}
@@ -793,7 +1063,11 @@ def api_progress_volume(request, client_id):
         # Monday of week
         monday = d - timedelta(days=d.weekday())
         wkey = monday.isoformat()
-        primaries, secondaries = _exercise_muscle_names(sl.workout_exercise.exercise)
+        # Substituted/added sets count under the exercise actually performed.
+        ex = sl.actual_exercise or (sl.workout_exercise.exercise if sl.workout_exercise else None)
+        if ex is None:
+            continue
+        primaries, secondaries = _exercise_muscle_names(ex)
         reps = sl.reps_done or 0
         for primary in primaries:
             weekly.setdefault(wkey, {}).setdefault(primary, 0)

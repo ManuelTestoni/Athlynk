@@ -11,23 +11,28 @@ struct CoachNotificationsView: View {
     @State private var loading = true
     @State private var loadingMore = false
     @State private var hasMore = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Aggiornamenti", title: "Notifiche",
                          subtitle: "Tutto ciò che accade nello studio", accent: Palette.phase)
+                .revealUp(appear, index: 0)
             if loading && items.isEmpty {
                 AvatarRowsSkeleton(accent: Palette.phase)
             } else if items.isEmpty {
                 EmptyPanel(icon: "bell.slash", text: "Nessuna notifica.")
             } else {
-                ForEach(items) { n in row(n) }
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, n in
+                    row(n).revealUp(appear, index: min(i, 8) + 1)
+                }
                 if hasMore {
                     LoadMoreButton(loading: loadingMore, accent: Palette.phase) { Task { await loadMore() } }
                 }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .onRemoteChange { Task { await load() } }
         .refreshable { await load() }

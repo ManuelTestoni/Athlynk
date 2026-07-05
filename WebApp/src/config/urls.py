@@ -174,6 +174,10 @@ urlpatterns = [
     path('allenamenti/<int:plan_id>/', views_workouts.allenamenti_plan_detail_view, name='allenamenti_plan_detail'),
     path('api/allenamenti/<int:plan_id>/assegnazioni/', views_workouts.api_plan_assignments_list, name='api_plan_assignments_list'),
     # Session APIs
+    path('api/allenamenti/esercizi/ricerca/', views_session.api_client_exercise_search, name='api_client_exercise_search'),
+    path('api/allenamenti/esercizi/storico/', views_session.api_client_progress_exercises, name='api_client_progress_exercises'),
+    path('api/allenamenti/esercizi/andamento-per-nome/', views_session.api_client_trend_by_name, name='api_client_trend_by_name'),
+    path('api/sessioni/<int:session_id>/modifiche/', views_session.api_session_overrides, name='api_session_overrides'),
     path('api/sessioni/avvia/', views_session.api_session_start, name='api_session_start'),
     path('api/sessioni/<int:session_id>/serie/', views_session.api_session_log_set, name='api_session_log_set'),
     path('api/sessioni/<int:session_id>/concludi/', views_session.api_session_finish, name='api_session_finish'),
@@ -353,6 +357,10 @@ urlpatterns = [
     path('api/v1/sessions/start', mobile_api.session_start, name='api_v1_session_start'),
     path('api/v1/sessions/<int:session_id>/log-set', mobile_api.session_log_set, name='api_v1_session_log_set'),
     path('api/v1/sessions/<int:session_id>/finish', mobile_api.session_finish, name='api_v1_session_finish'),
+    path('api/v1/sessions/<int:session_id>/overrides', mobile_api.session_overrides, name='api_v1_session_overrides'),
+    path('api/v1/exercises/search', mobile_api.exercises_search, name='api_v1_exercises_search'),
+    path('api/v1/exercises/trend-by-name', mobile_api.exercise_trend_by_name, name='api_v1_exercise_trend_by_name'),
+    path('api/v1/progress/exercises', mobile_api.progress_exercises, name='api_v1_progress_exercises'),
     path('api/v1/checks/<int:instance_id>/submit', mobile_api.check_submit, name='api_v1_check_submit'),
     path('api/v1/prima-valutazione', mobile_api.prima_valutazione, name='api_v1_prima_valutazione'),
 

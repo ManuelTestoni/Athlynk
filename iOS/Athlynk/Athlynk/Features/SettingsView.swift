@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var confirm: ConfirmKind?
     @State private var deleting = false
+    @State private var appear = false
 
     /// Which destructive action the confirm popup is asking about.
     private enum ConfirmKind { case logout, delete }
@@ -28,11 +29,13 @@ struct SettingsView: View {
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else {
-                        accountCard
-                        Text("NOTIFICHE EMAIL").voltEyebrow().padding(.top, 4)
-                        ForEach(toggles) { t in toggleRow(t) }
-                        LegalLinks(accent: Palette.cyan)
-                        accountActions
+                        accountCard.revealUp(appear, index: 0)
+                        Text("NOTIFICHE EMAIL").voltEyebrow().padding(.top, 4).revealUp(appear, index: 1)
+                        ForEach(Array(toggles.enumerated()), id: \.element.id) { i, t in
+                            toggleRow(t).revealUp(appear, index: min(i, 5) + 2)
+                        }
+                        LegalLinks(accent: Palette.cyan).revealUp(appear, index: 4)
+                        accountActions.revealUp(appear, index: 5)
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
@@ -44,6 +47,7 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     private var accountActions: some View {

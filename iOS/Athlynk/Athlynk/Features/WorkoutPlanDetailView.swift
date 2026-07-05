@@ -9,22 +9,25 @@ import SwiftUI
 
 struct WorkoutPlanDetailView: View {
     let plan: WorkoutPlanDTO
+    @State private var appear = false
 
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.magenta, Palette.violet, Palette.cyan, Palette.magenta])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    header
-                    if let pct = plan.progressFraction { progressBar(pct) }
-                    metrics
-                    if let desc = plan.description, !desc.isEmpty { descriptionCard(desc) }
-                    Text("GIORNI").voltEyebrow()
-                    ForEach(plan.days) { day in
+                    header.revealUp(appear, index: 0)
+                    if let pct = plan.progressFraction { progressBar(pct).revealUp(appear, index: 1) }
+                    metrics.revealUp(appear, index: 2)
+                    if let desc = plan.description, !desc.isEmpty { descriptionCard(desc).revealUp(appear, index: 3) }
+                    GreekDivider().revealUp(appear, index: 4)
+                    Text("GIORNI").voltEyebrow().revealUp(appear, index: 4)
+                    ForEach(Array(plan.days.enumerated()), id: \.element.id) { i, day in
                         NavigationLink(value: WorkoutDaySelection(day: day, assignmentId: plan.assignmentId)) {
                             dayRow(day)
                         }
                         .buttonStyle(PressableButtonStyle())
+                        .revealUp(appear, index: min(i, 5) + 5)
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
@@ -33,6 +36,7 @@ struct WorkoutPlanDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear { appear = true }
     }
 
     private var header: some View {

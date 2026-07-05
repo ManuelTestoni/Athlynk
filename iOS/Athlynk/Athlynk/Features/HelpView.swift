@@ -22,17 +22,20 @@ struct HelpView: View {
          "Profilo → Impostazioni: attiva o disattiva le email per piani e check."),
     ]
 
+    @State private var appear = false
+
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.cyan, Palette.violet, Palette.bronze, Palette.cyan])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    header
-                    Text("DOMANDE FREQUENTI").voltEyebrow()
+                    header.revealUp(appear, index: 0)
+                    Text("DOMANDE FREQUENTI").voltEyebrow().revealUp(appear, index: 1)
                     ForEach(Array(faqs.enumerated()), id: \.offset) { i, item in
-                        faqCard(i, item.q, item.a)
+                        faqCard(i, item.q, item.a).revealUp(appear, index: min(i, 6) + 2)
                     }
-                    Text("CONTATTI").voltEyebrow().padding(.top, 4)
+                    GreekDivider(color: Palette.cyan).padding(.top, 4)
+                    Text("CONTATTI").voltEyebrow()
                     contactCard
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
@@ -41,6 +44,7 @@ struct HelpView: View {
         .navigationTitle("Aiuto")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear { appear = true }
     }
 
     private var header: some View {

@@ -11,13 +11,14 @@ struct PricingView: View {
     @State private var plans: [SubscriptionPlanDTO] = []
     @State private var loading = true
     @State private var error: String?
+    @State private var appear = false
 
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.bronze, Palette.magenta, Palette.violet, Palette.bronze])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    header
+                    header.revealUp(appear, index: 0)
                     if loading {
                         PricingSkeleton(count: 2)
                     } else if let error {
@@ -26,7 +27,7 @@ struct PricingView: View {
                         EmptyPanel(icon: "tag", text: "Nessun piano disponibile al momento.")
                     } else {
                         ForEach(Array(plans.enumerated()), id: \.element.id) { i, plan in
-                            planCard(plan, featured: i == 0)
+                            planCard(plan, featured: i == 0).revealUp(appear, index: i + 1)
                         }
                     }
                 }
@@ -37,6 +38,8 @@ struct PricingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
+        .onAppear { if !loading { appear = true } }
     }
 
     private var header: some View {

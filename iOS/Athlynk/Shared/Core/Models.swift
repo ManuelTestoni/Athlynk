@@ -851,6 +851,8 @@ struct LoggedSetDetailDTO: Codable, Identifiable, Hashable {
     let loadUnit: String?
     let rpe: Int?
     let completed: Bool
+    let exerciseSubstituted: Bool
+    let actualExercise: SubstituteExerciseDTO?
     var id: Int { setNumber }
 
     enum CodingKeys: String, CodingKey {
@@ -859,23 +861,55 @@ struct LoggedSetDetailDTO: Codable, Identifiable, Hashable {
         case repsDone = "reps_done"
         case loadUsed = "load_used"
         case loadUnit = "load_unit"
+        case exerciseSubstituted = "exercise_substituted"
+        case actualExercise = "actual_exercise"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        setNumber = try c.decode(Int.self, forKey: .setNumber)
+        repsDone = try c.decodeIfPresent(Int.self, forKey: .repsDone)
+        loadUsed = try c.decodeIfPresent(Double.self, forKey: .loadUsed)
+        loadUnit = try c.decodeIfPresent(String.self, forKey: .loadUnit)
+        rpe = try c.decodeIfPresent(Int.self, forKey: .rpe)
+        completed = try c.decodeIfPresent(Bool.self, forKey: .completed) ?? false
+        exerciseSubstituted = try c.decodeIfPresent(Bool.self, forKey: .exerciseSubstituted) ?? false
+        actualExercise = try c.decodeIfPresent(SubstituteExerciseDTO.self, forKey: .actualExercise)
     }
 }
 
 struct SessionLoggedExerciseDTO: Codable, Identifiable, Hashable {
-    let workoutExerciseId: Int
+    /// nil for exercises added in-session (no plan slot).
+    let workoutExerciseId: Int?
     let exerciseName: String
     let exerciseNote: String?
     let prescribedReps: String?
+    let added: Bool
     let sets: [LoggedSetDetailDTO]
-    var id: Int { workoutExerciseId }
+    var id: String { workoutExerciseId.map { "we-\($0)" } ?? "add-\(exerciseName)" }
+
+    /// Name of the movement actually performed (substituted sets carry it).
+    var performedName: String {
+        sets.first(where: { $0.actualExercise != nil })?.actualExercise?.name ?? exerciseName
+    }
+    var wasSubstituted: Bool { sets.contains { $0.exerciseSubstituted } }
 
     enum CodingKeys: String, CodingKey {
-        case sets
+        case sets, added
         case workoutExerciseId = "workout_exercise_id"
         case exerciseName = "exercise_name"
         case exerciseNote = "exercise_note"
         case prescribedReps = "prescribed_reps"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        workoutExerciseId = try c.decodeIfPresent(Int.self, forKey: .workoutExerciseId)
+        exerciseName = try c.decode(String.self, forKey: .exerciseName)
+        exerciseNote = try c.decodeIfPresent(String.self, forKey: .exerciseNote)
+        prescribedReps = try c.decodeIfPresent(String.self, forKey: .prescribedReps)
+        added = try c.decodeIfPresent(Bool.self, forKey: .added) ?? false
+        sets = try c.decodeIfPresent([LoggedSetDetailDTO].self, forKey: .sets) ?? []
     }
 }
 
@@ -1006,8 +1040,19 @@ struct PlansResponse: Codable { let plans: [SubscriptionPlanDTO] }
 
 // MARK: - Active session (Sessione Attiva)
 
+/// Reference to a catalog exercise chosen as substitute for a plan slot.
+struct SubstituteExerciseDTO: Codable, Hashable {
+    let id: Int
+    let name: String
+}
+
 struct SessionExerciseDTO: Codable, Identifiable, Hashable {
-    let workoutExerciseId: Int
+    /// nil for exercises added by the athlete during the session (no plan slot).
+    let workoutExerciseId: Int?
+    /// Catalog exercise id — set only for added exercises.
+    let exerciseId: Int?
+    /// Catalog id of the plan slot's exercise (for "similar to" lookups).
+    let exerciseCatalogId: Int?
     let name: String
     let targetMuscleGroup: String?
     let sets: Int
@@ -1017,21 +1062,68 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
     let recoverySeconds: Int?
     let tempo: String?
     let notes: String?
+    let added: Bool
+    let removed: Bool
+    let substitutedWith: SubstituteExerciseDTO?
 
-    var id: Int { workoutExerciseId }
+    var id: String { workoutExerciseId.map { "we-\($0)" } ?? "add-\(exerciseId ?? 0)" }
+    var displayName: String { substitutedWith?.name ?? name }
 
     enum CodingKeys: String, CodingKey {
-        case name, sets, reps, notes, tempo
+        case name, sets, reps, notes, tempo, added, removed
         case workoutExerciseId = "workout_exercise_id"
+        case exerciseId = "exercise_id"
+        case exerciseCatalogId = "exercise_catalog_id"
         case targetMuscleGroup = "target_muscle_group"
         case loadValue = "load_value"
         case loadUnit = "load_unit"
         case recoverySeconds = "recovery_seconds"
+        case substitutedWith = "substituted_with"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        workoutExerciseId = try c.decodeIfPresent(Int.self, forKey: .workoutExerciseId)
+        exerciseId = try c.decodeIfPresent(Int.self, forKey: .exerciseId)
+        exerciseCatalogId = try c.decodeIfPresent(Int.self, forKey: .exerciseCatalogId)
+        name = try c.decode(String.self, forKey: .name)
+        targetMuscleGroup = try c.decodeIfPresent(String.self, forKey: .targetMuscleGroup)
+        sets = try c.decodeIfPresent(Int.self, forKey: .sets) ?? 3
+        reps = try c.decodeIfPresent(String.self, forKey: .reps) ?? "10"
+        loadValue = try c.decodeIfPresent(Double.self, forKey: .loadValue)
+        loadUnit = try c.decodeIfPresent(String.self, forKey: .loadUnit)
+        recoverySeconds = try c.decodeIfPresent(Int.self, forKey: .recoverySeconds)
+        tempo = try c.decodeIfPresent(String.self, forKey: .tempo)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        added = try c.decodeIfPresent(Bool.self, forKey: .added) ?? false
+        removed = try c.decodeIfPresent(Bool.self, forKey: .removed) ?? false
+        substitutedWith = try c.decodeIfPresent(SubstituteExerciseDTO.self, forKey: .substitutedWith)
+    }
+
+    /// Local construction for exercises the athlete adds mid-session.
+    init(addedExerciseId: Int, name: String, targetMuscleGroup: String? = nil) {
+        self.workoutExerciseId = nil
+        self.exerciseId = addedExerciseId
+        self.exerciseCatalogId = addedExerciseId
+        self.name = name
+        self.targetMuscleGroup = targetMuscleGroup
+        self.sets = 3
+        self.reps = "10"
+        self.loadValue = nil
+        self.loadUnit = "KG"
+        self.recoverySeconds = 90
+        self.tempo = nil
+        self.notes = nil
+        self.added = true
+        self.removed = false
+        self.substitutedWith = nil
     }
 }
 
 struct LoggedSetDTO: Codable, Hashable {
-    let workoutExerciseId: Int
+    let workoutExerciseId: Int?
+    /// Catalog exercise id for sets of added exercises (workoutExerciseId nil).
+    let exerciseId: Int?
     let setNumber: Int
     let repsDone: Int?
     let loadUsed: Double?
@@ -1039,9 +1131,13 @@ struct LoggedSetDTO: Codable, Hashable {
     let rpe: Int?
     let completed: Bool
 
+    /// Matches SessionExerciseDTO.id
+    var exerciseKey: String { workoutExerciseId.map { "we-\($0)" } ?? "add-\(exerciseId ?? 0)" }
+
     enum CodingKeys: String, CodingKey {
         case rpe, completed
         case workoutExerciseId = "workout_exercise_id"
+        case exerciseId = "exercise_id"
         case setNumber = "set_number"
         case repsDone = "reps_done"
         case loadUsed = "load_used"
@@ -1062,6 +1158,56 @@ struct SessionStartDTO: Codable {
         case startedAt = "started_at"
     }
 }
+
+// MARK: - Exercise catalog search (add / substitute in session)
+
+struct ExerciseSearchItemDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let primaryMuscle: String
+    let muscles: [String]
+    let equipment: String
+    let videoUrl: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, muscles, equipment
+        case primaryMuscle = "primary_muscle"
+        case videoUrl = "video_url"
+    }
+}
+
+struct MuscleGroupDTO: Codable, Identifiable, Hashable {
+    let name: String
+    let slug: String
+    let region: String
+    var id: String { slug }
+}
+
+struct ExerciseSearchResponse: Codable {
+    let results: [ExerciseSearchItemDTO]
+    let muscleGroups: [MuscleGroupDTO]?
+
+    enum CodingKeys: String, CodingKey {
+        case results
+        case muscleGroups = "muscle_groups"
+    }
+}
+
+/// One row of the history-based progress list (all movements ever performed).
+struct ExerciseHistoryItemDTO: Codable, Identifiable, Hashable {
+    let name: String
+    let lastDone: String?
+    let sessionsCount: Int
+    var id: String { name }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case lastDone = "last_done"
+        case sessionsCount = "sessions_count"
+    }
+}
+
+struct ExercisesHistoryResponse: Codable { let exercises: [ExerciseHistoryItemDTO] }
 
 struct PrimaValutazioneDTO: Codable {
     let submittedAt: String?

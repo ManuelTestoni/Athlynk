@@ -16,6 +16,7 @@ struct CoachClientsView: View {
     @State private var hasMore = false
     @State private var error: String?
     @State private var showAddClient = false
+    @State private var appear = false
 
     private let filters: [(String, String)] = [("", "Tutti"), ("ACTIVE", "Attivi"), ("INACTIVE", "Sospesi")]
 
@@ -56,9 +57,10 @@ struct CoachClientsView: View {
                 } else if rows.isEmpty {
                     EmptyPanel(icon: "person.2", text: "Nessun atleta trovato.")
                 } else {
-                    ForEach(rows) { r in
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, r in
                         NavigationLink(value: r.id) { clientCard(r) }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: min(i, 8))
                     }
                     if hasMore {
                         LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
@@ -70,6 +72,7 @@ struct CoachClientsView: View {
             CoachAddClientView { await load() }
         }
         .task { Analytics.shared.capture(.clientListViewed); await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .onRemoteChange { Task { await load() } }
         .refreshable { await load() }
     }

@@ -104,6 +104,54 @@
     </button>
   </div>
 
+  <!-- Progressi per esercizio: TUTTI i movimenti con storico (anche sostituiti/aggiunti in sessione) -->
+  <div class="al-card mb-6"
+       x-data="{ open: false, items: [], loading: false, loaded: false,
+                 async load() {
+                   this.open = !this.open;
+                   if (this.loaded || !this.open) return;
+                   this.loading = true;
+                   try {
+                     const r = await fetch('/api/allenamenti/esercizi/storico/', { credentials: 'same-origin' });
+                     const d = await r.json();
+                     this.items = d.exercises || [];
+                     this.loaded = true;
+                   } catch (_) {}
+                   this.loading = false;
+                 } }">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="al-h-3 mb-1">Progressi per esercizio</h2>
+        <p class="al-small" style="color: var(--al-ink-faint);">Tutti gli esercizi che hai eseguito — anche quelli sostituiti o aggiunti in sessione.</p>
+      </div>
+      <button type="button" @click="load()" class="al-btn al-btn-ghost al-btn-sm">
+        <i class="ph" :class="open ? 'ph-eye-slash' : 'ph-chart-line-up'"></i>
+        <span x-text="open ? 'Nascondi' : 'Mostra'"></span>
+      </button>
+    </div>
+    <div x-show="open" x-collapse class="mt-4">
+      <p x-show="loading" class="al-small">Caricamento…</p>
+      <p x-show="!loading && loaded && !items.length" class="al-small" style="color: var(--al-ink-faint);">
+        Nessuna sessione registrata ancora.
+      </p>
+      <div class="space-y-1">
+        <template x-for="it in items" :key="it.name">
+          <button type="button" class="w-full flex items-center justify-between gap-2 al-small p-2 border rounded text-left"
+                  style="border-color: var(--al-rule-faint);"
+                  @click="AthlynkExerciseTrend.openByName(it.name)">
+            <span class="min-w-0">
+              <span class="font-semibold block truncate" x-text="it.name"></span>
+              <span style="color: var(--al-ink-faint);">
+                <span x-text="it.sessions_count"></span> sessioni · ultima <span x-text="it.last_done ? new Date(it.last_done).toLocaleDateString('it-IT') : '—'"></span>
+              </span>
+            </span>
+            <i class="ph ph-chart-line-up" style="color: var(--al-bronze);"></i>
+          </button>
+        </template>
+      </div>
+    </div>
+  </div>
+
   <!-- SEZIONE B: Storico sessioni (collapsed by default + pagination) -->
   <div class="al-card mb-6"
        x-data="sessionsHistory({{ assignment.id }}, {{ has_more_sessions|yesno:'true,false' }}, {{ total_sessions }})">
@@ -150,9 +198,18 @@
             <template x-if="full">
               <div>
                 <p x-show="full.notes" class="italic mb-3" x-text="'Note: ' + full.notes"></p>
-                <template x-for="ex in full.exercises" :key="ex.workout_exercise_id">
+                <template x-for="(ex, exIdx) in full.exercises" :key="exIdx">
                   <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
-                    <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
+                    <p class="font-semibold mb-2">
+                      <span x-text="(ex.sets.find(s => s.actual_exercise)?.actual_exercise?.name) || ex.exercise_name"></span>
+                      <span x-show="ex.added" class="al-tag" style="background: var(--al-bronze); color: white;">Aggiunto</span>
+                      <template x-if="ex.sets.some(s => s.exercise_substituted)">
+                        <span>
+                          <span class="al-tag" style="background: var(--al-bronze); color: white;">Sostituito</span>
+                          <span class="al-small" style="color: var(--al-ink-faint); text-decoration: line-through;" x-text="ex.exercise_name"></span>
+                        </span>
+                      </template>
+                    </p>
                     <table class="w-full al-small">
                       <thead>
                         <tr style="color: var(--al-ink-faint);"><th class="text-left">Serie</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th><th class="text-left">Note</th></tr>
@@ -219,9 +276,18 @@
               <template x-if="full">
                 <div>
                   <p x-show="full.notes" class="italic mb-3" x-text="'Note: ' + full.notes"></p>
-                  <template x-for="ex in full.exercises" :key="ex.workout_exercise_id">
+                  <template x-for="(ex, exIdx) in full.exercises" :key="exIdx">
                     <div class="mb-3 border rounded p-2" style="border-color: var(--al-rule-faint);">
-                      <p class="font-semibold mb-2" x-text="ex.exercise_name"></p>
+                      <p class="font-semibold mb-2">
+                      <span x-text="(ex.sets.find(s => s.actual_exercise)?.actual_exercise?.name) || ex.exercise_name"></span>
+                      <span x-show="ex.added" class="al-tag" style="background: var(--al-bronze); color: white;">Aggiunto</span>
+                      <template x-if="ex.sets.some(s => s.exercise_substituted)">
+                        <span>
+                          <span class="al-tag" style="background: var(--al-bronze); color: white;">Sostituito</span>
+                          <span class="al-small" style="color: var(--al-ink-faint); text-decoration: line-through;" x-text="ex.exercise_name"></span>
+                        </span>
+                      </template>
+                    </p>
                       <table class="w-full al-small">
                         <thead><tr style="color: var(--al-ink-faint);"><th class="text-left">Serie</th><th class="text-left">Rip</th><th class="text-left">Carico</th><th class="text-left">RPE</th><th class="text-left">Note</th></tr></thead>
                         <tbody>

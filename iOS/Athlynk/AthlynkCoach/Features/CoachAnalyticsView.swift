@@ -11,27 +11,31 @@ struct CoachAnalyticsView: View {
     @State private var business: CoachBusinessDTO?
     @State private var risk: [CoachRiskClient] = []
     @State private var loading = true
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Studio", title: "Analisi",
                          subtitle: "L'andamento del tuo lavoro", accent: Palette.cyan)
+                .revealUp(appear, index: 0)
             if loading && data == nil {
                 CoachAnalyticsSkeleton()
             } else if let d = data {
-                if let b = business { businessGrid(b) }
-                if !risk.isEmpty { atRiskSection() }
+                if let b = business { businessGrid(b).revealUp(appear, index: 1) }
+                if !risk.isEmpty { atRiskSection().revealUp(appear, index: 2) }
                 HStack(spacing: 14) {
                     CoachStatTile(value: "\(d.activeClients)", label: "Atleti attivi",
                                   icon: "person.2.fill", accent: Palette.cyan)
                     CoachStatTile(value: "\(d.totalChecks)", label: "Check totali",
                                   icon: "checkmark.seal.fill", accent: Palette.bronze)
                 }
-                reviewRateCard(d)
-                chartCard(d)
+                .revealUp(appear, index: 3)
+                reviewRateCard(d).revealUp(appear, index: 4)
+                chartCard(d).revealUp(appear, index: 5)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .refreshable { await load() }
     }

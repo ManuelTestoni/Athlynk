@@ -16,23 +16,26 @@ struct CoachWorkoutsView: View {
     @State private var query = ""
     @State private var creating = false
     @State private var loadToken = UUID()
+    @State private var appear = false
 
     var body: some View {
         NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Programmazione", title: "Allenamenti",
                              subtitle: "Le tue schede e assegnazioni", accent: Palette.cyan)
-                workoutSearchBar
+                    .revealUp(appear, index: 0)
+                workoutSearchBar.revealUp(appear, index: 1)
                 if loading && plans.isEmpty {
                     CoachPlanLibrarySkeleton(accent: Palette.cyan)
                 } else {
                     CoachSectionTitle(eyebrow: "Libreria", title: "Schede (\(plans.count))", accent: Palette.cyan)
+                        .revealUp(appear, index: 2)
                     if plans.isEmpty {
                         EmptyPanel(icon: "dumbbell", text: "Nessuna scheda ancora creata.",
                                    color: Palette.cyan,
                                    actionTitle: "Creane una ora") { creating = true }
                     } else {
-                        ForEach(plans) { p in
+                        ForEach(Array(plans.enumerated()), id: \.element.id) { i, p in
                             NavigationLink(value: CoachPlanRoute.workout(p.id)) {
                                 planCard(title: p.title,
                                          subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "),
@@ -40,17 +43,21 @@ struct CoachWorkoutsView: View {
                                          assigned: p.assignedCount, accent: Palette.cyan)
                             }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: min(i, 6) + 3)
                         }
                         if hasMore {
                             LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
                         }
                     }
                     if !assignments.isEmpty {
+                        GreekDivider(color: Palette.cyan)
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
                         ForEach(assignments) { a in assignmentCard(a, accent: Palette.cyan) }
                     }
                 }
             }
+            .onChange(of: loading) { _, l in if !l { appear = true } }
+            .onAppear { if !plans.isEmpty { appear = true } }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) {
                 Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
@@ -116,23 +123,26 @@ struct CoachNutritionView: View {
     @State private var query = ""
     @State private var creating = false
     @State private var loadToken = UUID()
+    @State private var appear = false
 
     var body: some View {
         NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Programmazione", title: "Nutrizione",
                              subtitle: "I tuoi piani alimentari", accent: Palette.lime)
-                nutritionSearchBar
+                    .revealUp(appear, index: 0)
+                nutritionSearchBar.revealUp(appear, index: 1)
                 if loading && plans.isEmpty {
                     CoachPlanLibrarySkeleton(accent: Palette.lime)
                 } else {
                     CoachSectionTitle(eyebrow: "Libreria", title: "Piani (\(plans.count))", accent: Palette.lime)
+                        .revealUp(appear, index: 2)
                     if plans.isEmpty {
                         EmptyPanel(icon: "flame", text: "Nessun piano ancora creato.",
                                    color: Palette.lime,
                                    actionTitle: "Creane uno ora") { creating = true }
                     } else {
-                        ForEach(plans) { p in
+                        ForEach(Array(plans.enumerated()), id: \.element.id) { i, p in
                             NavigationLink(value: CoachPlanRoute.nutrition(p.id)) {
                                 planCard(title: p.title,
                                          subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "),
@@ -140,17 +150,21 @@ struct CoachNutritionView: View {
                                          assigned: p.assignedCount, accent: Palette.lime)
                             }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: min(i, 6) + 3)
                         }
                         if hasMore {
                             LoadMoreButton(loading: loadingMore, accent: Palette.lime) { Task { await loadMore() } }
                         }
                     }
                     if !assignments.isEmpty {
+                        GreekDivider(color: Palette.lime)
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
                         ForEach(assignments) { a in assignmentCard(a, accent: Palette.lime) }
                     }
                 }
             }
+            .onChange(of: loading) { _, l in if !l { appear = true } }
+            .onAppear { if !plans.isEmpty { appear = true } }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) {
                 Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)

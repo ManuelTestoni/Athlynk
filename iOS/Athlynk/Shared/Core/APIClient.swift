@@ -329,18 +329,66 @@ final class APIClient {
                                            body: ["assignment_id": assignmentId, "day_id": dayId]))
     }
 
-    func logSet(sessionId: Int, exerciseId: Int, setNumber: Int,
-                reps: Int?, load: Double?, loadUnit: String, rpe: Int?, completed: Bool) async throws {
+    /// Log one set. Pass `workoutExerciseId` for plan-slot exercises; pass
+    /// `addedExerciseId` (catalog id) for exercises added in-session. When the
+    /// slot was substituted, set `substituted` + `actualExerciseId`.
+    func logSet(sessionId: Int, workoutExerciseId: Int?, addedExerciseId: Int? = nil,
+                setNumber: Int, reps: Int?, load: Double?, loadUnit: String,
+                rpe: Int?, completed: Bool, isExtraSet: Bool = false,
+                substituted: Bool = false, actualExerciseId: Int? = nil) async throws {
         var body: [String: Any] = [
-            "workout_exercise_id": exerciseId,
             "set_number": setNumber,
             "load_unit": loadUnit,
             "completed": completed,
+            "is_extra_set": isExtraSet,
+            "exercise_substituted": substituted,
         ]
+        body["workout_exercise_id"] = workoutExerciseId ?? NSNull()
+        body["exercise_id"] = addedExerciseId ?? NSNull()
+        body["actual_exercise_id"] = actualExerciseId ?? NSNull()
         body["reps_done"] = reps ?? NSNull()
         body["load_used"] = load ?? NSNull()
         body["rpe"] = rpe ?? NSNull()
         _ = try await request("/api/v1/sessions/\(sessionId)/log-set", method: "POST", body: body)
+    }
+
+    /// Persist the session-only plan deviations (add / remove / substitute).
+    func setSessionOverrides(sessionId: Int, removed: [Int],
+                             substituted: [Int: Int], added: [Int]) async throws {
+        let body: [String: Any] = [
+            "removed": removed,
+            "substituted": Dictionary(uniqueKeysWithValues: substituted.map { ("\($0.key)", $0.value) }),
+            "added": added.enumerated().map { ["exercise_id": $0.element, "order": $0.offset] },
+        ]
+        _ = try await request("/api/v1/sessions/\(sessionId)/overrides", method: "POST", body: body)
+    }
+
+    /// Exercise catalog search: by name, muscle group, or similar to a catalog id.
+    func searchExercises(q: String = "", muscleGroup: String = "",
+                         similarTo: Int? = nil, includeGroups: Bool = false) async throws -> ExerciseSearchResponse {
+        var comps = URLComponents()
+        var items: [URLQueryItem] = [URLQueryItem(name: "limit", value: "30")]
+        if !q.isEmpty { items.append(URLQueryItem(name: "q", value: q)) }
+        if !muscleGroup.isEmpty { items.append(URLQueryItem(name: "muscle_group", value: muscleGroup)) }
+        if let similarTo { items.append(URLQueryItem(name: "similar_to", value: "\(similarTo)")) }
+        if includeGroups { items.append(URLQueryItem(name: "include_groups", value: "1")) }
+        comps.queryItems = items
+        let qs = comps.percentEncodedQuery ?? ""
+        return try decode(ExerciseSearchResponse.self,
+                          from: try await request("/api/v1/exercises/search?\(qs)"))
+    }
+
+    /// All movements the athlete has actually performed (progress list source).
+    func progressExercises() async throws -> [ExerciseHistoryItemDTO] {
+        try decode(ExercisesHistoryResponse.self,
+                   from: try await request("/api/v1/progress/exercises")).exercises
+    }
+
+    /// History-based trend, keyed by exercise NAME (covers substituted/added).
+    func exerciseTrend(name: String) async throws -> ExerciseTrendDTO {
+        let enc = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+        return try decode(ExerciseTrendDTO.self,
+                          from: try await request("/api/v1/exercises/trend-by-name?name=\(enc)"))
     }
 
     func finishSession(sessionId: Int, notes: String, interrupted: Bool) async throws {

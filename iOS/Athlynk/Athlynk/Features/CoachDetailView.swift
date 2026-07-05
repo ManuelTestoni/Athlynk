@@ -13,6 +13,7 @@ struct CoachDetailView: View {
     @State private var coach: CoachDetailDTO?
     @State private var loading = true
     @State private var error: String?
+    @State private var appear = false
 
     var body: some View {
         ZStack {
@@ -24,13 +25,17 @@ struct CoachDetailView: View {
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let coach {
-                        hero(coach)
-                        if coach.yearsExperience != nil || coach.city != nil { statsRow(coach) }
-                        if let bio = bioText(coach) { section("BIOGRAFIA", body: bio) }
-                        if let cert = coach.certifications, !cert.isEmpty {
-                            section("CERTIFICAZIONI", body: cert)
+                        hero(coach).revealUp(appear, index: 0)
+                        if coach.yearsExperience != nil || coach.city != nil {
+                            statsRow(coach).revealUp(appear, index: 1)
                         }
-                        socials(coach)
+                        if let bio = bioText(coach) {
+                            section("BIOGRAFIA", body: bio).revealUp(appear, index: 2)
+                        }
+                        if let cert = coach.certifications, !cert.isEmpty {
+                            section("CERTIFICAZIONI", body: cert).revealUp(appear, index: 3)
+                        }
+                        socials(coach).revealUp(appear, index: 4)
                     } else {
                         EmptyPanel(icon: "person.crop.circle.badge.questionmark", text: "Coach non trovato.")
                     }
@@ -42,6 +47,7 @@ struct CoachDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     private func hero(_ coach: CoachDetailDTO) -> some View {

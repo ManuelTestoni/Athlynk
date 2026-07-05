@@ -34,6 +34,7 @@ struct ExerciseTrendCard: View {
                 Image(systemName: "chart.xyaxis.line").font(.system(size: 14, weight: .black))
                     .foregroundStyle(accent)
                 Text("ANDAMENTO").voltEyebrow()
+                InfoTip(text: "Top set: carico massimo della sessione. Volume: somma di reps × carico. Media pond.: carico medio pesato sulle ripetizioni. Tieni premuto sul grafico per vedere i valori punto per punto.")
             }
 
             if loading {
@@ -91,7 +92,9 @@ struct ExerciseTrendCard: View {
                     DeltaPill(delta: (values.last ?? 0) - (values.first ?? 0),
                               unit: unit, goodWhenDown: false)
                 }
-                TrendLine(values: values, color: accent).frame(height: 140)
+                TrendLine(values: values, color: accent,
+                          labels: chronoSessions.compactMap { metricValue($0) != nil ? dateShort($0.date) : nil })
+                    .frame(height: 140)
                 HStack {
                     Text(dateShort(chronoSessions.first?.date)).font(Typo.mono(9)).foregroundStyle(Palette.textLow)
                     Spacer()

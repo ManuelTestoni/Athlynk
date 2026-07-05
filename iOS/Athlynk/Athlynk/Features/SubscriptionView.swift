@@ -11,6 +11,7 @@ struct SubscriptionView: View {
     @State private var sub: SubscriptionDTO?
     @State private var loading = true
     @State private var error: String?
+    @State private var appear = false
 
     var body: some View {
         ZStack {
@@ -22,8 +23,10 @@ struct SubscriptionView: View {
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let sub {
-                        planCard(sub)
-                        if !sub.plan.includedServices.isEmpty { servicesCard(sub.plan.includedServices) }
+                        planCard(sub).revealUp(appear, index: 0)
+                        if !sub.plan.includedServices.isEmpty {
+                            servicesCard(sub.plan.includedServices).revealUp(appear, index: 1)
+                        }
                     } else {
                         EmptyPanel(icon: "crown", text: "Nessun abbonamento attivo.")
                     }
@@ -31,6 +34,7 @@ struct SubscriptionView: View {
                     if !loading {
                         NavigationLink { PricingView() } label: { pricingLink }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: 2)
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
@@ -40,6 +44,7 @@ struct SubscriptionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     private var pricingLink: some View {

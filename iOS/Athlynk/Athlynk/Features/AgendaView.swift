@@ -12,6 +12,7 @@ struct AgendaView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
+    @State private var appear = false
 
     private var upcoming: [AppointmentDTO] { items.filter { isFuture($0.end ?? $0.start) } }
     private var past: [AppointmentDTO] { items.filter { !isFuture($0.end ?? $0.start) }.reversed() }
@@ -29,21 +30,26 @@ struct AgendaView: View {
                         EmptyPanel(icon: "calendar", text: "Nessun appuntamento in agenda.")
                     } else {
                         if !upcoming.isEmpty {
-                            Text("PROSSIMI").voltEyebrow()
-                            ForEach(upcoming) { appt in
+                            Text("PROSSIMI").voltEyebrow().revealUp(appear, index: 0)
+                            ForEach(Array(upcoming.enumerated()), id: \.element.id) { i, appt in
                                 NavigationLink { AppointmentDetailView(appointment: appt) } label: {
                                     card(appt, dimmed: false)
                                 }
                                 .buttonStyle(PressableButtonStyle())
+                                .revealUp(appear, index: min(i, 5) + 1)
                             }
                         }
                         if !past.isEmpty {
-                            Text("PASSATI").voltEyebrow().padding(.top, 8)
-                            ForEach(past) { appt in
+                            GreekDivider(color: Palette.cyan).padding(.top, 8)
+                                .revealUp(appear, index: 2)
+                            Text("PASSATI").voltEyebrow()
+                                .revealUp(appear, index: 3)
+                            ForEach(Array(past.enumerated()), id: \.element.id) { i, appt in
                                 NavigationLink { AppointmentDetailView(appointment: appt) } label: {
                                     card(appt, dimmed: true)
                                 }
                                 .buttonStyle(PressableButtonStyle())
+                                .revealUp(appear, index: min(i, 5) + 4)
                             }
                         }
                         if hasMore {
@@ -58,6 +64,7 @@ struct AgendaView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     private func card(_ a: AppointmentDTO, dimmed: Bool) -> some View {

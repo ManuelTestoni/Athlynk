@@ -368,30 +368,75 @@ private func dateShort(_ d: Date?) -> String {
 struct TrendLine: View {
     let values: [Double]
     var color: Color = Palette.cyan
+    /// Optional per-point captions (e.g. dates) shown in the scrub bubble.
+    var labels: [String]? = nil
     @State private var progress: CGFloat = 0
+    @State private var scrubIndex: Int? = nil
 
     var body: some View {
         let lo = values.min() ?? 0, hi = values.max() ?? 1
         let unit = unitPoints(values, lo: lo, hi: hi)
-        ZStack {
-            AreaShape(unit: unit)
-                .fill(LinearGradient(colors: [color.opacity(0.26), .clear],
-                                     startPoint: .top, endPoint: .bottom))
-                .opacity(Double(progress))
-            LineShape(unit: unit)
-                .trim(from: 0, to: progress)
-                .stroke(color, style: StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
-            GeometryReader { geo in
-                if let l = unit.last {
+        GeometryReader { geo in
+            ZStack {
+                AreaShape(unit: unit)
+                    .fill(LinearGradient(colors: [color.opacity(0.26), .clear],
+                                         startPoint: .top, endPoint: .bottom))
+                    .opacity(Double(progress))
+                LineShape(unit: unit)
+                    .trim(from: 0, to: progress)
+                    .stroke(color, style: StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
+                if let l = unit.last, scrubIndex == nil {
                     Circle().fill(color).frame(width: 9, height: 9)
                         .position(x: l.x * geo.size.width, y: l.y * geo.size.height)
                         .neonGlow(color, radius: 5)
                         .opacity(progress > 0.97 ? 1 : 0)
                 }
+                // Touch scrub: press/drag to inspect any point.
+                if let i = scrubIndex, unit.indices.contains(i) {
+                    let p = CGPoint(x: unit[i].x * geo.size.width, y: unit[i].y * geo.size.height)
+                    Rectangle().fill(color.opacity(0.35))
+                        .frame(width: 1, height: geo.size.height)
+                        .position(x: p.x, y: geo.size.height / 2)
+                    Circle().fill(color).frame(width: 11, height: 11)
+                        .overlay(Circle().stroke(Palette.void0, lineWidth: 2))
+                        .position(p)
+                    scrubBubble(i)
+                        .position(x: min(max(p.x, 46), geo.size.width - 46),
+                                  y: max(p.y - 30, 14))
+                }
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        guard values.count > 1 else { return }
+                        let idx = Int(round(g.location.x / max(geo.size.width, 1) * CGFloat(values.count - 1)))
+                        let clamped = min(max(idx, 0), values.count - 1)
+                        if clamped != scrubIndex { Haptics.soft() }
+                        scrubIndex = clamped
+                    }
+                    .onEnded { _ in withAnimation(Motion.snappy) { scrubIndex = nil } }
+            )
         }
         .onAppear { progress = 0; withAnimation(.easeOut(duration: 0.9)) { progress = 1 } }
         .id(values.count == 0 ? 0 : Int(values.reduce(0, +) * 100))   // redraw on series change
+    }
+
+    private func scrubBubble(_ i: Int) -> some View {
+        VStack(spacing: 1) {
+            Text(fmtScrub(values[i]))
+                .font(Typo.mono(12, .bold)).foregroundStyle(Palette.void0)
+            if let labels, labels.indices.contains(i) {
+                Text(labels[i]).font(Typo.mono(8)).foregroundStyle(Palette.void0.opacity(0.8))
+            }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Capsule().fill(Palette.textHi))
+        .allowsHitTesting(false)
+    }
+
+    private func fmtScrub(_ v: Double) -> String {
+        v.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(v)) : String(format: "%.1f", v)
     }
 }
 

@@ -11,11 +11,13 @@ struct CoachAgendaView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var creating = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
                 ScreenHeader(eyebrow: "Calendario", title: "Agenda",
                              subtitle: "I tuoi prossimi appuntamenti", accent: Palette.amber)
+                    .revealUp(appear, index: 0)
 
                 Button { Haptics.tap(); creating = true } label: {
                     HStack(spacing: 12) {
@@ -27,18 +29,20 @@ struct CoachAgendaView: View {
                     .padding(16).voltPanel()
                 }
                 .buttonStyle(PressableButtonStyle())
+                .revealUp(appear, index: 1)
 
                 if loading && items.isEmpty {
                     DateCardsSkeleton(accent: Palette.amber)
                 } else if items.isEmpty {
                     EmptyPanel(icon: "calendar.badge.exclamationmark", text: "Nessun appuntamento in programma.")
                 } else {
-                    ForEach(grouped, id: \.0) { day, appts in
+                    ForEach(Array(grouped.enumerated()), id: \.element.0) { gi, group in
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(day.uppercased()).font(Typo.mono(11, .bold)).tracking(2)
+                            Text(group.0.uppercased()).font(Typo.mono(11, .bold)).tracking(2)
                                 .foregroundStyle(Palette.bronze)
-                            ForEach(appts) { a in row(a) }
+                            ForEach(group.1) { a in row(a) }
                         }
+                        .revealUp(appear, index: min(gi, 5) + 2)
                     }
                     if hasMore {
                         LoadMoreButton(loading: loadingMore, accent: Palette.amber) { Task { await loadMore() } }
@@ -48,6 +52,7 @@ struct CoachAgendaView: View {
         .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
             CoachNewAppointmentView()
         }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .onRemoteChange { Task { await load() } }
         .refreshable { await load() }

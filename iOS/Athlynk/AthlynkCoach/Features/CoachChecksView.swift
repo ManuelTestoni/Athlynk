@@ -15,12 +15,14 @@ struct CoachChecksView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var loadToken = UUID()
+    @State private var appear = false
 
     var body: some View {
         NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Da revisionare", title: "Check-in",
                              subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
+                    .revealUp(appear, index: 0)
 
                 Picker("", selection: $filter) {
                     Text("In attesa").tag("pending")
@@ -28,6 +30,7 @@ struct CoachChecksView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
+                .revealUp(appear, index: 1)
 
                 if loading && checks.isEmpty {
                     AvatarRowsSkeleton(accent: Palette.bronze)
@@ -36,9 +39,10 @@ struct CoachChecksView: View {
                                ? "Nessun check da revisionare. Ottimo lavoro!"
                                : "Nessun check ricevuto.", color: Palette.lime)
                 } else {
-                    ForEach(checks) { c in
+                    ForEach(Array(checks.enumerated()), id: \.element.id) { i, c in
                         NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: min(i, 6) + 2)
                     }
                     if hasMore {
                         LoadMoreButton(loading: loadingMore, accent: Palette.bronze) {
@@ -47,9 +51,11 @@ struct CoachChecksView: View {
                     }
                 }
 
+                GreekDivider().padding(.top, 8)
                 CoachCheckTemplatesSection()
-                    .padding(.top, 8)
             }
+            .onChange(of: loading) { _, l in if !l { appear = true } }
+            .onAppear { if !checks.isEmpty { appear = true } }
             .navigationDestination(for: CheckRoute.self) {
                 CoachCheckDetailView(responseId: $0.id)
             }

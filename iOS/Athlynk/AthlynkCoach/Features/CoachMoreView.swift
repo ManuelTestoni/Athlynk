@@ -44,20 +44,25 @@ struct CoachMoreView: View {
               subtitle: "Il tuo profilo pubblico", accent: Palette.bronze),
     ]
 
+    @State private var appear = false
+
     var body: some View {
         NavigationStack(path: $path) {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Studio", title: "Altro",
                              subtitle: "Strumenti e gestione", accent: Palette.phase)
+                    .revealUp(appear, index: 0)
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
                           spacing: 14) {
-                    ForEach(items) { item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
                         Button { Haptics.tap(); path.append(item.route) } label: { card(item) }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: i / 2 + 1)
                     }
                 }
             }
+            .onAppear { appear = true }
             .navigationDestination(for: CoachRoute.self) { route in
                 switch route {
                 case .clients:       CoachClientsView()

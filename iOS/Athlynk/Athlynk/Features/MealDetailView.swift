@@ -14,15 +14,19 @@ struct MealDetailView: View {
     private var carbs: Double { meal.items.reduce(0) { $0 + $1.carbs } }
     private var fat: Double { meal.items.reduce(0) { $0 + $1.fat } }
 
+    @State private var appear = false
+
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.lime, Palette.cyan, Palette.amber, Palette.lime])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    header
-                    totalsCard
-                    Text("ALIMENTI").voltEyebrow()
-                    ForEach(meal.items) { item in itemRow(item) }
+                    header.revealUp(appear, index: 0)
+                    totalsCard.revealUp(appear, index: 1)
+                    Text("ALIMENTI").voltEyebrow().revealUp(appear, index: 2)
+                    ForEach(Array(meal.items.enumerated()), id: \.element.id) { i, item in
+                        itemRow(item).revealUp(appear, index: min(i, 6) + 3)
+                    }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
             }
@@ -30,6 +34,7 @@ struct MealDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear { appear = true }
     }
 
     private var header: some View {

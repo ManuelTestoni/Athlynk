@@ -40,32 +40,36 @@ final class ActiveSessionVM: ObservableObject {
     @Published var entries: [String: SetEntry] = [:]
     @Published var finishing = false
     @Published var finished = false
-    @Published var setOverrides: [Int: Int] = [:]    // exerciseId → set count
+    @Published var setOverrides: [String: Int] = [:] // exercise key → set count
     @Published var shakeTrigger: [String: Int] = [:] // set key → shake count
-    @Published var invalidFields: Set<String> = []   // "reps-2-1", "load-2-1", "rpe-2-1"
+    @Published var invalidFields: Set<String> = []   // "reps-we-2-1", …
+
+    // Session-only plan deviations (the assigned plan is never modified)
+    @Published var substitutions: [String: SubstituteExerciseDTO] = [:] // ex key → substitute
+    @Published var removedIds: Set<String> = []
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
         self.assignmentId = assignmentId
         self.day = day
     }
 
-    func key(_ ex: Int, _ s: Int) -> String { "\(ex)-\(s)" }
+    func key(_ ex: SessionExerciseDTO, _ s: Int) -> String { "\(ex.id)-\(s)" }
 
     func setsForExercise(_ ex: SessionExerciseDTO) -> Int {
-        setOverrides[ex.workoutExerciseId] ?? ex.sets
+        setOverrides[ex.id] ?? ex.sets
     }
 
     func addSet(_ ex: SessionExerciseDTO) {
         let n = setsForExercise(ex)
-        setOverrides[ex.workoutExerciseId] = n + 1
-        entries[key(ex.workoutExerciseId, n + 1)] = SetEntry(reps: ex.reps, load: fmtLoad(ex.loadValue))
+        setOverrides[ex.id] = n + 1
+        entries[key(ex, n + 1)] = SetEntry(reps: ex.reps, load: fmtLoad(ex.loadValue))
     }
 
     func removeSet(_ ex: SessionExerciseDTO) {
         let n = setsForExercise(ex)
         guard n > 1 else { return }
-        entries.removeValue(forKey: key(ex.workoutExerciseId, n))
-        setOverrides[ex.workoutExerciseId] = n - 1
+        entries.removeValue(forKey: key(ex, n))
+        setOverrides[ex.id] = n - 1
     }
 
     private func fmtLoad(_ v: Double?) -> String {
@@ -73,21 +77,29 @@ final class ActiveSessionVM: ObservableObject {
         return v.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(v)) : String(v)
     }
 
+    /// Exercises still in play for this session (removed ones don't count).
+    var activeExercises: [SessionExerciseDTO] {
+        exercises.filter { !removedIds.contains($0.id) }
+    }
+
+    func isRemoved(_ ex: SessionExerciseDTO) -> Bool { removedIds.contains(ex.id) }
+    func displayName(_ ex: SessionExerciseDTO) -> String { substitutions[ex.id]?.name ?? ex.name }
+
     var doneCount: Int {
-        exercises.reduce(0) { count, ex in
+        activeExercises.reduce(0) { count, ex in
             count + (1...max(setsForExercise(ex), 1)).filter {
-                entries[key(ex.workoutExerciseId, $0)]?.done == true
+                entries[key(ex, $0)]?.done == true
             }.count
         }
     }
 
-    var totalSets: Int { exercises.reduce(0) { $0 + setsForExercise($1) } }
+    var totalSets: Int { activeExercises.reduce(0) { $0 + setsForExercise($1) } }
     var progress: Double { totalSets == 0 ? 0 : Double(doneCount) / Double(totalSets) }
 
     var incompleteExerciseCount: Int {
-        exercises.filter { ex in
+        activeExercises.filter { ex in
             let n = setsForExercise(ex)
-            return !(1...max(n, 1)).contains { entries[key(ex.workoutExerciseId, $0)]?.done == true }
+            return !(1...max(n, 1)).contains { entries[key(ex, $0)]?.done == true }
         }.count
     }
 
@@ -98,13 +110,15 @@ final class ActiveSessionVM: ObservableObject {
             sessionId = s.sessionId
             exercises = s.exercises
             for ex in s.exercises {
+                if ex.removed { removedIds.insert(ex.id) }
+                if let sub = ex.substitutedWith { substitutions[ex.id] = sub }
                 let defLoad = fmtLoad(ex.loadValue)
                 for n in 1...max(ex.sets, 1) {
-                    entries[key(ex.workoutExerciseId, n)] = SetEntry(reps: ex.reps, load: defLoad)
+                    entries[key(ex, n)] = SetEntry(reps: ex.reps, load: defLoad)
                 }
             }
             for sl in s.setsLogged {
-                entries[key(sl.workoutExerciseId, sl.setNumber)] = SetEntry(
+                entries["\(sl.exerciseKey)-\(sl.setNumber)"] = SetEntry(
                     reps: sl.repsDone.map { "\($0)" } ?? "",
                     load: fmtLoad(sl.loadUsed),
                     rpe: sl.rpe.map { "\($0)" } ?? "",
@@ -117,9 +131,66 @@ final class ActiveSessionVM: ObservableObject {
         loading = false
     }
 
+    // MARK: Session-only add / remove / substitute
+
+    private func pushOverrides() async {
+        guard let sid = sessionId else { return }
+        var removed: [Int] = []
+        var substituted: [Int: Int] = [:]
+        var added: [Int] = []
+        for ex in exercises {
+            if let weId = ex.workoutExerciseId {
+                if removedIds.contains(ex.id) { removed.append(weId) }
+                if let sub = substitutions[ex.id] { substituted[weId] = sub.id }
+            } else if ex.added, let exId = ex.exerciseId {
+                added.append(exId)
+            }
+        }
+        try? await APIClient.shared.setSessionOverrides(
+            sessionId: sid, removed: removed, substituted: substituted, added: added)
+    }
+
+    func addExercise(_ item: ExerciseSearchItemDTO) {
+        let ex = SessionExerciseDTO(addedExerciseId: item.id, name: item.name,
+                                    targetMuscleGroup: item.primaryMuscle)
+        guard !exercises.contains(where: { $0.id == ex.id }) else { return }
+        exercises.append(ex)
+        for n in 1...max(ex.sets, 1) {
+            entries[key(ex, n)] = SetEntry(reps: ex.reps, load: "")
+        }
+        Haptics.thud()
+        Task { await pushOverrides() }
+    }
+
+    func substitute(_ ex: SessionExerciseDTO, with item: ExerciseSearchItemDTO) {
+        substitutions[ex.id] = SubstituteExerciseDTO(id: item.id, name: item.name)
+        Haptics.thud()
+        Task { await pushOverrides() }
+    }
+
+    func undoSubstitute(_ ex: SessionExerciseDTO) {
+        substitutions.removeValue(forKey: ex.id)
+        Task { await pushOverrides() }
+    }
+
+    func removeExercise(_ ex: SessionExerciseDTO) {
+        if ex.added {
+            exercises.removeAll { $0.id == ex.id }
+        } else {
+            removedIds.insert(ex.id)
+        }
+        Haptics.thud()
+        Task { await pushOverrides() }
+    }
+
+    func restoreExercise(_ ex: SessionExerciseDTO) {
+        removedIds.remove(ex.id)
+        Task { await pushOverrides() }
+    }
+
     func toggle(_ ex: SessionExerciseDTO, set n: Int) async {
         guard let sid = sessionId else { return }
-        let k = key(ex.workoutExerciseId, n)
+        let k = key(ex, n)
         var e = entries[k] ?? SetEntry()
 
         if !e.done {
@@ -139,13 +210,20 @@ final class ActiveSessionVM: ObservableObject {
         entries[k] = e
         Haptics.thud()
         if e.done, let rec = ex.recoverySeconds, rec > 0 {
-            RestTimerManager.shared.start(seconds: rec, exerciseName: ex.name)
+            RestTimerManager.shared.start(seconds: rec, exerciseName: displayName(ex))
         }
+        let sub = substitutions[ex.id]
         do {
             try await APIClient.shared.logSet(
-                sessionId: sid, exerciseId: ex.workoutExerciseId, setNumber: n,
+                sessionId: sid,
+                workoutExerciseId: ex.workoutExerciseId,
+                addedExerciseId: ex.added ? ex.exerciseId : nil,
+                setNumber: n,
                 reps: Int(e.reps), load: Double(e.load.replacingOccurrences(of: ",", with: ".")),
-                loadUnit: ex.loadUnit ?? "KG", rpe: Int(e.rpe), completed: e.done)
+                loadUnit: ex.loadUnit ?? "KG", rpe: Int(e.rpe), completed: e.done,
+                isExtraSet: ex.added || n > ex.sets,
+                substituted: !ex.added && sub != nil,
+                actualExerciseId: ex.added ? ex.exerciseId : sub?.id)
         } catch {
             e.done.toggle(); entries[k] = e
         }
@@ -173,8 +251,12 @@ struct ActiveSessionView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var burst = 0
+    @State private var appear = false
     @State private var keyboardShown = false
     @State private var showFinishConfirm = false
+    @State private var showAddPicker = false
+    @State private var substituteTarget: SessionExerciseDTO?
+    @State private var removeTarget: SessionExerciseDTO?
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
         _vm = StateObject(wrappedValue: ActiveSessionVM(assignmentId: assignmentId, day: day))
@@ -184,15 +266,25 @@ struct ActiveSessionView: View {
         ZStack {
             VoltBackground(palette: [Palette.magenta, Palette.violet, Palette.cyan, Palette.magenta])
             if vm.loading {
-                LoadingPanel(text: "Avvio sessione…")
+                ActiveSessionSkeleton()
             } else if let error = vm.error, vm.sessionId == nil {
                 EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger).padding(22)
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 20) {
-                        header
-                        ForEach(vm.exercises) { ex in exerciseBlock(ex) }
-                        finishButtons
+                        header.revealUp(appear, index: 0)
+                        ForEach(Array(vm.exercises.enumerated()), id: \.element.id) { i, ex in
+                            Group {
+                                if vm.isRemoved(ex) {
+                                    removedBlock(ex)
+                                } else {
+                                    exerciseBlock(ex)
+                                }
+                            }
+                            .revealUp(appear, index: i + 1)
+                        }
+                        addExerciseButton.revealUp(appear, index: vm.exercises.count + 1)
+                        finishButtons.revealUp(appear, index: vm.exercises.count + 2)
                     }
                     .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 50)
                     .contentShape(Rectangle())
@@ -210,6 +302,7 @@ struct ActiveSessionView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(keyboardShown ? .hidden : .visible, for: .navigationBar)
         .task { await vm.start() }
+        .onChange(of: vm.loading) { _, l in if !l { withAnimation { appear = true } } }
         .onAppear { app.tabBarHidden = true }
         .onDisappear { app.tabBarHidden = false }
         .onChange(of: vm.finished) { _, done in if done { burst += 1 } }
@@ -218,6 +311,30 @@ struct ActiveSessionView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardShown = false
+        }
+        .sheet(isPresented: $showAddPicker) {
+            SessionExercisePickerSheet(title: "Aggiungi esercizio", accent: Palette.primary) { item in
+                vm.addExercise(item)
+            }
+        }
+        .sheet(item: $substituteTarget) { ex in
+            SubstitutePickerSheet(forExercise: ex,
+                                  catalogExerciseId: ex.exerciseCatalogId ?? ex.exerciseId,
+                                  accent: Palette.control) { item in
+                vm.substitute(ex, with: item)
+            }
+        }
+        .alert("Eliminare esercizio?", isPresented: Binding(
+            get: { removeTarget != nil },
+            set: { if !$0 { removeTarget = nil } }
+        )) {
+            Button("Elimina", role: .destructive) {
+                if let ex = removeTarget { vm.removeExercise(ex) }
+                removeTarget = nil
+            }
+            Button("Annulla", role: .cancel) { removeTarget = nil }
+        } message: {
+            Text("\(removeTarget?.name ?? "") verrà rimosso solo da questa sessione. La scheda assegnata dal coach non cambia.")
         }
         .alert("Sessione incompleta", isPresented: $showFinishConfirm) {
             Button("Termina comunque", role: .destructive) {
@@ -253,16 +370,64 @@ struct ActiveSessionView: View {
 
     private func exerciseBlock(_ ex: SessionExerciseDTO) -> some View {
         let n = vm.setsForExercise(ex)
+        let sub = vm.substitutions[ex.id]
         return VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(ex.name).font(Typo.display(20)).foregroundStyle(Palette.textHi)
-                    if let m = ex.targetMuscleGroup, !m.isEmpty {
-                        Text(m.uppercased()).font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(Palette.textLow)
+                    Text(vm.displayName(ex)).font(Typo.display(20)).foregroundStyle(Palette.textHi)
+                    if sub != nil {
+                        Text(ex.name)
+                            .font(Typo.body(12)).strikethrough()
+                            .foregroundStyle(Palette.textLow)
+                    }
+                    HStack(spacing: 6) {
+                        if let m = ex.targetMuscleGroup, !m.isEmpty {
+                            Text(m.uppercased()).font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(Palette.textLow)
+                        }
+                        if ex.added {
+                            Text("AGGIUNTO").font(Typo.mono(8, .bold)).tracking(1)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(Palette.primary))
+                                .foregroundStyle(Palette.void0)
+                        }
+                        if sub != nil {
+                            Text("SOSTITUITO").font(Typo.mono(8, .bold)).tracking(1)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(Palette.control))
+                                .foregroundStyle(Palette.void0)
+                        }
                     }
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
+                    Menu {
+                        if !ex.added {
+                            if sub == nil {
+                                Button {
+                                    substituteTarget = ex
+                                } label: {
+                                    Label("Sostituisci esercizio", systemImage: "arrow.left.arrow.right")
+                                }
+                            } else {
+                                Button {
+                                    vm.undoSubstitute(ex)
+                                } label: {
+                                    Label("Ripristina \(ex.name)", systemImage: "arrow.uturn.backward")
+                                }
+                            }
+                        }
+                        Button(role: .destructive) {
+                            removeTarget = ex
+                        } label: {
+                            Label("Elimina da questa sessione", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Palette.textMid)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
                     if let rec = ex.recoverySeconds {
                         Label("\(rec)s", systemImage: "timer")
                             .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
@@ -327,10 +492,58 @@ struct ActiveSessionView: View {
         .padding(16).voltPanel(Palette.magenta.opacity(0.45))
     }
 
+    // MARK: Removed exercise (slim, restorable)
+
+    private func removedBlock(_ ex: SessionExerciseDTO) -> some View {
+        HStack(spacing: 10) {
+            Text(ex.name)
+                .font(Typo.body(15, .semibold)).strikethrough()
+                .foregroundStyle(Palette.textLow)
+            Text("RIMOSSO").font(Typo.mono(8, .bold)).tracking(1)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Capsule().stroke(Palette.line, lineWidth: 1))
+                .foregroundStyle(Palette.textLow)
+            Spacer()
+            Button {
+                Haptics.tap()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    vm.restoreExercise(ex)
+                }
+            } label: {
+                Label("Ripristina", systemImage: "arrow.uturn.backward")
+                    .font(Typo.mono(11, .bold)).tracking(1)
+                    .foregroundStyle(Palette.control)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14).voltPanel(Palette.line)
+        .opacity(0.75)
+    }
+
+    // MARK: Add exercise (session-only)
+
+    private var addExerciseButton: some View {
+        Button {
+            Haptics.tap()
+            showAddPicker = true
+        } label: {
+            Label("Aggiungi esercizio", systemImage: "plus")
+                .font(Typo.mono(12, .bold)).tracking(1)
+                .foregroundStyle(Palette.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Palette.primary.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [5]))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: Set row
 
     private func setRow(_ ex: SessionExerciseDTO, _ n: Int) -> some View {
-        let k = vm.key(ex.workoutExerciseId, n)
+        let k = vm.key(ex, n)
         let binding = Binding<SetEntry>(
             get: { vm.entries[k] ?? SetEntry() },
             set: { vm.entries[k] = $0 }

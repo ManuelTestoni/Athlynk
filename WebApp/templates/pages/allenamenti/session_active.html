@@ -20,6 +20,8 @@
       log_set_tpl: "/api/sessioni/__SID__/serie/",
       finish_tpl: "/api/sessioni/__SID__/concludi/",
       media_tpl: "/api/sessioni/__SID__/media/",
+      overrides_tpl: "/api/sessioni/__SID__/modifiche/",
+      search: "{% url 'api_client_exercise_search' %}",
       back: "{% url 'client_assignment_detail' assignment.id %}"
     }
   };
@@ -176,6 +178,57 @@
     border-color: var(--al-bronze);
   }
   .ss-chev { color: var(--al-ink-mute); }
+  .ss-ex.is-removed { opacity: .55; background: var(--al-marble); }
+
+  .ss-ex-action {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--al-r-sm);
+    background: var(--al-marble);
+    border: 1px solid var(--al-rule-faint);
+    color: var(--al-ink-soft);
+    font-size: .95rem;
+    flex-shrink: 0;
+    transition: background .15s, color .15s;
+  }
+  .ss-ex-action:hover { background: var(--al-marble-w); color: var(--al-ink); }
+  .ss-ex-action.danger:hover { background: var(--al-danger); border-color: var(--al-danger); color: #fff; }
+
+  /* Exercise picker */
+  .ss-picker-chips {
+    display: flex; gap: .4rem; flex-wrap: nowrap;
+    overflow-x: auto; padding-bottom: .5rem; margin-bottom: .35rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ss-picker-chip {
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-pill);
+    padding: .3rem .75rem;
+    font-size: .78rem; font-weight: 600;
+    color: var(--al-ink-soft);
+    transition: background .15s, color .15s;
+  }
+  .ss-picker-chip.is-on {
+    background: var(--al-aegean); border-color: var(--al-aegean);
+    color: var(--al-parchment);
+  }
+  .ss-picker-list {
+    max-height: 46vh; overflow-y: auto;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    background: #fff;
+  }
+  .ss-picker-row {
+    width: 100%; text-align: left;
+    display: flex; align-items: center; gap: .6rem;
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--al-rule-faint);
+    transition: background .12s;
+  }
+  .ss-picker-row:last-child { border-bottom: none; }
+  .ss-picker-row:hover { background: var(--al-marble-w); }
 
   .ss-ex-body {
     padding: 0 1.1rem 1.1rem;
@@ -470,7 +523,7 @@
       <div class="ss-progress-bar" :style="'width:' + progressPct + '%'"></div>
     </div>
     <p class="ss-eyebrow mt-2">
-      <span x-text="completedExCount"></span> / <span x-text="exercises.length"></span> esercizi · <span x-text="totalDoneSets"></span> serie
+      <span x-text="completedExCount"></span> / <span x-text="activeExercises().length"></span> esercizi · <span x-text="totalDoneSets"></span> serie
     </p>
   </header>
 
@@ -497,10 +550,10 @@
 
     <!-- Exercises accordion -->
     <template x-for="(ex, exIdx) in exercises" :key="ex.id">
-      <div class="ss-ex" :class="{'is-active': activeExId === ex.id, 'is-done': isExComplete(ex)}">
+      <div class="ss-ex" :class="{'is-active': activeExId === ex.id, 'is-done': isExComplete(ex), 'is-removed': removed[ex.id]}">
 
         <!-- Header -->
-        <div class="ss-ex-head" @click="toggleExpand(ex.id)">
+        <div class="ss-ex-head" @click="!removed[ex.id] && toggleExpand(ex.id)">
           <div class="ss-ex-num" x-text="(exIdx + 1) + '.'"></div>
           <div class="ss-ex-name">
             <template x-if="substituted[ex.id]">
@@ -511,15 +564,34 @@
               </div>
             </template>
             <template x-if="!substituted[ex.id]">
-              <span x-text="ex.name"></span>
+              <div>
+                <span x-text="ex.name" :style="removed[ex.id] ? 'text-decoration: line-through; color: var(--al-ink-mute);' : ''"></span>
+                <span x-show="ex.added" class="ss-badge gold" style="margin-left:.4rem;">Aggiunto</span>
+                <span x-show="removed[ex.id]" class="ss-badge" style="margin-left:.4rem;">Rimosso</span>
+              </div>
             </template>
           </div>
-          <span class="ss-badge" x-text="totalSetsFor(ex) + ' serie'"></span>
-          <i x-show="!expanded[ex.id]" class="ph ph-caret-down ss-chev"></i>
+          <template x-if="removed[ex.id]">
+            <button class="ss-ex-action" @click.stop="restoreExercise(ex)" title="Ripristina esercizio">
+              <i class="ph ph-arrow-counter-clockwise"></i>
+            </button>
+          </template>
+          <template x-if="!removed[ex.id]">
+            <div class="flex items-center gap-1" @click.stop>
+              <button x-show="!ex.added" class="ss-ex-action" @click="openSubstitutePicker(ex)" title="Sostituisci esercizio">
+                <i class="ph ph-arrows-left-right"></i>
+              </button>
+              <button class="ss-ex-action danger" @click="askRemove(ex)" title="Elimina da questa sessione">
+                <i class="ph ph-trash"></i>
+              </button>
+              <span class="ss-badge" x-text="totalSetsFor(ex) + ' serie'"></span>
+              <i x-show="!expanded[ex.id]" class="ph ph-caret-down ss-chev" @click="toggleExpand(ex.id)"></i>
+            </div>
+          </template>
         </div>
 
         <!-- Body -->
-        <div x-show="expanded[ex.id]" x-collapse class="ss-ex-body">
+        <div x-show="expanded[ex.id] && !removed[ex.id]" x-collapse class="ss-ex-body">
 
           <!-- Alternative banner: available -->
           <template x-if="ex.alternative_exercise && !substituted[ex.id]">
@@ -544,12 +616,6 @@
                 <i class="ph ph-arrow-counter-clockwise"></i> Annulla
               </button>
             </div>
-          </template>
-          <!-- No alternative configured -->
-          <template x-if="!ex.alternative_exercise">
-            <p class="al-small" style="color: var(--al-ink-mute); margin: .65rem 0 0; font-style: italic;">
-              <i class="ph ph-info"></i> Nessun esercizio alternativo configurato dal coach.
-            </p>
           </template>
 
           <!-- Sets grid -->
@@ -669,6 +735,11 @@
       </div>
     </template>
 
+    <!-- Add exercise (session-only) -->
+    <button x-show="exercises.length" @click="openAddPicker()" class="ss-add-set" style="margin-bottom: 1rem;">
+      <i class="ph ph-plus"></i> Aggiungi esercizio
+    </button>
+
     <template x-if="!exercises.length">
       <div class="text-center py-12">
         <i class="ph ph-warning-circle" style="font-size: 2.5rem; color: var(--al-ink-mute);"></i>
@@ -723,6 +794,94 @@
     </div>
   </div>
 
+  <!-- MODAL: Remove exercise confirm -->
+  <div x-show="removeModal.open" x-cloak class="ss-modal-bg" @click.self="removeModal.open=false">
+    <div class="ss-modal">
+      <h3 class="text-xl font-bold mb-2">Eliminare esercizio?</h3>
+      <p class="text-sm mb-4" style="color: var(--al-ink-mute);">
+        <strong x-text="removeModal.ex?.name"></strong> verrà rimosso solo da questa sessione.
+        La scheda assegnata dal coach non cambia.
+      </p>
+      <div class="flex gap-2">
+        <button @click="removeModal.open=false" class="ss-bottom-btn secondary flex-1">Annulla</button>
+        <button @click="confirmRemove()" class="ss-bottom-btn flex-1" style="background: var(--al-danger); border-color: var(--al-danger); color:#fff;">Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Exercise picker (add / substitute) -->
+  <div x-show="pickerModal.open" x-cloak class="ss-modal-bg" @click.self="pickerModal.open=false">
+    <div class="ss-modal" style="max-width: 560px;">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xl font-bold"
+            x-text="pickerModal.mode === 'add' ? 'Aggiungi esercizio' : 'Sostituisci ' + (pickerModal.forEx?.name || '')"></h3>
+        <button @click="pickerModal.open=false" class="ss-set-icon"><i class="ph ph-x"></i></button>
+      </div>
+      <p class="text-sm mb-3" style="color: var(--al-ink-mute);">
+        Vale solo per questa sessione: la scheda non viene modificata.
+      </p>
+
+      <!-- Substitute: same-primary-muscle suggestions first -->
+      <template x-if="pickerModal.mode === 'substitute' && !pickerModal.exploreAll">
+        <div>
+          <p class="ss-eyebrow mb-1">Stesso gruppo muscolare</p>
+          <div class="ss-picker-list">
+            <template x-for="item in pickerModal.similar" :key="item.id">
+              <button class="ss-picker-row" @click="choosePicked(item)">
+                <span class="flex-1 min-w-0">
+                  <span class="block font-semibold text-sm truncate" x-text="item.name"></span>
+                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, item.equipment].filter(Boolean).join(' · ')"></span>
+                </span>
+                <i class="ph ph-caret-right ss-chev"></i>
+              </button>
+            </template>
+            <p x-show="!pickerModal.loading && !pickerModal.similar.length" class="text-sm py-3 text-center" style="color: var(--al-ink-mute);">
+              Nessun esercizio simile trovato.
+            </p>
+          </div>
+          <button class="ss-add-set mt-3" @click="exploreAllExercises()">
+            Non trovi il tuo esercizio? <strong>Esplora tutti</strong>
+          </button>
+        </div>
+      </template>
+
+      <!-- Full catalog: search by name + muscle group chips -->
+      <template x-if="pickerModal.mode === 'add' || pickerModal.exploreAll">
+        <div>
+          <div class="relative mb-2">
+            <i class="ph ph-magnifying-glass" style="position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color: var(--al-ink-mute);"></i>
+            <input type="search" class="ss-set-input" style="text-align:left; padding-left:2.2rem; font-family: var(--al-sans); font-weight:500;"
+                   placeholder="Cerca esercizio…"
+                   x-model="pickerModal.q" @input="pickerInput()">
+          </div>
+          <div class="ss-picker-chips">
+            <template x-for="g in pickerModal.groups" :key="g.slug">
+              <button class="ss-picker-chip" :class="{'is-on': pickerModal.group === g.slug}"
+                      @click="pickerGroup(g.slug)" x-text="g.name"></button>
+            </template>
+          </div>
+          <div class="ss-picker-list">
+            <template x-for="item in pickerModal.results" :key="item.id">
+              <button class="ss-picker-row" @click="choosePicked(item)">
+                <span class="flex-1 min-w-0">
+                  <span class="block font-semibold text-sm truncate" x-text="item.name"></span>
+                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, item.equipment].filter(Boolean).join(' · ')"></span>
+                </span>
+                <i class="ph ph-caret-right ss-chev"></i>
+              </button>
+            </template>
+            <p x-show="!pickerModal.loading && !pickerModal.results.length" class="text-sm py-3 text-center" style="color: var(--al-ink-mute);">
+              Nessun risultato.
+            </p>
+            <p x-show="pickerModal.loading" class="text-sm py-3 text-center" style="color: var(--al-ink-mute);">
+              <i class="ph ph-spinner-gap animate-spin"></i> Caricamento…
+            </p>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <!-- MODAL: Stop confirm -->
   <div x-show="confirmStop" x-cloak class="ss-modal-bg" @click.self="confirmStop=false">
     <div class="ss-modal">
@@ -751,10 +910,11 @@
       <div class="text-xs mb-3">
         <template x-for="ex in exercises" :key="ex.id">
           <div class="flex items-center justify-between py-1 border-b" style="border-color: var(--al-rule-faint);">
-            <span x-text="ex.name"></span>
-            <span x-show="isExComplete(ex)" style="color: var(--al-bronze);"><i class="ph ph-check"></i> completato</span>
-            <span x-show="!isExComplete(ex) && (doneSets[ex.id]||[]).length > 0" style="color:#fbbf24;">parziale</span>
-            <span x-show="!isExComplete(ex) && (doneSets[ex.id]||[]).length === 0" style="color: var(--al-ink-mute);">saltato</span>
+            <span x-text="exerciseDisplayName(ex)"></span>
+            <span x-show="removed[ex.id]" style="color: var(--al-ink-mute);">rimosso</span>
+            <span x-show="!removed[ex.id] && isExComplete(ex)" style="color: var(--al-bronze);"><i class="ph ph-check"></i> completato</span>
+            <span x-show="!removed[ex.id] && !isExComplete(ex) && (doneSets[ex.id]||[]).length > 0" style="color:#fbbf24;">parziale</span>
+            <span x-show="!removed[ex.id] && !isExComplete(ex) && (doneSets[ex.id]||[]).length === 0" style="color: var(--al-ink-mute);">saltato</span>
           </div>
         </template>
       </div>

@@ -9,20 +9,22 @@ import SwiftUI
 
 struct ExerciseDetailView: View {
     let exercise: ExerciseDTO
+    @State private var appear = false
 
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.magenta, Palette.violet, Palette.cyan, Palette.magenta])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    hero
-                    titleBlock
-                    statGrid
-                    if let eq = exercise.equipment, !eq.isEmpty { equipmentTag(eq) }
-                    if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes) }
+                    hero.revealUp(appear, index: 0)
+                    titleBlock.revealUp(appear, index: 1)
+                    statGrid.revealUp(appear, index: 2)
+                    if let eq = exercise.equipment, !eq.isEmpty { equipmentTag(eq).revealUp(appear, index: 3) }
+                    if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes).revealUp(appear, index: 4) }
                     ExerciseTrendCard {
                         try await APIClient.shared.exerciseTrend(workoutExerciseId: exercise.id)
                     }
+                    .revealUp(appear, index: 5)
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
             }
@@ -30,6 +32,7 @@ struct ExerciseDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear { appear = true }
     }
 
     private var hero: some View {

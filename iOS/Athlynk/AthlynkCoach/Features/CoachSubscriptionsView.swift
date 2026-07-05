@@ -11,11 +11,13 @@ struct CoachSubscriptionsView: View {
     @State private var loading = true
     @State private var loadingMore = false
     @State private var hasMore = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Ricavi", title: "Abbonamenti",
                          subtitle: "Piani e clienti paganti", accent: Palette.amber)
+                .revealUp(appear, index: 0)
             if loading && header == nil {
                 CoachSubscriptionsSkeleton()
             } else if let h = header {
@@ -25,15 +27,20 @@ struct CoachSubscriptionsView: View {
                     CoachStatTile(value: "\(h.activeCount)", label: "Abbonati attivi",
                                   icon: "person.badge.shield.checkmark.fill", accent: Palette.lime)
                 }
+                .revealUp(appear, index: 1)
 
                 CoachSectionTitle(eyebrow: "Offerta", title: "Piani", accent: Palette.amber)
+                    .revealUp(appear, index: 2)
                 if h.plans.isEmpty {
                     EmptyPanel(icon: "creditcard", text: "Nessun piano creato.")
                 } else {
-                    ForEach(h.plans) { p in planRow(p) }
+                    ForEach(Array(h.plans.enumerated()), id: \.element.id) { i, p in
+                        planRow(p).revealUp(appear, index: min(i, 4) + 3)
+                    }
                 }
 
                 if !subs.isEmpty {
+                    GreekDivider(color: Palette.amber)
                     CoachSectionTitle(eyebrow: "Clienti", title: "Abbonamenti", accent: Palette.cyan)
                     ForEach(subs) { s in subRow(s) }
                 }
@@ -43,6 +50,7 @@ struct CoachSubscriptionsView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .refreshable { await load() }
     }

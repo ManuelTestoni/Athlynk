@@ -83,7 +83,25 @@ struct SessionDetailView: View {
     private func exerciseCard(_ ex: SessionLoggedExerciseDTO) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(ex.exerciseName).font(Typo.display(17)).foregroundStyle(Palette.textHi)
+                HStack(spacing: 6) {
+                    Text(ex.performedName).font(Typo.display(17)).foregroundStyle(Palette.textHi)
+                    if ex.added {
+                        Text("AGGIUNTO").font(Typo.mono(8, .bold)).tracking(1)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(Palette.primary))
+                            .foregroundStyle(Palette.void0)
+                    }
+                    if ex.wasSubstituted {
+                        Text("SOSTITUITO").font(Typo.mono(8, .bold)).tracking(1)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(Palette.control))
+                            .foregroundStyle(Palette.void0)
+                    }
+                }
+                if ex.wasSubstituted {
+                    Text(ex.exerciseName)
+                        .font(Typo.body(11)).strikethrough().foregroundStyle(Palette.textLow)
+                }
                 if let p = ex.prescribedReps, !p.isEmpty {
                     Text("Prescritto: \(p)").font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(accent)
                 }

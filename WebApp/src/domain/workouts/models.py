@@ -284,6 +284,10 @@ class WorkoutSession(models.Model):
     notes = models.TextField(null=True, blank=True)
     completed = models.BooleanField(default=False)
     interrupted = models.BooleanField(default=False)
+    # Session-only deviations from the plan; the plan itself is never touched.
+    # {"removed": [we_id], "substituted": {"<we_id>": exercise_id},
+    #  "added": [{"exercise_id": id, "order": n}]}
+    overrides = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -307,7 +311,10 @@ class WorkoutSession(models.Model):
 
 class WorkoutSetLog(models.Model):
     session = models.ForeignKey(WorkoutSession, on_delete=models.CASCADE, related_name='set_logs')
-    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='set_logs')
+    # NULL for exercises added during the session (no plan slot); then
+    # actual_exercise carries the movement performed.
+    workout_exercise = models.ForeignKey(WorkoutExercise, on_delete=models.CASCADE, related_name='set_logs',
+                                         null=True, blank=True)
     set_number = models.IntegerField()
     reps_done = models.IntegerField(null=True, blank=True)
     load_used = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
@@ -326,7 +333,18 @@ class WorkoutSetLog(models.Model):
 
     class Meta:
         ordering = ['workout_exercise__order_index', 'set_number']
-        unique_together = [('session', 'workout_exercise', 'set_number')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['session', 'workout_exercise', 'set_number'],
+                condition=models.Q(workout_exercise__isnull=False),
+                name='uniq_setlog_planned',
+            ),
+            models.UniqueConstraint(
+                fields=['session', 'actual_exercise', 'set_number'],
+                condition=models.Q(workout_exercise__isnull=True),
+                name='uniq_setlog_added',
+            ),
+        ]
 
 
 def session_media_path(instance, filename):

@@ -13,6 +13,7 @@ struct WorkoutHistoryView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
+    @State private var appear = false
 
     private var groups: [(title: String, sessions: [WorkoutSessionDTO])] {
         var order: [String] = []
@@ -41,19 +42,21 @@ struct WorkoutHistoryView: View {
                         EmptyPanel(icon: "clock.arrow.circlepath",
                                    text: "Nessuna sessione registrata.\nIl tuo storico apparirà qui.")
                     } else {
-                        ForEach(Array(groups.enumerated()), id: \.offset) { _, g in
+                        ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
                             HStack(spacing: 8) {
                                 Image(systemName: "calendar").font(.system(size: 12, weight: .bold))
                                 Text(g.title.uppercased()).font(Typo.mono(10, .bold)).tracking(2)
                             }
                             .foregroundStyle(Palette.violet).padding(.top, 6)
-                            ForEach(g.sessions) { s in
+                            .revealUp(appear, index: gi * 3)
+                            ForEach(Array(g.sessions.enumerated()), id: \.element.id) { si, s in
                                 NavigationLink {
                                     SessionDetailView(accent: Palette.violet) {
                                         try await APIClient.shared.workoutSessionDetail(s.id)
                                     }
                                 } label: { card(s) }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PressableButtonStyle())
+                                .revealUp(appear, index: gi * 3 + min(si, 6) + 1)
                             }
                         }
                         if hasMore {
@@ -68,6 +71,7 @@ struct WorkoutHistoryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
     private func card(_ s: WorkoutSessionDTO) -> some View {

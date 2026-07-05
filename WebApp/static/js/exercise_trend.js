@@ -84,6 +84,16 @@
 
       /* === lifecycle === */
       open(weId, name) {
+        this._openUrl(`/api/allenamenti/esercizio/${weId}/andamento/`, name, weId);
+      },
+
+      /* History-based open: works for any exercise ever performed (also
+         substituted/added movements not present in the current plan). */
+      openByName(name) {
+        this._openUrl(`/api/allenamenti/esercizi/andamento-per-nome/?name=${encodeURIComponent(name)}`, name, null);
+      },
+
+      _openUrl(url, name, weId) {
         this.weId = weId;
         this.exerciseName = name || 'Esercizio';
         this.metric = 'volume';
@@ -97,7 +107,7 @@
         if (!this.isOpen) window.panelLock && window.panelLock.acquire();
         this.isOpen = true;
 
-        fetch(`/api/allenamenti/esercizio/${weId}/andamento/`, { credentials: 'same-origin' })
+        fetch(url, { credentials: 'same-origin' })
           .then(r => r.ok ? r.json() : Promise.reject(r.status))
           .then(d => {
             this.exerciseName = (d.exercise && d.exercise.name) || this.exerciseName;
@@ -328,6 +338,11 @@
       const d = _get();
       if (d) { d.open(weId, name); return; }
       setTimeout(() => { const x = _get(); if (x) x.open(weId, name); }, 50);
+    },
+    openByName(name) {
+      const d = _get();
+      if (d) { d.openByName(name); return; }
+      setTimeout(() => { const x = _get(); if (x) x.openByName(name); }, 50);
     },
     close() { const d = _get(); if (d) d.close(); },
   };

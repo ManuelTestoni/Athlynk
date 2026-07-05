@@ -68,6 +68,26 @@ enum Typo {
     }
 }
 
+// MARK: - Motion & spacing tokens
+
+/// Signature animations — every screen uses these two curves so the whole app
+/// moves as one. `snappy` for feedback (presses, toggles, chips), `luxe` for
+/// content (cards, layout shifts, reveals).
+enum Motion {
+    static let snappy = Animation.spring(response: 0.30, dampingFraction: 0.70)
+    static let luxe   = Animation.spring(response: 0.55, dampingFraction: 0.85)
+    /// Delay step for staggered entrances (used by `.revealUp`).
+    static let staggerStep: Double = 0.07
+}
+
+/// Spacing scale — page and card rhythm shared by every screen.
+enum Space {
+    static let screenH: CGFloat = 22   // horizontal page padding
+    static let section: CGFloat = 22   // between page sections
+    static let card: CGFloat    = 16   // card internal padding
+    static let element: CGFloat = 12   // between elements inside a card
+}
+
 // MARK: - Surface + chrome modifiers
 
 extension View {

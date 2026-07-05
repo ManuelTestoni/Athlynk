@@ -13,13 +13,14 @@ struct SupplementsView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
+    @State private var appear = false
 
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.amber, Palette.lime, Palette.magenta, Palette.amber])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    header
+                    header.revealUp(appear, index: 0)
                     if loading {
                         SupplementsSkeleton(count: 3)
                     } else if let error {
@@ -39,7 +40,7 @@ struct SupplementsView: View {
                                 Text(n).font(Typo.body(13)).foregroundStyle(Palette.textMid)
                             }
                             ForEach(Array(sheet.items.enumerated()), id: \.element.id) { i, item in
-                                itemCard(item, index: i)
+                                itemCard(item, index: i).revealUp(appear, index: min(i, 6) + 1)
                             }
                         }
                         if hasMore {
@@ -54,6 +55,7 @@ struct SupplementsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onAppear { appear = true }
     }
 
     private var header: some View {

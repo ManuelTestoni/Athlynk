@@ -12,6 +12,7 @@ struct NotificheView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
+    @State private var appear = false
 
     var body: some View {
         ZStack {
@@ -25,9 +26,10 @@ struct NotificheView: View {
                     } else if items.isEmpty {
                         EmptyPanel(icon: "bell.slash", text: "Nessuna notifica.")
                     } else {
-                        ForEach(items) { n in
+                        ForEach(Array(items.enumerated()), id: \.element.id) { i, n in
                             Button { Task { await markRead(n) } } label: { row(n) }
                                 .buttonStyle(PressableButtonStyle())
+                                .revealUp(appear, index: min(i, 8))
                         }
                         if hasMore {
                             LoadMoreButton(loading: loadingMore, accent: Palette.cyan) { Task { await loadMore() } }
@@ -41,6 +43,7 @@ struct NotificheView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .refreshable { await load() }
         .onRemoteChange { Task { await load() } }
     }

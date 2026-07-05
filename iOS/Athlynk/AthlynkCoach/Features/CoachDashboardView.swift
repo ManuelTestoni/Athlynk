@@ -15,23 +15,26 @@ struct CoachDashboardView: View {
     @State private var error: String?
     @State private var loadToken = UUID()
     @State private var fetching = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
-            header
+            header.revealUp(appear, index: 0)
 
             if loading && data == nil {
                 CoachDashboardSkeleton()
             } else if let data {
-                statsGrid(data.stats)
-                quickActions
-                if !data.agenda.isEmpty { agendaSection(data.agenda) }
-                insightCard(data.insight)
-                if !data.activity.isEmpty { activitySection(data.activity) }
+                statsGrid(data.stats).revealUp(appear, index: 1)
+                quickActions.revealUp(appear, index: 2)
+                if !data.agenda.isEmpty { agendaSection(data.agenda).revealUp(appear, index: 3) }
+                insightCard(data.insight).revealUp(appear, index: 4)
+                if !data.activity.isEmpty { activitySection(data.activity).revealUp(appear, index: 5) }
             } else if let error {
                 EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
             }
         }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
+        .onAppear { if data != nil { appear = true } }
         .task(id: loadToken) { await load() }
         .onRemoteChange { loadToken = UUID() }
         .refreshable { await load(force: true) }
