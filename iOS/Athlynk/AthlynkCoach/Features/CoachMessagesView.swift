@@ -10,11 +10,13 @@ struct CoachMessagesView: View {
     @State private var convos: [CoachConversation] = []
     @State private var loading = true
     @State private var composingNew = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
                 ScreenHeader(eyebrow: "Conversazioni", title: "Messaggi",
                              subtitle: "Resta in contatto con i tuoi atleti", accent: Palette.violet)
+                    .revealUp(appear, index: 0)
 
                 Button { Haptics.tap(); composingNew = true } label: {
                     HStack(spacing: 12) {
@@ -28,6 +30,7 @@ struct CoachMessagesView: View {
                     .padding(16).voltPanel()
                 }
                 .buttonStyle(PressableButtonStyle())
+                .revealUp(appear, index: 1)
 
                 if loading && convos.isEmpty {
                     AvatarRowsSkeleton(accent: Palette.violet)
@@ -35,9 +38,10 @@ struct CoachMessagesView: View {
                     EmptyPanel(icon: "bubble.left.and.bubble.right",
                                text: "Nessuna conversazione attiva.\nUsa “Nuovo messaggio” per scrivere a un atleta.")
                 } else {
-                    ForEach(convos) { c in
+                    ForEach(Array(convos.enumerated()), id: \.element.id) { i, c in
                         NavigationLink(value: c) { row(c) }
                             .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: min(i, 6) + 2)
                     }
                 }
             }
@@ -47,6 +51,7 @@ struct CoachMessagesView: View {
         .sheet(isPresented: $composingNew, onDismiss: { Task { await load() } }) {
             CoachNewMessageView()
         }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .onRemoteChange(["MESSAGE"]) { Task { await load() } }
         .refreshable { await load() }

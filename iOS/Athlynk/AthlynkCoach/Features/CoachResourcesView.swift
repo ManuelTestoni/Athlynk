@@ -10,20 +10,24 @@ struct CoachResourcesView: View {
     @State private var sections: [CoachResourceSection] = []
     @State private var loading = true
     @State private var expanded: Set<String> = []
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Studio", title: "Risorse",
                          subtitle: "I tuoi modelli riutilizzabili", accent: Palette.violet)
+                .revealUp(appear, index: 0)
             if loading && sections.isEmpty {
                 ForEach(0..<4, id: \.self) { _ in SkelLinkRow(accent: Palette.violet) }
             } else {
                 ForEach(Array(sections.enumerated()), id: \.element.id) { i, s in
                     section(s, accent: Palette.accent(i))
+                        .revealUp(appear, index: min(i, 5) + 1)
                 }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .refreshable { await load() }
     }

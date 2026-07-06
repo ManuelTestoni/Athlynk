@@ -17,6 +17,7 @@ struct CoachClientProgressView: View {
     @State private var loading = true
     @State private var selAdh: Int?     // tapped adherence bar
     @State private var selRpe: Int?     // dragged RPE node
+    @State private var appear = false
 
     private let accent = Palette.magenta
 
@@ -24,17 +25,19 @@ struct CoachClientProgressView: View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Andamento", title: "Progressi",
                          subtitle: "Sintesi allenamenti", accent: accent)
+                .revealUp(appear, index: 0)
 
             if loading && kpi == nil {
                 AvatarRowsSkeleton(accent: accent)
             } else {
-                kpiGrid
-                adherenceSection
-                rpeSection
-                links
+                kpiGrid.revealUp(appear, index: 1)
+                adherenceSection.revealUp(appear, index: 2)
+                rpeSection.revealUp(appear, index: 3)
+                links.revealUp(appear, index: 4)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
     }
 

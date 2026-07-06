@@ -17,18 +17,19 @@ struct CoachProfileView: View {
     @State private var showDeleteConfirm = false
     @State private var showAutoReplies = false
     @State private var deleting = false
+    @State private var appear = false
 
     var body: some View {
         ZStack {
             ScreenScroll {
                 if let p = profile {
-                    header(p)
-                    if let bio = p.bio, !bio.isEmpty { bioCard(bio) }
-                    detailsCard(p)
-                    if hasSocials(p) { socialsCard(p) }
-                    if let s = settings { settingsCard(s) }
-                    LegalLinks(accent: Palette.bronze)
-                    accountCard
+                    header(p).revealUp(appear, index: 0)
+                    if let bio = p.bio, !bio.isEmpty { bioCard(bio).revealUp(appear, index: 1) }
+                    detailsCard(p).revealUp(appear, index: 2)
+                    if hasSocials(p) { socialsCard(p).revealUp(appear, index: 3) }
+                    if let s = settings { settingsCard(s).revealUp(appear, index: 4) }
+                    LegalLinks(accent: Palette.bronze).revealUp(appear, index: 5)
+                    accountCard.revealUp(appear, index: 6)
                 } else if loading {
                     CoachProfileSkeleton()
                 } else {
@@ -70,6 +71,7 @@ struct CoachProfileView: View {
                     .tint(Palette.bronze)
             }
         }
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .sheet(isPresented: $editing) {
             if let p = profile {

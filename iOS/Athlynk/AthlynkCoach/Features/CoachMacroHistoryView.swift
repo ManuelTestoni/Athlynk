@@ -16,16 +16,20 @@ struct CoachMacroHistoryView: View {
     @State private var hasMore = false
     @State private var loading = true
     @State private var loadingMore = false
+    @State private var appear = false
 
     var body: some View {
         ScreenScroll {
             CoachSectionTitle(eyebrow: "Nutrizione", title: "Storico pasti", accent: Palette.lime)
+                .revealUp(appear, index: 0)
             if loading {
                 CoachPlanDetailSkeleton(accent: Palette.lime)
             } else if days.isEmpty {
                 EmptyPanel(icon: "calendar", text: "L'atleta non ha ancora registrato pasti.")
             } else {
-                ForEach(days) { day in dayCard(day) }
+                ForEach(Array(days.enumerated()), id: \.element.id) { i, day in
+                    dayCard(day).revealUp(appear, index: min(i, 5) + 1)
+                }
                 if hasMore {
                     Button { Task { await loadMore() } } label: {
                         HStack(spacing: 8) {
@@ -40,6 +44,7 @@ struct CoachMacroHistoryView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
     }
 
