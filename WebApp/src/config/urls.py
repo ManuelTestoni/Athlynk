@@ -325,6 +325,7 @@ urlpatterns = [
     path('api/v1/workouts', mobile_api.workouts, name='api_v1_workouts'),
     path('api/v1/nutrition', mobile_api.nutrition, name='api_v1_nutrition'),
     path('api/v1/checks', mobile_api.checks, name='api_v1_checks'),
+    path('api/v1/checks/<int:response_id>', mobile_api.check_detail, name='api_v1_check_detail'),
     path('api/v1/notifications', mobile_api.notifications, name='api_v1_notifications'),
     path('api/v1/conversations', mobile_api.conversations, name='api_v1_conversations'),
     path('api/v1/conversations/<int:conversation_id>/messages', mobile_api.messages, name='api_v1_messages'),

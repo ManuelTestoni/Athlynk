@@ -129,6 +129,7 @@ struct CoachCheckDetailView: View {
             if let d = data {
                 clientHeader(d)
                 if !d.measurements.isEmpty || d.weightKg != nil { measurements(d) }
+                if let fb = fabbisogniSummary(d) { fabbisogniCard(fb) }
                 if !d.photos.isEmpty { photos(d) }
                 if hasNotes(d) { notes(d) }
                 editValuesButton
@@ -201,6 +202,135 @@ struct CoachCheckDetailView: View {
                     .padding(.horizontal, 14).padding(.vertical, 12).voltPanel(radius: 12)
                 }
             }
+        }
+    }
+
+    // MARK: - Calcolo Fabbisogni summary (mirrors WebApp check/detail.html)
+
+    private struct FBSummaryMacro { let label: String; let gkg: String?; let g: Int?; let kcal: Int?; let note: String? }
+    private struct FBSummary {
+        let altezza: String?, peso: String?, eta: String?, sesso: String?
+        let formula: String?, mb: Int?
+        let pal: String?, palDesc: String?
+        let detBase: Int?, detAdjust: Int, detFinale: Int?, detNote: String?
+        let macros: [FBSummaryMacro]
+        let fibra: String?, idrico: String?
+        let micro: String?, noteOp: String?
+    }
+
+    private func fabbisogniSummary(_ d: CoachCheckDetailDTO) -> FBSummary? {
+        func s(_ k: String) -> String? {
+            let v = d.answers[k]?.asString
+            return (v?.isEmpty ?? true) ? nil : v
+        }
+        func i(_ k: String) -> Int? {
+            guard let v = s(k), let d = Double(v) else { return nil }
+            return Int(d.rounded())
+        }
+        let detBase = i("det_kcal")
+        let detAdjust = i("det_adjust_kcal") ?? 0
+        let detFinale = i("det_finale_kcal") ?? detBase.map { $0 + detAdjust }
+        let macroDefs: [(String, String, String, String, Double)] = [
+            ("Proteine", "proteine_gkg", "proteine_g_totale", "proteine_note", 4),
+            ("Carboidrati", "carboidrati_gkg", "carboidrati_g_totale", "carboidrati_note", 4),
+            ("Lipidi", "lipidi_target", "lipidi_g_totale", "lipidi_note", 9),
+        ]
+        let macros: [FBSummaryMacro] = macroDefs.compactMap { entry -> FBSummaryMacro? in
+            let (label, gkgKey, gKey, noteKey, factor) = entry
+            let g = i(gKey), gkg = s(gkgKey), note = s(noteKey)
+            guard g != nil || gkg != nil || note != nil else { return nil }
+            let kcal = g.map { Int((Double($0) * factor).rounded()) }
+            return FBSummaryMacro(label: label, gkg: gkg, g: g, kcal: kcal, note: note)
+        }
+        let fb = FBSummary(
+            altezza: s("altezza_cm"), peso: s("peso_kg"), eta: s("eta_anni"), sesso: s("sesso"),
+            formula: s("formula_mb"), mb: i("mb_stimata_kcal"),
+            pal: s("pal_valore"), palDesc: s("pal_descrizione"),
+            detBase: detBase, detAdjust: detAdjust, detFinale: detFinale, detNote: s("det_note"),
+            macros: macros,
+            fibra: s("fibra_gdie"), idrico: s("idrico_mldie"),
+            micro: s("micronutrienti_critici"), noteOp: s("note_operative"))
+        let hasData = !macros.isEmpty || fb.altezza != nil || fb.peso != nil || fb.mb != nil
+            || fb.detFinale != nil || fb.fibra != nil || fb.idrico != nil || fb.micro != nil || fb.noteOp != nil
+        return hasData ? fb : nil
+    }
+
+    private func fabbisogniCard(_ fb: FBSummary) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            CoachSectionTitle(eyebrow: "Strumento", title: "Calcolo Fabbisogni", accent: Palette.bronze)
+
+            if let det = fb.detFinale {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("DET FINALE").font(Typo.mono(9, .bold)).foregroundStyle(Palette.textLow)
+                        (Text("\(det)").font(Typo.poster(26)) + Text(" kcal/die").font(Typo.body(12)))
+                            .foregroundStyle(Palette.textHi)
+                    }
+                    Spacer()
+                    if fb.detAdjust != 0, let base = fb.detBase {
+                        StatusBadge(text: "base \(base) · \(fb.detAdjust > 0 ? "+" : "")\(fb.detAdjust) kcal", color: Palette.bronze)
+                    }
+                }
+                .padding(14).voltPanel(radius: 12)
+            }
+
+            let stats: [(String, String)] = [
+                fb.peso.map { ("Peso", "\($0) kg") },
+                fb.altezza.map { ("Altezza", "\($0) cm") },
+                fb.eta.map { ("Età", $0) },
+                fb.sesso.map { ("Sesso", $0) },
+                fb.mb.map { ("MB", "\($0) kcal") },
+                fb.pal.map { ("PAL", "\($0)×") },
+                fb.formula.map { ("Formula", $0) },
+            ].compactMap { $0 }
+            if !stats.isEmpty {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(stats, id: \.0) { r in
+                        HStack {
+                            Text(r.0).font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                            Spacer()
+                            Text(r.1).font(Typo.mono(13, .bold)).foregroundStyle(Palette.textHi)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 12).voltPanel(radius: 12)
+                    }
+                }
+            }
+
+            if !fb.macros.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(fb.macros.enumerated()), id: \.offset) { idx, m in
+                        HStack {
+                            Text(m.label).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                            Spacer()
+                            let parts = [m.gkg.map { "\($0) g/kg" }, m.g.map { "\($0) g" }, m.kcal.map { "\($0) kcal" }]
+                                .compactMap { $0 }.joined(separator: " · ")
+                            Text(parts).font(Typo.mono(13)).foregroundStyle(Palette.textMid)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        if idx < fb.macros.count - 1 { Divider().opacity(0.3) }
+                    }
+                }
+                .voltPanel(radius: 12)
+            }
+
+            let extras: [(String, String)] = [
+                fb.fibra.map { ("Fibra", "\($0) g/die") },
+                fb.idrico.map { ("Idratazione", "\($0) ml/die") },
+            ].compactMap { $0 }
+            if !extras.isEmpty {
+                HStack(spacing: 16) {
+                    ForEach(extras, id: \.0) { r in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(r.0.uppercased()).font(Typo.mono(9, .bold)).foregroundStyle(Palette.textLow)
+                            Text(r.1).font(Typo.body(13, .semibold)).foregroundStyle(Palette.textHi)
+                        }
+                    }
+                }
+            }
+            noteRow("Attività", fb.palDesc)
+            noteRow("Note DET", fb.detNote)
+            noteRow("Micronutrienti", fb.micro)
+            noteRow("Note operative", fb.noteOp)
         }
     }
 

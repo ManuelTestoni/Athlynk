@@ -141,6 +141,12 @@ final class APIClient {
         try decode(ChecksResponse.self, from: try await request("/api/v1/checks")).pending
     }
 
+    /// Full read-back of a past submitted check (storico), including sections
+    /// the athlete never fills themselves (e.g. Calcolo Fabbisogni).
+    func checkDetail(responseId: Int) async throws -> CheckDetailDTO {
+        try decode(CheckDetailDTO.self, from: try await request("/api/v1/checks/\(responseId)"))
+    }
+
     /// `offset` pages back through the feed (20 per page). Returns the page and
     /// whether older notifications remain.
     func notifications(offset: Int = 0) async throws -> NotificationsResponse {

@@ -91,6 +91,7 @@ struct CoachCheckFormView: View {
             Text(q.label + (q.required ? " *" : "")).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
             switch q.type {
             case "antropometria": antroFields(q)
+            case "strumento_fabbisogni": fabbisogniTool()
             case "media": scaleField(q)
             case "si_no": siNoField(q)
             case "radio": radioField(q)
@@ -107,6 +108,213 @@ struct CoachCheckFormView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(14).voltPanel()
+    }
+
+    // MARK: - Strumento Calcolo Fabbisogni (mirrors WebApp check/builder.html)
+
+    private let fbFormulas = ["Mifflin-St Jeor", "Harris-Benedict", "Cunningham"]
+    private let fbPalPresets: [(Double, String)] = [
+        (1.2, "Sedentario"), (1.375, "Leggero"), (1.55, "Moderato"), (1.725, "Attivo"), (1.9, "Molto attivo"),
+    ]
+    private struct FBMacro { let label: String, gkgKey: String, gKey: String, noteKey: String, factor: Double }
+    private let fbMacros: [FBMacro] = [
+        FBMacro(label: "Proteine",    gkgKey: "proteine_gkg",    gKey: "proteine_g_totale",    noteKey: "proteine_note",    factor: 4),
+        FBMacro(label: "Carboidrati", gkgKey: "carboidrati_gkg", gKey: "carboidrati_g_totale", noteKey: "carboidrati_note", factor: 4),
+        FBMacro(label: "Lipidi",      gkgKey: "lipidi_target",   gKey: "lipidi_g_totale",      noteKey: "lipidi_note",      factor: 9),
+    ]
+
+    @ViewBuilder private func fabbisogniTool() -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            fbCard(n: 1, title: "Dati base", subtitle: "Antropometria e formula del metabolismo basale") {
+                HStack(spacing: 10) { numField("altezza_cm", label: "Altezza", unit: "cm"); numField("peso_kg", label: "Peso", unit: "kg") }
+                HStack(spacing: 10) { numField("eta_anni", label: "Età", unit: "anni"); fbSessoField }
+                fbFormulaField
+                numField("mb_stimata_kcal", label: "MB stimata (auto · modificabile)", unit: "kcal")
+            }
+            .onChange(of: values["altezza_cm"]) { _, _ in fbCalcBMR() }
+            .onChange(of: values["peso_kg"]) { _, _ in fbCalcBMR(); fbRescaleMacros() }
+            .onChange(of: values["eta_anni"]) { _, _ in fbCalcBMR() }
+
+            fbCard(n: 2, title: "Fabbisogni energetici", subtitle: "Livello di attività, DET e modulazione calorica") {
+                numField("pal_valore", label: "LAF / PAL", unit: "×")
+                fbPalPresetRow
+                TextField("Descrizione livello di attività", text: bind("pal_descrizione"), axis: .vertical)
+                    .font(Typo.body(14)).tint(Palette.lime).lineLimit(2...4)
+                numField("det_kcal", label: "DET base (MB × PAL)", unit: "kcal")
+                numField("det_adjust_kcal", label: "Aggiusta ± (deficit/surplus)", unit: "kcal")
+                HStack {
+                    Text("DET finale").font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                    Spacer()
+                    Text("\(fbDetFinal) kcal/die").font(Typo.mono(16, .bold)).foregroundStyle(Palette.lime)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 10).voltPanel(radius: 10)
+                TextField("Note DET", text: bind("det_note"), axis: .vertical)
+                    .font(Typo.body(14)).tint(Palette.lime).lineLimit(2...4)
+            }
+            .onChange(of: values["mb_stimata_kcal"]) { _, _ in fbCalcDET() }
+            .onChange(of: values["pal_valore"]) { _, _ in fbCalcDET() }
+            .onChange(of: values["det_kcal"]) { _, _ in fbSyncDetFinal() }
+            .onChange(of: values["det_adjust_kcal"]) { _, _ in fbSyncDetFinal() }
+
+            fbCard(n: 3, title: "Macronutrienti", subtitle: "Target g/kg ⇄ grammi totali") {
+                ForEach(fbMacros, id: \.label) { m in fbMacroRow(m) }
+            }
+
+            fbCard(n: 4, title: "Altri fabbisogni", subtitle: "Fibra, idratazione e micronutrienti") {
+                HStack(spacing: 10) { numField("fibra_gdie", label: "Fibra", unit: "g/die") }
+                TextField("Nota fibra", text: bind("fibra_note"), axis: .vertical).font(Typo.body(14)).tint(Palette.lime).lineLimit(1...3)
+                HStack(spacing: 10) { numField("idrico_mldie", label: "Idratazione", unit: "ml/die") }
+                TextField("Nota idratazione", text: bind("idrico_criterio"), axis: .vertical).font(Typo.body(14)).tint(Palette.lime).lineLimit(1...3)
+                TextField("Micronutrienti da monitorare", text: bind("micronutrienti_critici"), axis: .vertical)
+                    .font(Typo.body(14)).tint(Palette.lime).lineLimit(2...4)
+            }
+
+            fbCard(n: 5, title: "Note operative", subtitle: "Sintesi, vincoli e priorità") {
+                TextField("Vincoli, priorità, strategie…", text: bind("note_operative"), axis: .vertical)
+                    .font(Typo.body(14)).tint(Palette.lime).lineLimit(3...6)
+            }
+        }
+        .task { fbCalcBMR(); fbCalcDET(); fbSyncDetFinal() }
+    }
+
+    @ViewBuilder private func fbCard<Content: View>(n: Int, title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Text("\(n)").font(Typo.mono(11, .bold)).foregroundStyle(Palette.void0)
+                    .frame(width: 20, height: 20).background(Circle().fill(Palette.bronze))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
+                    Text(subtitle).font(Typo.body(11)).foregroundStyle(Palette.textLow)
+                }
+            }
+            content()
+        }
+        .padding(14).voltPanel()
+    }
+
+    private var fbSessoField: some View {
+        HStack(spacing: 8) {
+            ForEach(["Maschio", "Femmina"], id: \.self) { opt in
+                let on = values["sesso"] == opt
+                Button { values["sesso"] = opt; fbCalcBMR() } label: {
+                    Text(opt).font(Typo.body(13, .semibold)).frame(maxWidth: .infinity).padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(on ? Palette.lime : Palette.void2))
+                        .foregroundStyle(on ? Palette.void0 : Palette.textMid)
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var fbFormulaField: some View {
+        Menu {
+            ForEach(fbFormulas, id: \.self) { f in Button(f) { values["formula_mb"] = f; fbCalcBMR() } }
+        } label: {
+            let chosen = values["formula_mb"] ?? ""
+            HStack {
+                Text(chosen.isEmpty ? "Formula MB…" : chosen).font(Typo.body(14))
+                    .foregroundStyle(chosen.isEmpty ? Palette.textLow : Palette.textHi)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11, weight: .semibold)).foregroundStyle(Palette.textLow)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 11).voltPanel(radius: 10)
+        }
+    }
+
+    private var fbPalPresetRow: some View {
+        HStack(spacing: 6) {
+            ForEach(fbPalPresets, id: \.1) { v, l in
+                let on = values["pal_valore"] == String(v)
+                Button { values["pal_valore"] = String(v) } label: {
+                    Text(l).font(Typo.body(11, .semibold))
+                        .padding(.horizontal, 8).padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(on ? Palette.lime : Palette.void2))
+                        .foregroundStyle(on ? Palette.void0 : Palette.textMid)
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder private func fbMacroRow(_ m: FBMacro) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                numField(m.gkgKey, label: m.label, unit: "g/kg")
+                numField(m.gKey, label: "Grammi totali", unit: "g")
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text("\(Int((Double(values[m.gKey] ?? "") ?? 0) * m.factor)) kcal")
+                        .font(Typo.mono(13, .bold)).foregroundStyle(Palette.textMid)
+                }
+            }
+            TextField("Nota \(m.label.lowercased())", text: bind(m.noteKey), axis: .vertical)
+                .font(Typo.body(13)).tint(Palette.lime).lineLimit(1...3)
+        }
+        .onChange(of: values[m.gkgKey]) { _, _ in fbMacroFromGkg(m) }
+        .onChange(of: values[m.gKey]) { _, _ in fbMacroFromGrams(m) }
+    }
+
+    private func fbCalcBMR() {
+        guard let peso = Double(values["peso_kg"] ?? ""), peso > 0,
+              let formula = values["formula_mb"], !formula.isEmpty else { return }
+        let h = Double(values["altezza_cm"] ?? "") ?? 0
+        let a = Double(values["eta_anni"] ?? "") ?? 0
+        let sesso = values["sesso"] ?? ""
+        let male = sesso == "Maschio"
+        var bmr = 0.0
+        switch formula {
+        case "Mifflin-St Jeor":
+            guard h > 0, a > 0, !sesso.isEmpty else { return }
+            bmr = male ? (10 * peso + 6.25 * h - 5 * a + 5) : (10 * peso + 6.25 * h - 5 * a - 161)
+        case "Harris-Benedict":
+            guard h > 0, a > 0, !sesso.isEmpty else { return }
+            bmr = male ? (88.36 + 13.4 * peso + 4.8 * h - 5.7 * a) : (447.6 + 9.25 * peso + 3.1 * h - 4.3 * a)
+        case "Cunningham":
+            guard !sesso.isEmpty else { return }
+            bmr = 500 + 22 * peso * (male ? 0.80 : 0.75)
+        default: return
+        }
+        if bmr > 0 { values["mb_stimata_kcal"] = String(Int(bmr.rounded())) }
+    }
+
+    private func fbCalcDET() {
+        guard let mb = Double(values["mb_stimata_kcal"] ?? ""), mb > 0,
+              let pal = Double(values["pal_valore"] ?? ""), pal > 0 else { return }
+        values["det_kcal"] = String(Int((mb * pal).rounded()))
+    }
+
+    private var fbDetFinal: Int {
+        let base = Int(Double(values["det_kcal"] ?? "") ?? 0)
+        guard base > 0 else { return 0 }
+        return base + Int(Double(values["det_adjust_kcal"] ?? "") ?? 0)
+    }
+
+    private func fbSyncDetFinal() {
+        values["det_finale_kcal"] = fbDetFinal > 0 ? String(fbDetFinal) : ""
+    }
+
+    /// Su cambio peso: i grammi totali si ricalcolano dal target g/kg (sorgente di verità).
+    private func fbRescaleMacros() {
+        guard let p = Double(values["peso_kg"] ?? ""), p > 0 else { return }
+        for m in fbMacros {
+            guard let gkg = Double(values[m.gkgKey] ?? ""), gkg > 0 else { continue }
+            values[m.gKey] = String(Int((gkg * p).rounded()))
+        }
+    }
+
+    private func fbMacroFromGkg(_ m: FBMacro) {
+        let p = Double(values["peso_kg"] ?? "") ?? 0
+        guard let gkg = Double(values[m.gkgKey] ?? ""), gkg > 0 else {
+            if !(values[m.gkgKey] ?? "").isEmpty { values[m.gKey] = "0" }
+            return
+        }
+        if p > 0 { values[m.gKey] = String(Int((gkg * p).rounded())) }
+    }
+
+    private func fbMacroFromGrams(_ m: FBMacro) {
+        let p = Double(values["peso_kg"] ?? "") ?? 0
+        guard let g = Double(values[m.gKey] ?? ""), g > 0 else {
+            if !(values[m.gKey] ?? "").isEmpty { values[m.gkgKey] = "0" }
+            return
+        }
+        if p > 0 { values[m.gkgKey] = String((g / p * 100).rounded() / 100) }
     }
 
     @ViewBuilder private func antroFields(_ q: CheckQuestion) -> some View {

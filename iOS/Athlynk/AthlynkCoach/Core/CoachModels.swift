@@ -529,6 +529,7 @@ struct CoachCheckDetailDTO: Codable {
     let weightKg: Double?
     let measurements: [String: String]
     let skinfolds: [String: String]
+    let answers: [String: AnyCodable]
     let notes: String?
     let injuries: String?
     let limitations: String?
@@ -538,7 +539,7 @@ struct CoachCheckDetailDTO: Codable {
     let photos: [CoachCheckPhoto]
 
     enum CodingKeys: String, CodingKey {
-        case id, title, measurements, skinfolds, notes, injuries, limitations, client, photos
+        case id, title, measurements, skinfolds, answers, notes, injuries, limitations, client, photos
         case submittedAt = "submitted_at"
         case weightKg = "weight_kg"
         case coachFeedback = "coach_feedback"
@@ -553,6 +554,7 @@ struct CoachCheckDetailDTO: Codable {
         weightKg = try? c.decodeIfPresent(Double.self, forKey: .weightKg)
         measurements = (try? c.decode([String: String].self, forKey: .measurements)) ?? [:]
         skinfolds = (try? c.decode([String: String].self, forKey: .skinfolds)) ?? [:]
+        answers = (try? c.decode([String: AnyCodable].self, forKey: .answers)) ?? [:]
         notes = try? c.decodeIfPresent(String.self, forKey: .notes)
         injuries = try? c.decodeIfPresent(String.self, forKey: .injuries)
         limitations = try? c.decodeIfPresent(String.self, forKey: .limitations)

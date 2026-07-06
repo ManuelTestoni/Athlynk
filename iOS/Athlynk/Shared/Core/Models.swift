@@ -373,6 +373,190 @@ struct CheckDTO: Codable, Identifiable, Hashable {
 
 struct ChecksResponse: Codable { let pending: [CheckDTO] }
 
+// MARK: - Check detail (storico) — GET /api/v1/checks/<id>
+// Mirrors WebApp check/detail.html's server-computed sections, so the athlete
+// reads back exactly what the coach sees, including read-only tool summaries
+// (e.g. Calcolo Fabbisogni) they never fill in themselves.
+
+/// A scalar answer value of unknown shape (numbers stay numbers so "80" vs
+/// "80.5" render as sent; anything else is text).
+enum CheckValue: Codable, Hashable {
+    case number(Double), text(String), none
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .none }
+        else if let d = try? c.decode(Double.self) { self = .number(d) }
+        else if let s = try? c.decode(String.self) { self = .text(s) }
+        else { self = .none }
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .number(let d): try c.encode(d)
+        case .text(let s): try c.encode(s)
+        case .none: try c.encodeNil()
+        }
+    }
+    var display: String? {
+        switch self {
+        case .number(let d): return d == d.rounded() ? String(Int(d)) : String(d)
+        case .text(let s): return s.isEmpty ? nil : s
+        case .none: return nil
+        }
+    }
+}
+
+struct CheckAttachmentFile: Codable, Identifiable, Hashable {
+    let id: Int
+    let url: String
+    let fileName: String
+    let mimeType: String?
+    enum CodingKeys: String, CodingKey { case id, url; case fileName = "file_name"; case mimeType = "mime_type" }
+}
+
+/// One side (DX/SX) of a paired limb measurement (e.g. bicep circumference).
+struct CheckMeasureSide: Codable, Hashable {
+    let label: String
+    let unit: String?
+    let value: CheckValue?
+    let previous: CheckValue?
+    let delta: Double?
+    let tag: String?
+}
+
+struct CheckFabbisogniMacro: Codable, Hashable {
+    let label: String
+    let gkg: CheckValue?
+    let g: Int?
+    let kcal: Int?
+    let note: CheckValue?
+}
+
+/// Read-only summary of the coach-only «Calcolo Fabbisogni» tool.
+struct CheckFabbisogni: Codable, Hashable {
+    let altezza: CheckValue?
+    let peso: CheckValue?
+    let eta: CheckValue?
+    let sesso: CheckValue?
+    let formula: CheckValue?
+    let mb: Int?
+    let pal: CheckValue?
+    let palDesc: CheckValue?
+    let detBase: Int?
+    let detAdjust: Int
+    let detFinale: Int?
+    let detNote: CheckValue?
+    let macros: [CheckFabbisogniMacro]
+    let fibra: CheckValue?
+    let fibraNote: CheckValue?
+    let idrico: CheckValue?
+    let idricoNote: CheckValue?
+    let micro: CheckValue?
+    let noteOp: CheckValue?
+
+    enum CodingKeys: String, CodingKey {
+        case altezza, peso, eta, sesso, formula, mb, pal, macros, fibra, idrico, micro
+        case palDesc = "pal_desc"
+        case detBase = "det_base"
+        case detAdjust = "det_adjust"
+        case detFinale = "det_finale"
+        case detNote = "det_note"
+        case fibraNote = "fibra_note"
+        case idricoNote = "idrico_note"
+        case noteOp = "note_op"
+    }
+}
+
+/// One rendered question inside a check-history section. Fields beyond
+/// `id`/`type`/`label` are populated depending on `type`: `strumento_fabbisogni`
+/// uses `fb`, `metrica_pair` uses `sides`, `allegato` uses `files`, everything
+/// else uses `value`/`previous`/`delta`.
+struct CheckSectionQuestion: Codable, Identifiable, Hashable {
+    let id: String
+    let type: String
+    let label: String
+    let unit: String?
+    let value: CheckValue?
+    let previous: CheckValue?
+    let delta: Double?
+    let files: [CheckAttachmentFile]?
+    let sides: [CheckMeasureSide]?
+    let fb: CheckFabbisogni?
+
+    enum CodingKeys: String, CodingKey { case id, type, label, unit, value, previous, delta, files, sides, fb }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        type = (try? c.decode(String.self, forKey: .type)) ?? "aperta"
+        label = (try? c.decode(String.self, forKey: .label)) ?? id
+        unit = try? c.decodeIfPresent(String.self, forKey: .unit)
+        value = try? c.decodeIfPresent(CheckValue.self, forKey: .value)
+        previous = try? c.decodeIfPresent(CheckValue.self, forKey: .previous)
+        delta = try? c.decodeIfPresent(Double.self, forKey: .delta)
+        files = try? c.decodeIfPresent([CheckAttachmentFile].self, forKey: .files)
+        sides = try? c.decodeIfPresent([CheckMeasureSide].self, forKey: .sides)
+        fb = try? c.decodeIfPresent(CheckFabbisogni.self, forKey: .fb)
+    }
+}
+
+struct CheckSection: Codable, Identifiable, Hashable {
+    let id: String
+    let label: String
+    let icon: String?
+    let questions: [CheckSectionQuestion]
+
+    enum CodingKeys: String, CodingKey { case id, label, icon, questions }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        label = (try? c.decode(String.self, forKey: .label)) ?? "Sezione"
+        icon = try? c.decodeIfPresent(String.self, forKey: .icon)
+        questions = (try? c.decode([CheckSectionQuestion].self, forKey: .questions)) ?? []
+    }
+}
+
+struct CheckDetailPhoto: Codable, Identifiable, Hashable {
+    let id: Int
+    let url: String
+    let type: String?
+    let capturedAt: String?
+    enum CodingKeys: String, CodingKey { case id, url, type; case capturedAt = "captured_at" }
+}
+
+struct CheckDetailDTO: Codable {
+    let id: Int
+    let title: String
+    let submittedAt: String?
+    let sections: [CheckSection]
+    let photos: [CheckDetailPhoto]
+    let notes: String?
+    let injuries: String?
+    let limitations: String?
+    let coachFeedback: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, sections, photos, notes, injuries, limitations
+        case submittedAt = "submitted_at"
+        case coachFeedback = "coach_feedback"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        title = (try? c.decode(String.self, forKey: .title)) ?? "Check"
+        submittedAt = try? c.decodeIfPresent(String.self, forKey: .submittedAt)
+        sections = (try? c.decode([CheckSection].self, forKey: .sections)) ?? []
+        photos = (try? c.decode([CheckDetailPhoto].self, forKey: .photos)) ?? []
+        notes = try? c.decodeIfPresent(String.self, forKey: .notes)
+        injuries = try? c.decodeIfPresent(String.self, forKey: .injuries)
+        limitations = try? c.decodeIfPresent(String.self, forKey: .limitations)
+        coachFeedback = (try? c.decode(String.self, forKey: .coachFeedback)) ?? ""
+    }
+}
+
 struct NotificationDTO: Codable, Identifiable, Hashable {
     let id: Int
     let type: String

@@ -46,11 +46,22 @@ struct NewCheckView: View {
         "pl_petto": 1...100, "pl_addome": 1...100, "pl_coscia": 1...100, "pl_tricipite": 1...100,
     ]
 
+    /// Coach-only tools (e.g. Calcolo Fabbisogni) are never filled by the athlete —
+    /// mirrors WebApp/templates/pages/check/fill_assigned.html's FCK_QUESTIONS filter.
+    private var fillableQuestions: [CheckQuestion] {
+        check.questions.filter { $0.type != "strumento_fabbisogni" }
+    }
     private var steps: [CheckStep] {
-        check.steps.isEmpty ? [CheckStep(id: "__solo", label: "Check")] : check.steps
+        let allSteps = check.steps.isEmpty ? [CheckStep(id: "__solo", label: "Check")] : check.steps
+        let fallbackId = allSteps.first?.id ?? "__solo"
+        let stepIdsWithQuestions = Set(fillableQuestions.map { $0.stepId ?? fallbackId })
+        // A step whose only question was the excluded tool would otherwise render
+        // empty — drop it, so the section disappears entirely as it does on web.
+        let visible = allSteps.filter { stepIdsWithQuestions.contains($0.id) }
+        return visible.isEmpty ? allSteps : visible
     }
     private func questions(in step: CheckStep) -> [CheckQuestion] {
-        check.questions.filter { ($0.stepId ?? steps.first?.id) == step.id }
+        fillableQuestions.filter { ($0.stepId ?? steps.first?.id) == step.id }
     }
     private var isLast: Bool { stepIdx >= steps.count - 1 }
 

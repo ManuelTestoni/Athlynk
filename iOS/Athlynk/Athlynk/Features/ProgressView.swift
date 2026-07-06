@@ -57,7 +57,9 @@ struct ProgressTrackerView: View {
                         if photoEntries.count >= 2 { comparatorCard.revealUp(appear, index: 1) }
                         Text("STORICO CHECK").voltEyebrow().padding(.top, 4).revealUp(appear, index: 2)
                         ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
-                            entryCard(e, index: i).revealUp(appear, index: min(i, 5) + 3)
+                            NavigationLink { CheckHistoryDetailView(responseId: e.id) } label: { entryCard(e, index: i) }
+                                .buttonStyle(.plain)
+                                .revealUp(appear, index: min(i, 5) + 3)
                         }
                         if hasMore {
                             LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }

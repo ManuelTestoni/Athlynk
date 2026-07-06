@@ -54,6 +54,7 @@ from .views_check import (
     build_measurements, RESERVED_FIELD_MAP,
     create_quick_measurement, QuickMeasurementError,
 )
+from .views_check.helpers import _build_check_sections, _response_config
 
 logger = logging.getLogger(__name__)
 
@@ -1225,6 +1226,55 @@ def progress(request, user):
         } for p in r.photos.all()],
     } for r in window[:PAGE]]
     return JsonResponse({'entries': entries, 'has_more': len(window) > PAGE})
+
+
+@api_view(['GET'])
+def check_detail(request, user, response_id):
+    """Dettaglio di un check compilato: stesse sezioni generiche di
+    WebApp check/detail.html (via _build_check_sections), per lo storico
+    check dell'app atleta — l'endpoint /progress espone solo l'aggregato."""
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    r = (
+        QuestionnaireResponse.objects
+        .filter(id=response_id, client=client, submitted_at__isnull=False)
+        .select_related('questionnaire_template')
+        .prefetch_related('photos', 'attachments').first()
+    )
+    if not r:
+        return JsonResponse({'error': 'Check non trovato'}, status=404)
+
+    prev = (
+        QuestionnaireResponse.objects
+        .filter(client=client, submitted_at__lt=r.submitted_at)
+        .order_by('-submitted_at').first()
+    )
+    attachments_by_q = {}
+    for a in r.attachments.all():
+        attachments_by_q.setdefault(a.question_id, []).append({
+            'id': a.id, 'url': _abs_media(request, a.file_url),
+            'file_name': a.file_name, 'mime_type': a.mime_type,
+        })
+    questions_cfg, steps_cfg = _response_config(r)
+    sections = _build_check_sections(questions_cfg, steps_cfg, r, prev, attachments_by_q)
+
+    return JsonResponse({
+        'id': r.id,
+        'title': r.questionnaire_template.title if r.questionnaire_template else 'Check',
+        'submitted_at': _iso(r.submitted_at),
+        'sections': sections,
+        'photos': [{
+            'id': p.id,
+            'url': _abs_media(request, p.file_url),
+            'type': p.photo_type,
+            'captured_at': _iso(p.captured_at),
+        } for p in r.photos.all()],
+        'notes': r.notes,
+        'injuries': r.injuries,
+        'limitations': r.limitations,
+        'coach_feedback': r.coach_feedback or '',
+    })
 
 
 # ---------------------------------------------------------------------------
