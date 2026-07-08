@@ -17,15 +17,18 @@ from datetime import datetime, timezone as dt_timezone
 
 import stripe
 from django.conf import settings
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
+from domain.accounts.models import User
 from domain.billing.models import PlatformPurchase
 from .services import ratelimit
 from .services.codes import generate_platform_code
-from .services.email import send_platform_purchase_confirmation
+from .services.email import send_platform_purchase_confirmation, send_platform_reactivated
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +121,14 @@ def checkout_page(request):
         logger.error('stripe.checkout.invalid_plan plan=%s billing=%s', plan, billing)
         return _unavailable(request, 'invalid_plan', 404)
 
+    # The marketing page forces an explicit Sì/No choice before building this
+    # URL — a missing/invalid value means it was reached some other way, so
+    # treat it the same as an invalid plan rather than silently defaulting.
+    returning = (request.GET.get('returning') or '').strip()
+    if returning not in ('0', '1'):
+        logger.error('stripe.checkout.missing_returning_flag plan=%s', plan)
+        return _unavailable(request, 'invalid_plan', 404)
+
     wants_chiron = request.GET.get('chiron') == '1'
     chiron_price = _chiron_price(billing)
     if wants_chiron and not chiron_price:
@@ -146,7 +157,10 @@ def checkout_page(request):
             line_items=line_items,
             # Carried back on checkout.session.completed so fulfilment knows the
             # plan/add-on/interval without re-deriving them from price IDs.
-            metadata={'plan': plan, 'chiron': '1' if wants_chiron else '0', 'billing': billing},
+            metadata={
+                'plan': plan, 'chiron': '1' if wants_chiron else '0', 'billing': billing,
+                'returning_customer': returning,
+            },
             return_url=(
                 f'{settings.SITE_URL}/acquista/esito/?session_id={{CHECKOUT_SESSION_ID}}'
             ),
@@ -161,6 +175,7 @@ def checkout_page(request):
         'plan_label': PLAN_LABELS.get(plan, 'Athlynk'),
         'has_chiron': wants_chiron,
         'billing_label': 'Fatturazione annuale' if billing == PlatformPurchase.BILLING_ANNUAL else 'Fatturazione mensile',
+        'returning_customer': returning == '1',
     })
 
 
@@ -272,6 +287,7 @@ def _fulfil_checkout(session):
     billing = meta.get('billing') or PlatformPurchase.BILLING_MONTHLY
     if billing not in (PlatformPurchase.BILLING_MONTHLY, PlatformPurchase.BILLING_ANNUAL):
         billing = PlatformPurchase.BILLING_MONTHLY
+    returning_customer = meta.get('returning_customer') == '1'
     subscription_id = session.get('subscription') or ''
 
     # Pull live status + renewal date from the subscription object (the session
@@ -293,6 +309,8 @@ def _fulfil_checkout(session):
 
     # Idempotent on the Stripe session id: a replayed/duplicate webhook reuses
     # the existing row (get_or_create also absorbs the unique-constraint race).
+    # `code` is always generated (the field is unique/non-null) even on the
+    # returning-customer path, where it's simply never emailed or used.
     purchase, created = PlatformPurchase.objects.get_or_create(
         stripe_session_id=session_id,
         defaults={
@@ -307,10 +325,34 @@ def _fulfil_checkout(session):
             'amount_total': session.get('amount_total') or 0,
             'currency': session.get('currency') or 'eur',
             'current_period_end': period_end,
+            'returning_customer': returning_customer,
         },
     )
     if not created:
         return
+
+    if returning_customer:
+        # Ticking "returning customer" is only a signal, not a guarantee — if no
+        # verified account matches this email, fall back to the normal new-code
+        # path so the payer still has a way in, and log it for support follow-up.
+        existing_user = (
+            User.objects.filter(email__iexact=email, role='COACH', is_verified=True)
+            .select_related('coach_profile').first()
+        )
+        if existing_user and hasattr(existing_user, 'coach_profile'):
+            with transaction.atomic():
+                purchase.redeemed_at = timezone.now()
+                purchase.redeemed_by = existing_user
+                purchase.save(update_fields=['redeemed_at', 'redeemed_by', 'updated_at'])
+                existing_user.coach_profile.platform_purchase = purchase
+                existing_user.coach_profile.save(update_fields=['platform_purchase', 'updated_at'])
+
+            if send_platform_reactivated(purchase):
+                purchase.email_sent = True
+                purchase.save(update_fields=['email_sent'])
+            return
+
+        logger.warning('stripe.webhook.returning_customer_no_match email=%s session=%s', email, session_id)
 
     if send_platform_purchase_confirmation(purchase):
         purchase.email_sent = True
@@ -328,8 +370,12 @@ def _sync_subscription(subscription):
         logger.info('stripe.webhook.subscription_no_purchase sub=%s', sub_id)
         return
 
+    # A `cancel_at_period_end` subscription is still paid and active until
+    # `current_period_end` — only the terminal Stripe status ends access now;
+    # duration enforcement (config.session_utils.coach_has_active_platform_access)
+    # relies on current_period_end lapsing naturally, not on an early flip here.
     stripe_status = subscription.get('status')
-    if subscription.get('cancel_at_period_end') or stripe_status == 'canceled':
+    if stripe_status == 'canceled':
         purchase.status = PlatformPurchase.STATUS_CANCELED
     elif stripe_status in _ACTIVE_STRIPE_STATUSES:
         purchase.status = PlatformPurchase.STATUS_ACTIVE

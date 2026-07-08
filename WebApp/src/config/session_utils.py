@@ -135,6 +135,42 @@ def client_has_active_access(client):
     return CoachingRelationship.objects.filter(client=client, status='ACTIVE').exists()
 
 
+def coach_has_active_platform_access(coach):
+    """A coach/allenatore/nutrizionista may use the platform only while their
+    linked PlatformPurchase is paid and not past its billing period end.
+    Computed live (no cached/cron-flipped status needed): access self-corrects
+    the instant `current_period_end` passes, and cancel_at_period_end
+    subscriptions stay valid until then (see views_payments._sync_subscription).
+
+    A coach with NO linked purchase at all is grandfathered in (access code
+    redemption postdates this account) rather than blocked — the gate only
+    applies to accounts created through the new code-redemption signup, not
+    to every pre-existing coach the day this shipped.
+    """
+    from django.utils import timezone
+    from domain.billing.models import PlatformPurchase
+
+    if not coach:
+        return False
+    purchase = getattr(coach, 'platform_purchase', None)
+    if purchase is None:
+        return True
+    if purchase.status == PlatformPurchase.STATUS_CANCELED:
+        return False
+    if purchase.current_period_end and purchase.current_period_end < timezone.now():
+        return False
+    return True
+
+
+def coach_has_chiron_access(coach):
+    """Chiron is an add-on: requires an active platform subscription AND
+    has_chiron=True on the linked purchase."""
+    if not coach_has_active_platform_access(coach):
+        return False
+    purchase = getattr(coach, 'platform_purchase', None)
+    return bool(purchase and purchase.has_chiron)
+
+
 def enforce_client_access(client):
     """Lazy, idempotent sweep run at login. Expires the client's lapsed
     subscriptions (end_date in the past) and, when a coach is left without any

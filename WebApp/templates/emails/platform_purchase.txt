@@ -11,5 +11,7 @@ Il tuo codice di accesso:
 
 Conserva questo codice: ti servira' per accedere all'app Athlynk.
 
+Crea il tuo account: {{ signup_url }}
+
 — Il team Athlynk
 {{ site_url }}

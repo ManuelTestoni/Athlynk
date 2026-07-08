@@ -106,6 +106,51 @@ class ClientAccessMiddleware:
         return self.get_response(request)
 
 
+class CoachPlatformAccessMiddleware:
+    """Gate professional (COACH) browser sessions on their platform subscription.
+
+    A coach/allenatore/nutrizionista may use the app only while their linked
+    PlatformPurchase (config.session_utils.coach_has_active_platform_access) is
+    paid and not past its billing period end. Once it lapses, every page
+    redirects to the 'abbonamento scaduto' landing until they renew. Mirrors
+    ClientAccessMiddleware exactly; the mobile Bearer API has its own gate.
+    """
+
+    ALLOW_PREFIXES = (
+        '/abbonamento-scaduto/',
+        '/logout/',
+        '/impostazioni/',
+        '/profilo/',
+        '/reset-password/',
+        '/password-dimenticata/',
+        '/acquista/',
+        '/webhooks/',
+        '/api/',
+        '/privacy/', '/cookie/', '/ai-trasparenza/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
+        self._static_url = getattr(settings, 'STATIC_URL', '/static/') or '/static/'
+
+    def _is_allowed(self, path):
+        if self._media_url and path.startswith(self._media_url):
+            return True
+        if self._static_url and path.startswith(self._static_url):
+            return True
+        return any(path.startswith(p) for p in self.ALLOW_PREFIXES)
+
+    def __call__(self, request):
+        if (request.session.get('user_id')
+                and request.session.get('user_role') == 'COACH'
+                and not self._is_allowed(request.path or '')):
+            from .session_utils import get_session_coach, coach_has_active_platform_access
+            if not coach_has_active_platform_access(get_session_coach(request)):
+                return redirect('coach_subscription_lapsed')
+        return self.get_response(request)
+
+
 # Endpoints that send `application/x-www-form-urlencoded` or multipart even
 # though they live under /api/. Listed here to keep the JSON gate strict for
 # everything else. Extend deliberately, not by accident.

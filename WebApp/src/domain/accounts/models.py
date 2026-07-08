@@ -77,6 +77,13 @@ class CoachProfile(models.Model):
     calendar_feed_token = models.CharField(max_length=64, blank=True, default='')
     platform_subscription_status = models.CharField(max_length=50)
     is_platform_subscription_active = models.BooleanField(default=False)
+    # Current linked PlatformPurchase (set at code redemption or at
+    # returning-customer reactivation). Platform/Chiron access is derived live
+    # from this, not cached — see config.session_utils.coach_has_active_platform_access.
+    platform_purchase = models.ForeignKey(
+        'billing.PlatformPurchase', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='coach_profiles',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

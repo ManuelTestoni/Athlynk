@@ -83,6 +83,16 @@ class PlatformPurchase(models.Model):
     currency = models.CharField(max_length=10, default='eur')
     current_period_end = models.DateTimeField(null=True, blank=True)
     email_sent = models.BooleanField(default=False)
+    # Redemption: set when the code is consumed at signup, or when a
+    # returning-customer checkout reactivates an existing account directly
+    # (no code ever issued in that case). `code` stays unique but is only
+    # meaningful while redeemed_at is null.
+    redeemed_at = models.DateTimeField(null=True, blank=True)
+    redeemed_by = models.ForeignKey(
+        'accounts.User', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='platform_purchases_redeemed',
+    )
+    returning_customer = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

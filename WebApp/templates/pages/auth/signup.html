@@ -88,6 +88,13 @@
     </div>
 
     <div>
+        <label class="al-label">Codice di accesso</label>
+        <input type="text" name="code" required class="al-input" placeholder="ATHLYNK-XXXX-XXXX"
+               value="{{ code|default:'' }}" style="text-transform: uppercase;" autocomplete="off">
+        <span class="al-small block mt-1">Il codice ricevuto via email dopo l'acquisto di un piano Athlynk.</span>
+    </div>
+
+    <div>
         <label class="al-label">Password</label>
         <input type="password" name="password" required x-model="password"
                class="al-input" placeholder="••••••••" minlength="12" autocomplete="new-password">

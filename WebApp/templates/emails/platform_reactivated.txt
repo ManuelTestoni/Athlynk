@@ -1,0 +1,13 @@
+Ciao,
+
+bentornato! Il tuo abbonamento Athlynk è di nuovo attivo.
+
+Piano: {{ plan_name }}{% if has_chiron %} + Chiron{% endif %}
+Importo: {{ amount_display }}
+
+Il tuo account esistente è già collegato: accedi qui, non serve un nuovo codice né una nuova registrazione.
+
+{{ login_url }}
+
+— Il team Athlynk
+{{ site_url }}

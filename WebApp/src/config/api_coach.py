@@ -43,7 +43,7 @@ from .api import (
     _bearer, _user_from_token, _day_dict, macro_history_payload,
 )
 from .http_utils import safe_int
-from .session_utils import can_manage_nutrition, can_manage_workouts
+from .session_utils import can_manage_nutrition, can_manage_workouts, coach_has_chiron_access
 from .views_check import (
     create_quick_measurement, QuickMeasurementError,
     build_measurements, RESERVED_FIELD_MAP,
@@ -2638,6 +2638,10 @@ def _chiron_role(coach) -> str:
     return mapping.get(getattr(coach, 'professional_type', ''), 'utente')
 
 
+def _chiron_addon_error():
+    return JsonResponse({'error': 'Il tuo piano non include Chiron.'}, status=403)
+
+
 @coach_dual_auth
 def chiron_chat(request):
     if request.method != 'POST':
@@ -2645,6 +2649,8 @@ def chiron_chat(request):
     coach, err = _coach_or_401(request)
     if err:
         return err
+    if not coach_has_chiron_access(coach):
+        return _chiron_addon_error()
     user = coach.user
     body = _body(request)
     message = (body.get('message') or '').strip()
@@ -2691,6 +2697,8 @@ def chiron_chat_stream(request):
     coach, err = _coach_or_401(request)
     if err:
         return err
+    if not coach_has_chiron_access(coach):
+        return _chiron_addon_error()
     user = coach.user
     body = _body(request)
     message = (body.get('message') or '').strip()
@@ -2746,6 +2754,8 @@ def chiron_history(request):
     coach, err = _coach_or_401(request)
     if err:
         return err
+    if not coach_has_chiron_access(coach):
+        return _chiron_addon_error()
     try:
         limit = min(int(request.GET.get('limit', 20)), 50)
     except (ValueError, TypeError):
@@ -2782,6 +2792,8 @@ def chiron_execute(request):
     coach, err = _coach_or_401(request)
     if err:
         return err
+    if not coach_has_chiron_access(coach):
+        return _chiron_addon_error()
     body = _body(request)
     try:
         ok, message, link = chiron_execute_action(coach, body or {})
@@ -2802,6 +2814,8 @@ def chiron_clear(request):
     coach, err = _coach_or_401(request)
     if err:
         return err
+    if not coach_has_chiron_access(coach):
+        return _chiron_addon_error()
     deleted, _ = ChironMessage.objects.filter(user=coach.user).delete()
     reset_chiron_memory(coach.user)
     return JsonResponse({'status': 'ok', 'deleted': deleted})

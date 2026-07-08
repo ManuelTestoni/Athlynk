@@ -46,7 +46,10 @@ from domain.checks.anthropometry import (
     circ_label, skin_label, circ_range, skin_range, WEIGHT_RANGE,
     measurement_options,
 )
-from .session_utils import get_active_relationships, client_has_active_access, enforce_client_access
+from .session_utils import (
+    get_active_relationships, client_has_active_access, enforce_client_access,
+    coach_has_active_platform_access,
+)
 from .services import ratelimit, sanitize
 from .services.images import is_image, to_webp
 from .services.uploads import store_attachment
@@ -159,6 +162,13 @@ _CLIENT_BLOCKED_ALLOW = {
     'accept_terms',
 }
 
+# Same idea for a COACH/ALLENATORE/NUTRIZIONISTA whose platform subscription
+# lapsed (config.middleware.CoachPlatformAccessMiddleware is the web-side
+# equivalent; mobile Bearer requests never hit that middleware, hence the gate
+# here). 'profile'/'profile_photo' here resolve to the coach app's own view
+# functions in api_coach.py — same names, different module.
+_COACH_BLOCKED_ALLOW = _CLIENT_BLOCKED_ALLOW
+
 
 def api_view(methods):
     """Decorator: CSRF-exempt + method gate + token auth.
@@ -184,6 +194,12 @@ def api_view(methods):
                         'error': 'access_blocked',
                         'message': 'Nessun professionista attivo. Chiedi al tuo coach di '
                                    'aggiungerti o di rinnovare l’abbonamento.',
+                    }, status=403)
+            if user.role == 'COACH' and view.__name__ not in _COACH_BLOCKED_ALLOW:
+                if not coach_has_active_platform_access(getattr(user, 'coach_profile', None)):
+                    return JsonResponse({
+                        'error': 'subscription_expired',
+                        'message': 'Il tuo abbonamento Athlynk non è più attivo. Rinnova per continuare.',
                     }, status=403)
             is_write = request.method in _WRITE_METHODS
             # Pre-parse + sanitize JSON write bodies so a malformed, oversized or
@@ -256,6 +272,14 @@ def coach_dual_auth(view):
         bearer = _bearer(request)
         token_user = _user_from_token(bearer) if bearer else None
         is_token = token_user is not None and not request.session.get('user_id')
+        # Mobile Bearer requests never pass through CoachPlatformAccessMiddleware
+        # (session-only), so gate them here. Session/web requests are already
+        # covered by that middleware — skip to avoid a redundant query per call.
+        if is_token and not coach_has_active_platform_access(getattr(token_user, 'coach_profile', None)):
+            return JsonResponse({
+                'error': 'subscription_expired',
+                'message': 'Il tuo abbonamento Athlynk non è più attivo. Rinnova per continuare.',
+            }, status=403)
         # Rate limit by the resolved coach/session identity (IP-only as fallback)
         # before doing any work. Looser bucket than the mobile API: these back
         # the web plan builders, which autosave often.

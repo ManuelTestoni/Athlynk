@@ -202,5 +202,25 @@ def send_platform_purchase_confirmation(purchase):
             'amount_display': amount_display,
             'plan_name': purchase.get_plan_display(),
             'has_chiron': purchase.has_chiron,
+            'signup_url': f"{settings.SITE_URL}/registrati/?code={purchase.code}",
+        },
+    )
+
+
+def send_platform_reactivated(purchase):
+    """Sent instead of send_platform_purchase_confirmation when a checkout is
+    flagged 'returning customer' and matches an existing account: no new code
+    is issued, the buyer just logs back in."""
+    period_label = '/ anno' if purchase.billing_interval == 'annuale' else '/ mese'
+    amount_display = f"{purchase.amount_total / 100:.2f} {purchase.currency.upper()} {period_label}"
+    return send_html_mail(
+        to=purchase.email,
+        subject='Bentornato · il tuo abbonamento Athlynk è di nuovo attivo',
+        template_base='platform_reactivated',
+        context={
+            'amount_display': amount_display,
+            'plan_name': purchase.get_plan_display(),
+            'has_chiron': purchase.has_chiron,
+            'login_url': f"{settings.SITE_URL}/login/",
         },
     )

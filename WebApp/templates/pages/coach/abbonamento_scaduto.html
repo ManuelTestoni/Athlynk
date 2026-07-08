@@ -1,0 +1,39 @@
+{% extends 'pages/auth/_base.html' %}
+
+{% block auth_title %}Abbonamento scaduto{% endblock %}
+{% block auth_eyebrow %}Abbonamento{% endblock %}
+
+{% block auth_content %}
+<div class="text-center">
+    <div class="inline-flex items-center justify-center mb-6"
+         style="width:64px;height:64px;background:var(--al-marble);border-radius:var(--al-r-sm);">
+        <i class="ph ph-lock-key text-3xl" style="color:var(--al-bronze);"></i>
+    </div>
+
+    <h1 class="al-h-1" style="font-size: clamp(24px, 3.6vw, 32px);">Il tuo abbonamento è scaduto</h1>
+
+    <p class="al-body mt-3">
+        Il tuo piano Athlynk non è più attivo. Rinnova per tornare ad accedere alla piattaforma.
+    </p>
+
+    <p class="al-small mt-5">
+        Se hai già un account, seleziona "Sì, ho già avuto un account" al checkout:
+        non riceverai un nuovo codice, il tuo account verrà riattivato automaticamente.
+    </p>
+
+    <div class="mt-8 pt-6 border-t flex flex-col items-center gap-3" style="border-color: var(--al-rule-faint);">
+        <a href="{{ website_url|default:'https://athlynk.it' }}/acquista.html" class="al-btn al-btn-lg">
+            <i class="ph ph-arrow-clockwise"></i>
+            <span>Rinnova l'abbonamento</span>
+        </a>
+        <a href="{% url 'logout' %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-sign-out"></i>
+            <span>Esci</span>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+Domande? Scrivici a <a href="mailto:info@athlynk.it" class="al-link al-link-bronze">info@athlynk.it</a>
+{% endblock %}

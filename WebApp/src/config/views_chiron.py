@@ -13,8 +13,10 @@ from chiron.memory import build_context, reset as reset_memory
 from chiron.schemas import ChatRequest
 from domain.chiron.models import ChironMessage
 
-from .session_utils import get_session_user, get_session_coach
+from .session_utils import get_session_user, get_session_coach, coach_has_chiron_access
 from .services import ratelimit
+
+CHIRON_ADDON_MESSAGE = 'Il tuo piano non include Chiron.'
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,8 @@ def api_chiron_chat(request):
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Solo i coach possono usare CHIRON in questa fase.'}, status=403)
+    if not coach_has_chiron_access(coach):
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     allowed, _ = ratelimit.hit('chiron_chat', str(user.id), CHIRON_RATE_LIMIT, CHIRON_RATE_WINDOW_SECONDS)
     if not allowed:
@@ -123,6 +127,8 @@ def api_chiron_action_execute(request):
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Forbidden'}, status=403)
+    if not coach_has_chiron_access(coach):
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     allowed, _ = ratelimit.hit('chiron_action', str(user.id), CHIRON_RATE_LIMIT, CHIRON_RATE_WINDOW_SECONDS)
     if not allowed:
@@ -160,8 +166,11 @@ def api_chiron_history(request):
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
-    if not get_session_coach(request):
+    coach = get_session_coach(request)
+    if not coach:
         return JsonResponse({'error': 'Forbidden'}, status=403)
+    if not coach_has_chiron_access(coach):
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     try:
         limit = int(request.GET.get('limit', HISTORY_PAGE_DEFAULT))
@@ -205,8 +214,11 @@ def api_chiron_clear(request):
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
-    if not get_session_coach(request):
+    coach = get_session_coach(request)
+    if not coach:
         return JsonResponse({'error': 'Forbidden'}, status=403)
+    if not coach_has_chiron_access(coach):
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     deleted, _ = ChironMessage.objects.filter(user=user).delete()
     reset_memory(user)

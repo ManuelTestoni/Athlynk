@@ -177,6 +177,17 @@
       </article>
     </div>
 
+    <div id="returningRow" style="max-width:560px;margin:0 auto;text-align:left;">
+      <p style="font-size:14px;margin:0 0 8px;">Sei già stato cliente Athlynk?</p>
+      <div class="billing-switch" id="returningSwitch" role="radiogroup" aria-label="Sei già stato cliente Athlynk?">
+        <button type="button" class="billing-opt" data-returning="0" role="radio" aria-checked="false">No, sono nuovo</button>
+        <button type="button" class="billing-opt" data-returning="1" role="radio" aria-checked="false">Sì, ho già avuto un account</button>
+      </div>
+      <p id="returningError" role="alert" hidden style="color:#b3261e;font-size:13px;margin:8px 0 0;">
+        Seleziona una delle due opzioni per procedere.
+      </p>
+    </div>
+
     <div id="consentRow" style="max-width:560px;margin:22px auto 0;text-align:left;">
       <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:1.5;">
         <input type="checkbox" id="acceptTerms" style="margin-top:3px;width:18px;height:18px;flex:0 0 auto;">
@@ -267,8 +278,30 @@
       if (acceptTerms.checked && consentError) consentError.hidden = true;
     });
 
+    // Mandatory "sei già stato cliente?" choice: no default, must be picked
+    // explicitly before checkout — controls whether fulfilment issues a new
+    // access code or reactivates the buyer's existing account by email.
+    const returningSwitch = document.getElementById("returningSwitch");
+    const returningError = document.getElementById("returningError");
+    let returningChoice = null;
+    returningSwitch && returningSwitch.querySelectorAll("[data-returning]").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        returningChoice = opt.dataset.returning;
+        returningSwitch.querySelectorAll("[data-returning]").forEach((o) => {
+          o.classList.toggle("is-active", o === opt);
+          o.setAttribute("aria-checked", o === opt ? "true" : "false");
+        });
+        if (returningError) returningError.hidden = true;
+      });
+    });
+
     document.querySelectorAll("[data-checkout]").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (returningChoice === null) {
+          if (returningError) returningError.hidden = false;
+          document.getElementById("returningRow").scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         if (acceptTerms && !acceptTerms.checked) {
           if (consentError) consentError.hidden = false;
           document.getElementById("consentRow").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -279,6 +312,7 @@
         url.searchParams.set("plan", btn.dataset.plan);
         url.searchParams.set("chiron", chironOn() ? "1" : "0");
         url.searchParams.set("billing", billingValue());
+        url.searchParams.set("returning", returningChoice);
         location.href = url.toString();
       });
     });

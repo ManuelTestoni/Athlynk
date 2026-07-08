@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.hashers import make_password, check_password
@@ -6,11 +7,15 @@ from django.conf import settings
 import logging
 
 from domain.accounts.models import User, CoachProfile
+from domain.billing.models import PlatformPurchase
 from .services.tokens import generate_token, is_expired, get_client_ip
 from .services.email import send_welcome_verify, send_password_reset, send_password_changed
 from .services import password_reset as pwd_reset
 from .services import ratelimit
-from .session_utils import enforce_client_access
+from .session_utils import (
+    enforce_client_access, get_session_user, get_session_coach,
+    coach_has_active_platform_access,
+)
 from .services.sanitize import (
     InvalidInput, clean_email, clean_password, clean_short_text,
     validate_password_strength,
@@ -41,6 +46,11 @@ SIGNUP_RATE_WINDOW_SECONDS = 15 * 60
 SIGNUP_BLOCKED_MESSAGE = (
     'Troppe registrazioni da questo indirizzo. Riprova tra qualche minuto.'
 )
+
+# Separate, tighter bucket for invalid-code guesses so a slow-brute-force
+# attempt gets shut down well before the generic signup_ip limit would trip.
+SIGNUP_CODE_RATE_LIMIT = 10
+SIGNUP_CODE_RATE_WINDOW_SECONDS = 15 * 60
 
 
 def login_view(request):
@@ -145,26 +155,63 @@ def signup_view(request):
         if User.objects.filter(email__iexact=email).exists():
             return render(request, 'pages/auth/signup.html', {'error': 'Email già in uso. Accedi.'})
 
-        token = generate_token()
-        user = User.objects.create(
-            email=email,
-            password_hash=make_password(password),
-            role=role,
-            is_active=True,
-            is_verified=False,
-            email_verification_token=token,
-            email_verification_sent_at=timezone.now(),
-            terms_accepted_at=timezone.now(),
-            terms_version=settings.CONSENT_VERSION,
+        # Registration requires a valid, unredeemed platform purchase code
+        # bought via Stripe checkout — see domain.billing.models.PlatformPurchase
+        # and config.services.codes. Bound to the buyer's own email so a
+        # leaked/forwarded code can't be used to create an account as someone else.
+        code = (request.POST.get('code') or '').strip().upper()
+        code_allowed, _ = ratelimit.hit(
+            'signup_code_invalid', ip, SIGNUP_CODE_RATE_LIMIT, SIGNUP_CODE_RATE_WINDOW_SECONDS,
         )
+        if not code_allowed:
+            logger.warning('signup.code_rate_limited ip=%s', ip)
+            return render(request, 'pages/auth/signup.html', {
+                'error': SIGNUP_BLOCKED_MESSAGE, 'code': code,
+            }, status=429)
+        purchase = PlatformPurchase.objects.filter(code=code, redeemed_at__isnull=True).first() if code else None
+        if not purchase or purchase.status == PlatformPurchase.STATUS_CANCELED:
+            return render(request, 'pages/auth/signup.html', {
+                'error': 'Codice non valido o già utilizzato.', 'code': code,
+            }, status=400)
+        if purchase.email.strip().lower() != email.strip().lower():
+            return render(request, 'pages/auth/signup.html', {
+                'error': 'Questo codice è associato a un\'altra email.', 'code': code,
+            }, status=400)
 
-        CoachProfile.objects.create(
-            user=user,
-            first_name=first_name,
-            last_name=last_name,
-            professional_type=professional_type,
-            platform_subscription_status='ACTIVE',
-        )
+        token = generate_token()
+        with transaction.atomic():
+            # Re-check under the transaction to close the race between two
+            # concurrent signups redeeming the same code.
+            purchase = PlatformPurchase.objects.select_for_update().get(pk=purchase.pk)
+            if purchase.redeemed_at is not None:
+                return render(request, 'pages/auth/signup.html', {
+                    'error': 'Codice non valido o già utilizzato.', 'code': code,
+                }, status=400)
+
+            user = User.objects.create(
+                email=email,
+                password_hash=make_password(password),
+                role=role,
+                is_active=True,
+                is_verified=False,
+                email_verification_token=token,
+                email_verification_sent_at=timezone.now(),
+                terms_accepted_at=timezone.now(),
+                terms_version=settings.CONSENT_VERSION,
+            )
+
+            coach_profile = CoachProfile.objects.create(
+                user=user,
+                first_name=first_name,
+                last_name=last_name,
+                professional_type=professional_type,
+                platform_subscription_status='ACTIVE',
+                platform_purchase=purchase,
+            )
+
+            purchase.redeemed_at = timezone.now()
+            purchase.redeemed_by = user
+            purchase.save(update_fields=['redeemed_at', 'redeemed_by', 'updated_at'])
 
         send_welcome_verify(user, token)
 
@@ -173,7 +220,26 @@ def signup_view(request):
 
         return render(request, 'pages/auth/check_email.html', {'email': user.email, 'just_sent': True})
 
-    return render(request, 'pages/auth/signup.html')
+    return render(request, 'pages/auth/signup.html', {'code': request.GET.get('code', '')})
+
+
+def coach_subscription_lapsed_view(request):
+    """Landing page for a COACH/ALLENATORE/NUTRIZIONISTA whose platform
+    subscription lapsed (see CoachPlatformAccessMiddleware). Reachable even
+    while blocked; bounces back to the dashboard once access is restored."""
+    user = get_session_user(request)
+    if not user:
+        return redirect('login')
+    if user.role != 'COACH':
+        return redirect('dashboard')
+
+    coach = get_session_coach(request)
+    if coach and coach_has_active_platform_access(coach):
+        return redirect('dashboard')
+
+    return render(request, 'pages/coach/abbonamento_scaduto.html', {
+        'website_url': settings.WEBSITE_URL,
+    })
 
 
 def _subscribe_newsletter(request, email):

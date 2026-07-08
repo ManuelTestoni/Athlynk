@@ -50,7 +50,11 @@
   <main class="ckmain">
     <p class="eyebrow">Checkout</p>
     <h1>Attiva il tuo piano {{ plan_label }}</h1>
+    {% if returning_customer %}
+    <p class="lede">Disdici quando vuoi. Non riceverai un nuovo codice: il tuo account esistente verrà riattivato automaticamente.</p>
+    {% else %}
     <p class="lede">Disdici quando vuoi. Inserisci email e dati di fatturazione: riceverai il codice di accesso all'app via email.</p>
+    {% endif %}
 
     <div id="checkout"><!-- Stripe embedded checkout monta qui --></div>
   </main>

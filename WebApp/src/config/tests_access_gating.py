@@ -12,12 +12,21 @@ from django.test import TestCase
 from django.utils import timezone
 
 from domain.accounts.models import User, CoachProfile, ClientProfile
-from domain.billing.models import SubscriptionPlan, ClientSubscription
+from domain.billing.models import SubscriptionPlan, ClientSubscription, PlatformPurchase
 from domain.coaching.models import CoachingRelationship
 from config.session_utils import (
     client_has_active_access, enforce_client_access,
     get_nutrition_coach, get_workout_coach,
 )
+
+
+def make_purchase(email, code='ATHLYNK-TEST-0001', **kwargs):
+    defaults = dict(
+        email=email, code=code, plan=PlatformPurchase.PLAN_APOLLO,
+        stripe_session_id=f'sess_{code}', status=PlatformPurchase.STATUS_ACTIVE,
+    )
+    defaults.update(kwargs)
+    return PlatformPurchase.objects.create(**defaults)
 
 
 def make_coach(email, ptype):
@@ -64,17 +73,22 @@ class SignupTests(TestCase):
         self.assertFalse(User.objects.filter(email='x@y.com').exists())
 
     def test_professional_signup_ok(self):
+        purchase = make_purchase('pro@y.com', code='ATHLYNK-AAAA-BBBB')
         resp = self.client.post('/registrati/', {
             'role': 'COACH', 'professional_type': 'ALLENATORE',
             'first_name': 'A', 'last_name': 'B',
             'email': 'pro@y.com', 'password': 'V0lt!Athlynk#9', 'confirm_password': 'V0lt!Athlynk#9',
-            'accept_terms': 'on',
+            'accept_terms': 'on', 'code': purchase.code,
         })
         self.assertEqual(resp.status_code, 200)
         u = User.objects.get(email='pro@y.com')
         self.assertEqual(u.role, 'COACH')
         self.assertEqual(u.coach_profile.professional_type, 'ALLENATORE')
         self.assertIsNotNone(u.terms_accepted_at)
+        purchase.refresh_from_db()
+        self.assertIsNotNone(purchase.redeemed_at)
+        self.assertEqual(purchase.redeemed_by, u)
+        self.assertEqual(u.coach_profile.platform_purchase_id, purchase.id)
 
     def test_signup_without_terms_rejected(self):
         resp = self.client.post('/registrati/', {

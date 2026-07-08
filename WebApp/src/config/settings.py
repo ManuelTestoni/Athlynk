@@ -187,6 +187,7 @@ MIDDLEWARE = [
     'config.middleware.GlobalRateLimitMiddleware',
     'config.middleware.SanitizationMiddleware',
     'config.middleware.ClientAccessMiddleware',
+    'config.middleware.CoachPlatformAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

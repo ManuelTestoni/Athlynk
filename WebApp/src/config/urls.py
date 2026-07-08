@@ -104,6 +104,9 @@ urlpatterns = [
     # Accesso sospeso (atleta senza professionista attivo / abbonamento scaduto)
     path('accesso-sospeso/', views_client.client_blocked_view, name='client_blocked'),
 
+    # Abbonamento scaduto (coach/allenatore/nutrizionista senza piattaforma attiva)
+    path('abbonamento-scaduto/', views_auth.coach_subscription_lapsed_view, name='coach_subscription_lapsed'),
+
     # Il mio specialista (client)
     path('il-mio-coach/', views_client.client_my_coach_view, name='client_my_coach'),
     path('il-mio-specialista/<int:rel_id>/', views_client.client_specialist_detail_view, name='client_specialist_detail'),
