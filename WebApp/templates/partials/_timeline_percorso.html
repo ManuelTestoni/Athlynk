@@ -138,6 +138,35 @@
         </button>
       </template>
 
+      <!-- Collapsed clusters — same-type events too close to place without
+           overlapping. Click fans the members out around the badge dot. -->
+      <template x-for="c in clusters" :key="c.id">
+        <div>
+          <button type="button"
+                  class="al-tl-dot al-tl-cluster al-tl-enter"
+                  :class="`type-${c.type}` + (isClusterOpen(c) ? ' is-open' : '')"
+                  :style="`left:${c.x - 14}px; top:${axisY - 14}px;`"
+                  :title="c.meta.label + ' · ' + c.count + ' eventi'"
+                  :aria-label="c.count + ' eventi di tipo ' + c.meta.label + ', tocca per separarli'"
+                  @click="toggleCluster(c)">
+            <i :class="`ph ${c.meta.icon}`"></i>
+            <span class="al-tl-cluster-badge" x-text="c.count"></span>
+          </button>
+          <template x-for="m in c.members" :key="m.id">
+            <button type="button"
+                    class="al-tl-dot al-tl-fan-dot"
+                    :class="`type-${m.type}` + (isOpen(m) ? ' is-open' : '')"
+                    :style="memberStyle(c, m)"
+                    :tabindex="isClusterOpen(c) ? 0 : -1"
+                    :title="m.title"
+                    :aria-label="m.meta.label + ': ' + m.title"
+                    @click="toggleMember(m)">
+              <i :class="`ph ${m.meta.icon}`"></i>
+            </button>
+          </template>
+        </div>
+      </template>
+
       <!-- Expanded card — teleported to <body> so it escapes the timeline
            box's overflow clipping and can pop above the container edge -->
       <template x-teleport="body">

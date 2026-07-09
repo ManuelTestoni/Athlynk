@@ -39,25 +39,42 @@ def get_session_user(request):
 
 
 def get_session_coach(request):
+    # Memoized per-request like get_session_user above: middleware, the
+    # identity_context processor, and the view itself each call this, so an
+    # un-cached lookup re-fetches the same CoachProfile row 3x per page.
+    cached = getattr(request, '_session_coach', _UNSET)
+    if cached is not _UNSET:
+        return cached
+
     user = get_session_user(request)
     if not user or user.role != 'COACH':
+        request._session_coach = None
         return None
 
     try:
-        return CoachProfile.objects.get(user=user)
+        coach = CoachProfile.objects.get(user=user)
     except CoachProfile.DoesNotExist:
-        return None
+        coach = None
+    request._session_coach = coach
+    return coach
 
 
 def get_session_client(request):
+    cached = getattr(request, '_session_client', _UNSET)
+    if cached is not _UNSET:
+        return cached
+
     user = get_session_user(request)
     if not user or user.role != 'CLIENT':
+        request._session_client = None
         return None
 
     try:
-        return ClientProfile.objects.get(user=user)
+        client = ClientProfile.objects.get(user=user)
     except ClientProfile.DoesNotExist:
-        return None
+        client = None
+    request._session_client = client
+    return client
 
 
 def can_manage_workouts(coach):

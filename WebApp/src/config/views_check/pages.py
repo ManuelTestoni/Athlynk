@@ -11,10 +11,13 @@ from django.core.files.storage import default_storage
 from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
 from django.conf import settings
+import ipaddress
 import json
 import os
+import socket
 import requests
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
 from domain.checks.preset_templates import PRESETS, build_template_payload
@@ -633,6 +636,21 @@ def check_comparator_view(request, client_id=None):
     })
 
 
+_ALLOWED_PHOTO_CT = {'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic'}
+
+
+def _resolves_to_public_ip(host):
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return False
+    return True
+
+
 def api_check_photo_proxy(request, photo_id):
     """Same-origin image proxy for progress photos.
 
@@ -663,18 +681,30 @@ def api_check_photo_proxy(request, photo_id):
 
     url = photo.file_url
     if url.startswith('http://') or url.startswith('https://'):
+        allowed_host = urlparse(settings.SUPABASE_S3_ENDPOINT).hostname if settings.SUPABASE_S3_ENDPOINT else None
+        host = (urlparse(url).hostname or '').lower().rstrip('.')
+        if not allowed_host or host != allowed_host.lower().rstrip('.') or not _resolves_to_public_ip(host):
+            raise Http404()
         try:
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=10, allow_redirects=False)
             r.raise_for_status()
         except requests.RequestException:
             raise Http404()
-        return HttpResponse(r.content, content_type=r.headers.get('Content-Type', 'image/jpeg'))
+        content_type = r.headers.get('Content-Type', '').split(';')[0].strip().lower()
+        if content_type not in _ALLOWED_PHOTO_CT:
+            content_type = 'application/octet-stream'
+        resp = HttpResponse(r.content, content_type=content_type)
+        resp['X-Content-Type-Options'] = 'nosniff'
+        resp['Content-Security-Policy'] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"
+        return resp
 
     rel = url[len(settings.MEDIA_URL):] if url.startswith(settings.MEDIA_URL) else url.lstrip('/')
     path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel))
     if not path.startswith(os.path.normpath(str(settings.MEDIA_ROOT))) or not os.path.isfile(path):
         raise Http404()
-    return FileResponse(open(path, 'rb'), content_type='image/jpeg')
+    resp = FileResponse(open(path, 'rb'), content_type='image/jpeg')
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 def client_assigned_checks_view(request):

@@ -43,9 +43,11 @@
       view:         'anno',
       openId:       null,
       openPhaseId:  null,
+      openClusterId: null,
       events:       [],
       phases:       [],
       placedEvents: [],
+      clusters:     [],
       placedPhases: [],
       months:       [],
       windowStart:  '',
@@ -79,16 +81,17 @@
           if (this.formOpen) { this.closeForm(); return; }
           this.openId = null;
           this.openPhaseId = null;
+          this.openClusterId = null;
         };
         window.addEventListener('keydown', this._onKey);
         // recompute scale on resize (viewport-relative); a moved viewport
         // invalidates the popover's fixed coords, so close it.
-        this._onResize = () => { this.openId = null; this.openPhaseId = null; this._layout(); };
+        this._onResize = () => { this.openId = null; this.openPhaseId = null; this.openClusterId = null; this._layout(); };
         window.addEventListener('resize', this._onResize);
         // the popover is teleported to <body> with fixed coords anchored to a
         // dot — page scroll detaches it from its anchor, so close it.
         this._onWinScroll = () => {
-          if (this.openId || this.openPhaseId) { this.openId = null; this.openPhaseId = null; }
+          if (this.openId || this.openPhaseId || this.openClusterId) { this.openId = null; this.openPhaseId = null; this.openClusterId = null; }
         };
         window.addEventListener('scroll', this._onWinScroll, { passive: true });
       },
@@ -127,6 +130,7 @@
         if (mode === this.view || !MONTHS_PER_VIEW[mode]) return;
         this.view = mode;
         this.openId = null;
+        this.openClusterId = null;
         this._layout();
         this.$nextTick(() => {
           const el = this.$refs.scrollContainer;
@@ -146,6 +150,7 @@
           this.filters.splice(i, 1);
         }
         this.openId = null;
+        this.openClusterId = null;
         this._layout();
       },
       filterActive(type) { return this.filters.includes(type); },
@@ -155,29 +160,64 @@
         if (this._moved) return;            // ignore clicks that were drags
         this.openPhaseId = null;
         this.openId = this.openId === ev.id ? null : ev.id;
-        if (this.openId) this.$nextTick(() => this._setPopPos(ev.x, 16));
+        if (this.openId) this.$nextTick(() => this._setPopPos(ev.x, this.axisY - 16));
       },
       isOpen(ev)  { return this.openId === ev.id; },
-      openEvent() { return this.placedEvents.find(e => e.id === this.openId) || null; },
+      openEvent() {
+        const single = this.placedEvents.find(e => e.id === this.openId);
+        if (single) return single;
+        for (const c of this.clusters) {
+          const m = c.members.find(e => e.id === this.openId);
+          if (m) return m;
+        }
+        return null;
+      },
 
       /* ── open / close phases ── */
       togglePhase(ph) {
         if (this._moved) return;
         this.openId = null;
+        this.openClusterId = null;
         this.openPhaseId = this.openPhaseId === ph.id ? null : ph.id;
-        if (this.openPhaseId) this.$nextTick(() => this._setPopPos(ph.x + ph.w / 2, this.phaseHeight() / 2 + 10));
+        if (this.openPhaseId) this.$nextTick(() => this._setPopPos(ph.x + ph.w / 2, this.phaseTop() - 10));
+      },
+
+      /* ── collapsed clusters: too many same-type events too close together
+         are merged into one badge dot; clicking it fans the members out
+         around it (radius + angle spread from _buildCluster) ── */
+      toggleCluster(cluster) {
+        if (this._moved) return;
+        this.openId = null;
+        this.openPhaseId = null;
+        this.openClusterId = this.openClusterId === cluster.id ? null : cluster.id;
+      },
+      isClusterOpen(cluster) { return this.openClusterId === cluster.id; },
+      toggleMember(member) {
+        if (this._moved) return;
+        this.openPhaseId = null;
+        this.openId = this.openId === member.id ? null : member.id;
+        if (this.openId) this.$nextTick(() => this._setPopPos(member.fanX, member.fanY - 16));
+      },
+      /* fanned-out members animate (CSS transition on left/top) between the
+         cluster's collapsed position and their fan slot */
+      memberStyle(cluster, member) {
+        const open = this.isClusterOpen(cluster);
+        const x = open ? member.fanX : cluster.x;
+        const y = open ? member.fanY : this.axisY;
+        return `left:${x - 12}px; top:${y - 12}px; opacity:${open ? 1 : 0}; pointer-events:${open ? 'auto' : 'none'};`;
       },
 
       /* position the body-teleported popover above its anchor, in viewport
-         coords, clamped horizontally to the window */
-      _setPopPos(anchorX, aboveOffset) {
+         coords, clamped horizontally to the window. trackY is the y pixel
+         (measured from the track's own top) the popover's stem points at. */
+      _setPopPos(anchorX, trackY) {
         const el = this.$refs.scrollContainer;
         if (!el) return;
         const rect = el.getBoundingClientRect();
         const screenX = rect.left + (anchorX - el.scrollLeft);
         let left = screenX - CARD_W / 2;
         left = Math.max(8, Math.min(left, window.innerWidth - 8 - CARD_W));
-        const bottom = window.innerHeight - (rect.top + this.axisY - aboveOffset);
+        const bottom = window.innerHeight - (rect.top + trackY);
         this.popPos = { left: Math.round(left), bottom: Math.round(bottom) };
       },
       isPhaseOpen(ph) { return this.openPhaseId === ph.id; },
@@ -218,22 +258,59 @@
 
         const filtered = this.events.filter(e => this.filters.includes(e.type));
 
-        // place dots on the axis; nudge overlapping ones just enough to stay tappable
-        let lastX = -Infinity;
-        const placed = filtered.map((ev) => {
-          const evDate = new Date(ev.date);
-          const dayOff = Math.max(0, (evDate - wStart) / 86400000);
-          let x = Math.round(dayOff * pxPerDay) + PAD;
-          if (x - lastX < DOT_GAP) x = lastX + DOT_GAP;
-          lastX = x;
-          return { ...ev, x, meta: TYPE_META[ev.type] || TYPE_META.check };
+        // true x from the real date — never nudged, so a dot's position always
+        // matches its actual date (no drift from crowding).
+        const withX = filtered
+          .map((ev) => {
+            const evDate = new Date(ev.date);
+            const dayOff = Math.max(0, (evDate - wStart) / 86400000);
+            const x = Math.round(dayOff * pxPerDay) + PAD;
+            return { ...ev, x, meta: TYPE_META[ev.type] || TYPE_META.check };
+          })
+          .sort((a, b) => a.x - b.x);
+
+        // events of the SAME type sitting closer than DOT_GAP would overlap —
+        // merge those runs into one collapsed cluster dot instead of shoving
+        // them sideways. Different types are left to overlap slightly (icon
+        // + hover z-index already tell them apart).
+        const byType = {};
+        withX.forEach((ev) => { (byType[ev.type] = byType[ev.type] || []).push(ev); });
+
+        const singles = [];
+        const clusters = [];
+        Object.keys(byType).forEach((type) => {
+          let run = [];
+          const flush = () => {
+            if (!run.length) return;
+            if (run.length === 1) {
+              singles.push(run[0]);
+            } else {
+              const cx = Math.round(run.reduce((s, e) => s + e.x, 0) / run.length);
+              clusters.push(this._buildCluster(type, cx, run));
+            }
+            run = [];
+          };
+          byType[type].forEach((ev) => {
+            if (run.length && ev.x - run[run.length - 1].x < DOT_GAP) {
+              run.push(ev);
+            } else {
+              flush();
+              run = [ev];
+            }
+          });
+          flush();
         });
 
-        // if the currently open event got filtered out, close it
-        if (this.openId != null && !placed.some(e => e.id === this.openId)) {
-          this.openId = null;
+        // if the currently open event/cluster got filtered/relaid out, close it
+        const openStillExists = singles.some(e => e.id === this.openId)
+          || clusters.some(c => c.members.some(e => e.id === this.openId));
+        if (this.openId != null && !openStillExists) this.openId = null;
+        if (this.openClusterId != null && !clusters.some(c => c.id === this.openClusterId)) {
+          this.openClusterId = null;
         }
-        this.placedEvents = placed;
+
+        this.placedEvents = singles;
+        this.clusters = clusters;
 
         // place phase bands (translucent period blocks sitting across the axis)
         const showPhases = this.filters.includes('fase');
@@ -250,6 +327,30 @@
           this.openPhaseId = null;
         }
         this.placedPhases = placedPhases;
+      },
+
+      /* fan slot for each member: spread across an arc above the axis,
+         wider spread / radius for bigger clusters, capped so huge clusters
+         (e.g. 15 checks on the same week in "anno" view) stay legible */
+      _buildCluster(type, cx, members) {
+        const n = members.length;
+        const spread = Math.min(150, 26 * n);
+        const radius = 46 + Math.min(28, n * 4);
+        const start = -spread / 2;
+        const step = n > 1 ? spread / (n - 1) : 0;
+        const fanned = members.map((ev, i) => {
+          const angle = (start + i * step) * Math.PI / 180;
+          return {
+            ...ev,
+            fanX: Math.round(cx + radius * Math.sin(angle)),
+            fanY: Math.round(this.axisY - radius * Math.cos(angle)),
+          };
+        });
+        return {
+          id: `cluster-${type}-${cx}`,
+          type, x: cx, count: n, members: fanned,
+          meta: TYPE_META[type] || TYPE_META.check,
+        };
       },
 
       _buildMonths(start, end, pxPerDay) {
@@ -343,7 +444,7 @@
           this.$nextTick(() => {
             this.openPhaseId = d.id;
             const ph = this.openPhase();
-            if (ph) this._setPopPos(ph.x + ph.w / 2, this.phaseHeight() / 2 + 10);
+            if (ph) this._setPopPos(ph.x + ph.w / 2, this.phaseTop() - 10);
           });
         } catch (err) {
           this.formError = 'Errore di rete. Riprova.';

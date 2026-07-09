@@ -250,8 +250,8 @@ def nutrizione_piani_view(request):
 
         supp_assignment = (
             SupplementProtocolAssignment.objects
-            .filter(client=client, coach=nutrition_coach, status='ACTIVE')
-            .select_related('protocol')
+            .filter(client=client, status='ACTIVE')
+            .select_related('protocol', 'coach')
             .order_by('-assigned_at')
             .first()
         )

@@ -3610,6 +3610,33 @@ body[data-scrolled="1"] .al-sidebar-top {
               0 4px 12px -3px rgba(20,17,13,0.4);
 }
 
+/* ── Cluster dot (collapsed run of same-type events) + its fan-out members ── */
+.al-tl-cluster { z-index: 5; }
+.al-tl-cluster-badge {
+  position: absolute;
+  top: -6px; right: -6px;
+  min-width: 15px; height: 15px;
+  padding: 0 3px;
+  border-radius: var(--al-r-pill);
+  background: var(--al-parchment);
+  color: var(--al-ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  border: 1.5px solid var(--al-rule-strong);
+}
+.al-tl-fan-dot {
+  width: 24px; height: 24px;
+  z-index: 6;
+  transition: left 0.38s var(--al-ease-spr), top 0.38s var(--al-ease-spr),
+              opacity 0.22s var(--al-ease), transform var(--al-d-snap) var(--al-ease-spr);
+}
+.al-tl-fan-dot i { font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .al-tl-fan-dot { transition: opacity 0.15s linear; }
+}
+
 /* ── Phase band (translucent period block straddling the axis) ── */
 .al-tl-phase {
   position: absolute;
