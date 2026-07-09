@@ -40,8 +40,6 @@ def _get_current_section(path):
         return 'analisi'
     if path.startswith('/il-mio-percorso'):
         return 'percorso'
-    if path.startswith('/il-mio-coach') or path.startswith('/il-mio-specialista'):
-        return 'specialista'
     if path.startswith('/impostazioni'):
         return 'impostazioni'
     return ''

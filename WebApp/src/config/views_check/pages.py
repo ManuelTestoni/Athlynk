@@ -3,7 +3,7 @@ andamento e comparatore."""
 
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, FileResponse, Http404
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db.models import Q, Count, OuterRef, Subquery
@@ -12,6 +12,8 @@ from django.utils.dateparse import parse_datetime
 from django.core.mail import send_mail
 from django.conf import settings
 import json
+import os
+import requests
 from datetime import timedelta
 
 from domain.checks.models import QuestionnaireTemplate, QuestionnaireResponse, ProgressPhoto, AssignedCheck, AssignedCheckInstance, QuestionAttachment, CheckFolder
@@ -616,6 +618,7 @@ def check_comparator_view(request, client_id=None):
         {
             'id': p['id'],
             'url': p['file_url'],
+            'compare_url': reverse('api_check_photo_proxy', args=[p['id']]),
             'photo_type': p['photo_type'],
             'date': p['captured_at'].strftime('%d/%m/%Y'),
         }
@@ -628,6 +631,50 @@ def check_comparator_view(request, client_id=None):
         'photos_json': json.dumps(photos_data),
         'total_photos': len(photos_data),
     })
+
+
+def api_check_photo_proxy(request, photo_id):
+    """Same-origin image proxy for progress photos.
+
+    The comparator preloads photos with `crossOrigin='anonymous'` (needed for
+    a clean, non-tainted canvas export), which fails against the private
+    Supabase bucket's signed URLs. Streaming the bytes through our own origin
+    sidesteps that without touching bucket CORS policy.
+    """
+    user = get_session_user(request)
+    if not user:
+        return HttpResponseForbidden()
+
+    try:
+        photo = ProgressPhoto.objects.get(id=photo_id)
+    except ProgressPhoto.DoesNotExist:
+        raise Http404()
+
+    if user.role == 'CLIENT':
+        client = get_session_client(request)
+        if not client or photo.client_id != client.id:
+            return HttpResponseForbidden()
+    elif user.role == 'COACH':
+        coach = get_session_coach(request)
+        if not coach or photo.coach_id != coach.id:
+            return HttpResponseForbidden()
+    else:
+        return HttpResponseForbidden()
+
+    url = photo.file_url
+    if url.startswith('http://') or url.startswith('https://'):
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+        except requests.RequestException:
+            raise Http404()
+        return HttpResponse(r.content, content_type=r.headers.get('Content-Type', 'image/jpeg'))
+
+    rel = url[len(settings.MEDIA_URL):] if url.startswith(settings.MEDIA_URL) else url.lstrip('/')
+    path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, rel))
+    if not path.startswith(os.path.normpath(str(settings.MEDIA_ROOT))) or not os.path.isfile(path):
+        raise Http404()
+    return FileResponse(open(path, 'rb'), content_type='image/jpeg')
 
 
 def client_assigned_checks_view(request):

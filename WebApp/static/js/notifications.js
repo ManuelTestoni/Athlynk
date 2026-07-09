@@ -61,6 +61,7 @@ function notificationsBell() {
                 });
                 this.notifications.forEach(n => n.is_read = true);
                 this.unreadCount = 0;
+                document.querySelectorAll('.al-nav-dot').forEach(el => el.remove());
             } catch (e) { /* silent */ }
         },
 

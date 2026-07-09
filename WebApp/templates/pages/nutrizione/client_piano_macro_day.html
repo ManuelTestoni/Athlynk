@@ -31,6 +31,22 @@
   }
   .mld-back:hover { color: var(--al-bronze); }
 
+  .mld-daynav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .mld-daynav-link {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-family: var(--al-mono); font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--al-ink-mute); text-decoration: none;
+    transition: color var(--al-d-snap);
+  }
+  .mld-daynav-link:hover { color: var(--al-bronze); }
+  .mld-daynav-link.is-disabled {
+    opacity: .35; pointer-events: none;
+  }
+
   /* Hero */
   .mld-hero {
     position: relative; overflow: hidden;
@@ -181,6 +197,17 @@
   <a href="{% url 'nutrizione_client_detail' assignment.id %}" class="mld-back">
     <i class="ph ph-arrow-left"></i> {{ plan.title }}
   </a>
+
+  <!-- Day-to-day navigation -->
+  <div class="mld-daynav">
+    <a href="{% url 'macro_log_day' assignment.id prev_date %}" class="mld-daynav-link">
+      <i class="ph ph-caret-left"></i> Giorno precedente
+    </a>
+    <a href="{% if next_date_available %}{% url 'macro_log_day' assignment.id next_date %}{% else %}#{% endif %}"
+       class="mld-daynav-link{% if not next_date_available %} is-disabled{% endif %}">
+      Giorno successivo <i class="ph ph-caret-right"></i>
+    </a>
+  </div>
 
   <!-- Date hero -->
   <section class="mld-hero">

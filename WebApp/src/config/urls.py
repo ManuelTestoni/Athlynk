@@ -107,11 +107,6 @@ urlpatterns = [
     # Abbonamento scaduto (coach/allenatore/nutrizionista senza piattaforma attiva)
     path('abbonamento-scaduto/', views_auth.coach_subscription_lapsed_view, name='coach_subscription_lapsed'),
 
-    # Il mio specialista (client)
-    path('il-mio-coach/', views_client.client_my_coach_view, name='client_my_coach'),
-    path('il-mio-specialista/<int:rel_id>/', views_client.client_specialist_detail_view, name='client_specialist_detail'),
-    path('il-mio-specialista/<int:rel_id>/lascia/', views_client.client_disconnect_coach_view, name='client_disconnect_coach'),
-
     # Nutrizione
     path('nutrizione/piani/', views_nutrition.nutrizione_piani_view, name='nutrizione_piani'),
     path('nutrizione/piani/importa/', views_nutrition.nutrizione_import_view, name='nutrizione_import'),
@@ -274,6 +269,7 @@ urlpatterns = [
     path('check/andamento/<int:client_id>/', views_check.check_progress_charts_view, name='check_progress_charts_client'),
     path('check/comparatore/', views_check.check_comparator_view, name='check_comparator'),
     path('check/comparatore/<int:client_id>/', views_check.check_comparator_view, name='check_comparator_client'),
+    path('api/check/foto/<int:photo_id>/', views_check.api_check_photo_proxy, name='api_check_photo_proxy'),
     path('check/cliente/<int:client_id>/', views_check.client_check_history_view, name='check_client_history'),
     path('check/<int:response_id>/modifica/', views_check.check_edit_view, name='check_edit'),
     path('check/<int:response_id>/', views_check.check_detail_view, name='check_detail'),

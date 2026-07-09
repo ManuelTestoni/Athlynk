@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load safejson %}
+{% load static safejson %}
 
 {% block title %}Comparatore foto{% endblock %}
 
@@ -409,6 +409,11 @@
 <script>
 const _photos = {{ photos_json|json_js }};
 
+// Preloaded eagerly (same-origin static asset, no CORS concern) so it's
+// ready by the time the user exports a comparison.
+const _logoImg = new Image();
+_logoImg.src = "{% static 'img/athlynk-mark.png' %}";
+
 function comparatore() {
     return {
         photos: _photos,
@@ -440,8 +445,8 @@ function comparatore() {
             const minDelay = new Promise(r => setTimeout(r, 650));
             try {
                 const [imgA, imgB] = await Promise.all([
-                    this._preload(this.selected[0].url),
-                    this._preload(this.selected[1].url),
+                    this._preload(this.selected[0].compare_url),
+                    this._preload(this.selected[1].compare_url),
                 ]);
                 this._loadedImgs.before = imgA;
                 this._loadedImgs.after = imgB;
@@ -463,7 +468,6 @@ function comparatore() {
         _preload(url) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
-                img.crossOrigin = 'anonymous';
                 img.onload = () => resolve(img);
                 img.onerror = reject;
                 img.src = url;
@@ -488,8 +492,8 @@ function comparatore() {
             if (this.exporting) return;
             this.exporting = true;
             try {
-                const before = this._loadedImgs.before || await this._preload(this.selected[0].url);
-                const after  = this._loadedImgs.after  || await this._preload(this.selected[1].url);
+                const before = this._loadedImgs.before || await this._preload(this.selected[0].compare_url);
+                const after  = this._loadedImgs.after  || await this._preload(this.selected[1].compare_url);
 
                 // Composition: two panels side by side, fixed 3:4 each → 6:4 total.
                 const PANEL_W = 1200, PANEL_H = 1600;
@@ -628,21 +632,35 @@ function comparatore() {
             ctx.fillStyle = grad;
             ctx.fillRect(0, H - STRIP_H, W, STRIP_H);
 
-            // Wordmark left
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.font = '600 26px "Bodoni Moda", Didot, Georgia, serif';
-            ctx.fillStyle = '#f4efe4';
-            ctx.fillText('ATHLYNK', 40, H - STRIP_H / 2 + 2);
+            // Logo mark left (falls back to the text wordmark if the asset
+            // hasn't finished loading yet — shouldn't happen in practice
+            // since it's preloaded on script init).
+            let afterLogoX;
+            const logoReady = _logoImg.complete && _logoImg.naturalWidth > 0;
+            if (logoReady) {
+                const logoH = 40;
+                const logoW = logoH * (_logoImg.naturalWidth / _logoImg.naturalHeight);
+                ctx.drawImage(_logoImg, 40, H - STRIP_H / 2 - logoH / 2, logoW, logoH);
+                afterLogoX = 40 + logoW + 18;
+            } else {
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.font = '600 26px "Bodoni Moda", Didot, Georgia, serif';
+                ctx.fillStyle = '#f4efe4';
+                ctx.fillText('ATHLYNK', 40, H - STRIP_H / 2 + 2);
+                afterLogoX = 170;
+            }
 
             // Bronze hairline
             ctx.fillStyle = '#c8a774';
-            ctx.fillRect(170, H - STRIP_H / 2 - 1, 28, 2);
+            ctx.fillRect(afterLogoX, H - STRIP_H / 2 - 1, 28, 2);
 
             // Tagline
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
             ctx.font = 'italic 18px "Bodoni Moda", Didot, Georgia, serif';
             ctx.fillStyle = 'rgba(244,239,228,0.82)';
-            ctx.fillText('Progress comparison', 210, H - STRIP_H / 2 + 2);
+            ctx.fillText('Progress comparison', afterLogoX + 40, H - STRIP_H / 2 + 2);
 
             // Right: timestamp
             ctx.textAlign = 'right';

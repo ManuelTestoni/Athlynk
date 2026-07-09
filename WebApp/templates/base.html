@@ -174,6 +174,13 @@
 
                 {% elif is_client %}
 
+                <a href="{% url 'check_dashboard' %}"
+                   class="al-nav-link {% if s == 'check' %}is-active{% endif %}">
+                    <i class="ph ph-chart-line"></i>
+                    <span>Check Progressi</span>
+                    {% if sidebar_notifications.check %}<span class="al-nav-dot"></span>{% endif %}
+                </a>
+
                 {% if coach or trainer %}
                 <a href="{% url 'allenamenti_list' %}"
                    class="al-nav-link {% if s == 'allenamenti' %}is-active{% endif %}">
@@ -192,12 +199,6 @@
                 </a>
                 {% endif %}
 
-                <a href="{% url 'agenda_dashboard' %}"
-                   class="al-nav-link {% if s == 'agenda' %}is-active{% endif %}">
-                    <i class="ph ph-calendar-blank"></i>
-                    <span>Agenda</span>
-                </a>
-
                 {% if has_any_professional %}
                 <a href="{% url 'chat_list' %}"
                    class="al-nav-link {% if s == 'chat' %}is-active{% endif %}">
@@ -207,11 +208,18 @@
                 </a>
                 {% endif %}
 
-                <a href="{% url 'check_dashboard' %}"
-                   class="al-nav-link {% if s == 'check' %}is-active{% endif %}">
-                    <i class="ph ph-chart-line"></i>
-                    <span>Check Progressi</span>
-                    {% if sidebar_notifications.check %}<span class="al-nav-dot"></span>{% endif %}
+                {% if has_any_professional %}
+                <a href="{% url 'abbonamenti_dashboard' %}"
+                   class="al-nav-link {% if s == 'abbonamenti' %}is-active{% endif %}">
+                    <i class="ph ph-credit-card"></i>
+                    <span>Abbonamenti</span>
+                </a>
+                {% endif %}
+
+                <a href="{% url 'agenda_dashboard' %}"
+                   class="al-nav-link {% if s == 'agenda' %}is-active{% endif %}">
+                    <i class="ph ph-calendar-blank"></i>
+                    <span>Agenda</span>
                 </a>
 
                 {% if has_any_professional %}
@@ -219,19 +227,6 @@
                    class="al-nav-link {% if s == 'percorso' %}is-active{% endif %}">
                     <i class="ph ph-map-trifold"></i>
                     <span>Il mio percorso</span>
-                </a>
-                {% endif %}
-
-                {% if has_any_professional %}
-                <a href="{% url 'abbonamenti_dashboard' %}"
-                   class="al-nav-link {% if s == 'abbonamenti' %}is-active{% endif %}">
-                    <i class="ph ph-credit-card"></i>
-                    <span>Abbonamenti</span>
-                </a>
-                <a href="{% url 'client_my_coach' %}"
-                   class="al-nav-link {% if s == 'specialista' %}is-active{% endif %}">
-                    <i class="ph ph-user-circle"></i>
-                    <span>Il Mio Specialista</span>
                 </a>
                 {% endif %}
 
@@ -335,7 +330,7 @@
                         <i class="ph ph-bell text-xl"></i>
                         <span x-show="unreadCount > 0"
                               x-text="unreadCount > 9 ? '9+' : unreadCount"
-                              class="al-pulse-bronze absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 bg-bronze text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
+                              class="al-pulse-bronze absolute -top-1 -right-1.5 min-w-[20px] h-4 px-1 bg-bronze text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
                               style="border: 1px solid var(--al-parchment); border-radius: 2px;"></span>
                     </button>
                     <div x-show="open" @click.outside="open = false" x-cloak

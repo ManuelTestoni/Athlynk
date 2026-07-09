@@ -13,6 +13,7 @@ from .pages import (  # noqa: F401
     check_dashboard_view, check_create_view, check_detail_view,
     check_edit_view, client_check_history_view, check_progress_charts_view,
     check_comparator_view, client_assigned_checks_view, fill_assigned_check_view,
+    api_check_photo_proxy,
 )
 from .assignments import (  # noqa: F401
     api_check_assign, api_check_assignment_ics, api_check_search,

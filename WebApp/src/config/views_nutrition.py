@@ -668,6 +668,8 @@ def nutrizione_piano_detail_view(request, plan_id):
     ])
 
     macro_targets = _plan_macro_targets(plan) if plan.plan_mode == 'MACRO' else None
+    supplement_sheet = plan.supplement_sheet
+    supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
 
     assignments_count = assignments.count()
     _first = list(assignments[:8])
@@ -696,6 +698,8 @@ def nutrizione_piano_detail_view(request, plan_id):
         'assignments_first': assignments_first,
         'assignments_first_count': assignments_first_count,
         'macro_targets': macro_targets,
+        'supplement_sheet': supplement_sheet,
+        'supplement_items': supplement_items,
     })
 
 
@@ -1213,21 +1217,28 @@ def api_food_search(request):
     else:
         foods = foods.exclude(nome_alimento__icontains='media')
 
-    # "Recenti": foods this coach has recently put in any meal, newest first.
+    # "Recenti": for a coach, foods recently put in any authored meal; for an
+    # athlete logging their own macros, foods recently logged in their diary.
     recent_order = None
     if flt == 'recent':
-        coach = get_session_coach(request)
         recent_ids = []
-        if coach:
-            seen = set()
-            for fid in (MealItem.objects
-                        .filter(meal__plan__coach=coach, food__isnull=False)
-                        .order_by('-id').values_list('food_id', flat=True)):
-                if fid not in seen:
-                    seen.add(fid)
-                    recent_ids.append(fid)
-                if len(recent_ids) >= 30:
-                    break
+        seen = set()
+        if user.role == 'CLIENT':
+            client = get_session_client(request)
+            source = (ClientMacroLogEntry.objects
+                      .filter(assignment__client=client, food__isnull=False)
+                      .order_by('-created_at').values_list('food_id', flat=True)) if client else []
+        else:
+            coach = get_session_coach(request)
+            source = (MealItem.objects
+                      .filter(meal__plan__coach=coach, food__isnull=False)
+                      .order_by('-id').values_list('food_id', flat=True)) if coach else []
+        for fid in source:
+            if fid not in seen:
+                seen.add(fid)
+                recent_ids.append(fid)
+            if len(recent_ids) >= 30:
+                break
         if not recent_ids:
             return JsonResponse({'results': []})
         foods = foods.filter(id__in=recent_ids)
@@ -1400,6 +1411,9 @@ def _render_food_plan_detail(request, assignment, plan, back_url, back_label,
             'fat': round(m_fat),
         })
 
+    supplement_sheet = plan.supplement_sheet
+    supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
+
     return render(request, 'pages/nutrizione/client_piano_detail.html', {
         'assignment': assignment,
         'plan': plan,
@@ -1412,6 +1426,8 @@ def _render_food_plan_detail(request, assignment, plan, back_url, back_label,
         'back_url': back_url,
         'back_label': back_label,
         'detail_eyebrow': detail_eyebrow,
+        'supplement_sheet': supplement_sheet,
+        'supplement_items': supplement_items,
     })
 
 
@@ -1765,6 +1781,9 @@ def macro_log_day_view(request, assignment_id, date_str):
                   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
     _DAYS_IT = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
 
+    prev_date = log_date - timedelta(days=1)
+    next_date = log_date + timedelta(days=1)
+
     return render(request, 'pages/nutrizione/client_piano_macro_day.html', {
         'assignment': assignment,
         'plan': plan,
@@ -1773,6 +1792,9 @@ def macro_log_day_view(request, assignment_id, date_str):
         'date_display_full': f"{log_date.day} {_MONTHS_IT[log_date.month]} {log_date.year}",
         'log_json': log_json,
         'day_target_json': json.dumps(day_target),
+        'prev_date': prev_date.isoformat(),
+        'next_date': next_date.isoformat(),
+        'next_date_available': next_date < date.today(),
     })
 
 

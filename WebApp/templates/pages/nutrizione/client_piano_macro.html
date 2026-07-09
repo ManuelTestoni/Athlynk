@@ -309,145 +309,35 @@
   }
   .ml-add-meal-trigger i { font-size: 1rem; }
 
-  /* ══ Premium search overlay — light parchment theme ════════════════════════ */
-  .ml-overlay {
-    position: fixed; inset: 0; z-index: 9998;
-    background: rgba(252, 248, 241, 0.98);
-    backdrop-filter: blur(20px) saturate(1.2);
+  /* ══ Add-food slide-in panel (same pattern as the coach's nutrition wizard) ══ */
+  .nzp-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(20,16,10,0.32); }
+  .nzp-panel {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 71;
+    width: min(420px, 92vw);
     display: flex; flex-direction: column;
-    overflow: hidden;
+    background: var(--al-parchment);
+    border-right: 1px solid var(--al-rule);
+    box-shadow: var(--al-elev-pop, 0 12px 48px rgba(0,0,0,0.18));
   }
-  .ml-overlay-accent {
-    height: 3px;
-    background: linear-gradient(90deg, var(--al-bronze) 0%, rgba(138,106,58,0.5) 60%, transparent 100%);
-    flex-shrink: 0;
+  .nzp-head { padding: 22px 22px 14px; border-bottom: 1px solid var(--al-rule); }
+  .nzp-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .nzp-chip {
+    cursor: pointer; padding: 6px 14px; font-size: 12px;
+    border: 1px solid var(--al-rule); border-radius: 999px;
+    background: var(--al-parchment); color: var(--al-ink-soft);
+    transition: all .15s ease;
   }
-  .ml-overlay-top {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 1.3rem 2rem .6rem; flex-shrink: 0;
+  .nzp-chip:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); }
+  .nzp-chip.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: var(--al-parchment); }
+  .nzp-body { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
+  .nzp-row {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px; border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm); background: var(--al-parchment); margin-bottom: 8px;
+    transition: border-color .15s, background .15s;
   }
-  .ml-overlay-meal-tag {
-    display: inline-flex; align-items: center; gap: .5rem;
-    font-family: var(--al-mono); font-size: .62rem; font-weight: 700;
-    letter-spacing: .28em; text-transform: uppercase; color: var(--al-bronze);
-  }
-  .ml-overlay-meal-tag i { font-size: .85rem; }
-  .ml-overlay-close {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 1px solid rgba(20,16,10,0.14);
-    background: transparent; color: rgba(20,16,10,0.45);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 1.1rem; transition: all .2s;
-  }
-  .ml-overlay-close:hover { border-color: var(--al-bronze); color: var(--al-bronze); background: rgba(138,106,58,0.06); }
-
-  .ml-search-field {
-    padding: 0 2rem 1.4rem; flex-shrink: 0; position: relative;
-  }
-  .ml-search-input {
-    width: 100%; background: transparent; border: none; outline: none;
-    font-family: var(--al-display); font-size: clamp(1.5rem, 4.5vw, 2.2rem);
-    font-weight: 400; letter-spacing: -.01em; color: var(--al-ink);
-    border-bottom: 1.5px solid rgba(20,16,10,0.15);
-    padding: .4rem 0 .75rem;
-    transition: border-color .2s;
-    caret-color: var(--al-bronze);
-  }
-  .ml-search-input:focus { border-bottom-color: var(--al-bronze); }
-  .ml-search-input::placeholder { color: rgba(20,16,10,0.22); }
-
-  .ml-search-status {
-    position: absolute; right: 2rem; bottom: 1.85rem;
-    font-family: var(--al-mono); font-size: .6rem; font-weight: 700;
-    letter-spacing: .18em; text-transform: uppercase;
-    color: var(--al-bronze);
-  }
-
-  .ml-overlay-results {
-    flex: 1; min-height: 0; overflow-y: auto; padding: .4rem 2rem 2rem;
-    display: flex; flex-direction: column; gap: .4rem;
-  }
-  .ml-overlay-results::-webkit-scrollbar { width: 4px; }
-  .ml-overlay-results::-webkit-scrollbar-track { background: rgba(20,16,10,0.04); }
-  .ml-overlay-results::-webkit-scrollbar-thumb { background: rgba(20,16,10,0.12); border-radius: 2px; }
-
-  .ml-food-card {
-    background: white; border: 1px solid rgba(20,16,10,0.08);
-    border-radius: 12px; padding: .9rem 1.1rem;
-    cursor: pointer; transition: all .18s; position: relative; overflow: hidden;
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    animation: card-appear .2s var(--al-ease-out, ease) both;
-    box-shadow: 0 1px 4px rgba(20,16,10,0.05);
-    /* prevent flex child from shrinking — scroll instead */
-    width: 100%; flex-shrink: 0; text-align: left;
-  }
-  @keyframes card-appear {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .ml-food-card::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: linear-gradient(180deg, var(--al-bronze), rgba(138,106,58,0.35));
-    opacity: 0; transition: opacity .18s;
-    border-radius: 3px 0 0 3px;
-  }
-  .ml-food-card:hover { background: var(--al-marble-warm, #faf7f2); border-color: rgba(138,106,58,0.25); box-shadow: 0 2px 10px rgba(20,16,10,0.08); }
-  .ml-food-card:hover::before { opacity: 1; }
-  .ml-food-card.is-adding { pointer-events: none; opacity: .5; }
-
-  .ml-food-info { min-width: 0; flex: 1; }
-  .ml-food-name {
-    font-size: .95rem; font-weight: 600; color: var(--al-ink);
-    line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .ml-food-cat {
-    font-family: var(--al-mono); font-size: .56rem; font-weight: 700;
-    letter-spacing: .17em; text-transform: uppercase;
-    color: rgba(20,16,10,0.35); margin-top: .18rem; display: block;
-  }
-
-  .ml-food-nums { text-align: right; flex-shrink: 0; }
-  .ml-food-kcal {
-    font-family: var(--al-display); font-size: 1.2rem; font-weight: 500;
-    color: var(--al-bronze); line-height: 1;
-  }
-  .ml-food-kcal-unit {
-    font-family: var(--al-mono); font-size: .52rem; font-weight: 700;
-    letter-spacing: .14em; text-transform: uppercase;
-    color: rgba(20,16,10,0.35); margin-left: .2rem;
-  }
-  .ml-food-prot {
-    font-family: var(--al-mono); font-size: .6rem;
-    color: rgba(20,16,10,0.45); margin-top: .2rem; white-space: nowrap;
-  }
-
-  .ml-food-macro-bar {
-    height: 2px; margin-top: .6rem; border-radius: 999px; overflow: hidden;
-    background: rgba(20,16,10,0.07); display: flex;
-  }
-  .ml-bar-p { background: var(--al-aegean); height: 100%; }
-  .ml-bar-c { background: var(--al-warn); height: 100%; }
-  .ml-bar-f { background: var(--al-danger); height: 100%; }
-
-  .ml-search-hint {
-    text-align: center; padding: 3rem 2rem;
-    color: rgba(20,16,10,0.25);
-    font-family: var(--al-mono); font-size: .72rem;
-    letter-spacing: .12em; text-transform: uppercase;
-  }
-  .ml-search-hint i { font-size: 2rem; display: block; margin-bottom: .75rem; color: rgba(138,106,58,0.35); }
-
-  /* Pagination — load more */
-  .ml-load-more {
-    width: 100%; margin-top: .2rem; padding: .7rem 1.1rem;
-    background: white; border: 1px solid rgba(138,106,58,0.25);
-    border-radius: 10px; cursor: pointer; transition: all .18s;
-    font-family: var(--al-mono); font-size: .67rem; font-weight: 700;
-    letter-spacing: .12em; text-transform: uppercase; color: var(--al-bronze);
-    display: flex; align-items: center; justify-content: center; gap: .5rem;
-  }
-  .ml-load-more:hover { background: rgba(138,106,58,0.06); border-color: var(--al-bronze); }
-  .ml-load-more i { font-size: .85rem; }
+  .nzp-row:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble-warm); }
+  .nzp-row.is-added { border-color: var(--al-success, var(--al-bronze)); background: rgba(46,125,50,0.06); }
 
   /* ══ History (unchanged) ═════════════════════════════════════════════════════ */
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -570,7 +460,7 @@
 
   <!-- Weekly day tabs -->
   <template x-if="isWeekly">
-    <div class="ml-days">
+    <div class="ml-days al-print-hide">
       <template x-for="d in weekDays" :key="d.code">
         <button type="button" class="ml-day"
                 :class="{ 'is-active': activeDay === d.code, 'has-target': dayHasTarget(d.code) }"
@@ -641,9 +531,9 @@
                   x-text="mealSummaryText(meal.entries) + ' · ' + meal.entries.length + (meal.entries.length === 1 ? ' alimento' : ' alimenti')">
             </span>
           </div>
-          <div class="ml-meal-actions">
+          <div class="ml-meal-actions al-print-hide">
             <button type="button" class="ml-meal-btn ml-meal-btn-add"
-                    @click="openSearch(meal.name)">
+                    @click="openFoodPanel(meal.name)">
               <i class="ph ph-plus"></i> Aggiungi
             </button>
             <button type="button" class="ml-meal-btn ml-meal-btn-del"
@@ -686,14 +576,14 @@
             </div>
           </template>
           <!-- Add another food to this meal -->
-          <button type="button" class="ml-add-food-inline" @click="openSearch(meal.name)">
+          <button type="button" class="ml-add-food-inline al-print-hide" @click="openFoodPanel(meal.name)">
             <i class="ph ph-plus"></i> Aggiungi alimento
           </button>
         </div>
 
         <!-- Empty meal slot (pending) -->
         <div class="ml-meal-empty" x-show="meal.entries.length === 0">
-          <button type="button" class="ml-meal-empty-btn" @click="openSearch(meal.name)">
+          <button type="button" class="ml-meal-empty-btn al-print-hide" @click="openFoodPanel(meal.name)">
             <i class="ph ph-magnifying-glass"></i>
             Cerca il primo alimento
           </button>
@@ -754,7 +644,7 @@
   </div>
 
   <!-- Add meal trigger button -->
-  <button type="button" class="ml-add-meal-trigger"
+  <button type="button" class="ml-add-meal-trigger al-print-hide"
           x-show="!addMealOpen"
           @click="openAddMeal()">
     <i class="ph ph-plus-circle"></i>
@@ -768,7 +658,7 @@
   </p>
 
   <!-- ══ History ════════════════════════════════════════════════════════════════ -->
-  <div class="ml-history">
+  <div class="ml-history al-print-hide">
     <button type="button" class="mh-toggle" :class="{'is-open': historyOpen}"
             @click="toggleHistory()">
       <span class="mh-toggle-left">
@@ -861,94 +751,92 @@
     </div>
   </div>
 
-  <!-- ══ Premium food search overlay ══════════════════════════════════════════ -->
-  <div class="ml-overlay" x-show="searchOpen" x-cloak
-       x-transition:enter="transition-opacity ease-out duration-200"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100"
-       x-transition:leave="transition-opacity ease-in duration-150"
-       x-transition:leave-start="opacity-100"
-       x-transition:leave-end="opacity-0">
+  <!-- ══ Add-food slide-in panel (search + categorie + recenti) ═════════════════ -->
+  <template x-teleport="body">
+    <div x-show="foodPanel.open" x-cloak @keydown.escape.window="closeFoodPanel()">
+      <div class="nzp-backdrop"
+           x-show="foodPanel.open" x-transition.opacity.duration.200ms
+           @click="closeFoodPanel()"></div>
+      <div class="nzp-panel"
+           x-show="foodPanel.open"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full">
 
-    <div class="ml-overlay-accent"></div>
-
-    <!-- Top bar -->
-    <div class="ml-overlay-top">
-      <span class="ml-overlay-meal-tag">
-        <i class="ph ph-fork-knife"></i>
-        <span x-text="searchMealName"></span>
-      </span>
-      <button type="button" class="ml-overlay-close" @click="closeSearch()" title="Chiudi (Esc)">
-        <i class="ph ph-x"></i>
-      </button>
-    </div>
-
-    <!-- Search input -->
-    <div class="ml-search-field">
-      <input id="food-search-input" type="text" class="ml-search-input"
-             x-model="q"
-             @input.debounce.280ms="search()"
-             placeholder="Cerca un alimento…"
-             autocomplete="off">
-      <span class="ml-search-status" x-show="searching">ricerca…</span>
-      <span class="ml-search-status" x-show="adding && !searching">aggiunta…</span>
-    </div>
-
-    <!-- Results -->
-    <div class="ml-overlay-results">
-
-      <!-- Hint when empty -->
-      <template x-if="!q && results.length === 0">
-        <div class="ml-search-hint">
-          <i class="ph ph-magnifying-glass"></i>
-          Digita almeno 2 caratteri
-        </div>
-      </template>
-
-      <!-- No results -->
-      <template x-if="q.length >= 2 && !searching && results.length === 0">
-        <div class="ml-search-hint">
-          <i class="ph ph-x-circle"></i>
-          Nessun risultato per "<span x-text="q"></span>"
-        </div>
-      </template>
-
-      <!-- Food cards (paginated) -->
-      <template x-for="(food, idx) in visibleResults()" :key="food.id">
-        <button type="button" class="ml-food-card"
-                :class="{'is-adding': adding && addingFoodId === food.id}"
-                :style="`animation-delay: ${idx * 30}ms`"
-                @click="addFood(food)">
-          <div class="ml-food-info">
-            <span class="ml-food-name" x-text="food.name"></span>
-            <span class="ml-food-cat" x-show="food.category" x-text="food.category"></span>
-            <div class="ml-food-macro-bar" x-show="food.protein || food.carb || food.fat">
-              <div class="ml-bar-p" :style="'width:' + foodMacroBar(food).p + '%'"></div>
-              <div class="ml-bar-c" :style="'width:' + foodMacroBar(food).c + '%'"></div>
-              <div class="ml-bar-f" :style="'width:' + foodMacroBar(food).f + '%'"></div>
+        <div class="nzp-head">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="al-eyebrow" style="color: var(--al-bronze);"><i class="ph ph-fork-knife"></i> <span x-text="foodPanel.mealKey"></span></p>
+              <h2 class="al-h-3 mt-0.5">Aggiungi alimento</h2>
             </div>
+            <button type="button" class="al-btn al-btn-icon al-btn-ghost" @click="closeFoodPanel()" title="Chiudi (Esc)">
+              <i class="ph ph-x"></i>
+            </button>
           </div>
-          <div class="ml-food-nums">
-            <div class="ml-food-kcal">
-              <span x-text="r0(food.kcal)"></span>
-              <span class="ml-food-kcal-unit">kcal</span>
+
+          <div class="al-search mt-4">
+            <i class="ph ph-magnifying-glass"></i>
+            <input id="food-search-input" type="text" x-model="foodPanel.q" @input.debounce.300ms="foodPanelSearch()"
+                   placeholder="Cerca un alimento…" class="al-input" autocomplete="off">
+            <span x-show="foodPanel.searching" class="al-tag">…</span>
+          </div>
+
+          <div class="nzp-chips">
+            <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'all' }"
+                    @click="setFoodFilter('all')">Tutti</button>
+            <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'cat' }"
+                    @click="setFoodFilter('cat')">Categorie</button>
+            <button type="button" class="nzp-chip" :class="{ 'is-active': foodPanel.filter === 'recent' }"
+                    @click="setFoodFilter('recent')">Recenti</button>
+          </div>
+        </div>
+
+        <div class="nzp-body" @scroll.passive="onFoodScroll($event)">
+          <!-- Category picker -->
+          <template x-if="foodPanel.filter === 'cat' && !foodPanel.activeCat">
+            <div>
+              <template x-for="cat in foodPanel.categories" :key="cat">
+                <button type="button" class="nzp-row" @click="pickFoodCat(cat)">
+                  <span class="text-sm font-medium text-ink truncate flex-1 min-w-0" x-text="cat"></span>
+                  <i class="ph ph-caret-right shrink-0" style="color: var(--al-ink-mute);"></i>
+                </button>
+              </template>
             </div>
-            <div class="ml-food-prot" x-text="'P ' + r1(food.protein) + ' · C ' + r1(food.carb) + ' · G ' + r1(food.fat)"></div>
+          </template>
+
+          <!-- Back to categories -->
+          <template x-if="foodPanel.filter === 'cat' && foodPanel.activeCat">
+            <button type="button" class="al-link al-link-quiet flex items-center gap-1 mb-3"
+                    @click="foodPanel.activeCat = ''; foodPanel.results = []; foodPanel.hasMore = false">
+              <i class="ph ph-caret-left text-xs"></i><span x-text="foodPanel.activeCat"></span>
+            </button>
+          </template>
+
+          <p x-show="!foodPanel.searching && foodPanel.results.length === 0 && !(foodPanel.filter === 'cat' && !foodPanel.activeCat)"
+             class="al-small text-center mt-6" style="color: var(--al-ink-mute);"
+             x-text="foodPanel.filter === 'recent' ? 'Nessun alimento recente.' : 'Nessun risultato.'"></p>
+
+          <template x-for="food in foodPanel.results" :key="food.id">
+            <button type="button" class="nzp-row" :class="{ 'is-added': foodPanel.justAdded === food.id }"
+                    @click="addFromPanel(food)">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-ink truncate" x-text="food.name"></p>
+                <p class="al-tag font-mono" x-text="r0(food.kcal) + ' kcal · P ' + r1(food.protein) + ' · C ' + r1(food.carb) + ' · G ' + r1(food.fat)"></p>
+              </div>
+              <i class="ph shrink-0 text-lg"
+                 :class="foodPanel.justAdded === food.id ? 'ph-check-circle' : 'ph-plus-circle'"
+                 :style="foodPanel.justAdded === food.id ? 'color: var(--al-success, var(--al-bronze));' : 'color: var(--al-bronze);'"></i>
+            </button>
+          </template>
+
+          <div x-show="foodPanel.loadingMore" class="text-center py-3">
+            <i class="ph ph-circle-notch animate-spin" style="color: var(--al-bronze);"></i>
           </div>
-        </button>
-      </template>
-
-      <!-- Load more -->
-      <template x-if="results.length > searchVisibleCount">
-        <button type="button" class="ml-load-more" @click="loadMoreResults()">
-          <i class="ph ph-caret-down"></i>
-          Visualizza altri
-          <span x-text="'(' + Math.min(10, results.length - searchVisibleCount) + ')'"></span>
-        </button>
-      </template>
-
+        </div>
+      </div>
     </div>
-  </div>
+  </template>
 
 </div>
 {% endblock %}

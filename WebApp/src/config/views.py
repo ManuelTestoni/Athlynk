@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 from django.db import connection
@@ -9,8 +10,14 @@ from domain.accounts.models import ClientProfile
 from domain.checks.models import QuestionnaireResponse
 from domain.billing.models import SubscriptionPlan, ClientSubscription
 from domain.calendar.models import Appointment
+from domain.workouts.models import WorkoutSession
+from domain.nutrition.models import NutritionAssignment
 
-from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+from .session_utils import (
+    get_session_user, get_session_coach, get_session_client, get_active_relationship,
+    get_nutrition_coach,
+)
+from .views_nutrition import _bulk_plan_macros, _plan_macro_targets
 
 
 def healthz_view(request):
@@ -86,6 +93,78 @@ def dashboard_view(request):
             'has_coach': active_relationship is not None,
             'coach': active_relationship.coach if active_relationship else None,
         }
+
+        if active_relationship is not None:
+            today = timezone.now().date()
+
+            # Peso attuale + delta vs check precedente.
+            last_two_weights = list(
+                QuestionnaireResponse.objects
+                .filter(client=client, weight_kg__isnull=False)
+                .order_by('-submitted_at')
+                .values_list('weight_kg', flat=True)[:2]
+            )
+            weight_current = float(last_two_weights[0]) if last_two_weights else None
+            weight_delta = (
+                round(float(last_two_weights[0]) - float(last_two_weights[1]), 1)
+                if len(last_two_weights) == 2 else None
+            )
+
+            # Sessioni di allenamento completate questa settimana (lun-oggi).
+            week_start = today - timedelta(days=today.weekday())
+            sessions_this_week = WorkoutSession.objects.filter(
+                client=client, completed=True, started_at__date__gte=week_start,
+            ).count()
+
+            # Target kcal del piano nutrizionale attivo.
+            kcal_target = None
+            nutrition_coach = get_nutrition_coach(client)
+            if nutrition_coach:
+                active_assignment = (
+                    NutritionAssignment.objects
+                    .select_related('nutrition_plan')
+                    .filter(client=client, coach=nutrition_coach, status='ACTIVE')
+                    .order_by('-created_at')
+                    .first()
+                )
+                if active_assignment:
+                    plan = active_assignment.nutrition_plan
+                    if plan.plan_mode == 'MACRO':
+                        kcal_target = _plan_macro_targets(plan)['avg']['kcal']
+                    else:
+                        kcal_target = _bulk_plan_macros({plan.id}).get(plan.id, {}).get('kcal', 0)
+
+            # Giorni al rinnovo dell'abbonamento col coach principale.
+            subscription = ClientSubscription.objects.filter(
+                client=client, status='ACTIVE', subscription_plan__coach=active_relationship.coach,
+            ).select_related('subscription_plan').first()
+            days_to_renewal = (
+                (subscription.end_date - today).days
+                if subscription and subscription.end_date else None
+            )
+
+            # Sparkline: ultime rilevazioni di peso (in ordine cronologico).
+            weight_points = list(
+                QuestionnaireResponse.objects
+                .filter(client=client, weight_kg__isnull=False)
+                .order_by('-submitted_at')
+                .values_list('submitted_at', 'weight_kg')[:10]
+            )
+            weight_points.reverse()
+
+            context.update({
+                'weight_current': weight_current,
+                'weight_delta': weight_delta,
+                'sessions_this_week': sessions_this_week,
+                'kcal_target': kcal_target,
+                'days_to_renewal': days_to_renewal,
+            })
+            if len(weight_points) >= 2:
+                context['weight_chart_json'] = json.dumps({
+                    'labels': [d.strftime('%d/%m') for d, _ in weight_points],
+                    'values': [float(w) for _, w in weight_points],
+                })
+
         return render(request, 'pages/dashboard_client.html', context)
 
     return redirect('login')

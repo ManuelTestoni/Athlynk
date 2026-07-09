@@ -149,7 +149,7 @@
   var LABEL = '#5b554a';
   var GRID = 'rgba(91,85,74,0.10)';
   var CREAM = '#f4efe4';
-  var COLORS = { weight: '#8a6a3a', circ: '#1c4a52', skin: '#8a6a3a' };
+  var COLORS = { weight: '#1c4a52', circ: '#1c4a52', skin: '#1c4a52' };
   var MIN_PX_POINT = 34;   // spaziatura minima tra punti (leggibilità tick)
 
   function yBounds(values, pad) {

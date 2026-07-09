@@ -23,15 +23,15 @@ function macroLog() {
     showCustomMealInput: false,
     pendingMeal: null,   // {name} — meal slot created but no food yet
 
-    // Search overlay
-    searchOpen: false,
-    searchMealName: '',
-    q: '',
-    results: [],
-    searching: false,
+    // Add-food slide-in panel (mirrors the coach wizard's food picker:
+    // search + categorie + recenti)
+    foodPanel: {
+      open: false, mealKey: null, q: '', filter: 'all', activeCat: '',
+      categories: [], results: [], searching: false, justAdded: null,
+      hasMore: false, loadingMore: false,
+    },
     adding: false,
     addingFoodId: null,
-    searchVisibleCount: 10,
 
     // History
     historyOpen: false,
@@ -50,7 +50,7 @@ function macroLog() {
       }
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          if (this.searchOpen) this.closeSearch();
+          if (this.foodPanel.open) this.closeFoodPanel();
           else if (this.addMealOpen) this.addMealOpen = false;
         }
       });
@@ -151,27 +151,19 @@ function macroLog() {
       this.addMealOpen = false;
       this.newMealName = '';
       this.pendingMeal = { name: trimmed };
-      this.openSearch(trimmed);
+      this.openFoodPanel(trimmed);
     },
 
-    // ── search overlay ───────────────────────────────────────────────────────
-    openSearch(mealName) {
-      this.searchMealName = mealName;
-      this.searchOpen = true;
-      this.q = '';
-      this.results = [];
-      this.searchVisibleCount = 10;
-      this.$nextTick(() => {
-        const inp = document.getElementById('food-search-input');
-        if (inp) inp.focus();
-      });
+    // ── add-food panel ───────────────────────────────────────────────────────
+    openFoodPanel(mealName) {
+      this.foodPanel.mealKey = mealName;
+      this.foodPanel.q = ''; this.foodPanel.filter = 'all'; this.foodPanel.activeCat = '';
+      this.foodPanel.results = []; this.foodPanel.open = true;
+      this.foodPanelSearch(this.foodPanel.categories.length === 0);
     },
 
-    closeSearch() {
-      this.searchOpen = false;
-      this.q = '';
-      this.results = [];
-      this.searchVisibleCount = 10;
+    closeFoodPanel() {
+      this.foodPanel.open = false;
       if (this.pendingMeal) {
         const name = this.pendingMeal.name;
         const hasEntries = this.entries.some(e =>
@@ -182,42 +174,70 @@ function macroLog() {
       }
     },
 
-    async search() {
-      const q = this.q.trim();
-      if (q.length < 2) { this.results = []; return; }
-      this.searching = true;
-      this.searchVisibleCount = 10;
+    setFoodFilter(f) {
+      this.foodPanel.filter = f; this.foodPanel.activeCat = '';
+      if (f === 'cat') { this.foodPanel.results = []; this.foodPanelSearch(this.foodPanel.categories.length === 0); }
+      else { this.foodPanelSearch(); }
+    },
+
+    pickFoodCat(cat) { this.foodPanel.activeCat = cat; this.foodPanelSearch(); },
+
+    async foodPanelSearch(loadCats = false) {
+      const p = this.foodPanel;
+      if (p.filter === 'cat' && !p.activeCat && !loadCats) { p.results = []; return; }
+      p.searching = true;
+      const u = new URL(INIT.urls.foodSearch, window.location.origin);
+      if (p.q) u.searchParams.set('q', p.q);
+      if (p.filter === 'recent') u.searchParams.set('filter', 'recent');
+      if (p.filter === 'cat' && p.activeCat) u.searchParams.set('cat', p.activeCat);
+      if (loadCats) u.searchParams.set('include_cats', '1');
       try {
-        const r = await fetch(INIT.urls.foodSearch + '?q=' + encodeURIComponent(q));
-        this.results = (await r.json()).results || [];
-      } catch (_) { this.results = []; }
-      this.searching = false;
+        const r = await fetch(u);
+        const d = await r.json();
+        p.results = d.results || [];
+        p.hasMore = !!d.has_more;
+        if (d.categories) p.categories = d.categories;
+        if (p.filter === 'cat' && !p.activeCat) { p.results = []; p.hasMore = false; }
+      } catch (e) { p.results = []; p.hasMore = false; }
+      p.searching = false;
     },
 
-    visibleResults() {
-      return this.results.slice(0, this.searchVisibleCount);
+    async foodPanelLoadMore() {
+      const p = this.foodPanel;
+      if (p.loadingMore || !p.hasMore || p.searching) return;
+      if (p.filter === 'recent') return;
+      if (p.filter === 'cat' && !p.activeCat) return;
+      p.loadingMore = true;
+      const u = new URL(INIT.urls.foodSearch, window.location.origin);
+      if (p.q) u.searchParams.set('q', p.q);
+      if (p.filter === 'cat' && p.activeCat) u.searchParams.set('cat', p.activeCat);
+      u.searchParams.set('offset', p.results.length);
+      try {
+        const r = await fetch(u);
+        const d = await r.json();
+        p.results = p.results.concat(d.results || []);
+        p.hasMore = !!d.has_more;
+      } catch (e) { p.hasMore = false; }
+      p.loadingMore = false;
     },
 
-    loadMoreResults() {
-      this.searchVisibleCount += 10;
+    onFoodScroll(e) {
+      const el = e.target;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) this.foodPanelLoadMore();
     },
 
-    foodMacroBar(food) {
-      const pk = (food.protein || 0) * 4, ck = (food.carb || 0) * 4, fk = (food.fat || 0) * 9;
-      const total = pk + ck + fk;
-      if (!total) return { p: 0, c: 0, f: 0 };
-      return {
-        p: Math.round(pk / total * 100),
-        c: Math.round(ck / total * 100),
-        f: Math.round(fk / total * 100),
-      };
+    async addFromPanel(food) {
+      await this.addFood(food, this.foodPanel.mealKey);
+      const id = food.id;
+      this.foodPanel.justAdded = id;
+      setTimeout(() => { if (this.foodPanel.justAdded === id) this.foodPanel.justAdded = null; }, 900);
     },
 
-    async addFood(food) {
+    async addFood(food, mealName) {
       if (this.adding) return;
       this.adding = true;
       this.addingFoodId = food.id;
-      const mealName = this.searchMealName;
+      mealName = mealName || this.foodPanel.mealKey;
       try {
         const res = await fetch(INIT.urls.createPattern, {
           method: 'POST',
@@ -235,8 +255,6 @@ function macroLog() {
           if (this.pendingMeal && this.pendingMeal.name === mealName) {
             this.pendingMeal = null;
           }
-          this.q = '';
-          this.results = [];
           this.toast('Aggiunto.');
         } else {
           this.toast(data.error || 'Errore.');

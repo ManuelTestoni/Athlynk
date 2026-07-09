@@ -50,8 +50,7 @@
     if (/^\/impostazioni\/?$/.test(path)) return 'settings';
 
     // profile — main column + side rail
-    if (/^\/profilo\/?$/.test(path) ||
-        /^\/il-mio-coach\/?$/.test(path)) return 'profile';
+    if (/^\/profilo\/?$/.test(path)) return 'profile';
 
     // il mio percorso — stat trio + timeline rows
     if (/^\/il-mio-percorso\/?$/.test(path)) return 'timeline';

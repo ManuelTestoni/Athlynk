@@ -353,6 +353,45 @@
   </section>
   {% endif %}
 
+  <!-- =================== INTEGRAZIONE (supplement_sheet embedded nel piano) =================== -->
+  {% if supplement_sheet %}
+  <section class="nu-supp">
+    <div class="nu-supp-header">
+      <div>
+        <p class="al-eyebrow mb-2">Integrazione</p>
+        <h3>{{ supplement_sheet.title }}</h3>
+        {% if supplement_sheet.notes %}<p class="al-body mt-1" style="color: var(--al-ink-mute);">{{ supplement_sheet.notes }}</p>{% endif %}
+      </div>
+    </div>
+
+    {% if supplement_items %}
+    <div class="al-card al-card-flush overflow-hidden">
+      {% for item in supplement_items %}
+      <div class="nu-supp-item">
+        <div class="nu-supp-icon"><i class="ph ph-pill"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="nu-supp-name">{{ item.name }}</p>
+          {% if item.notes %}<p class="nu-supp-note">{{ item.notes }}</p>{% endif %}
+        </div>
+        <div class="nu-supp-pills">
+          {% if item.quantity or item.unit %}
+          <span class="nu-supp-pill"><i class="ph ph-scales"></i><span>{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</span></span>
+          {% endif %}
+          {% if item.timing %}
+          <span class="nu-supp-pill"><i class="ph ph-clock"></i><span>{{ item.timing }}</span></span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="al-card al-card-warm">
+      <p class="al-body text-center" style="color: var(--al-ink-mute); padding: 1.5rem 0;">Nessun integratore in questa scheda.</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <!-- =================== ASSIGNMENTS =================== -->
   {% if assignments_count %}
     <section class="mt-12 al-reveal plan-print-aside" style="--d:200ms;">
@@ -936,6 +975,43 @@
 .pd-macro-day-empty {
   font-size: 12px; font-style: italic; color: var(--al-ink-line);
 }
+
+/* === Supplements card (same design as nutrizione/client_piani.html) === */
+.nu-supp { margin-top: 3rem; }
+.nu-supp-header {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.nu-supp-header h3 {
+  font-family: var(--al-display);
+  font-size: 1.5rem; color: var(--al-ink); margin: 0; letter-spacing: -.01em;
+}
+.nu-supp-item {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .85rem 1.25rem;
+  border-bottom: 1px solid var(--al-rule-faint);
+  transition: background .12s;
+}
+.nu-supp-item:last-child { border-bottom: none; }
+.nu-supp-item:hover { background: var(--al-marble-warm); }
+.nu-supp-icon {
+  width: 36px; height: 36px; border-radius: var(--al-r-sm);
+  background: linear-gradient(135deg, var(--al-bronze) 0%, rgba(138,106,58,.7) 100%);
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: .9rem; flex-shrink: 0;
+}
+.nu-supp-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
+.nu-supp-note { color: var(--al-ink-mute); font-size: .78rem; margin-top: 1px; }
+.nu-supp-pills { display: flex; gap: .5rem; flex-wrap: wrap; flex-shrink: 0; }
+.nu-supp-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .2rem .55rem;
+  background: var(--al-marble); border: 1px solid var(--al-rule);
+  border-radius: 999px;
+  font-size: .7rem; font-weight: 600; color: var(--al-ink-soft);
+  white-space: nowrap;
+}
+.nu-supp-pill i { font-size: .8rem; color: var(--al-bronze); }
 </style>
 
 <script>

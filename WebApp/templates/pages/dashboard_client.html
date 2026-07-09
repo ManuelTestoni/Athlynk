@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}Dashboard{% endblock %}
 
@@ -12,6 +13,76 @@
         <p class="al-body mt-2 max-w-xl">Il tuo coach attivo è <strong class="text-ink">{{ coach.first_name }} {{ coach.last_name }}</strong>. Tutto il tuo percorso, in un unico ecosistema.</p>
         <div class="al-rule-bronze mt-5"></div>
     </div>
+
+    <!-- KPI row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="al-card al-reveal" style="--d:0ms;">
+            <p class="al-eyebrow mb-2">Peso attuale</p>
+            {% if weight_current %}
+            <p class="al-h-2 font-mono">{{ weight_current|floatformat:1 }}<span class="al-small" style="color: var(--al-ink-mute);"> kg</span></p>
+            {% if weight_delta is not None %}
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                <i class="ph {% if weight_delta < 0 %}ph-trend-down{% elif weight_delta > 0 %}ph-trend-up{% else %}ph-minus{% endif %}"></i>
+                {{ weight_delta|floatformat:1 }} kg dall'ultimo check
+            </p>
+            {% endif %}
+            {% else %}
+            <p class="al-h-2 font-mono" style="color: var(--al-ink-line);">—</p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">Nessun check ancora</p>
+            {% endif %}
+        </div>
+
+        <div class="al-card al-reveal" style="--d:60ms;">
+            <p class="al-eyebrow mb-2">Sessioni settimana</p>
+            <p class="al-h-2 font-mono">{{ sessions_this_week }}</p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">allenamenti completati</p>
+        </div>
+
+        <div class="al-card al-reveal" style="--d:120ms;">
+            <p class="al-eyebrow mb-2">Target giornaliero</p>
+            {% if kcal_target %}
+            <p class="al-h-2 font-mono">{{ kcal_target }}<span class="al-small" style="color: var(--al-ink-mute);"> kcal</span></p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">dal piano attivo</p>
+            {% else %}
+            <p class="al-h-2 font-mono" style="color: var(--al-ink-line);">—</p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">Nessun piano attivo</p>
+            {% endif %}
+        </div>
+
+        <div class="al-card al-reveal" style="--d:180ms;">
+            <p class="al-eyebrow mb-2">Abbonamento</p>
+            {% if days_to_renewal is not None %}
+            <p class="al-h-2 font-mono">{{ days_to_renewal }}<span class="al-small" style="color: var(--al-ink-mute);"> gg</span></p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">al rinnovo</p>
+            {% else %}
+            <p class="al-h-2 font-mono" style="color: var(--al-ink-line);">—</p>
+            <p class="al-small mt-1" style="color: var(--al-ink-mute);">Nessun abbonamento attivo</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if weight_chart_json %}
+    <div class="al-card al-reveal mb-10" style="--d:220ms;"
+         x-data="{ init() {
+             const d = {{ weight_chart_json|json_js }};
+             if (!d.values || d.values.length < 2) return;
+             new Chart(this.$refs.canvas.getContext('2d'), {
+                 type: 'line',
+                 data: { labels: d.labels, datasets: [{
+                     data: d.values, borderColor: '#1c4a52', backgroundColor: 'rgba(28,74,82,0.08)',
+                     fill: true, tension: 0.3, pointRadius: 2, pointBackgroundColor: '#1c4a52',
+                 }] },
+                 options: {
+                     responsive: true, maintainAspectRatio: false,
+                     plugins: { legend: { display: false } },
+                     scales: { y: { display: false }, x: { grid: { display: false } } },
+                 },
+             });
+         } }" x-init="init()">
+        <p class="al-eyebrow mb-3">Andamento peso</p>
+        <div style="height: 140px;"><canvas x-ref="canvas"></canvas></div>
+    </div>
+    {% endif %}
 
     <!-- 3 cards: Allenamento / Nutrizione / Check -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">

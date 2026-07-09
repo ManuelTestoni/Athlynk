@@ -8,7 +8,7 @@
                     <th>Data</th>
                     <th>Peso</th>
                     <th class="hidden sm:table-cell">Umore</th>
-                    <th class="hidden md:table-cell">Note</th>
+                    <th class="hidden sm:table-cell">Note</th>
                     <th>Stato</th>
                     <th class="text-right">&nbsp;</th>
                 </tr>
@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         {% if resp.weight_kg %}
-                        <span class="font-mono font-bold text-ink">{{ resp.weight_kg }}<span class="text-ink-mute"> kg</span></span>
+                        <span class="font-mono font-medium text-ink">{{ resp.weight_kg }} kg</span>
                         {% else %}
                         <span class="al-tag">—</span>
                         {% endif %}
@@ -31,18 +31,18 @@
                     <td class="hidden sm:table-cell">
                         {% with mood=resp.answers_json.mood %}
                         {% if mood %}
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-1">
                             {% for i in "12345" %}
-                            <span class="w-2 h-2 rounded-full" style="background: {% if forloop.counter <= mood|add:0 %}var(--al-aegean){% else %}var(--al-marble-warm){% endif %};"></span>
+                            <span class="w-2 h-2 rounded-full {% if forloop.counter <= mood|add:0 %}bg-bronze{% else %}bg-marble-warm{% endif %}"></span>
                             {% endfor %}
-                            <span class="font-mono font-bold text-ink ml-1 text-sm">{{ mood }}/5</span>
+                            <span class="al-small ml-1">{{ mood }}/5</span>
                         </div>
                         {% else %}
                         <span class="al-tag">—</span>
                         {% endif %}
                         {% endwith %}
                     </td>
-                    <td class="hidden md:table-cell">
+                    <td class="hidden sm:table-cell">
                         {% if resp.notes %}
                         <span class="al-small line-clamp-2 max-w-[180px]">{{ resp.notes|truncatechars:60 }}</span>
                         {% else %}
@@ -53,13 +53,12 @@
                         {% if resp.status == 'REVIEWED' %}
                         <span class="al-badge al-badge-success"><i class="ph-bold ph-check"></i>Revisionato</span>
                         {% else %}
-                        <span class="al-badge"><span class="dot"></span>In attesa</span>
+                        <span class="al-badge al-badge-warn"><span class="dot"></span>Da revisionare</span>
                         {% endif %}
                     </td>
                     <td class="text-right">
                         <a href="{% url 'check_detail' resp.id %}" class="al-btn al-btn-ghost al-btn-sm">
-                            <span>Vedi</span>
-                            <i class="ph ph-arrow-right text-xs"></i>
+                            Analizza
                         </a>
                     </td>
                 </tr>
