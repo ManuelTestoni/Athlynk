@@ -624,9 +624,37 @@ def check_comparator_view(request, client_id=None):
             'compare_url': reverse('api_check_photo_proxy', args=[p['id']]),
             'photo_type': p['photo_type'],
             'date': p['captured_at'].strftime('%d/%m/%Y'),
+            'sort_key': p['captured_at'],
         }
         for p in photos_qs
     ]
+
+    # Photos uploaded through a check's generic `allegato` questions (the
+    # module-based check builder) land in QuestionAttachment, not
+    # ProgressPhoto — surface those here too, image files only.
+    attachments_qs = (
+        QuestionAttachment.objects
+        .filter(response__client=target_client, mime_type__startswith='image/')
+        .select_related('response', 'response__questionnaire_template')
+        .order_by('-response__submitted_at')
+    )
+    for a in attachments_qs:
+        response = a.response
+        submitted = response.submitted_at or a.created_at
+        questions, _steps = _response_config(response)
+        label = next((q.get('label') for q in questions if q.get('id') == a.question_id), None) or 'Check'
+        photos_data.append({
+            'id': f'qa-{a.id}',
+            'url': a.file_url,
+            'compare_url': reverse('api_check_attachment_photo_proxy', args=[a.id]),
+            'photo_type': label,
+            'date': submitted.strftime('%d/%m/%Y'),
+            'sort_key': submitted,
+        })
+
+    photos_data.sort(key=lambda p: p['sort_key'], reverse=True)
+    for p in photos_data:
+        del p['sort_key']
 
     return render(request, 'pages/check/comparatore.html', {
         'target_client': target_client,
@@ -651,35 +679,15 @@ def _resolves_to_public_ip(host):
     return True
 
 
-def api_check_photo_proxy(request, photo_id):
-    """Same-origin image proxy for progress photos.
+def _serve_remote_or_local_image(url):
+    """Same-origin image proxy shared by the progress-photo and check-attachment
+    proxies below.
 
     The comparator preloads photos with `crossOrigin='anonymous'` (needed for
     a clean, non-tainted canvas export), which fails against the private
     Supabase bucket's signed URLs. Streaming the bytes through our own origin
     sidesteps that without touching bucket CORS policy.
     """
-    user = get_session_user(request)
-    if not user:
-        return HttpResponseForbidden()
-
-    try:
-        photo = ProgressPhoto.objects.get(id=photo_id)
-    except ProgressPhoto.DoesNotExist:
-        raise Http404()
-
-    if user.role == 'CLIENT':
-        client = get_session_client(request)
-        if not client or photo.client_id != client.id:
-            return HttpResponseForbidden()
-    elif user.role == 'COACH':
-        coach = get_session_coach(request)
-        if not coach or photo.coach_id != coach.id:
-            return HttpResponseForbidden()
-    else:
-        return HttpResponseForbidden()
-
-    url = photo.file_url
     if url.startswith('http://') or url.startswith('https://'):
         allowed_host = urlparse(settings.SUPABASE_S3_ENDPOINT).hostname if settings.SUPABASE_S3_ENDPOINT else None
         host = (urlparse(url).hostname or '').lower().rstrip('.')
@@ -705,6 +713,58 @@ def api_check_photo_proxy(request, photo_id):
     resp = FileResponse(open(path, 'rb'), content_type='image/jpeg')
     resp['X-Content-Type-Options'] = 'nosniff'
     return resp
+
+
+def api_check_photo_proxy(request, photo_id):
+    user = get_session_user(request)
+    if not user:
+        return HttpResponseForbidden()
+
+    try:
+        photo = ProgressPhoto.objects.get(id=photo_id)
+    except ProgressPhoto.DoesNotExist:
+        raise Http404()
+
+    if user.role == 'CLIENT':
+        client = get_session_client(request)
+        if not client or photo.client_id != client.id:
+            return HttpResponseForbidden()
+    elif user.role == 'COACH':
+        coach = get_session_coach(request)
+        if not coach or photo.coach_id != coach.id:
+            return HttpResponseForbidden()
+    else:
+        return HttpResponseForbidden()
+
+    return _serve_remote_or_local_image(photo.file_url)
+
+
+def api_check_attachment_photo_proxy(request, attachment_id):
+    """Same as api_check_photo_proxy, for image attachments uploaded through a
+    check's generic `allegato` questions (QuestionAttachment) rather than the
+    legacy dedicated ProgressPhoto flow."""
+    user = get_session_user(request)
+    if not user:
+        return HttpResponseForbidden()
+
+    try:
+        attachment = QuestionAttachment.objects.select_related('response').get(id=attachment_id)
+    except QuestionAttachment.DoesNotExist:
+        raise Http404()
+
+    response = attachment.response
+    if user.role == 'CLIENT':
+        client = get_session_client(request)
+        if not client or response.client_id != client.id:
+            return HttpResponseForbidden()
+    elif user.role == 'COACH':
+        coach = get_session_coach(request)
+        if not coach or response.coach_id != coach.id:
+            return HttpResponseForbidden()
+    else:
+        return HttpResponseForbidden()
+
+    return _serve_remote_or_local_image(attachment.file_url)
 
 
 def client_assigned_checks_view(request):

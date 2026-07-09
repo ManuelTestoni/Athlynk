@@ -270,6 +270,7 @@ urlpatterns = [
     path('check/comparatore/', views_check.check_comparator_view, name='check_comparator'),
     path('check/comparatore/<int:client_id>/', views_check.check_comparator_view, name='check_comparator_client'),
     path('api/check/foto/<int:photo_id>/', views_check.api_check_photo_proxy, name='api_check_photo_proxy'),
+    path('api/check/allegato-foto/<int:attachment_id>/', views_check.api_check_attachment_photo_proxy, name='api_check_attachment_photo_proxy'),
     path('check/cliente/<int:client_id>/', views_check.client_check_history_view, name='check_client_history'),
     path('check/<int:response_id>/modifica/', views_check.check_edit_view, name='check_edit'),
     path('check/<int:response_id>/', views_check.check_detail_view, name='check_detail'),
