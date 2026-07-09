@@ -1485,6 +1485,8 @@ def coach_client_nutrition_detail_view(request, client_id, assignment_id):
     back_label = 'Storico nutrizione'
 
     if plan.plan_mode == 'MACRO':
+        supplement_sheet = plan.supplement_sheet
+        supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
         return render(request, 'pages/nutrizione/coach_client_macro_detail.html', {
             'coach': coach,
             'client': client,
@@ -1493,6 +1495,8 @@ def coach_client_nutrition_detail_view(request, client_id, assignment_id):
             'targets': _plan_macro_targets(plan),
             'back_url': back_url,
             'back_label': back_label,
+            'supplement_sheet': supplement_sheet,
+            'supplement_items': supplement_items,
         })
 
     return _render_food_plan_detail(
@@ -1540,6 +1544,9 @@ def _render_client_macro_detail(request, assignment, plan):
         for c in WEEKDAY_ORDER
     ]
 
+    supplement_sheet = plan.supplement_sheet
+    supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
+
     return render(request, 'pages/nutrizione/client_piano_macro.html', {
         'assignment': assignment,
         'plan': plan,
@@ -1548,6 +1555,8 @@ def _render_client_macro_detail(request, assignment, plan):
         'week_days_json': json.dumps(week_days),
         'is_weekly': plan.plan_kind == 'WEEKLY',
         'today_str': today.isoformat(),
+        'supplement_sheet': supplement_sheet,
+        'supplement_items': supplement_items,
     })
 
 

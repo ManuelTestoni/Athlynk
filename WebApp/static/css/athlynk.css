@@ -4053,14 +4053,20 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-bronze); }
   to   { opacity: 1; transform: none; }
 }
 
-/* Pre-reveal state: only the children of an armed container hide. */
-[data-stagger].al-armed > *,
+/* Pre-reveal state: only the children of an armed container hide.
+   Modals/backdrops excluded — the auto-detector arms any container with
+   >=2 direct .al-card children, and a modal backdrop sitting as a sibling
+   of those cards (e.g. comparatore.html) got swept in as a "row". Since
+   it's display:none at scan time, the IntersectionObserver never sees it
+   intersect, .is-in never lands, and it stays opacity:0 forever even after
+   x-show later makes it visible — the modal opens but nothing is painted. */
+[data-stagger].al-armed > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]),
 .al-table.al-armed > tbody > tr {
   opacity: 0;
 }
 
 /* Reveal: cascade by index (--i set per child in JS). */
-[data-stagger].al-armed.is-in > *,
+[data-stagger].al-armed.is-in > *:not(.al-modal-backdrop):not(.al-modal-panel):not([x-cloak]),
 .al-table.al-armed.is-in > tbody > tr {
   animation: al-row-in var(--al-d-velvet) var(--al-ease-silk) both;
   animation-delay: calc(var(--al-stagger-silk) * var(--i, 0));
