@@ -5,9 +5,9 @@
 {% block content %}
 <div class="max-w-3xl mx-auto"
      x-data="{
-        noPlansModal: {{ no_plans_modal|yesno:'true,false' }},
         hasPlans: {{ plans|yesno:'true,false' }},
         mode: '{{ mode|default:'new' }}',
+        alreadyPaid: {% if post_data.already_paid == 'yes' %}true{% else %}false{% endif %},
         birth: '{{ post_data.birth_date|default:'' }}',
         ageFrom(s) {
             const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
@@ -23,33 +23,6 @@
         get birthValid() { const a = this.ageFrom(this.birth); return this.birth === '' || (isFinite(a) && a >= 0 && a <= 120); },
         get age() { const a = this.ageFrom(this.birth); return (isFinite(a) && a >= 0 && a <= 120) ? a : null; }
      }">
-
-    <!-- Modal: nessun piano attivo -->
-    <div x-show="noPlansModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
-        <div class="al-modal-backdrop"></div>
-        <div class="al-modal-panel relative" style="max-width: 460px;">
-            <div class="al-modal-head flex items-start justify-between gap-4">
-                <div>
-                    <p class="al-eyebrow mb-2" style="color: var(--al-warn);">Avviso</p>
-                    <h3 class="al-h-2">Nessun piano attivo</h3>
-                </div>
-                <a href="{% url 'clienti_list' %}" class="al-btn-icon al-btn al-btn-ghost shrink-0">
-                    <i class="ph ph-x"></i>
-                </a>
-            </div>
-            <div class="al-modal-body">
-                <p class="al-body">
-                    Per aggiungere un atleta devi avere almeno un piano di abbonamento attivo. Crea un piano e torna qui.
-                </p>
-            </div>
-            <div class="al-modal-foot">
-                <a href="{% url 'clienti_list' %}" class="al-btn al-btn-ghost flex-1">Torna agli atleti</a>
-                <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-bronze flex-1">
-                    <i class="ph ph-plus"></i><span>Crea piano</span>
-                </a>
-            </div>
-        </div>
-    </div>
 
     <!-- Breadcrumb -->
     <nav class="al-tag flex items-center gap-2 mb-6">
@@ -71,6 +44,7 @@
     <form method="POST" action="{% url 'clienti_registra' %}">
         {% csrf_token %}
         <input type="hidden" name="mode" :value="mode">
+        <input type="hidden" name="already_paid" :value="alreadyPaid ? 'yes' : 'no'">
 
         <div class="space-y-6">
 
@@ -191,21 +165,45 @@
                 </p>
             </div>
 
-            <!-- Piano Abbonamento (sempre) -->
-            <div class="al-card {% if errors.subscription_plan_id %}border-danger{% endif %}">
+            <!-- Già pagato? -->
+            <div class="al-card">
                 <div class="flex items-center gap-3 mb-2">
                     <i class="ph ph-credit-card text-bronze text-xl"></i>
                     <div>
                         <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                        <h2 class="al-h-3">Pagamento</h2>
+                    </div>
+                </div>
+                <p class="al-body mb-4">Ha già pagato (es. in studio, contanti, bonifico)?</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" @click="alreadyPaid = true"
+                            class="al-btn justify-center" :class="alreadyPaid ? 'al-btn-bronze' : 'al-btn-ghost'">
+                        <i class="ph ph-check-circle"></i><span>Sì, ha già pagato</span>
+                    </button>
+                    <button type="button" @click="alreadyPaid = false"
+                            class="al-btn justify-center" :class="!alreadyPaid ? 'al-btn-bronze' : 'al-btn-ghost'">
+                        <i class="ph ph-clock"></i><span>No, non ancora</span>
+                    </button>
+                </div>
+                <p class="al-small mt-3" x-show="!alreadyPaid" x-cloak>
+                    L'atleta viene aggiunto comunque: ovunque acceda nell'app finché non paga verrà indirizzato alla pagina dei piani del tuo studio.
+                </p>
+            </div>
+
+            <!-- Piano Abbonamento (solo se già pagato) -->
+            <div class="al-card {% if errors.subscription_plan_id %}border-danger{% endif %}" x-show="alreadyPaid" x-cloak>
+                <div class="flex items-center gap-3 mb-2">
+                    <i class="ph ph-credit-card text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">04</p>
                         <h2 class="al-h-3">Piano Abbonamento *</h2>
                     </div>
                 </div>
-                <p class="al-body mb-6">Il pagamento è avvenuto in studio. Il piano è obbligatorio.</p>
 
                 <div class="space-y-4">
                     <div>
                         <label class="al-label">Piano selezionato *</label>
-                        <select name="subscription_plan_id" required {% if not plans %}disabled{% endif %}
+                        <select name="subscription_plan_id" :required="alreadyPaid" {% if not plans %}disabled{% endif %}
                                 class="al-select {% if errors.subscription_plan_id %}is-error{% endif %}">
                             <option value="">— Seleziona un piano —</option>
                             {% for plan in plans %}
@@ -215,6 +213,7 @@
                             {% endfor %}
                         </select>
                         {% if errors.subscription_plan_id %}<span class="al-input-error">{{ errors.subscription_plan_id }}</span>{% endif %}
+                        {% if not plans %}<span class="al-input-help">Non hai ancora un piano attivo. <a href="{% url 'subscription_plan_create' %}" class="al-link al-link-bronze">Creane uno</a>.</span>{% endif %}
                     </div>
 
                     <div>
@@ -230,7 +229,7 @@
             <div class="flex items-center justify-between pt-2">
                 <a href="{{ cancel_url|default:'/clienti/' }}" class="al-btn al-btn-ghost">Annulla</a>
                 <button type="submit"
-                        :disabled="!hasPlans || (mode === 'new' && birth && !birthValid)" class="al-btn">
+                        :disabled="(alreadyPaid && !hasPlans) || (mode === 'new' && birth && !birthValid)" class="al-btn">
                     <i class="ph ph-user-plus text-sm"></i>
                     <span x-text="mode === 'existing' ? 'Aggiungi atleta' : 'Registra atleta'">Registra atleta</span>
                 </button>

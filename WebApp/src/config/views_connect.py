@@ -17,7 +17,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from domain.accounts.models import CoachProfile
-from domain.billing.models import ClientSubscription, ConnectCheckoutIntent, StripeConnectEvent
+from domain.billing.models import ClientSubscription, ConnectCheckoutIntent, StripeConnectEvent, ZERO_DECIMAL_CURRENCIES
+from .services.email import send_coach_new_subscription, send_subscription_payment_confirmed, send_subscription_payment_failed
 from .services.stripe_connect import create_account_link, create_connect_account, sync_account_status
 from .session_utils import get_session_coach
 
@@ -109,6 +110,10 @@ def stripe_connect_webhook(request):
         _handle_account_updated(event['data']['object'])
     elif event['type'] == 'checkout.session.completed':
         _fulfil_connect_checkout(event['data']['object'])
+    elif event['type'] == 'invoice.payment_failed':
+        _handle_invoice_payment_failed(event['data']['object'])
+    elif event['type'] == 'customer.subscription.deleted':
+        _handle_subscription_deleted(event['data']['object'])
 
     # Always 200 for handled-or-ignored events so Stripe stops retrying.
     return HttpResponse(status=200)
@@ -123,6 +128,38 @@ def _handle_account_updated(account):
         logger.info('stripe_connect.webhook.account_no_coach account=%s', account_id)
         return
     sync_account_status(coach, account)
+
+
+def _format_stripe_amount(amount, currency):
+    currency = (currency or 'eur').upper()
+    if currency in ZERO_DECIMAL_CURRENCIES:
+        return f"{amount} {currency}"
+    return f"{amount / 100:.2f} {currency}"
+
+
+def _receipt_url_for_session(session, coach_account_id):
+    """Best-effort link to Stripe's own hosted receipt/invoice for this
+    checkout — never generated in-house. None on any lookup failure; the
+    confirmation email still sends without it."""
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        if session.get('invoice'):
+            invoice = stripe.Invoice.retrieve(session['invoice'], stripe_account=coach_account_id)
+            return invoice.get('hosted_invoice_url')
+        if session.get('subscription'):
+            invoices = stripe.Invoice.list(subscription=session['subscription'], limit=1, stripe_account=coach_account_id)
+            if invoices.data:
+                return invoices.data[0].get('hosted_invoice_url')
+        if session.get('payment_intent'):
+            intent = stripe.PaymentIntent.retrieve(
+                session['payment_intent'], expand=['latest_charge'], stripe_account=coach_account_id,
+            )
+            charge = intent.get('latest_charge')
+            if charge:
+                return charge.get('receipt_url')
+    except Exception:
+        logger.exception('stripe_connect.receipt_url_lookup_failed session=%s', session.get('id'))
+    return None
 
 
 def _fulfil_connect_checkout(session):
@@ -171,3 +208,40 @@ def _fulfil_connect_checkout(session):
     intent.status = ConnectCheckoutIntent.STATUS_FULFILLED
     intent.fulfilled_at = timezone.now()
     intent.save(update_fields=['status', 'fulfilled_at'])
+
+    item_name = intent.bundle.name if intent.bundle else plan.name
+    amount_display = _format_stripe_amount(session.get('amount_total') or 0, session.get('currency'))
+    receipt_url = _receipt_url_for_session(session, intent.coach.stripe_connect_account_id)
+    send_subscription_payment_confirmed(intent.client, intent.coach, item_name, amount_display, receipt_url)
+    send_coach_new_subscription(intent.coach, intent.client, item_name, amount_display)
+
+
+def _handle_invoice_payment_failed(invoice):
+    """A subscription renewal charge failed. Notify the athlete — access
+    isn't revoked here (that only happens once Stripe gives up and fires
+    customer.subscription.deleted, or the athlete cancels themselves)."""
+    subscription_id = invoice.get('subscription')
+    if not subscription_id:
+        return
+    sub = ClientSubscription.objects.filter(
+        stripe_subscription_id=subscription_id,
+    ).select_related('client', 'subscription_plan__coach').first()
+    if not sub:
+        logger.info('stripe_connect.webhook.invoice_failed_no_subscription sub=%s', subscription_id)
+        return
+    send_subscription_payment_failed(sub.client, sub.subscription_plan.coach)
+
+
+def _handle_subscription_deleted(subscription):
+    """Stripe gave up on retrying a failed renewal (or the subscription was
+    cancelled directly on Stripe's side): mirror that locally so the athlete
+    falls back into the unpaid state — same as an explicit cancel, no
+    separate email (payment_failed already notified them)."""
+    subscription_id = subscription.get('id')
+    if not subscription_id:
+        return
+    updated = ClientSubscription.objects.filter(
+        stripe_subscription_id=subscription_id, status='ACTIVE',
+    ).update(status='CANCELLED', auto_renew=False)
+    if not updated:
+        logger.info('stripe_connect.webhook.subscription_deleted_no_match sub=%s', subscription_id)

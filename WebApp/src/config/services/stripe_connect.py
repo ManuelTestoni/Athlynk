@@ -57,7 +57,7 @@ def sync_plan_to_stripe(plan):
     (existing subscribers keep paying their original price until renewal —
     correct Stripe behavior), rather than mutating in place.
     """
-    from domain.billing.models import SubscriptionPlan
+    from domain.billing.models import SubscriptionPlan, to_stripe_amount
 
     coach = plan.coach
     if not coach.stripe_connect_account_id or not coach.stripe_connect_charges_enabled:
@@ -73,10 +73,15 @@ def sync_plan_to_stripe(plan):
             stripe_account=coach.stripe_connect_account_id,
         )
 
-    recurring = {'interval': 'month'} if plan.kind == SubscriptionPlan.KIND_SUBSCRIPTION else None
+    recurring = None
+    if plan.kind == SubscriptionPlan.KIND_SUBSCRIPTION:
+        interval, interval_count = SubscriptionPlan.STRIPE_INTERVAL_BY_BILLING.get(
+            plan.billing_interval, ('month', 1),
+        )
+        recurring = {'interval': interval, 'interval_count': interval_count}
     price = stripe.Price.create(
         product=plan.stripe_product_id,
-        unit_amount=int(plan.price * 100),
+        unit_amount=to_stripe_amount(plan.price, plan.currency),
         currency=plan.currency.lower(),
         recurring=recurring,
         stripe_account=coach.stripe_connect_account_id,

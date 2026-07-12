@@ -1,5 +1,17 @@
 from django.db import models
 
+# Zero-decimal currencies have no cents/subunit — Stripe wants the amount as-is,
+# not multiplied by 100. Shared by SubscriptionPlan/Bundle checkout code.
+ZERO_DECIMAL_CURRENCIES = {'JPY'}
+
+
+def to_stripe_amount(amount, currency):
+    """Convert a decimal price in `currency` to the integer unit Stripe expects."""
+    if (currency or '').upper() in ZERO_DECIMAL_CURRENCIES:
+        return int(amount)
+    return int(amount * 100)
+
+
 class SubscriptionPlan(models.Model):
     KIND_SUBSCRIPTION = 'subscription'
     KIND_ONE_TIME = 'one_time'
@@ -8,14 +20,57 @@ class SubscriptionPlan(models.Model):
         (KIND_ONE_TIME, 'Servizio/Add-on (pagamento singolo)'),
     ]
 
+    PLAN_TYPE_MENSILE = 'mensile'
+    PLAN_TYPE_TRIMESTRALE = 'trimestrale'
+    PLAN_TYPE_SEMESTRALE = 'semestrale'
+    PLAN_TYPE_ANNUALE = 'annuale'
+    PLAN_TYPE_UNA_TANTUM = 'una_tantum'
+    PLAN_TYPE_CHOICES = [
+        (PLAN_TYPE_MENSILE, 'Mensile'),
+        (PLAN_TYPE_TRIMESTRALE, 'Trimestrale'),
+        (PLAN_TYPE_SEMESTRALE, 'Semestrale'),
+        (PLAN_TYPE_ANNUALE, 'Annuale'),
+        (PLAN_TYPE_UNA_TANTUM, 'Una Tantum'),
+    ]
+
+    # (Stripe interval, interval_count) per billing_interval choice — used to
+    # build the recurring Price on sync_plan_to_stripe.
+    BILLING_MENSILE = 'mensile'
+    BILLING_TRIMESTRALE = 'trimestrale'
+    BILLING_SEMESTRALE = 'semestrale'
+    BILLING_ANNUALE = 'annuale'
+    BILLING_INTERVAL_CHOICES = [
+        (BILLING_MENSILE, 'Mensile'),
+        (BILLING_TRIMESTRALE, 'Trimestrale'),
+        (BILLING_SEMESTRALE, 'Semestrale'),
+        (BILLING_ANNUALE, 'Annuale'),
+    ]
+    STRIPE_INTERVAL_BY_BILLING = {
+        BILLING_MENSILE: ('month', 1),
+        BILLING_TRIMESTRALE: ('month', 3),
+        BILLING_SEMESTRALE: ('month', 6),
+        BILLING_ANNUALE: ('year', 1),
+    }
+
+    CURRENCY_EUR = 'EUR'
+    CURRENCY_GBP = 'GBP'
+    CURRENCY_USD = 'USD'
+    CURRENCY_JPY = 'JPY'
+    CURRENCY_CHOICES = [
+        (CURRENCY_EUR, 'Euro (€)'),
+        (CURRENCY_GBP, 'Sterlina (£)'),
+        (CURRENCY_USD, 'Dollaro USA ($)'),
+        (CURRENCY_JPY, 'Yen (¥)'),
+    ]
+
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='subscription_plans')
     name = models.CharField(max_length=200)
-    plan_type = models.CharField(max_length=100)
+    plan_type = models.CharField(max_length=100, choices=PLAN_TYPE_CHOICES, default=PLAN_TYPE_MENSILE)
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=10, default='EUR')
+    currency = models.CharField(max_length=10, choices=CURRENCY_CHOICES, default=CURRENCY_EUR)
     duration_days = models.IntegerField(null=True, blank=True)
-    billing_interval = models.CharField(max_length=50, null=True, blank=True)
+    billing_interval = models.CharField(max_length=50, choices=BILLING_INTERVAL_CHOICES, null=True, blank=True)
     included_services = models.JSONField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     # Kind drives whether this plan is sold as a Stripe recurring Price
@@ -44,7 +99,7 @@ class Bundle(models.Model):
     description = models.TextField(null=True, blank=True)
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    currency = models.CharField(max_length=10, default='EUR')
+    currency = models.CharField(max_length=10, choices=SubscriptionPlan.CURRENCY_CHOICES, default=SubscriptionPlan.CURRENCY_EUR)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

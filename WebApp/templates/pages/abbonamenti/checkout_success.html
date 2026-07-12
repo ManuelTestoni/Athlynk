@@ -1,27 +1,33 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% if not fulfilled %}
+<meta http-equiv="refresh" content="4">
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: var(--al-marble);">
     <div class="al-card" style="max-width: 480px; width: 100%; text-align: center; padding: 48px 32px;">
         {% if fulfilled %}
-        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: rgba(28,74,82,0.10); color: var(--al-aegean);">
-            <i class="ph-fill ph-check-circle text-5xl"></i>
+        <div class="al-check-draw mx-auto mb-6" style="width: 80px; height: 80px;">
+            <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 40px; height: 40px;"><path d="M5 12 L10 17 L19 7"></path></svg>
         </div>
         <h1 class="al-h-2 mb-2">Pagamento riuscito!</h1>
         <p class="al-body mb-8">
             {% if intent.bundle %}
-            Il pacchetto <strong>{{ intent.bundle.name }}</strong> è ora attivo. Il tuo coach è stato notificato.
+            Il pacchetto <strong>{{ intent.bundle.name }}</strong> è ora attivo. Il tuo coach è stato avvisato.
             {% else %}
-            Il piano <strong>{{ intent.plan.name }}</strong> è ora attivo. Il tuo coach è stato notificato.
+            Il piano <strong>{{ intent.plan.name }}</strong> è ora attivo. Il tuo coach è stato avvisato.
             {% endif %}
         </p>
         {% else %}
-        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: var(--al-marble-warm); color: var(--al-bronze);">
+        <div class="al-pulse-bronze mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: var(--al-marble-warm); color: var(--al-bronze);">
             <i class="ph-fill ph-hourglass-medium text-5xl"></i>
         </div>
-        <h1 class="al-h-2 mb-2">Pagamento in elaborazione</h1>
+        <h1 class="al-h-2 mb-2">Quasi fatto</h1>
         <p class="al-body mb-8">
-            Stiamo confermando il tuo pagamento con Stripe. Se hai completato la procedura riceverai conferma a breve — puoi anche ricaricare questa pagina tra qualche istante.
+            Il tuo piano sta per attivarsi — di solito bastano pochi secondi. Questa pagina si aggiorna da sola.
         </p>
         {% endif %}
 

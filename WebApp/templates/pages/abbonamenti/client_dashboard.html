@@ -10,190 +10,214 @@
     <div>
       <p class="al-eyebrow mb-3">Atleta &middot; Abbonamenti</p>
       <h1 class="al-h-1">I tuoi <span class="al-display-i">abbonamenti</span></h1>
-      <p class="al-body mt-2">Piani disponibili con {{ coach.first_name }} {{ coach.last_name }}.</p>
+      <p class="al-body mt-2">
+        {% if coach_subs|length > 1 %}Piani disponibili con i tuoi professionisti.{% else %}Piani disponibili con {{ coach_subs.0.coach.first_name }} {{ coach_subs.0.coach.last_name }}.{% endif %}
+      </p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
   </div>
 
-  <!-- Active subscription detail -->
-  {% if active_subscription %}
-  {% with sub=active_subscription %}
-  <div class="al-card al-card-flush overflow-hidden mb-8">
-    <div style="height: 3px; background: linear-gradient(90deg, var(--al-aegean), var(--al-bronze));"></div>
-    <div class="p-6 lg:p-8">
-      <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-        <div class="flex-1">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
-              {% if sub.status == 'ACTIVE' %}<span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
-              {% elif sub.status == 'PAUSED' %}In pausa
-              {% elif sub.status == 'CANCELLED' %}Cancellato
-              {% else %}{{ sub.status }}{% endif %}
-            </span>
-            {% if sub.subscription_plan.plan_type %}
-            <span class="al-tag">{{ sub.subscription_plan.plan_type }}</span>
+  {% for cs in coach_subs %}
+  <div class="{% if not forloop.last %}mb-14{% endif %}">
+    {% if coach_subs|length > 1 %}
+    <div class="flex items-center gap-2 mb-4">
+      <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">{{ cs.role_label }}</span>
+      <h2 class="al-h-3">{{ cs.coach.first_name }} {{ cs.coach.last_name }}</h2>
+    </div>
+    {% endif %}
+
+    <!-- Active subscription detail -->
+    {% if cs.active_subscription %}
+    {% with sub=cs.active_subscription coach=cs.coach %}
+    <div class="al-card al-card-flush overflow-hidden mb-8">
+      <div style="height: 3px; background: linear-gradient(90deg, var(--al-aegean), var(--al-bronze));"></div>
+      <div class="p-6 lg:p-8">
+        <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+                {% if sub.status == 'ACTIVE' %}<span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
+                {% elif sub.status == 'PAUSED' %}In pausa
+                {% elif sub.status == 'CANCELLED' %}Cancellato
+                {% elif sub.status == 'EXPIRED' %}Scaduto
+                {% else %}{{ sub.status }}{% endif %}
+              </span>
+              {% if sub.subscription_plan.plan_type %}
+              <span class="al-tag">{{ sub.subscription_plan.get_plan_type_display }}</span>
+              {% endif %}
+            </div>
+            <h2 class="al-h-2 mt-3">{{ sub.subscription_plan.name }}</h2>
+            {% if sub.subscription_plan.description %}
+            <p class="al-body mt-2">{{ sub.subscription_plan.description }}</p>
             {% endif %}
           </div>
-          <h2 class="al-h-2 mt-3">{{ sub.subscription_plan.name }}</h2>
-          {% if sub.subscription_plan.description %}
-          <p class="al-body mt-2">{{ sub.subscription_plan.description }}</p>
-          {% endif %}
-        </div>
-        <div class="text-right shrink-0">
-          <p class="al-display font-mono" style="font-size: 36px; line-height: 1.1; color: var(--al-ink);">€{{ sub.subscription_plan.price }}</p>
-          <p class="al-tag mt-1">{{ sub.subscription_plan.billing_interval|default:"al mese" }}</p>
-        </div>
-      </div>
-
-      <div class="al-divider mt-6"></div>
-
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <div>
-          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Inizio</p>
-          <p class="font-mono font-medium text-ink mt-1">{{ sub.start_date|date:"d M Y"|default:"—" }}</p>
-        </div>
-        <div>
-          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Scadenza</p>
-          <p class="font-mono font-medium text-ink mt-1">{{ sub.end_date|date:"d M Y"|default:"Senza scadenza" }}</p>
-        </div>
-        <div>
-          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Pagamento</p>
-          <p class="font-mono font-medium mt-1" style="color: {% if sub.payment_status == 'PAID' %}var(--al-aegean){% else %}var(--al-bronze){% endif %};">
-            {% if sub.payment_status == 'PAID' %}Saldato{% elif sub.payment_status == 'PENDING' %}In attesa{% else %}{{ sub.payment_status }}{% endif %}
-          </p>
-        </div>
-        <div>
-          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Rinnovo</p>
-          <p class="font-mono font-medium text-ink mt-1">{% if sub.auto_renew %}Automatico{% else %}Manuale{% endif %}</p>
-        </div>
-      </div>
-
-      {% if sub.external_reference %}
-      <div class="mt-6 p-4" style="background: var(--al-marble-warm); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
-        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Note pagamento</p>
-        <p class="al-body mt-1">{{ sub.external_reference }}</p>
-      </div>
-      {% endif %}
-
-      {% if sub.status == 'ACTIVE' %}
-      <div class="al-divider mt-6"></div>
-      <div class="mt-6" x-data>
-        <button type="button" class="al-btn al-btn-ghost al-btn-sm"
-                @click="window.alConfirm({ icon: 'ph-link-break', title: 'Disdire\nl\'abbonamento?', subtitle: 'Perderai subito l\'accesso ai contenuti di {{ coach.first_name }} {{ coach.last_name }}. Potrai sempre ri-iscriverti in seguito.', confirmLabel: 'Sì, disdici' }).then(ok => ok && $refs.cancelSubForm.submit())">
-          <i class="ph ph-x-circle text-sm"></i><span>Disdici abbonamento</span>
-        </button>
-        <form method="post" action="{% url 'athlete_cancel_subscription' %}" x-ref="cancelSubForm" class="hidden">
-          {% csrf_token %}
-        </form>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endwith %}
-  {% endif %}
-
-  <!-- Available plans -->
-  <div class="flex items-center justify-between mb-4">
-    <h2 class="al-h-3">{% if active_subscription %}Altri piani disponibili{% else %}Piani disponibili{% endif %}</h2>
-  </div>
-
-  {% if available_plans %}
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-    {% for plan in available_plans %}
-    <article class="al-card al-card-flush flex flex-col"
-             style="{% if active_subscription and active_subscription.subscription_plan.id == plan.id %}border-color: var(--al-aegean); box-shadow: 0 0 0 2px rgba(28,74,82,0.15);{% endif %}">
-      <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
-      <div class="p-5 flex-1">
-        <div class="flex items-start justify-between gap-2 mb-3">
-          <div class="min-w-0">
-            {% if plan.plan_type %}<span class="al-tag">{{ plan.plan_type }}</span>{% endif %}
-            <h3 class="al-h-3 mt-2">{{ plan.name }}</h3>
+          <div class="text-right shrink-0">
+            <p class="al-display font-mono" style="font-size: 36px; line-height: 1.1; color: var(--al-ink);">€{{ sub.subscription_plan.price }}</p>
+            <p class="al-tag mt-1">{{ sub.subscription_plan.get_billing_interval_display|default:"al mese" }}</p>
           </div>
-          {% if active_subscription and active_subscription.subscription_plan.id == plan.id %}
-          <span class="al-pill shrink-0" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
-            <span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
-          </span>
+        </div>
+
+        <div class="al-divider mt-6"></div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Inizio</p>
+            <p class="font-mono font-medium text-ink mt-1">{{ sub.start_date|date:"d M Y"|default:"—" }}</p>
+          </div>
+          <div>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Scadenza</p>
+            <p class="font-mono font-medium text-ink mt-1">{{ sub.end_date|date:"d M Y"|default:"Senza scadenza" }}</p>
+          </div>
+          <div>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Pagamento</p>
+            <p class="font-mono font-medium mt-1" style="color: {% if sub.payment_status == 'PAID' %}var(--al-aegean){% else %}var(--al-bronze){% endif %};">
+              {% if sub.payment_status == 'PAID' %}Saldato{% elif sub.payment_status == 'PENDING' %}In attesa{% else %}{{ sub.payment_status }}{% endif %}
+            </p>
+          </div>
+          <div>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Rinnovo</p>
+            <p class="font-mono font-medium text-ink mt-1">{% if sub.auto_renew %}Automatico{% else %}Manuale{% endif %}</p>
+          </div>
+        </div>
+
+        {% if sub.external_reference %}
+        <div class="mt-6 p-4" style="background: var(--al-marble-warm); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
+          <p class="al-eyebrow" style="color: var(--al-ink-mute);">Note pagamento</p>
+          <p class="al-body mt-1">{{ sub.external_reference }}</p>
+        </div>
+        {% endif %}
+
+        {% if sub.status == 'ACTIVE' %}
+        <div class="al-divider mt-6"></div>
+        <div class="mt-6" x-data>
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm"
+                  @click="window.alConfirm({ icon: 'ph-link-break', title: 'Disdire\nl\'abbonamento?', subtitle: 'Perderai l\'accesso alle sezioni riservate di {{ coach.first_name }} {{ coach.last_name }} finché non paghi di nuovo.', confirmLabel: 'Sì, disdici' }).then(ok => ok && $refs.cancelSubForm_{{ forloop.counter }}.submit())">
+            <i class="ph ph-x-circle text-sm"></i><span>Disdici abbonamento</span>
+          </button>
+          <form method="post" action="{% url 'athlete_cancel_subscription' %}" x-ref="cancelSubForm_{{ forloop.counter }}" class="hidden">
+            {% csrf_token %}
+            <input type="hidden" name="coach_id" value="{{ coach.id }}">
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+
+    <!-- Available plans -->
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="al-h-4">{% if cs.active_subscription %}Altri piani disponibili{% else %}Piani disponibili{% endif %}</h3>
+    </div>
+
+    {% if cs.available_plans %}
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      {% for plan in cs.available_plans %}
+      <article class="al-card al-card-flush flex flex-col"
+               style="{% if cs.active_subscription and cs.active_subscription.subscription_plan.id == plan.id %}border-color: var(--al-aegean); box-shadow: 0 0 0 2px rgba(28,74,82,0.15);{% endif %}">
+        <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
+        <div class="p-5 flex-1">
+          <div class="flex items-start justify-between gap-2 mb-3">
+            <div class="min-w-0">
+              {% if plan.plan_type %}<span class="al-tag">{{ plan.get_plan_type_display }}</span>{% endif %}
+              <h3 class="al-h-3 mt-2">{{ plan.name }}</h3>
+            </div>
+            {% if cs.active_subscription and cs.active_subscription.subscription_plan.id == plan.id %}
+            <span class="al-pill shrink-0" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
+            </span>
+            {% endif %}
+          </div>
+
+          {% if plan.description %}
+          <p class="al-body line-clamp-3 mb-4">{{ plan.description }}</p>
+          {% endif %}
+
+          <div class="flex items-baseline gap-2 mt-4">
+            <span class="al-display font-mono" style="font-size: 28px; color: var(--al-ink);">{{ plan.price }} {{ plan.currency }}</span>
+            <span class="al-tag">{{ plan.get_billing_interval_display|default:"al mese" }}</span>
+          </div>
+
+          {% if plan.duration_days %}
+          <p class="al-tag mt-2 font-mono"><i class="ph ph-clock text-xs"></i> {{ plan.duration_days }} giorni</p>
           {% endif %}
         </div>
-
-        {% if plan.description %}
-        <p class="al-body line-clamp-3 mb-4">{{ plan.description }}</p>
-        {% endif %}
-
-        <div class="flex items-baseline gap-2 mt-4">
-          <span class="al-display font-mono" style="font-size: 28px; color: var(--al-ink);">€{{ plan.price }}</span>
-          <span class="al-tag">{{ plan.billing_interval|default:"al mese" }}</span>
+        <div class="p-5 pt-0">
+          {% if plan.is_online_purchasable %}
+          <form method="post" action="{% url 'athlete_checkout_start' plan.id %}">
+            {% csrf_token %}
+            <label class="flex items-center gap-2 mb-3 cursor-pointer">
+              <input type="checkbox" name="wants_invoice" class="al-checkbox">
+              <span class="al-small">Richiedi fattura</span>
+            </label>
+            <button type="submit" class="al-btn al-btn-bronze w-full">
+              <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
+            </button>
+          </form>
+          {% else %}
+          <p class="al-small text-center" style="color: var(--al-ink-mute);">Contatta il coach per attivarlo</p>
+          {% endif %}
         </div>
-
-        {% if plan.duration_days %}
-        <p class="al-tag mt-2 font-mono"><i class="ph ph-clock text-xs"></i> {{ plan.duration_days }} giorni</p>
-        {% endif %}
-      </div>
-      <div class="p-5 pt-0">
-        {% if plan.is_online_purchasable %}
-        <form method="post" action="{% url 'athlete_checkout_start' plan.id %}">
-          {% csrf_token %}
-          <button type="submit" class="al-btn al-btn-bronze w-full">
-            <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
-          </button>
-        </form>
-        {% else %}
-        <p class="al-small text-center" style="color: var(--al-ink-mute);">Contatta il coach per attivarlo</p>
-        {% endif %}
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="al-card al-card-warm">
-    <div class="al-empty" style="padding: 60px 32px;">
-      <i class="ph ph-credit-card al-empty-icon"></i>
-      <h3>Nessun abbonamento disponibile</h3>
-      <p>Il tuo specialista non ha ancora pubblicato un listino attivo. Scrivigli per saperne di più.</p>
-      <a href="{% url 'chat_list' %}" class="al-btn al-btn-bronze">
-        <i class="ph ph-chat-circle-dots"></i> <span>Contatta il tuo coach</span>
-      </a>
+      </article>
+      {% endfor %}
     </div>
-  </div>
-  {% endif %}
+    {% else %}
+    <div class="al-card al-card-warm">
+      <div class="al-empty" style="padding: 60px 32px;">
+        <i class="ph ph-credit-card al-empty-icon"></i>
+        <h3>Nessun abbonamento disponibile</h3>
+        <p>{{ cs.coach.first_name }} non ha ancora pubblicato un listino attivo. Scrivigli per saperne di più.</p>
+        <a href="{% url 'chat_list' %}" class="al-btn al-btn-bronze">
+          <i class="ph ph-chat-circle-dots"></i> <span>Contatta il tuo coach</span>
+        </a>
+      </div>
+    </div>
+    {% endif %}
 
-  {% if available_bundles %}
-  <div class="flex items-center justify-between mb-4 mt-10">
-    <h2 class="al-h-3">Pacchetti disponibili</h2>
+    {% if cs.available_bundles %}
+    <div class="flex items-center justify-between mb-4 mt-10">
+      <h3 class="al-h-4">Pacchetti disponibili</h3>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      {% for bundle in cs.available_bundles %}
+      <article class="al-card al-card-flush flex flex-col">
+        <div style="height: 2px; background: var(--al-aegean); opacity: 0.7;"></div>
+        <div class="p-5 flex-1">
+          <h3 class="al-h-3">{{ bundle.name }}</h3>
+          {% if bundle.description %}
+          <p class="al-body line-clamp-3 mt-2 mb-3">{{ bundle.description }}</p>
+          {% endif %}
+          <ul class="space-y-1">
+            {% for item in bundle.items.all %}
+            <li class="al-small flex justify-between" style="color: var(--al-ink-mute);">
+              <span>{{ item.quantity }}&times; {{ item.plan.name }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% if bundle.discount_percent %}
+          <p class="al-tag mt-3">Sconto {{ bundle.discount_percent }}%</p>
+          {% elif bundle.discount_amount %}
+          <p class="al-tag mt-3">Sconto {{ bundle.discount_amount }} {{ bundle.currency }}</p>
+          {% endif %}
+        </div>
+        <div class="p-5 pt-0">
+          <form method="post" action="{% url 'athlete_checkout_bundle_start' bundle.id %}">
+            {% csrf_token %}
+            <label class="flex items-center gap-2 mb-3 cursor-pointer">
+              <input type="checkbox" name="wants_invoice" class="al-checkbox">
+              <span class="al-small">Richiedi fattura</span>
+            </label>
+            <button type="submit" class="al-btn al-btn-bronze w-full">
+              <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
+            </button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-    {% for bundle in available_bundles %}
-    <article class="al-card al-card-flush flex flex-col">
-      <div style="height: 2px; background: var(--al-aegean); opacity: 0.7;"></div>
-      <div class="p-5 flex-1">
-        <h3 class="al-h-3">{{ bundle.name }}</h3>
-        {% if bundle.description %}
-        <p class="al-body line-clamp-3 mt-2 mb-3">{{ bundle.description }}</p>
-        {% endif %}
-        <ul class="space-y-1">
-          {% for item in bundle.items.all %}
-          <li class="al-small flex justify-between" style="color: var(--al-ink-mute);">
-            <span>{{ item.quantity }}&times; {{ item.plan.name }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% if bundle.discount_percent %}
-        <p class="al-tag mt-3">Sconto {{ bundle.discount_percent }}%</p>
-        {% elif bundle.discount_amount %}
-        <p class="al-tag mt-3">Sconto €{{ bundle.discount_amount }}</p>
-        {% endif %}
-      </div>
-      <div class="p-5 pt-0">
-        <form method="post" action="{% url 'athlete_checkout_bundle_start' bundle.id %}">
-          {% csrf_token %}
-          <button type="submit" class="al-btn al-btn-bronze w-full">
-            <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
-          </button>
-        </form>
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-  {% endif %}
+  {% if not forloop.last %}<div class="al-divider mb-10"></div>{% endif %}
+  {% endfor %}
 </div>
 {% endblock %}

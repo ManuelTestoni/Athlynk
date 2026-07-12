@@ -3,7 +3,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Attiva il tuo account Athlynk</title>
+<title>Pagamento non riuscito · Athlynk</title>
 </head>
 <body style="margin:0;padding:0;background:#f4efe4;font-family:'Inter',Helvetica,Arial,sans-serif;color:#14110d;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe4;padding:32px 16px;">
@@ -18,26 +18,24 @@
         </tr>
         <tr>
           <td style="padding:28px 36px 16px;">
-            <p style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5b554a;margin:0 0 12px;">Attiva account</p>
+            <p style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5b554a;margin:0 0 12px;">Pagamento non riuscito</p>
             <h1 style="font-family:'Bodoni Moda',Georgia,serif;font-size:24px;margin:0 0 16px;color:#14110d;line-height:1.25;">
-              Crea la tua password
+              Non siamo riusciti ad addebitare il pagamento
             </h1>
             <p style="font-size:15px;line-height:1.55;color:#2a2620;margin:0 0 22px;">
-              {% if coach_name %}{{ coach_name }} ti ha aggiunto su Athlynk.{% else %}Il tuo professionista ti ha aggiunto su Athlynk.{% endif %}
-              Per accedere alla piattaforma crea la tua password personale cliccando sul
-              pulsante qui sotto.
+              Ciao{% if client_name %} {{ client_name }}{% endif %}, il rinnovo del tuo abbonamento con {{ coach_name }}
+              non è andato a buon fine. Aggiorna il metodo di pagamento per non perdere l'accesso.
             </p>
             <p style="margin:0 0 26px;">
-              <a href="{{ activate_url }}"
+              <a href="{{ abbonamenti_url }}"
                  style="display:inline-block;background:#14110d;color:#f4efe4;text-decoration:none;
                         padding:12px 28px;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;
                         font-weight:500;border-radius:2px;">
-                Crea password
+                Aggiorna pagamento
               </a>
             </p>
             <p style="font-size:12px;color:#8a8270;margin:0;line-height:1.5;">
-              Il link scade dopo {{ ttl_days }} giorni. Se non aspettavi questo invito, ignora
-              questa email.
+              Se il problema persiste, contatta {{ coach_name }} direttamente in chat.
             </p>
           </td>
         </tr>

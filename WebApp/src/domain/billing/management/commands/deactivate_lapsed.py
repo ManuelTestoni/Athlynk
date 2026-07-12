@@ -8,9 +8,10 @@ from config.session_utils import enforce_client_access
 
 class Command(BaseCommand):
     help = (
-        "Expire lapsed client subscriptions and deactivate any collaboration left "
-        "without a valid subscription, so the athlete loses access until renewed. "
-        "Idempotent — safe to run on a daily cron."
+        "Expire lapsed client subscriptions (status -> EXPIRED). Does not touch "
+        "the coaching relationship — a lapsed subscription only re-gates the "
+        "specific domain (workout/nutrition) for that athlete, it doesn't block "
+        "the app. Idempotent — safe to run on a daily cron."
     )
 
     def handle(self, *args, **options):
@@ -24,10 +25,10 @@ class Command(BaseCommand):
             .distinct()
         )
 
-        deactivated = 0
+        expired = 0
         for client in ClientProfile.objects.filter(id__in=client_ids):
-            deactivated += enforce_client_access(client)
+            expired += enforce_client_access(client)
 
         self.stdout.write(self.style.SUCCESS(
-            f'Lapsed sweep: {len(client_ids)} clients checked, {deactivated} collaborations deactivated.'
+            f'Lapsed sweep: {len(client_ids)} clients checked, {expired} subscriptions expired.'
         ))

@@ -243,17 +243,19 @@ def coach_subscription_lapsed_view(request):
 
 
 def _subscribe_newsletter(request, email):
-    """Create a PENDING subscriber and send confirm email. Imported lazily to avoid
+    """Create a subscriber, confirmed immediately (no double opt-in — the
+    signup checkbox itself is the confirmation). Imported lazily to avoid
     coupling auth to newsletter app initialization order."""
     try:
+        from django.utils import timezone
         from domain.newsletter.models import Subscriber, SubscriptionEvent
-        from .services.email import send_newsletter_confirm
         from django.conf import settings
 
         sub, created = Subscriber.objects.get_or_create(
             email=email,
             defaults={
-                'status': 'PENDING',
+                'status': 'CONFIRMED',
+                'confirmed_at': timezone.now(),
                 'confirm_token': generate_token(),
                 'unsubscribe_token': generate_token(),
                 'consent_version': settings.CONSENT_VERSION,
@@ -262,18 +264,16 @@ def _subscribe_newsletter(request, email):
                 'subscribed_user_agent': (request.META.get('HTTP_USER_AGENT') or '')[:512],
             },
         )
-        if not created and sub.status == 'UNSUBSCRIBED':
-            sub.status = 'PENDING'
-            sub.confirm_token = generate_token()
-            sub.save(update_fields=['status', 'confirm_token'])
+        if not created and sub.status != 'CONFIRMED':
+            sub.status = 'CONFIRMED'
+            sub.confirmed_at = timezone.now()
+            sub.save(update_fields=['status', 'confirmed_at'])
         SubscriptionEvent.objects.create(
             subscriber=sub,
             event_type='SIGNUP',
             ip=get_client_ip(request),
             user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:512],
         )
-        if sub.status == 'PENDING':
-            send_newsletter_confirm(sub)
     except Exception:
         logger.exception('Newsletter signup failed for %s', email)
 

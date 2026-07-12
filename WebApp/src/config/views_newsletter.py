@@ -1,4 +1,6 @@
-"""Newsletter double opt-in views (confirm, unsubscribe, toggle from settings)."""
+"""Newsletter views: legacy confirm-link handler (for already-sent pending
+tokens), unsubscribe, and toggle from settings. New subscriptions are
+confirmed immediately — no double opt-in — see config.views_auth._subscribe_newsletter."""
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -7,7 +9,6 @@ from django.views.decorators.http import require_POST
 
 from domain.newsletter.models import Subscriber, SubscriptionEvent
 from .services.tokens import generate_token, get_client_ip
-from .services.email import send_newsletter_confirm
 from .session_utils import get_session_user
 
 
@@ -73,7 +74,8 @@ def toggle_subscription(request):
         if not sub:
             sub = Subscriber.objects.create(
                 email=user.email,
-                status=Subscriber.STATUS_PENDING,
+                status=Subscriber.STATUS_CONFIRMED,
+                confirmed_at=timezone.now(),
                 confirm_token=generate_token(),
                 unsubscribe_token=generate_token(),
                 consent_version=settings.CONSENT_VERSION,
@@ -82,10 +84,10 @@ def toggle_subscription(request):
                 subscribed_user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:512],
             )
         else:
-            # was UNSUBSCRIBED or PENDING — reset to pending and send new confirm
-            sub.status = Subscriber.STATUS_PENDING
-            sub.confirm_token = generate_token()
-            sub.save(update_fields=['status', 'confirm_token'])
+            # was UNSUBSCRIBED — confirmed immediately, no double opt-in
+            sub.status = Subscriber.STATUS_CONFIRMED
+            sub.confirmed_at = timezone.now()
+            sub.save(update_fields=['status', 'confirmed_at'])
 
         SubscriptionEvent.objects.create(
             subscriber=sub,
@@ -93,8 +95,7 @@ def toggle_subscription(request):
             ip=get_client_ip(request),
             user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:512],
         )
-        send_newsletter_confirm(sub)
-        return JsonResponse({'status': 'PENDING', 'message': 'Controlla la tua email per confermare.'})
+        return JsonResponse({'status': 'CONFIRMED', 'message': 'Iscrizione confermata.'})
 
     # Unsubscribe path
     if sub and sub.status != Subscriber.STATUS_UNSUBSCRIBED:

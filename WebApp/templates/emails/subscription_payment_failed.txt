@@ -1,0 +1,11 @@
+Ciao{% if client_name %} {{ client_name }}{% endif %},
+
+Il rinnovo del tuo abbonamento con {{ coach_name }} non è andato a buon fine.
+Aggiorna il metodo di pagamento per non perdere l'accesso:
+
+  {{ abbonamenti_url }}
+
+Se il problema persiste, contatta {{ coach_name }} direttamente in chat.
+
+— Il team Athlynk
+{{ site_url }}

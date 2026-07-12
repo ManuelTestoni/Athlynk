@@ -15,7 +15,7 @@ from domain.accounts.models import User, CoachProfile, ClientProfile
 from domain.billing.models import SubscriptionPlan, ClientSubscription, PlatformPurchase
 from domain.coaching.models import CoachingRelationship
 from config.session_utils import (
-    client_has_active_access, enforce_client_access,
+    client_has_active_access, client_domain_has_paid_access, enforce_client_access,
     get_nutrition_coach, get_workout_coach,
 )
 
@@ -61,6 +61,29 @@ def rel(coach, client, rtype, status='ACTIVE'):
         coach=coach, client=client, status=status,
         start_date=timezone.now().date(), relationship_type=rtype,
     )
+
+
+class PasswordToggleRenderTests(TestCase):
+    """Smoke test: the password show/hide toggle partial renders without
+    template errors on every page it was added to."""
+
+    def test_login_page_renders(self):
+        resp = self.client.get('/login/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'ph-eye')
+
+    def test_signup_page_renders(self):
+        resp = self.client.get('/registrati/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'ph-eye')
+
+    def test_reset_password_page_renders(self):
+        from config.services import password_reset as pwd
+        u = User.objects.create(email='resetme@e.com', password_hash=make_password('x'), role='COACH', is_verified=True)
+        token = pwd.issue_token(u)
+        resp = self.client.get(f'/reset-password/?token={token}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'ph-eye')
 
 
 class SignupTests(TestCase):
@@ -127,9 +150,73 @@ class WebGatingTests(TestCase):
         resp = self.client.get('/accesso-sospeso/')
         self.assertEqual(resp.status_code, 200)
 
+    def test_unpaid_athlete_redirected_only_on_gated_domain(self):
+        coach = make_coach('c@e.com', 'COACH')
+        client = make_client()
+        rel(coach, client, 'FULL')  # active relationship, no subscription at all
+        self._login(client.user)
+
+        resp = self.client.get('/allenamenti/')
+        self.assertRedirects(resp, '/abbonamenti/', fetch_redirect_response=False)
+        resp = self.client.get('/nutrizione/piani/')
+        self.assertRedirects(resp, '/abbonamenti/', fetch_redirect_response=False)
+        # Neutral areas stay reachable.
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_partially_paid_athlete_gated_only_on_unpaid_domain(self):
+        trainer = make_coach('t@e.com', 'ALLENATORE')
+        nutri = make_coach('n@e.com', 'NUTRIZIONISTA')
+        client = make_client()
+        rel(trainer, client, 'WORKOUT')
+        rel(nutri, client, 'NUTRITION')
+        active_sub(client, plan_for(trainer))
+        self._login(client.user)
+
+        resp = self.client.get('/allenamenti/')
+        self.assertEqual(resp.status_code, 200)
+        resp = self.client.get('/nutrizione/piani/')
+        self.assertRedirects(resp, '/abbonamenti/', fetch_redirect_response=False)
+
+    def test_abbonamenti_dashboard_renders_two_coach_cards(self):
+        trainer = make_coach('t@e.com', 'ALLENATORE')
+        nutri = make_coach('n@e.com', 'NUTRIZIONISTA')
+        client = make_client()
+        rel(trainer, client, 'WORKOUT')
+        rel(nutri, client, 'NUTRITION')
+        active_sub(client, plan_for(trainer))
+        self._login(client.user)
+
+        resp = self.client.get('/abbonamenti/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Allenatore')
+        self.assertContains(resp, 'Nutrizionista')
+        self.assertContains(resp, trainer.first_name)
+        self.assertContains(resp, nutri.first_name)
+
+    def test_athlete_cancels_only_the_targeted_coach_subscription(self):
+        trainer = make_coach('t@e.com', 'ALLENATORE')
+        nutri = make_coach('n@e.com', 'NUTRIZIONISTA')
+        client = make_client()
+        rel(trainer, client, 'WORKOUT')
+        rel(nutri, client, 'NUTRITION')
+        trainer_sub = active_sub(client, plan_for(trainer))
+        nutri_sub = active_sub(client, plan_for(nutri))
+        self._login(client.user)
+
+        resp = self.client.post('/abbonamenti/disdici/', {'coach_id': str(trainer.id)})
+        self.assertRedirects(resp, '/abbonamenti/', fetch_redirect_response=False)
+        trainer_sub.refresh_from_db()
+        nutri_sub.refresh_from_db()
+        self.assertEqual(trainer_sub.status, 'CANCELLED')
+        self.assertEqual(nutri_sub.status, 'ACTIVE')
+        self.assertTrue(
+            CoachingRelationship.objects.filter(client=client, coach=trainer, status='ACTIVE').exists()
+        )
+
 
 class AccessHelperTests(TestCase):
-    def test_expiry_deactivates_relationship(self):
+    def test_expiry_expires_subscription_but_keeps_relationship(self):
         coach = make_coach('c@e.com', 'COACH')
         client = make_client()
         rel(coach, client, 'FULL')
@@ -139,11 +226,32 @@ class AccessHelperTests(TestCase):
         sub.save(update_fields=['end_date'])
 
         self.assertTrue(client_has_active_access(client))
+        self.assertTrue(client_domain_has_paid_access(client, 'workout'))
         enforce_client_access(client)
-        self.assertFalse(client_has_active_access(client))
         sub.refresh_from_db()
         self.assertEqual(sub.status, 'EXPIRED')
-        self.assertFalse(CoachingRelationship.objects.filter(client=client, status='ACTIVE').exists())
+        # The relationship survives a lapsed payment — only the domain gate flips.
+        self.assertTrue(client_has_active_access(client))
+        self.assertTrue(CoachingRelationship.objects.filter(client=client, status='ACTIVE').exists())
+        self.assertFalse(client_domain_has_paid_access(client, 'workout'))
+        self.assertFalse(client_domain_has_paid_access(client, 'nutrition'))  # FULL covers both
+
+    def test_domain_gate_neutral_without_a_professional(self):
+        client = make_client()
+        # No relationship at all for either domain -> nothing to gate.
+        self.assertTrue(client_domain_has_paid_access(client, 'workout'))
+        self.assertTrue(client_domain_has_paid_access(client, 'nutrition'))
+
+    def test_domain_gate_independent_per_professional(self):
+        trainer = make_coach('t@e.com', 'ALLENATORE')
+        nutri = make_coach('n@e.com', 'NUTRIZIONISTA')
+        client = make_client()
+        rel(trainer, client, 'WORKOUT')
+        rel(nutri, client, 'NUTRITION')
+        active_sub(client, plan_for(trainer))
+        # Trainer is paid, nutritionist has no subscription at all.
+        self.assertTrue(client_domain_has_paid_access(client, 'workout'))
+        self.assertFalse(client_domain_has_paid_access(client, 'nutrition'))
 
     def test_section_coach_resolution(self):
         trainer = make_coach('t@e.com', 'ALLENATORE')
@@ -173,7 +281,7 @@ class AddExistingAthleteTests(TestCase):
 
         self._login_coach(nutri)
         resp = self.client.post('/clienti/registra/', {
-            'mode': 'existing', 'email': client.user.email,
+            'mode': 'existing', 'already_paid': 'yes', 'email': client.user.email,
             'subscription_plan_id': str(nutri_plan.id),
         })
         self.assertEqual(resp.status_code, 302)
@@ -260,7 +368,7 @@ class ActivationFlowTests(TestCase):
         plan = plan_for(coach)
         self._login_coach(coach)
         resp = self.client.post('/clienti/registra/', {
-            'mode': 'new', 'first_name': 'Neo', 'last_name': 'Atleta',
+            'mode': 'new', 'already_paid': 'yes', 'first_name': 'Neo', 'last_name': 'Atleta',
             'email': 'neo@e.com', 'birth_date': '15-03-1990',
             'subscription_plan_id': str(plan.id),
         })
@@ -274,6 +382,19 @@ class ActivationFlowTests(TestCase):
         self.assertTrue(PasswordResetToken.objects.filter(user=u, used_at__isnull=True).exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Attiva', mail.outbox[0].subject)
+        self.assertTrue(ClientSubscription.objects.filter(client__user=u, status='ACTIVE').exists())
+
+    def test_new_athlete_unpaid_skips_subscription(self):
+        coach = make_coach('c2@e.com', 'COACH')
+        self._login_coach(coach)
+        resp = self.client.post('/clienti/registra/', {
+            'mode': 'new', 'already_paid': 'no', 'first_name': 'Non', 'last_name': 'Paga',
+            'email': 'nonpaga@e.com',
+        })
+        self.assertEqual(resp.status_code, 302)
+        u = User.objects.get(email='nonpaga@e.com')
+        self.assertTrue(CoachingRelationship.objects.filter(client__user=u, coach=coach, status='ACTIVE').exists())
+        self.assertFalse(ClientSubscription.objects.filter(client__user=u).exists())
 
     def test_activation_page_sets_password(self):
         from django.contrib.auth.hashers import check_password
@@ -307,6 +428,71 @@ class ActivationFlowTests(TestCase):
         g = c.get('/attiva-account/?token=bogus')
         self.assertEqual(g.status_code, 400)
         self.assertContains(g, 'Link non valido', status_code=400)
+
+
+class CheckoutOutcomePagesTests(TestCase):
+    def test_cancel_page_renders(self):
+        resp = self.client.get('/abbonamenti/checkout/annullato/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Pagamento annullato')
+
+    def test_success_page_renders_pending_state(self):
+        from domain.billing.models import Bundle, ConnectCheckoutIntent
+        coach = make_coach('c@e.com', 'COACH')
+        client = make_client()
+        rel(coach, client, 'FULL')
+        plan = plan_for(coach)
+        intent = ConnectCheckoutIntent.objects.create(
+            stripe_checkout_session_id='sess_test_123', coach=coach, client=client, plan=plan,
+        )
+        resp = self.client.get('/abbonamenti/checkout/success/?session_id=sess_test_123')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Quasi fatto')
+        self.assertContains(resp, 'http-equiv="refresh"')
+
+    def test_success_page_renders_fulfilled_state(self):
+        from domain.billing.models import ConnectCheckoutIntent
+        coach = make_coach('c@e.com', 'COACH')
+        client = make_client()
+        rel(coach, client, 'FULL')
+        plan = plan_for(coach)
+        intent = ConnectCheckoutIntent.objects.create(
+            stripe_checkout_session_id='sess_test_456', coach=coach, client=client, plan=plan,
+            status=ConnectCheckoutIntent.STATUS_FULFILLED,
+        )
+        resp = self.client.get('/abbonamenti/checkout/success/?session_id=sess_test_456')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Pagamento riuscito')
+        self.assertNotContains(resp, 'http-equiv="refresh"')
+
+
+class SettingsSubscriptionTabTests(TestCase):
+    def _login(self, user, role):
+        s = self.client.session
+        s['user_id'] = user.id
+        s['user_role'] = role
+        s.save()
+
+    def test_coach_settings_page_renders_subscription_tab(self):
+        coach = make_coach('coach@e.com', 'COACH')
+        self._login(coach.user, 'COACH')
+        resp = self.client.get('/impostazioni/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Gestisci abbonamento')
+
+    def test_client_settings_page_renders_subscription_tab(self):
+        client = make_client()
+        self._login(client.user, 'CLIENT')
+        resp = self.client.get('/impostazioni/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Vai ai tuoi abbonamenti')
+
+    def test_billing_portal_without_purchase_redirects_to_marketing_site(self):
+        coach = make_coach('coach2@e.com', 'COACH')
+        self._login(coach.user, 'COACH')
+        resp = self.client.post('/impostazioni/abbonamento/portale/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('acquista.html', resp['Location'])
 
 
 class MobileGateTests(TestCase):

@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.hashers import check_password
 from django.views.decorators.http import require_POST
@@ -6,6 +9,8 @@ from django.db import transaction
 from .session_utils import get_session_user, get_session_coach, get_session_client
 from .services.images import to_webp, is_image
 from domain.chat.services import DEFAULT_PLAN_DELETED_BODY
+
+logger = logging.getLogger(__name__)
 
 
 def _newsletter_status(email):
@@ -345,6 +350,36 @@ def automatic_messages_view(request):
             'auto_msg_rows': _auto_msg_rows(coach),
         })
     return redirect(f"{dashboard_url}?saved=messaggi_auto")
+
+
+@require_POST
+def billing_portal_view(request):
+    """Coach-only: open the Stripe-hosted Billing Portal for their own
+    Athlynk platform subscription (coach -> Athlynk billing, distinct from
+    Stripe Connect which is coach <- athlete payments). No custom UI to
+    change/cancel plan or view invoices — Stripe's hosted portal does it."""
+    from django.urls import reverse
+    import stripe
+
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    purchase = coach.platform_purchase
+    if not purchase or not purchase.stripe_customer_id or not settings.STRIPE_SECRET_KEY:
+        return redirect(f'{settings.WEBSITE_URL}/acquista.html')
+
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        portal = stripe.billing_portal.Session.create(
+            customer=purchase.stripe_customer_id,
+            return_url=f"{settings.SITE_URL}{reverse('impostazioni_dashboard')}?tab=abbonamento",
+        )
+    except Exception:
+        logger.exception('billing_portal.session_create_failed coach=%s', coach.id)
+        return redirect(f"{reverse('impostazioni_dashboard')}?tab=abbonamento")
+
+    return redirect(portal.url)
 
 
 def calendar_view(request):

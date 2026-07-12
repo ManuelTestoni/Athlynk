@@ -189,6 +189,63 @@ def send_newsletter_confirm(subscriber):
     )
 
 
+def send_subscription_payment_confirmed(client_profile, coach_profile, item_name, amount_display, receipt_url=None):
+    """Athlete-facing confirmation for a coach subscription/bundle payment,
+    with a link to Stripe's own receipt/invoice (no custom PDF generation)."""
+    user = getattr(client_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    return send_html_mail(
+        to=user.email,
+        subject='Pagamento confermato · Athlynk',
+        template_base='subscription_payment_confirmed',
+        context={
+            'client_name': _client_display_name(client_profile),
+            'coach_name': _coach_display_name(coach_profile),
+            'item_name': item_name,
+            'amount_display': amount_display,
+            'receipt_url': receipt_url,
+            'abbonamenti_url': f"{settings.SITE_URL}/abbonamenti/",
+        },
+    )
+
+
+def send_subscription_payment_failed(client_profile, coach_profile):
+    """Athlete-facing notice that a renewal charge failed (invoice.payment_failed)."""
+    user = getattr(client_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    return send_html_mail(
+        to=user.email,
+        subject='Pagamento non riuscito · Athlynk',
+        template_base='subscription_payment_failed',
+        context={
+            'client_name': _client_display_name(client_profile),
+            'coach_name': _coach_display_name(coach_profile),
+            'abbonamenti_url': f"{settings.SITE_URL}/abbonamenti/",
+        },
+    )
+
+
+def send_coach_new_subscription(coach_profile, client_profile, item_name, amount_display):
+    """Coach-facing notice that an athlete just paid for a plan/bundle."""
+    user = getattr(coach_profile, 'user', None)
+    if not user or not user.email:
+        return False
+    return send_html_mail(
+        to=user.email,
+        subject='Nuovo abbonamento ricevuto · Athlynk',
+        template_base='coach_new_subscription',
+        context={
+            'coach_name': _coach_display_name(coach_profile),
+            'client_name': _client_display_name(client_profile),
+            'item_name': item_name,
+            'amount_display': amount_display,
+            'dashboard_url': f"{settings.SITE_URL}/abbonamenti/",
+        },
+    )
+
+
 def send_platform_purchase_confirmation(purchase):
     """Subscription confirmation for a platform purchase, carrying the access code."""
     period_label = '/ anno' if purchase.billing_interval == 'annuale' else '/ mese'

@@ -1,0 +1,8 @@
+{{ client_name }} si è appena abbonato a {{ item_name }}.
+
+Importo: {{ amount_display }}
+
+Vai ai tuoi abbonamenti: {{ dashboard_url }}
+
+— Il team Athlynk
+{{ site_url }}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+<style>
+@keyframes al-cancel-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.al-cancel-card { animation: al-cancel-fade 0.4s var(--al-ease-emp, ease) both; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: var(--al-marble);">
+    <div class="al-card al-cancel-card" style="max-width: 480px; width: 100%; text-align: center; padding: 48px 32px;">
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: var(--al-marble-warm); color: var(--al-ink-mute);">
+            <i class="ph-fill ph-x-circle text-5xl"></i>
+        </div>
+        <h1 class="al-h-2 mb-2">Pagamento annullato</h1>
+        <p class="al-body mb-8">
+            Nessun addebito è stato effettuato. Puoi riprovare quando vuoi, dalla pagina dei tuoi abbonamenti.
+        </p>
+
+        <a href="{% url 'abbonamenti_dashboard' %}" class="al-btn al-btn-bronze al-btn-lg w-full">
+            <span>Torna ai piani</span> <i class="ph ph-arrow-right"></i>
+        </a>
+    </div>
+</div>
+{% endblock %}

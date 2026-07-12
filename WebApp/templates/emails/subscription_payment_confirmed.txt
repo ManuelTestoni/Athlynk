@@ -1,0 +1,12 @@
+Ciao{% if client_name %} {{ client_name }}{% endif %},
+
+Abbiamo ricevuto il tuo pagamento per {{ item_name }} con {{ coach_name }}.
+
+Importo: {{ amount_display }}
+{% if receipt_url %}
+Ricevuta: {{ receipt_url }}
+{% endif %}
+Gestisci i tuoi abbonamenti: {{ abbonamenti_url }}
+
+— Il team Athlynk
+{{ site_url }}

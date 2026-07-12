@@ -62,17 +62,27 @@ class SessionSecurityMiddleware:
 class ClientAccessMiddleware:
     """Gate athlete (CLIENT) browser sessions.
 
-    An athlete may use the app only while they have at least one active
-    professional collaboration (see config.session_utils.client_has_active_access).
-    With none — never added, collaboration ended, or subscription lapsed — every
-    page redirects to the 'accesso sospeso' landing. Coaches, anonymous visitors
-    and the mobile Bearer API (which has its own gate in config.api.api_view) are
-    untouched: this only fires for sessions carrying our custom CLIENT identity.
+    Two independent checks:
+    1. Orphan gate — an athlete with zero active professional collaborations
+       (never added, or the coach ended it) is redirected to the 'accesso
+       sospeso' landing from anywhere in the app.
+    2. Per-domain payment gate — an athlete *with* a collaboration but whose
+       subscription for that specific domain (workout/nutrition) isn't paid
+       is redirected to the plans page only when hitting that domain's
+       pages; everything else (chat, check, settings, the plans page itself)
+       stays reachable. This is what lets an athlete with e.g. a paid
+       trainer and an unpaid nutritionist keep training while nutrition asks
+       them to pay. See config.session_utils.client_domain_has_paid_access.
+
+    Coaches, anonymous visitors and the mobile Bearer API (which has its own
+    gate in config.api.api_view) are untouched: this only fires for sessions
+    carrying our custom CLIENT identity.
     """
 
     # Paths an athlete may always reach, even while blocked: the landing page
-    # itself, logout, account/settings, password flows and AJAX endpoints (the
-    # pages that call them are themselves gated, so the data stays unreachable).
+    # itself, logout, account/settings, subscriptions, password flows and AJAX
+    # endpoints (the pages that call them are themselves gated, so the data
+    # stays unreachable).
     ALLOW_PREFIXES = (
         '/accesso-sospeso/',
         '/logout/',
@@ -80,9 +90,19 @@ class ClientAccessMiddleware:
         '/profilo/',
         '/reset-password/',
         '/password-dimenticata/',
+        '/abbonamenti/',
         '/api/',
         '/privacy/', '/cookie/', '/ai-trasparenza/',
     )
+
+    # Athlete-facing pages attributable to one payment domain. Anything not
+    # matched here (dashboard, chat, agenda, check — not cleanly one domain)
+    # stays neutral and is never gated by subscription status.
+    WORKOUT_PREFIXES = (
+        '/allenamenti/', '/api/allenamenti/',
+        '/api/mie/progressi/carichi/', '/api/mie/progressi/volume/',
+    )
+    NUTRITION_PREFIXES = ('/nutrizione/', '/api/nutrizione/')
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -96,13 +116,27 @@ class ClientAccessMiddleware:
             return True
         return any(path.startswith(p) for p in self.ALLOW_PREFIXES)
 
+    def _domain_for(self, path):
+        if any(path.startswith(p) for p in self.WORKOUT_PREFIXES):
+            return 'workout'
+        if any(path.startswith(p) for p in self.NUTRITION_PREFIXES):
+            return 'nutrition'
+        return None
+
     def __call__(self, request):
-        if (request.session.get('user_id')
-                and request.session.get('user_role') == 'CLIENT'
-                and not self._is_allowed(request.path or '')):
-            from .session_utils import get_session_client, client_has_active_access
-            if not client_has_active_access(get_session_client(request)):
-                return redirect('client_blocked')
+        if request.session.get('user_id') and request.session.get('user_role') == 'CLIENT':
+            path = request.path or ''
+            if not self._is_allowed(path):
+                from .session_utils import get_session_client, client_has_active_access
+                client = get_session_client(request)
+                if not client_has_active_access(client):
+                    return redirect('client_blocked')
+
+                domain = self._domain_for(path)
+                if domain:
+                    from .session_utils import client_domain_has_paid_access
+                    if not client_domain_has_paid_access(client, domain):
+                        return redirect('abbonamenti_dashboard')
         return self.get_response(request)
 
 

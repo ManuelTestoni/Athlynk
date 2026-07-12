@@ -25,7 +25,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from domain.billing.models import Bundle, ConnectCheckoutIntent, SubscriptionPlan
+from domain.billing.models import Bundle, ConnectCheckoutIntent, SubscriptionPlan, to_stripe_amount
 from .session_utils import get_active_relationship, get_session_client
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,17 @@ def athlete_checkout_start_view(request, plan_id):
         fee_kwargs['subscription_data'] = {'application_fee_percent': settings.PLATFORM_FEE_PERCENT}
     else:
         fee_kwargs['payment_intent_data'] = {
-            'application_fee_amount': int(plan.price * 100 * settings.PLATFORM_FEE_PERCENT / 100),
+            'application_fee_amount': int(to_stripe_amount(plan.price, plan.currency) * settings.PLATFORM_FEE_PERCENT / 100),
         }
+
+    # "Richiedi fattura": let Stripe's own hosted Checkout collect fiscal
+    # details and issue the invoice — no custom billing form/PDF generation.
+    # Subscriptions get an invoice automatically at every renewal already;
+    # invoice_creation is only for one-off (mode='payment') sessions.
+    if request.POST.get('wants_invoice') == 'on':
+        fee_kwargs['tax_id_collection'] = {'enabled': True}
+        if mode == 'payment':
+            fee_kwargs['invoice_creation'] = {'enabled': True}
 
     stripe.api_key = settings.STRIPE_SECRET_KEY
     try:
@@ -83,7 +92,7 @@ def athlete_checkout_start_view(request, plan_id):
             line_items=[{'price': plan.stripe_price_id, 'quantity': 1}],
             stripe_account=coach.stripe_connect_account_id,
             success_url=f'{settings.SITE_URL}/abbonamenti/checkout/success/?session_id={{CHECKOUT_SESSION_ID}}',
-            cancel_url=f'{settings.SITE_URL}/abbonamenti/',
+            cancel_url=f'{settings.SITE_URL}/abbonamenti/checkout/annullato/',
             **fee_kwargs,
         )
     except Exception:
@@ -115,8 +124,8 @@ def athlete_checkout_bundle_start_view(request, bundle_id):
         return _unavailable(request, 'Il servizio di pagamento non è al momento raggiungibile. Riprova tra poco.')
 
     line_items = [{'price': item.plan.stripe_price_id, 'quantity': item.quantity} for item in items]
-    subtotal_cents = sum(
-        int((item.price_override if item.price_override is not None else item.plan.price) * 100) * item.quantity
+    subtotal_units = sum(
+        to_stripe_amount(item.price_override if item.price_override is not None else item.plan.price, bundle.currency) * item.quantity
         for item in items
     )
 
@@ -131,7 +140,7 @@ def athlete_checkout_bundle_start_view(request, bundle_id):
             discounts = [{'coupon': coupon['id']}]
         elif bundle.discount_amount:
             coupon = stripe.Coupon.create(
-                amount_off=int(bundle.discount_amount * 100), currency=bundle.currency.lower(), duration='once',
+                amount_off=to_stripe_amount(bundle.discount_amount, bundle.currency), currency=bundle.currency.lower(), duration='once',
                 stripe_account=coach.stripe_connect_account_id,
             )
             discounts = [{'coupon': coupon['id']}]
@@ -141,13 +150,16 @@ def athlete_checkout_bundle_start_view(request, bundle_id):
             line_items=line_items,
             stripe_account=coach.stripe_connect_account_id,
             success_url=f'{settings.SITE_URL}/abbonamenti/checkout/success/?session_id={{CHECKOUT_SESSION_ID}}',
-            cancel_url=f'{settings.SITE_URL}/abbonamenti/',
+            cancel_url=f'{settings.SITE_URL}/abbonamenti/checkout/annullato/',
             payment_intent_data={
-                'application_fee_amount': int(subtotal_cents * settings.PLATFORM_FEE_PERCENT / 100),
+                'application_fee_amount': int(subtotal_units * settings.PLATFORM_FEE_PERCENT / 100),
             },
         )
         if discounts:
             session_kwargs['discounts'] = discounts
+        if request.POST.get('wants_invoice') == 'on':
+            session_kwargs['tax_id_collection'] = {'enabled': True}
+            session_kwargs['invoice_creation'] = {'enabled': True}
         session = stripe.checkout.Session.create(**session_kwargs)
     except Exception:
         logger.exception('stripe_checkout.bundle_session_create_failed bundle=%s', bundle.id)
@@ -184,3 +196,10 @@ def athlete_checkout_success_view(request):
         'stripe_status': status,
         'fulfilled': intent.status == ConnectCheckoutIntent.STATUS_FULFILLED,
     })
+
+
+@require_GET
+def athlete_checkout_cancel_view(request):
+    """Stripe bounces here when the athlete backs out of Checkout (no charge
+    was made). Just a reassuring interstitial — no session to verify."""
+    return render(request, 'pages/abbonamenti/checkout_cancel.html')

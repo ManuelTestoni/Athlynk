@@ -28,9 +28,8 @@ class SubscriptionPlanForm(forms.ModelForm):
                 'placeholder': 'Es. Piano Base',
                 'required': True,
             }),
-            'plan_type': forms.TextInput(attrs={
-                'class': 'al-input',
-                'placeholder': 'Es. Mensile, Trimestrale, Annuale',
+            'plan_type': forms.Select(attrs={
+                'class': 'al-select',
                 'required': True,
             }),
             'description': forms.Textarea(attrs={
@@ -44,17 +43,15 @@ class SubscriptionPlanForm(forms.ModelForm):
                 'step': '0.01',
                 'required': True,
             }),
-            'currency': forms.TextInput(attrs={
-                'class': 'al-input',
-                'value': 'EUR',
+            'currency': forms.Select(attrs={
+                'class': 'al-select',
             }),
             'duration_days': forms.NumberInput(attrs={
                 'class': 'al-input',
                 'placeholder': 'Es. 30 per mensile, 90 per trimestrale',
             }),
-            'billing_interval': forms.TextInput(attrs={
-                'class': 'al-input',
-                'placeholder': 'Es. monthly, quarterly, yearly',
+            'billing_interval': forms.Select(attrs={
+                'class': 'al-select',
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'style': 'width:18px;height:18px;accent-color:var(--al-bronze);cursor:pointer;',
@@ -90,7 +87,7 @@ class BundleForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'al-textarea', 'placeholder': 'Descrizione del pacchetto…', 'rows': 3}),
             'discount_percent': forms.NumberInput(attrs={'class': 'al-input', 'placeholder': 'Es. 10', 'step': '0.01'}),
             'discount_amount': forms.NumberInput(attrs={'class': 'al-input', 'placeholder': 'Es. 20.00', 'step': '0.01'}),
-            'currency': forms.TextInput(attrs={'class': 'al-input', 'value': 'EUR'}),
+            'currency': forms.Select(attrs={'class': 'al-select'}),
             'is_active': forms.CheckboxInput(attrs={
                 'style': 'width:18px;height:18px;accent-color:var(--al-bronze);cursor:pointer;',
             }),

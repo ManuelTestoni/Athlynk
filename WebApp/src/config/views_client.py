@@ -18,6 +18,7 @@ from domain.workouts.models import WorkoutAssignment
 
 from .session_utils import (
     get_session_client, get_session_coach, get_session_user, get_active_relationship,
+    get_active_relationships,
     client_has_active_access, coach_can_sell_online,
 )
 from .services import password_reset as pwd_reset
@@ -316,12 +317,12 @@ def registra_client_view(request):
             'coach': coach,
             'is_coach': True,
             'plans': plans,
-            'no_plans_modal': not plans.exists(),
             'cancel_url': cancel_url,
         })
 
     # POST — add athlete: brand-new account or an athlete already on the platform.
     mode = (request.POST.get('mode') or 'new').strip().lower()
+    already_paid = request.POST.get('already_paid', '').strip().lower() == 'yes'
     plan_id = request.POST.get('subscription_plan_id', '').strip()
     payment_notes = request.POST.get('payment_notes', '').strip() or None
     new_rel_type = _rel_type_for(coach)
@@ -350,7 +351,7 @@ def registra_client_view(request):
                 )
                 if conflict:
                     errors['email'] = conflict
-        if not plan_id:
+        if already_paid and not plan_id:
             errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
 
         if errors:
@@ -363,7 +364,8 @@ def registra_client_view(request):
             coach=coach, client=client, status='ACTIVE',
             start_date=timezone.now().date(), relationship_type=new_rel_type,
         )
-        _create_client_subscription(coach, client, plan_id, payment_notes)
+        if already_paid:
+            _create_client_subscription(coach, client, plan_id, payment_notes)
         return redirect('clienti_detail', client_id=client.id)
 
     # --- new athlete ---
@@ -383,7 +385,7 @@ def registra_client_view(request):
         errors['email'] = "L'email è obbligatoria."
     elif User.objects.filter(email__iexact=email).exists():
         errors['email'] = 'Questa email è già registrata sulla piattaforma.'
-    if not plan_id:
+    if already_paid and not plan_id:
         errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
 
     birth_date = None
@@ -431,7 +433,8 @@ def registra_client_view(request):
         start_date=timezone.now().date(),
         relationship_type=new_rel_type,
     )
-    _create_client_subscription(coach, client, plan_id, payment_notes)
+    if already_paid:
+        _create_client_subscription(coach, client, plan_id, payment_notes)
 
     # Invite the athlete to set their own password.
     token = pwd_reset.issue_token(
@@ -481,23 +484,30 @@ def coach_end_relationship_view(request, client_id):
 
 @require_http_methods(["POST"])
 def athlete_cancel_subscription_view(request):
-    """L'atleta si disiscrive dall'abbonamento del coach attivo: accesso
-    revocato subito (CoachingRelationship -> INACTIVE), il coach lo vede
-    'Disattivato' in lista clienti. Mirror lato-atleta di
-    coach_end_relationship_view."""
+    """L'atleta disdice l'abbonamento verso un coach: cancella il pagamento
+    (Stripe incluso) ma lascia la CoachingRelationship ACTIVE — torna
+    semplicemente allo stato di un atleta non pagante per quel dominio,
+    ri-gestito da client_domain_has_paid_access, non un atleta rimosso.
+
+    `coach_id` distingue quale collaborazione disdire quando l'atleta ne ha
+    più di una attiva (es. allenatore + nutrizionista); senza, si prende la
+    prima trovata (comportamento storico, con un solo coach è equivalente)."""
     client = get_session_client(request)
     if not client:
         return redirect('login')
 
-    relationship = get_active_relationship(client)
+    coach_id = request.POST.get('coach_id', '').strip()
+    if coach_id:
+        relationship = CoachingRelationship.objects.filter(
+            client=client, coach_id=coach_id, status='ACTIVE',
+        ).select_related('coach').first()
+    else:
+        relationship = get_active_relationship(client)
     if not relationship:
         return redirect('abbonamenti_dashboard')
 
     _deactivate_client_subscription(client, relationship.coach)
-    relationship.status = 'INACTIVE'
-    relationship.end_date = timezone.now().date()
-    relationship.save(update_fields=['status', 'end_date'])
-    return redirect('client_blocked')
+    return redirect('abbonamenti_dashboard')
 
 
 def client_blocked_view(request):
@@ -620,20 +630,31 @@ def abbonamenti_dashboard_view(request):
 
     if user.role == 'CLIENT':
         client = get_session_client(request)
-        relationship = get_active_relationship(client)
-        if not relationship:
+        rels = get_active_relationships(client)
+        # FULL is exclusive with WORKOUT/NUTRITION (see _pairing_conflict), so
+        # this is at most 1 card (FULL) or 2 (WORKOUT + NUTRITION) — one per
+        # coach, each with its own plans/bundles/subscription.
+        role_labels = {'full': 'Coach', 'workout': 'Allenatore', 'nutrition': 'Nutrizionista'}
+        coach_subs = []
+        for key in ('full', 'workout', 'nutrition'):
+            rel = rels[key]
+            if not rel:
+                continue
+            coach_subs.append({
+                'role_label': role_labels[key],
+                'coach': rel.coach,
+                'available_plans': SubscriptionPlan.objects.filter(coach=rel.coach, is_active=True).order_by('-created_at'),
+                'available_bundles': Bundle.objects.filter(coach=rel.coach, is_active=True).prefetch_related('items__plan').order_by('-created_at'),
+                'active_subscription': ClientSubscription.objects.filter(client=client, subscription_plan__coach=rel.coach).select_related('subscription_plan').order_by('-created_at').first(),
+            })
+
+        if not coach_subs:
             return redirect('client_blocked')
 
-        plans = SubscriptionPlan.objects.filter(coach=relationship.coach, is_active=True).order_by('-created_at')
-        bundles = Bundle.objects.filter(coach=relationship.coach, is_active=True).prefetch_related('items__plan').order_by('-created_at')
-        active_subscription = ClientSubscription.objects.filter(client=client, subscription_plan__coach=relationship.coach).select_related('subscription_plan').order_by('-created_at').first()
         return render(request, 'pages/abbonamenti/client_dashboard.html', {
             'is_client': True,
             'client': client,
-            'coach': relationship.coach,
-            'available_plans': plans,
-            'available_bundles': bundles,
-            'active_subscription': active_subscription,
+            'coach_subs': coach_subs,
         })
 
     coach = get_session_coach(request)

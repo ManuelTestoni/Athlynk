@@ -63,6 +63,12 @@
                         style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
                     <i class="ph ph-leaf text-base mr-3"></i>Nutrizione
                 </button>
+                <button @click="activeTab = 'abbonamento'" type="button"
+                        :class="{ 'is-active': activeTab === 'abbonamento' }"
+                        class="al-vtab flex items-center px-4 py-3 text-left w-full"
+                        style="font-size: 13px; font-weight: 500; color: var(--al-ink-mute);">
+                    <i class="ph ph-credit-card text-base mr-3"></i>Abbonamento
+                </button>
 
                 {% if is_coach %}
                 <button @click="activeTab = 'messaggi_auto'" type="button"
@@ -424,6 +430,65 @@
                 </form>
             </div>
 
+            <!-- Abbonamento -->
+            <div x-show="activeTab === 'abbonamento'" class="p-6 md:p-8" x-cloak>
+                <div class="al-section-head">
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">05</p>
+                    <h2 class="al-h-2 mt-1">Abbonamento</h2>
+                    {% if is_coach %}
+                    <p class="al-small mt-2">Il tuo abbonamento Athlynk: piano, metodo di pagamento, fatture.</p>
+                    {% else %}
+                    <p class="al-small mt-2">Gli abbonamenti verso i tuoi coach.</p>
+                    {% endif %}
+                </div>
+
+                <div class="max-w-md mt-6 space-y-5">
+                    {% if is_coach %}
+                    <div class="al-card al-card-warm" style="padding: 18px;">
+                        <div class="flex items-start gap-3">
+                            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); color: var(--al-parchment);">
+                                <i class="ph ph-crown-simple"></i>
+                            </div>
+                            <div class="flex-1">
+                                {% if coach.platform_purchase %}
+                                <p class="font-medium text-ink text-[14px]">Piano {{ coach.platform_purchase.get_plan_display }}</p>
+                                <p class="al-small mt-1">{{ coach.platform_purchase.get_billing_interval_display }}{% if coach.platform_purchase.current_period_end %} · rinnovo il {{ coach.platform_purchase.current_period_end|date:"d M Y" }}{% endif %}</p>
+                                {% else %}
+                                <p class="font-medium text-ink text-[14px]">Nessun abbonamento Athlynk risultante</p>
+                                <p class="al-small mt-1">Se hai acquistato prima dell'attivazione della fatturazione, contatta il supporto.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{% url 'settings_billing_portal' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="al-btn al-btn-bronze">
+                            <i class="ph ph-credit-card text-sm"></i><span>Gestisci abbonamento</span>
+                        </button>
+                    </form>
+                    <p class="al-small pt-3 border-t" style="border-color: var(--al-rule-faint);">
+                        Apre il portale sicuro Stripe: da lì puoi cambiare piano, aggiornare il metodo di pagamento, scaricare le fatture o disdire.
+                    </p>
+                    {% else %}
+                    <div class="al-card al-card-warm" style="padding: 18px;">
+                        <div class="flex items-start gap-3">
+                            <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-bronze); color: var(--al-parchment);">
+                                <i class="ph ph-credit-card"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-ink text-[14px]">Abbonamenti verso i tuoi coach</p>
+                                <p class="al-small mt-1">Gestisci piani, pagamenti e disdette dalla pagina dedicata.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="{% url 'abbonamenti_dashboard' %}" class="al-btn al-btn-bronze">
+                        <i class="ph ph-arrow-right text-sm"></i><span>Vai ai tuoi abbonamenti</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
             {% if is_coach %}
             <!-- Messaggi automatici -->
             <div x-show="activeTab === 'messaggi_auto'" class="p-6 md:p-8" x-cloak>
@@ -434,7 +499,7 @@
             <!-- Elimina account -->
             <div x-show="activeTab === 'elimina'" class="p-6 md:p-8" x-cloak>
                 <div class="al-section-head">
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">{% if is_coach %}06{% else %}05{% endif %}</p>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">{% if is_coach %}07{% else %}06{% endif %}</p>
                     <h2 class="al-h-2 mt-1" style="color: #b91c1c;">Elimina account</h2>
                     <p class="al-small mt-2">Operazione irreversibile. Tutti i tuoi dati saranno rimossi dalla piattaforma.</p>
                 </div>

@@ -252,6 +252,7 @@ urlpatterns = [
     path('abbonamenti/acquista/<int:plan_id>/', views_checkout.athlete_checkout_start_view, name='athlete_checkout_start'),
     path('abbonamenti/acquista/pacchetto/<int:bundle_id>/', views_checkout.athlete_checkout_bundle_start_view, name='athlete_checkout_bundle_start'),
     path('abbonamenti/checkout/success/', views_checkout.athlete_checkout_success_view, name='abbonamenti_checkout_success'),
+    path('abbonamenti/checkout/annullato/', views_checkout.athlete_checkout_cancel_view, name='abbonamenti_checkout_cancel'),
     path('abbonamenti/piano/crea/', views_client.subscription_plan_create_view, name='subscription_plan_create'),
     path('abbonamenti/piano/<int:plan_id>/modifica/', views_client.subscription_plan_edit_view, name='subscription_plan_edit'),
     path('api/abbonamenti/piano/<int:plan_id>/elimina/', views_client.subscription_plan_delete_view, name='subscription_plan_delete'),
@@ -307,6 +308,7 @@ urlpatterns = [
     path('impostazioni/notifiche/', views_settings.notifications_view, name='settings_notifications'),
     path('impostazioni/calendario/', views_settings.calendar_view, name='settings_calendar'),
     path('impostazioni/messaggi-automatici/', views_settings.automatic_messages_view, name='settings_automatic_messages'),
+    path('impostazioni/abbonamento/portale/', views_settings.billing_portal_view, name='settings_billing_portal'),
     path('api/agenda/calendar-token/', views_agenda.api_coach_calendar_token, name='api_coach_calendar_token'),
     path('calendar/coach/<str:token>.ics', views_agenda.coach_calendar_feed, name='coach_calendar_feed'),
 
