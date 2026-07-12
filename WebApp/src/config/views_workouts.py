@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q, Count
 from django.core.cache import cache
-from datetime import date, timedelta
+from datetime import date
 import json
 
 from domain.accounts.models import ClientProfile
@@ -27,7 +27,7 @@ from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
     get_workout_coach, can_manage_workouts,
 )
-from .http_utils import safe_int
+from .http_utils import safe_int, duration_timedelta
 
 
 # ---------------------------------------------------------------------------
@@ -920,17 +920,22 @@ def api_plan_finalize(request, plan_id):
         client_ids = data.get('client_ids') or []
         if not client_ids:
             return JsonResponse({'error': 'Seleziona almeno un atleta.'}, status=400)
-        try:
-            weeks = int(data.get('weeks') or 0)
-        except (TypeError, ValueError):
-            weeks = 0
-        if weeks < 1:
-            weeks = plan.duration_weeks or 0
-        if weeks < 1:
+
+        if plan.plan_kind == 'PROGRAM':
+            # Duration is fixed by the plan's own programming, not chosen at assign time.
+            duration_value = plan.duration_weeks or 0
+            duration_unit = 'WEEKS'
+        else:
+            duration_unit = data.get('duration_unit') or 'WEEKS'
+            try:
+                duration_value = int(data.get('duration_value') or 0)
+            except (TypeError, ValueError):
+                duration_value = 0
+        if duration_value < 1:
             return JsonResponse({'error': 'Durata scheda non valida.'}, status=400)
         overwrite = bool(data.get('overwrite'))
         start_date = date.today()
-        end_date = start_date + timedelta(weeks=weeks)
+        end_date = start_date + duration_timedelta(duration_value, duration_unit)
 
         clients = ClientProfile.objects.filter(
             id__in=client_ids,
@@ -959,6 +964,8 @@ def api_plan_finalize(request, plan_id):
                     status='ACTIVE',
                     start_date=start_date,
                     end_date=end_date,
+                    duration_value=duration_value,
+                    duration_unit=duration_unit,
                 )
                 Notification.objects.create(
                     target_user=client.user,
@@ -1887,7 +1894,7 @@ def api_workout_import_confirm(request):
             if assign_now and client:
                 start_date = date.today()
                 weeks = plan.duration_weeks or 1
-                end_date = start_date + timedelta(weeks=weeks)
+                end_date = start_date + duration_timedelta(weeks, 'WEEKS')
                 WorkoutAssignment.objects.filter(
                     client=client, coach=coach, status='ACTIVE',
                 ).update(status='COMPLETED', end_date=start_date)
@@ -1898,6 +1905,8 @@ def api_workout_import_confirm(request):
                     status='ACTIVE',
                     start_date=start_date,
                     end_date=end_date,
+                    duration_value=weeks,
+                    duration_unit='WEEKS',
                 )
                 assignment_id = assignment.id
                 Notification.objects.create(

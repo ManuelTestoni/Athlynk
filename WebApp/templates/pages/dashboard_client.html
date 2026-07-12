@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load safejson %}
+{% load static safejson %}
 
 {% block title %}Dashboard{% endblock %}
 
@@ -78,11 +78,42 @@
                      scales: { y: { display: false }, x: { grid: { display: false } } },
                  },
              });
-         } }" x-init="init()">
+         } }" x-init="$nextTick(() => init())">
         <p class="al-eyebrow mb-3">Andamento peso</p>
         <div style="height: 140px;"><canvas x-ref="canvas"></canvas></div>
     </div>
     {% endif %}
+
+    <!-- Riepilogo progressi allenamento (carichi + volume settimanale) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10" x-data="clientProgressWidget" x-init="init()">
+        <div class="al-card al-reveal" style="--d:240ms;" x-show="hasLoads">
+            <p class="al-eyebrow mb-3">Carichi principali</p>
+            <div style="height: 140px;"><canvas id="myLoadsChart"></canvas></div>
+        </div>
+        <div class="al-card al-reveal" style="--d:260ms;" x-show="hasVolume">
+            <p class="al-eyebrow mb-3">Volume settimanale</p>
+            <div style="height: 140px;"><canvas id="myVolumeChart"></canvas></div>
+        </div>
+        <template x-if="loading">
+            <div class="al-reveal md:col-span-2 text-center" style="--d:240ms; border: 2px dashed var(--al-rule-strong); border-radius: var(--al-r-md); padding: 2rem 1rem; color: var(--al-ink-mute); background: var(--al-marble-warm);">
+                <i class="ph ph-spinner-gap" style="font-size:1.5rem; display:block; margin-bottom:.5rem; animation: spin 1s linear infinite;"></i>
+                <p class="al-small">Caricamento progressi…</p>
+            </div>
+        </template>
+        <template x-if="!loading && !hasLoads && !hasVolume">
+            <div class="al-card al-reveal md:col-span-2" style="--d:240ms;">
+                <p class="al-eyebrow mb-2">Progressi allenamento</p>
+                <p class="al-body" style="color: var(--al-ink-mute);">Nessun dato ancora: completa qualche sessione per vedere qui i tuoi progressi.</p>
+            </div>
+        </template>
+    </div>
+    <script>
+      window.CLIENT_PROGRESS_URLS = {
+        loads: "{% url 'api_my_progress_loads' %}",
+        volume: "{% url 'api_my_progress_volume' %}",
+      };
+    </script>
+    <script src="{% static 'js/client_progress_widget.js' %}?v={{ ASSET_VERSION }}"></script>
 
     <!-- 3 cards: Allenamento / Nutrizione / Check -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">

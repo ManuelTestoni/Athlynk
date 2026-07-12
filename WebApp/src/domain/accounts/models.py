@@ -84,6 +84,14 @@ class CoachProfile(models.Model):
         'billing.PlatformPurchase', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='coach_profiles',
     )
+    # Stripe Connect (Express) account used to receive athlete payments for
+    # this coach's own SubscriptionPlan/Bundle catalog. Unrelated to
+    # platform_purchase above (that's the coach paying Athlynk).
+    stripe_connect_account_id = models.CharField(max_length=255, blank=True, default='', db_index=True)
+    stripe_connect_charges_enabled = models.BooleanField(default=False)
+    stripe_connect_details_submitted = models.BooleanField(default=False)
+    stripe_connect_payouts_enabled = models.BooleanField(default=False)
+    stripe_connect_onboarded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

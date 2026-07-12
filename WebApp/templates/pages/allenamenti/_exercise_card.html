@@ -1,0 +1,47 @@
+{% load safejson %}
+{# Dense exercise row — shared between plan_detail.html (coach) and client_detail.html (athlete). #}
+{# Params: ex, idx (1-based position within the day), show_trend (bool, athlete-only trend icon). #}
+<article class="pd-ex-row">
+  <span class="pd-ex-idx">{{ idx }}</span>
+  <div class="pd-ex-body">
+    <header class="pd-ex-head">
+      <div class="min-w-0">
+        <p class="pd-ex-name">
+          {{ ex.exercise.name }}
+          {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: var(--al-parchment); margin-left:.35rem;">SS{{ ex.superset_group_id }}</span>{% endif %}
+          {% if ex.execution_type and ex.execution_type != 'REPETITION' %}
+            <span class="al-tag" style="margin-left:.35rem;">{% if ex.execution_type == 'RAMPING' %}Ramping{% elif ex.execution_type == 'TEST' %}Test{% endif %}</span>
+          {% endif %}
+          {% if ex.set_details %}
+            <span class="al-tag" style="margin-left:.35rem; color: var(--al-aegean);" title="Ogni serie ha valori diversi">Serie diverse</span>
+          {% endif %}
+        </p>
+        {% if ex.technique_notes %}<p class="pd-ex-notes">{{ ex.technique_notes }}</p>{% endif %}
+      </div>
+      {% if show_trend %}
+        <button type="button" class="al-btn-icon al-btn-ghost" title="Andamento esercizio" aria-label="Andamento esercizio"
+                onclick="AthlynkExerciseTrend.open({{ ex.id }}, '{{ ex.exercise.name|escapejs }}')">
+          <i class="ph ph-chart-line-up"></i>
+        </button>
+      {% endif %}
+    </header>
+    <div class="pd-ex-stats">
+      <div><p class="al-eyebrow">Serie</p><p class="pd-ex-num">{{ ex.set_count|default:"?" }}<span>×{{ ex.rep_range|default:"?" }}</span></p></div>
+      {% if ex.load_value %}
+        <div><p class="al-eyebrow">Carico</p><p class="pd-ex-num">{{ ex.load_value }}<span>{% if ex.load_unit == 'KG' %}kg{% elif ex.load_unit == 'PERCENT_1RM' %}%1RM{% else %}BW{% endif %}</span></p></div>
+      {% endif %}
+      {% if ex.recovery_seconds %}
+        <div><p class="al-eyebrow">Rec</p><p class="pd-ex-num">{{ ex.recovery_seconds }}<span>s</span></p></div>
+      {% endif %}
+      {% if ex.rpe %}
+        <div><p class="al-eyebrow">RPE</p><p class="pd-ex-num">{{ ex.rpe }}</p></div>
+      {% endif %}
+      {% if ex.rir is not None %}
+        <div><p class="al-eyebrow">RIR</p><p class="pd-ex-num">{{ ex.rir }}</p></div>
+      {% endif %}
+      {% if ex.tempo %}
+        <div><p class="al-eyebrow">TUT</p><p class="pd-ex-num">{{ ex.tempo }}</p></div>
+      {% endif %}
+    </div>
+  </div>
+</article>

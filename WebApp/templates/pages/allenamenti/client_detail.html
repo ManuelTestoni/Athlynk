@@ -17,6 +17,109 @@
 {% include 'pages/allenamenti/_volume_drawer.html' %}
 {% include 'pages/allenamenti/_exercise_trend_drawer.html' %}
 
+<style>
+  .rcp-head {
+    padding: 1.5rem 1.75rem;
+    background:
+      linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%),
+      var(--al-parchment);
+    border: 1px solid var(--al-rule);
+    border-left: 4px solid var(--al-bronze);
+    border-radius: var(--al-r-md);
+    position: relative; overflow: hidden;
+  }
+  .rcp-head::after {
+    content: ''; position: absolute; right: -40px; top: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .rcp-head::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--al-bronze) 0%, transparent 60%);
+  }
+  .rcp-head-corner {
+    position: absolute; top: 14px; right: 22px; opacity: .35; pointer-events: none;
+    font-family: var(--al-mono, ui-monospace, monospace); font-size: 11px;
+    letter-spacing: 0.16em; color: var(--al-ink-mute); text-transform: uppercase;
+  }
+  @media (max-width: 640px) { .rcp-head-corner { display: none; } }
+  .rcp-head h1 { font-family: var(--al-display); line-height: 1.05; letter-spacing: -.01em; color: var(--al-ink); }
+  .rcp-meta { display: flex; flex-wrap: wrap; gap: .4rem .55rem; margin-top: 1rem; position: relative; z-index: 1; }
+  .rcp-chip {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .6rem;
+    border: 1px solid var(--al-rule);
+    background: var(--al-marble); border-radius: 999px;
+    font-size: .72rem; font-weight: 600; color: var(--al-ink-soft); letter-spacing: .02em;
+  }
+  .rcp-chip i { font-size: .9rem; color: var(--al-bronze); }
+
+  /* ================================================================
+     Day = the numbered container (ordinal-rail card, mirrors nutrition's
+     pd-meal system but applied one level up — the day, not the exercise).
+     ================================================================ */
+  .pd-day-list { display: flex; flex-direction: column; gap: .85rem; }
+  .pd-day-block {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0;
+    border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-md);
+    background: var(--al-parchment); overflow: hidden;
+    transition: border-color .15s, box-shadow .2s;
+  }
+  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(20,17,13,.25)); }
+  @media (max-width: 540px) { .pd-day-block { grid-template-columns: 40px minmax(0, 1fr); } }
+
+  .pd-day-ordinal {
+    background: linear-gradient(180deg, var(--al-marble-warm), var(--al-marble));
+    border-right: 1px solid var(--al-rule-faint);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 1rem 0 1.1rem; gap: .5rem;
+  }
+  .pd-day-ordinal .pd-mono { font-size: .95rem; color: var(--al-bronze); letter-spacing: .06em; font-family: var(--al-mono, monospace); font-weight: 600; }
+  .pd-day-stem { flex: 1; width: 1px; background: linear-gradient(180deg, var(--al-bronze) 0%, transparent 100%); opacity: .5; }
+
+  .pd-day-body { min-width: 0; }
+  .pd-day-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.1rem; background: transparent; border: none; cursor: pointer;
+    transition: background .15s; text-align: left; flex-wrap: wrap; gap: .5rem;
+  }
+  .pd-day-btn:hover { background: rgba(138,106,58,0.06); }
+  .pd-day-title { font-family: var(--al-display); font-weight: 500; color: var(--al-ink); font-size: 1.05rem; letter-spacing: -.005em; }
+  .pd-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .6rem; }
+  .pd-day-meta i.ph-caret-down { transition: transform .2s; font-size: 1rem; }
+  .pd-day-block.is-open .pd-day-meta i.ph-caret-down { transform: rotate(180deg); }
+  .pd-day-content { padding: 0 1.1rem 1.1rem; }
+
+  /* Dense exercise rows inside a day — no per-exercise rail, small index bubble
+     instead, so the day keeps the visual weight and exercises read as a list. */
+  .pd-ex-list { display: flex; flex-direction: column; gap: .55rem; }
+  .pd-ex-row {
+    display: flex; gap: .75rem; align-items: flex-start;
+    padding: .75rem .9rem; border-radius: var(--al-r-sm);
+    background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint);
+    transition: border-color .15s, background .15s;
+  }
+  .pd-ex-row:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble); }
+  .pd-ex-idx {
+    width: 22px; height: 22px; flex-shrink: 0; margin-top: .1rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--al-bronze); color: var(--al-parchment);
+    font-family: var(--al-mono); font-size: .68rem; font-weight: 700;
+  }
+  .pd-ex-body { min-width: 0; flex: 1; }
+  .pd-ex-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+  .pd-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
+  .pd-ex-notes { margin-top: .3rem; font-size: .78rem; color: var(--al-ink-mute); font-style: italic; }
+  .pd-ex-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, auto));
+    gap: .9rem; align-items: end; flex-shrink: 0; margin-top: .5rem;
+  }
+  .pd-ex-num { font-family: var(--al-display); font-size: .95rem; color: var(--al-ink); line-height: 1; font-variant-numeric: tabular-nums; }
+  .pd-ex-num span { font-size: .68rem; color: var(--al-ink-mute); margin-left: 1px; }
+</style>
+
 <div class="max-w-5xl mx-auto" x-data="clientDetail()">
 
   <!-- Breadcrumb -->
@@ -25,67 +128,51 @@
   </a>
 
   <!-- SEZIONE A: Plan details -->
-  <div class="al-card mb-6">
+  <div class="rcp-head al-reveal mb-6" style="--d:0ms;">
     <p class="al-eyebrow mb-2">Allenamento</p>
     <h1 class="al-h-1">{{ plan.title }}</h1>
+    <div class="rcp-head-corner" aria-hidden="true">N°{{ plan.id|stringformat:"03d" }}</div>
     {% if plan.description %}<p class="al-body mt-2">{{ plan.description }}</p>{% endif %}
-    <div class="flex flex-wrap items-center gap-2 mt-4">
-      {% if plan.goal %}<span class="al-badge al-badge-aegean">{{ plan.goal }}</span>{% endif %}
-      {% if plan.level %}<span class="al-badge">{{ plan.level }}</span>{% endif %}
-      {% if plan.frequency_per_week %}<span class="al-badge"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
-      <span class="al-badge"><i class="ph ph-user"></i> Coach: {{ coach.first_name }} {{ coach.last_name }}</span>
+    <div class="rcp-meta">
+      {% if plan.goal %}<span class="rcp-chip"><i class="ph ph-target"></i> {{ plan.goal }}</span>{% endif %}
+      {% if plan.level %}<span class="rcp-chip"><i class="ph ph-barbell"></i> {{ plan.level }}</span>{% endif %}
+      {% if plan.frequency_per_week %}<span class="rcp-chip"><i class="ph ph-calendar-blank"></i> {{ plan.frequency_per_week }} gg/sett</span>{% endif %}
+      <span class="rcp-chip"><i class="ph ph-user"></i> Coach: {{ coach.first_name }} {{ coach.last_name }}</span>
     </div>
   </div>
 
   <!-- Days accordion -->
   <h2 class="al-h-3 mb-3">Giorni della scheda</h2>
-  <div class="space-y-2 mb-6">
+  <div class="pd-day-list mb-6">
     {% for day in plan.days.all %}
-    <div class="al-card" x-data="{ open: false }">
-      <button @click="open = !open" type="button" class="w-full flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-ink); width:30px; height:30px;">{{ day.day_order }}</div>
-          <div class="text-left">
-            <p class="font-bold">{{ day.day_name|default_if_none:"Giorno" }}{% if not day.day_name %} {{ day.day_order }}{% endif %}</p>
-            <p class="al-small" style="color: var(--al-ink-faint);">{{ day.exercises.count }} esercizi</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          {% if assignment.status == 'ACTIVE' %}
-            {% if day.exercises.count > 0 %}
-            <a href="{% url 'client_session_active' assignment.id day.id %}" @click.stop class="al-btn al-btn-bronze al-btn-sm">
-              <i class="ph ph-play"></i> Avvia
-            </a>
-            {% else %}
-            <span class="al-tag" style="background: var(--al-rule-faint); color: var(--al-ink-faint);" title="Nessun esercizio in questo giorno">Vuoto</span>
+    <div class="pd-day-block al-reveal" style="--d:{{ forloop.counter0|add:1 }}60ms;" x-data="{ open: false }" :class="{ 'is-open': open }">
+      <div class="pd-day-ordinal">
+        <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
+        <span class="pd-day-stem" aria-hidden="true"></span>
+      </div>
+      <div class="pd-day-body">
+        <button @click="open = !open" type="button" class="pd-day-btn">
+          <span class="pd-day-title">{% if day.day_name %}{{ day.day_name }}{% else %}Giorno {{ forloop.counter }}{% endif %}</span>
+          <span class="pd-day-meta">
+            <span>{{ day.exercises.count }} esercizi</span>
+            {% if assignment.status == 'ACTIVE' %}
+              {% if day.exercises.count > 0 %}
+              <a href="{% url 'client_session_active' assignment.id day.id %}" @click.stop class="al-btn al-btn-bronze al-btn-sm">
+                <i class="ph ph-play"></i> Avvia
+              </a>
+              {% else %}
+              <span class="al-tag" style="background: var(--al-rule-faint); color: var(--al-ink-faint);" title="Nessun esercizio in questo giorno">Vuoto</span>
+              {% endif %}
             {% endif %}
-          {% endif %}
-          <i class="ph" :class="open ? 'ph-caret-up' : 'ph-caret-down'"></i>
-        </div>
-      </button>
-      <div x-show="open" x-collapse class="mt-3 pt-3 border-t" style="border-color: var(--al-rule-faint);">
-        <div class="space-y-2">
-          {% for ex in day.exercises.all %}
-          <div class="flex justify-between items-start gap-2 al-small p-2 border rounded" style="border-color: var(--al-rule-faint);">
-            <div class="min-w-0">
-              <span class="font-semibold">{{ ex.exercise.name }}</span>
-              {% if ex.superset_group_id %}<span class="al-tag" style="background: var(--al-bronze); color: white;">SS{{ ex.superset_group_id }}</span>{% endif %}
-              {% if ex.technique_notes %}<p class="italic" style="color: var(--al-ink-faint);">{{ ex.technique_notes }}</p>{% endif %}
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span style="color: var(--al-ink-faint); white-space: nowrap;">
-                {{ ex.set_count|default:3 }}×{{ ex.rep_range|default:"10" }}
-                {% if ex.load_value %} · {{ ex.load_value }} {% if ex.load_unit == 'KG' %}kg{% elif ex.load_unit == 'PERCENT_1RM' %}%1RM{% else %}BW{% endif %}{% endif %}
-                · {{ ex.recovery_seconds|default:90 }}s
-              </span>
-              <button type="button" class="al-btn-icon al-btn-ghost" title="Andamento esercizio"
-                      aria-label="Andamento esercizio"
-                      onclick="AthlynkExerciseTrend.open({{ ex.id }}, '{{ ex.exercise.name|escapejs }}')">
-                <i class="ph ph-chart-line-up"></i>
-              </button>
-            </div>
+            <i class="ph ph-caret-down"></i>
+          </span>
+        </button>
+        <div x-show="open" x-collapse.duration.200ms class="pd-day-content">
+          <div class="pd-ex-list">
+            {% for ex in day.exercises.all %}
+              {% include 'pages/allenamenti/_exercise_card.html' with ex=ex idx=forloop.counter show_trend=True %}
+            {% endfor %}
           </div>
-          {% endfor %}
         </div>
       </div>
     </div>

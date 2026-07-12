@@ -637,6 +637,43 @@
     {% endwith %}
   {% endif %}
 
+  <!-- ============== INTEGRAZIONE DEL PIANO (supplement_sheet della dieta attiva) ============== -->
+  {% if active_data.plan.supplement_sheet %}
+    {% with diet_sheet=active_data.plan.supplement_sheet %}
+    <section class="nu-supp">
+      <div class="nu-supp-header">
+        <div>
+          <p class="al-eyebrow mb-2">Integrazione · dal piano</p>
+          <h3>{{ diet_sheet.title }}</h3>
+          {% if diet_sheet.notes %}<p class="al-body mt-1" style="color: var(--al-ink-mute);">{{ diet_sheet.notes }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="al-card al-card-flush overflow-hidden">
+        {% for item in diet_sheet.items.all %}
+        <div class="nu-supp-item">
+          <div class="nu-supp-icon"><i class="ph ph-pill"></i></div>
+          <div class="flex-1 min-w-0">
+            <p class="nu-supp-name">{{ item.name }}</p>
+            {% if item.notes %}<p class="nu-supp-note">{{ item.notes }}</p>{% endif %}
+          </div>
+          <div class="nu-supp-pills">
+            {% if item.quantity or item.unit %}
+            <span class="nu-supp-pill"><i class="ph ph-scales"></i><span>{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</span></span>
+            {% endif %}
+            {% if item.timing %}
+            <span class="nu-supp-pill"><i class="ph ph-clock"></i><span>{{ item.timing }}</span></span>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <p class="al-body text-center" style="color: var(--al-ink-mute); padding: 1.5rem 0;">Nessun integratore in questa scheda.</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% endwith %}
+  {% endif %}
+
 </div>
 
 <script>

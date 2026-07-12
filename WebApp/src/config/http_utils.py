@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Any, Callable
 
 from django.http import HttpRequest, JsonResponse
@@ -16,6 +17,15 @@ def safe_int(params, key, default):
         return int(params.get(key, default))
     except (TypeError, ValueError):
         return default
+
+
+def duration_timedelta(value: int, unit: str) -> timedelta:
+    """Coach-chosen assignment duration -> timedelta. Shared by workout and
+    nutrition assignment endpoints. No python-dateutil in this repo, so months
+    are approximated as 30-day blocks rather than adding a new dependency."""
+    if unit == 'MONTHS':
+        return timedelta(days=30 * value)
+    return timedelta(weeks=value)
 
 
 def require_coach(

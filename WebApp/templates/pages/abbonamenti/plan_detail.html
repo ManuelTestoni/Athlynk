@@ -17,6 +17,13 @@
             <p class="al-eyebrow mb-3">Studio &middot; Billing</p>
             <h1 class="al-h-1">Piano <span class="al-display-i">{{ plan.name }}</span></h1>
             <p class="al-body mt-2">{{ plan.description|truncatewords:20|default:"Dettaglio piano e atleti iscritti." }}</p>
+            <p class="mt-2">
+                {% if plan.is_online_purchasable %}
+                <span class="al-badge al-badge-success"><span class="dot"></span>Pagabile online</span>
+                {% else %}
+                <span class="al-badge">Solo assegnazione manuale</span>
+                {% endif %}
+            </p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
         <div class="flex gap-3 flex-shrink-0">

@@ -141,6 +141,9 @@ function nutritionWizard() {
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
 
+    /* === Step 3: multi-select bulk actions === */
+    selectedSuppKeys: [],
+
     /* === Step 3: import-from-protocol panel + whole-sheet save tracking === */
     suppModelsOpen: false,
     suppModelsLoading: false,
@@ -912,7 +915,26 @@ function nutritionWizard() {
         icon: 'ph-trash', title: 'Eliminare\nl\'integratore?',
         subtitle: '«' + label + '» verrà rimosso.', confirmLabel: 'Sì, elimina',
       }) : confirm('Eliminare «' + label + '»?');
-      if (ok) this.supplements.splice(i, 1);
+      if (ok) {
+        this.supplements.splice(i, 1);
+        this.selectedSuppKeys = this.selectedSuppKeys.filter(k => k !== key);
+      }
+    },
+    toggleSelectSupp(key) {
+      const i = this.selectedSuppKeys.indexOf(key);
+      if (i >= 0) this.selectedSuppKeys.splice(i, 1);
+      else this.selectedSuppKeys.push(key);
+    },
+    async bulkDeleteSupplements() {
+      const n = this.selectedSuppKeys.length;
+      if (n === 0) return;
+      const ok = window.alConfirm
+        ? await window.alConfirm({ icon: 'ph-trash', title: `Eliminare ${n} integrator${n === 1 ? 'e' : 'i'}?`,
+            subtitle: 'Gli elementi selezionati verranno rimossi.', confirmLabel: 'Sì, elimina' })
+        : confirm(`Eliminare ${n} integratori selezionati?`);
+      if (!ok) return;
+      this.supplements = this.supplements.filter(s => !this.selectedSuppKeys.includes(s._key));
+      this.selectedSuppKeys = [];
     },
 
     /* --- import da un protocollo esistente (scheda intera) --- */

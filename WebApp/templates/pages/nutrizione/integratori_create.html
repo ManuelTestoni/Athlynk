@@ -69,11 +69,24 @@ window._suppClients = {{ clients_json|json_js }};
                 <span class="ml-auto al-tag font-mono" x-text="items.length + (items.length === 1 ? ' integratore' : ' integratori')"></span>
             </div>
 
+            <!-- Barra azioni bulk -->
+            <div x-show="selectedKeys.length > 0" x-cloak class="flex items-center gap-3 mb-4">
+                <span class="al-tag font-mono" x-text="selectedKeys.length + (selectedKeys.length === 1 ? ' selezionato' : ' selezionati')"></span>
+                <button type="button" @click="bulkDelete()" class="al-btn al-btn-ghost al-btn-sm" style="color: var(--al-danger);">
+                    <i class="ph ph-trash"></i> Elimina selezionati
+                </button>
+                <button type="button" @click="selectedKeys = []" class="al-btn al-btn-ghost al-btn-sm">Deseleziona</button>
+            </div>
+
             <!-- Lista integratori -->
             <div class="space-y-4">
                 <template x-for="(item, idx) in items" :key="item._key">
                     <div class="al-card al-card-warm" style="padding: 16px;">
                         <div class="flex items-start gap-3">
+                            <input type="checkbox" class="al-checkbox mt-2 shrink-0"
+                                   :checked="selectedKeys.includes(item._key)"
+                                   @change="toggleSelect(item._key)"
+                                   :aria-label="'Seleziona ' + (item.name || 'integratore')">
                             <div class="flex-1 space-y-3 min-w-0">
                                 <!-- Nome -->
                                 <input type="text" x-model="item.name" placeholder="Nome integratore (es. Creatina monoidrato)" class="al-input">
@@ -163,6 +176,7 @@ function sheetBuilder() {
     saving: false,
     errorMsg: '',
     openMenuIdx: null,
+    selectedKeys: [],
     _seq: 0,
 
     init() {
@@ -195,10 +209,32 @@ function sheetBuilder() {
       if (window.alConfirm) {
         window.alConfirm({ icon: 'ph-trash', title: 'Eliminare\nl\'integratore?',
           subtitle: '«' + label + '» verrà rimosso dal protocollo.', confirmLabel: 'Sì, elimina' })
-          .then(ok => { if (ok) this.items.splice(idx, 1); });
+          .then(ok => { if (ok) {
+            this.items.splice(idx, 1);
+            this.selectedKeys = this.selectedKeys.filter(k => k !== it._key);
+          } });
       } else if (confirm('Eliminare «' + label + '»?')) {
         this.items.splice(idx, 1);
+        this.selectedKeys = this.selectedKeys.filter(k => k !== it._key);
       }
+    },
+
+    toggleSelect(key) {
+      const i = this.selectedKeys.indexOf(key);
+      if (i >= 0) this.selectedKeys.splice(i, 1);
+      else this.selectedKeys.push(key);
+    },
+
+    async bulkDelete() {
+      const n = this.selectedKeys.length;
+      if (n === 0) return;
+      const ok = window.alConfirm
+        ? await window.alConfirm({ icon: 'ph-trash', title: `Eliminare ${n} integrator${n === 1 ? 'e' : 'i'}?`,
+            subtitle: 'Gli elementi selezionati verranno rimossi dal protocollo.', confirmLabel: 'Sì, elimina' })
+        : confirm(`Eliminare ${n} integratori selezionati?`);
+      if (!ok) return;
+      this.items = this.items.filter(i => !this.selectedKeys.includes(i._key));
+      this.selectedKeys = [];
     },
 
     async saveSheet() {

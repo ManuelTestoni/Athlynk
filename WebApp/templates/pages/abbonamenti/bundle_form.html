@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Pacchetto{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="al-tag flex items-center gap-2 mb-6">
+        <a href="{% url 'bundle_list' %}" class="al-link al-link-quiet flex items-center gap-1">
+            <i class="ph ph-package text-xs"></i><span>Pacchetti</span>
+        </a>
+        <i class="ph ph-caret-right text-[9px]"></i>
+        <span class="text-ink">{{ action }} Pacchetto</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <p class="al-eyebrow mb-3">Studio &middot; Catalogo</p>
+        <h1 class="al-h-1">{{ action }} <span class="al-display-i">pacchetto</span></h1>
+        <p class="al-body mt-2">Componi il pacchetto scegliendo gli add-on/servizi da includere, con sconto opzionale.</p>
+        <div class="al-rule-bronze mt-5"></div>
+    </div>
+
+    {% if not formset.forms.0.fields.plan.queryset|length %}
+    <div class="al-toast is-warn mb-6">
+        <i class="ph ph-warning-circle"></i>
+        <span>Non hai ancora nessun add-on/servizio (pagamento singolo) attivo. <a href="{% url 'subscription_plan_create' %}" class="al-link al-link-bronze">Creane uno prima</a> — i pacchetti si compongono solo da piani di tipo "Add-on".</span>
+    </div>
+    {% endif %}
+
+    <form method="post" x-data="bundleFormBuilder()">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        <div class="space-y-6">
+            <!-- Identità -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-tag text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">01</p>
+                        <h2 class="al-h-3">Identità del Pacchetto</h2>
+                    </div>
+                </div>
+                <div class="space-y-5">
+                    <div>
+                        <label for="{{ form.name.id_for_label }}" class="al-label">{{ form.name.label }} *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<span class="al-input-error">{{ form.name.errors.0 }}</span>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="al-label">{{ form.description.label }}</label>
+                        {{ form.description }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Componenti -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-stack text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">02</p>
+                        <h2 class="al-h-3">Componenti</h2>
+                    </div>
+                </div>
+
+                <div id="bundle-items" class="space-y-4">
+                    {% for item_form in formset %}
+                    <div class="bundle-item-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end pb-4" style="border-bottom: 1px solid var(--al-rule-faint);">
+                        {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div>
+                            <label class="al-label">Add-on/Servizio</label>
+                            {{ item_form.plan }}
+                        </div>
+                        <div>
+                            <label class="al-label">Qtà</label>
+                            {{ item_form.quantity }}
+                        </div>
+                        <div>
+                            <label class="al-label">{{ item_form.price_override.label }}</label>
+                            {{ item_form.price_override }}
+                        </div>
+                        {% if item_form.DELETE %}
+                        <div class="flex items-center h-full">
+                            <label class="al-small flex items-center gap-2 cursor-pointer" style="color: var(--al-danger);">
+                                {{ item_form.DELETE }} Rimuovi
+                            </label>
+                        </div>
+                        {% endif %}
+                        {% if item_form.non_field_errors %}<span class="al-input-error">{{ item_form.non_field_errors.0 }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" @click="addRow()" class="al-btn al-btn-ghost al-btn-sm mt-4">
+                    <i class="ph ph-plus text-xs"></i><span>Aggiungi componente</span>
+                </button>
+            </div>
+
+            <!-- Sconto -->
+            <div class="al-card">
+                <div class="flex items-center gap-3 mb-6">
+                    <i class="ph ph-percent text-bronze text-xl"></i>
+                    <div>
+                        <p class="al-eyebrow" style="color: var(--al-ink-mute);">03</p>
+                        <h2 class="al-h-3">Sconto Pacchetto (opzionale)</h2>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="{{ form.discount_percent.id_for_label }}" class="al-label">{{ form.discount_percent.label }}</label>
+                        {{ form.discount_percent }}
+                    </div>
+                    <div>
+                        <label for="{{ form.discount_amount.id_for_label }}" class="al-label">{{ form.discount_amount.label }}</label>
+                        {{ form.discount_amount }}
+                    </div>
+                </div>
+                <p class="al-input-help mt-3">Usa uno solo dei due campi. Se entrambi impostati, ha priorità lo sconto percentuale.</p>
+            </div>
+
+            <div class="al-card">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <span style="display: inline-flex;">{{ form.is_active }}</span>
+                    <span class="al-body">{{ form.is_active.label }}</span>
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'bundle_list' %}" class="al-btn al-btn-ghost">Annulla</a>
+                <button type="submit" class="al-btn al-btn-bronze">
+                    <i class="ph ph-check text-sm"></i>
+                    <span>{{ action }} Pacchetto</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<template id="bundle-item-empty-template">
+    <div class="bundle-item-row grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end pb-4" style="border-bottom: 1px solid var(--al-rule-faint);">
+        {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+        <div>
+            <label class="al-label">Add-on/Servizio</label>
+            {{ formset.empty_form.plan }}
+        </div>
+        <div>
+            <label class="al-label">Qtà</label>
+            {{ formset.empty_form.quantity }}
+        </div>
+        <div>
+            <label class="al-label">{{ formset.empty_form.price_override.label }}</label>
+            {{ formset.empty_form.price_override }}
+        </div>
+    </div>
+</template>
+
+<script>
+function bundleFormBuilder() {
+    return {
+        addRow() {
+            const totalInput = document.querySelector('#id_{{ formset.prefix }}-TOTAL_FORMS');
+            const idx = parseInt(totalInput.value, 10);
+            const tpl = document.getElementById('bundle-item-empty-template').innerHTML.replace(/__prefix__/g, idx);
+            document.getElementById('bundle-items').insertAdjacentHTML('beforeend', tpl);
+            totalInput.value = idx + 1;
+        }
+    };
+}
+</script>
+{% endblock %}

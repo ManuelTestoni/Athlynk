@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static safejson %}
 {% block title %}Gestisci Modelli Check{% endblock %}
 
 {% block content %}
@@ -7,6 +7,8 @@
 <script>
   window.CHECK_LIBRARY_INIT = {
     folders: JSON.parse(document.getElementById('check-library-folders').textContent),
+    firstPage: {{ first_page_json|json_js }},
+    unfiledCount: {{ unfiled_count }},
     urls: {
       folders: "{% url 'api_check_folders' %}",
       foldersReorder: "{% url 'api_check_folders_reorder' %}",
@@ -24,20 +26,6 @@
 <script src="{% static 'js/check_library.js' %}?v={{ ASSET_VERSION }}"></script>
 
 <style>
-.tm-card {
-    background: var(--al-parchment);
-    border: 1px solid var(--al-rule);
-    border-radius: var(--al-r-md);
-    padding: 1.1rem 1.25rem 1rem;
-    display: flex; flex-direction: column; gap: .55rem;
-    transition: border-color 160ms var(--al-ease), transform 160ms var(--al-ease);
-}
-.tm-card:hover { border-color: var(--al-rule-strong); transform: translateY(-1px); }
-.tm-card h3 { font-family: var(--al-display); font-size: 18px; margin: 0; letter-spacing: -0.005em; }
-.tm-card .tm-desc { color: var(--al-ink-mute); font-size: 12.5px; min-height: 2.4em; line-height: 1.35; }
-.tm-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
-.tm-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: .35rem; padding-top: .65rem; border-top: 1px solid var(--al-rule-faint); }
-.tm-actions .al-btn { font-size: 11px; padding: 6px 10px; }
 .tm-empty {
     border: 2px dashed var(--al-rule-strong);
     border-radius: var(--al-r-md);
@@ -75,55 +63,11 @@
         </div>
     </div>
 
-    <!-- Preset di sistema -->
-    <section class="mb-10">
-        <div class="tm-section-head">
-            <h2>Preset di sistema</h2>
-            <span class="al-tag">{{ presets|length }} modelli</span>
-        </div>
-
-        {% if presets %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for t in presets %}
-            <article class="tm-card">
-                <div class="flex items-start justify-between gap-3">
-                    <h3>{{ t.title }}</h3>
-                    {% if t.is_modified_preset %}
-                    <span class="al-badge" style="background: var(--al-marble); color: var(--al-bronze); font-size: 9px;">Modificato</span>
-                    {% endif %}
-                </div>
-                <p class="tm-desc">{{ t.description|default:"—" }}</p>
-                <div class="tm-meta">
-                    <span class="al-tag"><i class="ph ph-question text-xs"></i> {{ t.questions_config|length|default:0 }} domande</span>
-                    <span class="al-tag"><i class="ph ph-list text-xs"></i> {{ t.steps_config|length|default:0 }} step</span>
-                </div>
-                <div class="tm-actions">
-                    <a href="{% url 'check_template_edit' template_id=t.id %}" class="al-btn al-btn-bronze al-btn-sm">
-                        <i class="ph ph-pencil-simple text-xs"></i> Modifica
-                    </a>
-                    <button @click="restore({{ t.id }})" type="button" class="al-btn al-btn-ghost al-btn-sm" {% if not t.is_modified_preset %}disabled{% endif %}>
-                        <i class="ph ph-arrow-counter-clockwise text-xs"></i> Ripristina
-                    </button>
-                    <button @click="duplicate({{ t.id }})" type="button" class="al-btn al-btn-ghost al-btn-sm">
-                        <i class="ph ph-copy text-xs"></i> Duplica
-                    </button>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="tm-empty">
-            <i class="ph ph-stack" style="font-size: 2rem; display:block; margin-bottom: .5rem;"></i>
-            <p>Caricamento preset in corso. Ricarica la pagina.</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- Modelli personali -->
+    <!-- Modelli: preset di sistema (in "Template") + modelli personali, organizzati per cartella -->
     <section>
         <div class="tm-section-head">
-            <h2>Modelli personali</h2>
-            <span class="al-tag"><span x-text="templates.length"></span> modelli</span>
+            <h2>Modelli</h2>
+            <span class="al-tag"><span x-text="allCount"></span> modelli</span>
         </div>
 
         <!-- 2-col shell: sidebar cartelle + workspace -->
@@ -142,22 +86,22 @@
                     <!-- All -->
                     <div class="wb-folder-item"
                          :class="{ 'is-active': selectedFolderId === 'all' }"
-                         @click="selectedFolderId = 'all'">
+                         @click="selectFolder('all')">
                         <i class="ph ph-stack"></i>
                         <span>Tutti</span>
-                        <span class="wb-folder-count" x-text="templates.length"></span>
+                        <span class="wb-folder-count" x-text="allCount"></span>
                     </div>
 
                     <!-- Unfiled -->
                     <div class="wb-folder-item"
                          :class="{ 'is-active': selectedFolderId === 'unfiled', 'is-drop-target': dropTargetId === 'unfiled' }"
-                         @click="selectedFolderId = 'unfiled'"
+                         @click="selectFolder('unfiled')"
                          @dragover.prevent="dropTargetId = 'unfiled'"
                          @dragleave="dropTargetId = null"
                          @drop.prevent="handleFolderDrop(null)">
                         <i class="ph ph-folder-dashed"></i>
                         <span>Senza cartella</span>
-                        <span class="wb-folder-count" x-text="templates.filter(t => !t.folder_id).length"></span>
+                        <span class="wb-folder-count" x-text="unfiledCount"></span>
                     </div>
 
                     <!-- User folders -->
@@ -292,20 +236,22 @@
                             <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
 
                             <div class="wb-card-header">
-                                <div class="min-w-0">
+                                <div class="min-w-0 flex items-center gap-2">
                                     <h3 class="wb-card-title" x-text="t.title"></h3>
+                                    <span x-show="t.is_modified_preset" class="al-badge" style="background: var(--al-marble); color: var(--al-bronze); font-size: 9px;">Modificato</span>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0" @click.stop>
-                                    <a :href="editUrl(t.id)"
-                                       class="p-1 text-ink-line hover:text-bronze transition-colors" title="Modifica">
-                                        <i class="ph ph-pencil text-sm"></i>
+                                    <a :href="editUrl(t.id)" class="al-btn-icon al-btn-ghost" title="Modifica">
+                                        <i class="ph ph-pencil-simple"></i>
                                     </a>
-                                    <button @click="openDelete(t.id)" type="button"
-                                            class="p-1 transition-colors" title="Elimina"
-                                            style="color: var(--al-ink-line);"
-                                            onmouseover="this.style.color='var(--al-danger)'"
-                                            onmouseout="this.style.color='var(--al-ink-line)'">
-                                        <i class="ph ph-trash text-sm"></i>
+                                    <button x-show="t.is_preset" @click="restore(t.id)" type="button" class="al-btn-icon al-btn-ghost" title="Ripristina" :disabled="!t.is_modified_preset">
+                                        <i class="ph ph-arrow-counter-clockwise"></i>
+                                    </button>
+                                    <button x-show="!t.is_preset" @click="duplicate(t.id)" type="button" class="al-btn-icon al-btn-ghost" title="Duplica">
+                                        <i class="ph ph-copy"></i>
+                                    </button>
+                                    <button x-show="!t.is_preset" @click="openDelete(t.id)" type="button" class="al-btn-icon al-btn-ghost" title="Elimina">
+                                        <i class="ph ph-trash"></i>
                                     </button>
                                 </div>
                             </div>
@@ -319,17 +265,14 @@
                                 <span class="al-tag"><i class="ph ph-list text-xs"></i> <span x-text="t.steps_count"></span> step</span>
                             </div>
 
-                            <div class="wb-card-foot" style="flex-wrap: wrap; gap: .5rem;">
-                                <span></span>
-                                <div class="flex items-center gap-2" @click.stop>
-                                    <button @click="duplicate(t.id)" type="button" class="al-btn al-btn-ghost al-btn-sm">
-                                        <i class="ph ph-copy text-xs"></i> Duplica
-                                    </button>
-                                    <a :href="editUrl(t.id)" class="al-btn al-btn-sm al-btn-bronze">
-                                        <i class="ph ph-pencil-simple text-xs"></i>
-                                        <span>Modifica</span>
-                                    </a>
-                                </div>
+                            <div class="pt-4 border-t flex items-center gap-2" style="border-color: var(--al-rule-faint);" @click.stop>
+                                <a :href="editUrl(t.id)" class="al-btn al-btn-ghost al-btn-sm flex-1">
+                                    <i class="ph ph-eye"></i> Dettaglio
+                                </a>
+                                <a :href="editUrl(t.id)" class="al-btn al-btn-sm al-btn-bronze">
+                                    <i class="ph ph-pencil-simple text-xs"></i>
+                                    <span>Modifica</span>
+                                </a>
                             </div>
                         </article>
                     </template>
@@ -350,7 +293,7 @@
 
     <!-- =================== DELETE FOLDER MODAL =================== -->
     <template x-teleport="body">
-    <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
         <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
         <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
             <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">

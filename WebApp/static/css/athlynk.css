@@ -371,6 +371,31 @@ body {
 .al-btn-ghost::after { background: var(--al-ink); }
 .al-btn-ghost:hover { color: var(--al-parchment); }
 
+/* Icon-only ghost buttons (card corner actions): the shared ::after slide-up
+   above is too slow to guarantee contrast on tap/sticky-hover, producing a
+   near-white icon on a near-white card. No background fill here at all —
+   just a pop (scale + lift) with a color shift, so contrast never depends
+   on timing. */
+.al-btn-icon.al-btn-ghost {
+  background: transparent;
+  transition: color var(--al-d-fast) var(--al-ease-out),
+              transform var(--al-d-fast) var(--al-ease-spr),
+              box-shadow var(--al-d-fast) var(--al-ease-out);
+}
+.al-btn-icon.al-btn-ghost:hover,
+.al-btn-icon.al-btn-ghost:focus-visible {
+  background: transparent;
+  color: var(--al-bronze);
+  transform: scale(1.18) translateY(-1px);
+  box-shadow: 0 6px 14px -6px rgba(20, 17, 13, 0.35);
+}
+.al-btn-icon.al-btn-ghost:active {
+  background: transparent;
+  color: var(--al-ink);
+  transform: scale(0.95) translateY(0);
+  box-shadow: none;
+}
+
 .al-btn-light {
   background: var(--al-parchment);
   border-color: var(--al-rule-strong);
@@ -384,10 +409,20 @@ body {
 }
 .al-btn-danger::after { background: #6f2c2c; }
 
+.al-btn-success {
+  background: var(--al-success);
+  border-color: var(--al-success);
+  color: var(--al-parchment);
+}
+.al-btn-success::after { background: #2f4a1f; }
+
 .al-btn-sm { padding: 6px 14px; font-size: 11px; }
 .al-btn-lg { padding: 13px 26px; font-size: 13px; }
 
 .al-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 36px; height: 36px;
   padding: 0;
   font-size: 16px;
@@ -564,6 +599,9 @@ body {
 
 /* Hide global search on chat pages */
 body[data-page="chat"] .al-search { display: none !important; }
+
+/* Chiron FAB gets in the way of the chat screen — hide it there (coach-only widget anyway) */
+body[data-page="chat"] .chiron-root { display: none !important; }
 
 /* Global search dropdown */
 .al-search-dropdown {
@@ -1961,6 +1999,11 @@ body[data-page="chat"] .al-search { display: none !important; }
 /* ---------- Main canvas ---------- */
 .al-canvas {
   background: transparent;
+  /* Reserve the scrollbar's width whether or not it's actually showing, so
+     content that grows past the scroll threshold (e.g. expanding an
+     accordion) doesn't shift everything horizontally when the scrollbar
+     pops in. */
+  scrollbar-gutter: stable;
 }
 
 /* ---------- Reveal-on-scroll ---------- */
@@ -2192,6 +2235,23 @@ input[type="number"] { -moz-appearance: textfield; }
   overflow: hidden;
 }
 
+/* Card row alignment — title and tag/duration row must occupy identical
+   height across every card in a grid row, regardless of text length. */
+.al-card h3.al-h-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.al-card .al-tag { flex-wrap: nowrap; }
+.al-card .al-tag > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* Subtle entrance for canvas content.
    `backwards` (not `both`): a forwards/both fill keeps the transform animation
    "filling" forever, materializing transform:none as matrix(1,0,0,1,0,0) — a
@@ -2258,6 +2318,11 @@ input[type="number"] { -moz-appearance: textfield; }
   align-items: center;
   justify-content: center;
   padding: var(--al-s-4);
+}
+/* Centratura rispetto all'area contenuto (sidebar 16rem esclusa) su desktop,
+   stesso pattern di .al-dlg-backdrop sopra. */
+@media (min-width: 1024px) {
+  .al-app-shell .al-modal-backdrop { left: 16rem; }
 }
 
 .al-modal-panel {

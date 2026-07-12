@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
@@ -9,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 import json
 
 from domain.accounts.models import ClientProfile, User
-from domain.billing.models import ClientSubscription, SubscriptionPlan
+from domain.billing.models import Bundle, BundleItem, ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship, CoachingPhase, ClientLabel
 from domain.nutrition.models import NutritionAssignment, SupplementProtocolAssignment
@@ -17,14 +18,17 @@ from domain.workouts.models import WorkoutAssignment
 
 from .session_utils import (
     get_session_client, get_session_coach, get_session_user, get_active_relationship,
-    client_has_active_access,
+    client_has_active_access, coach_can_sell_online,
 )
 from .services import password_reset as pwd_reset
 from .services.email import send_account_activation
 from .services.tokens import get_client_ip
-from .forms import SubscriptionPlanForm
+from .services.stripe_connect import sync_plan_to_stripe, cancel_subscription
+from .forms import BundleForm, BundleItemFormSet, SubscriptionPlanForm
 from .views_check.helpers import _build_chart_data
 from .views_check import create_quick_measurement, QuickMeasurementError
+
+logger = logging.getLogger(__name__)
 
 
 def coach_clients_list_view(request):
@@ -441,6 +445,21 @@ def registra_client_view(request):
     return redirect('clienti_detail', client_id=client.id)
 
 
+def _deactivate_client_subscription(client, coach):
+    """Cancella (Stripe incluso) l'iscrizione attiva del cliente per questo
+    coach, se presente. Riusata sia da coach_end_relationship_view sia da
+    athlete_cancel_subscription_view: stesso esito, iniziato da parti diverse."""
+    sub = ClientSubscription.objects.filter(
+        client=client, subscription_plan__coach=coach, status='ACTIVE',
+    ).first()
+    if not sub:
+        return
+    cancel_subscription(sub)
+    sub.status = 'CANCELLED'
+    sub.auto_renew = False
+    sub.save(update_fields=['status', 'auto_renew', 'updated_at'])
+
+
 @require_http_methods(["POST"])
 def coach_end_relationship_view(request, client_id):
     """A professional ends their collaboration with an athlete from the athlete's
@@ -453,10 +472,32 @@ def coach_end_relationship_view(request, client_id):
     relationship = get_object_or_404(
         CoachingRelationship, coach=coach, client_id=client_id, status='ACTIVE',
     )
+    _deactivate_client_subscription(relationship.client, coach)
     relationship.status = 'INACTIVE'
     relationship.end_date = timezone.now().date()
     relationship.save(update_fields=['status', 'end_date'])
     return redirect('clienti_detail', client_id=client_id)
+
+
+@require_http_methods(["POST"])
+def athlete_cancel_subscription_view(request):
+    """L'atleta si disiscrive dall'abbonamento del coach attivo: accesso
+    revocato subito (CoachingRelationship -> INACTIVE), il coach lo vede
+    'Disattivato' in lista clienti. Mirror lato-atleta di
+    coach_end_relationship_view."""
+    client = get_session_client(request)
+    if not client:
+        return redirect('login')
+
+    relationship = get_active_relationship(client)
+    if not relationship:
+        return redirect('abbonamenti_dashboard')
+
+    _deactivate_client_subscription(client, relationship.coach)
+    relationship.status = 'INACTIVE'
+    relationship.end_date = timezone.now().date()
+    relationship.save(update_fields=['status', 'end_date'])
+    return redirect('client_blocked')
 
 
 def client_blocked_view(request):
@@ -584,12 +625,14 @@ def abbonamenti_dashboard_view(request):
             return redirect('client_blocked')
 
         plans = SubscriptionPlan.objects.filter(coach=relationship.coach, is_active=True).order_by('-created_at')
+        bundles = Bundle.objects.filter(coach=relationship.coach, is_active=True).prefetch_related('items__plan').order_by('-created_at')
         active_subscription = ClientSubscription.objects.filter(client=client, subscription_plan__coach=relationship.coach).select_related('subscription_plan').order_by('-created_at').first()
         return render(request, 'pages/abbonamenti/client_dashboard.html', {
             'is_client': True,
             'client': client,
             'coach': relationship.coach,
             'available_plans': plans,
+            'available_bundles': bundles,
             'active_subscription': active_subscription,
         })
 
@@ -652,6 +695,11 @@ def subscription_plan_create_view(request):
             plan = form.save(commit=False)
             plan.coach = coach
             plan.save()
+            if coach_can_sell_online(coach):
+                try:
+                    sync_plan_to_stripe(plan)
+                except Exception:
+                    logger.exception('stripe_connect.plan_sync_failed plan=%s', plan.id)
             return redirect('abbonamenti_dashboard')
     else:
         form = SubscriptionPlanForm()
@@ -672,9 +720,16 @@ def subscription_plan_edit_view(request, plan_id):
     plan = get_object_or_404(SubscriptionPlan, id=plan_id, coach=coach)
 
     if request.method == 'POST':
+        prior = (plan.price, plan.currency, plan.kind)
         form = SubscriptionPlanForm(request.POST, instance=plan)
         if form.is_valid():
             form.save()
+            price_changed = prior != (plan.price, plan.currency, plan.kind)
+            if coach_can_sell_online(coach) and (price_changed or not plan.stripe_price_id):
+                try:
+                    sync_plan_to_stripe(plan)
+                except Exception:
+                    logger.exception('stripe_connect.plan_sync_failed plan=%s', plan.id)
             return redirect('abbonamenti_dashboard')
     else:
         form = SubscriptionPlanForm(instance=plan)
@@ -724,6 +779,94 @@ def subscription_plan_detail_view(request, plan_id):
         'active_count': active_count,
         'total_revenue': plan.price * active_count,
     })
+
+
+# ===== BUNDLE MANAGEMENT (Coach) =====
+def bundle_list_view(request):
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    bundles = (
+        Bundle.objects.filter(coach=coach)
+        .prefetch_related('items__plan')
+        .order_by('-is_active', '-created_at')
+    )
+    return render(request, 'pages/abbonamenti/bundle_list.html', {
+        'coach': coach,
+        'bundles': bundles,
+    })
+
+
+def bundle_create_view(request):
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = BundleForm(request.POST)
+        formset = BundleItemFormSet(request.POST, form_kwargs={'coach': coach})
+        if form.is_valid() and formset.is_valid():
+            bundle = form.save(commit=False)
+            bundle.coach = coach
+            bundle.save()
+            formset.instance = bundle
+            formset.save()
+            return redirect('bundle_list')
+    else:
+        form = BundleForm()
+        formset = BundleItemFormSet(form_kwargs={'coach': coach})
+
+    return render(request, 'pages/abbonamenti/bundle_form.html', {
+        'form': form,
+        'formset': formset,
+        'coach': coach,
+        'action': 'Crea',
+    })
+
+
+def bundle_edit_view(request, bundle_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return redirect('login')
+
+    bundle = get_object_or_404(Bundle, id=bundle_id, coach=coach)
+
+    if request.method == 'POST':
+        form = BundleForm(request.POST, instance=bundle)
+        formset = BundleItemFormSet(request.POST, instance=bundle, form_kwargs={'coach': coach})
+        if form.is_valid() and formset.is_valid():
+            form.save()
+            formset.save()
+            return redirect('bundle_list')
+    else:
+        form = BundleForm(instance=bundle)
+        formset = BundleItemFormSet(instance=bundle, form_kwargs={'coach': coach})
+
+    return render(request, 'pages/abbonamenti/bundle_form.html', {
+        'form': form,
+        'formset': formset,
+        'bundle': bundle,
+        'coach': coach,
+        'action': 'Modifica',
+    })
+
+
+@require_http_methods(["DELETE"])
+def bundle_delete_view(request, bundle_id):
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    bundle = get_object_or_404(Bundle, id=bundle_id, coach=coach)
+    active_subs = ClientSubscription.objects.filter(bundle=bundle, status='ACTIVE')
+    if active_subs.exists():
+        return JsonResponse({
+            'error': f'Impossibile eliminare: {active_subs.count()} atleti attivi su questo pacchetto'
+        }, status=400)
+
+    bundle.delete()
+    return JsonResponse({'success': True})
 
 
 # ── Timeline "Percorso" ──────────────────────────────────────────────────────

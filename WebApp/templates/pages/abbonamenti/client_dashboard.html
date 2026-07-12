@@ -74,6 +74,19 @@
         <p class="al-body mt-1">{{ sub.external_reference }}</p>
       </div>
       {% endif %}
+
+      {% if sub.status == 'ACTIVE' %}
+      <div class="al-divider mt-6"></div>
+      <div class="mt-6" x-data>
+        <button type="button" class="al-btn al-btn-ghost al-btn-sm"
+                @click="window.alConfirm({ icon: 'ph-link-break', title: 'Disdire\nl\'abbonamento?', subtitle: 'Perderai subito l\'accesso ai contenuti di {{ coach.first_name }} {{ coach.last_name }}. Potrai sempre ri-iscriverti in seguito.', confirmLabel: 'Sì, disdici' }).then(ok => ok && $refs.cancelSubForm.submit())">
+          <i class="ph ph-x-circle text-sm"></i><span>Disdici abbonamento</span>
+        </button>
+        <form method="post" action="{% url 'athlete_cancel_subscription' %}" x-ref="cancelSubForm" class="hidden">
+          {% csrf_token %}
+        </form>
+      </div>
+      {% endif %}
     </div>
   </div>
   {% endwith %}
@@ -116,6 +129,18 @@
         <p class="al-tag mt-2 font-mono"><i class="ph ph-clock text-xs"></i> {{ plan.duration_days }} giorni</p>
         {% endif %}
       </div>
+      <div class="p-5 pt-0">
+        {% if plan.is_online_purchasable %}
+        <form method="post" action="{% url 'athlete_checkout_start' plan.id %}">
+          {% csrf_token %}
+          <button type="submit" class="al-btn al-btn-bronze w-full">
+            <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
+          </button>
+        </form>
+        {% else %}
+        <p class="al-small text-center" style="color: var(--al-ink-mute);">Contatta il coach per attivarlo</p>
+        {% endif %}
+      </div>
     </article>
     {% endfor %}
   </div>
@@ -129,6 +154,45 @@
         <i class="ph ph-chat-circle-dots"></i> <span>Contatta il tuo coach</span>
       </a>
     </div>
+  </div>
+  {% endif %}
+
+  {% if available_bundles %}
+  <div class="flex items-center justify-between mb-4 mt-10">
+    <h2 class="al-h-3">Pacchetti disponibili</h2>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% for bundle in available_bundles %}
+    <article class="al-card al-card-flush flex flex-col">
+      <div style="height: 2px; background: var(--al-aegean); opacity: 0.7;"></div>
+      <div class="p-5 flex-1">
+        <h3 class="al-h-3">{{ bundle.name }}</h3>
+        {% if bundle.description %}
+        <p class="al-body line-clamp-3 mt-2 mb-3">{{ bundle.description }}</p>
+        {% endif %}
+        <ul class="space-y-1">
+          {% for item in bundle.items.all %}
+          <li class="al-small flex justify-between" style="color: var(--al-ink-mute);">
+            <span>{{ item.quantity }}&times; {{ item.plan.name }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if bundle.discount_percent %}
+        <p class="al-tag mt-3">Sconto {{ bundle.discount_percent }}%</p>
+        {% elif bundle.discount_amount %}
+        <p class="al-tag mt-3">Sconto €{{ bundle.discount_amount }}</p>
+        {% endif %}
+      </div>
+      <div class="p-5 pt-0">
+        <form method="post" action="{% url 'athlete_checkout_bundle_start' bundle.id %}">
+          {% csrf_token %}
+          <button type="submit" class="al-btn al-btn-bronze w-full">
+            <i class="ph ph-credit-card text-sm"></i><span>Acquista Online</span>
+          </button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
   </div>
   {% endif %}
 </div>

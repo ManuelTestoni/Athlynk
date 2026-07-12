@@ -62,7 +62,8 @@ document.addEventListener('alpine:init', () => {
     clientQuery: '',
     clientsList: [],
     selectedClientIds: [],
-    assignWeeks: null,
+    assignDurationValue: null,
+    assignDurationUnit: 'WEEKS',
     finalizing: false,
     overwriteConfirmed: false,
     recapDaysOpen: {},
@@ -834,9 +835,12 @@ document.addEventListener('alpine:init', () => {
       this.$nextTick(() => this.bindSortable());
     },
 
-    removeExercise(idx) {
+    async removeExercise(idx) {
       const day = this.activeDay();
       if (!day) return;
+      const ex = day.exercises[idx];
+      const label = ex?.exercise_name || 'questo esercizio';
+      if (!await window.alConfirm({ icon: 'ph-trash', title: 'Rimuovere\nl\'esercizio?', subtitle: '«' + label + '» verrà rimosso dal giorno.', confirmLabel: 'Sì, rimuovi' })) return;
       day.exercises.splice(idx, 1);
       this.markDirty();
     },
@@ -911,7 +915,7 @@ document.addEventListener('alpine:init', () => {
       Sortable.create(list, {
         handle: '.drag-handle',
         animation: 150,
-        draggable: '.wiz-ex-row',
+        draggable: '.wb-row',
         onEnd(evt) {
           if (evt.oldIndex === evt.newIndex) return;
           const arr = day.exercises;
@@ -1716,15 +1720,17 @@ document.addEventListener('alpine:init', () => {
         this.errors.assign = 'Seleziona almeno un cliente.';
         return;
       }
-      // For WEEKLY plans the coach picks how many weeks the athlete follows the plan.
-      // For PROGRAM plans the duration is fixed by the progression.
-      const weeks = (this.plan.plan_kind === 'PROGRAM')
-        ? (this.plan.duration_weeks || 0)
-        : (this.assignWeeks || 0);
-      if (!weeks || weeks < 1) {
-        this.errors.assign = (this.plan.plan_kind === 'PROGRAM')
-          ? 'Durata progressione non valida.'
-          : 'Seleziona per quante settimane far seguire la scheda.';
+      // For WEEKLY plans the coach picks a duration (weeks or months) — the
+      // server owns the unit -> end_date math. For PROGRAM plans the duration
+      // is fixed by the progression and sent as weeks like before.
+      const isProgram = this.plan.plan_kind === 'PROGRAM';
+      if (isProgram) {
+        if (!this.plan.duration_weeks || this.plan.duration_weeks < 1) {
+          this.errors.assign = 'Durata progressione non valida.';
+          return;
+        }
+      } else if (!this.assignDurationValue || this.assignDurationValue < 1) {
+        this.errors.assign = 'Seleziona per quanto tempo far seguire la scheda.';
         return;
       }
       const conflicts = this.conflictingClients();
@@ -1737,7 +1743,8 @@ document.addEventListener('alpine:init', () => {
       const d = await this._finalize({
         action: 'assign',
         client_ids: this.selectedClientIds,
-        weeks: weeks,
+        duration_value: isProgram ? null : this.assignDurationValue,
+        duration_unit: isProgram ? null : this.assignDurationUnit,
         overwrite: conflicts.length > 0 && this.overwriteConfirmed,
       });
       if (d) {
@@ -1764,31 +1771,6 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    async doDuplicate() {
-      if (!this.plan.id) return;
-      this.finalizing = true;
-      try {
-        const url = (this.urls.duplicate || '/api/allenamenti/__ID__/duplica/').replace('__ID__', this.plan.id);
-        const r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
-        });
-        const d = await r.json();
-        if (!r.ok) {
-          this._showToast(d.error || 'Errore duplicazione.');
-          return;
-        }
-        this._showToast('Scheda duplicata!');
-        setTimeout(() => {
-          window.location.href = d.redirect_url || (this.urls.list);
-        }, 900);
-      } catch (e) {
-        this._showToast('Errore di rete.');
-      } finally {
-        this.finalizing = false;
-      }
-    },
-
     // ---- Step 4 recap helpers ----
     folderName() {
       const fid = this.plan?.folder_id;
@@ -1798,7 +1780,10 @@ document.addEventListener('alpine:init', () => {
     },
 
     toggleRecapDay(id) {
-      this.recapDaysOpen = { ...this.recapDaysOpen, [id]: !this.recapDaysOpen[id] };
+      // Mutate in place: replacing the whole object (as `{...spread}` did)
+      // makes Alpine re-check recapDaysOpen[...] on every day block, not just
+      // this one, which is what caused the open/close lag with several days.
+      this.recapDaysOpen[id] = !this.recapDaysOpen[id];
     },
     allRecapDaysOpen() {
       const days = this.plan?.days || [];
@@ -1807,9 +1792,7 @@ document.addEventListener('alpine:init', () => {
     },
     toggleAllRecapDays() {
       const open = !this.allRecapDaysOpen();
-      const next = {};
-      (this.plan?.days || []).forEach(d => { next[d.local_id] = open; });
-      this.recapDaysOpen = next;
+      (this.plan?.days || []).forEach(d => { this.recapDaysOpen[d.local_id] = open; });
     },
 
     formatRecovery(secs) {
@@ -2391,10 +2374,21 @@ document.addEventListener('alpine:init', () => {
       return 'Valore base dall\'esercizio';
     },
 
+    // Week 1 is edited directly on WorkoutExercise (bidirectional with the
+    // builder), so Step 2's separate in-memory copy needs to be patched too —
+    // it's a distinct array from progGrid.exercises, not a shared reference.
+    _syncBaseFieldToBuilder(exPk, metric, value) {
+      if (!exPk) return;
+      const fieldMap = { set_count: 'sets', rep_range: 'reps' };
+      const field = fieldMap[metric] || metric;
+      for (const day of this.plan.days || []) {
+        const match = (day.exercises || []).find(e => e.pk === exPk);
+        if (match) { match[field] = value; return; }
+      }
+    },
+
     async commitCellEdit(ex, week, metric, raw, evt) {
       if (evt && evt.target) evt.target.classList.remove('is-focused');
-      // Week 1 is set in the builder and stays read-only in the grid.
-      if (week <= 1) { await this.loadProgGrid(); return; }
       const current = this._cellFor(ex, week, metric);
       const currentVal = current ? current.value : ex.base?.[metric];
       const trimmed = raw == null ? '' : String(raw).trim();
@@ -2441,6 +2435,7 @@ document.addEventListener('alpine:init', () => {
             this._computeProgVolume();
             this._refreshProgChart();
           }
+          if (week === 1) this._syncBaseFieldToBuilder(ex.pk, metric, payloadValue);
         }
       } catch (_) {
         this._showToast('Errore di rete');
@@ -2450,8 +2445,8 @@ document.addEventListener('alpine:init', () => {
 
     /* ---- Per-set differentiation inside the progression grid ----
        set_details is forward-filled like any other metric: an override at a
-       week inherits to later weeks until the next override. Week 1 is read-only
-       (authored in the builder). */
+       week inherits to later weeks until the next override. Week 1 writes
+       straight to the builder's WorkoutExercise.set_details (bidirectional). */
     cellSetDetails(ex, week) {
       const c = this._cellFor(ex, week, 'set_details');
       const v = c && c.value;
@@ -2470,7 +2465,6 @@ document.addEventListener('alpine:init', () => {
       return (v === null || v === undefined) ? '' : String(v);
     },
     async setDetailEdit(ex, week, setIdx, field, rawValue) {
-      if (week <= 1) return;   // week 1 is builder-defined / read-only
       const count = this.progSetCount(ex, week);
       let rows = this.cellSetDetails(ex, week).map(r => ({ ...r }));
       while (rows.length < count) rows.push({});
@@ -2483,7 +2477,7 @@ document.addEventListener('alpine:init', () => {
       await this.commitSetDetails(ex, week, rows);
     },
     async commitSetDetails(ex, week, rows) {
-      if (!this.plan?.id || week <= 1) return;
+      if (!this.plan?.id) return;
       try {
         const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/cell/`, {
           method: 'POST',
@@ -2499,6 +2493,8 @@ document.addEventListener('alpine:init', () => {
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
           this._showToast(d.error || 'Errore aggiornamento serie');
+        } else if (week === 1) {
+          this._syncBaseFieldToBuilder(ex.pk, 'set_details', rows);
         }
       } catch (_) {
         this._showToast('Errore di rete');

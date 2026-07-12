@@ -242,7 +242,7 @@
                    @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null">
             <div>
-              <div class="flex justify-between items-start mb-4">
+              <div class="flex justify-between items-center mb-4">
                 <span class="wb-kind-badge"
                       :class="plan.plan_kind === 'WEEKLY' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
                       x-text="plan.plan_kind === 'WEEKLY' ? 'Settimana' : 'Giorno'"></span>
@@ -256,7 +256,7 @@
                   <button @click="duplicatePlan(plan.id)" type="button"
                           class="al-btn-icon al-btn-ghost" title="Duplica"
                           :disabled="duplicatingId === plan.id">
-                    <i class="ph text-sm" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
+                    <i class="ph" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
                   </button>
                   <button @click="openDelete(plan.id)" type="button" class="al-btn-icon al-btn-ghost" title="Elimina">
                     <i class="ph ph-trash"></i>
@@ -308,7 +308,7 @@
 
   <!-- =================== DELETE FOLDER MODAL =================== -->
   <template x-teleport="body">
-  <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="deleteFolderOpen" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="deleteFolderOpen = false"></div>
     <div class="al-modal-panel wb-fade-in relative" style="max-width: 480px;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
@@ -374,19 +374,47 @@
   <template x-teleport="body">
   <div x-show="newPlanModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 lg:left-64">
     <div class="al-modal-backdrop" @click="newPlanModal = false"></div>
-    <div class="al-modal-panel wb-fade-in relative" style="max-width: 620px; width: 100%;">
+    <div class="al-modal-panel wb-fade-in relative" style="max-width: 820px; width: 100%;">
       <div class="al-modal-head" style="display:flex; align-items:flex-start; justify-content:space-between;">
         <div>
           <p class="al-eyebrow mb-1">Studio &middot; Nutrizione</p>
-          <h2 class="al-h-3">Nuovo piano alimentare</h2>
-          <div class="al-rule-bronze mt-3" style="width: 56px;"></div>
+          <h2 class="al-h-3" x-text="newPlanPickerMode === 'create' ? 'Nuovo piano alimentare' : 'Importa un piano esistente'"></h2>
+          <p class="al-small mt-1" style="color: var(--al-ink-mute);"
+             x-text="newPlanPickerMode === 'create' ? 'Costruisci il piano dallo studio.' : 'Carica un file: l\'AI ricostruisce pasti e alimenti.'"></p>
         </div>
         <button type="button" class="al-btn-icon al-btn-ghost" @click="newPlanModal = false" aria-label="Chiudi">
           <i class="ph ph-x"></i>
         </button>
       </div>
 
-      <div class="al-modal-body" style="padding-top: 18px;">
+      <!-- Mode tabs -->
+      <div class="px-6 -mt-2">
+        <div class="inline-flex p-1 gap-1"
+             style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: 999px;">
+          <button type="button" @click="switchNewPlanPickerMode('create')"
+                  class="px-4 py-1.5 text-sm font-medium transition-all"
+                  :style="newPlanPickerMode === 'create'
+                    ? 'background: var(--al-parchment); color: var(--al-ink); border-radius: 999px; box-shadow: var(--al-shadow-1);'
+                    : 'color: var(--al-ink-mute); border-radius: 999px;'">
+            <i class="ph ph-pencil-simple text-xs"></i>
+            <span class="ml-1">Crea da zero</span>
+          </button>
+          <button type="button" @click="switchNewPlanPickerMode('import')"
+                  class="px-4 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5"
+                  :style="newPlanPickerMode === 'import'
+                    ? 'background: var(--al-parchment); color: var(--al-ink); border-radius: 999px; box-shadow: var(--al-shadow-1);'
+                    : 'color: var(--al-ink-mute); border-radius: 999px;'">
+            <i class="ph ph-sparkle text-xs"></i>
+            <span>Importa con AI</span>
+            <span class="al-tag" style="background: var(--al-bronze); color: var(--al-parchment); padding: 1px 6px; font-size: 8px; letter-spacing: 0.1em;">NEW</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="al-modal-body wb-tp-stage" style="padding-top: 18px;">
+      <!-- ─── CREATE MODE ─── -->
+      <div class="wb-tp-pane" :class="newPlanPickerMode === 'create' ? 'wb-tp-pane--active' : 'wb-tp-pane--inactive'"
+           :aria-hidden="newPlanPickerMode !== 'create'">
         <p class="al-label mb-3" style="letter-spacing: 0.14em;">Contenuto del piano</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -479,35 +507,64 @@
           </button>
         </div>
 
-        <!-- Divider -->
-        <div x-show="newPlanMode === 'FOOD'">
-          <div class="flex items-center gap-3 my-5">
-            <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
-            <span class="al-tag" style="font-size: 10px;">oppure importa da file</span>
-            <div class="flex-1" style="height: 1px; background: var(--al-rule);"></div>
-          </div>
+      </div>
 
-          <div class="flex flex-wrap gap-2 justify-center">
-            <a :href="urls.importExcel" class="al-btn al-btn-ghost al-btn-sm">
-              <i class="ph ph-file-xls text-sm"></i>
-              <span>Excel</span>
-            </a>
-            <a :href="urls.importPdf" class="al-btn al-btn-ghost al-btn-sm">
-              <i class="ph ph-file-pdf text-sm"></i>
-              <span>PDF</span>
-            </a>
-          </div>
+      <!-- ─── IMPORT MODE ─── -->
+      <div class="wb-tp-pane" :class="newPlanPickerMode === 'import' ? 'wb-tp-pane--active' : 'wb-tp-pane--inactive'"
+           :aria-hidden="newPlanPickerMode !== 'import'">
+        <div class="flex flex-col md:flex-row gap-4">
+          <button type="button" class="wb-type-card wb-type-card--import"
+                  :class="{ 'is-selected': newPlanImportChoice === 'EXCEL' }"
+                  @click="newPlanImportChoice = 'EXCEL'"
+                  @dblclick="confirmNewPlanModal()">
+            <span class="wb-type-card-icon" style="color: var(--al-aegean);">
+              <i class="ph ph-file-xls"></i>
+            </span>
+            <h3 class="wb-type-card-title">Da Excel</h3>
+            <p class="wb-type-card-desc">Carica un .xlsx/.xls con gli alimenti del piano. L'AI riconosce pasti, alimenti e grammature.</p>
+            <ul class="wb-type-card-bullets">
+              <li>Max 10 MB</li>
+              <li>Pasti, alimenti, grammature</li>
+              <li>Match fuzzy nel DB alimenti</li>
+            </ul>
+            <span class="wb-type-card-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border-color: rgba(28,74,82,0.25);">
+              <i class="ph ph-lightning"></i> Veloce
+            </span>
+          </button>
+          <button type="button" class="wb-type-card wb-type-card--import"
+                  :class="{ 'is-selected': newPlanImportChoice === 'PDF' }"
+                  @click="newPlanImportChoice = 'PDF'"
+                  @dblclick="confirmNewPlanModal()">
+            <span class="wb-type-card-icon" style="color: var(--al-bronze);">
+              <i class="ph ph-file-pdf"></i>
+            </span>
+            <h3 class="wb-type-card-title">Da PDF</h3>
+            <p class="wb-type-card-desc">PDF con testo nativo o scansionato. OCR automatico, lettura pagina per pagina.</p>
+            <ul class="wb-type-card-bullets">
+              <li>Max 20 MB</li>
+              <li>OCR ita+eng su scansioni</li>
+              <li>Multi-pagina, tabelle, layout liberi</li>
+            </ul>
+            <span class="wb-type-card-pill" style="background: rgba(138,90,43,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
+              <i class="ph ph-scan"></i> OCR
+            </span>
+          </button>
         </div>
+        <p class="al-small mt-4 text-center" style="color: var(--al-ink-mute);">
+          <i class="ph ph-info text-bronze"></i>
+          Dopo l'analisi potrai revisionare ogni alimento prima di salvare.
+        </p>
+      </div>
       </div>
 
       <div class="al-modal-foot">
         <button type="button" class="al-btn al-btn-ghost" @click="newPlanModal = false">Annulla</button>
         <button type="button" class="al-btn al-btn-bronze"
-                :disabled="!newPlanKind"
-                :style="!newPlanKind ? 'opacity: 0.45; cursor: not-allowed;' : ''"
-                @click="continueNewPlan()">
-          <span>Continua</span>
-          <i class="ph ph-arrow-right text-sm"></i>
+                :disabled="newPlanPickerMode === 'create' ? !newPlanKind : !newPlanImportChoice"
+                :style="(newPlanPickerMode === 'create' ? !newPlanKind : !newPlanImportChoice) ? 'opacity: 0.45; cursor: not-allowed;' : ''"
+                @click="confirmNewPlanModal()">
+          <span x-text="newPlanPickerMode === 'import' ? 'Carica file' : 'Continua'"></span>
+          <i class="ph" :class="newPlanPickerMode === 'import' ? 'ph-upload-simple' : 'ph-arrow-right'"></i>
         </button>
       </div>
     </div>

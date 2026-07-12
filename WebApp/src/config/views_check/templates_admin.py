@@ -42,6 +42,15 @@ PRESET_ORDER = ['prima_valutazione', 'completo_coach', 'rapido_atleta', 'feedbac
 RETIRED_PRESET_KEYS = ['calcolo_fabbisogni']
 
 
+def get_or_create_template_folder(coach):
+    """Cartella «Template» per-coach: contiene i preset di sistema e, in
+    futuro, altri piani salvati come template. Un solo hook, riusato sia
+    dal lazy-clone dei preset sia dal backfill one-shot per i coach già
+    esistenti (management command backfill_template_folder)."""
+    folder, _ = CheckFolder.objects.get_or_create(coach=coach, title='Template')
+    return folder
+
+
 def _ensure_preset_clones(coach):
     """Lazy-clone any preset templates missing for this coach.
 
@@ -57,16 +66,25 @@ def _ensure_preset_clones(coach):
             coach=coach, preset_key__in=RETIRED_PRESET_KEYS, is_active=True
         ).update(is_active=False)
 
+    template_folder = get_or_create_template_folder(coach)
+
+    # Deliberately not preset_key__in=[...]: a multi-value IN-list bind on a
+    # JSONB-returning query reproducibly stalls ~60s on Supabase's pooler
+    # (observed, not explained) when it's not the connection's first query.
+    # exclude()-based filtering avoids the multi-param shape entirely.
     existing = {
         t.preset_key: t for t in QuestionnaireTemplate.objects.filter(
-            coach=coach, preset_key__in=list(PRESETS.keys())
-        )
+            coach=coach, preset_key__isnull=False,
+        ).exclude(preset_key='')
     }
     for key in PRESETS:
         tpl = existing.get(key)
         if tpl is None:
-            QuestionnaireTemplate.objects.create(coach=coach, **build_template_payload(key))
+            QuestionnaireTemplate.objects.create(coach=coach, folder=template_folder, **build_template_payload(key))
             continue
+        if tpl.folder_id is None:
+            tpl.folder = template_folder
+            tpl.save(update_fields=['folder', 'updated_at'])
         if tpl.is_modified_preset:
             continue
         payload = build_template_payload(key)
@@ -90,28 +108,6 @@ def check_templates_list_view(request):
 
     _ensure_preset_clones(coach)
 
-    all_templates = (
-        QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
-        .defer('report_config')
-    )
-
-    presets_by_key = {t.preset_key: t for t in all_templates if t.preset_key}
-    presets = [presets_by_key[k] for k in PRESET_ORDER if k in presets_by_key]
-    customs = [t for t in all_templates.order_by('-updated_at') if not t.preset_key]
-
-    customs_payload = [
-        {
-            'id': t.id,
-            'title': t.title,
-            'description': t.description or '',
-            'questions_count': len(t.questions_config or []),
-            'steps_count': len(t.steps_config or []),
-            'folder_id': t.folder_id,
-            'updated_at': t.updated_at.isoformat() if t.updated_at else '',
-        }
-        for t in customs
-    ]
-
     folders = list(
         CheckFolder.objects.filter(coach=coach)
         .annotate(template_count=Count('templates', filter=Q(templates__is_active=True)))
@@ -129,10 +125,15 @@ def check_templates_list_view(request):
         for f in folders
     ]
 
+    first_page = _templates_page_data(coach, 'all', '', 0)
+    unfiled_count = QuestionnaireTemplate.objects.filter(
+        coach=coach, is_active=True, folder__isnull=True,
+    ).count()
+
     return render(request, 'pages/check/templates_list.html', {
-        'presets': presets,
-        'customs_payload': customs_payload,
         'folders_payload': folders_payload,
+        'first_page_json': json.dumps(first_page),
+        'unfiled_count': unfiled_count,
     })
 
 
@@ -334,23 +335,15 @@ def api_bmr_formula_create(request):
     return JsonResponse({'success': True, 'formulas': formulas}, status=201)
 
 
-def check_templates_api(request):
-    """Paginated custom-only templates for the library. ?folder_id=&q=&offset=&limit="""
-    user = get_session_user(request)
-    if not user:
-        return JsonResponse({'error': 'forbidden'}, status=403)
-    coach = get_session_coach(request)
-    if not coach:
-        return JsonResponse({'error': 'forbidden'}, status=403)
+TEMPLATES_PAGE_LIMIT = 10
 
-    LIMIT = 10
-    offset = max(0, safe_int(request.GET, 'offset', 0))
-    folder_id_raw = request.GET.get('folder_id', 'all')
-    q = (request.GET.get('q') or '').strip().lower()
 
-    qs = QuestionnaireTemplate.objects.filter(
-        coach=coach, is_active=True,
-    ).exclude(preset_key__isnull=False).exclude(preset_key='')
+def _templates_page_data(coach, folder_id_raw, q, offset):
+    """One page of the templates library grid. Shared by check_templates_api
+    (client-side pagination/search/folder-switch) and check_templates_list_view
+    (server-side bootstrap of the first page, to avoid the extra client fetch
+    round-trip on every page load)."""
+    qs = QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
 
     if folder_id_raw == 'unfiled':
         qs = qs.filter(folder__isnull=True)
@@ -365,7 +358,7 @@ def check_templates_api(request):
 
     qs = qs.order_by('-updated_at')
     total = qs.count()
-    page = qs[offset:offset + LIMIT]
+    page = qs[offset:offset + TEMPLATES_PAGE_LIMIT]
     data = [
         {
             'id': t.id, 'title': t.title, 'description': t.description or '',
@@ -373,7 +366,24 @@ def check_templates_api(request):
             'steps_count': len(t.steps_config or []),
             'folder_id': t.folder_id,
             'updated_at': t.updated_at.isoformat() if t.updated_at else '',
+            'is_preset': bool(t.preset_key),
+            'is_modified_preset': bool(t.is_modified_preset),
         }
         for t in page
     ]
-    return JsonResponse({'templates': data, 'has_more': total > offset + LIMIT, 'total': total})
+    return {'templates': data, 'has_more': total > offset + TEMPLATES_PAGE_LIMIT, 'total': total}
+
+
+def check_templates_api(request):
+    """Paginated templates for the library. ?folder_id=&q=&offset=&limit="""
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    offset = max(0, safe_int(request.GET, 'offset', 0))
+    folder_id_raw = request.GET.get('folder_id', 'all')
+    q = (request.GET.get('q') or '').strip().lower()
+    return JsonResponse(_templates_page_data(coach, folder_id_raw, q, offset))

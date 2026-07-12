@@ -1,16 +1,22 @@
 //
 //  CheckoutView.swift
-//  Stitch "Checkout" + "Successo del Pagamento": order summary and a (mock)
-//  payment confirmation. There is no payment gateway wired — "Conferma e paga"
-//  simulates a successful purchase and shows the success screen.
+//  Stitch "Checkout": order summary, then a real Stripe Checkout Session
+//  (see APIClient.checkoutStart) opened in a system web view via
+//  StripeWebFlow. Payment details are collected on Stripe's hosted page, not
+//  in this app — "Conferma e paga" only starts the session and waits for the
+//  redirect back. Fulfilment happens server-side on the webhook; this screen
+//  never marks the purchase paid itself.
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct CheckoutView: View {
     let plan: SubscriptionPlanDTO
     @State private var paid = false
     @State private var processing = false
+    @State private var errorMessage: String?
+    private let webFlow = StripeWebFlow()
 
     var body: some View {
         ZStack {
@@ -19,13 +25,15 @@ struct CheckoutView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     summaryCard
-                    methodCard
                     totalCard
+                    if let errorMessage {
+                        Text(errorMessage).font(Typo.body(13)).foregroundStyle(Palette.danger)
+                    }
                     NeonButton(title: processing ? "Elaborazione…" : "Conferma e paga",
                                icon: "lock.fill", color: Palette.bronze, loading: processing) {
                         Task { await pay() }
                     }
-                    Text("Pagamento dimostrativo — nessun addebito reale.")
+                    Text("Pagamento sicuro gestito da Stripe.")
                         .font(Typo.mono(10)).foregroundStyle(Palette.textLow)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -70,20 +78,6 @@ struct CheckoutView: View {
         .padding(18).voltPanel(Palette.bronze.opacity(0.4))
     }
 
-    private var methodCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("METODO DI PAGAMENTO").voltEyebrow()
-            HStack(spacing: 12) {
-                Image(systemName: "creditcard.fill").font(.system(size: 18, weight: .black))
-                    .foregroundStyle(Palette.cyan)
-                Text("•••• •••• •••• 4242").font(Typo.mono(15, .semibold)).foregroundStyle(Palette.textHi)
-                Spacer()
-                Text("VISA").font(Typo.mono(10, .black)).foregroundStyle(Palette.textLow)
-            }
-        }
-        .padding(18).voltPanel(Palette.cyan.opacity(0.3))
-    }
-
     private var totalCard: some View {
         HStack {
             Text("TOTALE").font(Typo.mono(11, .bold)).tracking(2).foregroundStyle(Palette.textLow)
@@ -104,11 +98,24 @@ struct CheckoutView: View {
     }
 
     private func pay() async {
-        processing = true
-        try? await Task.sleep(nanoseconds: 900_000_000)
-        Haptics.success()
-        processing = false
-        paid = true
+        processing = true; errorMessage = nil
+        defer { processing = false }
+        do {
+            let urlString = try await APIClient.shared.checkoutStart(planId: plan.id)
+            guard let url = URL(string: urlString) else { throw APIError.badURL }
+            let callback = try await webFlow.run(url: url, callbackScheme: "athlynk")
+            let host = callback.host ?? ""
+            if host == "checkout-return" {
+                Haptics.success()
+                paid = true
+            } else {
+                errorMessage = "Pagamento annullato."
+            }
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // User dismissed the web view — not an error worth surfacing.
+        } catch {
+            errorMessage = "Impossibile completare il pagamento. Riprova."
+        }
     }
 }
 

@@ -179,6 +179,16 @@ def coach_has_active_platform_access(coach):
     return True
 
 
+def coach_can_sell_online(coach):
+    """Whether this coach's Stripe Connect account can currently accept
+    payments — gates Stripe Product/Price sync on plan create/edit and the
+    "Acquista Online" CTA on athlete-facing plan pages. Independent of
+    coach_has_active_platform_access (that's the coach's own Athlynk bill)."""
+    if not coach:
+        return False
+    return bool(coach.stripe_connect_account_id) and coach.stripe_connect_charges_enabled
+
+
 def coach_has_chiron_access(coach):
     """Chiron is an add-on: requires an active platform subscription AND
     has_chiron=True on the linked purchase."""

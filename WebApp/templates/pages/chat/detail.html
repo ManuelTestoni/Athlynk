@@ -10,11 +10,11 @@
      x-init="init()">
 
   <!-- Header -->
-  <div class="al-card al-card-flush flex items-center gap-3 px-4 sm:px-5 py-3 shrink-0" style="border-radius: 0;">
+  <div class="al-card al-card-flush flex items-center gap-3 px-4 sm:px-5 py-4 shrink-0" style="border-radius: 0;">
     <a href="{% url 'chat_list' %}" class="al-btn-icon al-btn al-btn-ghost">
       <i class="ph ph-arrow-left"></i>
     </a>
-    <div class="al-avatar al-avatar-sq overflow-hidden" style="background: var(--al-aegean);">
+    <div class="al-avatar al-avatar-sq overflow-hidden" style="background: var(--al-aegean); width: 44px; height: 44px; font-size: 15px;">
       {% if partner_avatar %}
       <img src="{{ partner_avatar }}" alt="" class="w-full h-full object-cover">
       {% else %}
@@ -23,7 +23,7 @@
     </div>
     <div class="flex-1">
       <div class="flex items-center gap-2">
-        <h1 class="al-h-3">{{ partner_name }}</h1>
+        <h1 class="al-h-2">{{ partner_name }}</h1>
         {% if partner_role == 'COACH' %}
           <span class="al-badge al-badge-ink">Coach</span>
         {% elif partner_role == 'ALLENATORE' %}
@@ -35,13 +35,14 @@
     </div>
     <button @click="showAppointmentModal = true" type="button"
             title="Richiedi appuntamento" aria-label="Richiedi appuntamento"
-            class="al-btn al-btn-bronze al-btn-icon">
+            class="al-btn al-btn-bronze al-btn-sm">
       <i class="ph ph-calendar-plus"></i>
+      <span class="hidden sm:inline">Richiedi appuntamento</span>
     </button>
   </div>
 
   <!-- Messages -->
-  <div class="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-3" x-ref="messagesEl"
+  <div class="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 flex flex-col justify-end gap-3" x-ref="messagesEl"
        style="background: var(--al-marble);">
 
     <!-- Load older -->
@@ -73,13 +74,20 @@
               <div class="text-sm">
                 <p class="font-medium flex items-center gap-1.5 mb-1"><i class="ph-fill ph-calendar"></i>Richiesta appuntamento</p>
                 <p x-text="m.body" class="opacity-90"></p>
-                <template x-if="m.appointment_status === 'PENDING' && m.sender_user_id !== currentUserId">
+                <template x-if="m.appointment_status === 'PENDING' && !m.appointment_expired && m.sender_user_id !== currentUserId">
                   <div class="flex gap-2 mt-3">
-                    <button @click="openConfirmModal(m.id, m.appointment_id)" type="button"
-                            class="flex-1 px-3 py-1.5 text-[11px] font-medium uppercase tracking-widest" style="background: var(--al-success); color: var(--al-parchment); border-radius: var(--al-r-sm);">Conferma</button>
-                    <button @click="openRejectModal(m.id, m.appointment_id)" type="button"
-                            class="flex-1 px-3 py-1.5 text-[11px] font-medium uppercase tracking-widest" style="background: var(--al-danger); color: var(--al-parchment); border-radius: var(--al-r-sm);">Rifiuta</button>
+                    <button @click="openConfirmModal(m)" type="button"
+                            class="al-btn al-btn-success al-btn-sm flex-1">
+                      <i class="ph ph-check"></i><span>Conferma</span>
+                    </button>
+                    <button @click="openRejectModal(m)" type="button"
+                            class="al-btn al-btn-danger al-btn-sm flex-1">
+                      <i class="ph ph-x"></i><span>Rifiuta</span>
+                    </button>
                   </div>
+                </template>
+                <template x-if="m.appointment_status === 'PENDING' && m.appointment_expired">
+                  <p class="mt-2 text-xs italic opacity-80">⏱ Richiesta scaduta</p>
                 </template>
                 <template x-if="m.appointment_status === 'SCHEDULED'">
                   <p class="mt-2 text-xs italic opacity-80">✓ Confermato</p>
@@ -113,8 +121,8 @@
     </template>
   </div>
 
-  <!-- Input bar (extra right padding so it never sits under the Chiron FAB at bottom-right) -->
-  <div class="al-card al-card-flush pl-4 sm:pl-5 pr-24 py-3 shrink-0" style="border-radius: 0;">
+  <!-- Input bar -->
+  <div class="al-card al-card-flush px-4 sm:px-5 py-3 shrink-0" style="border-radius: 0;">
     <form @submit.prevent="sendMessage()" class="flex items-end gap-2">
       <label class="cursor-pointer p-2 text-ink-mute hover:text-bronze transition-colors shrink-0">
         <i class="ph ph-paperclip text-xl"></i>
@@ -141,54 +149,63 @@
   </style>
 
   <!-- Confirm appointment modal -->
-  <div x-show="showConfirmModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="showConfirmModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click.self="showConfirmModal=false"></div>
     <div class="al-modal-panel relative" style="max-width: 380px;">
       <div class="al-modal-head flex items-center justify-between">
         <div>
-          <p class="al-eyebrow mb-1" style="color: var(--al-bronze);">Appuntamento</p>
-          <h2 class="al-h-3">Conferma orario</h2>
+          <p class="al-eyebrow mb-1" style="color: var(--al-success);">Appuntamento</p>
+          <h2 class="al-h-3">Confermi l'appuntamento?</h2>
         </div>
         <button @click="showConfirmModal=false" type="button" class="al-btn-icon al-btn al-btn-ghost">
           <i class="ph ph-x"></i>
         </button>
       </div>
       <div class="al-modal-body space-y-4">
-        <div>
-          <label class="al-label">Giorno</label>
-          <input type="date" x-model="confirmForm.date" class="al-input">
+        <div class="flex items-center gap-3 p-3.5" style="background: var(--al-marble); border-radius: var(--al-r-sm); border: 1px solid var(--al-rule);">
+          <div class="al-avatar" style="background: var(--al-success); width: 42px; height: 42px; flex-shrink: 0;">
+            <i class="ph-fill ph-calendar-check text-lg"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-ink truncate" x-text="confirmTitle"></p>
+            <p class="text-xs opacity-70 mt-0.5" style="text-transform: capitalize;" x-text="confirmWhen"></p>
+          </div>
         </div>
-        <div>
-          <label class="al-label">Orario di inizio</label>
-          <select x-model="confirmForm.time" class="al-select">
-            <option value="">Seleziona orario</option>
-            <template x-for="h in timeSlots" :key="h"><option :value="h" x-text="h"></option></template>
-          </select>
-          <span class="al-input-help">La sessione durerà 1 ora.</span>
-        </div>
+        <p class="text-xs opacity-70">Confermando accetti l'orario proposto dalla controparte — non serve reinserirlo.</p>
         <p x-show="confirmError" x-text="confirmError" class="al-input-error"></p>
       </div>
       <div class="al-modal-foot">
         <button @click="showConfirmModal=false" type="button" class="al-btn al-btn-ghost flex-1">Annulla</button>
-        <button @click="submitConfirm()" :disabled="confirmSending" type="button" class="al-btn flex-1" style="background: var(--al-success); border-color: var(--al-success);">Conferma</button>
+        <button @click="submitConfirm()" :disabled="confirmSending" type="button" class="al-btn al-btn-success flex-1">
+          <i class="ph ph-check"></i><span>Conferma</span>
+        </button>
       </div>
     </div>
   </div>
 
   <!-- Reject modal -->
-  <div x-show="showRejectModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="showRejectModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click.self="showRejectModal=false"></div>
     <div class="al-modal-panel relative" style="max-width: 380px;">
       <div class="al-modal-head flex items-center justify-between">
         <div>
           <p class="al-eyebrow mb-1" style="color: var(--al-danger);">Appuntamento</p>
-          <h2 class="al-h-3">Rifiuta</h2>
+          <h2 class="al-h-3">Rifiuta appuntamento</h2>
         </div>
         <button @click="showRejectModal=false" type="button" class="al-btn-icon al-btn al-btn-ghost">
           <i class="ph ph-x"></i>
         </button>
       </div>
       <div class="al-modal-body space-y-4">
+        <div class="flex items-center gap-3 p-3.5" style="background: var(--al-marble); border-radius: var(--al-r-sm); border: 1px solid var(--al-rule);">
+          <div class="al-avatar" style="background: var(--al-danger); width: 42px; height: 42px; flex-shrink: 0;">
+            <i class="ph-fill ph-calendar-x text-lg"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-ink truncate" x-text="rejectTitle"></p>
+            <p class="text-xs opacity-70 mt-0.5" style="text-transform: capitalize;" x-text="rejectWhen"></p>
+          </div>
+        </div>
         <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" x-model="rejectForm.with_counter" class="al-checkbox">
           <span class="text-[13px] font-medium text-ink">Proponi un altro orario</span>
@@ -213,6 +230,7 @@
       <div class="al-modal-foot">
         <button @click="showRejectModal=false" type="button" class="al-btn al-btn-ghost flex-1">Annulla</button>
         <button @click="submitReject()" :disabled="rejectSending" type="button" class="al-btn al-btn-danger flex-1">
+          <i class="ph ph-x"></i>
           <span x-text="rejectForm.with_counter ? 'Rifiuta e proponi' : 'Rifiuta'"></span>
         </button>
       </div>
@@ -220,7 +238,7 @@
   </div>
 
   <!-- Appointment request modal -->
-  <div x-show="showAppointmentModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="showAppointmentModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click.self="showAppointmentModal=false"></div>
     <div class="al-modal-panel relative" style="max-width: 460px;">
       <div class="al-modal-head flex items-center justify-between">
@@ -287,6 +305,9 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
         sender_user_id: {{ m.sender_user_id }},
         appointment_id: {% if m.appointment_id %}{{ m.appointment_id }}{% else %}null{% endif %},
         appointment_status: {% if m.appointment %}'{{ m.appointment.status }}'{% else %}null{% endif %},
+        appointment_title: {% if m.appointment %}{{ m.appointment.title|escapejs|stringformat:'r' }}{% else %}null{% endif %},
+        appointment_start: {% if m.appointment %}'{{ m.appointment.start_datetime|date:"c" }}'{% else %}null{% endif %},
+        appointment_expired: {% if m.appointment and m.appointment.status == 'PENDING' and m.appointment.start_datetime < now %}true{% else %}false{% endif %},
         read_at: {% if m.read_at %}'{{ m.read_at|date:"c" }}'{% else %}null{% endif %},
       }{% if not forloop.last %},{% endif %}
       {% endfor %}
@@ -295,11 +316,11 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
     showAppointmentModal: false,
     apptForm: { title: '', preferred_date: '', time_from: '', time_to: '', notes: '' },
     apptError: '', apptSending: false,
-    showConfirmModal: false, confirmForm: { date: '', time: '' },
-    confirmApptId: null, confirmMsgId: null, confirmError: '', confirmSending: false,
+    showConfirmModal: false,
+    confirmApptId: null, confirmMsgId: null, confirmTitle: '', confirmWhen: '', confirmError: '', confirmSending: false,
     showRejectModal: false,
     rejectForm: { counter_date: '', counter_time: '', with_counter: false },
-    rejectApptId: null, rejectMsgId: null, rejectError: '', rejectSending: false,
+    rejectApptId: null, rejectMsgId: null, rejectTitle: '', rejectWhen: '', rejectError: '', rejectSending: false,
     pollingInterval: null,
 
     get timeSlots() {
@@ -328,7 +349,14 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
     },
 
     init() {
-      this.$nextTick(() => this.scrollToBottom());
+      this.$nextTick(() => {
+        this.scrollToBottom();
+        this.$refs.messagesEl?.querySelectorAll('img, video').forEach(el => {
+          el.addEventListener('load', () => this.scrollToBottom(), { once: true });
+          el.addEventListener('loadeddata', () => this.scrollToBottom(), { once: true });
+        });
+      });
+      window.addEventListener('load', () => this.scrollToBottom(), { once: true });
       this.pollingInterval = setInterval(() => this.poll(), 5000);
     },
 
@@ -336,9 +364,17 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
       const d = new Date(iso);
       return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     },
+    formatFullDateTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+        + ' · ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    },
     scrollToBottom() {
       const el = this.$refs.messagesEl;
       if (el) el.scrollTop = el.scrollHeight;
+      const main = el?.closest('main.al-canvas');
+      if (main) main.scrollTop = main.scrollHeight;
     },
     onFile(e) {
       const f = e.target.files[0];
@@ -426,7 +462,8 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
           this.messages.push({
             id: d.id, body: d.body, message_type: d.message_type,
             attachment_url: '', sent_at: d.sent_at, sender_user_id: d.sender_user_id,
-            appointment_id: d.appointment_id, appointment_status: d.appointment_status, read_at: null,
+            appointment_id: d.appointment_id, appointment_status: d.appointment_status,
+            appointment_expired: false, read_at: null,
           });
           this.showAppointmentModal = false;
           this.apptForm = { title: '', preferred_date: '', time_from: '', time_to: '', notes: '' };
@@ -436,25 +473,28 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
       finally { this.apptSending = false; }
     },
 
-    openConfirmModal(messageId, appointmentId) {
-      this.confirmMsgId = messageId; this.confirmApptId = appointmentId;
-      this.confirmForm = { date: '', time: '' }; this.confirmError = '';
+    openConfirmModal(m) {
+      this.confirmMsgId = m.id; this.confirmApptId = m.appointment_id;
+      this.confirmTitle = m.appointment_title || 'Appuntamento';
+      this.confirmWhen = this.formatFullDateTime(m.appointment_start);
+      this.confirmError = '';
       this.showConfirmModal = true;
     },
-    openRejectModal(messageId, appointmentId) {
-      this.rejectMsgId = messageId; this.rejectApptId = appointmentId;
+    openRejectModal(m) {
+      this.rejectMsgId = m.id; this.rejectApptId = m.appointment_id;
+      this.rejectTitle = m.appointment_title || 'Appuntamento';
+      this.rejectWhen = this.formatFullDateTime(m.appointment_start);
       this.rejectForm = { counter_date: '', counter_time: '', with_counter: false };
       this.rejectError = ''; this.showRejectModal = true;
     },
 
     async submitConfirm() {
       this.confirmError = '';
-      if (!this.confirmForm.date || !this.confirmForm.time) { this.confirmError = 'Data e orario sono obbligatori'; return; }
       this.confirmSending = true;
       try {
         const r = await fetch(`/api/chat/${this.conversationId}/appointment/${this.confirmApptId}/respond/`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
-          body: JSON.stringify({ action: 'accept', confirmed_date: this.confirmForm.date, confirmed_time: this.confirmForm.time }),
+          body: JSON.stringify({ action: 'accept' }),
         });
         if (r.ok) {
           const d = await r.json();

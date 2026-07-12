@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct CoachSubscriptionsView: View {
     @State private var header: (activeCount: Int, monthlyRevenue: Double, currency: String, plans: [CoachPlanSummary])?
@@ -12,12 +13,21 @@ struct CoachSubscriptionsView: View {
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var appear = false
+    @State private var chargesEnabled = false
+    @State private var connecting = false
+    @State private var connectError: String?
+    private let webFlow = StripeWebFlow()
 
     var body: some View {
         ScreenScroll {
             ScreenHeader(eyebrow: "Ricavi", title: "Abbonamenti",
                          subtitle: "Piani e clienti paganti", accent: Palette.amber)
                 .revealUp(appear, index: 0)
+
+            if !chargesEnabled {
+                connectBanner.revealUp(appear, index: 1)
+            }
+
             if loading && header == nil {
                 CoachSubscriptionsSkeleton()
             } else if let h = header {
@@ -61,6 +71,9 @@ struct CoachSubscriptionsView: View {
                 Text(p.name).font(Typo.body(16, .semibold)).foregroundStyle(Palette.textHi)
                 Text("€\(String(format: "%.0f", p.price)) · \(p.billingInterval ?? p.planType ?? "")")
                     .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                StatusBadge(text: p.isOnlinePurchasable ? "Online" : "Solo manuale",
+                            color: p.isOnlinePurchasable ? Palette.lime : Palette.textLow,
+                            filled: p.isOnlinePurchasable)
             }
             Spacer()
             VStack(spacing: 2) {
@@ -71,6 +84,25 @@ struct CoachSubscriptionsView: View {
             if !p.isActive { StatusBadge(text: "Off", color: Palette.textLow, filled: false) }
         }
         .padding(14).voltPanel()
+    }
+
+    private var connectBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "link.circle.fill").foregroundStyle(Palette.amber)
+                Text("Collega Stripe per vendere online").font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+            }
+            Text("Senza un account Stripe collegato i tuoi piani restano assegnabili solo manualmente (pagamento in studio).")
+                .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+            if let connectError {
+                Text(connectError).font(Typo.body(12)).foregroundStyle(Palette.danger)
+            }
+            NeonButton(title: "Collega Stripe", icon: "arrow.up.right.square", color: Palette.amber,
+                       loading: connecting, compact: true) {
+                Task { await startConnect() }
+            }
+        }
+        .padding(16).voltPanel()
     }
 
     private func subRow(_ s: CoachSubscriptionRow) -> some View {
@@ -91,6 +123,24 @@ struct CoachSubscriptionsView: View {
         if let res = try? await APIClient.shared.coachSubscriptions(offset: 0) {
             header = (res.activeCount, res.monthlyRevenue, res.currency, res.plans)
             subs = res.subscriptions; hasMore = res.hasMore
+            chargesEnabled = res.stripeConnectChargesEnabled
+        }
+    }
+
+    private func startConnect() async {
+        connecting = true; connectError = nil
+        defer { connecting = false }
+        do {
+            let urlString = try await APIClient.shared.coachConnectStart()
+            guard let url = URL(string: urlString) else { throw APIError.badURL }
+            _ = try await webFlow.run(url: url, callbackScheme: "athlynkcoach")
+            if let status = try? await APIClient.shared.coachConnectStatus() {
+                chargesEnabled = status.stripeConnectChargesEnabled
+            }
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // User dismissed the web view — not an error worth surfacing.
+        } catch {
+            connectError = "Impossibile collegare Stripe. Riprova."
         }
     }
 

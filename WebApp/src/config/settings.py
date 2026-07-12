@@ -144,6 +144,16 @@ STRIPE_PRICE_CHIRON_ANNUALE = config('STRIPE_PRICE_CHIRON_ANNUALE', default='')
 # Public marketing site (Vercel) — Stripe success/cancel redirects land here.
 WEBSITE_URL = config('WEBSITE_URL', default='https://athlynk.it')
 
+# --- Stripe Connect (coach -> athlete, "abbonamenti") ----------------------
+# Separate Connect-scoped webhook endpoint/secret from the platform-billing
+# one above — Connect events (account.updated, connected-account
+# checkout.session.completed) are configured as their own Dashboard endpoint
+# with their own signing secret. See config/views_connect.py.
+STRIPE_CONNECT_WEBHOOK_SECRET = config('STRIPE_CONNECT_WEBHOOK_SECRET', default='')
+# Athlynk's cut of every athlete->coach payment, as a whole percent
+# (application_fee_amount / application_fee_percent at checkout).
+PLATFORM_FEE_PERCENT = config('PLATFORM_FEE_PERCENT', default=10, cast=int)
+
 
 # Application definition
 
@@ -222,7 +232,13 @@ DATABASES = {
         # Riusa la connessione tra richieste sullo stesso worker invece di
         # aprirne una nuova ogni volta (4 worker sync = max ~4 connessioni
         # tenute, ben dentro i limiti del transaction pooler Supabase).
-        conn_max_age=60,
+        # In locale (DEBUG, un solo processo runserver) nessun limite: aprire
+        # una connessione fresca verso il pooler Supabase impiega, a volte,
+        # decine di secondi (provisioning del backend PgBouncer) — con
+        # conn_max_age=60 ogni ~60s di inattività ripaga quel costo da capo,
+        # percepito come "la pagina non carica mai". conn_health_checks=True
+        # sostituisce comunque la connessione se muore.
+        conn_max_age=None if DEBUG else 60,
         conn_health_checks=True,
         # sslmode è un'opzione solo Postgres: con un DATABASE_URL sqlite locale
         # va omessa o la connessione fallisce.

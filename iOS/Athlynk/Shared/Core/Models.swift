@@ -599,12 +599,26 @@ struct MessageDTO: Codable, Identifiable, Hashable {
     let messageType: String
     let isMine: Bool
     let sentAt: String?
+    let attachmentUrl: String?
+    let appointmentId: Int?
+    let appointmentStatus: String?
+    let appointmentTitle: String?
+    let appointmentStart: String?
+    let appointmentExpired: Bool?
+    let readAt: String?
 
     enum CodingKeys: String, CodingKey {
         case id, body
         case messageType = "message_type"
         case isMine = "is_mine"
         case sentAt = "sent_at"
+        case attachmentUrl = "attachment_url"
+        case appointmentId = "appointment_id"
+        case appointmentStatus = "appointment_status"
+        case appointmentTitle = "appointment_title"
+        case appointmentStart = "appointment_start"
+        case appointmentExpired = "appointment_expired"
+        case readAt = "read_at"
     }
 }
 
@@ -620,20 +634,23 @@ struct SubscriptionPlanDTO: Codable, Hashable, Identifiable {
     let id: Int
     let name: String
     let planType: String?
+    let kind: String?
     let description: String?
     let price: Double
     let currency: String
     let durationDays: Int?
     let billingInterval: String?
     let includedServices: [String]
+    let isOnlinePurchasable: Bool
     let coach: Coach?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, price, currency, coach
+        case id, name, description, price, currency, coach, kind
         case planType = "plan_type"
         case durationDays = "duration_days"
         case billingInterval = "billing_interval"
         case includedServices = "included_services"
+        case isOnlinePurchasable = "is_online_purchasable"
     }
 
     init(from decoder: Decoder) throws {
@@ -641,6 +658,7 @@ struct SubscriptionPlanDTO: Codable, Hashable, Identifiable {
         id = try c.decode(Int.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         planType = try c.decodeIfPresent(String.self, forKey: .planType)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind)
         description = try c.decodeIfPresent(String.self, forKey: .description)
         price = (try? c.decode(Double.self, forKey: .price)) ?? 0
         currency = (try? c.decode(String.self, forKey: .currency)) ?? "EUR"
@@ -648,6 +666,7 @@ struct SubscriptionPlanDTO: Codable, Hashable, Identifiable {
         billingInterval = try c.decodeIfPresent(String.self, forKey: .billingInterval)
         // included_services is a free-form JSON field: tolerate non-string arrays.
         includedServices = (try? c.decode([String].self, forKey: .includedServices)) ?? []
+        isOnlinePurchasable = (try? c.decode(Bool.self, forKey: .isOnlinePurchasable)) ?? false
         coach = try c.decodeIfPresent(Coach.self, forKey: .coach)
     }
 }
@@ -1221,6 +1240,11 @@ struct SettingsResponse: Codable { let settings: SettingsDTO }
 // MARK: - Plans on offer (Piani e Prezzi)
 
 struct PlansResponse: Codable { let plans: [SubscriptionPlanDTO] }
+
+struct CheckoutStartResponse: Codable {
+    let checkoutUrl: String
+    enum CodingKeys: String, CodingKey { case checkoutUrl = "checkout_url" }
+}
 
 // MARK: - Active session (Sessione Attiva)
 

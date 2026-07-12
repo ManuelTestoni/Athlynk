@@ -179,6 +179,30 @@ final class APIClient {
                               method: "POST", body: ["body": body])
     }
 
+    /// Sends a "richiesta appuntamento" into the chat — creates a PENDING appointment
+    /// and returns the APPOINTMENT_REQUEST message that represents it in the thread.
+    func requestAppointment(conversation: Int, title: String, preferredDate: String,
+                             timeFrom: String, timeTo: String, notes: String?) async throws -> MessageDTO {
+        let data = try await request("/api/v1/conversations/\(conversation)/appointment", method: "POST", body: [
+            "title": title, "preferred_date": preferredDate,
+            "time_from": timeFrom, "time_to": timeTo, "notes": notes ?? "",
+        ])
+        return try decode(MessageDTO.self, from: data)
+    }
+
+    /// Accepts or rejects a PENDING appointment request. `action` is "accept" | "reject".
+    /// Accepting confirms the slot the requester already proposed, as-is — reject
+    /// may include a counter-proposal.
+    func respondAppointment(conversation: Int, appointmentId: Int, action: String,
+                             counterDate: String? = nil, counterTime: String? = nil) async throws -> MessageDTO {
+        var body: [String: Any] = ["action": action]
+        if let counterDate { body["counter_date"] = counterDate }
+        if let counterTime { body["counter_time"] = counterTime }
+        let data = try await request("/api/v1/conversations/\(conversation)/appointment/\(appointmentId)/respond",
+                                     method: "POST", body: body)
+        return try decode(MessageDTO.self, from: data)
+    }
+
     func subscription() async throws -> SubscriptionDTO? {
         try decode(SubscriptionResponse.self, from: try await request("/api/v1/subscription")).subscription
     }
@@ -325,6 +349,13 @@ final class APIClient {
 
     func plans() async throws -> [SubscriptionPlanDTO] {
         try decode(PlansResponse.self, from: try await request("/api/v1/plans")).plans
+    }
+
+    /// Starts a Stripe Checkout Session for an online-purchasable plan.
+    /// Returns the hosted Checkout URL; open it via StripeWebFlow.
+    func checkoutStart(planId: Int) async throws -> String {
+        try decode(CheckoutStartResponse.self,
+                   from: try await request("/api/v1/checkout/start", method: "POST", body: ["plan_id": planId])).checkoutUrl
     }
 
     // MARK: Write flows

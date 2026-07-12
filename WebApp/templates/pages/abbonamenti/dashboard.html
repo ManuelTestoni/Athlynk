@@ -62,11 +62,36 @@
             <p class="al-body mt-2">Listino, iscrizioni e stato pagamenti degli atleti.</p>
             <div class="al-rule-bronze mt-5"></div>
         </div>
-        <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-bronze">
-            <i class="ph ph-plus text-sm"></i>
-            <span>Crea Piano</span>
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'bundle_list' %}" class="al-btn al-btn-ghost">
+                <i class="ph ph-package text-sm"></i>
+                <span>Pacchetti</span>
+            </a>
+            <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-bronze">
+                <i class="ph ph-plus text-sm"></i>
+                <span>Crea Piano</span>
+            </a>
+        </div>
     </div>
+
+    {% if not coach.stripe_connect_charges_enabled %}
+    <div class="al-card flex items-center justify-between gap-4 mb-6 flex-shrink-0" style="border-color: var(--al-bronze-soft); background: var(--al-marble-warm);">
+        <div class="flex items-center gap-3">
+            <i class="ph ph-link text-bronze text-xl"></i>
+            <div>
+                <p class="al-body font-medium">Collega Stripe per vendere online</p>
+                <p class="al-small" style="color: var(--al-ink-mute);">Senza un account Stripe collegato i tuoi piani restano assegnabili solo manualmente (pagamento in studio).</p>
+            </div>
+        </div>
+        <form method="post" action="{% url 'connect_onboarding_start' %}">
+            {% csrf_token %}
+            <button type="submit" class="al-btn al-btn-bronze al-btn-sm shrink-0">
+                <i class="ph ph-arrow-square-out text-xs"></i>
+                <span>Collega Stripe</span>
+            </button>
+        </form>
+    </div>
+    {% endif %}
 
     <!-- KPI -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 flex-shrink-0">
@@ -144,8 +169,7 @@
     <div x-data="planAssignModal()" @keydown.escape.window="show = false">
         {% csrf_token %}
 
-        <div x-show="show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="al-modal-backdrop" @click="show = false"></div>
+        <div x-show="show" x-cloak class="al-modal-backdrop z-50" @click.self="show = false">
             <div class="al-modal-panel relative" style="max-width: 480px;">
                 <div class="al-modal-head">
                     <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Billing</p>
@@ -244,6 +268,13 @@
                                 </span>
                             </div>
                             {% if plan.plan_type %}<p class="al-tag mt-1">{{ plan.plan_type }}</p>{% endif %}
+                            <p class="al-tag mt-1">
+                                {% if plan.is_online_purchasable %}
+                                <span class="al-badge al-badge-success"><span class="dot"></span>Pagabile online</span>
+                                {% else %}
+                                <span class="al-badge">Solo assegnazione manuale</span>
+                                {% endif %}
+                            </p>
                             <div class="ab-plan-price">
                                 <span class="num">€{{ plan.price }}</span>
                                 <span class="al-tag">/ {{ plan.billing_interval|default:"mese" }}</span>

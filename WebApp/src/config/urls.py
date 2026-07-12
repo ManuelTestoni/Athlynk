@@ -47,6 +47,8 @@ from . import views_consent
 from . import views_seo
 from . import views_chiron
 from . import views_payments
+from . import views_connect
+from . import views_checkout
 from . import api as mobile_api
 from . import api_coach as coach_api
 from .api import coach_dual_auth
@@ -118,6 +120,7 @@ urlpatterns = [
     path('clienti/<int:client_id>/nutrizione/dettaglio/<int:assignment_id>/', views_nutrition.coach_client_nutrition_detail_view, name='coach_client_nutrition_detail'),
     path('api/nutrizione/dettaglio/<int:assignment_id>/log/', views_nutrition.api_macro_log_create, name='api_macro_log_create'),
     path('api/nutrizione/dettaglio/<int:assignment_id>/storico/', views_nutrition.api_macro_log_history, name='api_macro_log_history'),
+    path('api/coach/nutrizione/dettaglio/<int:assignment_id>/storico/', views_nutrition.api_coach_macro_log_history, name='api_coach_macro_log_history'),
     path('nutrizione/dettaglio/<int:assignment_id>/log/<str:date_str>/', views_nutrition.macro_log_day_view, name='macro_log_day'),
     path('api/nutrizione/log/<int:entry_id>/', views_nutrition.api_macro_log_detail, name='api_macro_log_detail'),
     path('api/nutrizione/cliente/storico/', views_nutrition.api_client_nutrition_history, name='api_client_nutrition_history'),
@@ -204,6 +207,11 @@ urlpatterns = [
     path('api/coach/clienti/<int:client_id>/progressi/rpe/', views_session.api_progress_rpe, name='api_progress_rpe'),
     path('api/coach/clienti/<int:client_id>/progressi/sessioni/', views_session.api_progress_sessions, name='api_progress_sessions'),
     path('api/coach/clienti/<int:client_id>/progressi/media/', views_session.api_progress_media_gallery, name='api_progress_media'),
+
+    # Athlete self-service progress APIs (dashboard widget)
+    path('api/mie/progressi/carichi/', views_session.api_my_progress_loads, name='api_my_progress_loads'),
+    path('api/mie/progressi/volume/', views_session.api_my_progress_volume, name='api_my_progress_volume'),
+
     path('api/allenamenti/save/', coach_dual_auth(views_workouts.api_plan_save), name='api_plan_save_new'),
     path('api/allenamenti/<int:plan_id>/save/', coach_dual_auth(views_workouts.api_plan_save), name='api_plan_save'),
     path('api/allenamenti/<int:plan_id>/finalize/', coach_dual_auth(views_workouts.api_plan_finalize), name='api_plan_finalize'),
@@ -240,16 +248,25 @@ urlpatterns = [
     
     # Abbonamenti
     path('abbonamenti/', views_client.abbonamenti_dashboard_view, name='abbonamenti_dashboard'),
-    path('abbonamenti/dettaglio/', TemplateView.as_view(template_name='pages/abbonamenti/detail.html'), name='abbonamenti_detail'),
-    path('abbonamenti/checkout/', TemplateView.as_view(template_name='pages/abbonamenti/checkout.html'), name='abbonamenti_checkout'),
-    path('abbonamenti/checkout/success/', TemplateView.as_view(template_name='pages/abbonamenti/checkout_success.html'), name='abbonamenti_checkout_success'),
+    path('abbonamenti/disdici/', views_client.athlete_cancel_subscription_view, name='athlete_cancel_subscription'),
+    path('abbonamenti/acquista/<int:plan_id>/', views_checkout.athlete_checkout_start_view, name='athlete_checkout_start'),
+    path('abbonamenti/acquista/pacchetto/<int:bundle_id>/', views_checkout.athlete_checkout_bundle_start_view, name='athlete_checkout_bundle_start'),
+    path('abbonamenti/checkout/success/', views_checkout.athlete_checkout_success_view, name='abbonamenti_checkout_success'),
     path('abbonamenti/piano/crea/', views_client.subscription_plan_create_view, name='subscription_plan_create'),
     path('abbonamenti/piano/<int:plan_id>/modifica/', views_client.subscription_plan_edit_view, name='subscription_plan_edit'),
     path('api/abbonamenti/piano/<int:plan_id>/elimina/', views_client.subscription_plan_delete_view, name='subscription_plan_delete'),
     path('api/abbonamenti/piano/<int:plan_id>/assegna/', views_client.assign_plan_to_client_view, name='subscription_plan_assign'),
     path('api/abbonamenti/iscrizioni/<int:subscription_id>/pagato/', views_client.api_subscription_mark_paid, name='subscription_mark_paid'),
     path('abbonamenti/piano/<int:plan_id>/clienti/', views_client.subscription_plan_detail_view, name='subscription_plan_detail'),
-    
+    path('abbonamenti/pacchetti/', views_client.bundle_list_view, name='bundle_list'),
+    path('abbonamenti/pacchetti/crea/', views_client.bundle_create_view, name='bundle_create'),
+    path('abbonamenti/pacchetti/<int:bundle_id>/modifica/', views_client.bundle_edit_view, name='bundle_edit'),
+    path('api/abbonamenti/pacchetti/<int:bundle_id>/elimina/', views_client.bundle_delete_view, name='bundle_delete'),
+    path('abbonamenti/connetti/', views_connect.connect_onboarding_start_view, name='connect_onboarding_start'),
+    path('abbonamenti/connetti/ritorno/', views_connect.connect_onboarding_return_view, name='connect_onboarding_return'),
+    path('abbonamenti/connetti/refresh/', views_connect.connect_onboarding_refresh_view, name='connect_onboarding_refresh'),
+    path('webhooks/stripe/connect/', views_connect.stripe_connect_webhook, name='stripe_connect_webhook'),
+
     # Check Progressi
     path('check/', views_check.check_dashboard_view, name='check_dashboard'),
     path('check/crea/', views_check.check_create_view, name='check_create'),
@@ -330,6 +347,8 @@ urlpatterns = [
     path('api/v1/conversations', mobile_api.conversations, name='api_v1_conversations'),
     path('api/v1/conversations/<int:conversation_id>/messages', mobile_api.messages, name='api_v1_messages'),
     path('api/v1/conversations/<int:conversation_id>/send', mobile_api.send_message, name='api_v1_send_message'),
+    path('api/v1/conversations/<int:conversation_id>/appointment', mobile_api.request_appointment, name='api_v1_request_appointment'),
+    path('api/v1/conversations/<int:conversation_id>/appointment/<int:appointment_id>/respond', mobile_api.respond_appointment, name='api_v1_respond_appointment'),
     path('api/v1/subscription', mobile_api.subscription, name='api_v1_subscription'),
     path('api/v1/appointments', mobile_api.appointments, name='api_v1_appointments'),
     path('api/v1/progress', mobile_api.progress, name='api_v1_progress'),
@@ -354,6 +373,7 @@ urlpatterns = [
     path('api/v1/nutrition/macro-log/<int:entry_id>', mobile_api.macro_log_delete, name='api_v1_macro_log_delete'),
     path('api/v1/journey', mobile_api.journey, name='api_v1_journey'),
     path('api/v1/plans', mobile_api.plans, name='api_v1_plans'),
+    path('api/v1/checkout/start', mobile_api.checkout_start, name='api_v1_checkout_start'),
     path('api/v1/auth/forgot-password', mobile_api.forgot_password, name='api_v1_forgot_password'),
     path('api/v1/sessions/start', mobile_api.session_start, name='api_v1_session_start'),
     path('api/v1/sessions/<int:session_id>/log-set', mobile_api.session_log_set, name='api_v1_session_log_set'),
@@ -411,6 +431,8 @@ urlpatterns = [
     path('api/v1/coach/supplements/<int:protocol_id>/delete', coach_api.coach_supplement_delete, name='api_v1_coach_supplement_delete'),
     path('api/v1/coach/supplements/<int:protocol_id>/assign', coach_api.coach_supplement_assign, name='api_v1_coach_supplement_assign'),
     path('api/v1/coach/subscriptions', coach_api.subscriptions, name='api_v1_coach_subscriptions'),
+    path('api/v1/coach/connect/start', coach_api.coach_connect_start, name='api_v1_coach_connect_start'),
+    path('api/v1/coach/connect/status', coach_api.coach_connect_status, name='api_v1_coach_connect_status'),
     path('api/v1/coach/resources', coach_api.resources, name='api_v1_coach_resources'),
     path('api/v1/coach/analytics', coach_api.analytics, name='api_v1_coach_analytics'),
     path('api/v1/coach/analytics/business', coach_api.analytics_business, name='api_v1_coach_analytics_business'),
@@ -422,6 +444,7 @@ urlpatterns = [
     path('api/v1/coach/conversations', coach_api.conversations, name='api_v1_coach_conversations'),
     path('api/v1/coach/conversations/<int:conversation_id>/messages', coach_api.messages, name='api_v1_coach_messages'),
     path('api/v1/coach/conversations/<int:conversation_id>/send', coach_api.send_message, name='api_v1_coach_send_message'),
+    path('api/v1/coach/conversations/<int:conversation_id>/appointment/<int:appointment_id>/respond', coach_api.respond_appointment, name='api_v1_coach_respond_appointment'),
     path('api/v1/coach/profile', coach_api.profile, name='api_v1_coach_profile'),
     path('api/v1/coach/profile/photo', coach_api.profile_photo, name='api_v1_coach_profile_photo'),
     path('api/v1/coach/clients/<int:client_id>/workout', coach_api.client_workout, name='api_v1_coach_client_workout'),

@@ -24,6 +24,19 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- Custom scheme ASWebAuthenticationSession watches for when the Stripe
+	     Checkout web view redirects back into the app after a plan/bundle
+	     purchase (see Shared/Core/StripeWebFlow.swift). Not used for any
+	     other deep link. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>athlynk</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

@@ -9,6 +9,7 @@ from domain.chat.models import Conversation, Message, Notification
 from domain.accounts.models import CoachProfile, ClientProfile
 from domain.coaching.models import CoachingRelationship
 from domain.calendar.models import Appointment
+from domain.calendar.services import appointment_expired, create_appointment_request, respond_to_appointment
 
 from .session_utils import get_session_user, get_session_coach, get_session_client
 from .http_utils import safe_int
@@ -225,6 +226,7 @@ def chat_detail_view(request, conversation_id):
         'current_user_id': user.id,
         'has_older': has_older,
         'oldest_id': oldest_id,
+        'now': now,
     })
 
 
@@ -329,69 +331,23 @@ def api_appointment_request(request, conversation_id):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    from datetime import date as date_type, datetime, timedelta
-    from django.utils.timezone import make_aware
-
-    title = (data.get('title') or 'Appuntamento').strip()
-    preferred_date_str = data.get('preferred_date', '').strip()
-    time_from_str = data.get('time_from', '').strip()
-    time_to_str = data.get('time_to', '').strip()
-    notes = (data.get('notes') or '').strip()
-
-    if not preferred_date_str or not time_from_str or not time_to_str:
-        return JsonResponse({'error': 'Giorno e fascia oraria sono obbligatori'}, status=400)
-
     try:
-        preferred_date = date_type.fromisoformat(preferred_date_str)
-        h_from, m_from = map(int, time_from_str.split(':'))
-        h_to, m_to = map(int, time_to_str.split(':'))
-        start_dt = make_aware(datetime(preferred_date.year, preferred_date.month, preferred_date.day, h_from, m_from))
-        end_dt = make_aware(datetime(preferred_date.year, preferred_date.month, preferred_date.day, h_to, m_to))
-    except (ValueError, TypeError):
-        return JsonResponse({'error': 'Formato data/orario non valido'}, status=400)
-
-    if end_dt <= start_dt:
-        return JsonResponse({'error': "L'orario di fine deve essere successivo all'inizio"}, status=400)
-    if (end_dt - start_dt) > timedelta(hours=10):
-        return JsonResponse({'error': 'La fascia oraria non può superare le 10 ore'}, status=400)
-
-    appointment = Appointment.objects.create(
-        coach=conversation.coach,
-        client=conversation.client,
-        appointment_type='consultation',
-        title=title,
-        description=notes or None,
-        start_datetime=start_dt,
-        duration_minutes=max(1, int((end_dt - start_dt).total_seconds() // 60)),
-        status='PENDING',
-    )
-
-    body_msg = f'Richiesta appuntamento: {title} il {preferred_date.strftime("%d/%m/%Y")} dalle {time_from_str} alle {time_to_str}'
-
-    msg = Message.objects.create(
-        conversation=conversation,
-        sender_user=user,
-        body=body_msg,
-        message_type='APPOINTMENT_REQUEST',
-        appointment=appointment,
-    )
-    conversation.last_message_at = msg.sent_at
-    conversation.save(update_fields=['last_message_at', 'updated_at'])
-
-    recipient = _recipient_user_for_message(conversation, user)
-    Notification.objects.create(
-        target_user=recipient,
-        notification_type='APPOINTMENT_REQUEST',
-        title='Nuova richiesta di appuntamento',
-        body=body_msg,
-        link_url=f'/chat/{conversation.id}/',
-    )
+        msg = create_appointment_request(
+            user, conversation,
+            title=data.get('title'),
+            preferred_date_str=data.get('preferred_date'),
+            time_from_str=data.get('time_from'),
+            time_to_str=data.get('time_to'),
+            notes=data.get('notes'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({
         'id': msg.id,
         'message_type': msg.message_type,
-        'appointment_id': appointment.id,
-        'appointment_status': appointment.status,
+        'appointment_id': msg.appointment_id,
+        'appointment_status': msg.appointment.status,
         'body': msg.body,
         'sent_at': msg.sent_at.isoformat(),
         'sender_user_id': user.id,
@@ -409,94 +365,21 @@ def api_appointment_respond(request, conversation_id, appointment_id):
         return JsonResponse({'error': 'Forbidden'}, status=403)
 
     appointment = get_object_or_404(Appointment, id=appointment_id, coach=conversation.coach, client=conversation.client)
-    if appointment.status != 'PENDING':
-        return JsonResponse({'error': 'Appointment già processato'}, status=400)
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    action = (data.get('action') or '').lower()
-    if action not in ('accept', 'reject'):
-        return JsonResponse({'error': 'Azione non valida'}, status=400)
-
-    from datetime import date as date_type, datetime
-    from django.utils.timezone import make_aware
-
-    if action == 'accept':
-        confirmed_date_str = data.get('confirmed_date', '').strip()
-        confirmed_time_str = data.get('confirmed_time', '').strip()
-        if not confirmed_date_str or not confirmed_time_str:
-            return JsonResponse({'error': 'Data e orario confermati sono obbligatori'}, status=400)
-        try:
-            cd = date_type.fromisoformat(confirmed_date_str)
-            h, m = map(int, confirmed_time_str.split(':'))
-            start_dt = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
-        except (ValueError, TypeError):
-            return JsonResponse({'error': 'Formato data/orario non valido'}, status=400)
-        appointment.start_datetime = start_dt
-        appointment.duration_minutes = 60
-        appointment.status = 'SCHEDULED'
-        appointment.save(update_fields=['start_datetime', 'duration_minutes', 'status', 'updated_at'])
-        body_msg = f'Appuntamento confermato: {appointment.title} il {start_dt.strftime("%d/%m/%Y")} alle {start_dt.strftime("%H:%M")}'
-        notif_type = 'APPOINTMENT_ACCEPTED'
-        notif_title = 'Appuntamento confermato'
-    else:
-        appointment.status = 'CANCELLED'
-        appointment.cancellation_reason = 'Richiesta rifiutata'
-        appointment.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
-        body_msg = f'Appuntamento rifiutato: {appointment.title}'
-        notif_type = 'APPOINTMENT_REJECTED'
-        notif_title = 'Appuntamento rifiutato'
-
-        # Optional counter-proposal: create a new pending appointment + message
-        counter_date_str = data.get('counter_date', '').strip()
-        counter_time_str = data.get('counter_time', '').strip()
-        if counter_date_str and counter_time_str:
-            try:
-                cd = date_type.fromisoformat(counter_date_str)
-                h, m = map(int, counter_time_str.split(':'))
-                counter_start = make_aware(datetime(cd.year, cd.month, cd.day, h, m))
-                counter_appt = Appointment.objects.create(
-                    coach=conversation.coach,
-                    client=conversation.client,
-                    appointment_type='consultation',
-                    title=appointment.title,
-                    start_datetime=counter_start,
-                    duration_minutes=60,
-                    status='PENDING',
-                )
-                counter_msg = Message.objects.create(
-                    conversation=conversation,
-                    sender_user=user,
-                    body=f'Controproposta: {appointment.title} il {cd.strftime("%d/%m/%Y")} alle {counter_time_str}',
-                    message_type='APPOINTMENT_REQUEST',
-                    appointment=counter_appt,
-                )
-                conversation.last_message_at = counter_msg.sent_at
-                conversation.save(update_fields=['last_message_at', 'updated_at'])
-            except (ValueError, TypeError):
-                pass
-
-    msg = Message.objects.create(
-        conversation=conversation,
-        sender_user=user,
-        body=body_msg,
-        message_type='APPOINTMENT_RESPONSE',
-        appointment=appointment,
-    )
-    conversation.last_message_at = msg.sent_at
-    conversation.save(update_fields=['last_message_at', 'updated_at'])
-
-    recipient = _recipient_user_for_message(conversation, user)
-    Notification.objects.create(
-        target_user=recipient,
-        notification_type=notif_type,
-        title=notif_title,
-        body=body_msg,
-        link_url=f'/chat/{conversation.id}/',
-    )
+    try:
+        msg = respond_to_appointment(
+            user, conversation, appointment,
+            action=data.get('action'),
+            counter_date_str=data.get('counter_date'),
+            counter_time_str=data.get('counter_time'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({
         'id': msg.id,
@@ -544,6 +427,8 @@ def _serialize_message(m):
         'appointment_id': m.appointment_id,
         'appointment_status': m.appointment.status if m.appointment else None,
         'appointment_title': m.appointment.title if m.appointment else None,
+        'appointment_start': m.appointment.start_datetime.isoformat() if m.appointment else None,
+        'appointment_expired': appointment_expired(m.appointment),
         'read_at': m.read_at.isoformat() if m.read_at else None,
     }
 

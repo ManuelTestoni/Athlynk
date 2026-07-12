@@ -129,5 +129,73 @@
   </section>
   {% endif %}
 
+  <!-- Storico pasti (sola lettura) -->
+  <section x-data="{
+        loading: true, weekOffset: 0, history: [], hasOlder: false, isLatest: true, windowLabel: '',
+        async load() {
+          this.loading = true;
+          try {
+            const r = await fetch('{% url 'api_coach_macro_log_history' assignment.id %}?week_offset=' + this.weekOffset);
+            const d = await r.json();
+            this.history = d.history || [];
+            this.hasOlder = !!d.has_older;
+            this.isLatest = !!d.is_latest;
+            this.windowLabel = d.window_label || '';
+          } catch (e) { this.history = []; }
+          this.loading = false;
+        },
+      }" x-init="load()">
+    <div class="flex items-center justify-between mb-3">
+      <p class="al-eyebrow" style="color: var(--al-bronze);">Storico pasti</p>
+      <div class="flex items-center gap-2">
+        <button type="button" class="al-btn-icon al-btn-ghost" :disabled="loading" @click="weekOffset++; load()" title="Settimana precedente">
+          <i class="ph ph-caret-left"></i>
+        </button>
+        <span class="al-tag" x-text="windowLabel"></span>
+        <button type="button" class="al-btn-icon al-btn-ghost" :disabled="loading || isLatest" @click="weekOffset--; load()" title="Settimana successiva">
+          <i class="ph ph-caret-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <template x-if="loading">
+      <div class="text-center" style="border: 2px dashed var(--al-rule-strong); border-radius: var(--al-r-md); padding: 2rem 1rem; color: var(--al-ink-mute); background: var(--al-marble-warm);">
+        <i class="ph ph-spinner-gap" style="font-size:1.5rem; display:block; margin-bottom:.5rem; animation: spin 1s linear infinite;"></i>
+        <p class="al-small">Caricamento storico…</p>
+      </div>
+    </template>
+
+    <template x-if="!loading && history.length === 0">
+      <div class="al-card al-card-warm">
+        <p class="al-body text-center" style="color: var(--al-ink-mute); padding: 1.5rem 0;">Nessun pasto registrato in questa settimana.</p>
+      </div>
+    </template>
+
+    <template x-if="!loading">
+      <div class="space-y-3">
+        <template x-for="day in history" :key="day.date">
+          <div class="al-card al-card-flush overflow-hidden">
+            <div class="px-4 py-2 flex items-center justify-between" style="background: var(--al-marble-warm);">
+              <span class="al-small font-medium text-ink" x-text="day.dow_short + ' · ' + day.date_short"></span>
+              <span class="al-tag" x-text="day.entries.length + ' voci'"></span>
+            </div>
+            <template x-if="day.entries.length === 0">
+              <p class="al-small px-4 py-3" style="color: var(--al-ink-mute);">Nessuna voce registrata.</p>
+            </template>
+            <template x-for="entry in day.entries" :key="entry.id">
+              <div class="px-4 py-2 flex items-center justify-between" style="border-top: 1px solid var(--al-rule-faint);">
+                <div class="min-w-0">
+                  <p class="al-small font-medium text-ink truncate" x-text="entry.food_name"></p>
+                  <p class="al-tag" x-text="entry.meal_name"></p>
+                </div>
+                <span class="al-tag font-mono shrink-0" x-text="entry.quantity_g + ' g'"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+  </section>
+
 </div>
 {% endblock %}

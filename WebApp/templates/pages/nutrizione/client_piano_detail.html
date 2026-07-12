@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load safejson %}
 
 {% block title %}{{ plan.title }} — Piano alimentare{% endblock %}
 
@@ -157,207 +158,6 @@
     color: var(--al-ink-mute);
   }
 
-  /* Meal card */
-  .pd-meal {
-    border: 1px solid var(--al-rule);
-    border-radius: var(--al-r-md);
-    background: white;
-    margin-bottom: 1.25rem;
-    overflow: hidden;
-    transition: box-shadow .2s;
-  }
-  .pd-meal:hover { box-shadow: var(--al-shadow-2); }
-
-  .pd-meal-head {
-    display: grid;
-    grid-template-columns: auto minmax(0,1fr) auto;
-    gap: 1rem;
-    align-items: center;
-    padding: 1rem 1.4rem;
-    background: var(--al-marble-warm);
-    border-bottom: 1px solid var(--al-rule-faint);
-  }
-  .pd-meal-num {
-    width: 40px; height: 40px;
-    border-radius: var(--al-r-sm);
-    background: var(--al-ink); color: var(--al-bronze);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--al-display);
-    font-size: 1.2rem; font-weight: 500;
-  }
-  .pd-meal-title { font-family: var(--al-display); font-size: 1.25rem; color: var(--al-ink); margin: 0; line-height: 1.15; }
-  .pd-meal-sub {
-    font-family: var(--al-mono);
-    font-size: .7rem; text-transform: uppercase; letter-spacing: .12em;
-    color: var(--al-ink-mute);
-    margin-top: .2rem;
-    display: flex; align-items: center; gap: .35rem;
-  }
-  .pd-meal-kcal {
-    text-align: right;
-    font-family: var(--al-display);
-    font-size: 1.4rem; color: var(--al-bronze);
-    line-height: 1;
-  }
-  .pd-meal-kcal small {
-    display: block;
-    font-family: var(--al-mono);
-    font-size: .6rem; text-transform: uppercase; letter-spacing: .15em;
-    color: var(--al-ink-mute);
-    margin-top: .25rem;
-  }
-
-  .pd-meal-note {
-    padding: .65rem 1.4rem;
-    background: rgba(166,128,43,0.08);
-    border-bottom: 1px solid rgba(166,128,43,0.18);
-    font-size: .8rem;
-    color: var(--al-warn);
-  }
-  .pd-meal-note i { margin-right: .35rem; }
-
-  /* Items */
-  .pd-items { display: flex; flex-direction: column; }
-  .pd-item {
-    display: grid;
-    grid-template-columns: auto minmax(0,1fr) auto auto;
-    gap: 1rem;
-    align-items: center;
-    padding: .9rem 1.4rem;
-    border-bottom: 1px solid var(--al-rule-faint);
-  }
-  .pd-item:last-of-type { border-bottom: none; }
-  @media (max-width: 640px) {
-    .pd-item { grid-template-columns: auto 1fr auto; }
-    .pd-item-macros { grid-column: 1 / -1; padding-left: 2.25rem; }
-  }
-  .pd-item-toggle {
-    width: 26px; height: 26px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: var(--al-r-xs);
-    background: var(--al-marble);
-    color: var(--al-ink-mute);
-    cursor: pointer;
-    border: none;
-    transition: all .15s;
-  }
-  .pd-item-toggle:hover { background: var(--al-stone); color: var(--al-bronze); }
-  .pd-item-toggle.is-spacer { background: transparent; cursor: default; }
-  .pd-item-name {
-    font-weight: 500;
-    color: var(--al-ink);
-    font-size: .92rem;
-    line-height: 1.3;
-    margin: 0;
-  }
-  .pd-item-cat {
-    font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--al-ink-faint);
-    margin-top: .15rem;
-  }
-  .pd-item-alt-tag {
-    display: inline-flex; align-items: center; gap: .25rem;
-    margin-left: .5rem;
-    padding: .15rem .45rem;
-    border-radius: var(--al-r-xs);
-    background: var(--al-marble-warm);
-    border: 1px solid var(--al-bronze-soft);
-    color: var(--al-bronze);
-    font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-  }
-  .pd-item-qty {
-    text-align: right;
-    font-family: var(--al-mono);
-    font-variant-numeric: tabular-nums;
-  }
-  .pd-item-qty strong {
-    font-family: var(--al-display);
-    font-size: 1.1rem;
-    font-weight: 400;
-    color: var(--al-ink);
-    display: block;
-    line-height: 1;
-  }
-  .pd-item-qty small {
-    font-size: .7rem; color: var(--al-ink-mute);
-    margin-top: .15rem; display: block;
-  }
-  .pd-item-macros {
-    display: flex; gap: .65rem;
-    font-family: var(--al-mono);
-    font-size: .7rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .pd-item-macro { display: inline-flex; align-items: baseline; gap: .25rem; }
-  .pd-item-macro.is-p { color: var(--al-aegean); }
-  .pd-item-macro.is-c { color: var(--al-warn); }
-  .pd-item-macro.is-f { color: var(--al-danger); }
-
-  /* Substitutions */
-  .pd-subs {
-    padding: 0 1.4rem 1rem 3.4rem;
-    background: var(--al-marble);
-    border-bottom: 1px solid var(--al-rule-faint);
-  }
-  .pd-subs-label {
-    font-family: var(--al-mono);
-    font-size: .62rem; text-transform: uppercase; letter-spacing: .15em;
-    color: var(--al-ink-mute);
-    padding: .65rem 0;
-  }
-  .pd-sub {
-    display: grid;
-    grid-template-columns: auto minmax(0,1fr) auto;
-    gap: .75rem;
-    align-items: center;
-    padding: .55rem .8rem;
-    background: white;
-    border: 1px solid var(--al-rule-faint);
-    border-radius: var(--al-r-sm);
-    margin-bottom: .35rem;
-  }
-  .pd-sub-mode {
-    font-family: var(--al-mono);
-    font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-    padding: .2rem .45rem;
-    border-radius: var(--al-r-xs);
-    color: var(--al-parchment);
-  }
-  .pd-sub-mode.is-kcal { background: var(--al-bronze); }
-  .pd-sub-mode.is-prot { background: var(--al-aegean); }
-  .pd-sub-mode.is-carb { background: var(--al-warn); }
-  .pd-sub-name { font-size: .85rem; color: var(--al-ink); margin: 0; line-height: 1.25; }
-  .pd-sub-macros { font-family: var(--al-mono); font-size: .68rem; color: var(--al-ink-mute); margin-top: .15rem; }
-  .pd-sub-qty {
-    font-family: var(--al-display);
-    font-size: 1rem;
-    color: var(--al-ink-soft);
-  }
-
-  /* Meal totals strip */
-  .pd-meal-foot {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    border-top: 1px solid var(--al-rule);
-  }
-  .pd-meal-foot-cell {
-    padding: .65rem 1rem;
-    text-align: center;
-    font-family: var(--al-mono);
-    font-size: .8rem;
-    border-right: 1px dashed var(--al-rule-faint);
-  }
-  .pd-meal-foot-cell:last-child { border-right: none; }
-  .pd-meal-foot-cell strong { font-weight: 700; }
-  .pd-meal-foot-cell.is-p strong { color: var(--al-aegean); }
-  .pd-meal-foot-cell.is-c strong { color: var(--al-warn); }
-  .pd-meal-foot-cell.is-f strong { color: var(--al-danger); }
-  .pd-meal-foot-label {
-    font-size: .58rem; text-transform: uppercase; letter-spacing: .15em;
-    color: var(--al-ink-mute);
-    margin-left: .3rem;
-  }
-
   .pd-empty {
     text-align: center; padding: 3rem 1.5rem;
     border: 1px dashed var(--al-rule);
@@ -366,47 +166,273 @@
     background: var(--al-parchment);
   }
 
-  /* === Supplements card (same design as nutrizione/client_piani.html) === */
-  .nu-supp { margin-top: 3rem; }
-  .nu-supp-header {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
-    margin-bottom: 1.25rem;
+  /* === Meals — same component system as the coach's piano_detail.html === */
+  .pd-mono {
+    font-family: var(--al-mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--al-ink-mute);
+    text-transform: uppercase;
   }
-  .nu-supp-header h3 {
-    font-family: var(--al-display);
-    font-size: 1.5rem; color: var(--al-ink); margin: 0; letter-spacing: -.01em;
+
+  .pd-meal-list { display: flex; flex-direction: column; gap: 18px; }
+
+  .pd-meal {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 0;
+    border: 1px solid var(--al-rule);
+    border-radius: var(--al-r-md);
+    background: var(--al-parchment);
+    overflow: hidden;
   }
-  .nu-supp-item {
-    display: flex; align-items: center; gap: 1rem;
-    padding: .85rem 1.25rem;
+  @media (max-width: 640px) {
+    .pd-meal { grid-template-columns: 52px minmax(0, 1fr); }
+  }
+
+  .pd-meal-ordinal {
+    background:
+      linear-gradient(180deg, var(--al-marble-warm), var(--al-marble));
+    border-right: 1px solid var(--al-rule);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 0 22px;
+    gap: 8px;
+  }
+  .pd-meal-ordinal .pd-mono {
+    font-size: 14px;
+    color: var(--al-bronze);
+    letter-spacing: 0.08em;
+  }
+  .pd-meal-stem {
+    flex: 1;
+    width: 1px;
+    background: linear-gradient(180deg, var(--al-bronze) 0%, transparent 100%);
+    opacity: .5;
+  }
+
+  .pd-meal-body { padding: 24px 28px 22px; min-width: 0; }
+  @media (max-width: 640px) {
+    .pd-meal-body { padding: 20px 18px 18px; }
+  }
+
+  .pd-meal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22px;
+    padding-bottom: 14px;
     border-bottom: 1px solid var(--al-rule-faint);
-    transition: background .12s;
+    flex-wrap: wrap;
   }
-  .nu-supp-item:last-child { border-bottom: none; }
-  .nu-supp-item:hover { background: var(--al-marble-warm); }
-  .nu-supp-icon {
-    width: 36px; height: 36px; border-radius: var(--al-r-sm);
-    background: linear-gradient(135deg, var(--al-bronze) 0%, rgba(138,106,58,.7) 100%);
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-size: .9rem; flex-shrink: 0;
+  .pd-meal-head > .min-w-0 { min-width: 0; flex: 1; }
+  .pd-meal-totals {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(46px, auto));
+    gap: 20px;
+    align-items: end;
+    flex-shrink: 0;
   }
-  .nu-supp-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
-  .nu-supp-note { color: var(--al-ink-mute); font-size: .78rem; margin-top: 1px; }
-  .nu-supp-pills { display: flex; gap: .5rem; flex-wrap: wrap; flex-shrink: 0; }
-  .nu-supp-pill {
-    display: inline-flex; align-items: center; gap: .3rem;
-    padding: .2rem .55rem;
-    background: var(--al-marble); border: 1px solid var(--al-rule);
-    border-radius: 999px;
-    font-size: .7rem; font-weight: 600; color: var(--al-ink-soft);
+  @media (max-width: 520px) {
+    .pd-meal-totals { gap: 14px; grid-template-columns: repeat(4, minmax(38px, auto)); }
+  }
+  .pd-meal-totals p:first-child {
+    margin-bottom: 2px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+  .pd-meal-num {
+    font-family: var(--al-display);
+    font-size: 19px;
+    color: var(--al-ink);
+    line-height: 1;
+  }
+  .pd-meal-num span {
+    font-size: 11px;
+    color: var(--al-ink-mute);
+    margin-left: 1px;
+  }
+  /* Alpine-driven totals (day view): x-text can't share an element with a
+     nested unit span, so the "g" suffix is pure CSS content instead. */
+  .pd-meal-num--g::after {
+    content: 'g';
+    font-size: 11px;
+    color: var(--al-ink-mute);
+    margin-left: 1px;
+  }
+
+  .pd-meal-notes {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-left: 2px solid var(--al-bronze);
+    background: var(--al-marble-warm);
+    color: var(--al-ink-soft);
+    font-size: 12px;
+    font-style: italic;
+    border-radius: 2px;
+  }
+
+  .pd-items {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .pd-item {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) 64px 78px minmax(0, auto);
+    gap: 14px;
+    align-items: center;
+    padding: 11px 4px;
+    border-bottom: 1px dashed var(--al-rule-faint);
+    font-size: 13px;
+  }
+  .pd-item:last-child { border-bottom: none; }
+  @media (max-width: 900px) {
+    .pd-item {
+      grid-template-columns: 14px minmax(0, 1fr) 64px 78px;
+      grid-template-areas:
+        "b name qty kcal"
+        ". macros macros macros";
+      gap: 6px 14px;
+    }
+    .pd-item-bullet { grid-area: b; }
+    .pd-item-info { grid-area: name; }
+    .pd-item-qty { grid-area: qty; }
+    .pd-item-kcal { grid-area: kcal; text-align: right; }
+    .pd-item-macros { grid-area: macros; }
+  }
+  @media (max-width: 480px) {
+    .pd-item {
+      grid-template-columns: 14px minmax(0, 1fr) auto;
+      grid-template-areas:
+        "b name qty"
+        ". meta kcal"
+        ". macros macros";
+    }
+  }
+  .pd-item-bullet {
+    color: var(--al-bronze);
+    font-size: 18px;
+    font-family: var(--al-display);
+    line-height: 1;
+  }
+  .pd-item-info { min-width: 0; }
+  .pd-item-name {
+    font-weight: 500;
+    color: var(--al-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .nu-supp-pill i { font-size: .8rem; color: var(--al-bronze); }
+  .pd-item-meta {
+    font-family: var(--al-mono, ui-monospace, monospace);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--al-ink-mute);
+    margin-top: 2px;
+  }
+  .pd-item-qty {
+    font-family: var(--al-display);
+    color: var(--al-ink);
+    text-align: right;
+  }
+  .pd-item-qty strong { font-size: 16px; font-weight: 400; }
+  .pd-item-qty em {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--al-ink-mute);
+    margin-left: 2px;
+  }
+  .pd-item-kcal {
+    font-family: var(--al-mono, ui-monospace, monospace);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--al-ink-soft);
+  }
+  .pd-item-macros {
+    display: inline-flex;
+    gap: 14px;
+    font-family: var(--al-mono, ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    justify-content: flex-end;
+  }
+
+  .pd-item-empty {
+    padding: 18px 0;
+    text-align: center;
+    font-style: italic;
+    color: var(--al-ink-mute);
+    font-size: 13px;
+  }
+
+  /* Day view */
+  .pd-day-block + .pd-day-block { margin-top: 34px; }
+  .pd-day-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--al-rule);
+  }
+  .pd-day-head .al-eyebrow { font-size: 13px; letter-spacing: 0.12em; }
+  .pd-day-empty {
+    padding: 14px 4px 20px;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--al-ink-mute);
+  }
+  .pd-day-sentinel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px 0;
+    font-size: 12px;
+    color: var(--al-ink-mute);
+    letter-spacing: 0.04em;
+  }
+  .pd-spin { animation: pd-spin 0.9s linear infinite; }
+  @keyframes pd-spin { to { transform: rotate(360deg); } }
+
+  /* Table view */
+  .pd-cell-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: var(--al-r-sm);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--al-d-fast) var(--al-ease-out);
+  }
+  .pd-cell-btn:hover, .pd-cell-btn:focus-visible {
+    background: var(--al-marble-warm);
+    outline: none;
+  }
+  .pd-cell-kcal { font-family: var(--al-display); font-size: 13px; color: var(--al-ink); }
+  .pd-cell-items { font-size: 10px; color: var(--al-ink-mute); text-transform: uppercase; letter-spacing: 0.06em; }
+  .pd-cell-empty { color: var(--al-ink-faint, var(--al-ink-mute)); padding: 6px 10px; display: inline-block; }
+  .pd-meal-table th:first-child, .pd-meal-table td:first-child { white-space: nowrap; }
 
   [x-cloak] { display: none !important; }
 </style>
 
-<div class="max-w-4xl mx-auto">
+<script>
+  window._planDays = {{ days_detail_json|json_js }};
+  window._planMealNames = {{ meal_names_json|json_js }};
+</script>
+
+<div class="max-w-4xl mx-auto" x-data="clientPlanDetail()" x-init="init()">
 
   <div class="flex items-center justify-between gap-3 plan-print-actions">
     <a href="{{ back_url|default:'/nutrizione/piani/' }}" class="pd-back">
@@ -464,147 +490,397 @@
   <!-- Meals -->
   <div class="pd-meals-head">
     <h2>I tuoi <em>pasti</em></h2>
-    <span class="pd-meals-count">{{ meals_detail|length }} pasti</span>
+    <div class="flex items-center gap-3">
+      {% if plan.plan_kind == 'WEEKLY' and meals_detail %}
+        <div class="al-filter" role="tablist" aria-label="Vista pasti">
+          <button type="button" role="tab" class="al-filter-chip"
+                  :class="{ 'is-active': mealView === 'days' }" :aria-selected="mealView === 'days'"
+                  @click="mealView = 'days'">
+            <i class="ph ph-rows"></i><span>Giorni</span>
+          </button>
+          <button type="button" role="tab" class="al-filter-chip"
+                  :class="{ 'is-active': mealView === 'table' }" :aria-selected="mealView === 'table'"
+                  @click="mealView = 'table'">
+            <i class="ph ph-table"></i><span>Tabella</span>
+          </button>
+        </div>
+      {% endif %}
+      <span class="pd-meals-count">{{ meals_detail|length }} past{{ meals_detail|length|pluralize:"o,i" }}</span>
+    </div>
   </div>
 
-  {% for md in meals_detail %}
-  <article class="pd-meal">
-    <div class="pd-meal-head">
-      <div class="pd-meal-num">{{ forloop.counter }}</div>
-      <div>
-        <p class="pd-meal-title">{{ md.meal.name }}</p>
-        {% if md.meal.time_of_day %}
-        <p class="pd-meal-sub"><i class="ph ph-clock"></i>{{ md.meal.time_of_day }}</p>
-        {% endif %}
-      </div>
-      <div class="pd-meal-kcal">
-        {{ md.kcal }}
-        <small>kcal</small>
-      </div>
-    </div>
+  {% if meals_detail %}
+    {% if plan.plan_kind == 'WEEKLY' %}
+      <!-- ============ DAY VIEW (default) ============ -->
+      <div x-show="mealView === 'days'">
+        <div class="pd-meal-list">
+          <template x-for="(day, dIdx) in days.slice(0, visibleDayCount)" :key="day.code">
+            <div class="pd-day-block al-reveal" :style="`--d: ${dIdx * 60}ms`">
+              <header class="pd-day-head">
+                <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="day.label"></p>
+                <span class="al-small" style="color: var(--al-ink-mute);"
+                      x-text="day.meals.length + (day.meals.length === 1 ? ' pasto' : ' pasti')"></span>
+              </header>
+              <template x-if="day.meals.length === 0">
+                <p class="pd-day-empty">Nessun pasto in questo giorno.</p>
+              </template>
+              <template x-for="(md, mIdx) in day.meals" :key="day.code + '-' + mIdx">
+                <article class="pd-meal">
+                  <div class="pd-meal-ordinal">
+                    <span class="pd-mono" x-text="String(mIdx + 1).padStart(2, '0')"></span>
+                    <span class="pd-meal-stem" aria-hidden="true"></span>
+                  </div>
+                  <div class="pd-meal-body">
+                    <header class="pd-meal-head">
+                      <div class="min-w-0">
+                        <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="'Pasto ' + (mIdx + 1)"></p>
+                        <h3 class="al-h-3 mt-1" x-text="md.name"></h3>
+                        <p class="al-small mt-1" x-show="md.time_of_day" style="color: var(--al-ink-mute);">
+                          <i class="ph ph-clock"></i> <span x-text="md.time_of_day"></span>
+                        </p>
+                      </div>
+                      <div class="pd-meal-totals">
+                        <div><p class="al-eyebrow">kcal</p><p class="pd-meal-num" x-text="md.kcal"></p></div>
+                        <div><p class="al-eyebrow" style="color: var(--al-aegean);">P</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-aegean);" x-text="md.prot"></p></div>
+                        <div><p class="al-eyebrow" style="color: var(--al-warn);">C</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-warn);" x-text="md.carb"></p></div>
+                        <div><p class="al-eyebrow" style="color: var(--al-danger);">G</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-danger);" x-text="md.fat"></p></div>
+                      </div>
+                    </header>
 
-    {% if md.meal.notes %}
-    <div class="pd-meal-note"><i class="ph ph-info"></i>{{ md.meal.notes }}</div>
-    {% endif %}
+                    <p class="pd-meal-notes" x-show="md.notes">
+                      <i class="ph ph-sticky-note"></i> <span x-text="md.notes"></span>
+                    </p>
 
-    <div class="pd-items">
-      {% for item in md.items %}
-      <div x-data="{ open: false }">
-        <div class="pd-item">
-          {% if item.substitutions.all %}
-          <button type="button" class="pd-item-toggle" @click="open = !open"
-                  :title="open ? 'Nascondi sostituzioni' : 'Mostra sostituzioni'">
-            <i class="ph" :class="open ? 'ph-caret-down' : 'ph-caret-right'"></i>
-          </button>
-          {% else %}
-          <div class="pd-item-toggle is-spacer"></div>
-          {% endif %}
-
-          <div style="min-width: 0;">
-            <p class="pd-item-name">
-              {{ item.food.nome_alimento }}
-              {% if item.substitutions.all %}
-              <span class="pd-item-alt-tag">
-                <i class="ph ph-swap"></i>{{ item.substitutions.all|length }} alt
-              </span>
-              {% endif %}
-            </p>
-            {% if item.food.categoria_alimento %}
-            <p class="pd-item-cat">{{ item.food.categoria_alimento }}</p>
-            {% endif %}
-          </div>
-
-          <div class="pd-item-qty">
-            <strong>{{ item.quantity_g|floatformat:0 }}g</strong>
-            <small>{{ item.kcal }} kcal</small>
-          </div>
-
-          <div class="pd-item-macros">
-            <span class="pd-item-macro is-p">P <strong>{{ item.protein }}</strong></span>
-            <span class="pd-item-macro is-c">C <strong>{{ item.carbs }}</strong></span>
-            <span class="pd-item-macro is-f">F <strong>{{ item.fat }}</strong></span>
-          </div>
-        </div>
-
-        {% if item.substitutions.all %}
-        <div x-show="open" x-cloak x-collapse class="pd-subs">
-          <p class="pd-subs-label"><i class="ph ph-swap"></i> Alternative possibili</p>
-          {% for sub in item.substitutions.all %}
-          <div class="pd-sub">
-            <span class="pd-sub-mode
-                          {% if sub.mode == 'ISOKCAL' %}is-kcal
-                          {% elif sub.mode == 'ISOPROT' %}is-prot
-                          {% else %}is-carb{% endif %}">
-              {% if sub.mode == 'ISOKCAL' %}iso-kcal{% elif sub.mode == 'ISOPROT' %}iso-prot{% else %}iso-carb{% endif %}
-            </span>
-            <div style="min-width: 0;">
-              <p class="pd-sub-name">{{ sub.food.nome_alimento }}</p>
-              <p class="pd-sub-macros">{{ sub.kcal }} kcal · P {{ sub.protein }} · C {{ sub.carbs }} · F {{ sub.fat }}</p>
+                    <ul class="pd-items">
+                      <template x-for="item in md.items" :key="item.name">
+                        <li class="pd-item">
+                          <span class="pd-item-bullet">·</span>
+                          <div class="pd-item-info">
+                            <p class="pd-item-name">
+                              <span x-text="item.name"></span>
+                              <template x-if="item.substitutions.length">
+                                <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                                  <i class="ph ph-swap" style="font-size: 9px;"></i>
+                                  <span x-text="item.substitutions.length + ' alt'"></span>
+                                </span>
+                              </template>
+                            </p>
+                            <p class="pd-item-meta" x-show="item.category" x-text="item.category"></p>
+                          </div>
+                          <span class="pd-item-qty">
+                            <strong x-text="Math.round(item.quantity_g)"></strong><em>g</em>
+                          </span>
+                          <span class="pd-item-kcal" x-text="item.kcal + ' kcal'"></span>
+                          <span class="pd-item-macros">
+                            <span style="color: var(--al-aegean);" x-text="'P ' + item.protein"></span>
+                            <span style="color: var(--al-warn);" x-text="'C ' + item.carbs"></span>
+                            <span style="color: var(--al-danger);" x-text="'G ' + item.fat"></span>
+                          </span>
+                        </li>
+                      </template>
+                      <template x-for="sub in md.items.flatMap(it => it.substitutions.map(s => ({...s, itemName: it.name})))" :key="sub.itemName + '-' + sub.name">
+                        <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+                          <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment);"
+                                :style="`background: ${sub.mode === 'ISOKCAL' ? 'var(--al-bronze)' : sub.mode === 'ISOPROT' ? 'var(--al-aegean)' : 'var(--al-warn)'}`"
+                                x-text="sub.mode === 'ISOKCAL' ? 'iso-kcal' : sub.mode === 'ISOPROT' ? 'iso-prot' : 'iso-carb'"></span>
+                          <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="sub.name"></span>
+                          <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);" x-text="Math.round(sub.quantity_g) + 'g'"></span>
+                          <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;"
+                                x-text="sub.kcal + ' kcal · P ' + sub.protein + ' · C ' + sub.carbs + ' · F ' + sub.fat"></span>
+                        </li>
+                      </template>
+                      <template x-if="md.items.length === 0">
+                        <li class="pd-item-empty">
+                          <i class="ph ph-leaf"></i> Nessun alimento
+                        </li>
+                      </template>
+                    </ul>
+                  </div>
+                </article>
+              </template>
             </div>
-            <span class="pd-sub-qty">{{ sub.quantity_g|floatformat:0 }}g</span>
-          </div>
-          {% endfor %}
+          </template>
         </div>
-        {% endif %}
-      </div>
-      {% empty %}
-      <div class="pd-item" style="grid-template-columns: 1fr; color: var(--al-ink-mute);">
-        Nessun alimento in questo pasto.
-      </div>
-      {% endfor %}
-    </div>
 
-    <div class="pd-meal-foot">
-      <div class="pd-meal-foot-cell is-p"><strong>{{ md.prot }}g</strong><span class="pd-meal-foot-label">prot</span></div>
-      <div class="pd-meal-foot-cell is-c"><strong>{{ md.carb }}g</strong><span class="pd-meal-foot-label">carb</span></div>
-      <div class="pd-meal-foot-cell is-f"><strong>{{ md.fat }}g</strong><span class="pd-meal-foot-label">fat</span></div>
-    </div>
-  </article>
-  {% empty %}
+        <!-- Scroll sentinel: reveals the next day, native IntersectionObserver -->
+        <div x-show="visibleDayCount < days.length" x-cloak
+             x-init="$nextTick(() => {
+               const io = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) revealNextDay(); }, { rootMargin: '200px' });
+               io.observe($el);
+               $watch('visibleDayCount', () => { if (visibleDayCount >= days.length) io.disconnect(); });
+             })"
+             class="pd-day-sentinel">
+          <i class="ph ph-circle-notch pd-spin"></i> Caricamento altri giorni…
+        </div>
+      </div>
+
+      <!-- ============ TABLE VIEW ============ -->
+      <div x-show="mealView === 'table'" x-cloak>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <div class="al-filter" role="tablist" aria-label="Filtra per giorno">
+            <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': dayFilter === null }" @click="dayFilter = null">Tutti</button>
+            <template x-for="day in days" :key="day.code">
+              <button type="button" role="tab" class="al-filter-chip"
+                      :class="{ 'is-active': dayFilter === day.code }"
+                      @click="dayFilter = (dayFilter === day.code ? null : day.code)">
+                <span x-text="day.label"></span>
+              </button>
+            </template>
+          </div>
+          <div class="al-filter" role="tablist" aria-label="Filtra per pasto">
+            <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': mealFilter === null }" @click="mealFilter = null">Tutti</button>
+            <template x-for="name in mealNames" :key="name">
+              <button type="button" role="tab" class="al-filter-chip"
+                      :class="{ 'is-active': mealFilter === name }"
+                      @click="mealFilter = (mealFilter === name ? null : name)">
+                <span x-text="name"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <div class="al-card al-card-flush overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="al-table pd-meal-table">
+              <thead>
+                <tr>
+                  <th>Pasto</th>
+                  <template x-for="day in visibleDays()" :key="day.code">
+                    <th x-text="day.label"></th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="name in visibleMealNames()" :key="name">
+                  <tr>
+                    <td class="font-medium" x-text="name"></td>
+                    <template x-for="day in visibleDays()" :key="day.code + '-' + name">
+                      <td>
+                        <template x-if="mealFor(day, name)">
+                          <button type="button" class="pd-cell-btn" @click="openMealModal(day, mealFor(day, name))">
+                            <span class="pd-cell-kcal" x-text="mealFor(day, name).kcal + ' kcal'"></span>
+                            <span class="pd-cell-items" x-text="mealFor(day, name).items.length + ' alimenti'"></span>
+                          </button>
+                        </template>
+                        <template x-if="!mealFor(day, name)">
+                          <span class="pd-cell-empty">—</span>
+                        </template>
+                      </td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <!-- DAILY plan: no weekday dimension, flat list -->
+      <div class="pd-meal-list">
+        {% for md in meals_detail %}
+          <article class="pd-meal al-reveal" style="--d:{{ forloop.counter0|add:1 }}20ms;">
+            <div class="pd-meal-ordinal">
+              <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
+              <span class="pd-meal-stem" aria-hidden="true"></span>
+            </div>
+
+            <div class="pd-meal-body">
+              <header class="pd-meal-head">
+                <div class="min-w-0">
+                  <p class="al-eyebrow" style="color: var(--al-bronze);">Pasto {{ forloop.counter }}</p>
+                  <h3 class="al-h-3 mt-1">{{ md.meal.name }}</h3>
+                  {% if md.meal.time_of_day %}
+                    <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                      <i class="ph ph-clock"></i> {{ md.meal.time_of_day }}
+                    </p>
+                  {% endif %}
+                </div>
+                <div class="pd-meal-totals">
+                  <div>
+                    <p class="al-eyebrow">kcal</p>
+                    <p class="pd-meal-num">{{ md.kcal }}</p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-aegean);">P</p>
+                    <p class="pd-meal-num" style="color: var(--al-aegean);">{{ md.prot }}<span>g</span></p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-warn);">C</p>
+                    <p class="pd-meal-num" style="color: var(--al-warn);">{{ md.carb }}<span>g</span></p>
+                  </div>
+                  <div>
+                    <p class="al-eyebrow" style="color: var(--al-danger);">G</p>
+                    <p class="pd-meal-num" style="color: var(--al-danger);">{{ md.fat }}<span>g</span></p>
+                  </div>
+                </div>
+              </header>
+
+              {% if md.meal.notes %}
+                <p class="pd-meal-notes">
+                  <i class="ph ph-sticky-note"></i> {{ md.meal.notes }}
+                </p>
+              {% endif %}
+
+              <ul class="pd-items">
+                {% for item in md.items %}
+                  <li class="pd-item">
+                    <span class="pd-item-bullet">·</span>
+                    <div class="pd-item-info">
+                      <p class="pd-item-name">
+                        {{ item.food.nome_alimento }}
+                        {% if item.substitutions.all %}
+                          <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                            <i class="ph ph-swap" style="font-size: 9px;"></i>
+                            {{ item.substitutions.all|length }} alt
+                          </span>
+                        {% endif %}
+                      </p>
+                      {% if item.food.categoria_alimento %}
+                        <p class="pd-item-meta">{{ item.food.categoria_alimento }}</p>
+                      {% endif %}
+                    </div>
+                    <span class="pd-item-qty">
+                      <strong>{{ item.quantity_g|floatformat:0 }}</strong><em>g</em>
+                    </span>
+                    <span class="pd-item-kcal">{{ item.kcal }} kcal</span>
+                    <span class="pd-item-macros">
+                      <span style="color: var(--al-aegean);">P {{ item.protein }}</span>
+                      <span style="color: var(--al-warn);">C {{ item.carbs }}</span>
+                      <span style="color: var(--al-danger);">G {{ item.fat }}</span>
+                    </span>
+                  </li>
+                  {% for sub in item.substitutions.all %}
+                    <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+                      <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment); background: {% if sub.mode == 'ISOKCAL' %}var(--al-bronze){% elif sub.mode == 'ISOPROT' %}var(--al-aegean){% else %}var(--al-warn){% endif %};">
+                        {% if sub.mode == 'ISOKCAL' %}iso-kcal{% elif sub.mode == 'ISOPROT' %}iso-prot{% else %}iso-carb{% endif %}
+                      </span>
+                      <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sub.food.nome_alimento }}</span>
+                      <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);">{{ sub.quantity_g|floatformat:0 }}g</span>
+                      <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;">
+                        {{ sub.kcal }} kcal · P {{ sub.protein }} · C {{ sub.carbs }} · F {{ sub.fat }}
+                      </span>
+                    </li>
+                  {% endfor %}
+                {% empty %}
+                  <li class="pd-item-empty">
+                    <i class="ph ph-leaf"></i> Nessun alimento
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% else %}
   <div class="pd-empty">
     <i class="ph ph-bowl-food" style="font-size: 2.5rem; color: var(--al-bronze);"></i>
     <p style="margin-top: .75rem;">Piano senza pasti. Contatta il tuo coach.</p>
   </div>
-  {% endfor %}
-
-  <!-- ============== INTEGRAZIONE (supplement_sheet embedded nel piano) ============== -->
-  {% if supplement_sheet %}
-  <section class="nu-supp">
-    <div class="nu-supp-header">
-      <div>
-        <p class="al-eyebrow mb-2">Integrazione</p>
-        <h3>{{ supplement_sheet.title }}</h3>
-        {% if supplement_sheet.notes %}<p class="al-body mt-1" style="color: var(--al-ink-mute);">{{ supplement_sheet.notes }}</p>{% endif %}
-      </div>
-    </div>
-
-    {% if supplement_items %}
-    <div class="al-card al-card-flush overflow-hidden">
-      {% for item in supplement_items %}
-      <div class="nu-supp-item">
-        <div class="nu-supp-icon"><i class="ph ph-pill"></i></div>
-        <div class="flex-1 min-w-0">
-          <p class="nu-supp-name">{{ item.name }}</p>
-          {% if item.notes %}<p class="nu-supp-note">{{ item.notes }}</p>{% endif %}
-        </div>
-        <div class="nu-supp-pills">
-          {% if item.quantity or item.unit %}
-          <span class="nu-supp-pill"><i class="ph ph-scales"></i><span>{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</span></span>
-          {% endif %}
-          {% if item.timing %}
-          <span class="nu-supp-pill"><i class="ph ph-clock"></i><span>{{ item.timing }}</span></span>
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="al-card al-card-warm">
-      <p class="al-body text-center" style="color: var(--al-ink-mute); padding: 1.5rem 0;">Nessun integratore in questa scheda.</p>
-    </div>
-    {% endif %}
-  </section>
   {% endif %}
 
+  <!-- =================== MEAL DETAIL MODAL (table view) =================== -->
+  <div x-show="mealModal.open" class="al-modal-backdrop" @click.self="mealModal.open = false"
+       @keydown.escape.window="mealModal.open = false" x-cloak>
+    <div class="al-modal-panel" style="max-width: 640px;">
+      <div class="al-modal-head">
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="mealModal.day ? mealModal.day.label : ''"></p>
+          <h3 x-text="mealModal.meal ? mealModal.meal.name : ''"></h3>
+        </div>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="mealModal.open = false">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="al-modal-body" x-show="mealModal.meal">
+        <div class="pd-meal-totals mb-4">
+          <div><p class="al-eyebrow">kcal</p><p class="pd-meal-num" x-text="mealModal.meal?.kcal"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-aegean);">P</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-aegean);" x-text="mealModal.meal?.prot"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-warn);">C</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-warn);" x-text="mealModal.meal?.carb"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-danger);">G</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-danger);" x-text="mealModal.meal?.fat"></p></div>
+        </div>
+        <ul class="pd-items">
+          <template x-for="item in (mealModal.meal?.items || [])" :key="item.name">
+            <li class="pd-item">
+              <span class="pd-item-bullet">·</span>
+              <div class="pd-item-info">
+                <p class="pd-item-name">
+                  <span x-text="item.name"></span>
+                  <template x-if="item.substitutions.length">
+                    <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                      <i class="ph ph-swap" style="font-size: 9px;"></i>
+                      <span x-text="item.substitutions.length + ' alt'"></span>
+                    </span>
+                  </template>
+                </p>
+                <p class="pd-item-meta" x-show="item.category" x-text="item.category"></p>
+              </div>
+              <span class="pd-item-qty">
+                <strong x-text="Math.round(item.quantity_g)"></strong><em>g</em>
+              </span>
+              <span class="pd-item-kcal" x-text="item.kcal + ' kcal'"></span>
+              <span class="pd-item-macros">
+                <span style="color: var(--al-aegean);" x-text="'P ' + item.protein"></span>
+                <span style="color: var(--al-warn);" x-text="'C ' + item.carbs"></span>
+                <span style="color: var(--al-danger);" x-text="'G ' + item.fat"></span>
+              </span>
+            </li>
+          </template>
+          <template x-for="sub in (mealModal.meal?.items || []).flatMap(it => it.substitutions.map(s => ({...s, itemName: it.name})))" :key="sub.itemName + '-' + sub.name">
+            <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+              <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment);"
+                    :style="`background: ${sub.mode === 'ISOKCAL' ? 'var(--al-bronze)' : sub.mode === 'ISOPROT' ? 'var(--al-aegean)' : 'var(--al-warn)'}`"
+                    x-text="sub.mode === 'ISOKCAL' ? 'iso-kcal' : sub.mode === 'ISOPROT' ? 'iso-prot' : 'iso-carb'"></span>
+              <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="sub.name"></span>
+              <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);" x-text="Math.round(sub.quantity_g) + 'g'"></span>
+              <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;"
+                    x-text="sub.kcal + ' kcal · P ' + sub.protein + ' · C ' + sub.carbs + ' · F ' + sub.fat"></span>
+            </li>
+          </template>
+          <template x-if="(mealModal.meal?.items || []).length === 0">
+            <li class="pd-item-empty"><i class="ph ph-leaf"></i> Nessun alimento</li>
+          </template>
+        </ul>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+function clientPlanDetail() {
+  return {
+    /* meals: day view / table view (WEEKLY plans only) */
+    days: window._planDays || [],
+    mealNames: window._planMealNames || [],
+    mealView: 'days',
+    visibleDayCount: 2,
+    dayFilter: null,
+    mealFilter: null,
+    mealModal: { open: false, day: null, meal: null },
+
+    init() {},
+
+    revealNextDay() {
+      if (this.visibleDayCount >= this.days.length) return;
+      // Small delay so the spinner + entrance animation are perceptible,
+      // not an instant swap — this is the "loading on scroll" the coach sees.
+      setTimeout(() => { this.visibleDayCount++; }, 250);
+    },
+
+    visibleDays() {
+      return this.days.filter(d => !this.dayFilter || d.code === this.dayFilter);
+    },
+    visibleMealNames() {
+      return this.mealNames.filter(n => !this.mealFilter || n === this.mealFilter);
+    },
+    mealFor(day, name) {
+      return (day.meals || []).find(m => m.name === name) || null;
+    },
+    openMealModal(day, meal) {
+      this.mealModal = { open: true, day, meal };
+    },
+  };
+}
+</script>
 {% endblock %}

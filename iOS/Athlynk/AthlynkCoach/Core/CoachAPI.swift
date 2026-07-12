@@ -182,8 +182,34 @@ extension APIClient {
                               method: "POST", body: ["body": body])
     }
 
+    /// Accepts or rejects an athlete's PENDING appointment request. `action` is
+    /// "accept" | "reject". Accept requires `confirmedDate`/`confirmedTime`;
+    /// reject may include a counter-proposal.
+    func coachRespondAppointment(conversation: Int, appointmentId: Int, action: String,
+                                  counterDate: String? = nil, counterTime: String? = nil) async throws -> MessageDTO {
+        var body: [String: Any] = ["action": action]
+        if let counterDate { body["counter_date"] = counterDate }
+        if let counterTime { body["counter_time"] = counterTime }
+        let data = try await request("/api/v1/coach/conversations/\(conversation)/appointment/\(appointmentId)/respond",
+                                     method: "POST", body: body)
+        return try decode(MessageDTO.self, from: data)
+    }
+
     func coachProfile() async throws -> CoachProfileDTO {
         try decode(CoachProfileResponse.self, from: try await request("/api/v1/coach/profile")).profile
+    }
+
+    /// Kicks off (or resumes) Stripe Connect Express onboarding. The returned
+    /// URL is opened in StripeWebFlow; the app never talks to Stripe directly.
+    func coachConnectStart() async throws -> String {
+        try decode(CoachConnectStartResponse.self,
+                   from: try await request("/api/v1/coach/connect/start", method: "POST")).accountLinkUrl
+    }
+
+    /// Best-effort refresh after the onboarding web view closes — the
+    /// account.updated webhook remains the source of truth server-side.
+    func coachConnectStatus() async throws -> CoachConnectStatusResponse {
+        try decode(CoachConnectStatusResponse.self, from: try await request("/api/v1/coach/connect/status"))
     }
 
     @discardableResult

@@ -232,12 +232,20 @@ class WorkoutExercise(models.Model):
         return f"{self.exercise.name} for {self.workout_day}"
 
 class WorkoutAssignment(models.Model):
+    DURATION_UNIT_WEEKS = 'WEEKS'
+    DURATION_UNIT_MONTHS = 'MONTHS'
+    DURATION_UNIT_CHOICES = [(DURATION_UNIT_WEEKS, 'settimane'), (DURATION_UNIT_MONTHS, 'mesi')]
+
     workout_plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, related_name='assignments')
     client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='workout_assignments')
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='workout_assignments_given')
     status = models.CharField(max_length=50) # ACTIVE, COMPLETED
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    # The coach-chosen duration that produced end_date, kept for display/audit
+    # (start_date/end_date remain authoritative for scheduling logic).
+    duration_value = models.PositiveSmallIntegerField(null=True, blank=True)
+    duration_unit = models.CharField(max_length=10, choices=DURATION_UNIT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

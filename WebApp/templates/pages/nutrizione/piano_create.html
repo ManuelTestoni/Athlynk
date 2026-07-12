@@ -1558,11 +1558,24 @@ window.NUTRITION_WIZARD_INIT = {
         </div>
       </template>
 
+      <!-- Barra azioni bulk -->
+      <div x-show="selectedSuppKeys.length > 0" x-cloak class="flex items-center gap-3 mb-3">
+        <span class="al-tag font-mono" x-text="selectedSuppKeys.length + (selectedSuppKeys.length === 1 ? ' selezionato' : ' selezionati')"></span>
+        <button type="button" @click="bulkDeleteSupplements()" class="al-btn al-btn-ghost al-btn-sm" style="color: var(--al-danger);">
+          <i class="ph ph-trash"></i> Elimina selezionati
+        </button>
+        <button type="button" @click="selectedSuppKeys = []" class="al-btn al-btn-ghost al-btn-sm">Deseleziona</button>
+      </div>
+
       <div class="space-y-3">
         <template x-for="(supp, idx) in supplements" :key="supp._key">
           <div class="al-card al-card-warm al-card-flush" :class="supp._shake ? 'al-shake' : ''">
             <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid var(--al-rule);">
               <div class="flex items-center gap-3 flex-1 min-w-0">
+                <input type="checkbox" class="al-checkbox shrink-0"
+                       :checked="selectedSuppKeys.includes(supp._key)"
+                       @change="toggleSelectSupp(supp._key)"
+                       :aria-label="'Seleziona ' + (supp.name || 'integratore')">
                 <div class="w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0"
                      style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
                      x-text="idx + 1"></div>
@@ -2050,7 +2063,7 @@ window.NUTRITION_WIZARD_INIT = {
   <!-- Day report modal (WEEKLY): pie + numbers -->
   <div x-show="dayReportOpen" x-cloak
        @keydown.escape.window="closeDayReport()"
-       class="fixed inset-0 z-40 flex items-center justify-center p-4"
+       class="fixed inset-0 lg:left-64 z-40 flex items-center justify-center p-4"
        style="background: rgba(28, 28, 28, 0.55); backdrop-filter: blur(3px);"
        @click.self="closeDayReport()">
     <div x-show="dayReportOpen"

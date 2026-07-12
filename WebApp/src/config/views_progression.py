@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -218,7 +219,23 @@ def api_progression_cell(request, plan_id):
     clear = bool(body.get('clear')) or value is None or value == ''
 
     with transaction.atomic():
-        if clear:
+        if week == 1:
+            # Week 1 mirrors the builder's phase-level base values (bidirectional
+            # sync): write straight to WorkoutExercise instead of a WeeklyOverride —
+            # compute_day_grid's walk-back range never reads an override at week 1,
+            # so one would be dead weight, and this is what makes the builder's
+            # own Step-2 fields pick up the edit too.
+            if metric == 'load_value':
+                coerced = None if clear else Decimal(str(value))
+            elif metric == 'set_details':
+                coerced = value if (not clear and isinstance(value, list)) else []
+            else:
+                coerced = None if clear else value
+            setattr(ex, metric, coerced)
+            ex.save(update_fields=[metric, 'updated_at'])
+            # Defensive: a stray week-1 override should never exist, but clear it if present.
+            WeeklyOverride.objects.filter(workout_exercise=ex, week_number=1, metric=metric).delete()
+        elif clear:
             WeeklyOverride.objects.filter(
                 workout_exercise=ex, week_number=week, metric=metric,
             ).delete()

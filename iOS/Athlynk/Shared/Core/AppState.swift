@@ -28,6 +28,9 @@ final class AppState: ObservableObject {
     /// Slides the floating tab bar off-screen for immersive screens (e.g. chat,
     /// where it would otherwise cover the message composer).
     @Published var tabBarHidden = false
+    /// Hides the coach's global Chiron FAB while on screens where it gets in the
+    /// way (e.g. chat, which already has its own composer at the bottom).
+    @Published var chironHidden = false
     /// True when the signed-in user still has to accept Terms + Privacy. Blocks
     /// the app behind a consent screen until they do.
     @Published var needsTermsConsent = false

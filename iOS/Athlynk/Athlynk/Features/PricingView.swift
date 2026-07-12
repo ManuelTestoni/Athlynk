@@ -1,8 +1,10 @@
 //
 //  PricingView.swift
 //  Stitch "Piani e Prezzi": the subscription plans offered by the athlete's
-//  coaches. Backed by GET /api/v1/plans (SubscriptionPlan). The actual purchase
-//  (Stitch "Checkout") needs a payment integration — "Scegli" is a placeholder.
+//  coaches. Backed by GET /api/v1/plans (SubscriptionPlan). "Scegli" opens a
+//  real Stripe Checkout Session (see CheckoutView) for online-purchasable
+//  plans; plans the coach hasn't connected Stripe for yet show a
+//  "contact your coach" hint instead.
 //
 
 import SwiftUI
@@ -95,18 +97,24 @@ struct PricingView: View {
                 HStack { Spacer(); CoachChip(coach: coach, color: Palette.bronze) }
             }
 
-            NavigationLink { CheckoutView(plan: plan) } label: {
-                HStack(spacing: 8) {
-                    Text("Scegli").font(Typo.body(16, .semibold))
-                    Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
+            if plan.isOnlinePurchasable {
+                NavigationLink { CheckoutView(plan: plan) } label: {
+                    HStack(spacing: 8) {
+                        Text("Scegli").font(Typo.body(16, .semibold))
+                        Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundStyle(featured ? Palette.void0 : Palette.textHi)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .background { if featured { Palette.bronze } }
+                    .overlay(Capsule().stroke(featured ? .clear : Palette.line, lineWidth: 1))
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(featured ? Palette.void0 : Palette.textHi)
-                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background { if featured { Palette.bronze } }
-                .overlay(Capsule().stroke(featured ? .clear : Palette.line, lineWidth: 1))
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
+            } else {
+                Text("Contatta il coach per attivarlo")
+                    .font(Typo.body(13)).foregroundStyle(Palette.textLow)
+                    .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
             }
-            .buttonStyle(.plain)
         }
         .padding(18).voltPanel(Palette.bronze.opacity(featured ? 0.55 : 0.35))
     }

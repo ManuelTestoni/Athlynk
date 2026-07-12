@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Pacchetti — Abbonamenti{% endblock %}
+
+{% block content %}
+<div class="w-full h-full flex flex-col">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 flex-shrink-0">
+        <div>
+            <nav class="flex items-center gap-2 mb-3" aria-label="Breadcrumb">
+                <a href="{% url 'abbonamenti_dashboard' %}" class="al-small al-link al-link-bronze">Abbonamenti</a>
+                <span class="al-small" style="color: var(--al-ink-line);">/</span>
+                <span class="al-small" style="color: var(--al-ink-mute);">Pacchetti</span>
+            </nav>
+            <p class="al-eyebrow mb-3">Studio &middot; Billing</p>
+            <h1 class="al-h-1">Gestione <span class="al-display-i">pacchetti</span></h1>
+            <p class="al-body mt-2">Raggruppa più servizi/add-on in un unico acquisto, con sconto opzionale.</p>
+            <div class="al-rule-bronze mt-5"></div>
+        </div>
+        <a href="{% url 'bundle_create' %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-plus text-sm"></i>
+            <span>Crea Pacchetto</span>
+        </a>
+    </div>
+
+    {% if bundles %}
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {% for bundle in bundles %}
+        <div class="al-card al-reveal {% if not bundle.is_active %}is-inactive{% endif %}" style="--d:{{ forloop.counter0|add:1 }}0ms;">
+            <div class="flex justify-between items-start gap-3 mb-3">
+                <h3 class="al-h-2">{{ bundle.name }}</h3>
+                <span class="al-badge {% if bundle.is_active %}al-badge-success{% endif %} shrink-0">
+                    <span class="dot"></span>{% if bundle.is_active %}Attivo{% else %}Inattivo{% endif %}
+                </span>
+            </div>
+            {% if bundle.description %}
+            <p class="al-body line-clamp-2 mb-3">{{ bundle.description|truncatewords:20 }}</p>
+            {% endif %}
+            <ul class="space-y-1 mb-3">
+                {% for item in bundle.items.all %}
+                <li class="al-small flex justify-between" style="color: var(--al-ink-mute);">
+                    <span>{{ item.quantity }}&times; {{ item.plan.name }}</span>
+                    <span>€{{ item.price_override|default:item.plan.price }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if bundle.discount_percent %}
+            <p class="al-tag">Sconto: {{ bundle.discount_percent }}%</p>
+            {% elif bundle.discount_amount %}
+            <p class="al-tag">Sconto: €{{ bundle.discount_amount }}</p>
+            {% endif %}
+            <div class="flex gap-2 mt-4">
+                <a href="{% url 'bundle_edit' bundle.id %}" class="al-btn al-btn-ghost al-btn-sm flex-1">
+                    <i class="ph ph-pencil text-xs"></i><span>Modifica</span>
+                </a>
+                <button onclick="deleteBundle({{ bundle.id }})" type="button" class="al-btn al-btn-ghost al-btn-sm" style="border-color: var(--al-danger); color: var(--al-danger);">
+                    <i class="ph ph-trash text-xs"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="al-empty">
+        <i class="ph ph-package al-empty-icon"></i>
+        <h3>Nessun pacchetto disponibile</h3>
+        <p>Raggruppa i tuoi servizi/add-on in un pacchetto per venderli insieme.</p>
+        <a href="{% url 'bundle_create' %}" class="al-btn al-btn-bronze">
+            <i class="ph ph-plus"></i>
+            <span>Crea Pacchetto</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% csrf_token %}
+<script>
+async function deleteBundle(id) {
+    if (!await window.alConfirm({ variant: 'danger', icon: 'ph-trash', title: 'Eliminare\npacchetto?', subtitle: 'Questa azione non può essere annullata.', confirmLabel: 'Sì, elimina' })) return;
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || window.csrfToken();
+    try {
+        const res = await fetch('/api/abbonamenti/pacchetti/' + id + '/elimina/', {
+            method: 'DELETE', headers: { 'X-CSRFToken': csrf },
+        });
+        if (res.ok) { window.location.reload(); }
+        else { const data = await res.json(); toastError(data.error || 'Errore durante l\'eliminazione.'); }
+    } catch (e) { toastError('Errore di rete.'); }
+}
+</script>
+{% endblock %}

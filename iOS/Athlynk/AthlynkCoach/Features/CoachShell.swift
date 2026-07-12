@@ -125,13 +125,18 @@ struct CoachMainTabView: View {
                 .opacity(app.tabBarHidden ? 0 : 1)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
 
-            // Chiron floating button — always visible, bottom-right above tab bar
+            // Chiron floating button — bottom-right above tab bar. Hidden on
+            // screens that set `app.chironHidden` (e.g. chat, where it gets in
+            // the way of the message composer).
             ChironFAB(show: $showChiron)
                 .padding(.trailing, 20)
                 .padding(.bottom, 90)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .offset(y: app.tabBarHidden ? 80 : 0)
+                .offset(y: (app.tabBarHidden || app.chironHidden) ? 80 : 0)
+                .opacity(app.chironHidden ? 0 : 1)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.tabBarHidden)
+                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: app.chironHidden)
+                .allowsHitTesting(!app.chironHidden)
         }
         .sheet(isPresented: $showChiron) {
             NavigationStack { CoachChironView() }

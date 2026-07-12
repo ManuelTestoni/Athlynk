@@ -16,7 +16,7 @@ from config.session_utils import (
     get_nutrition_coach,
 )
 from config.services import import_quota
-from config.http_utils import safe_int
+from config.http_utils import safe_int, duration_timedelta
 from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 from django.db.models import Count, Sum, F, FloatField, ExpressionWrapper, Case, When, Value, IntegerField
@@ -667,6 +667,52 @@ def nutrizione_piano_detail_view(request, plan_id):
         for c in assignable_clients
     ])
 
+    days_detail_json = []
+    meal_names = []
+    if plan.plan_kind == 'WEEKLY':
+        meals_by_day = defaultdict(list)
+        for md in meals_detail:
+            meals_by_day[md['meal'].day_id].append(md)
+        for day in plan.days.all():
+            day_meals = []
+            for md in meals_by_day.get(day.id, []):
+                meal = md['meal']
+                day_meals.append({
+                    'name': meal.name,
+                    'time_of_day': meal.time_of_day,
+                    'notes': meal.notes,
+                    'kcal': md['kcal'], 'prot': md['prot'], 'carb': md['carb'], 'fat': md['fat'],
+                    'items': [
+                        {
+                            'name': item.food.nome_alimento if item.food else (item.raw_name or ''),
+                            'category': item.food.categoria_alimento if item.food else '',
+                            'quantity_g': item.quantity_g,
+                            'kcal': item.kcal, 'protein': item.protein, 'carbs': item.carbs, 'fat': item.fat,
+                            'substitutions': [
+                                {
+                                    'name': sub.food.nome_alimento,
+                                    'mode': sub.mode,
+                                    'quantity_g': sub.quantity_g,
+                                    'kcal': sub.kcal, 'protein': sub.protein, 'carbs': sub.carbs, 'fat': sub.fat,
+                                }
+                                for sub in item.substitutions.all()
+                            ],
+                        }
+                        for item in md['items']
+                    ],
+                })
+            days_detail_json.append({
+                'code': day.day_of_week,
+                'label': day.get_day_of_week_display(),
+                'meals': day_meals,
+            })
+        seen_names = set()
+        for md in meals_detail:
+            name = md['meal'].name
+            if name not in seen_names:
+                seen_names.add(name)
+                meal_names.append(name)
+
     macro_targets = _plan_macro_targets(plan) if plan.plan_mode == 'MACRO' else None
     supplement_sheet = plan.supplement_sheet
     supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
@@ -698,6 +744,8 @@ def nutrizione_piano_detail_view(request, plan_id):
         'assignments_first': assignments_first,
         'assignments_first_count': assignments_first_count,
         'macro_targets': macro_targets,
+        'days_detail_json': json.dumps(days_detail_json),
+        'meal_names_json': json.dumps(meal_names),
         'supplement_sheet': supplement_sheet,
         'supplement_items': supplement_items,
     })
@@ -1336,10 +1384,18 @@ def api_piano_assign(request, plan_id):
         data = json.loads(request.body)
         client_id = int(data.get('client_id', 0))
         start_date = data.get('start_date') or None
-        end_date = data.get('end_date') or None
+        duration_unit = data.get('duration_unit') or 'WEEKS'
+        duration_value = data.get('duration_value')
+        duration_value = int(duration_value) if duration_value else None
         notes = data.get('notes', '')
     except (ValueError, KeyError):
         return JsonResponse({'error': 'Dati non validi'}, status=400)
+
+    end_date = None
+    if duration_value and duration_value >= 1:
+        base_start = date.fromisoformat(start_date) if start_date else date.today()
+        end_date = base_start + duration_timedelta(duration_value, duration_unit)
+        start_date = start_date or base_start.isoformat()
 
     client = get_object_or_404(ClientProfile, id=client_id)
     rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
@@ -1353,6 +1409,8 @@ def api_piano_assign(request, plan_id):
         coach=coach,
         start_date=start_date,
         end_date=end_date,
+        duration_value=duration_value,
+        duration_unit=duration_unit if duration_value else None,
         status='ACTIVE',
         notes=notes,
     )
@@ -1411,8 +1469,51 @@ def _render_food_plan_detail(request, assignment, plan, back_url, back_label,
             'fat': round(m_fat),
         })
 
-    supplement_sheet = plan.supplement_sheet
-    supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
+    days_detail_json = []
+    meal_names = []
+    if plan.plan_kind == 'WEEKLY':
+        meals_by_day = defaultdict(list)
+        for md in meals_detail:
+            meals_by_day[md['meal'].day_id].append(md)
+        for day in plan.days.all():
+            day_meals = []
+            for md in meals_by_day.get(day.id, []):
+                meal = md['meal']
+                day_meals.append({
+                    'name': meal.name,
+                    'time_of_day': meal.time_of_day,
+                    'notes': meal.notes,
+                    'kcal': md['kcal'], 'prot': md['prot'], 'carb': md['carb'], 'fat': md['fat'],
+                    'items': [
+                        {
+                            'name': item.food.nome_alimento if item.food else (item.raw_name or ''),
+                            'category': item.food.categoria_alimento if item.food else '',
+                            'quantity_g': item.quantity_g,
+                            'kcal': item.kcal, 'protein': item.protein, 'carbs': item.carbs, 'fat': item.fat,
+                            'substitutions': [
+                                {
+                                    'name': sub.food.nome_alimento,
+                                    'mode': sub.mode,
+                                    'quantity_g': sub.quantity_g,
+                                    'kcal': sub.kcal, 'protein': sub.protein, 'carbs': sub.carbs, 'fat': sub.fat,
+                                }
+                                for sub in item.substitutions.all()
+                            ],
+                        }
+                        for item in md['items']
+                    ],
+                })
+            days_detail_json.append({
+                'code': day.day_of_week,
+                'label': day.get_day_of_week_display(),
+                'meals': day_meals,
+            })
+        seen_names = set()
+        for md in meals_detail:
+            name = md['meal'].name
+            if name not in seen_names:
+                seen_names.add(name)
+                meal_names.append(name)
 
     return render(request, 'pages/nutrizione/client_piano_detail.html', {
         'assignment': assignment,
@@ -1426,8 +1527,8 @@ def _render_food_plan_detail(request, assignment, plan, back_url, back_label,
         'back_url': back_url,
         'back_label': back_label,
         'detail_eyebrow': detail_eyebrow,
-        'supplement_sheet': supplement_sheet,
-        'supplement_items': supplement_items,
+        'days_detail_json': json.dumps(days_detail_json),
+        'meal_names_json': json.dumps(meal_names),
     })
 
 
@@ -1544,9 +1645,6 @@ def _render_client_macro_detail(request, assignment, plan):
         for c in WEEKDAY_ORDER
     ]
 
-    supplement_sheet = plan.supplement_sheet
-    supplement_items = list(supplement_sheet.items.all()) if supplement_sheet else []
-
     return render(request, 'pages/nutrizione/client_piano_macro.html', {
         'assignment': assignment,
         'plan': plan,
@@ -1555,8 +1653,6 @@ def _render_client_macro_detail(request, assignment, plan):
         'week_days_json': json.dumps(week_days),
         'is_weekly': plan.plan_kind == 'WEEKLY',
         'today_str': today.isoformat(),
-        'supplement_sheet': supplement_sheet,
-        'supplement_items': supplement_items,
     })
 
 
@@ -1658,22 +1754,12 @@ def api_macro_log_detail(request, entry_id):
 
 
 @require_http_methods(['GET'])
-def api_macro_log_history(request, assignment_id):
-    """7 closed days grouped by log_date, paginated by week_offset (0=most recent)."""
-    client, err = _require_client_json(request)
-    if err:
-        return err
-    assignment = get_object_or_404(
-        NutritionAssignment.objects
-        .select_related('nutrition_plan')
-        .prefetch_related('nutrition_plan__days'),
-        id=assignment_id, client=client,
-    )
-    if assignment.nutrition_plan.plan_mode != 'MACRO':
-        return JsonResponse({'error': 'Piano non compatibile'}, status=400)
-
+def _macro_log_history_data(assignment, week_offset):
+    """7 closed days grouped by log_date, paginated by week_offset (0=most
+    recent). Shared by the athlete's own history API and the coach's
+    read-only equivalent."""
     today = date.today()
-    week_offset = max(0, int(request.GET.get('week_offset', 0)))
+    week_offset = max(0, week_offset)
     end = today - timedelta(days=week_offset * 7)
     cutoff = end - timedelta(days=7)
     entries = (
@@ -1730,12 +1816,46 @@ def api_macro_log_history(request, assignment_id):
         f"{cutoff.day} {_MONTHS_IT_SHORT[cutoff.month].capitalize()} "
         f"– {(end - timedelta(days=1)).day} {_MONTHS_IT_SHORT[(end - timedelta(days=1)).month].capitalize()}"
     )
-    return JsonResponse({
+    return {
         'history': history,
         'has_older': has_older,
         'is_latest': week_offset == 0,
         'window_label': window_label,
-    })
+    }
+
+
+def api_macro_log_history(request, assignment_id):
+    client, err = _require_client_json(request)
+    if err:
+        return err
+    assignment = get_object_or_404(
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .prefetch_related('nutrition_plan__days'),
+        id=assignment_id, client=client,
+    )
+    if assignment.nutrition_plan.plan_mode != 'MACRO':
+        return JsonResponse({'error': 'Piano non compatibile'}, status=400)
+    week_offset = int(request.GET.get('week_offset', 0) or 0)
+    return JsonResponse(_macro_log_history_data(assignment, week_offset))
+
+
+def api_coach_macro_log_history(request, assignment_id):
+    """Read-only equivalent of api_macro_log_history for the coach: same
+    payload shape, no create/delete endpoints exposed alongside it."""
+    coach, err = _require_coach_json(request)
+    if err:
+        return err
+    assignment = get_object_or_404(
+        NutritionAssignment.objects
+        .select_related('nutrition_plan')
+        .prefetch_related('nutrition_plan__days'),
+        id=assignment_id, coach=coach,
+    )
+    if assignment.nutrition_plan.plan_mode != 'MACRO':
+        return JsonResponse({'error': 'Piano non compatibile'}, status=400)
+    week_offset = int(request.GET.get('week_offset', 0) or 0)
+    return JsonResponse(_macro_log_history_data(assignment, week_offset))
 
 
 def macro_log_day_view(request, assignment_id, date_str):

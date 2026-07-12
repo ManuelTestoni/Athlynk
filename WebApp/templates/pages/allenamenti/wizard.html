@@ -36,8 +36,6 @@
   .wiz-day-tab { padding: .5rem 1rem; border-radius: var(--al-r-sm) var(--al-r-sm) 0 0; cursor: pointer; }
   .wiz-day-tab.is-active { background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-bottom: none; font-weight: 600; }
   .wiz-day-tab:not(.is-active):hover { background: var(--al-stone); }
-  .wiz-ex-row { padding: .9rem; border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm); margin-bottom: .5rem; background: white; }
-  .wiz-ex-row.is-superset { border-left: 4px solid var(--al-bronze); }
   .wiz-mini-input { padding: .25rem .5rem; border: 1px solid var(--al-rule-faint); border-radius: 4px; width: 100%; font-size: .85rem; }
   .wiz-drawer { position: fixed; top: 64px; right: 0; width: 100%; max-width: 50vw; height: calc(100vh - 64px); background: var(--al-parchment); box-shadow: -8px 0 24px rgba(0,0,0,.15); transform: translateX(110%); visibility: hidden; transition: transform .3s, visibility 0s linear .3s; z-index: 60; overflow-y: auto; overscroll-behavior: contain; }
   .wiz-drawer.open { transform: translateX(0); visibility: visible; transition: transform .3s, visibility 0s linear 0s; }
@@ -791,13 +789,15 @@
     border-color: rgba(138,106,58,0.45);
   }
   .prg-field.is-override .prg-field-val { color: var(--al-bronze); }
-  /* Week 1 = builder-defined, read-only in the grid. */
-  .prg-field.is-readonly {
-    cursor: default; background: rgba(91,85,74,0.04);
-    border-style: dashed; border-color: rgba(91,85,74,0.16);
+  /* Week 1 = bidirectionally synced with the builder (Step 2): editable, but
+     flagged so it's clear a change here also updates the exercise's base values. */
+  .prg-field.is-linked-base {
+    background: linear-gradient(180deg, rgba(28,74,82,0.06), rgba(28,74,82,0.02));
+    border-color: rgba(28,74,82,0.22);
   }
-  .prg-field.is-readonly:hover { box-shadow: none; border-color: rgba(91,85,74,0.16); }
-  .prg-field.is-readonly .prg-field-val { color: var(--al-ink-soft); cursor: default; }
+  .prg-field.is-linked-base:hover { border-color: rgba(28,74,82,0.4); }
+  .prg-field.is-linked-base .prg-field-val { color: var(--al-aegean); }
+  .prg-field.is-linked-base .prg-field-lab i { font-size: 8px; margin-left: 2px; opacity: .7; }
 
   /* Per-set differentiation panel inside a progression cell */
   .prg-setdetails {
@@ -890,7 +890,18 @@
     background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
-  .rcp-head h2 { font-family: var(--al-font-display); font-size: 2rem; line-height: 1.05; letter-spacing: -.01em; margin: 0; color: var(--al-ink); }
+  .rcp-head::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--al-bronze) 0%, transparent 60%);
+  }
+  .rcp-head-corner {
+    position: absolute; top: 14px; right: 22px; opacity: .35; pointer-events: none;
+    font-family: var(--al-mono, ui-monospace, monospace); font-size: 11px;
+    letter-spacing: 0.16em; color: var(--al-ink-mute); text-transform: uppercase;
+  }
+  @media (max-width: 640px) { .rcp-head-corner { display: none; } }
+  .rcp-head h2 { font-family: var(--al-display); font-size: 2rem; line-height: 1.05; letter-spacing: -.01em; margin: 0; color: var(--al-ink); }
   .rcp-head .rcp-desc { color: var(--al-ink-mute); font-style: italic; margin-top: .5rem; max-width: 56ch; }
   .rcp-meta {
     display: flex; flex-wrap: wrap; gap: .4rem .55rem;
@@ -901,7 +912,7 @@
     display: inline-flex; align-items: center; gap: .35rem;
     padding: .3rem .6rem;
     border: 1px solid var(--al-rule);
-    background: white;
+    background: var(--al-marble);
     border-radius: 999px;
     font-size: .72rem; font-weight: 600;
     color: var(--al-ink-soft);
@@ -920,7 +931,7 @@
     padding: 1rem 1.25rem;
     border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-md);
-    background: white;
+    background: var(--al-parchment);
     position: relative;
     overflow: hidden;
   }
@@ -935,7 +946,7 @@
     color: var(--al-bronze); font-size: 1.5rem; flex-shrink: 0;
   }
   .rcp-duration-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--al-ink-faint); margin: 0; }
-  .rcp-duration-value { font-family: var(--al-font-display); font-size: 1.85rem; line-height: 1; color: var(--al-ink); margin-top: .25rem; }
+  .rcp-duration-value { font-family: var(--al-display); font-size: 1.85rem; line-height: 1; color: var(--al-ink); margin-top: .25rem; }
   .rcp-duration-value small { font-family: var(--al-font); font-size: .75rem; color: var(--al-ink-mute); font-weight: 500; margin-left: .35rem; letter-spacing: 0; }
   .rcp-duration-range { font-size: .72rem; color: var(--al-ink-mute); margin-top: .15rem; font-variant-numeric: tabular-nums; }
 
@@ -943,7 +954,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
     margin-bottom: .65rem;
   }
-  .rcp-days-head h3 { font-family: var(--al-font-display); font-size: 1.15rem; margin: 0; color: var(--al-ink); }
+  .rcp-days-head h3 { font-family: var(--al-display); font-size: 1.15rem; margin: 0; color: var(--al-ink); }
   .rcp-toggle-all {
     font-size: .72rem; font-weight: 600; letter-spacing: .04em;
     color: var(--al-bronze); cursor: pointer; background: none; border: none;
@@ -952,112 +963,132 @@
   }
   .rcp-toggle-all:hover { text-decoration: underline; }
 
-  .rcp-day {
-    border: 1px solid var(--al-rule-faint);
-    border-radius: var(--al-r-md);
-    background: white;
-    overflow: hidden;
-    transition: border-color .15s;
+  /* Day = the numbered container (same ordinal-rail system as the athlete's
+     workout detail page, pd-day-block), reused here for visual consistency
+     across the whole app. */
+  .pd-day-list { display: flex; flex-direction: column; gap: .85rem; }
+  .pd-day-block {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0;
+    border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-md);
+    background: var(--al-parchment); overflow: hidden;
+    transition: border-color .15s, box-shadow .2s;
   }
-  .rcp-day.is-open { border-color: var(--al-rule); }
-  .rcp-day-btn {
+  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(20,17,13,.25)); }
+  @media (max-width: 540px) { .pd-day-block { grid-template-columns: 40px minmax(0, 1fr); } }
+
+  .pd-day-ordinal {
+    background: linear-gradient(180deg, var(--al-marble-warm), var(--al-marble));
+    border-right: 1px solid var(--al-rule-faint);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 1rem 0 1.1rem; gap: .5rem;
+  }
+  .pd-day-ordinal .pd-mono { font-size: .95rem; color: var(--al-bronze); letter-spacing: .06em; font-family: var(--al-mono); font-weight: 600; }
+  .pd-day-stem { flex: 1; width: 1px; background: linear-gradient(180deg, var(--al-bronze) 0%, transparent 100%); opacity: .5; }
+
+  .pd-day-body { min-width: 0; }
+  .pd-day-btn {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
-    padding: .8rem 1rem;
-    background: var(--al-stone);
-    border: none; cursor: pointer;
-    transition: background .15s;
-    text-align: left;
+    padding: 1rem 1.1rem; background: transparent; border: none; cursor: pointer;
+    transition: background .15s; text-align: left;
   }
-  .rcp-day-btn:hover { background: rgba(138,106,58,0.08); }
-  .rcp-day.is-open .rcp-day-btn { background: var(--al-stone); border-bottom: 1px solid var(--al-rule-faint); }
-  .rcp-day-title { font-weight: 600; color: var(--al-ink); display: flex; align-items: center; gap: .55rem; }
-  .rcp-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .5rem; }
-  .rcp-day-meta i.ph-caret-down { transition: transform .2s; }
-  .rcp-day.is-open .rcp-day-meta i.ph-caret-down { transform: rotate(180deg); }
-  .rcp-day-body { padding: .65rem 1rem 1rem; }
-  .rcp-ex {
-    padding: .65rem 0;
-    border-bottom: 1px dashed var(--al-rule-faint);
+  .pd-day-btn:hover { background: rgba(138,106,58,0.06); }
+  .pd-day-title { font-family: var(--al-display); font-weight: 500; color: var(--al-ink); font-size: 1.05rem; letter-spacing: -.005em; }
+  .pd-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .6rem; }
+  .pd-day-meta i.ph-caret-down { transition: transform .2s; font-size: 1rem; }
+  .pd-day-block.is-open .pd-day-meta i.ph-caret-down { transform: rotate(180deg); }
+  .pd-day-content { padding: 0 1.1rem 1.1rem; }
+
+  .pd-ex-list { display: flex; flex-direction: column; gap: .55rem; }
+  .pd-ex-row {
+    display: flex; gap: .75rem; align-items: flex-start;
+    padding: .75rem .9rem; border-radius: var(--al-r-sm);
+    background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint);
   }
-  .rcp-ex:last-child { border-bottom: none; }
-  .rcp-ex-head {
-    display: flex; justify-content: space-between; align-items: baseline; gap: .75rem;
-    flex-wrap: wrap;
+  .pd-ex-idx {
+    width: 22px; height: 22px; flex-shrink: 0; margin-top: .1rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--al-bronze); color: var(--al-parchment);
+    font-family: var(--al-mono); font-size: .68rem; font-weight: 700;
   }
-  .rcp-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
-  .rcp-ex-name .rcp-ss {
+  .pd-ex-body { min-width: 0; flex: 1; }
+  .pd-ex-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+  .pd-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
+  .pd-ex-name .rcp-ss {
     display: inline-block; margin-left: .35rem;
-    background: var(--al-bronze); color: white;
+    background: var(--al-bronze); color: var(--al-parchment);
     font-size: .6rem; font-weight: 700; padding: 1px 5px;
     border-radius: 3px; letter-spacing: .06em; vertical-align: middle;
   }
-  .rcp-ex-primary {
-    font-family: var(--al-font-mono);
-    font-size: .8rem; font-weight: 600; color: var(--al-ink-soft);
-    font-variant-numeric: tabular-nums;
+  .pd-ex-notes { margin-top: .3rem; font-size: .78rem; color: var(--al-ink-mute); font-style: italic; }
+  .pd-ex-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, auto));
+    gap: .9rem; align-items: end; flex-shrink: 0; margin-top: .5rem;
   }
-  .rcp-ex-fields {
-    display: flex; flex-wrap: wrap; gap: .35rem;
-    margin-top: .35rem;
-  }
-  .rcp-field {
-    display: inline-flex; align-items: center; gap: .25rem;
-    font-size: .7rem; padding: .15rem .45rem;
-    background: var(--al-stone); color: var(--al-ink-soft);
-    border-radius: 3px;
-    font-variant-numeric: tabular-nums;
-  }
-  .rcp-field b { color: var(--al-ink-faint); font-weight: 600; letter-spacing: .04em; font-size: .65rem; text-transform: uppercase; }
-  .rcp-ex-notes {
-    margin-top: .35rem; font-size: .78rem; color: var(--al-ink-mute);
-    font-style: italic; line-height: 1.4;
-    padding-left: .65rem; border-left: 2px solid var(--al-rule-faint);
-  }
+  .pd-ex-num { font-family: var(--al-display); font-size: .95rem; color: var(--al-ink); line-height: 1; font-variant-numeric: tabular-nums; }
   .rcp-empty-day { padding: .65rem 0; color: var(--al-ink-mute); font-style: italic; font-size: .8rem; }
 
-  /* Assignment panel */
+  /* Assignment panel — soft card, floating shadow, no flat white. */
   .asg-panel {
     border: 1px solid var(--al-rule);
     border-radius: var(--al-r-md);
-    background: white;
+    background: var(--al-parchment);
     overflow: hidden;
     position: sticky; top: 84px;
+    box-shadow: 0 14px 34px -20px rgba(20,17,13,.35);
   }
   .asg-head {
-    padding: 1rem 1.25rem;
-    background: var(--al-ink);
+    padding: 1.1rem 1.25rem;
+    background: linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%), var(--al-ink);
     color: var(--al-parchment);
     display: flex; align-items: center; gap: .65rem;
   }
   .asg-head i { color: var(--al-bronze); font-size: 1.25rem; }
-  .asg-head h3 { font-family: var(--al-font-display); font-size: 1.15rem; margin: 0; letter-spacing: -.005em; }
-  .asg-body { padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+  .asg-head h3 { font-family: var(--al-display); font-size: 1.15rem; margin: 0; letter-spacing: -.005em; }
+  .asg-body { padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; background: var(--al-parchment); }
   .asg-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--al-ink-faint); margin-bottom: .35rem; display: block; }
 
   .asg-search-wrap { position: relative; }
   .asg-search-wrap i.ph-magnifying-glass {
-    position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
-    color: var(--al-ink-faint); pointer-events: none;
+    position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
+    color: var(--al-bronze); font-size: .95rem; pointer-events: none;
   }
-  .asg-search-wrap input { padding-left: 2.2rem; }
-  .asg-client-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm); }
+  .asg-search-wrap input {
+    padding: .7rem 1rem .7rem 2.6rem;
+    border-radius: 999px;
+    background: var(--al-marble-warm);
+    border-color: var(--al-rule-faint);
+    box-shadow: inset 0 1px 3px rgba(20,17,13,.06);
+  }
+  .asg-search-wrap input:focus {
+    background: var(--al-parchment);
+    box-shadow: inset 0 1px 3px rgba(20,17,13,.06), 0 0 0 3px rgba(138,106,58,.16);
+  }
+  .asg-client-list {
+    max-height: 260px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: .45rem;
+    padding-right: 2px;
+  }
   .asg-client {
-    display: flex; align-items: center; gap: .65rem;
-    padding: .55rem .75rem;
-    border-bottom: 1px solid var(--al-rule-faint);
+    display: flex; align-items: center; gap: .7rem;
+    padding: .6rem .8rem;
+    border: 1px solid var(--al-rule-faint);
+    border-radius: var(--al-r-sm);
+    background: var(--al-marble-warm);
     cursor: pointer;
-    transition: background .12s;
+    transition: border-color .15s, background .15s, transform .15s;
   }
-  .asg-client:last-child { border-bottom: none; }
-  .asg-client:hover { background: var(--al-stone); }
-  .asg-client.is-selected { background: rgba(28,74,82,0.06); }
+  .asg-client:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble); transform: translateY(-1px); }
+  .asg-client.is-selected { border-color: var(--al-bronze); background: linear-gradient(135deg, rgba(138,106,58,.10), transparent 60%), var(--al-marble-warm); }
   .asg-client-avatar {
-    width: 30px; height: 30px; border-radius: 50%;
-    background: var(--al-stone); color: var(--al-ink-soft);
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--al-marble-warm), var(--al-marble));
+    border: 1px solid var(--al-rule-faint);
+    color: var(--al-bronze);
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: .75rem; flex-shrink: 0;
     letter-spacing: .02em;
   }
+  .asg-client.is-selected .asg-client-avatar { background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze); }
   .asg-client-name { font-size: .88rem; color: var(--al-ink); font-weight: 500; flex: 1; min-width: 0; }
   .asg-client-active {
     font-size: .65rem; padding: 2px 7px; border-radius: 3px;
@@ -1065,8 +1096,8 @@
     font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
     flex-shrink: 0;
   }
-  .asg-client-empty { padding: 1rem; text-align: center; color: var(--al-ink-mute); font-style: italic; font-size: .82rem; }
-  .asg-client-more { padding: .45rem .75rem; font-size: .72rem; color: var(--al-ink-mute); text-align: center; background: var(--al-stone); border-top: 1px solid var(--al-rule-faint); }
+  .asg-client-empty { padding: 1.25rem 1rem; text-align: center; color: var(--al-ink-mute); font-style: italic; font-size: .82rem; background: var(--al-marble-warm); border: 1px dashed var(--al-rule-faint); border-radius: var(--al-r-sm); }
+  .asg-client-more { padding: .35rem .75rem; font-size: .72rem; color: var(--al-ink-mute); text-align: center; }
 
   .asg-overwrite {
     background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
@@ -1099,7 +1130,7 @@
   .asg-secondary button {
     flex: 1;
     padding: .55rem .65rem;
-    background: white;
+    background: var(--al-parchment);
     border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-sm);
     cursor: pointer;
@@ -1915,17 +1946,19 @@
                 <div class="prg-cell-fields">
                   <template x-for="field in cellFields(ex)" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
                     <label class="prg-field"
-                           :class="[cellFieldClass(ex, w, field.metric), w === 1 ? 'is-readonly' : '']"
-                           :title="w === 1 ? 'Valore impostato nel builder (Settimana 1)' : cellFieldHint(ex, w, field.metric)">
-                      <span class="prg-field-lab" x-text="field.label"></span>
+                           :class="[cellFieldClass(ex, w, field.metric), w === 1 ? 'is-linked-base' : '']"
+                           :title="w === 1 ? 'Modifica qui aggiorna anche lo Step 2 (Builder)' : cellFieldHint(ex, w, field.metric)">
+                      <span class="prg-field-lab">
+                        <span x-text="field.label"></span>
+                        <i class="ph ph-link" x-show="w === 1"></i>
+                      </span>
                       <input class="prg-field-val"
                              :type="field.type"
                              :step="field.step || null"
                              :min="field.min ?? null"
-                             :readonly="w === 1"
                              :placeholder="cellFieldPlaceholder(ex, w, field.metric)"
                              :value="cellFieldRawValue(ex, w, field.metric)"
-                             @focus="w !== 1 && $event.target.classList.add('is-focused')"
+                             @focus="$event.target.classList.add('is-focused')"
                              @blur="commitCellEdit(ex, w, field.metric, $event.target.value, $event)"
                              @keydown.enter.prevent="$event.target.blur()">
                     </label>
@@ -1936,30 +1969,25 @@
                      visible week column → vertical symmetry). -->
                 <div class="prg-setdetails" x-show="isCellExpanded(ex)" x-cloak>
                   <div class="prg-setdetails-head">
-                    <span x-text="w === 1 ? 'Serie (dal builder)' : 'Valori per serie'"></span>
+                    <span x-text="w === 1 ? 'Serie (sincronizzate col builder)' : 'Valori per serie'"></span>
                   </div>
                   <template x-for="si in progSetCount(ex, w)" :key="'sd-' + ex.pk + '-' + w + '-' + si">
                     <div class="prg-setrow">
                       <span class="prg-setrow-n" x-text="si"></span>
                       <input class="prg-setrow-in" type="text" placeholder="Reps"
-                             :readonly="w === 1"
                              :value="setDetailValue(ex, w, si - 1, 'reps')"
                              @blur="setDetailEdit(ex, w, si - 1, 'reps', $event.target.value)">
                       <input class="prg-setrow-in" type="number" step="0.25" min="0" placeholder="Car."
-                             :readonly="w === 1"
                              :value="setDetailValue(ex, w, si - 1, 'load_value')"
                              @blur="setDetailEdit(ex, w, si - 1, 'load_value', $event.target.value)">
                       <input class="prg-setrow-in" type="number" step="5" min="0" placeholder="Rec"
-                             :readonly="w === 1"
                              :value="setDetailValue(ex, w, si - 1, 'recovery_seconds')"
                              @blur="setDetailEdit(ex, w, si - 1, 'recovery_seconds', $event.target.value)">
                       <input class="prg-setrow-in" type="number" step="0.5" min="0"
                              :placeholder="rpeRirMetricFor(ex) === 'rir' ? 'RIR' : 'RPE'"
-                             :readonly="w === 1"
                              :value="setDetailValue(ex, w, si - 1, rpeRirMetricFor(ex))"
                              @blur="setDetailEdit(ex, w, si - 1, rpeRirMetricFor(ex), $event.target.value)">
                       <input class="prg-setrow-in" type="text" placeholder="TUT"
-                             :readonly="w === 1"
                              :value="setDetailValue(ex, w, si - 1, 'tempo')"
                              @blur="setDetailEdit(ex, w, si - 1, 'tempo', $event.target.value)">
                     </div>
@@ -2079,9 +2107,10 @@
       <div class="rcp-col">
 
         <!-- Plan header -->
-        <div class="rcp-head">
+        <div class="rcp-head al-reveal" style="--d:0ms;">
           <p class="al-eyebrow" style="margin-bottom: .5rem;">Riepilogo scheda</p>
           <h2 x-text="plan.title || 'Senza titolo'"></h2>
+          <div class="rcp-head-corner" x-show="plan.id" aria-hidden="true">N°<span x-text="String(plan.id).padStart(3, '0')"></span></div>
           <p x-show="plan.description" class="rcp-desc" x-text="plan.description"></p>
 
           <div class="rcp-meta">
@@ -2118,7 +2147,7 @@
         </div>
 
         <!-- Estimated duration -->
-        <div class="rcp-duration">
+        <div class="rcp-duration al-reveal" style="--d:60ms;">
           <div class="rcp-duration-icon"><i class="ph ph-timer"></i></div>
           <div>
             <p class="rcp-duration-label">Durata stimata sessione</p>
@@ -2141,58 +2170,67 @@
             </button>
           </div>
 
-          <div class="space-y-2">
-            <template x-for="d in plan.days" :key="d.local_id">
-              <div class="rcp-day" :class="{ 'is-open': recapDaysOpen[d.local_id] }">
-                <button type="button" class="rcp-day-btn" @click="toggleRecapDay(d.local_id)">
-                  <span class="rcp-day-title">
-                    <i class="ph ph-list-bullets" style="color: var(--al-bronze);"></i>
-                    <span x-text="d.name"></span>
-                  </span>
-                  <span class="rcp-day-meta">
-                    <span x-text="d.exercises.length + ' es.'"></span>
-                    <i class="ph ph-caret-down"></i>
-                  </span>
-                </button>
-                <div x-show="recapDaysOpen[d.local_id]" x-collapse class="rcp-day-body">
-                  <template x-for="ex in d.exercises" :key="ex.local_id">
-                    <div class="rcp-ex">
-                      <div class="rcp-ex-head">
-                        <span class="rcp-ex-name">
-                          <span x-text="ex.exercise_name"></span>
-                          <template x-if="ex.superset_group_id"><span class="rcp-ss">SS</span></template>
-                        </span>
-                        <span class="rcp-ex-primary"
-                              x-text="(ex.sets || '?') + ' × ' + (ex.reps || '?')"></span>
-                      </div>
-                      <div class="rcp-ex-fields">
-                        <template x-if="ex.load_value !== null && ex.load_value !== '' && ex.load_value !== undefined">
-                          <span class="rcp-field"><b>Carico</b> <span x-text="ex.load_value + (ex.load_unit==='KG'?' kg':ex.load_unit==='PERCENT_1RM'?'%':' BW')"></span></span>
-                        </template>
-                        <template x-if="ex.recovery_seconds">
-                          <span class="rcp-field"><b>Rec</b> <span x-text="formatRecovery(ex.recovery_seconds)"></span></span>
-                        </template>
-                        <template x-if="ex.rir !== null && ex.rir !== undefined && ex.rir !== ''">
-                          <span class="rcp-field"><b>RIR</b> <span x-text="ex.rir"></span></span>
-                        </template>
-                        <template x-if="ex.rpe !== null && ex.rpe !== undefined && ex.rpe !== ''">
-                          <span class="rcp-field"><b>RPE</b> <span x-text="ex.rpe"></span></span>
-                        </template>
-                        <template x-if="ex.tempo">
-                          <span class="rcp-field"><b>Tempo</b> <span x-text="ex.tempo"></span></span>
-                        </template>
-                        <template x-if="ex.execution_type && ex.execution_type !== 'REPETITION'">
-                          <span class="rcp-field"><b>Esec</b> <span x-text="executionLabel(ex.execution_type)"></span></span>
-                        </template>
-                      </div>
-                      <template x-if="ex.notes || ex.coach_notes">
-                        <p class="rcp-ex-notes" x-text="ex.notes || ex.coach_notes"></p>
+          <div class="pd-day-list">
+            <template x-for="(d, dIdx) in plan.days" :key="d.local_id">
+              <div class="pd-day-block al-reveal" :style="'--d: ' + (dIdx * 60) + 'ms'" :class="{ 'is-open': recapDaysOpen[d.local_id] }">
+                <div class="pd-day-ordinal">
+                  <span class="pd-mono" x-text="String(dIdx + 1).padStart(2, '0')"></span>
+                  <span class="pd-day-stem" aria-hidden="true"></span>
+                </div>
+                <div class="pd-day-body">
+                  <button type="button" class="pd-day-btn" @click="toggleRecapDay(d.local_id)">
+                    <span class="pd-day-title" x-text="d.name"></span>
+                    <span class="pd-day-meta">
+                      <span x-text="d.exercises.length + ' es.'"></span>
+                      <i class="ph ph-caret-down"></i>
+                    </span>
+                  </button>
+                  <div x-show="recapDaysOpen[d.local_id]" x-collapse.duration.200ms class="pd-day-content">
+                    <div class="pd-ex-list">
+                      <template x-for="(ex, exIdx) in d.exercises" :key="ex.local_id">
+                        <div class="pd-ex-row">
+                          <span class="pd-ex-idx" x-text="exIdx + 1"></span>
+                          <div class="pd-ex-body">
+                            <div class="pd-ex-head">
+                              <div class="min-w-0">
+                                <p class="pd-ex-name">
+                                  <span x-text="ex.exercise_name"></span>
+                                  <template x-if="ex.superset_group_id"><span class="rcp-ss">SS</span></template>
+                                  <template x-if="ex.execution_type && ex.execution_type !== 'REPETITION'">
+                                    <span class="al-tag" style="margin-left:.35rem;" x-text="executionLabel(ex.execution_type)"></span>
+                                  </template>
+                                </p>
+                                <template x-if="ex.notes || ex.coach_notes">
+                                  <p class="pd-ex-notes" x-text="ex.notes || ex.coach_notes"></p>
+                                </template>
+                              </div>
+                            </div>
+                            <div class="pd-ex-stats">
+                              <div><p class="al-eyebrow">Serie</p><p class="pd-ex-num" x-text="(ex.sets || '?') + '×' + (ex.reps || '?')"></p></div>
+                              <template x-if="ex.load_value !== null && ex.load_value !== '' && ex.load_value !== undefined">
+                                <div><p class="al-eyebrow">Carico</p><p class="pd-ex-num" x-text="ex.load_value + (ex.load_unit==='KG'?' kg':ex.load_unit==='PERCENT_1RM'?' %1RM':' BW')"></p></div>
+                              </template>
+                              <template x-if="ex.recovery_seconds">
+                                <div><p class="al-eyebrow">Rec</p><p class="pd-ex-num" x-text="formatRecovery(ex.recovery_seconds)"></p></div>
+                              </template>
+                              <template x-if="ex.rpe !== null && ex.rpe !== undefined && ex.rpe !== ''">
+                                <div><p class="al-eyebrow">RPE</p><p class="pd-ex-num" x-text="ex.rpe"></p></div>
+                              </template>
+                              <template x-if="ex.rir !== null && ex.rir !== undefined && ex.rir !== ''">
+                                <div><p class="al-eyebrow">RIR</p><p class="pd-ex-num" x-text="ex.rir"></p></div>
+                              </template>
+                              <template x-if="ex.tempo">
+                                <div><p class="al-eyebrow">TUT</p><p class="pd-ex-num" x-text="ex.tempo"></p></div>
+                              </template>
+                            </div>
+                          </div>
+                        </div>
                       </template>
                     </div>
-                  </template>
-                  <template x-if="d.exercises.length === 0">
-                    <p class="rcp-empty-day">Giorno vuoto.</p>
-                  </template>
+                    <template x-if="d.exercises.length === 0">
+                      <p class="rcp-empty-day">Giorno vuoto.</p>
+                    </template>
+                  </div>
                 </div>
               </div>
             </template>
@@ -2204,15 +2242,12 @@
           <button @click="goPrev()" type="button" class="al-btn al-btn-ghost">
             <i class="ph ph-arrow-left"></i> Indietro
           </button>
-          <button @click="doDuplicate()" :disabled="finalizing || !plan.id" type="button" class="al-btn al-btn-ghost" title="Crea una copia di questa scheda">
-            <i class="ph ph-copy"></i> Duplica scheda
-          </button>
         </div>
       </div>
 
       <!-- ===== RIGHT · Assegnazione ===== -->
       <div class="rcp-col">
-        <div class="asg-panel">
+        <div class="asg-panel al-reveal" style="--d:90ms;">
           <div class="asg-head">
             <i class="ph ph-user-plus"></i>
             <h3>Assegna ad atleti</h3>
@@ -2234,7 +2269,7 @@
               <div x-show="clientQuery || selectedClientIds.length > 0" x-transition class="asg-client-list mt-2">
                 <template x-for="c in visibleClients()" :key="c.id">
                   <label class="asg-client" :class="{ 'is-selected': selectedClientIds.includes(c.id) }">
-                    <input type="checkbox" :value="c.id" :checked="selectedClientIds.includes(c.id)" @change="toggleClient(c.id)">
+                    <input type="checkbox" class="al-checkbox" :value="c.id" :checked="selectedClientIds.includes(c.id)" @change="toggleClient(c.id)">
                     <span class="asg-client-avatar" x-text="clientInitials(c.name)"></span>
                     <span class="asg-client-name" x-text="c.name"></span>
                     <template x-if="c.active_assignment">
@@ -2273,26 +2308,52 @@
             <!-- Weekly assignment duration (only for WEEKLY plans) -->
             <template x-if="plan.plan_kind === 'WEEKLY'">
               <div>
-                <label class="asg-label">Per quante settimane l'atleta segue questa scheda? *</label>
-                <select x-model.number="assignWeeks" class="al-select w-full">
-                  <option :value="null">— Seleziona —</option>
-                  <option :value="1">1 settimana</option>
-                  <option :value="2">2 settimane</option>
-                  <option :value="3">3 settimane</option>
-                  <option :value="4">4 settimane</option>
-                  <option :value="6">6 settimane</option>
-                  <option :value="8">8 settimane</option>
-                  <option :value="12">12 settimane</option>
-                  <option :value="16">16 settimane</option>
-                  <option :value="24">24 settimane</option>
-                </select>
+                <label class="asg-label">Per quanto tempo l'atleta segue questa scheda? *</label>
+                <div class="flex gap-2">
+                  <template x-if="assignDurationUnit === 'WEEKS'">
+                    <select x-model.number="assignDurationValue" class="al-select flex-1">
+                      <option :value="null">— Seleziona —</option>
+                      <option :value="1">1 settimana</option>
+                      <option :value="2">2 settimane</option>
+                      <option :value="3">3 settimane</option>
+                      <option :value="4">4 settimane</option>
+                      <option :value="6">6 settimane</option>
+                      <option :value="8">8 settimane</option>
+                      <option :value="12">12 settimane</option>
+                      <option :value="16">16 settimane</option>
+                      <option :value="24">24 settimane</option>
+                    </select>
+                  </template>
+                  <template x-if="assignDurationUnit === 'MONTHS'">
+                    <select x-model.number="assignDurationValue" class="al-select flex-1">
+                      <option :value="null">— Seleziona —</option>
+                      <option :value="1">1 mese</option>
+                      <option :value="2">2 mesi</option>
+                      <option :value="3">3 mesi</option>
+                      <option :value="4">4 mesi</option>
+                      <option :value="6">6 mesi</option>
+                      <option :value="9">9 mesi</option>
+                      <option :value="12">12 mesi</option>
+                    </select>
+                  </template>
+                  <select x-model="assignDurationUnit" @change="assignDurationValue = null" class="al-select" style="width: 110px;">
+                    <option value="WEEKS">settimane</option>
+                    <option value="MONTHS">mesi</option>
+                  </select>
+                </div>
                 <p class="al-small mt-2" style="color: var(--al-ink-faint);">L'atleta ripeterà questa settimana per la durata indicata.</p>
               </div>
             </template>
             <template x-if="plan.plan_kind === 'PROGRAM'">
-              <div style="font-size: .8rem; color: var(--al-ink-mute); padding: .55rem .75rem; background: var(--al-stone); border-radius: var(--al-r-sm);">
-                <i class="ph ph-info" style="color: var(--al-bronze);"></i>
-                Durata fissata dalla programmazione: <strong x-text="plan.duration_weeks + ' settimane'"></strong>.
+              <div>
+                <label class="asg-label">Durata</label>
+                <div class="rcp-duration">
+                  <div class="rcp-duration-icon"><i class="ph ph-lock-simple"></i></div>
+                  <div>
+                    <p class="rcp-duration-label">Fissata dalla programmazione</p>
+                    <p class="rcp-duration-value" x-text="plan.duration_weeks + ' sett.'"></p>
+                  </div>
+                </div>
               </div>
             </template>
 

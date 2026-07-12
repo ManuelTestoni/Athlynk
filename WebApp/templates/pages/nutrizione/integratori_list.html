@@ -52,7 +52,7 @@ window._suppSheets = {{ sheets_json|json_js }};
     <template x-for="s in paginated" :key="s.id">
       <article class="al-card flex flex-col justify-between">
         <div>
-          <div class="flex justify-between items-start mb-4">
+          <div class="flex justify-between items-center mb-4">
             <span class="al-tag"><i class="ph ph-pill text-xs"></i> Integratori</span>
             <div class="flex items-center gap-1" @click.stop>
               <a :href="s.edit_url" class="al-btn-icon al-btn-ghost" title="Modifica">
@@ -144,7 +144,7 @@ window._suppSheets = {{ sheets_json|json_js }};
   </div>
 
   <!-- Assign Modal -->
-  <div x-show="assignModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="assignModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop" @click="assignModal=false"></div>
     <div class="al-modal-panel relative" style="max-width: 480px;">
       <div class="al-modal-head">

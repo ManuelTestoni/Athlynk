@@ -304,7 +304,7 @@
   </div>
 
   <!-- ============ DETAIL MODAL ============ -->
-  <div x-show="showDetailModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="showDetailModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop agenda-modal-backdrop" @click="closeDetail()"></div>
     <div class="al-modal-panel relative" style="max-width: 480px;" @click.away="closeDetail()">
       <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">
@@ -376,7 +376,7 @@
 
   <!-- ============ CREATE / EDIT MODAL ============ -->
   {% if can_manage_agenda %}
-  <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div x-show="showCreateModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
     <div class="al-modal-backdrop agenda-modal-backdrop" @click="closeCreate()"></div>
     <div class="al-modal-panel relative" style="max-width: 540px;" @click.away="closeCreate()">
       <div class="al-card-dark px-6 py-5" style="border-bottom: 1px solid rgba(244,239,228,0.1);">

@@ -482,12 +482,14 @@
         </template>
     </div>
 
-    <!-- Add / Edit question modal (teleported to body → fixed positioning is relative
-         to the viewport, so the panel stays centered even when scrolled to the bottom) -->
+    <!-- Add / Edit question modal (teleported to body, fixed positioning is relative
+         to the viewport so the panel stays centered even when scrolled to the bottom;
+         lg:left-64 excludes the sidebar so centering matches the content area, same
+         pattern as nutrizione/_assign_modal.html and allenamenti/library.html) -->
     <template x-teleport="body">
-    <div x-show="showModal" x-cloak style="position:fixed;inset:0;z-index:50;">
+    <div x-show="showModal" x-cloak class="fixed inset-0 lg:left-64 z-50 flex items-center justify-center p-4">
         <div class="al-modal-backdrop" @click="closeModal()"></div>
-        <div class="al-modal-panel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:51;max-width:560px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
+        <div class="al-modal-panel" style="max-width:560px;width:calc(100% - 2rem);max-height:90vh;overflow-y:auto;" @click.stop>
 
             <!-- Type pick (add only) -->
             <div x-show="modalStep === 0">

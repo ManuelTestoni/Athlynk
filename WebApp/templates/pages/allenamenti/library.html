@@ -223,7 +223,7 @@
                    @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null">
             <div>
-              <div class="flex justify-between items-start mb-4">
+              <div class="flex justify-between items-center mb-4">
                 <span class="wb-kind-badge"
                       :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
                       x-text="plan.plan_kind === 'PROGRAM' ? 'Programma' : 'Settimana'"></span>
@@ -243,7 +243,7 @@
                   <button @click="duplicatePlan(plan.id)" type="button"
                           :disabled="duplicatingId === plan.id"
                           class="al-btn-icon al-btn-ghost" title="Duplica">
-                    <i class="ph text-sm" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
+                    <i class="ph" :class="duplicatingId === plan.id ? 'ph-spinner-gap ph-spin' : 'ph-copy'"></i>
                   </button>
                   <button @click="deletePlan(plan.id, plan.title, plan.assignment_count)" type="button" class="al-btn-icon al-btn-ghost" title="Elimina">
                     <i class="ph ph-trash"></i>
@@ -543,7 +543,8 @@ function workoutLibrary() {
     clientSearch: '',
     selectedClient: null,
     startDate: '',
-    endDate: '',
+    durationValue: null,
+    durationUnit: 'WEEKS',
     assignNotes: '',
     saving: false,
     successFlash: false,
@@ -729,24 +730,17 @@ function workoutLibrary() {
       this.clientSearch = ''; this.selectedClient = null;
       this.assignNotes = '';
       this.successFlash = false;
-      // Date di default: oggi → oggi + durata scheda
-      const today = new Date();
-      const end = new Date(today); end.setDate(end.getDate() + this.assignPlanWeeks * 7);
-      const iso = (d) => d.toISOString().slice(0, 10);
-      this.startDate = iso(today);
-      this.endDate = iso(end);
+      // Default: oggi, durata = quella della scheda (PROGRAM) o 1 settimana (WEEKLY).
+      this.startDate = new Date().toISOString().slice(0, 10);
+      this.durationValue = this.assignPlanWeeks;
+      this.durationUnit = 'WEEKS';
       this.assignModal = true;
     },
     async submitAssign() {
       if (!this.selectedClient) return;
       this.saving = true;
-      // weeks: derivato dalle date scelte, fallback alla durata della scheda
-      let weeks = this.assignPlanWeeks;
-      if (this.startDate && this.endDate) {
-        const ms = new Date(this.endDate) - new Date(this.startDate);
-        const w = Math.round(ms / (7 * 24 * 3600 * 1000));
-        if (w >= 1) weeks = w;
-      }
+      // Server owns duration→end_date math; PROGRAM plans ignore duration_value/unit
+      // and use the plan's own duration_weeks instead (see api_plan_finalize).
       try {
         const res = await fetch(this.urls.planAssign.replace('__ID__', this.assignPlanId), {
           method: 'POST',
@@ -754,7 +748,8 @@ function workoutLibrary() {
           body: JSON.stringify({
             action: 'assign',
             client_ids: [this.selectedClient.id],
-            weeks: weeks,
+            duration_value: this.durationValue,
+            duration_unit: this.durationUnit,
             overwrite: false,
           }),
         });

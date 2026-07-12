@@ -961,12 +961,7 @@ def _check_coach_access(request, client_id):
     return (coach, client), None
 
 
-def api_progress_loads(request, client_id):
-    res, err = _check_coach_access(request, client_id)
-    if err:
-        return err
-    coach, client = res
-
+def _progress_loads_data(client, request):
     # exercise_id = underlying Exercise, so the same movement across different
     # plan days aggregates into one trend. (Legacy workout_exercise_id still
     # accepted for older callers.)
@@ -1019,10 +1014,25 @@ def api_progress_loads(request, client_id):
         if recent and before:
             progress_4w = round(max(recent) - max(before), 1)
 
-    return JsonResponse({
+    return {
         'series': series,
         'progress_4w': progress_4w,
-    })
+    }
+
+
+def api_progress_loads(request, client_id):
+    res, err = _check_coach_access(request, client_id)
+    if err:
+        return err
+    coach, client = res
+    return JsonResponse(_progress_loads_data(client, request))
+
+
+def api_my_progress_loads(request):
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse(_progress_loads_data(client, request))
 
 
 def _exercise_muscle_names(ex):
@@ -1039,12 +1049,7 @@ def _exercise_muscle_names(ex):
     return primaries, secondaries
 
 
-def api_progress_volume(request, client_id):
-    res, err = _check_coach_access(request, client_id)
-    if err:
-        return err
-    coach, client = res
-
+def _progress_volume_data(client):
     today = timezone.now().date()
     date_from = today - timedelta(weeks=12)
     sets = WorkoutSetLog.objects.filter(
@@ -1104,11 +1109,26 @@ def api_progress_volume(request, client_id):
 
     series = {m: [round(weekly.get(w, {}).get(m, 0), 1) for w in weeks] for m in muscles_list}
 
-    return JsonResponse({
+    return {
         'weeks': weeks,
         'muscles': muscles_list,
         'series': series,
-    })
+    }
+
+
+def api_progress_volume(request, client_id):
+    res, err = _check_coach_access(request, client_id)
+    if err:
+        return err
+    coach, client = res
+    return JsonResponse(_progress_volume_data(client))
+
+
+def api_my_progress_volume(request):
+    client = get_session_client(request)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse(_progress_volume_data(client))
 
 
 def api_progress_adherence(request, client_id):

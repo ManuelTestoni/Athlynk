@@ -32,6 +32,7 @@ from django.views.decorators.csrf import csrf_exempt
 from domain.accounts.models import CoachProfile, DeviceToken, User
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
+from domain.calendar.services import appointment_expired, create_appointment_request, respond_to_appointment
 from domain.chat.models import Conversation, Message, Notification
 from domain.checks.models import AssignedCheckInstance, QuestionAttachment, QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship
@@ -1071,6 +1072,13 @@ def _message_dict(m, user_id):
         'message_type': m.message_type,
         'is_mine': m.sender_user_id == user_id,
         'sent_at': _iso(m.sent_at),
+        'attachment_url': _abs_media(m.attachment.url) if m.attachment else None,
+        'appointment_id': m.appointment_id,
+        'appointment_status': m.appointment.status if m.appointment else None,
+        'appointment_title': m.appointment.title if m.appointment else None,
+        'appointment_start': _iso(m.appointment.start_datetime) if m.appointment else None,
+        'appointment_expired': appointment_expired(m.appointment),
+        'read_at': _iso(m.read_at) if m.read_at else None,
     }
 
 
@@ -1085,7 +1093,7 @@ def messages(request, user, conversation_id):
     # result when nothing changed (no battery/payload wasted on full reloads).
     since = request.GET.get('since')
     if since and since.isdigit():
-        new = conv.messages.filter(id__gt=int(since)).order_by('sent_at')
+        new = conv.messages.filter(id__gt=int(since)).select_related('appointment').order_by('sent_at')
         return JsonResponse({
             'messages': [_message_dict(m, user.id) for m in new],
             'has_more': False,
@@ -1095,7 +1103,7 @@ def messages(request, user, conversation_id):
     # older pages on scroll-up. We fetch newest-first, then reverse so the client
     # always receives them oldest→newest (display order).
     page = 30
-    qs = conv.messages.order_by('-sent_at')
+    qs = conv.messages.select_related('appointment').order_by('-sent_at')
     before = request.GET.get('before')
     if before and before.isdigit():
         qs = qs.filter(id__lt=int(before))
@@ -1132,6 +1140,47 @@ def send_message(request, user, conversation_id):
         link_url='/chat/',
     )
     return JsonResponse({'id': msg.id, 'sent_at': _iso(msg.sent_at)}, status=201)
+
+
+@api_view(['POST'])
+def request_appointment(request, user, conversation_id):
+    conv = _own_conversation(user, conversation_id)
+    if not conv:
+        return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
+    data = _body(request)
+    try:
+        msg = create_appointment_request(
+            user, conv,
+            title=data.get('title'),
+            preferred_date_str=data.get('preferred_date'),
+            time_from_str=data.get('time_from'),
+            time_to_str=data.get('time_to'),
+            notes=data.get('notes'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse(_message_dict(msg, user.id), status=201)
+
+
+@api_view(['POST'])
+def respond_appointment(request, user, conversation_id, appointment_id):
+    conv = _own_conversation(user, conversation_id)
+    if not conv:
+        return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
+    appointment = Appointment.objects.filter(id=appointment_id, coach=conv.coach, client=conv.client).first()
+    if not appointment:
+        return JsonResponse({'error': 'Appuntamento non trovato'}, status=404)
+    data = _body(request)
+    try:
+        msg = respond_to_appointment(
+            user, conv, appointment,
+            action=data.get('action'),
+            counter_date_str=data.get('counter_date'),
+            counter_time_str=data.get('counter_time'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse(_message_dict(msg, user.id), status=201)
 
 
 # ---------------------------------------------------------------------------
@@ -1697,15 +1746,74 @@ def plans(request, user):
         'id': p.id,
         'name': p.name,
         'plan_type': p.plan_type,
+        'kind': p.kind,
         'description': p.description,
         'price': float(p.price),
         'currency': p.currency,
         'duration_days': p.duration_days,
         'billing_interval': p.billing_interval,
         'included_services': p.included_services or [],
+        'is_online_purchasable': p.is_online_purchasable,
         'coach': _coach_dict(p.coach),
     } for p in qs]
     return JsonResponse({'plans': out})
+
+
+@api_view(['POST'])
+def checkout_start(request, user):
+    """Mobile counterpart of views_checkout.athlete_checkout_start_view — same
+    direct-charge Checkout Session creation, but returns the session URL as
+    JSON instead of redirecting, so the iOS app can open it in an in-app web
+    view (StripeWebFlow). success_url/cancel_url use a custom URL scheme."""
+    from django.conf import settings
+    import stripe
+    from domain.billing.models import ConnectCheckoutIntent
+
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    if not settings.STRIPE_SECRET_KEY:
+        return JsonResponse({'error': 'Pagamenti non configurati.'}, status=503)
+
+    body = _body(request)
+    plan_id = body.get('plan_id')
+    coach_ids = _linked_coach_ids(client)
+    try:
+        plan = SubscriptionPlan.objects.get(
+            id=plan_id, coach_id__in=coach_ids, is_active=True, is_online_purchasable=True,
+        )
+    except (SubscriptionPlan.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'Piano non disponibile.'}, status=404)
+
+    coach = plan.coach
+    mode = 'subscription' if plan.kind == SubscriptionPlan.KIND_SUBSCRIPTION else 'payment'
+    fee_kwargs = {}
+    if mode == 'subscription':
+        fee_kwargs['subscription_data'] = {'application_fee_percent': settings.PLATFORM_FEE_PERCENT}
+    else:
+        fee_kwargs['payment_intent_data'] = {
+            'application_fee_amount': int(plan.price * 100 * settings.PLATFORM_FEE_PERCENT / 100),
+        }
+
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        session = stripe.checkout.Session.create(
+            mode=mode,
+            line_items=[{'price': plan.stripe_price_id, 'quantity': 1}],
+            stripe_account=coach.stripe_connect_account_id,
+            success_url='athlynk://checkout-return?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url='athlynk://checkout-cancel',
+            **fee_kwargs,
+        )
+    except Exception:
+        logger.exception('stripe_checkout.mobile_session_create_failed plan=%s', plan.id)
+        return JsonResponse({'error': 'Impossibile avviare il pagamento. Riprova.'}, status=502)
+
+    ConnectCheckoutIntent.objects.create(
+        stripe_checkout_session_id=session['id'],
+        coach=coach, client=client, plan=plan,
+    )
+    return JsonResponse({'checkout_url': session['url']})
 
 
 # ---------------------------------------------------------------------------

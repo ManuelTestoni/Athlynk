@@ -22,7 +22,7 @@
         <div class="al-rule-bronze mt-5"></div>
     </div>
 
-    <form method="post">
+    <form method="post" x-data="{ kind: '{{ form.kind.value|default:'subscription' }}' }">
         {% csrf_token %}
 
         <div class="space-y-6">
@@ -42,6 +42,11 @@
                         <label for="{{ form.name.id_for_label }}" class="al-label">{{ form.name.label }} *</label>
                         {{ form.name }}
                         {% if form.name.errors %}<span class="al-input-error">{{ form.name.errors.0 }}</span>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.kind.id_for_label }}" class="al-label">{{ form.kind.label }}</label>
+                        {{ form.kind }}
+                        <span class="al-input-help">Ricorrente = abbonamento con rinnovo automatico. Add-on = pagamento singolo (servizio, pacchetto extra).</span>
                     </div>
                     <div>
                         <label for="{{ form.plan_type.id_for_label }}" class="al-label">{{ form.plan_type.label }}</label>
@@ -77,12 +82,12 @@
                         <label for="{{ form.currency.id_for_label }}" class="al-label">{{ form.currency.label }}</label>
                         {{ form.currency }}
                     </div>
-                    <div>
+                    <div x-show="kind === 'subscription'">
                         <label for="{{ form.duration_days.id_for_label }}" class="al-label">{{ form.duration_days.label }}</label>
                         {{ form.duration_days }}
                         <span class="al-input-help">Giorni di validità del piano.</span>
                     </div>
-                    <div>
+                    <div x-show="kind === 'subscription'">
                         <label for="{{ form.billing_interval.id_for_label }}" class="al-label">{{ form.billing_interval.label }}</label>
                         {{ form.billing_interval }}
                     </div>

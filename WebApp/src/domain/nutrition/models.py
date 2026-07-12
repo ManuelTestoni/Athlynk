@@ -285,12 +285,20 @@ class SupplementProtocolAssignment(models.Model):
 
 
 class NutritionAssignment(models.Model):
+    DURATION_UNIT_WEEKS = 'WEEKS'
+    DURATION_UNIT_MONTHS = 'MONTHS'
+    DURATION_UNIT_CHOICES = [(DURATION_UNIT_WEEKS, 'settimane'), (DURATION_UNIT_MONTHS, 'mesi')]
+
     nutrition_plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='assignments')
     client = models.ForeignKey('accounts.ClientProfile', on_delete=models.CASCADE, related_name='nutrition_assignments')
     coach = models.ForeignKey('accounts.CoachProfile', on_delete=models.CASCADE, related_name='nutrition_assignments_given')
     assigned_at = models.DateTimeField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+    # The coach-chosen duration that produced end_date, kept for display/audit
+    # (start_date/end_date remain authoritative for scheduling logic).
+    duration_value = models.PositiveSmallIntegerField(null=True, blank=True)
+    duration_unit = models.CharField(max_length=10, choices=DURATION_UNIT_CHOICES, null=True, blank=True)
     status = models.CharField(max_length=50) # Es: ACTIVE, COMPLETED, CANCELLED
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -6,6 +6,8 @@
 {% block content %}
 <script>
   window._detailClients = {{ clients_json|json_js }};
+  window._planDays = {{ days_detail_json|json_js }};
+  window._planMealNames = {{ meal_names_json|json_js }};
 </script>
 
 <div class="max-w-6xl mx-auto"
@@ -141,7 +143,7 @@
         <p class="al-eyebrow">Obiettivi per giorno</p>
         <h2 class="al-h-2 mt-1">La <span class="al-display-i">settimana</span></h2>
       </div>
-      <span class="al-small" style="color: var(--al-ink-mute);">{{ macro_targets.filled }} giorno{{ macro_targets.filled|pluralize:"i" }} impostat{{ macro_targets.filled|pluralize:"o,i" }}</span>
+      <span class="al-small" style="color: var(--al-ink-mute);">{{ macro_targets.filled }} giorn{{ macro_targets.filled|pluralize:"o,i" }} impostat{{ macro_targets.filled|pluralize:"o,i" }}</span>
     </div>
     <div class="pd-macro-days">
       {% for d in macro_targets.days %}
@@ -230,114 +232,295 @@
 
   <!-- =================== COURSE (MEALS) =================== -->
   <section class="mt-10">
-    <div class="flex items-end justify-between mb-5">
+    <div class="flex items-end justify-between mb-5 flex-wrap gap-3">
       <div>
         <p class="al-eyebrow">Distribuzione giornaliera</p>
         <h2 class="al-h-2 mt-1">I <span class="al-display-i">pasti</span></h2>
       </div>
-      <span class="al-small" style="color: var(--al-ink-mute);">
-        {{ meals_detail|length }} pasto{{ meals_detail|length|pluralize:"i" }}
-      </span>
+      <div class="flex items-center gap-3">
+        {% if plan.plan_kind == 'WEEKLY' and meals_detail %}
+          <div class="al-filter" role="tablist" aria-label="Vista pasti">
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': mealView === 'days' }" :aria-selected="mealView === 'days'"
+                    @click="mealView = 'days'">
+              <i class="ph ph-rows"></i><span>Giorni</span>
+            </button>
+            <button type="button" role="tab" class="al-filter-chip"
+                    :class="{ 'is-active': mealView === 'table' }" :aria-selected="mealView === 'table'"
+                    @click="mealView = 'table'">
+              <i class="ph ph-table"></i><span>Tabella</span>
+            </button>
+          </div>
+        {% endif %}
+        <span class="al-small" style="color: var(--al-ink-mute);">
+          {{ meals_detail|length }} past{{ meals_detail|length|pluralize:"o,i" }}
+        </span>
+      </div>
     </div>
 
     {% if meals_detail %}
-      <div class="pd-meal-list">
-        {% for md in meals_detail %}
-          <article class="pd-meal al-reveal" style="--d:{{ forloop.counter0|add:1 }}20ms;">
-            <!-- Ordinal -->
-            <div class="pd-meal-ordinal">
-              <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
-              <span class="pd-meal-stem" aria-hidden="true"></span>
-            </div>
-
-            <div class="pd-meal-body">
-              <header class="pd-meal-head">
-                <div class="min-w-0">
-                  <p class="al-eyebrow" style="color: var(--al-bronze);">Pasto {{ forloop.counter }}</p>
-                  <h3 class="al-h-3 mt-1">{{ md.meal.name }}</h3>
-                  {% if md.meal.time_of_day %}
-                    <p class="al-small mt-1" style="color: var(--al-ink-mute);">
-                      <i class="ph ph-clock"></i> {{ md.meal.time_of_day }}
-                    </p>
-                  {% endif %}
-                </div>
-                <div class="pd-meal-totals">
-                  <div>
-                    <p class="al-eyebrow">kcal</p>
-                    <p class="pd-meal-num">{{ md.kcal }}</p>
-                  </div>
-                  <div>
-                    <p class="al-eyebrow" style="color: var(--al-aegean);">P</p>
-                    <p class="pd-meal-num" style="color: var(--al-aegean);">{{ md.prot }}<span>g</span></p>
-                  </div>
-                  <div>
-                    <p class="al-eyebrow" style="color: var(--al-warn);">C</p>
-                    <p class="pd-meal-num" style="color: var(--al-warn);">{{ md.carb }}<span>g</span></p>
-                  </div>
-                  <div>
-                    <p class="al-eyebrow" style="color: var(--al-danger);">G</p>
-                    <p class="pd-meal-num" style="color: var(--al-danger);">{{ md.fat }}<span>g</span></p>
-                  </div>
-                </div>
-              </header>
-
-              {% if md.meal.notes %}
-                <p class="pd-meal-notes">
-                  <i class="ph ph-sticky-note"></i> {{ md.meal.notes }}
-                </p>
-              {% endif %}
-
-              <!-- Items -->
-              <ul class="pd-items">
-                {% for item in md.items %}
-                  <li class="pd-item">
-                    <span class="pd-item-bullet">·</span>
-                    <div class="pd-item-info">
-                      <p class="pd-item-name">
-                        {{ item.food.nome_alimento }}
-                        {% if item.substitutions.all %}
-                          <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
-                            <i class="ph ph-swap" style="font-size: 9px;"></i>
-                            {{ item.substitutions.all|length }} alt
-                          </span>
-                        {% endif %}
-                      </p>
-                      {% if item.food.categoria_alimento %}
-                        <p class="pd-item-meta">{{ item.food.categoria_alimento }}</p>
-                      {% endif %}
+      {% if plan.plan_kind == 'WEEKLY' %}
+        <!-- ============ DAY VIEW (default) ============ -->
+        <div x-show="mealView === 'days'">
+          <div class="pd-meal-list">
+            <template x-for="(day, dIdx) in days.slice(0, visibleDayCount)" :key="day.code">
+              <div class="pd-day-block al-reveal" :style="`--d: ${dIdx * 60}ms`">
+                <header class="pd-day-head">
+                  <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="day.label"></p>
+                  <span class="al-small" style="color: var(--al-ink-mute);"
+                        x-text="day.meals.length + (day.meals.length === 1 ? ' pasto' : ' pasti')"></span>
+                </header>
+                <template x-if="day.meals.length === 0">
+                  <p class="pd-day-empty">Nessun pasto in questo giorno.</p>
+                </template>
+                <template x-for="(md, mIdx) in day.meals" :key="day.code + '-' + mIdx">
+                  <article class="pd-meal">
+                    <div class="pd-meal-ordinal">
+                      <span class="pd-mono" x-text="String(mIdx + 1).padStart(2, '0')"></span>
+                      <span class="pd-meal-stem" aria-hidden="true"></span>
                     </div>
-                    <span class="pd-item-qty">
-                      <strong>{{ item.quantity_g|floatformat:0 }}</strong><em>g</em>
-                    </span>
-                    <span class="pd-item-kcal">{{ item.kcal }} kcal</span>
-                    <span class="pd-item-macros">
-                      <span style="color: var(--al-aegean);">P {{ item.protein }}</span>
-                      <span style="color: var(--al-warn);">C {{ item.carbs }}</span>
-                      <span style="color: var(--al-danger);">G {{ item.fat }}</span>
-                    </span>
-                  </li>
-                  {% for sub in item.substitutions.all %}
-                    <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
-                      <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment); background: {% if sub.mode == 'ISOKCAL' %}var(--al-bronze){% elif sub.mode == 'ISOPROT' %}var(--al-aegean){% else %}var(--al-warn){% endif %};">
-                        {% if sub.mode == 'ISOKCAL' %}iso-kcal{% elif sub.mode == 'ISOPROT' %}iso-prot{% else %}iso-carb{% endif %}
+                    <div class="pd-meal-body">
+                      <header class="pd-meal-head">
+                        <div class="min-w-0">
+                          <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="'Pasto ' + (mIdx + 1)"></p>
+                          <h3 class="al-h-3 mt-1" x-text="md.name"></h3>
+                          <p class="al-small mt-1" x-show="md.time_of_day" style="color: var(--al-ink-mute);">
+                            <i class="ph ph-clock"></i> <span x-text="md.time_of_day"></span>
+                          </p>
+                        </div>
+                        <div class="pd-meal-totals">
+                          <div><p class="al-eyebrow">kcal</p><p class="pd-meal-num" x-text="md.kcal"></p></div>
+                          <div><p class="al-eyebrow" style="color: var(--al-aegean);">P</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-aegean);" x-text="md.prot"></p></div>
+                          <div><p class="al-eyebrow" style="color: var(--al-warn);">C</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-warn);" x-text="md.carb"></p></div>
+                          <div><p class="al-eyebrow" style="color: var(--al-danger);">G</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-danger);" x-text="md.fat"></p></div>
+                        </div>
+                      </header>
+
+                      <p class="pd-meal-notes" x-show="md.notes">
+                        <i class="ph ph-sticky-note"></i> <span x-text="md.notes"></span>
+                      </p>
+
+                      <ul class="pd-items">
+                        <template x-for="item in md.items" :key="item.name">
+                          <li class="pd-item">
+                            <span class="pd-item-bullet">·</span>
+                            <div class="pd-item-info">
+                              <p class="pd-item-name">
+                                <span x-text="item.name"></span>
+                                <template x-if="item.substitutions.length">
+                                  <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                                    <i class="ph ph-swap" style="font-size: 9px;"></i>
+                                    <span x-text="item.substitutions.length + ' alt'"></span>
+                                  </span>
+                                </template>
+                              </p>
+                              <p class="pd-item-meta" x-show="item.category" x-text="item.category"></p>
+                            </div>
+                            <span class="pd-item-qty">
+                              <strong x-text="Math.round(item.quantity_g)"></strong><em>g</em>
+                            </span>
+                            <span class="pd-item-kcal" x-text="item.kcal + ' kcal'"></span>
+                            <span class="pd-item-macros">
+                              <span style="color: var(--al-aegean);" x-text="'P ' + item.protein"></span>
+                              <span style="color: var(--al-warn);" x-text="'C ' + item.carbs"></span>
+                              <span style="color: var(--al-danger);" x-text="'G ' + item.fat"></span>
+                            </span>
+                          </li>
+                        </template>
+                        <template x-for="sub in md.items.flatMap(it => it.substitutions.map(s => ({...s, itemName: it.name})))" :key="sub.itemName + '-' + sub.name">
+                          <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+                            <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment);"
+                                  :style="`background: ${sub.mode === 'ISOKCAL' ? 'var(--al-bronze)' : sub.mode === 'ISOPROT' ? 'var(--al-aegean)' : 'var(--al-warn)'}`"
+                                  x-text="sub.mode === 'ISOKCAL' ? 'iso-kcal' : sub.mode === 'ISOPROT' ? 'iso-prot' : 'iso-carb'"></span>
+                            <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="sub.name"></span>
+                            <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);" x-text="Math.round(sub.quantity_g) + 'g'"></span>
+                            <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;"
+                                  x-text="sub.kcal + ' kcal · P ' + sub.protein + ' · C ' + sub.carbs + ' · F ' + sub.fat"></span>
+                          </li>
+                        </template>
+                        <template x-if="md.items.length === 0">
+                          <li class="pd-item-empty">
+                            <i class="ph ph-leaf"></i> Nessun alimento
+                          </li>
+                        </template>
+                      </ul>
+                    </div>
+                  </article>
+                </template>
+              </div>
+            </template>
+          </div>
+
+          <!-- Scroll sentinel: reveals the next day, native IntersectionObserver -->
+          <div x-show="visibleDayCount < days.length" x-cloak
+               x-init="$nextTick(() => {
+                 const io = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) revealNextDay(); }, { rootMargin: '200px' });
+                 io.observe($el);
+                 $watch('visibleDayCount', () => { if (visibleDayCount >= days.length) io.disconnect(); });
+               })"
+               class="pd-day-sentinel">
+            <i class="ph ph-circle-notch pd-spin"></i> Caricamento altri giorni…
+          </div>
+        </div>
+
+        <!-- ============ TABLE VIEW ============ -->
+        <div x-show="mealView === 'table'" x-cloak>
+          <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="al-filter" role="tablist" aria-label="Filtra per giorno">
+              <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': dayFilter === null }" @click="dayFilter = null">Tutti</button>
+              <template x-for="day in days" :key="day.code">
+                <button type="button" role="tab" class="al-filter-chip"
+                        :class="{ 'is-active': dayFilter === day.code }"
+                        @click="dayFilter = (dayFilter === day.code ? null : day.code)">
+                  <span x-text="day.label"></span>
+                </button>
+              </template>
+            </div>
+            <div class="al-filter" role="tablist" aria-label="Filtra per pasto">
+              <button type="button" role="tab" class="al-filter-chip" :class="{ 'is-active': mealFilter === null }" @click="mealFilter = null">Tutti</button>
+              <template x-for="name in mealNames" :key="name">
+                <button type="button" role="tab" class="al-filter-chip"
+                        :class="{ 'is-active': mealFilter === name }"
+                        @click="mealFilter = (mealFilter === name ? null : name)">
+                  <span x-text="name"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div class="al-card al-card-flush overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="al-table pd-meal-table">
+                <thead>
+                  <tr>
+                    <th>Pasto</th>
+                    <template x-for="day in visibleDays()" :key="day.code">
+                      <th x-text="day.label"></th>
+                    </template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="name in visibleMealNames()" :key="name">
+                    <tr>
+                      <td class="font-medium" x-text="name"></td>
+                      <template x-for="day in visibleDays()" :key="day.code + '-' + name">
+                        <td>
+                          <template x-if="mealFor(day, name)">
+                            <button type="button" class="pd-cell-btn" @click="openMealModal(day, mealFor(day, name))">
+                              <span class="pd-cell-kcal" x-text="mealFor(day, name).kcal + ' kcal'"></span>
+                              <span class="pd-cell-items" x-text="mealFor(day, name).items.length + ' alimenti'"></span>
+                            </button>
+                          </template>
+                          <template x-if="!mealFor(day, name)">
+                            <span class="pd-cell-empty">—</span>
+                          </template>
+                        </td>
+                      </template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <!-- DAILY plan: no weekday dimension, flat list -->
+        <div class="pd-meal-list">
+          {% for md in meals_detail %}
+            <article class="pd-meal al-reveal" style="--d:{{ forloop.counter0|add:1 }}20ms;">
+              <div class="pd-meal-ordinal">
+                <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
+                <span class="pd-meal-stem" aria-hidden="true"></span>
+              </div>
+
+              <div class="pd-meal-body">
+                <header class="pd-meal-head">
+                  <div class="min-w-0">
+                    <p class="al-eyebrow" style="color: var(--al-bronze);">Pasto {{ forloop.counter }}</p>
+                    <h3 class="al-h-3 mt-1">{{ md.meal.name }}</h3>
+                    {% if md.meal.time_of_day %}
+                      <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+                        <i class="ph ph-clock"></i> {{ md.meal.time_of_day }}
+                      </p>
+                    {% endif %}
+                  </div>
+                  <div class="pd-meal-totals">
+                    <div>
+                      <p class="al-eyebrow">kcal</p>
+                      <p class="pd-meal-num">{{ md.kcal }}</p>
+                    </div>
+                    <div>
+                      <p class="al-eyebrow" style="color: var(--al-aegean);">P</p>
+                      <p class="pd-meal-num" style="color: var(--al-aegean);">{{ md.prot }}<span>g</span></p>
+                    </div>
+                    <div>
+                      <p class="al-eyebrow" style="color: var(--al-warn);">C</p>
+                      <p class="pd-meal-num" style="color: var(--al-warn);">{{ md.carb }}<span>g</span></p>
+                    </div>
+                    <div>
+                      <p class="al-eyebrow" style="color: var(--al-danger);">G</p>
+                      <p class="pd-meal-num" style="color: var(--al-danger);">{{ md.fat }}<span>g</span></p>
+                    </div>
+                  </div>
+                </header>
+
+                {% if md.meal.notes %}
+                  <p class="pd-meal-notes">
+                    <i class="ph ph-sticky-note"></i> {{ md.meal.notes }}
+                  </p>
+                {% endif %}
+
+                <ul class="pd-items">
+                  {% for item in md.items %}
+                    <li class="pd-item">
+                      <span class="pd-item-bullet">·</span>
+                      <div class="pd-item-info">
+                        <p class="pd-item-name">
+                          {{ item.food.nome_alimento }}
+                          {% if item.substitutions.all %}
+                            <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                              <i class="ph ph-swap" style="font-size: 9px;"></i>
+                              {{ item.substitutions.all|length }} alt
+                            </span>
+                          {% endif %}
+                        </p>
+                        {% if item.food.categoria_alimento %}
+                          <p class="pd-item-meta">{{ item.food.categoria_alimento }}</p>
+                        {% endif %}
+                      </div>
+                      <span class="pd-item-qty">
+                        <strong>{{ item.quantity_g|floatformat:0 }}</strong><em>g</em>
                       </span>
-                      <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sub.food.nome_alimento }}</span>
-                      <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);">{{ sub.quantity_g|floatformat:0 }}g</span>
-                      <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;">
-                        {{ sub.kcal }} kcal · P {{ sub.protein }} · C {{ sub.carbs }} · F {{ sub.fat }}
+                      <span class="pd-item-kcal">{{ item.kcal }} kcal</span>
+                      <span class="pd-item-macros">
+                        <span style="color: var(--al-aegean);">P {{ item.protein }}</span>
+                        <span style="color: var(--al-warn);">C {{ item.carbs }}</span>
+                        <span style="color: var(--al-danger);">G {{ item.fat }}</span>
                       </span>
                     </li>
+                    {% for sub in item.substitutions.all %}
+                      <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+                        <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment); background: {% if sub.mode == 'ISOKCAL' %}var(--al-bronze){% elif sub.mode == 'ISOPROT' %}var(--al-aegean){% else %}var(--al-warn){% endif %};">
+                          {% if sub.mode == 'ISOKCAL' %}iso-kcal{% elif sub.mode == 'ISOPROT' %}iso-prot{% else %}iso-carb{% endif %}
+                        </span>
+                        <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sub.food.nome_alimento }}</span>
+                        <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);">{{ sub.quantity_g|floatformat:0 }}g</span>
+                        <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;">
+                          {{ sub.kcal }} kcal · P {{ sub.protein }} · C {{ sub.carbs }} · F {{ sub.fat }}
+                        </span>
+                      </li>
+                    {% endfor %}
+                  {% empty %}
+                    <li class="pd-item-empty">
+                      <i class="ph ph-leaf"></i> Nessun alimento — <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-link">aggiungine</a>
+                    </li>
                   {% endfor %}
-                {% empty %}
-                  <li class="pd-item-empty">
-                    <i class="ph ph-leaf"></i> Nessun alimento — <a href="{% url 'nutrizione_piano_edit' plan.id %}" class="al-link">aggiungine</a>
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
+                </ul>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% else %}
       <div class="al-card al-card-warm">
         <div class="al-empty" style="padding: 80px 32px;">
@@ -447,6 +630,72 @@
 
   <!-- =================== ASSIGN MODAL (shared markup) =================== -->
   {% include 'pages/nutrizione/_assign_modal.html' with plan=plan %}
+
+  <!-- =================== MEAL DETAIL MODAL (table view) =================== -->
+  <div x-show="mealModal.open" class="al-modal-backdrop" @click.self="mealModal.open = false"
+       @keydown.escape.window="mealModal.open = false" x-cloak>
+    <div class="al-modal-panel" style="max-width: 640px;">
+      <div class="al-modal-head">
+        <div>
+          <p class="al-eyebrow" style="color: var(--al-bronze);" x-text="mealModal.day ? mealModal.day.label : ''"></p>
+          <h3 x-text="mealModal.meal ? mealModal.meal.name : ''"></h3>
+        </div>
+        <button type="button" class="al-btn-icon al-btn-ghost" @click="mealModal.open = false">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="al-modal-body" x-show="mealModal.meal">
+        <div class="pd-meal-totals mb-4">
+          <div><p class="al-eyebrow">kcal</p><p class="pd-meal-num" x-text="mealModal.meal?.kcal"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-aegean);">P</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-aegean);" x-text="mealModal.meal?.prot"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-warn);">C</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-warn);" x-text="mealModal.meal?.carb"></p></div>
+          <div><p class="al-eyebrow" style="color: var(--al-danger);">G</p><p class="pd-meal-num pd-meal-num--g" style="color: var(--al-danger);" x-text="mealModal.meal?.fat"></p></div>
+        </div>
+        <ul class="pd-items">
+          <template x-for="item in (mealModal.meal?.items || [])" :key="item.name">
+            <li class="pd-item">
+              <span class="pd-item-bullet">·</span>
+              <div class="pd-item-info">
+                <p class="pd-item-name">
+                  <span x-text="item.name"></span>
+                  <template x-if="item.substitutions.length">
+                    <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft); border-radius: 999px; margin-left: 6px; vertical-align: middle;">
+                      <i class="ph ph-swap" style="font-size: 9px;"></i>
+                      <span x-text="item.substitutions.length + ' alt'"></span>
+                    </span>
+                  </template>
+                </p>
+                <p class="pd-item-meta" x-show="item.category" x-text="item.category"></p>
+              </div>
+              <span class="pd-item-qty">
+                <strong x-text="Math.round(item.quantity_g)"></strong><em>g</em>
+              </span>
+              <span class="pd-item-kcal" x-text="item.kcal + ' kcal'"></span>
+              <span class="pd-item-macros">
+                <span style="color: var(--al-aegean);" x-text="'P ' + item.protein"></span>
+                <span style="color: var(--al-warn);" x-text="'C ' + item.carbs"></span>
+                <span style="color: var(--al-danger);" x-text="'G ' + item.fat"></span>
+              </span>
+            </li>
+          </template>
+          <template x-for="sub in (mealModal.meal?.items || []).flatMap(it => it.substitutions.map(s => ({...s, itemName: it.name})))" :key="sub.itemName + '-' + sub.name">
+            <li style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 36px; font-size: 12px; color: var(--al-ink-soft); background: var(--al-marble); border-bottom: 1px dashed var(--al-rule-faint);">
+              <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 3px; color: var(--al-parchment);"
+                    :style="`background: ${sub.mode === 'ISOKCAL' ? 'var(--al-bronze)' : sub.mode === 'ISOPROT' ? 'var(--al-aegean)' : 'var(--al-warn)'}`"
+                    x-text="sub.mode === 'ISOKCAL' ? 'iso-kcal' : sub.mode === 'ISOPROT' ? 'iso-prot' : 'iso-carb'"></span>
+              <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="sub.name"></span>
+              <span style="font-family: var(--al-font-mono); font-weight: 600; color: var(--al-ink);" x-text="Math.round(sub.quantity_g) + 'g'"></span>
+              <span style="font-family: var(--al-font-mono); color: var(--al-ink-mute); font-size: 11px;"
+                    x-text="sub.kcal + ' kcal · P ' + sub.protein + ' · C ' + sub.carbs + ' · F ' + sub.fat"></span>
+            </li>
+          </template>
+          <template x-if="(mealModal.meal?.items || []).length === 0">
+            <li class="pd-item-empty"><i class="ph ph-leaf"></i> Nessun alimento</li>
+          </template>
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -776,6 +1025,14 @@
   color: var(--al-ink-mute);
   margin-left: 1px;
 }
+/* Alpine-driven totals (day view): x-text can't share an element with a
+   nested unit span, so the "g" suffix is pure CSS content instead. */
+.pd-meal-num--g::after {
+  content: 'g';
+  font-size: 11px;
+  color: var(--al-ink-mute);
+  margin-left: 1px;
+}
 
 .pd-meal-notes {
   margin-top: 10px;
@@ -885,6 +1142,59 @@
   color: var(--al-ink-mute);
   font-size: 13px;
 }
+
+/* Day view */
+.pd-day-block + .pd-day-block { margin-top: 34px; }
+.pd-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--al-rule);
+}
+.pd-day-head .al-eyebrow { font-size: 13px; letter-spacing: 0.12em; }
+.pd-day-empty {
+  padding: 14px 4px 20px;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--al-ink-mute);
+}
+.pd-day-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+  font-size: 12px;
+  color: var(--al-ink-mute);
+  letter-spacing: 0.04em;
+}
+.pd-spin { animation: pd-spin 0.9s linear infinite; }
+@keyframes pd-spin { to { transform: rotate(360deg); } }
+
+/* Table view */
+.pd-cell-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--al-r-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--al-d-fast) var(--al-ease-out);
+}
+.pd-cell-btn:hover, .pd-cell-btn:focus-visible {
+  background: var(--al-marble-warm);
+  outline: none;
+}
+.pd-cell-kcal { font-family: var(--al-display); font-size: 13px; color: var(--al-ink); }
+.pd-cell-items { font-size: 10px; color: var(--al-ink-mute); text-transform: uppercase; letter-spacing: 0.06em; }
+.pd-cell-empty { color: var(--al-ink-faint, var(--al-ink-mute)); padding: 6px 10px; display: inline-block; }
+.pd-meal-table th:first-child, .pd-meal-table td:first-child { white-space: nowrap; }
 
 /* Assigns */
 .pd-assigns {
@@ -1024,7 +1334,8 @@ function planDetail() {
     clientSearch: '',
     selectedClient: null,
     startDate: '',
-    endDate: '',
+    durationValue: null,
+    durationUnit: 'WEEKS',
     assignNotes: '',
     saving: false,
     successFlash: false,
@@ -1038,6 +1349,15 @@ function planDetail() {
     totalFat:  {{ total_fat }},
     pctProt: 0, pctCarb: 0, pctFat: 0,
 
+    /* meals: day view / table view (WEEKLY plans only) */
+    days: window._planDays || [],
+    mealNames: window._planMealNames || [],
+    mealView: 'days',
+    visibleDayCount: 2,
+    dayFilter: null,
+    mealFilter: null,
+    mealModal: { open: false, day: null, meal: null },
+
     init() {
       const totalFromMacros =
         (this.totalProt * 4) + (this.totalCarb * 4) + (this.totalFat * 9);
@@ -1045,6 +1365,26 @@ function planDetail() {
       this.pctProt = Math.round((this.totalProt * 4) / base * 100);
       this.pctCarb = Math.round((this.totalCarb * 4) / base * 100);
       this.pctFat  = Math.round((this.totalFat  * 9) / base * 100);
+    },
+
+    revealNextDay() {
+      if (this.visibleDayCount >= this.days.length) return;
+      // Small delay so the spinner + entrance animation are perceptible,
+      // not an instant swap — this is the "loading on scroll" the coach sees.
+      setTimeout(() => { this.visibleDayCount++; }, 250);
+    },
+
+    visibleDays() {
+      return this.days.filter(d => !this.dayFilter || d.code === this.dayFilter);
+    },
+    visibleMealNames() {
+      return this.mealNames.filter(n => !this.mealFilter || n === this.mealFilter);
+    },
+    mealFor(day, name) {
+      return (day.meals || []).find(m => m.name === name) || null;
+    },
+    openMealModal(day, meal) {
+      this.mealModal = { open: true, day, meal };
     },
 
     filteredClients() {
@@ -1057,7 +1397,7 @@ function planDetail() {
 
     openAssign() {
       this.clientSearch = ''; this.selectedClient = null;
-      this.startDate = ''; this.endDate = ''; this.assignNotes = '';
+      this.startDate = ''; this.durationValue = null; this.durationUnit = 'WEEKS'; this.assignNotes = '';
       this.successFlash = false;
       this.overwriteConfirmed = false;
       this.assignModal = true;
@@ -1072,7 +1412,8 @@ function planDetail() {
         body: JSON.stringify({
           client_id: this.selectedClient.id,
           start_date: this.startDate || null,
-          end_date: this.endDate || null,
+          duration_value: this.durationValue || null,
+          duration_unit: this.durationUnit,
           notes: this.assignNotes,
         })
       });

@@ -1,58 +1,33 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="fixed inset-0 z-50 bg-marble flex items-center justify-center p-4">
-    <!-- Confetti bg mock effect -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        <div class="w-20 h-20 bg-emerald-500 rounded-full blur-3xl absolute top-10 left-10"></div>
-        <div class="w-32 h-32 bg-blue-500 rounded-full blur-3xl absolute bottom-10 right-10"></div>
-    </div>
-
-    <!-- Success Card -->
-    <div class="bg-white rounded-3xl border border-rule shadow-2xl p-8 sm:p-12 max-w-lg w-full text-center relative z-10 animate-[wiggle_1s_ease-in-out]">
-        <div class="mx-auto w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6 ring-8 ring-emerald-50 relative">
-            <i class="ph-fill ph-check-circle text-6xl"></i>
-            <!-- Sparkles -->
-            <i class="ph-fill ph-sparkle absolute -top-2 -right-4 text-2xl text-amber-400 rotate-12"></i>
-            <i class="ph-fill ph-sparkle absolute bottom-2 -left-6 text-xl text-blue-400 -rotate-12"></i>
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: var(--al-marble);">
+    <div class="al-card" style="max-width: 480px; width: 100%; text-align: center; padding: 48px 32px;">
+        {% if fulfilled %}
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: rgba(28,74,82,0.10); color: var(--al-aegean);">
+            <i class="ph-fill ph-check-circle text-5xl"></i>
         </div>
-
-        <h1 class="text-3xl font-extrabold text-ink mb-2">Pagamento Riuscito!</h1>
-        <p class="text-ink-mute mb-8 px-4 leading-relaxed">
-            Grazie per aver attivato il piano <strong>Premium Coaching</strong>. 
-            Il tuo abbonamento è ore attivo e il tuo trainer è stato notificato.
+        <h1 class="al-h-2 mb-2">Pagamento riuscito!</h1>
+        <p class="al-body mb-8">
+            {% if intent.bundle %}
+            Il pacchetto <strong>{{ intent.bundle.name }}</strong> è ora attivo. Il tuo coach è stato notificato.
+            {% else %}
+            Il piano <strong>{{ intent.plan.name }}</strong> è ora attivo. Il tuo coach è stato notificato.
+            {% endif %}
         </p>
-
-        <div class="bg-marble rounded-al-sm p-6 border border-rule text-left mb-8 space-y-3">
-            <h3 class="text-xs font-bold text-ink-mute uppercase tracking-widest border-b border-rule pb-2 mb-3">Dettagli Transazione</h3>
-            
-            <div class="flex justify-between items-center text-sm">
-                <span class="text-ink-mute">Codice Ordine</span>
-                <span class="font-mono text-ink-soft font-semibold">#TRN-9492LKA</span>
-            </div>
-            <div class="flex justify-between items-center text-sm">
-                <span class="text-ink-mute">Importo Pagato</span>
-                <span class="font-semibold text-ink-soft">€ 150,00</span>
-            </div>
-            <div class="flex justify-between items-center text-sm">
-                <span class="text-ink-mute">Inizio Periodo</span>
-                <span class="font-semibold text-ink-soft">Oggi, 20 Apr 2026</span>
-            </div>
-            <div class="flex justify-between items-center text-sm">
-                <span class="text-ink-mute">Prossimo Rinnovo</span>
-                <span class="font-semibold text-ink-soft">20 Mag 2026</span>
-            </div>
+        {% else %}
+        <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: var(--al-marble-warm); color: var(--al-bronze);">
+            <i class="ph-fill ph-hourglass-medium text-5xl"></i>
         </div>
-
-        <div class="flex flex-col sm:flex-row gap-3">
-            <a href="{% url 'dashboard' %}" class="al-btn al-btn-bronze al-btn-lg flex-1">
-                <span>Vai alla Dashboard</span> <i class="ph ph-arrow-right"></i>
-            </a>
-        </div>
-        
-        <p class="text-[11px] text-ink-mute mt-6 mt-1 flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2">
-            Una ricevuta è stata inviata via email.
+        <h1 class="al-h-2 mb-2">Pagamento in elaborazione</h1>
+        <p class="al-body mb-8">
+            Stiamo confermando il tuo pagamento con Stripe. Se hai completato la procedura riceverai conferma a breve — puoi anche ricaricare questa pagina tra qualche istante.
         </p>
+        {% endif %}
+
+        <a href="{% url 'abbonamenti_dashboard' %}" class="al-btn al-btn-bronze al-btn-lg w-full">
+            <span>Vai ai tuoi abbonamenti</span> <i class="ph ph-arrow-right"></i>
+        </a>
     </div>
 </div>
 {% endblock %}

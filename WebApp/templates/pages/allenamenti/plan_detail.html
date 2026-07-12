@@ -33,14 +33,25 @@
     background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
-  .rcp-head h2 { font-family: var(--al-font-display); font-size: 1.85rem; line-height: 1.05; letter-spacing: -.01em; margin: 0; color: var(--al-ink); }
+  .rcp-head::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--al-bronze) 0%, transparent 60%);
+  }
+  .rcp-head-corner {
+    position: absolute; top: 14px; right: 22px; opacity: .35; pointer-events: none;
+    font-family: var(--al-mono, ui-monospace, monospace); font-size: 11px;
+    letter-spacing: 0.16em; color: var(--al-ink-mute); text-transform: uppercase;
+  }
+  @media (max-width: 640px) { .rcp-head-corner { display: none; } }
+  .rcp-head h2 { font-family: var(--al-display); font-size: 1.85rem; line-height: 1.05; letter-spacing: -.01em; margin: 0; color: var(--al-ink); }
   .rcp-head .rcp-desc { color: var(--al-ink-mute); font-style: italic; margin-top: .5rem; max-width: 56ch; font-size: .9rem; }
   .rcp-meta { display: flex; flex-wrap: wrap; gap: .4rem .55rem; margin-top: 1rem; position: relative; z-index: 1; }
   .rcp-chip {
     display: inline-flex; align-items: center; gap: .35rem;
     padding: .3rem .6rem;
     border: 1px solid var(--al-rule);
-    background: white; border-radius: 999px;
+    background: var(--al-marble); border-radius: 999px;
     font-size: .72rem; font-weight: 600; color: var(--al-ink-soft); letter-spacing: .02em;
   }
   .rcp-chip i { font-size: .9rem; color: var(--al-bronze); }
@@ -55,52 +66,74 @@
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
     margin-bottom: .65rem;
   }
-  .rcp-days-head h3 { font-family: var(--al-font-display); font-size: 1.1rem; margin: 0; color: var(--al-ink); }
-  .rcp-day {
+  .rcp-days-head h3 { font-family: var(--al-display); font-size: 1.1rem; margin: 0; color: var(--al-ink); }
+
+  /* ================================================================
+     Day = the numbered container (ordinal-rail card, mirrors nutrition's
+     pd-meal system but applied one level up — the day, not the exercise).
+     ================================================================ */
+  .pd-day-list { display: flex; flex-direction: column; gap: .85rem; }
+  .pd-day-block {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0;
     border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-md);
-    background: white; overflow: hidden; transition: border-color .15s;
+    background: var(--al-parchment); overflow: hidden;
+    transition: border-color .15s, box-shadow .2s;
   }
-  .rcp-day.is-open { border-color: var(--al-rule); }
-  .rcp-day-btn {
+  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(20,17,13,.25)); }
+  @media (max-width: 540px) { .pd-day-block { grid-template-columns: 40px minmax(0, 1fr); } }
+
+  .pd-day-ordinal {
+    background: linear-gradient(180deg, var(--al-marble-warm), var(--al-marble));
+    border-right: 1px solid var(--al-rule-faint);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 1rem 0 1.1rem; gap: .5rem;
+  }
+  .pd-day-ordinal .pd-mono { font-size: .95rem; color: var(--al-bronze); letter-spacing: .06em; font-family: var(--al-mono); font-weight: 600; }
+  .pd-day-stem { flex: 1; width: 1px; background: linear-gradient(180deg, var(--al-bronze) 0%, transparent 100%); opacity: .5; }
+
+  .pd-day-body { min-width: 0; }
+  .pd-day-btn {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
-    padding: .8rem 1rem; background: var(--al-stone); border: none; cursor: pointer;
+    padding: 1rem 1.1rem; background: transparent; border: none; cursor: pointer;
     transition: background .15s; text-align: left;
   }
-  .rcp-day-btn:hover { background: rgba(138,106,58,0.08); }
-  .rcp-day.is-open .rcp-day-btn { background: var(--al-stone); border-bottom: 1px solid var(--al-rule-faint); }
-  .rcp-day-title { font-weight: 600; color: var(--al-ink); display: flex; align-items: center; gap: .55rem; font-size: .9rem; }
-  .rcp-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .5rem; }
-  .rcp-day-meta i.ph-caret-down { transition: transform .2s; }
-  .rcp-day.is-open .rcp-day-meta i.ph-caret-down { transform: rotate(180deg); }
-  .rcp-day-body { padding: .65rem 1rem 1rem; }
+  .pd-day-btn:hover { background: rgba(138,106,58,0.06); }
+  .pd-day-title { font-family: var(--al-display); font-weight: 500; color: var(--al-ink); font-size: 1.05rem; letter-spacing: -.005em; }
+  .pd-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .6rem; }
+  .pd-day-meta i.ph-caret-down { transition: transform .2s; font-size: 1rem; }
+  .pd-day-block.is-open .pd-day-meta i.ph-caret-down { transform: rotate(180deg); }
+  .pd-day-content { padding: 0 1.1rem 1.1rem; }
 
-  .rcp-ex { padding: .65rem 0; border-bottom: 1px dashed var(--al-rule-faint); }
-  .rcp-ex:last-child { border-bottom: none; }
-  .rcp-ex-head { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
-  .rcp-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
-  .rcp-ex-name .rcp-ss {
-    display: inline-block; margin-left: .35rem;
-    background: var(--al-bronze); color: white;
-    font-size: .6rem; font-weight: 700; padding: 1px 5px;
-    border-radius: 3px; letter-spacing: .06em; vertical-align: middle;
+  /* Dense exercise rows inside a day — no per-exercise rail, small index bubble
+     instead, so the day keeps the visual weight and exercises read as a list. */
+  .pd-ex-list { display: flex; flex-direction: column; gap: .55rem; }
+  .pd-ex-row {
+    display: flex; gap: .75rem; align-items: flex-start;
+    padding: .75rem .9rem; border-radius: var(--al-r-sm);
+    background: var(--al-marble-warm); border: 1px solid var(--al-rule-faint);
+    transition: border-color .15s, background .15s;
   }
-  .rcp-ex-primary {
-    font-family: var(--al-font-mono); font-size: .8rem; font-weight: 600;
-    color: var(--al-ink-soft); font-variant-numeric: tabular-nums;
+  .pd-ex-row:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble); }
+  .pd-ex-idx {
+    width: 22px; height: 22px; flex-shrink: 0; margin-top: .1rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--al-bronze); color: var(--al-parchment);
+    font-family: var(--al-mono); font-size: .68rem; font-weight: 700;
   }
-  .rcp-ex-fields { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
-  .rcp-field {
-    display: inline-flex; align-items: center; gap: .25rem;
-    font-size: .7rem; padding: .15rem .45rem;
-    background: var(--al-stone); color: var(--al-ink-soft);
-    border-radius: 3px; font-variant-numeric: tabular-nums;
+  .pd-ex-body { min-width: 0; flex: 1; }
+  .pd-ex-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+  .pd-ex-name { font-weight: 600; color: var(--al-ink); font-size: .9rem; }
+  .pd-ex-notes { margin-top: .3rem; font-size: .78rem; color: var(--al-ink-mute); font-style: italic; }
+  .pd-ex-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, auto));
+    gap: .9rem; align-items: end; flex-shrink: 0; margin-top: .5rem;
   }
-  .rcp-field b { color: var(--al-ink-faint); font-weight: 600; letter-spacing: .04em; font-size: .65rem; text-transform: uppercase; }
-  .rcp-ex-notes { margin-top: .35rem; font-size: .78rem; color: var(--al-ink-mute); font-style: italic; }
+  .pd-ex-num { font-family: var(--al-display); font-size: .95rem; color: var(--al-ink); line-height: 1; font-variant-numeric: tabular-nums; }
+  .pd-ex-num span { font-size: .68rem; color: var(--al-ink-mute); margin-left: 1px; }
 
   /* Sidebar assignment card */
   .pd-assign-card {
-    background: white; border: 1px solid var(--al-rule-faint);
+    background: var(--al-parchment); border: 1px solid var(--al-rule-faint);
     border-radius: var(--al-r-md); overflow: hidden;
   }
   .pd-assign-row {
@@ -147,9 +180,10 @@
     <div class="pd-rcp-col">
 
       <!-- Plan header -->
-      <div class="rcp-head">
+      <div class="rcp-head al-reveal" style="--d:0ms;">
         <p class="al-eyebrow" style="margin-bottom: .5rem;">Studio &middot; Scheda</p>
         <h2>{{ plan.title }}</h2>
+        <div class="rcp-head-corner" aria-hidden="true">N°{{ plan.id|stringformat:"03d" }}</div>
         {% if plan.description %}<p class="rcp-desc">{{ plan.description }}</p>{% endif %}
         <div class="rcp-meta">
           <span class="rcp-chip">
@@ -192,58 +226,30 @@
           <h3>Dettaglio esercizi</h3>
           <span class="al-small" style="color: var(--al-ink-mute);">{{ plan.days.count }} giorn{{ plan.days.count|pluralize:'o,i' }}</span>
         </div>
-        <div class="space-y-2">
+        <div class="pd-day-list">
           {% for day in plan.days.all %}
-          <div class="rcp-day plan-print-day" x-data="{ open: false, loaded: false }" :class="{ 'is-open': open }" @beforeprint.window="open = true">
-            <button type="button" class="rcp-day-btn" @click="open = !open">
-              <span class="rcp-day-title">
-                <i class="ph ph-list-bullets" style="color: var(--al-bronze);"></i>
-                {{ day.day_name|default:"Giorno" }} {{ forloop.counter }}
-              </span>
-              <span class="rcp-day-meta">
-                <span>{{ day.exercises.count }} es.</span>
-                <i class="ph ph-caret-down"></i>
-              </span>
-            </button>
-            <div x-show="open" x-collapse class="rcp-day-body">
-              {% for ex in day.exercises.all %}
-              <div class="rcp-ex">
-                <div class="rcp-ex-head">
-                  <span class="rcp-ex-name">
-                    {{ ex.exercise.name }}
-                    {% if ex.superset_group_id %}<span class="rcp-ss">SS{{ ex.superset_group_id }}</span>{% endif %}
-                    {% if ex.execution_type and ex.execution_type != 'REPETITION' %}
-                      <span class="al-tag" style="margin-left:.35rem;font-size:.6rem;">{% if ex.execution_type == 'RAMPING' %}Ramping{% elif ex.execution_type == 'TEST' %}Test{% endif %}</span>
-                    {% endif %}
-                  </span>
-                  <span class="rcp-ex-primary">{{ ex.set_count|default:"?" }} × {{ ex.rep_range|default:"?" }}</span>
+          <div class="pd-day-block plan-print-day al-reveal" style="--d:{{ forloop.counter0|add:1 }}60ms;" x-data="{ open: false, loaded: false }" :class="{ 'is-open': open }" @beforeprint.window="open = true">
+            <div class="pd-day-ordinal">
+              <span class="pd-mono">{{ forloop.counter|stringformat:"02d" }}</span>
+              <span class="pd-day-stem" aria-hidden="true"></span>
+            </div>
+            <div class="pd-day-body">
+              <button type="button" class="pd-day-btn" @click="open = !open">
+                <span class="pd-day-title">{% if day.day_name %}{{ day.day_name }}{% else %}Giorno {{ forloop.counter }}{% endif %}</span>
+                <span class="pd-day-meta">
+                  <span>{{ day.exercises.count }} es.</span>
+                  <i class="ph ph-caret-down"></i>
+                </span>
+              </button>
+              <div x-show="open" x-collapse.duration.200ms class="pd-day-content">
+                <div class="pd-ex-list">
+                  {% for ex in day.exercises.all %}
+                    {% include 'pages/allenamenti/_exercise_card.html' with ex=ex idx=forloop.counter show_trend=False %}
+                  {% empty %}
+                    <p class="al-small italic" style="color: var(--al-ink-faint); padding: .5rem 0;">Giorno vuoto</p>
+                  {% endfor %}
                 </div>
-                <div class="rcp-ex-fields">
-                  {% if ex.load_value %}
-                    <span class="rcp-field"><b>Carico</b>
-                      {{ ex.load_value }}{% if ex.load_unit == 'KG' %} kg{% elif ex.load_unit == 'PERCENT_1RM' %} % 1RM{% elif ex.load_unit == 'BODYWEIGHT' %} BW{% endif %}
-                    </span>
-                  {% endif %}
-                  {% if ex.recovery_seconds %}
-                    <span class="rcp-field"><b>Rec</b> {{ ex.recovery_seconds }}s</span>
-                  {% endif %}
-                  {% if ex.rpe %}
-                    <span class="rcp-field"><b>RPE</b> {{ ex.rpe }}</span>
-                  {% endif %}
-                  {% if ex.rir is not None %}
-                    <span class="rcp-field"><b>RIR</b> {{ ex.rir }}</span>
-                  {% endif %}
-                  {% if ex.tempo %}
-                    <span class="rcp-field"><b>TUT</b> {{ ex.tempo }}</span>
-                  {% endif %}
-                </div>
-                {% if ex.technique_notes %}
-                  <p class="rcp-ex-notes">{{ ex.technique_notes }}</p>
-                {% endif %}
               </div>
-              {% empty %}
-              <p class="al-small italic" style="color: var(--al-ink-faint); padding: .5rem 0;">Giorno vuoto</p>
-              {% endfor %}
             </div>
           </div>
           {% empty %}

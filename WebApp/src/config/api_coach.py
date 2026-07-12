@@ -24,6 +24,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from domain.accounts.models import ClientProfile, CoachProfile
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
+from domain.calendar.services import respond_to_appointment
 from domain.chat.models import AutomaticMessageTemplate, Conversation, Message, Notification
 from domain.checks.models import QuestionnaireResponse, QuestionnaireTemplate
 from domain.coaching.models import CoachingRelationship
@@ -150,6 +151,9 @@ def _coach_profile_dict(request, coach):
         'social_tiktok': coach.social_tiktok,
         'social_website': coach.social_website,
         'email': coach.user.email,
+        'stripe_connect_account_id': coach.stripe_connect_account_id,
+        'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
+        'stripe_connect_details_submitted': coach.stripe_connect_details_submitted,
     }
 
 
@@ -1149,10 +1153,12 @@ def subscriptions(request, user):
         'id': p.id,
         'name': p.name,
         'plan_type': p.plan_type,
+        'kind': p.kind,
         'price': float(p.price),
         'currency': p.currency,
         'billing_interval': p.billing_interval,
         'is_active': p.is_active,
+        'is_online_purchasable': p.is_online_purchasable,
         'active_count': p.active_count,
     } for p in (
         SubscriptionPlan.objects.filter(coach=coach)
@@ -1189,6 +1195,64 @@ def subscriptions(request, user):
         'monthly_revenue': revenue,
         'currency': 'EUR',
         'has_more': len(window) > PAGE,
+        'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
+    })
+
+
+@api_view(['POST'])
+def coach_connect_start(request, user):
+    """Mobile counterpart of views_connect.connect_onboarding_start_view —
+    same Stripe Connect Express onboarding, but returns the Account Link URL
+    as JSON instead of redirecting, so the iOS app can open it in an
+    in-app web view. return_url/refresh_url use a custom URL scheme so
+    ASWebAuthenticationSession can catch the redirect back into the app."""
+    from django.conf import settings
+    from .services.stripe_connect import create_account_link, create_connect_account
+
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if not settings.STRIPE_SECRET_KEY:
+        return JsonResponse({'error': 'Pagamenti non configurati.'}, status=503)
+
+    try:
+        account_id = create_connect_account(coach)
+        url = create_account_link(
+            account_id,
+            refresh_url='athlynkcoach://connect-refresh',
+            return_url='athlynkcoach://connect-return',
+        )
+    except Exception:
+        logger.exception('stripe_connect.mobile_onboarding_start_failed coach=%s', coach.id)
+        return JsonResponse({'error': 'Impossibile avviare il collegamento a Stripe. Riprova.'}, status=502)
+
+    return JsonResponse({'account_link_url': url})
+
+
+@api_view(['GET'])
+def coach_connect_status(request, user):
+    """Re-fetch live Connect account status for an immediate UI update after
+    the app's web view closes. account.updated (webhook) remains the source
+    of truth; see views_connect.connect_onboarding_return_view for the web
+    equivalent of this same best-effort refresh."""
+    import stripe
+    from django.conf import settings
+    from .services.stripe_connect import sync_account_status
+
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if coach.stripe_connect_account_id and settings.STRIPE_SECRET_KEY:
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        try:
+            account = stripe.Account.retrieve(coach.stripe_connect_account_id)
+            sync_account_status(coach, account)
+        except Exception:
+            logger.exception('stripe_connect.mobile_status_refresh_failed coach=%s', coach.id)
+    return JsonResponse({
+        'stripe_connect_account_id': coach.stripe_connect_account_id,
+        'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
+        'stripe_connect_details_submitted': coach.stripe_connect_details_submitted,
     })
 
 
@@ -1310,11 +1374,11 @@ def messages(request, user, conversation_id):
 
     since = request.GET.get('since')
     if since and since.isdigit():
-        new = conv.messages.filter(id__gt=int(since)).order_by('sent_at')
+        new = conv.messages.filter(id__gt=int(since)).select_related('appointment').order_by('sent_at')
         return JsonResponse({'messages': [_message_dict(m, user.id) for m in new], 'has_more': False})
 
     page = 30
-    qs = conv.messages.order_by('-sent_at')
+    qs = conv.messages.select_related('appointment').order_by('-sent_at')
     before = request.GET.get('before')
     if before and before.isdigit():
         qs = qs.filter(id__lt=int(before))
@@ -1354,6 +1418,30 @@ def send_message(request, user, conversation_id):
         link_url='/chat/',
     )
     return JsonResponse({'id': msg.id, 'sent_at': _iso(msg.sent_at)}, status=201)
+
+
+@api_view(['POST'])
+def respond_appointment(request, user, conversation_id, appointment_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    conv = _own_conversation(coach, conversation_id)
+    if not conv:
+        return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
+    appointment = Appointment.objects.filter(id=appointment_id, coach=conv.coach, client=conv.client).first()
+    if not appointment:
+        return JsonResponse({'error': 'Appuntamento non trovato'}, status=404)
+    data = _body(request)
+    try:
+        msg = respond_to_appointment(
+            user, conv, appointment,
+            action=data.get('action'),
+            counter_date_str=data.get('counter_date'),
+            counter_time_str=data.get('counter_time'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse(_message_dict(msg, user.id), status=201)
 
 
 # ---------------------------------------------------------------------------

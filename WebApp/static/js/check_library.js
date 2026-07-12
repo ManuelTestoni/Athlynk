@@ -9,9 +9,16 @@ function chkCsrfToken() {
 function checkLibrary() {
   return {
     /* === state === */
-    templates: [],
+    // Server-bootstrapped first page (selectedFolderId='all', no search): avoids
+    // an extra fetch round-trip on cold load, see check_templates_list_view.
+    templates: (window.CHECK_LIBRARY_INIT.firstPage && window.CHECK_LIBRARY_INIT.firstPage.templates) || [],
     templatesLoading: false,
-    templatesHasMore: false,
+    templatesHasMore: (window.CHECK_LIBRARY_INIT.firstPage && window.CHECK_LIBRARY_INIT.firstPage.has_more) || false,
+    // True totals (not loaded-page length, which is capped/paginated and lies
+    // about "Tutti"/"Senza cartella" counts). Server-computed on load, kept in
+    // sync here on delete/move — same pattern as folder.template_count.
+    allCount: (window.CHECK_LIBRARY_INIT.firstPage && window.CHECK_LIBRARY_INIT.firstPage.total) || 0,
+    unfiledCount: window.CHECK_LIBRARY_INIT.unfiledCount || 0,
     folders: window.CHECK_LIBRARY_INIT.folders || [],
     urls: window.CHECK_LIBRARY_INIT.urls,
     search: '',
@@ -45,7 +52,9 @@ function checkLibrary() {
         clearTimeout(this._searchT);
         this._searchT = setTimeout(() => this._loadTemplates(true), 350);
       });
-      this._loadTemplates(true);
+      // First page already bootstrapped server-side (see `templates` above) —
+      // only fetch here if that bootstrap is missing for some reason.
+      if (!this.templates.length && !this.templatesHasMore) this._loadTemplates(true);
     },
 
     /* === selectors === */
@@ -186,8 +195,12 @@ function checkLibrary() {
         }
         const deletedId = this.folderToDelete.id;
         if (this.deleteFolderAction === 'delete_templates') {
+          const removed = this.templates.filter(t => t.folder_id === deletedId).length;
+          this.allCount = Math.max(0, this.allCount - removed);
           this.templates = this.templates.filter(t => t.folder_id !== deletedId);
         } else if (this.deleteFolderAction === 'move_to_unfiled') {
+          const moved = this.templates.filter(t => t.folder_id === deletedId).length;
+          this.unfiledCount += moved;
           this.templates.forEach(t => { if (t.folder_id === deletedId) t.folder_id = null; });
         } else {
           const tid = parseInt(this.deleteFolderTarget, 10);
@@ -251,10 +264,14 @@ function checkLibrary() {
         if (previousFolderId) {
           const f = this.folders.find(f => f.id === previousFolderId);
           if (f) f.template_count = Math.max(0, f.template_count - 1);
+        } else {
+          this.unfiledCount = Math.max(0, this.unfiledCount - 1);
         }
         if (folderId) {
           const f = this.folders.find(f => f.id === folderId);
           if (f) f.template_count += 1;
+        } else {
+          this.unfiledCount += 1;
         }
       } catch (e) { tpl.folder_id = previousFolderId; toastError('Errore di rete.'); }
     },
@@ -305,7 +322,10 @@ function checkLibrary() {
         if (tpl && tpl.folder_id) {
           const f = this.folders.find(f => f.id === tpl.folder_id);
           if (f) f.template_count = Math.max(0, f.template_count - 1);
+        } else if (tpl) {
+          this.unfiledCount = Math.max(0, this.unfiledCount - 1);
         }
+        this.allCount = Math.max(0, this.allCount - 1);
         this.templates = this.templates.filter(t => t.id !== id);
         this.deleteModal = false;
       } catch (e) { toastError('Errore di rete'); }

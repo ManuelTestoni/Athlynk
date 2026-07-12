@@ -30,6 +30,8 @@ function nutritionLibrary() {
     newPlanModal: false,
     newPlanKind: null,
     newPlanMode: 'FOOD',
+    newPlanPickerMode: 'create',  // 'create' | 'import'
+    newPlanImportChoice: null,     // 'EXCEL' | 'PDF'
 
     /* duplicate */
     duplicatingId: null,
@@ -53,7 +55,8 @@ function nutritionLibrary() {
     clientSearch: '',
     selectedClient: null,
     startDate: '',
-    endDate: '',
+    durationValue: null,
+    durationUnit: 'WEEKS',
     assignNotes: '',
     saving: false,
     successFlash: false,
@@ -135,10 +138,17 @@ function nutritionLibrary() {
     openNewPlanModal() {
       this.newPlanKind = null;
       this.newPlanMode = 'FOOD';
+      this.newPlanPickerMode = 'create';
+      this.newPlanImportChoice = null;
       this.newPlanModal = true;
     },
     selectKind(k) { this.newPlanKind = k; },
     selectMode(m) { this.newPlanMode = m; },
+    switchNewPlanPickerMode(mode) {
+      if (this.newPlanPickerMode === mode) return;
+      this.newPlanPickerMode = mode;
+      this.newPlanImportChoice = null;
+    },
     continueNewPlan() {
       if (!this.newPlanKind) return;
       const fid = (typeof this.selectedFolderId === 'number') ? this.selectedFolderId : '';
@@ -147,6 +157,14 @@ function nutritionLibrary() {
       if (this.newPlanMode && this.newPlanMode !== 'FOOD') params.set('mode', this.newPlanMode);
       if (fid) params.set('folder_id', fid);
       window.location.href = this.urls.planCreate + '?' + params.toString();
+    },
+    confirmNewPlanModal() {
+      if (this.newPlanPickerMode === 'import') {
+        if (!this.newPlanImportChoice) return;
+        window.location.href = this.newPlanImportChoice === 'PDF' ? this.urls.importPdf : this.urls.importExcel;
+        return;
+      }
+      this.continueNewPlan();
     },
 
     /* === folders === */
@@ -331,7 +349,7 @@ function nutritionLibrary() {
       this.assignPlanId = id;
       this.assignPlanName = name;
       this.clientSearch = ''; this.selectedClient = null;
-      this.startDate = ''; this.endDate = ''; this.assignNotes = '';
+      this.startDate = ''; this.durationValue = null; this.durationUnit = 'WEEKS'; this.assignNotes = '';
       this.successFlash = false;
       this.overwriteConfirmed = false;
       this.assignModal = true;
@@ -345,7 +363,8 @@ function nutritionLibrary() {
         body: JSON.stringify({
           client_id: this.selectedClient.id,
           start_date: this.startDate || null,
-          end_date: this.endDate || null,
+          duration_value: this.durationValue || null,
+          duration_unit: this.durationUnit,
           notes: this.assignNotes,
         })
       });

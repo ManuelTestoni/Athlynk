@@ -1,8 +1,9 @@
 {% comment %}
-  Shared assignment modal for nutrition plans.
+  Shared assignment modal — used by both nutrition plan assignment and the
+  workout library's quick-assign (allenamenti/library.html).
   Requires host Alpine state:
     assignModal, clientSearch, selectedClient,
-    startDate, endDate, assignNotes, saving, successFlash
+    startDate, durationValue, durationUnit, assignNotes, saving, successFlash
     filteredClients() : ()=>[{id,name}], submitAssign() : ()=>Promise
 
   Optional context vars:
@@ -154,10 +155,13 @@
             </span>
           </label>
           <label class="nz-field">
-            <span class="al-eyebrow">Fine</span>
-            <span class="nz-date-wrap">
-              <i class="ph ph-calendar-check"></i>
-              <input type="date" x-model="endDate" class="nz-date">
+            <span class="al-eyebrow">Durata</span>
+            <span class="flex gap-2">
+              <input type="number" min="1" x-model.number="durationValue" class="nz-date" placeholder="Es. 4">
+              <select x-model="durationUnit" class="nz-date" style="width: 105px;">
+                <option value="WEEKS">settimane</option>
+                <option value="MONTHS">mesi</option>
+              </select>
             </span>
           </label>
         </div>
@@ -193,7 +197,7 @@
             <p class="nz-recap-line" x-show="selectedClient">
               A <strong x-text="selectedClient?.name"></strong>
               <span x-show="startDate">dal <strong x-text="startDate"></strong></span>
-              <span x-show="endDate">al <strong x-text="endDate"></strong></span>
+              <span x-show="durationValue">per <strong x-text="durationValue + ' ' + (durationUnit === 'MONTHS' ? (durationValue === 1 ? 'mese' : 'mesi') : (durationValue === 1 ? 'settimana' : 'settimane'))"></strong></span>
             </p>
           </div>
           <i class="ph ph-arrow-right nz-recap-arrow" aria-hidden="true"></i>

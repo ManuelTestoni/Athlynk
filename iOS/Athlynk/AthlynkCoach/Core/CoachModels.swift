@@ -59,6 +59,9 @@ struct CoachProfileDTO: Codable, Hashable {
     let socialTiktok: String?
     let socialWebsite: String?
     let email: String?
+    let stripeConnectAccountId: String?
+    let stripeConnectChargesEnabled: Bool
+    let stripeConnectDetailsSubmitted: Bool
 
     var fullName: String { "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces) }
     var initials: String {
@@ -84,10 +87,55 @@ struct CoachProfileDTO: Codable, Hashable {
         case socialYoutube = "social_youtube"
         case socialTiktok = "social_tiktok"
         case socialWebsite = "social_website"
+        case stripeConnectAccountId = "stripe_connect_account_id"
+        case stripeConnectChargesEnabled = "stripe_connect_charges_enabled"
+        case stripeConnectDetailsSubmitted = "stripe_connect_details_submitted"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        firstName = try c.decode(String.self, forKey: .firstName)
+        lastName = try c.decode(String.self, forKey: .lastName)
+        professionalType = try c.decodeIfPresent(String.self, forKey: .professionalType)
+        specialization = try c.decodeIfPresent(String.self, forKey: .specialization)
+        city = try c.decodeIfPresent(String.self, forKey: .city)
+        phone = try c.decodeIfPresent(String.self, forKey: .phone)
+        bio = try c.decodeIfPresent(String.self, forKey: .bio)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        certifications = try c.decodeIfPresent(String.self, forKey: .certifications)
+        yearsExperience = try c.decodeIfPresent(Int.self, forKey: .yearsExperience)
+        profileImageUrl = try c.decodeIfPresent(String.self, forKey: .profileImageUrl)
+        socialInstagram = try c.decodeIfPresent(String.self, forKey: .socialInstagram)
+        socialYoutube = try c.decodeIfPresent(String.self, forKey: .socialYoutube)
+        socialTiktok = try c.decodeIfPresent(String.self, forKey: .socialTiktok)
+        socialWebsite = try c.decodeIfPresent(String.self, forKey: .socialWebsite)
+        email = try c.decodeIfPresent(String.self, forKey: .email)
+        stripeConnectAccountId = try c.decodeIfPresent(String.self, forKey: .stripeConnectAccountId)
+        stripeConnectChargesEnabled = (try? c.decode(Bool.self, forKey: .stripeConnectChargesEnabled)) ?? false
+        stripeConnectDetailsSubmitted = (try? c.decode(Bool.self, forKey: .stripeConnectDetailsSubmitted)) ?? false
     }
 }
 
 struct CoachProfileResponse: Codable { let profile: CoachProfileDTO }
+
+// MARK: - Stripe Connect onboarding
+
+struct CoachConnectStartResponse: Codable {
+    let accountLinkUrl: String
+    enum CodingKeys: String, CodingKey { case accountLinkUrl = "account_link_url" }
+}
+
+struct CoachConnectStatusResponse: Codable {
+    let stripeConnectAccountId: String?
+    let stripeConnectChargesEnabled: Bool
+    let stripeConnectDetailsSubmitted: Bool
+    enum CodingKeys: String, CodingKey {
+        case stripeConnectAccountId = "stripe_connect_account_id"
+        case stripeConnectChargesEnabled = "stripe_connect_charges_enabled"
+        case stripeConnectDetailsSubmitted = "stripe_connect_details_submitted"
+    }
+}
 
 // MARK: - Dashboard
 
@@ -632,17 +680,33 @@ struct CoachPlanSummary: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let planType: String?
+    let kind: String?
     let price: Double
     let currency: String
     let billingInterval: String?
     let isActive: Bool
+    let isOnlinePurchasable: Bool
     let activeCount: Int
     enum CodingKeys: String, CodingKey {
-        case id, name, price, currency
+        case id, name, price, currency, kind
         case planType = "plan_type"
         case billingInterval = "billing_interval"
         case isActive = "is_active"
+        case isOnlinePurchasable = "is_online_purchasable"
         case activeCount = "active_count"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        planType = try c.decodeIfPresent(String.self, forKey: .planType)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind)
+        price = try c.decode(Double.self, forKey: .price)
+        currency = try c.decode(String.self, forKey: .currency)
+        billingInterval = try c.decodeIfPresent(String.self, forKey: .billingInterval)
+        isActive = try c.decode(Bool.self, forKey: .isActive)
+        isOnlinePurchasable = (try? c.decode(Bool.self, forKey: .isOnlinePurchasable)) ?? false
+        activeCount = try c.decode(Int.self, forKey: .activeCount)
     }
 }
 
@@ -671,11 +735,13 @@ struct CoachSubscriptionsDTO: Codable {
     let monthlyRevenue: Double
     let currency: String
     let hasMore: Bool
+    let stripeConnectChargesEnabled: Bool
     enum CodingKeys: String, CodingKey {
         case plans, subscriptions, currency
         case activeCount = "active_count"
         case monthlyRevenue = "monthly_revenue"
         case hasMore = "has_more"
+        case stripeConnectChargesEnabled = "stripe_connect_charges_enabled"
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -685,6 +751,7 @@ struct CoachSubscriptionsDTO: Codable {
         monthlyRevenue = (try? c.decode(Double.self, forKey: .monthlyRevenue)) ?? 0
         currency = (try? c.decode(String.self, forKey: .currency)) ?? "EUR"
         hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
+        stripeConnectChargesEnabled = (try? c.decode(Bool.self, forKey: .stripeConnectChargesEnabled)) ?? false
     }
 }
 

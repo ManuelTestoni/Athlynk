@@ -206,7 +206,10 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   .wb-sidebar {
     position: sticky;
     top: 0;
-    z-index: 20;
+    /* Below the off-canvas nav backdrop (z-20, base.html) — same value here
+       used to paint the sticky folders strip ON TOP of the dimmed backdrop
+       when the mobile nav drawer was open. */
+    z-index: 5;
     max-height: none;
     overflow: visible;
     padding: 10px 12px;
@@ -466,6 +469,19 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   pointer-events: auto;
   visibility: visible;
 }
+/* Cards pop in with a staggered rise once their pane becomes active — shared
+   by the workout type-picker and the nutrition import picker (both reuse
+   .wb-type-card), so both panels animate the same way. */
+@keyframes wbCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.wb-tp-pane--active .wb-type-card {
+  animation: wbCardIn 320ms var(--al-ease-emp) both;
+}
+.wb-tp-pane--active .wb-type-card:nth-child(1) { animation-delay: 40ms; }
+.wb-tp-pane--active .wb-type-card:nth-child(2) { animation-delay: 100ms; }
+.wb-tp-pane--active .wb-type-card:nth-child(3) { animation-delay: 160ms; }
 
 /* Plan-kind toggle (WEEKLY vs PROGRAM) on import upload form. */
 .wb-kind-toggle {
