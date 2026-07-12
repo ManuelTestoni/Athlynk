@@ -448,7 +448,7 @@ class CheckoutOutcomePagesTests(TestCase):
         resp = self.client.get('/abbonamenti/checkout/success/?session_id=sess_test_123')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Quasi fatto')
-        self.assertContains(resp, 'http-equiv="refresh"')
+        self.assertContains(resp, 'MAX_ATTEMPTS')  # capped JS poll, not an infinite meta-refresh
 
     def test_success_page_renders_fulfilled_state(self):
         from domain.billing.models import ConnectCheckoutIntent
@@ -463,7 +463,8 @@ class CheckoutOutcomePagesTests(TestCase):
         resp = self.client.get('/abbonamenti/checkout/success/?session_id=sess_test_456')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Pagamento riuscito')
-        self.assertNotContains(resp, 'http-equiv="refresh"')
+        self.assertNotContains(resp, 'MAX_ATTEMPTS')
+        self.assertContains(resp, "window.location.href")  # single redirect back to abbonamenti
 
 
 class SettingsSubscriptionTabTests(TestCase):

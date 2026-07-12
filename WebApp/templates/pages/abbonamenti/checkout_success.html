@@ -1,11 +1,5 @@
 {% extends 'base.html' %}
 
-{% block extra_head %}
-{% if not fulfilled %}
-<meta http-equiv="refresh" content="4">
-{% endif %}
-{% endblock %}
-
 {% block content %}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: var(--al-marble);">
     <div class="al-card" style="max-width: 480px; width: 100%; text-align: center; padding: 48px 32px;">
@@ -21,12 +15,13 @@
             Il piano <strong>{{ intent.plan.name }}</strong> è ora attivo. Il tuo coach è stato avvisato.
             {% endif %}
         </p>
+        <p class="al-small" style="color: var(--al-ink-mute);">Ti riportiamo ai tuoi abbonamenti tra un istante…</p>
         {% else %}
         <div class="al-pulse-bronze mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background: var(--al-marble-warm); color: var(--al-bronze);">
             <i class="ph-fill ph-hourglass-medium text-5xl"></i>
         </div>
         <h1 class="al-h-2 mb-2">Quasi fatto</h1>
-        <p class="al-body mb-8">
+        <p class="al-body mb-8" id="al-checkout-pending-copy">
             Il tuo piano sta per attivarsi — di solito bastano pochi secondi. Questa pagina si aggiorna da sola.
         </p>
         {% endif %}
@@ -36,4 +31,34 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if fulfilled %}
+<script>
+    // Single automatic hop back to the plans page once fulfilled — no reload loop.
+    setTimeout(function () { window.location.href = "{% url 'abbonamenti_dashboard' %}"; }, 1800);
+</script>
+{% else %}
+<script>
+(function () {
+    // Poll by reloading, but capped — an unfulfilled checkout after ~30s means
+    // something upstream (the webhook) isn't landing, not that it's about to.
+    // Stop reloading and say so rather than spinning forever.
+    var key = 'al_checkout_poll_{{ intent.stripe_checkout_session_id }}';
+    var attempts = parseInt(sessionStorage.getItem(key) || '0', 10);
+    var MAX_ATTEMPTS = 8;
+    if (attempts < MAX_ATTEMPTS) {
+        sessionStorage.setItem(key, String(attempts + 1));
+        setTimeout(function () { window.location.reload(); }, 4000);
+    } else {
+        sessionStorage.removeItem(key);
+        var copy = document.getElementById('al-checkout-pending-copy');
+        if (copy) {
+            copy.textContent = "Ci sta mettendo più del previsto. Riceverai comunque conferma via email appena il pagamento risulta registrato — puoi anche ricaricare questa pagina tra poco.";
+        }
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}
