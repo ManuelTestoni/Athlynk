@@ -264,15 +264,31 @@ if 'test' in sys.argv:
 
 
 # Cache — used for rate limiting and short-lived counters.
-# LocMemCache = in-process memory, zero DB queries. Rate-limit counters are
-# per-worker (not shared across gunicorn workers), which is acceptable given
-# the generous limits. DatabaseCache caused 6-9 extra Supabase queries per
-# API call, producing 20 s load times under concurrent tab usage.
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+# Redis quando REDIS_URL è configurata (Railway): contatori condivisi tra tutti
+# i worker gunicorn, veloce, nessuna query DB — a differenza di DatabaseCache,
+# scartato in passato perché causava 6-9 query Supabase extra per chiamata
+# (20 s di load time sotto uso concorrente). IGNORE_EXCEPTIONS: se Redis ha un
+# blip, la cache fallisce "open" (miss) invece di far esplodere con 500 gli
+# endpoint che la usano, incluso il rate-limiter di login.
+# Senza REDIS_URL (dev locale) resta LocMemCache: in-process, zero dipendenze.
+_redis_url = config('REDIS_URL', default='')
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': _redis_url,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'IGNORE_EXCEPTIONS': True,
+            },
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
 
 # Number of trusted reverse proxies in front of this app. Set to >0 in production
 # (e.g. 1 behind a single Railway/Fly/Cloudflare hop) so client_ip() honors
@@ -521,9 +537,13 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
-from sentry_sdk.integrations.openai import OpenAIIntegration
-from sentry_sdk.integrations.langchain import LangchainIntegration
 
+# OpenAIIntegration/LangchainIntegration NON usate: i loro import da soli
+# trascinano openai+langchain_core+langchain_classic+langchain_openai a livello
+# di modulo (quindi in OGNI processo Django: i worker gunicorn, i comandi
+# manage.py di start.sh, e il servizio Analytics_Cron che Chiron non lo tocca
+# mai). Si perde solo l'auto-tracing APM delle chiamate LLM in Sentry, non
+# l'error tracking core (Django+Logging restano invariati).
 sentry_sdk.init(
     dsn=config('SENTRY_DSN', default=''),
     integrations=[
@@ -536,12 +556,6 @@ sentry_sdk.init(
         LoggingIntegration(
             level=logging.INFO,         # breadcrumbs from INFO+
             event_level=logging.ERROR,  # Sentry events only for ERROR+
-        ),
-        OpenAIIntegration(
-            include_prompts=False,      # never send prompt content to Sentry (GDPR)
-        ),
-        LangchainIntegration(
-            include_prompts=False,
         ),
     ],
     traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.10, cast=float),

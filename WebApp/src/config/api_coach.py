@@ -74,9 +74,6 @@ from domain.checks.models import AssignedCheck
 from domain.checks.preset_templates import PRESETS, build_template_payload
 from domain.checks.anthropometry import catalog_json, circ_label, skin_label
 from django.contrib.auth.hashers import make_password
-from chiron.agent import run_chiron, run_chiron_stream
-from chiron.memory import build_context, reset as reset_chiron_memory
-from chiron.actions import execute_action as chiron_execute_action
 from domain.chiron.models import ChironMessage
 
 logger = logging.getLogger(__name__)
@@ -2732,6 +2729,10 @@ def _chiron_addon_error():
 
 @coach_dual_auth
 def chiron_chat(request):
+    # Import lazy: evita di caricare langchain/langgraph a livello di modulo.
+    from chiron.agent import run_chiron
+    from chiron.memory import build_context
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     coach, err = _coach_or_401(request)
@@ -2780,6 +2781,9 @@ def chiron_chat_stream(request):
     `data: {"done": true, ...}` with sources/actions/pending_action. The non-stream
     `chiron_chat` stays as a fallback for older clients.
     """
+    from chiron.agent import run_chiron_stream
+    from chiron.memory import build_context
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     coach, err = _coach_or_401(request)
@@ -2875,6 +2879,8 @@ def chiron_history(request):
 
 @coach_dual_auth
 def chiron_execute(request):
+    from chiron.actions import execute_action as chiron_execute_action
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     coach, err = _coach_or_401(request)
@@ -2897,6 +2903,8 @@ def chiron_execute(request):
 
 @coach_dual_auth
 def chiron_clear(request):
+    from chiron.memory import reset as reset_chiron_memory
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     coach, err = _coach_or_401(request)

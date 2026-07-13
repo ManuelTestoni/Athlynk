@@ -40,6 +40,7 @@ def _get_llm_with_tools(model: str):
         model=model,
         temperature=0.3,
         max_completion_tokens=1500,
+        timeout=45,
         api_key=config("OLLAMA_API_KEY"),
         base_url=config("OLLAMA_BASE_URL", default="https://ollama.com/v1"),
     )

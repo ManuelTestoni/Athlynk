@@ -7,10 +7,6 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from pydantic import ValidationError
 
-from chiron.actions import execute_action
-from chiron.agent import run_chiron
-from chiron.memory import build_context, reset as reset_memory
-from chiron.schemas import ChatRequest
 from domain.chiron.models import ChironMessage
 
 from .session_utils import get_session_user, get_session_coach, coach_has_chiron_access
@@ -43,6 +39,12 @@ def _role_from_coach(coach) -> str:
 
 @require_http_methods(["POST"])
 def api_chiron_chat(request):
+    # Import lazy: evita di caricare langchain/langgraph a livello di modulo
+    # (quindi in ogni worker gunicorn al boot, anche senza traffico Chiron).
+    from chiron.agent import run_chiron
+    from chiron.memory import build_context
+    from chiron.schemas import ChatRequest
+
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
@@ -121,6 +123,8 @@ def api_chiron_action_execute(request):
 
     Il modello non muta mai i dati: qui il server ri-valida lo scope ed esegue.
     """
+    from chiron.actions import execute_action
+
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
@@ -211,6 +215,8 @@ def api_chiron_history(request):
 
 @require_http_methods(["POST"])
 def api_chiron_clear(request):
+    from chiron.memory import reset as reset_memory
+
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
