@@ -184,7 +184,7 @@ def client_assignment_detail_view(request, assignment_id):
                     {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
                     for m in ex.exercise.secondary_muscles.all()
                 ],
-                'primary_muscle_text': ex.exercise.target_muscle_group or ex.exercise.primary_muscle or '',
+                'primary_muscle_text': ', '.join(m.name for m in ex.exercise.primary_muscles.all()),
                 'weekly_overrides': {
                     wv.week_number: {'sets': wv.set_count}
                     for wv in ex.weekly_values.all() if wv.set_count is not None
@@ -403,34 +403,29 @@ def _exercise_item(ex):
         'name': ex.name,
         'primary_muscle': primaries[0] if primaries else '',
         'muscles': primaries,
-        'equipment': ex.equipment or '',
-        'video_url': ex.video_url or '',
+        'equipment': [eq.name_it for eq in ex.equipment.all()],
+        'wger_image_url': ex.wger_image_url or '',
     }
 
 
 def search_exercises_for_client(client, q='', muscle_group='', similar_to=None, limit=30):
     """Catalog search: by name, by muscle group, or 'similar to' an exercise
-    (same primary muscle). Muscle matching covers both the normalized M2M and
-    the legacy free-text scalar fields."""
+    (same primary muscle)."""
     qs = _client_exercise_catalog(client)
     if similar_to:
         base = Exercise.objects.filter(id=similar_to).first()
         if base:
             names, _ = _exercise_muscle_names(base)
             if names:
-                qs = qs.filter(Q(primary_muscles__name__in=names) |
-                               Q(primary_muscle__in=names) |
-                               Q(target_muscle_group__in=names))
+                qs = qs.filter(Q(primary_muscles__name__in=names))
             qs = qs.exclude(id=base.id)
     if muscle_group:
         qs = qs.filter(Q(primary_muscles__name__iexact=muscle_group) |
-                       Q(primary_muscles__slug=muscle_group) |
-                       Q(primary_muscle__iexact=muscle_group) |
-                       Q(target_muscle_group__iexact=muscle_group))
+                       Q(primary_muscles__slug=muscle_group))
     if q:
         qs = qs.filter(name__icontains=q)
     limit = max(1, min(limit or 30, 100))
-    qs = qs.prefetch_related('primary_muscles').distinct().order_by('name')[:limit]
+    qs = qs.prefetch_related('primary_muscles', 'equipment').distinct().order_by('name')[:limit]
     return [_exercise_item(ex) for ex in qs]
 
 
@@ -578,8 +573,11 @@ def client_session_active_view(request, assignment_id, day_id):
         return redirect('client_assignment_detail', assignment_id=assignment.id)
 
     exercises_data = []
-    for ex in day.exercises.select_related('exercise', 'alternative_exercise').order_by('order_index'):
+    for ex in day.exercises.select_related('exercise', 'alternative_exercise').prefetch_related(
+        'exercise__primary_muscles', 'exercise__equipment',
+    ).order_by('order_index'):
         alt = ex.alternative_exercise
+        primaries, _ = _exercise_muscle_names(ex.exercise)
         exercises_data.append({
             'id': ex.id,
             'exercise_catalog_id': ex.exercise_id,
@@ -591,15 +589,14 @@ def client_session_active_view(request, assignment_id, day_id):
             'recovery_seconds': ex.recovery_seconds or 90,
             'notes': ex.technique_notes or '',
             'set_details': ex.set_details or [],
-            'video_url': ex.exercise.video_url or '',
+            'wger_image_url': ex.exercise.wger_image_url or '',
             'superset_group_id': ex.superset_group_id,
-            'primary_muscle': ex.exercise.primary_muscle or '',
-            'target_muscle_group': ex.exercise.target_muscle_group or '',
-            'equipment': ex.exercise.equipment or '',
+            'primary_muscle': primaries[0] if primaries else '',
+            'equipment': [eq.name_it for eq in ex.exercise.equipment.all()],
             'alternative_exercise': {
                 'id': alt.id,
                 'name': alt.name,
-                'video_url': alt.video_url or '',
+                'wger_image_url': alt.wger_image_url or '',
             } if alt else None,
         })
 
@@ -658,7 +655,7 @@ def api_session_start(request):
         exercises.append({
             'workout_exercise_id': ex.id,
             'name': ex.exercise.name,
-            'video_url': ex.exercise.video_url or '',
+            'wger_image_url': ex.exercise.wger_image_url or '',
             'sets': ex.set_count or 3,
             'reps': ex.rep_range or '10',
             'load_value': float(ex.load_value) if ex.load_value else None,
@@ -678,7 +675,7 @@ def api_session_start(request):
         item['added'] = False
         item['removed'] = we_id in removed
         item['substituted_with'] = (
-            {'id': se.id, 'name': se.name, 'video_url': se.video_url or ''}
+            {'id': se.id, 'name': se.name, 'wger_image_url': se.wger_image_url or ''}
             if se else None
         )
     for ex_obj, _order in added:
@@ -686,7 +683,7 @@ def api_session_start(request):
             'workout_exercise_id': None,
             'exercise_id': ex_obj.id,
             'name': ex_obj.name,
-            'video_url': ex_obj.video_url or '',
+            'wger_image_url': ex_obj.wger_image_url or '',
             'sets': 3,
             'reps': '10',
             'load_value': None,
@@ -1036,16 +1033,9 @@ def api_my_progress_loads(request):
 
 
 def _exercise_muscle_names(ex):
-    """Muscle names for an exercise: normalized M2M when present, else legacy
-    free-text scalar fields. Returns (primaries, secondaries) name lists."""
+    """Muscle names for an exercise. Returns (primaries, secondaries) name lists."""
     primaries = [m.name for m in ex.primary_muscles.all()]
     secondaries = [m.name for m in ex.secondary_muscles.all()]
-    if not primaries:
-        fallback = ex.target_muscle_group or ex.primary_muscle or ''
-        if fallback:
-            primaries = [fallback]
-    if not secondaries and ex.secondary_muscle:
-        secondaries = [ex.secondary_muscle]
     return primaries, secondaries
 
 

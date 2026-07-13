@@ -31,12 +31,14 @@ class SessionOverridesTests(TestCase):
 
         self.mg, _ = MuscleGroup.objects.get_or_create(
             name='Spalle', defaults={'slug': 'spalle'})
-        self.ex_alzate = Exercise.objects.create(
-            name='Alzate Laterali', slug='alzate-laterali', primary_muscle='Spalle')
-        self.ex_spinte = Exercise.objects.create(
-            name='Spinte Manubri', slug='spinte-manubri', primary_muscle='Spalle')
-        self.ex_squat = Exercise.objects.create(
-            name='Squat', slug='squat', primary_muscle='Quadricipiti')
+        self.mg_quads, _ = MuscleGroup.objects.get_or_create(
+            name='Quadricipiti', defaults={'slug': 'quadricipiti'})
+        self.ex_alzate = Exercise.objects.create(name='Alzate Laterali', slug='alzate-laterali')
+        self.ex_alzate.primary_muscles.set([self.mg])
+        self.ex_spinte = Exercise.objects.create(name='Spinte Manubri', slug='spinte-manubri')
+        self.ex_spinte.primary_muscles.set([self.mg])
+        self.ex_squat = Exercise.objects.create(name='Squat', slug='squat')
+        self.ex_squat.primary_muscles.set([self.mg_quads])
 
         self.plan = WorkoutPlan.objects.create(coach=self.coach, title='Full', status='ACTIVE')
         self.day = WorkoutDay.objects.create(workout_plan=self.plan, day_order=1, day_name='A')

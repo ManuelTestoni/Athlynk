@@ -71,9 +71,9 @@
                 <template x-if="selected.length >= 1">
                     <div class="relative overflow-hidden aspect-[3/4]" style="background: var(--al-ink); border-radius: var(--al-r-md);">
                         <img :src="selected[0].url" class="w-full h-full object-cover">
-                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].date"></span>
-                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].photo_type"></span>
-                        <button type="button" @click="selected = selected.slice(1)" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(138,58,58,0.95); color: #fff; border: none; width: 28px; height: 28px;">
+                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].date"></span>
+                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none;" x-text="selected[0].photo_type"></span>
+                        <button type="button" @click="selected = selected.slice(1)" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(162,59,59,0.95); color: #fff; border: none; width: 28px; height: 28px;">
                             <i class="ph ph-x text-sm"></i>
                         </button>
                     </div>
@@ -92,9 +92,9 @@
                 <template x-if="selected.length >= 2">
                     <div class="relative overflow-hidden aspect-[3/4]" style="background: var(--al-ink); border-radius: var(--al-r-md);">
                         <img :src="selected[1].url" class="w-full h-full object-cover">
-                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].date"></span>
-                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].photo_type"></span>
-                        <button type="button" @click="selected = [selected[0]]" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(138,58,58,0.95); color: #fff; border: none; width: 28px; height: 28px;">
+                        <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].date"></span>
+                        <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none;" x-text="selected[1].photo_type"></span>
+                        <button type="button" @click="selected = [selected[0]]" class="absolute top-2 right-2 al-btn al-btn-icon" style="background: rgba(162,59,59,0.95); color: #fff; border: none; width: 28px; height: 28px;">
                             <i class="ph ph-x text-sm"></i>
                         </button>
                     </div>
@@ -150,7 +150,7 @@
             <p class="al-tag" x-show="selected.length < 2" x-cloak>
                 <span class="font-mono text-ink" x-text="2 - selected.length"></span> da selezionare
             </p>
-            <span class="al-pill" x-show="selected.length >= 2" x-cloak style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+            <span class="al-pill" x-show="selected.length >= 2" x-cloak style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.30);">
                 <i class="ph-bold ph-check-circle"></i> Confronto pronto
             </span>
         </div>
@@ -163,9 +163,9 @@
                      :style="isSelected(photo) ? '--tw-ring-color: var(--al-bronze); background: var(--al-marble); border-color: var(--al-bronze);' : ''">
                     <img :src="photo.url" :alt="photo.photo_type" class="w-full h-full object-cover transition-transform duration-300"
                          :class="!isSelected(photo) && selected.length < 2 ? 'group-hover:scale-105' : ''">
-                    <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.date"></span>
-                    <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(20,17,13,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.photo_type"></span>
-                    <div x-show="isSelected(photo)" class="absolute inset-0 flex items-center justify-center" style="background: rgba(138,106,58,0.30);">
+                    <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.date"></span>
+                    <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.photo_type"></span>
+                    <div x-show="isSelected(photo)" class="absolute inset-0 flex items-center justify-center" style="background: rgba(30,58,95,0.30);">
                         <div class="w-9 h-9 flex items-center justify-center" style="background: var(--al-bronze); border-radius: 999px; box-shadow: var(--al-shadow-2);">
                             <i class="ph-bold ph-check text-parchment text-lg"></i>
                         </div>
@@ -179,7 +179,7 @@
     <!-- Modal Comparatore -->
     <div x-show="modal.open" x-cloak
          class="al-modal-backdrop"
-         style="background: rgba(20,17,13,0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);"
+         style="background: rgba(11,29,58,0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);"
          @click.self="closeComparison()"
          @keydown.escape.window="closeComparison()">
         <div class="al-modal-panel al-modal-xl" style="max-width: min(1080px, calc(100vw - 24px));">
@@ -299,9 +299,9 @@
     position: absolute; inset: 0;
     background: linear-gradient(110deg,
         transparent 0%,
-        rgba(244,239,228,0) 30%,
-        rgba(244,239,228,0.85) 50%,
-        rgba(244,239,228,0) 70%,
+        rgba(255,255,255,0) 30%,
+        rgba(255,255,255,0.85) 50%,
+        rgba(255,255,255,0) 70%,
         transparent 100%);
     transform: translateX(-100%);
     animation: cmp-shimmer 1.6s var(--al-ease) infinite;
@@ -345,7 +345,7 @@
 .cmp-label {
     position: absolute; bottom: 14px;
     font-family: var(--al-mono); font-size: 10.5px; letter-spacing: 0.16em;
-    background: rgba(20,17,13,0.78); color: var(--al-parchment);
+    background: rgba(11,29,58,0.78); color: var(--al-parchment);
     padding: 4px 10px; border-radius: var(--al-r-xs); pointer-events: none;
 }
 .cmp-label-l { left: 14px; }
@@ -355,7 +355,7 @@
     font-family: var(--al-display); font-style: italic;
     font-size: 13px; letter-spacing: 0.06em;
     color: var(--al-parchment); padding: 4px 10px;
-    background: rgba(20,17,13,0.45);
+    background: rgba(11,29,58,0.45);
     border-radius: var(--al-r-xs); pointer-events: none;
 }
 .cmp-corner-l { left: 14px; }
@@ -372,14 +372,14 @@
 .cmp-handle-line {
     position: absolute; inset: 0;
     background: linear-gradient(180deg, rgba(200,167,116,0.0) 0%, var(--al-bronze-l) 16%, var(--al-bronze-l) 84%, rgba(200,167,116,0.0) 100%);
-    box-shadow: 0 0 0 1px rgba(20,17,13,0.35), 0 0 14px rgba(200,167,116,0.45);
+    box-shadow: 0 0 0 1px rgba(11,29,58,0.35), 0 0 14px rgba(200,167,116,0.45);
 }
 .cmp-handle-knob {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: 46px; height: 46px; border-radius: 999px;
     background: radial-gradient(circle at 30% 30%, var(--al-bronze-l), var(--al-bronze) 70%);
     border: 1.5px solid var(--al-parchment);
-    box-shadow: 0 8px 22px rgba(20,17,13,0.45), inset 0 0 0 4px rgba(20,17,13,0.06);
+    box-shadow: 0 8px 22px rgba(11,29,58,0.45), inset 0 0 0 4px rgba(11,29,58,0.06);
     display: flex; align-items: center; justify-content: center; gap: 1px;
     color: var(--al-parchment);
     font-size: 13px;
@@ -398,7 +398,7 @@
 
 .cmp-spinner {
     width: 14px; height: 14px; border-radius: 999px;
-    border: 2px solid rgba(244,239,228,0.35);
+    border: 2px solid rgba(255,255,255,0.35);
     border-top-color: var(--al-parchment);
     animation: cmp-spin 0.7s linear infinite;
     display: inline-block;
@@ -507,7 +507,7 @@ function comparatore() {
                 const ctx = canvas.getContext('2d');
 
                 // Parchment background (visible only on letterboxed edges).
-                ctx.fillStyle = '#14110d';
+                ctx.fillStyle = '#0B1D3A';
                 ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
                 // Helper: draw image with object-fit: cover semantics into a rect.
@@ -566,9 +566,9 @@ function comparatore() {
         _drawPanelLabels(ctx, px, py, pw, ph, sideText, dateText, typeText) {
             // top-left "PRIMA / DOPO" italic display
             ctx.save();
-            ctx.fillStyle = 'rgba(20,17,13,0.55)';
+            ctx.fillStyle = 'rgba(11,29,58,0.55)';
             ctx.fillRect(px + 28, py + 28, 180, 52);
-            ctx.fillStyle = '#f4efe4';
+            ctx.fillStyle = '#FFFFFF';
             ctx.font = 'italic 30px "Bodoni Moda", Didot, Georgia, serif';
             ctx.textBaseline = 'middle';
             ctx.fillText(sideText, px + 48, py + 28 + 26);
@@ -577,18 +577,18 @@ function comparatore() {
             const dateStr = dateText || '';
             ctx.font = '20px "JetBrains Mono", ui-monospace, Menlo, monospace';
             const dW = ctx.measureText(dateStr).width + 24;
-            ctx.fillStyle = 'rgba(20,17,13,0.78)';
+            ctx.fillStyle = 'rgba(11,29,58,0.78)';
             ctx.fillRect(px + 28, py + ph - 28 - 40, dW, 40);
-            ctx.fillStyle = '#f4efe4';
+            ctx.fillStyle = '#FFFFFF';
             ctx.fillText(dateStr, px + 28 + 12, py + ph - 28 - 20);
 
             // bottom-right photo type
             if (typeText) {
                 ctx.font = '18px Inter, -apple-system, system-ui, sans-serif';
                 const tW = ctx.measureText(typeText).width + 24;
-                ctx.fillStyle = 'rgba(20,17,13,0.78)';
+                ctx.fillStyle = 'rgba(11,29,58,0.78)';
                 ctx.fillRect(px + pw - 28 - tW, py + ph - 28 - 40, tW, 40);
-                ctx.fillStyle = '#f4efe4';
+                ctx.fillStyle = '#FFFFFF';
                 ctx.fillText(typeText, px + pw - 28 - tW + 12, py + ph - 28 - 20);
             }
             ctx.restore();
@@ -603,7 +603,7 @@ function comparatore() {
             ctx.rotate(-Math.PI / 6);
             ctx.translate(-W / 2, -H / 2);
             ctx.font = 'italic 64px "Bodoni Moda", Didot, Georgia, serif';
-            ctx.fillStyle = 'rgba(244,239,228,0.06)';
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
             ctx.textBaseline = 'middle';
             const text = 'ATHLYNK · ATHLYNK · ATHLYNK · ';
             const lineH = 220;
@@ -616,10 +616,10 @@ function comparatore() {
             ctx.restore();
 
             // 2) Centred discreet wordmark + rule
-            ctx.fillStyle = 'rgba(244,239,228,0.12)';
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
             ctx.fillRect(W / 2 - 220, H / 2 - 1, 440, 2);
             ctx.font = '600 30px "Bodoni Moda", Didot, Georgia, serif';
-            ctx.fillStyle = 'rgba(244,239,228,0.18)';
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'center';
             ctx.fillText('A T H L Y N K', W / 2, H / 2 - 28);
@@ -627,8 +627,8 @@ function comparatore() {
             // 3) Bottom strip — solid attribution (clearly readable)
             const STRIP_H = 86;
             const grad = ctx.createLinearGradient(0, H - STRIP_H, 0, H);
-            grad.addColorStop(0, 'rgba(20,17,13,0)');
-            grad.addColorStop(1, 'rgba(20,17,13,0.78)');
+            grad.addColorStop(0, 'rgba(11,29,58,0)');
+            grad.addColorStop(1, 'rgba(11,29,58,0.78)');
             ctx.fillStyle = grad;
             ctx.fillRect(0, H - STRIP_H, W, STRIP_H);
 
@@ -646,26 +646,26 @@ function comparatore() {
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.font = '600 26px "Bodoni Moda", Didot, Georgia, serif';
-                ctx.fillStyle = '#f4efe4';
+                ctx.fillStyle = '#FFFFFF';
                 ctx.fillText('ATHLYNK', 40, H - STRIP_H / 2 + 2);
                 afterLogoX = 170;
             }
 
             // Bronze hairline
-            ctx.fillStyle = '#c8a774';
+            ctx.fillStyle = '#5B89B6';
             ctx.fillRect(afterLogoX, H - STRIP_H / 2 - 1, 28, 2);
 
             // Tagline
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.font = 'italic 18px "Bodoni Moda", Didot, Georgia, serif';
-            ctx.fillStyle = 'rgba(244,239,228,0.82)';
+            ctx.fillStyle = 'rgba(255,255,255,0.82)';
             ctx.fillText('Progress comparison', afterLogoX + 40, H - STRIP_H / 2 + 2);
 
             // Right: timestamp
             ctx.textAlign = 'right';
             ctx.font = '16px "JetBrains Mono", ui-monospace, Menlo, monospace';
-            ctx.fillStyle = 'rgba(244,239,228,0.72)';
+            ctx.fillStyle = 'rgba(255,255,255,0.72)';
             const stamp = new Date().toISOString().slice(0, 10);
             ctx.fillText(stamp, W - 40, H - STRIP_H / 2 + 2);
 

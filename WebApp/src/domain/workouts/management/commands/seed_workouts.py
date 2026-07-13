@@ -1,6 +1,9 @@
 from django.core.management.base import BaseCommand
 from domain.accounts.models import CoachProfile, ClientProfile
-from domain.workouts.models import Exercise, WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment
+from domain.workouts.models import (
+    Exercise, ExerciseCategory, Equipment, MuscleGroup,
+    WorkoutPlan, WorkoutDay, WorkoutExercise, WorkoutAssignment,
+)
 from datetime import date
 
 class Command(BaseCommand):
@@ -17,36 +20,40 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('Errore: Devi prima popolare gli account. Esegui "python manage.py seed_accounts"'))
             return
 
+        legs, _ = ExerciseCategory.objects.get_or_create(wger_id=9, defaults={'name_en': 'Legs', 'name_it': 'Gambe'})
+        chest_cat, _ = ExerciseCategory.objects.get_or_create(wger_id=11, defaults={'name_en': 'Chest', 'name_it': 'Petto'})
+        barbell, _ = Equipment.objects.get_or_create(wger_id=1, defaults={'name_en': 'Barbell', 'name_it': 'Bilanciere'})
+        quads = MuscleGroup.objects.filter(slug='quads').first()
+        glutes = MuscleGroup.objects.filter(slug='glutes').first()
+        chest = MuscleGroup.objects.filter(slug='chest').first()
+        triceps = MuscleGroup.objects.filter(slug='triceps').first()
+
         # 1. Creazione Esercizi base
         squat, _ = Exercise.objects.get_or_create(
             slug='squat-bilanciere',
             defaults={
                 'name': 'Squat con Bilanciere',
-                'target_muscle_group': 'Quadricipiti',
-                'primary_muscle': 'Quadricipite',
-                'secondary_muscle': 'Grande gluteo',
-                'equipment': 'Bilanciere',
-                'difficulty_level': 'Intermedio',
-                'movement_pattern_1': 'Squat',
-                'body_region': 'Lower',
-                'exercise_classification': 'Powerlifting',
+                'category': legs,
             }
         )
+        squat.equipment.set([barbell])
+        if quads:
+            squat.primary_muscles.set([quads])
+        if glutes:
+            squat.secondary_muscles.set([glutes])
 
         panca, _ = Exercise.objects.get_or_create(
             slug='panca-piana',
             defaults={
                 'name': 'Panca Piana con Bilanciere',
-                'target_muscle_group': 'Petto',
-                'primary_muscle': 'Pettorale grande',
-                'secondary_muscle': 'Tricipite',
-                'equipment': 'Bilanciere',
-                'difficulty_level': 'Intermedio',
-                'movement_pattern_1': 'Spinta orizzontale',
-                'body_region': 'Upper',
-                'exercise_classification': 'Powerlifting',
+                'category': chest_cat,
             }
         )
+        panca.equipment.set([barbell])
+        if chest:
+            panca.primary_muscles.set([chest])
+        if triceps:
+            panca.secondary_muscles.set([triceps])
 
         # 2. Creazione di un Piano di Allenamento
         plan, created_plan = WorkoutPlan.objects.get_or_create(
@@ -109,4 +116,3 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS(f'Creato con successo! 2 Esercizi, 1 Piano ({plan.title}) assegnato a {client.first_name}.'))
-

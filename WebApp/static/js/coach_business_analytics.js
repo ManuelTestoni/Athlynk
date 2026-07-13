@@ -14,10 +14,10 @@
 (function () {
   let _trendChart = null;
 
-  const AEGEAN = '#1c4a52';
-  const BRONZE = '#8a6a3a';
-  const INK_LABEL = '#5b554a';
-  const GRID = 'rgba(91,85,74,0.12)';
+  const AEGEAN = '#1E3A5F';
+  const HIGHLIGHT = '#FFE066';
+  const INK_LABEL = '#4B5D75';
+  const GRID = 'rgba(75,93,117,0.12)';
 
   const KPI_DEFS = [
     { key: 'active_clients_count', label: 'Atleti attivi', icon: 'ph-users', fmt: 'int', meta: 'In carico' },
@@ -106,10 +106,10 @@
       get riskBreakdown() {
         const bd = this.riskBreakdownData;
         return [
-          { cls: 'all',    label: 'Tutti',  count: bd.all,    dot: '#8a8270' },
-          { cls: 'high',   label: 'Alto',   count: bd.high,   dot: '#ef4444' },
-          { cls: 'medium', label: 'Medio',  count: bd.medium, dot: '#f59e0b' },
-          { cls: 'low',    label: 'Basso',  count: bd.low,    dot: '#4ade80' },
+          { cls: 'all',    label: 'Tutti',  count: bd.all,    dot: '#7C8CA3' },
+          { cls: 'high',   label: 'Alto',   count: bd.high,   dot: '#A23B3B' },
+          { cls: 'medium', label: 'Medio',  count: bd.medium, dot: '#8A6A1E' },
+          { cls: 'low',    label: 'Basso',  count: bd.low,    dot: '#3F7A5E' },
         ];
       },
 
@@ -138,9 +138,9 @@
               label: TREND_LABELS[this.trendMetric] || this.trendMetric,
               data: values,
               borderColor: AEGEAN,
-              backgroundColor: 'rgba(28,74,82,0.10)',
+              backgroundColor: 'rgba(30,58,95,0.10)',
               borderWidth: 2.5, tension: 0.35, fill: true,
-              pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: BRONZE,
+              pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: HIGHLIGHT,
             }],
           },
           options: {

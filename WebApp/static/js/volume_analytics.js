@@ -21,21 +21,21 @@
  */
 (function () {
   const MG_PALETTE = {
-    'mg-chest':     '#8a3a3a',
-    'mg-back':      '#1c4a52',
-    'mg-shoulders': '#a78554',
-    'mg-quads':     '#2a6a72',
-    'mg-hams':      '#5a8a3a',
-    'mg-glutes':    '#8a6a3a',
-    'mg-calves':    '#c8a774',
-    'mg-biceps':    '#4a6b3a',
-    'mg-triceps':   '#a6802b',
-    'mg-abs':       '#5b554a',
-    'mg-forearms':  '#8a8270',
-    'mg-other':     '#c4b89c',
+    'mg-chest':     '#9C4448',
+    'mg-back':      '#1E3A5F',
+    'mg-shoulders': '#8A6E5A',
+    'mg-quads':     '#3F7690',
+    'mg-hams':      '#4F7A6A',
+    'mg-glutes':    '#6A5482',
+    'mg-calves':    '#5B89B6',
+    'mg-biceps':    '#2B6E6E',
+    'mg-triceps':   '#8A6A1E',
+    'mg-abs':       '#4A5A8A',
+    'mg-forearms':  '#8A5A6B',
+    'mg-other':     '#5B6B78',
   };
 
-  const WEEK_COLORS = ['#1c4a52', '#8a6a3a', '#a6802b', '#4a6b3a', '#8a3a3a', '#2a6a72'];
+  const WEEK_COLORS = ['#0B1D3A', '#16294A', '#1E3A5F', '#2C4E70', '#3F6690', '#5B89B6'];
 
   function _hexWithAlpha(hex, alpha) {
     if (typeof hex !== 'string') return hex;
@@ -324,7 +324,7 @@
       activeGroups() {
         return this.computedGroups.filter(g => this.groupsSelected.includes(g.slug));
       },
-      groupColor(g) { return MG_PALETTE[g.color_token] || '#8a6a3a'; },
+      groupColor(g) { return MG_PALETTE[g.color_token] || '#5B6B78'; },
       weekColor(idx) { return WEEK_COLORS[idx % WEEK_COLORS.length]; },
       groupTotalForWeek(g, w) {
         const cell = (g.per_week || []).find(c => c.week === w);
@@ -434,9 +434,9 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(20,17,13,0.92)',
-              titleColor: '#f4efe4',
-              bodyColor: '#f4efe4',
+              backgroundColor: 'rgba(11,29,58,0.92)',
+              titleColor: '#FFFFFF',
+              bodyColor: '#FFFFFF',
               padding: 10,
               cornerRadius: 6,
               callbacks: {
@@ -483,8 +483,8 @@
           options: {
             ...baseOpts,
             scales: {
-              x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
-              y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.12)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
+              x: { grid: { display: false }, ticks: { color: '#4B5D75', font: { size: 11 } } },
+              y: { beginAtZero: true, grid: { color: 'rgba(75,93,117,0.12)' }, ticks: { color: '#4B5D75', font: { size: 11 } } },
             },
           },
         });
@@ -501,7 +501,7 @@
             borderColor: c,
             backgroundColor: c,
             pointBackgroundColor: c,
-            pointBorderColor: '#f4efe4',
+            pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
             tension: 0.32,
             pointRadius: 5,
@@ -517,8 +517,8 @@
           options: {
             ...baseOpts,
             scales: {
-              x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
-              y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.12)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
+              x: { grid: { display: false }, ticks: { color: '#4B5D75', font: { size: 11 } } },
+              y: { beginAtZero: true, grid: { color: 'rgba(75,93,117,0.12)' }, ticks: { color: '#4B5D75', font: { size: 11 } } },
             },
           },
         });
@@ -536,7 +536,7 @@
             borderColor: color,
             backgroundColor: _hexWithAlpha(color, 0.22),
             pointBackgroundColor: color,
-            pointBorderColor: '#f4efe4',
+            pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
             pointRadius: 4,
             pointHoverRadius: 6,
@@ -551,9 +551,9 @@
             scales: {
               r: {
                 beginAtZero: true,
-                angleLines: { color: 'rgba(91,85,74,0.15)' },
-                grid: { color: 'rgba(91,85,74,0.10)' },
-                pointLabels: { color: '#1c1917', font: { size: 11, weight: '600' } },
+                angleLines: { color: 'rgba(75,93,117,0.15)' },
+                grid: { color: 'rgba(75,93,117,0.10)' },
+                pointLabels: { color: '#0B1D3A', font: { size: 11, weight: '600' } },
                 ticks: { display: false },
               },
             },

@@ -20,7 +20,7 @@
   .rcp-head {
     padding: 1.5rem 1.75rem;
     background:
-      linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%),
+      linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(232,224,206,0.55) 100%),
       var(--al-parchment);
     border: 1px solid var(--al-rule);
     border-left: 4px solid var(--al-bronze);
@@ -30,7 +30,7 @@
   .rcp-head::after {
     content: ''; position: absolute; right: -40px; top: -40px;
     width: 180px; height: 180px;
-    background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(30,58,95,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
   .rcp-head::before {
@@ -79,7 +79,7 @@
     background: var(--al-parchment); overflow: hidden;
     transition: border-color .15s, box-shadow .2s;
   }
-  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(20,17,13,.25)); }
+  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(11,29,58,.25)); }
   @media (max-width: 540px) { .pd-day-block { grid-template-columns: 40px minmax(0, 1fr); } }
 
   .pd-day-ordinal {
@@ -97,7 +97,7 @@
     padding: 1rem 1.1rem; background: transparent; border: none; cursor: pointer;
     transition: background .15s; text-align: left;
   }
-  .pd-day-btn:hover { background: rgba(138,106,58,0.06); }
+  .pd-day-btn:hover { background: rgba(30,58,95,0.06); }
   .pd-day-title { font-family: var(--al-display); font-weight: 500; color: var(--al-ink); font-size: 1.05rem; letter-spacing: -.005em; }
   .pd-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .6rem; }
   .pd-day-meta i.ph-caret-down { transition: transform .2s; font-size: 1rem; }

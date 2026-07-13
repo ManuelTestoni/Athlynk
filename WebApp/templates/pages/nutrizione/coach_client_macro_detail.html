@@ -17,7 +17,7 @@
   </nav>
 
   <!-- Hero -->
-  <section class="al-card" style="background: linear-gradient(160deg, var(--al-ink) 0%, #1c1812 60%, #2a2317 100%); color: var(--al-parchment);">
+  <section class="al-card" style="background: linear-gradient(160deg, var(--al-ink) 0%, #1c1812 60%, #1a3456 100%); color: var(--al-parchment);">
     <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Dettaglio piano · Obiettivo macro</p>
     <h1 class="al-h-1" style="color: var(--al-parchment); font-size: clamp(22px, 2.4vw, 32px);">
       {{ plan.title }}{% if plan.nutrition_goal %} <span class="al-display-i" style="color: var(--al-bronze);">· {{ plan.nutrition_goal|lower }}</span>{% endif %}
@@ -29,32 +29,32 @@
       {% if assignment.end_date %}<span class="al-badge">al {{ assignment.end_date|date:"d M Y" }}</span>{% endif %}
     </div>
 
-    {% if plan.description %}<p class="al-body mt-3" style="color: rgba(244,239,228,0.7); font-style: italic;">{{ plan.description }}</p>{% endif %}
+    {% if plan.description %}<p class="al-body mt-3" style="color: rgba(255,255,255,0.7); font-style: italic;">{{ plan.description }}</p>{% endif %}
 
     <!-- Macro band (media) -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5" style="border-top: 1px solid rgba(244,239,228,0.12);">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5" style="border-top: 1px solid rgba(255,255,255,0.12);">
       <div>
-        <p class="al-tag" style="color: rgba(244,239,228,0.55);">Energia{% if plan.plan_kind == 'WEEKLY' %} (media){% endif %}</p>
+        <p class="al-tag" style="color: rgba(255,255,255,0.55);">Energia{% if plan.plan_kind == 'WEEKLY' %} (media){% endif %}</p>
         <p class="al-display" style="font-size: 2.4rem; color: var(--al-bronze);">{{ targets.avg.kcal }}<span class="al-tag"> kcal</span></p>
       </div>
       <div>
-        <p class="al-tag" style="color: rgba(244,239,228,0.55);">Proteine</p>
+        <p class="al-tag" style="color: rgba(255,255,255,0.55);">Proteine</p>
         <p class="al-display" style="font-size: 1.9rem; color: var(--al-parchment);">{{ targets.avg.prot }}<span class="al-tag"> g</span></p>
       </div>
       <div>
-        <p class="al-tag" style="color: rgba(244,239,228,0.55);">Carboidrati</p>
+        <p class="al-tag" style="color: rgba(255,255,255,0.55);">Carboidrati</p>
         <p class="al-display" style="font-size: 1.9rem; color: var(--al-parchment);">{{ targets.avg.carb }}<span class="al-tag"> g</span></p>
       </div>
       <div>
-        <p class="al-tag" style="color: rgba(244,239,228,0.55);">Grassi</p>
+        <p class="al-tag" style="color: rgba(255,255,255,0.55);">Grassi</p>
         <p class="al-display" style="font-size: 1.9rem; color: var(--al-parchment);">{{ targets.avg.fat }}<span class="al-tag"> g</span></p>
       </div>
     </div>
 
     {% if assignment.notes %}
-    <div class="mt-5 p-4" style="background: rgba(244,239,228,0.05); border-left: 3px solid var(--al-bronze); border-radius: var(--al-r-sm);">
+    <div class="mt-5 p-4" style="background: rgba(255,255,255,0.05); border-left: 3px solid var(--al-bronze); border-radius: var(--al-r-sm);">
       <p class="al-tag" style="color: var(--al-bronze);">Note dal coach</p>
-      <p class="al-body mt-1" style="color: rgba(244,239,228,0.85);">{{ assignment.notes }}</p>
+      <p class="al-body mt-1" style="color: rgba(255,255,255,0.85);">{{ assignment.notes }}</p>
     </div>
     {% endif %}
   </section>

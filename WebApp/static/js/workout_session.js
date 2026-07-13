@@ -118,7 +118,7 @@ function sessionRunner() {
       this.removed = newRemoved;
       for (const se of (d.exercises || [])) {
         if (se.added && se.exercise_id) {
-          this._appendAdded({ id: se.exercise_id, name: se.name, video_url: se.video_url || '' });
+          this._appendAdded({ id: se.exercise_id, name: se.name, wger_image_url: se.wger_image_url || '' });
         }
       }
 
@@ -192,7 +192,7 @@ function sessionRunner() {
         recovery_seconds: 90,
         notes: '',
         set_details: [],
-        video_url: item.video_url || '',
+        wger_image_url: item.wger_image_url || '',
         alternative_exercise: null,
         added: true,
       });

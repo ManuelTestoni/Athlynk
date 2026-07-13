@@ -8,7 +8,7 @@
           <span x-show="selectedClient" x-text="'Paziente: ' + (selectedClient?.name || '')"></span>
           <span class="al-tag"><i class="ph ph-sparkle"></i> Generato da AI</span>
           {% if origin_pdf %}
-          <span class="al-tag" style="background: rgba(138,90,43,0.10); color: var(--al-bronze);">
+          <span class="al-tag" style="background: rgba(30,58,95,0.10); color: var(--al-bronze);">
             <i class="ph ph-file-pdf"></i> Origine: PDF
           </span>
           {% endif %}
@@ -34,7 +34,7 @@
 
   <!-- Banner uncertainty -->
   <div x-show="confidence && confidence.ratio >= 0.5"
-       class="al-card mb-4" style="background: rgba(138,58,58,0.08); border-color: var(--al-danger); padding: 14px 18px;">
+       class="al-card mb-4" style="background: rgba(162,59,59,0.08); border-color: var(--al-danger); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-danger);">
       <i class="ph ph-warning-circle"></i>
       <span>Attenzione: molti campi non riconosciuti con certezza
@@ -43,7 +43,7 @@
     </p>
   </div>
   <div x-show="confidence && confidence.fields_uncertain > 0 && confidence.ratio < 0.5"
-       class="al-card mb-4" style="background: rgba(166,128,43,0.08); border-color: var(--al-warn); padding: 14px 18px;">
+       class="al-card mb-4" style="background: rgba(138,106,30,0.08); border-color: var(--al-warn); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-warn);">
       <i class="ph ph-info"></i>
       <span><span x-text="confidence.fields_uncertain"></span> campi incerti — verifica le righe evidenziate.</span>
@@ -52,7 +52,7 @@
 
   <!-- Day tabs (builder-style sticky) -->
   <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
-       style="padding: 12px 16px; background: rgba(244,239,228,0.95); backdrop-filter: saturate(140%) blur(8px);">
+       style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
     <div class="flex items-center gap-1 overflow-x-auto">
       <template x-for="d in diet.days" :key="d.day_of_week">
         <button type="button" @click="activeDay = d.day_of_week"
@@ -103,7 +103,7 @@
                   <div style="border-bottom: 1px solid var(--al-rule);">
                     <!-- Primary food row -->
                     <div class="flex items-center gap-3 px-5 py-3"
-                         :style="f.uncertain && !f.food_id ? 'background: rgba(166,128,43,0.08);' : ''">
+                         :style="f.uncertain && !f.food_id ? 'background: rgba(138,106,30,0.08);' : ''">
                       <button type="button"
                               @click="f.subsOpen = !f.subsOpen"
                               class="al-btn al-btn-icon al-btn-ghost shrink-0"
@@ -142,7 +142,7 @@
                           <span x-show="cfg.showSourceBadge && f.source_page"
                                 class="al-tag font-mono shrink-0"
                                 :title="f.source_chunk ? ('Chunk: ' + f.source_chunk) : ''"
-                                style="background: rgba(138,90,43,0.10); color: var(--al-bronze); padding: 1px 7px; font-size: 9px;">
+                                style="background: rgba(30,58,95,0.10); color: var(--al-bronze); padding: 1px 7px; font-size: 9px;">
                             <i class="ph ph-file-pdf text-[9px]"></i>
                             Pag.&nbsp;<span x-text="f.source_page"></span>
                           </span>
@@ -215,7 +215,7 @@
                         <template x-for="(sub, si) in f.substitutions" :key="si">
                           <div class="flex items-center gap-2 py-2 px-3"
                                style="background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);"
-                               :style="sub.uncertain && !sub.food_id ? 'background: rgba(166,128,43,0.08); border-color: var(--al-warn);' : ''">
+                               :style="sub.uncertain && !sub.food_id ? 'background: rgba(138,106,30,0.08); border-color: var(--al-warn);' : ''">
                             <span class="al-tag font-mono shrink-0"
                                   style="padding: 2px 7px; font-size: 9px;"
                                   :style="'background: ' + subModeColor(sub.mode) + '; color: var(--al-parchment); border: 1px solid ' + subModeColor(sub.mode) + ';'"
@@ -257,7 +257,7 @@
                             {% if origin_pdf %}
                             <span x-show="cfg.showSourceBadge && sub.source_page"
                                   class="al-tag font-mono shrink-0"
-                                  style="background: rgba(138,90,43,0.10); color: var(--al-bronze); padding: 1px 6px; font-size: 9px;">
+                                  style="background: rgba(30,58,95,0.10); color: var(--al-bronze); padding: 1px 6px; font-size: 9px;">
                               <i class="ph ph-file-pdf text-[9px]"></i>
                               Pag.&nbsp;<span x-text="sub.source_page"></span>
                             </span>
@@ -282,12 +282,12 @@
                         </button>
                         <button type="button" @click="addSubstitution(f, 'ISOPROT')"
                                 class="al-tag transition-all"
-                                style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(28,74,82,0.3); color: var(--al-aegean);">
+                                style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(30,58,95,0.3); color: var(--al-aegean);">
                           <i class="ph ph-barbell text-[10px]"></i><span>iso-prot</span>
                         </button>
                         <button type="button" @click="addSubstitution(f, 'ISOCARB')"
                                 class="al-tag transition-all"
-                                style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(166,128,43,0.35); color: var(--al-warn);">
+                                style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(138,106,30,0.35); color: var(--al-warn);">
                           <i class="ph ph-grains text-[10px]"></i><span>iso-carb</span>
                         </button>
                       </div>
@@ -429,7 +429,7 @@
 
         <div class="space-y-3">
           <template x-for="row in [{k:'protein',c:'var(--al-aegean)',l:'Proteine'},
-                                    {k:'carb',c:'var(--al-bronze)',l:'Carboidrati'},
+                                    {k:'carb',c:'#8A6E5A',l:'Carboidrati'},
                                     {k:'fat',c:'var(--al-ink-mute)',l:'Grassi'}]" :key="row.k">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
@@ -474,7 +474,7 @@
         <div x-data="{ hover: null }" class="relative">
           <template x-if="!hasAnyMealWithItem()">
             <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
-                 style="background: linear-gradient(180deg, rgba(244,239,228,0.4) 0%, rgba(244,239,228,0.85) 100%);">
+                 style="background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.85) 100%);">
               <p class="al-tag" style="color: var(--al-ink-mute); font-size: 9px;">
                 <i class="ph ph-chart-bar text-bronze"></i>
                 <span>Nessun alimento</span>

@@ -267,8 +267,6 @@
 
             <div>
               <div class="flex items-center al-tag gap-3 mb-4">
-                <span x-show="plan.sport_name" x-text="plan.sport_name"></span>
-                <template x-if="plan.sport_name"><span>·</span></template>
                 <span x-text="plan.plan_kind === 'PROGRAM' ? plan.duration_weeks + ' settimane' : '1 settimana'"></span>
                 <template x-if="plan.frequency_per_week"><span>·</span></template>
                 <span x-show="plan.frequency_per_week" x-text="plan.frequency_per_week + ' gg/sett'"></span>
@@ -382,7 +380,7 @@
                 <li>Sets, reps, carico, RPE, recupero</li>
                 <li>Match fuzzy nel DB esercizi</li>
               </ul>
-              <span class="wb-type-card-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border-color: rgba(28,74,82,0.25);">
+              <span class="wb-type-card-pill" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border-color: rgba(30,58,95,0.25);">
                 <i class="ph ph-lightning"></i> Veloce
               </span>
             </button>
@@ -400,7 +398,7 @@
                 <li>OCR ita+eng su scansioni</li>
                 <li>Multi-pagina, tabelle, layout liberi</li>
               </ul>
-              <span class="wb-type-card-pill" style="background: rgba(138,90,43,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
+              <span class="wb-type-card-pill" style="background: rgba(30,58,95,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
                 <i class="ph ph-scan"></i> OCR
               </span>
             </button>
@@ -463,7 +461,7 @@
                   </select>
                 </span>
               </label>
-              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule); background: rgba(138,58,58,0.05);">
+              <label class="flex items-start gap-2 p-3 rounded cursor-pointer" style="border: 1px solid var(--al-rule); background: rgba(162,59,59,0.05);">
                 <input type="radio" value="delete_plans" x-model="deleteFolderAction" class="mt-1">
                 <span class="al-small">
                   <strong style="color: var(--al-danger);">Elimina anche le schede</strong> (irreversibile)

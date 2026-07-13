@@ -231,7 +231,6 @@ urlpatterns = [
     path('api/allenamenti/cartelle/', views_workouts_taxonomy.api_folders, name='api_workout_folders'),
     path('api/allenamenti/cartelle/riordina/', views_workouts_taxonomy.api_folders_reorder, name='api_workout_folders_reorder'),
     path('api/allenamenti/cartelle/<int:folder_id>/', views_workouts_taxonomy.api_folder_detail, name='api_workout_folder_detail'),
-    path('api/allenamenti/sport/', views_workouts_taxonomy.api_sports, name='api_workout_sports'),
     path('api/muscle-groups/', views_workouts_taxonomy.api_muscle_groups, name='api_muscle_groups'),
     path('api/exercises/custom/', views_workouts_taxonomy.api_custom_exercises, name='api_custom_exercises'),
     path('api/exercises/custom/<int:exercise_id>/', views_workouts_taxonomy.api_custom_exercise_detail, name='api_custom_exercise_detail'),

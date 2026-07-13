@@ -10,23 +10,13 @@ document.addEventListener('alpine:init', () => {
     mobileTab: 'lib',
 
     library: {
-      query: '', muscle_slug: '', equipment: '', sport_slug: '',
-      sport_filter_locked: true,   // when true, library auto-filters to plan.sport
+      query: '', muscle_slug: '', equipment_id: '', category_id: '',
       custom_only: false,
       items: [], loading: false,
     },
-    filters: { muscles: [], equipment: [], sports: [] },
+    filters: { muscles: [], equipment: [], categories: [] },
     muscleGroups: [],
-    sportsCatalog: [],
     foldersCatalog: [],
-
-    /* Sport combobox UI */
-    sportCombobox: {
-      query: '',
-      open: false,
-      activeIndex: -1,
-      filtered: [],
-    },
 
     /* Volume drawer open tracker */
     _volumeOpen: false,
@@ -46,8 +36,8 @@ document.addEventListener('alpine:init', () => {
     /* Custom exercise drawer */
     customExerciseOpen: false,
     customExercise: {
-      name: '', sport_ids: [], primary_muscle_ids: [], secondary_muscle_ids: [],
-      equipment: '', difficulty_level: '', video_url: '', coach_notes: '',
+      name: '', category_id: null, primary_muscle_ids: [], secondary_muscle_ids: [],
+      equipment_ids: [], coach_notes: '',
       saving: false, error: '',
     },
 
@@ -212,12 +202,9 @@ document.addEventListener('alpine:init', () => {
         status: init.status || 'DRAFT',
         last_step: init.last_step || 1,
         folder_id: init.folder_id || (folderParam || null),
-        sport_id: init.sport_id || null,
-        sport_name: init.sport_name || '',
         plan_kind: initialKind,
         days: this._materializeDays(init.days || []),
       };
-      this.sportCombobox.query = this.plan.sport_name || '';
 
       // Resume to last_step if existing draft
       if (this.plan.id && this.plan.last_step) {
@@ -243,7 +230,6 @@ document.addEventListener('alpine:init', () => {
         this.$watch('progression.rules.length', () => { this._computeProgVolume(); this._refreshProgChart(); });
       });
       this.loadMuscleGroups();
-      this.loadSportsCatalog();
       this.loadFoldersCatalog();
       this.loadLibrary();
 
@@ -298,12 +284,9 @@ document.addEventListener('alpine:init', () => {
           pk: ex.pk || null,
           exercise_id: ex.exercise_id,
           exercise_name: ex.exercise_name,
-          target_muscle_group: ex.target_muscle_group || '',
-          primary_muscle: ex.primary_muscle || '',
-          secondary_muscle: ex.secondary_muscle || '',
           primary_muscles_data: ex.primary_muscles || [],
           secondary_muscles_data: ex.secondary_muscles || [],
-          equipment: ex.equipment || '',
+          equipment: ex.equipment || [],
           sets: ex.sets ?? 3,
           reps: ex.reps ?? '10',
           load_value: ex.load_value ?? null,
@@ -502,14 +485,6 @@ document.addEventListener('alpine:init', () => {
       } catch (e) { this.muscleGroups = []; }
     },
 
-    async loadSportsCatalog() {
-      try {
-        const r = await fetch(this.urls.sports || '/api/allenamenti/sport/');
-        this.sportsCatalog = await r.json();
-        this._refreshSportCombobox();
-      } catch (e) { this.sportsCatalog = []; }
-    },
-
     async loadFoldersCatalog() {
       try {
         const r = await fetch(this.urls.folders || '/api/allenamenti/cartelle/');
@@ -522,15 +497,8 @@ document.addEventListener('alpine:init', () => {
       const params = new URLSearchParams();
       if (this.library.query) params.set('q', this.library.query);
       if (this.library.muscle_slug) params.set('muscle_slug', this.library.muscle_slug);
-      if (this.library.equipment) params.set('equipment', this.library.equipment);
-
-      // Sport filter: when locked + plan has a sport, filter by it.
-      let sportSlug = this.library.sport_slug;
-      if (!sportSlug && this.library.sport_filter_locked && this.plan?.sport_id) {
-        const s = this.sportsCatalog.find(x => x.id === this.plan.sport_id);
-        if (s) sportSlug = s.slug;
-      }
-      if (sportSlug) params.set('sport_slug', sportSlug);
+      if (this.library.equipment_id) params.set('equipment_id', this.library.equipment_id);
+      if (this.library.category_id) params.set('category_id', this.library.category_id);
       if (this.library.custom_only) params.set('custom', 'true');
 
       try {
@@ -543,79 +511,6 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    unlockSportFilter() {
-      this.library.sport_filter_locked = false;
-      this.library.sport_slug = '';
-      this.loadLibrary();
-    },
-
-    activeSportSlugInLibrary() {
-      if (this.library.sport_slug) return this.library.sport_slug;
-      if (this.library.sport_filter_locked && this.plan?.sport_id) {
-        const s = this.sportsCatalog.find(x => x.id === this.plan.sport_id);
-        return s ? s.slug : '';
-      }
-      return '';
-    },
-
-    activeSportNameInLibrary() {
-      const slug = this.activeSportSlugInLibrary();
-      if (!slug) return '';
-      const s = this.sportsCatalog.find(x => x.slug === slug);
-      return s ? s.name : '';
-    },
-
-    /* ---- Sport combobox ---- */
-    _refreshSportCombobox() {
-      const q = (this.sportCombobox.query || '').toLowerCase().trim();
-      const items = this.sportsCatalog;
-      this.sportCombobox.filtered = q
-        ? items.filter(s => s.name.toLowerCase().includes(q))
-        : items.slice(0, 30);
-    },
-
-    onSportInput() {
-      this._refreshSportCombobox();
-      this.sportCombobox.open = true;
-      // user is editing, decouple plan.sport_id until they pick or create
-      if (!this.sportCombobox.query) {
-        this.plan.sport_id = null;
-        this.plan.sport_name = '';
-        this.markDirty();
-      }
-    },
-
-    pickSport(sport) {
-      this.plan.sport_id = sport.id;
-      this.plan.sport_name = sport.name;
-      this.sportCombobox.query = sport.name;
-      this.sportCombobox.open = false;
-      this.markDirty();
-      // Re-lock library filter when a sport is chosen.
-      this.library.sport_filter_locked = true;
-      this.library.sport_slug = '';
-      if (this.step === 2) this.loadLibrary();
-    },
-
-    async createSportFromQuery() {
-      const name = (this.sportCombobox.query || '').trim();
-      if (name.length < 2) return;
-      try {
-        const r = await fetch(this.urls.sports || '/api/allenamenti/sport/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
-          body: JSON.stringify({ name }),
-        });
-        const d = await r.json();
-        if (r.ok) {
-          this.sportsCatalog.push(d);
-          this.pickSport(d);
-        } else {
-          this._showToast(d.error || 'Errore creazione sport.');
-        }
-      } catch (e) { this._showToast('Errore di rete.'); }
-    },
-
     /* ---- Volume Analytics Drawer ---- */
     _muscleByName() {
       const m = {};
@@ -624,22 +519,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     _resolvedExerciseMuscles(ex) {
-      const muscleByName = this._muscleByName();
-      let primary = ex.primary_muscles_data || [];
-      let secondary = ex.secondary_muscles_data || [];
-      if (!primary.length && ex.primary_muscle) {
-        const m = muscleByName[ex.primary_muscle.toLowerCase()];
-        if (m) primary = [m];
-      }
-      if (!primary.length && ex.target_muscle_group) {
-        const m = muscleByName[ex.target_muscle_group.toLowerCase()];
-        if (m) primary = [m];
-      }
-      if (!secondary.length && ex.secondary_muscle) {
-        const m = muscleByName[ex.secondary_muscle.toLowerCase()];
-        if (m) secondary = [m];
-      }
-      return { primary, secondary };
+      return { primary: ex.primary_muscles_data || [], secondary: ex.secondary_muscles_data || [] };
     },
 
     /* Builder volume payload: single week, base sets only. */
@@ -653,7 +533,7 @@ document.addEventListener('alpine:init', () => {
             reps: ex.reps || '',
             primary_muscles: primary,
             secondary_muscles: secondary,
-            primary_muscle_text: ex.primary_muscle || ex.target_muscle_group || '',
+            primary_muscle_text: primary[0]?.name || '',
           };
         }),
       }));
@@ -687,7 +567,7 @@ document.addEventListener('alpine:init', () => {
             reps: ex.reps || '',
             primary_muscles: primary,
             secondary_muscles: secondary,
-            primary_muscle_text: ex.primary_muscle || ex.target_muscle_group || '',
+            primary_muscle_text: primary[0]?.name || '',
             weekly_overrides,
           };
         }),
@@ -729,9 +609,9 @@ document.addEventListener('alpine:init', () => {
       this.customExerciseOpen = true;
       window.panelLock && window.panelLock.acquire();
       this.customExercise = {
-        name: '', sport_ids: this.plan.sport_id ? [this.plan.sport_id] : [],
+        name: '', category_id: null,
         primary_muscle_ids: [], secondary_muscle_ids: [],
-        equipment: '', difficulty_level: '', video_url: '', coach_notes: '',
+        equipment_ids: [], coach_notes: '',
         saving: false, error: '',
       };
     },
@@ -744,13 +624,11 @@ document.addEventListener('alpine:init', () => {
       const i = arr.indexOf(id);
       if (i >= 0) arr.splice(i, 1); else arr.push(id);
     },
-    toggleCustomSport(id) { this.toggleCustomMuscle('sport_ids', id); },
 
     async saveCustomExercise(addToBuilderAfter) {
       const ce = this.customExercise;
       ce.error = '';
       if ((ce.name || '').trim().length < 3) { ce.error = 'Nome: minimo 3 caratteri.'; return; }
-      if (!ce.sport_ids.length) { ce.error = 'Seleziona almeno uno sport.'; return; }
       if (!ce.primary_muscle_ids.length) { ce.error = 'Seleziona almeno un muscolo primario.'; return; }
       ce.saving = true;
       try {
@@ -759,12 +637,10 @@ document.addEventListener('alpine:init', () => {
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
           body: JSON.stringify({
             name: ce.name.trim(),
-            sport_ids: ce.sport_ids,
+            category_id: ce.category_id,
             primary_muscle_ids: ce.primary_muscle_ids,
             secondary_muscle_ids: ce.secondary_muscle_ids,
-            equipment: ce.equipment,
-            difficulty_level: ce.difficulty_level,
-            video_url: ce.video_url,
+            equipment_ids: ce.equipment_ids,
             coach_notes: ce.coach_notes,
           }),
         });
@@ -773,11 +649,10 @@ document.addEventListener('alpine:init', () => {
         // Add to library
         this.library.items.unshift({
           id: d.id, name: d.name, is_custom: true,
-          target_muscle_group: '', primary_muscle: '', secondary_muscle: '',
-          equipment: d.equipment || '',
+          category: d.category || null,
+          equipment: d.equipment || [],
           primary_muscles: d.primary_muscles || [],
           secondary_muscles: d.secondary_muscles || [],
-          sports: d.sports || [],
         });
         this._showToast('Esercizio personalizzato salvato.');
         this.closeCustomExerciseDrawer();
@@ -804,12 +679,9 @@ document.addEventListener('alpine:init', () => {
         pk: null,
         exercise_id: libEx.id,
         exercise_name: libEx.name,
-        target_muscle_group: libEx.target_muscle_group || (libEx.primary_muscles?.[0]?.name || ''),
-        primary_muscle: libEx.primary_muscle || (libEx.primary_muscles?.[0]?.name || ''),
-        secondary_muscle: libEx.secondary_muscle || '',
         primary_muscles_data: libEx.primary_muscles || [],
         secondary_muscles_data: libEx.secondary_muscles || [],
-        equipment: libEx.equipment || '',
+        equipment: libEx.equipment || [],
         sets: 3,
         reps: '10',
         load_value: null,
@@ -956,8 +828,8 @@ document.addEventListener('alpine:init', () => {
           const reps = this._parseReps(ex.reps);
           const sets = parseInt(ex.sets) || 0;
           const baseVol = sets * reps;
-          const primary = ex.target_muscle_group || ex.primary_muscle;
-          const secondary = ex.secondary_muscle;
+          const primary = ex.primary_muscles_data?.[0]?.name;
+          const secondary = ex.secondary_muscles_data?.[0]?.name;
           if (primary) map[primary] = (map[primary] || 0) + baseVol;
           if (secondary) map[secondary] = (map[secondary] || 0) + baseVol * 0.5;
         });
@@ -1070,20 +942,20 @@ document.addEventListener('alpine:init', () => {
 
     groupColor(g) {
       const MG_PALETTE = {
-        'mg-chest': '#8a3a3a',
-        'mg-back': '#1c4a52',
-        'mg-shoulders': '#a78554',
-        'mg-quads': '#2a6a72',
-        'mg-hams': '#5a8a3a',
-        'mg-glutes': '#8a6a3a',
-        'mg-calves': '#c8a774',
-        'mg-biceps': '#4a6b3a',
-        'mg-triceps': '#a6802b',
-        'mg-abs': '#5b554a',
-        'mg-forearms': '#8a8270',
-        'mg-other': '#c4b89c',
+        'mg-chest': '#9C4448',
+        'mg-back': '#1E3A5F',
+        'mg-shoulders': '#8A6E5A',
+        'mg-quads': '#3F7690',
+        'mg-hams': '#4F7A6A',
+        'mg-glutes': '#6A5482',
+        'mg-calves': '#5B89B6',
+        'mg-biceps': '#2B6E6E',
+        'mg-triceps': '#8A6A1E',
+        'mg-abs': '#4A5A8A',
+        'mg-forearms': '#8A5A6B',
+        'mg-other': '#5B6B78',
       };
-      return MG_PALETTE[g.color_token] || '#8a6a3a';
+      return MG_PALETTE[g.color_token] || '#5B6B78';
     },
 
     _computeProgVolume() {
@@ -1165,20 +1037,20 @@ document.addEventListener('alpine:init', () => {
 
       const ctx = this._progCanvas.getContext('2d');
       const MG_PALETTE = {
-        'mg-chest': '#8a3a3a',
-        'mg-back': '#1c4a52',
-        'mg-shoulders': '#a78554',
-        'mg-quads': '#2a6a72',
-        'mg-hams': '#5a8a3a',
-        'mg-glutes': '#8a6a3a',
-        'mg-calves': '#c8a774',
-        'mg-biceps': '#4a6b3a',
-        'mg-triceps': '#a6802b',
-        'mg-abs': '#5b554a',
-        'mg-forearms': '#8a8270',
-        'mg-other': '#c4b89c',
+        'mg-chest': '#9C4448',
+        'mg-back': '#1E3A5F',
+        'mg-shoulders': '#8A6E5A',
+        'mg-quads': '#3F7690',
+        'mg-hams': '#4F7A6A',
+        'mg-glutes': '#6A5482',
+        'mg-calves': '#5B89B6',
+        'mg-biceps': '#2B6E6E',
+        'mg-triceps': '#8A6A1E',
+        'mg-abs': '#4A5A8A',
+        'mg-forearms': '#8A5A6B',
+        'mg-other': '#5B6B78',
       };
-      const colors = filtered.map(g => MG_PALETTE[g.color_token] || '#8a6a3a');
+      const colors = filtered.map(g => MG_PALETTE[g.color_token] || '#5B6B78');
 
       const baseOpts = {
         responsive: true,
@@ -1187,9 +1059,9 @@ document.addEventListener('alpine:init', () => {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(20,17,13,0.92)',
-            titleColor: '#f4efe4',
-            bodyColor: '#f4efe4',
+            backgroundColor: 'rgba(11,29,58,0.92)',
+            titleColor: '#FFFFFF',
+            bodyColor: '#FFFFFF',
             padding: 10,
             cornerRadius: 6,
             callbacks: {
@@ -1198,8 +1070,8 @@ document.addEventListener('alpine:init', () => {
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
-          y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.10)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
+          x: { grid: { display: false }, ticks: { color: '#4B5D75', font: { size: 11 } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(75,93,117,0.10)' }, ticks: { color: '#4B5D75', font: { size: 11 } } },
         },
       };
 
@@ -1229,10 +1101,10 @@ document.addEventListener('alpine:init', () => {
             datasets: [{
               label: 'Serie',
               data,
-              borderColor: '#8a6a3a',
-              backgroundColor: 'rgba(138,106,58,0.10)',
+              borderColor: '#1E3A5F',
+              backgroundColor: 'rgba(30,58,95,0.10)',
               pointBackgroundColor: colors,
-              pointBorderColor: '#f4efe4',
+              pointBorderColor: '#FFFFFF',
               pointBorderWidth: 1.5,
               pointRadius: 5,
               pointHoverRadius: 7,
@@ -1301,10 +1173,10 @@ document.addEventListener('alpine:init', () => {
 
     exStatsColor() {
       return ({
-        volume: '#1c4a52',
-        load: '#8a3a3a',
-        intensity: '#a6802b',
-      })[this.exStats.metric] || '#8a6a3a';
+        volume: '#1E3A5F',
+        load: '#9C4448',
+        intensity: '#8A6A1E',
+      })[this.exStats.metric] || '#1E3A5F';
     },
 
     exStatsMetricLabel() {
@@ -1396,7 +1268,7 @@ document.addEventListener('alpine:init', () => {
             borderColor: color,
             backgroundColor: color + '22',
             pointBackgroundColor: color,
-            pointBorderColor: '#f4efe4',
+            pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
             pointRadius: 6,
             pointHoverRadius: 8,
@@ -1413,9 +1285,9 @@ document.addEventListener('alpine:init', () => {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(20,17,13,0.92)',
-              titleColor: '#f4efe4',
-              bodyColor: '#f4efe4',
+              backgroundColor: 'rgba(11,29,58,0.92)',
+              titleColor: '#FFFFFF',
+              bodyColor: '#FFFFFF',
               padding: 10,
               cornerRadius: 6,
               callbacks: {
@@ -1428,11 +1300,11 @@ document.addEventListener('alpine:init', () => {
             },
           },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
+            x: { grid: { display: false }, ticks: { color: '#4B5D75', font: { size: 11 } } },
             y: {
               beginAtZero: this.exStats.metric !== 'intensity',
-              grid: { color: 'rgba(91,85,74,0.12)' },
-              ticks: { color: '#5b554a', font: { size: 11 } },
+              grid: { color: 'rgba(75,93,117,0.12)' },
+              ticks: { color: '#4B5D75', font: { size: 11 } },
             },
           },
         },
@@ -1503,7 +1375,6 @@ document.addEventListener('alpine:init', () => {
         duration_weeks: this.plan.duration_weeks,
         last_step: this.step,
         folder_id: this.plan.folder_id || null,
-        sport_id: this.plan.sport_id || null,
         plan_kind: this.plan.plan_kind || 'WEEKLY',
         days: this.plan.days.map((d, di) => ({
           pk: d.pk,
@@ -2559,10 +2430,6 @@ document.addEventListener('alpine:init', () => {
       this.addExUi.loading = true;
       const params = new URLSearchParams();
       if (this.addExUi.query) params.set('q', this.addExUi.query);
-      if (this.plan?.sport_id) {
-        const s = (this.sportsCatalog || []).find(x => x.id === this.plan.sport_id);
-        if (s) params.set('sport_slug', s.slug);
-      }
       try {
         const r = await fetch(`${this.urls.search_exercises}?${params.toString()}`);
         this.addExUi.results = (await r.json()).slice(0, 20);

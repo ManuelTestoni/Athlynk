@@ -29,9 +29,12 @@ function nutritionWizardChartsMixin() {
       const cK = (carb || 0) * 4;
       const fK = (fat || 0) * 9;
       const total = pK + cK + fK;
+      // carb used to be "bronze" and protein "aegean" — both now resolve to
+      // the same primary blue post-rebrand, so carb gets a literal jewel
+      // tone to stay visually distinct in the donut/legend.
       const PALETTE = {
         protein: 'var(--al-aegean)',
-        carb:    'var(--al-bronze)',
+        carb:    '#8A6E5A',
         fat:     'var(--al-ink-mute)',
       };
       const raw = [

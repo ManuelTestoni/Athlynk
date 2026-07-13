@@ -98,7 +98,7 @@
             <!-- Brand -->
             <a href="{% url 'dashboard' %}" class="al-sidebar-brand">
                 <!-- Athlynk app mark -->
-                <span class="al-mark shrink-0" style="height: 24px; color: #c8a774;"></span>
+                <span class="al-mark shrink-0" style="height: 24px; color: #FFE066;"></span>
                 <span class="al-sidebar-brand-name">Athlynk</span>
             </a>
 
@@ -257,11 +257,11 @@
                         {% endif %}
                     </div>
                     <div class="overflow-hidden">
-                        <p class="text-[13px] font-medium text-parchment/95 truncate max-w-[110px] group-hover:text-bronze-light transition-colors">{{ display_name|default:"Utente" }}</p>
-                        <p class="al-tag" style="color: rgba(244,239,228,0.4); font-size: 9px;">{% if is_client %}Atleta{% elif is_coach %}{% if coach.professional_type == 'ALLENATORE' %}Allenatore{% elif coach.professional_type == 'NUTRIZIONISTA' %}Nutrizionista{% else %}Coach{% endif %}{% else %}Guest{% endif %}</p>
+                        <p class="text-[13px] font-medium text-parchment/95 truncate max-w-[110px] group-hover:text-accent transition-colors">{{ display_name|default:"Utente" }}</p>
+                        <p class="al-tag" style="color: rgba(255,255,255,0.4); font-size: 9px;">{% if is_client %}Atleta{% elif is_coach %}{% if coach.professional_type == 'ALLENATORE' %}Allenatore{% elif coach.professional_type == 'NUTRIZIONISTA' %}Nutrizionista{% else %}Coach{% endif %}{% else %}Guest{% endif %}</p>
                     </div>
                 </a>
-                <a href="{% url 'logout' %}" onclick="if(window.athlynkPosthogReset)window.athlynkPosthogReset();" class="text-parchment/30 hover:text-bronze-light p-1.5 transition-colors" title="Esci">
+                <a href="{% url 'logout' %}" onclick="if(window.athlynkPosthogReset)window.athlynkPosthogReset();" class="text-parchment/30 hover:text-accent p-1.5 transition-colors" title="Esci">
                     <i class="ph ph-sign-out text-lg"></i>
                 </a>
             </div>
@@ -330,7 +330,7 @@
                         <i class="ph ph-bell text-xl"></i>
                         <span x-show="unreadCount > 0"
                               x-text="unreadCount > 9 ? '9+' : unreadCount"
-                              class="al-pulse-bronze absolute -top-1 -right-1.5 min-w-[20px] h-4 px-1 bg-bronze text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
+                              class="al-pulse-bronze absolute -top-1 -right-1.5 min-w-[20px] h-4 px-1 bg-primary text-parchment text-[9px] font-bold font-mono flex items-center justify-center"
                               style="border: 1px solid var(--al-parchment); border-radius: 2px;"></span>
                     </button>
                     <div x-show="open" @click.outside="open = false" x-cloak
@@ -344,7 +344,7 @@
                         <div class="al-card-head" style="padding: 12px 16px; background: var(--al-marble);">
                             <span class="al-tag">Notifiche</span>
                             <button @click="markAllRead()" type="button" x-show="unreadCount > 0"
-                                    class="text-[11px] uppercase tracking-widest text-bronze hover:text-bronze-soft transition-colors font-medium">Segna tutte</button>
+                                    class="text-[11px] uppercase tracking-widest text-primary hover:text-accent transition-colors font-medium">Segna tutte</button>
                         </div>
                         <div class="max-h-96 overflow-y-auto">
                             <template x-for="n in notifications" :key="n.id">
@@ -385,10 +385,10 @@
         </main>
 
         <!-- Fixed footer pinned to viewport bottom; on lg+ screens starts after the sidebar so it never sits under it. -->
-        <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(244,239,228,0.92); backdrop-filter: saturate(140%) blur(10px);">
+        <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(255,255,255,0.92); backdrop-filter: saturate(140%) blur(10px);">
             <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 al-small">
                 <div class="flex items-center gap-2">
-                    <span class="al-mark" style="height: 15px; color: #8a6a3a;"></span>
+                    <span class="al-mark" style="height: 15px; color: #1E3A5F;"></span>
                     <span>© Athlynk</span>
                     <span class="font-mono text-ink-mute">· {{ CONSENT_VERSION }}</span>
                 </div>

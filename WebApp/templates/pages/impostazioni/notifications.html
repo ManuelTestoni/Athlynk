@@ -31,9 +31,9 @@
 
     <div class="flex flex-col gap-3">
       {% for row in notif_rows %}
-      <label class="flex items-start gap-4" style="padding: 12px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(91,85,74,0.12); border-radius: 12px; cursor: pointer;">
+      <label class="flex items-start gap-4" style="padding: 12px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(75,93,117,0.12); border-radius: 12px; cursor: pointer;">
         <input type="checkbox" name="pref_{{ row.key }}" {% if row.enabled %}checked{% endif %}
-               style="margin-top: 4px; width: 18px; height: 18px; accent-color: #8a6a3a;">
+               style="margin-top: 4px; width: 18px; height: 18px; accent-color: #1E3A5F;">
         <span class="flex-1 min-w-0">
           <span class="block font-semibold" style="font-size: 14.5px; color: var(--al-ink);">{{ row.label }}</span>
           <span class="block al-small mt-1" style="color: var(--al-ink-mute);">{{ row.desc }}</span>

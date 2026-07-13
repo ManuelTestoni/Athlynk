@@ -3,10 +3,10 @@
    /api/agenda/events/ (GET) and POST for create. */
 
 const APPOINTMENT_TYPES = [
-  { value: 'check',        label: 'Check progressi', color: '#4f4ff0', icon: 'ph ph-clipboard-text' },
-  { value: 'prima_visita', label: 'Prima visita',    color: '#0ea271', icon: 'ph ph-first-aid-kit' },
-  { value: 'visita',       label: 'Visita',          color: '#2563eb', icon: 'ph ph-stethoscope' },
-  { value: 'consulenza',   label: 'Consulenza',      color: '#d97706', icon: 'ph ph-video-camera' },
+  { value: 'check',        label: 'Check progressi', color: '#4A5A8A', icon: 'ph ph-clipboard-text' },
+  { value: 'prima_visita', label: 'Prima visita',    color: '#4F7A6A', icon: 'ph ph-first-aid-kit' },
+  { value: 'visita',       label: 'Visita',          color: '#1E3A5F', icon: 'ph ph-stethoscope' },
+  { value: 'consulenza',   label: 'Consulenza',      color: '#8A6A1E', icon: 'ph ph-video-camera' },
 ];
 
 const IT_DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
@@ -141,7 +141,7 @@ document.addEventListener('alpine:init', () => {
     },
     typeColor(t) {
       const m = APPOINTMENT_TYPES.find(x => x.value === t);
-      return m ? m.color : '#1c4a52';
+      return m ? m.color : '#5B6B78';
     },
     typeClass(t) {
       const known = APPOINTMENT_TYPES.find(x => x.value === t);

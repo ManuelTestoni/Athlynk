@@ -42,9 +42,9 @@
   }
   .nu-mini-macro strong { font-weight: 700; }
   .nu-mini-macro.is-kcal { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
-  .nu-mini-macro.is-p { color: var(--al-aegean); border-color: rgba(28,74,82,0.18); background: rgba(28,74,82,0.06); }
-  .nu-mini-macro.is-c { color: var(--al-warn); border-color: rgba(166,128,43,0.22); background: rgba(166,128,43,0.06); }
-  .nu-mini-macro.is-f { color: var(--al-danger); border-color: rgba(138,58,58,0.22); background: rgba(138,58,58,0.06); }
+  .nu-mini-macro.is-p { color: var(--al-aegean); border-color: rgba(30,58,95,0.18); background: rgba(30,58,95,0.06); }
+  .nu-mini-macro.is-c { color: var(--al-warn); border-color: rgba(138,106,30,0.22); background: rgba(138,106,30,0.06); }
+  .nu-mini-macro.is-f { color: var(--al-danger); border-color: rgba(162,59,59,0.22); background: rgba(162,59,59,0.06); }
 </style>
 
 <div class="max-w-7xl mx-auto"
@@ -347,7 +347,7 @@
                 </span>
               </label>
               <label class="flex items-start gap-2 p-3 rounded cursor-pointer"
-                     style="border: 1px solid var(--al-rule); background: rgba(138,58,58,0.05);">
+                     style="border: 1px solid var(--al-rule); background: rgba(162,59,59,0.05);">
                 <input type="radio" value="delete_plans" x-model="deleteFolderAction" class="mt-1">
                 <span class="al-small">
                   <strong style="color: var(--al-danger);">Elimina anche i piani</strong> (irreversibile)
@@ -423,7 +423,7 @@
                   @click="selectMode('FOOD')"
                   class="text-left p-5 transition-all"
                   :style="newPlanMode === 'FOOD'
-                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(11,29,58,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
                     : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
                   onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
                   onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
@@ -444,7 +444,7 @@
                   @click="selectMode('MACRO')"
                   class="text-left p-5 transition-all"
                   :style="newPlanMode === 'MACRO'
-                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(11,29,58,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
                     : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
                   onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
                   onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
@@ -469,7 +469,7 @@
                   @click="selectKind('DAILY')"
                   class="text-left p-5 transition-all"
                   :style="newPlanKind === 'DAILY'
-                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(11,29,58,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
                     : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
                   onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
                   onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
@@ -490,7 +490,7 @@
                   @click="selectKind('WEEKLY')"
                   class="text-left p-5 transition-all"
                   :style="newPlanKind === 'WEEKLY'
-                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(20,17,13,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
+                    ? 'background: var(--al-marble-warm); border: 1.5px solid var(--al-bronze); box-shadow: 0 12px 32px -16px rgba(11,29,58,0.22); transform: translateY(-2px); border-radius: var(--al-r-md, 16px);'
                     : 'background: var(--al-parchment); border: 1px solid var(--al-rule); border-radius: var(--al-r-md, 16px); cursor: pointer;'"
                   onmouseover="if(!this.dataset.sel){this.style.borderColor='var(--al-bronze-soft)'}"
                   onmouseout="if(!this.dataset.sel){this.style.borderColor='var(--al-rule)'}"
@@ -527,7 +527,7 @@
               <li>Pasti, alimenti, grammature</li>
               <li>Match fuzzy nel DB alimenti</li>
             </ul>
-            <span class="wb-type-card-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border-color: rgba(28,74,82,0.25);">
+            <span class="wb-type-card-pill" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border-color: rgba(30,58,95,0.25);">
               <i class="ph ph-lightning"></i> Veloce
             </span>
           </button>
@@ -545,7 +545,7 @@
               <li>OCR ita+eng su scansioni</li>
               <li>Multi-pagina, tabelle, layout liberi</li>
             </ul>
-            <span class="wb-type-card-pill" style="background: rgba(138,90,43,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
+            <span class="wb-type-card-pill" style="background: rgba(30,58,95,0.10); color: var(--al-bronze); border-color: var(--al-bronze-soft);">
               <i class="ph ph-scan"></i> OCR
             </span>
           </button>

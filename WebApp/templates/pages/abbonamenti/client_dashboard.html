@@ -21,7 +21,7 @@
   <div class="{% if not forloop.last %}mb-14{% endif %}">
     {% if coach_subs|length > 1 %}
     <div class="flex items-center gap-2 mb-4">
-      <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">{{ cs.role_label }}</span>
+      <span class="al-pill" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.30);">{{ cs.role_label }}</span>
       <h2 class="al-h-3">{{ cs.coach.first_name }} {{ cs.coach.last_name }}</h2>
     </div>
     {% endif %}
@@ -35,7 +35,7 @@
         <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           <div class="flex-1">
             <div class="flex items-center gap-3 flex-wrap">
-              <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+              <span class="al-pill" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.30);">
                 {% if sub.status == 'ACTIVE' %}<span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
                 {% elif sub.status == 'PAUSED' %}In pausa
                 {% elif sub.status == 'CANCELLED' %}Cancellato
@@ -114,7 +114,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
       {% for plan in cs.available_plans %}
       <article class="al-card al-card-flush flex flex-col"
-               style="{% if cs.active_subscription and cs.active_subscription.subscription_plan.id == plan.id %}border-color: var(--al-aegean); box-shadow: 0 0 0 2px rgba(28,74,82,0.15);{% endif %}">
+               style="{% if cs.active_subscription and cs.active_subscription.subscription_plan.id == plan.id %}border-color: var(--al-aegean); box-shadow: 0 0 0 2px rgba(30,58,95,0.15);{% endif %}">
         <div style="height: 2px; background: var(--al-bronze); opacity: 0.7;"></div>
         <div class="p-5 flex-1">
           <div class="flex items-start justify-between gap-2 mb-3">
@@ -123,7 +123,7 @@
               <h3 class="al-h-3 mt-2">{{ plan.name }}</h3>
             </div>
             {% if cs.active_subscription and cs.active_subscription.subscription_plan.id == plan.id %}
-            <span class="al-pill shrink-0" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.30);">
+            <span class="al-pill shrink-0" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.30);">
               <span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-aegean);"></span> Attivo
             </span>
             {% endif %}

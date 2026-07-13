@@ -123,6 +123,11 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@localhost')
 SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 
 
+# --- Wger.de (exercise catalog import) --------------------------------------
+WGER_API_BASE_URL = config('WGER_API_BASE_URL', default='https://wger.de/api/v2')
+WGER_API_TIMEOUT = config('WGER_API_TIMEOUT', default=15, cast=int)
+
+
 # --- Stripe / Payments -----------------------------------------------------
 # Platform purchase (coach pays Athlynk) started from the static marketing site
 # and fulfilled via webhook. Keys live in the env, empty by default so the app
@@ -405,6 +410,9 @@ SUPABASE_S3_ENDPOINT = config('SUPABASE_S3_ENDPOINT', default='')
 # filenames (that's a separate, riskier change — cache-busting stays on the
 # existing ?v=ASSET_VERSION querystring).
 STORAGES: dict[str, dict[str, Any]] = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },

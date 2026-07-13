@@ -8,7 +8,7 @@
           <span x-show="selectedClient" x-text="'Atleta: ' + (selectedClient?.name || '')"></span>
           <span class="al-tag"><i class="ph ph-sparkle"></i> Generato da AI</span>
           {% if origin_pdf %}
-          <span class="al-tag" style="background: rgba(138,90,43,0.10); color: var(--al-bronze);">
+          <span class="al-tag" style="background: rgba(30,58,95,0.10); color: var(--al-bronze);">
             <i class="ph ph-file-pdf"></i> Origine: PDF
           </span>
           {% endif %}
@@ -34,7 +34,7 @@
 
   <!-- Banner uncertainty -->
   <div x-show="confidence && confidence.ratio >= 0.5"
-       class="al-card mb-4" style="background: rgba(138,58,58,0.08); border-color: var(--al-danger); padding: 14px 18px;">
+       class="al-card mb-4" style="background: rgba(162,59,59,0.08); border-color: var(--al-danger); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-danger);">
       <i class="ph ph-warning-circle"></i>
       <span>Attenzione: molti esercizi non riconosciuti con certezza
@@ -43,7 +43,7 @@
     </p>
   </div>
   <div x-show="confidence && confidence.fields_uncertain > 0 && confidence.ratio < 0.5"
-       class="al-card mb-4" style="background: rgba(166,128,43,0.08); border-color: var(--al-warn); padding: 14px 18px;">
+       class="al-card mb-4" style="background: rgba(138,106,30,0.08); border-color: var(--al-warn); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-warn);">
       <i class="ph ph-info"></i>
       <span><span x-text="confidence.fields_uncertain"></span> esercizi incerti — verifica le righe evidenziate.</span>
@@ -52,7 +52,7 @@
 
   <!-- Session tabs sticky -->
   <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
-       style="padding: 12px 16px; background: rgba(244,239,228,0.95); backdrop-filter: saturate(140%) blur(8px);">
+       style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
     <div class="flex items-center gap-1 overflow-x-auto">
       <template x-for="(s, idx) in workout.sessions" :key="idx">
         <button type="button" @click="activeSession = idx"
@@ -138,7 +138,7 @@
                 <template x-for="(ex, eIdx) in block.exercises" :key="eIdx">
                   <div class="wb-ex-row"
                        :data-row-id="sIdx + '-' + bIdx + '-' + eIdx"
-                       :style="ex.uncertain && !ex.matched_exercise_id ? 'background: rgba(166,128,43,0.08);' : ''">
+                       :style="ex.uncertain && !ex.matched_exercise_id ? 'background: rgba(138,106,30,0.08);' : ''">
 
                     <!-- Row top: exercise name + badges + remove -->
                     <div class="wb-ex-row-head">
@@ -167,7 +167,7 @@
                           <span x-show="cfg.showSourceBadge && ex.source_page"
                                 class="al-tag font-mono"
                                 :title="ex.source_chunk ? ('Chunk: ' + ex.source_chunk) : ''"
-                                style="background: rgba(138,90,43,0.10); color: var(--al-bronze); padding: 1px 7px; font-size: 9px;">
+                                style="background: rgba(30,58,95,0.10); color: var(--al-bronze); padding: 1px 7px; font-size: 9px;">
                             <i class="ph ph-file-pdf text-[9px]"></i>
                             Pag.&nbsp;<span x-text="ex.source_page"></span>
                           </span>
@@ -188,11 +188,11 @@
                                 <div class="flex items-center justify-between gap-3">
                                   <p class="text-sm font-medium text-ink" x-text="c.name"></p>
                                   <p class="al-tag font-mono shrink-0"
-                                     x-text="(c.primary_muscle || c.target_muscle_group || '')"></p>
+                                     x-text="(c.primary_muscle || '')"></p>
                                 </div>
                                 <div class="flex items-center gap-2 mt-1">
-                                  <span x-show="c.equipment" class="al-tag" style="font-size: 9px;"
-                                        x-text="c.equipment"></span>
+                                  <span x-show="c.equipment && c.equipment.length" class="al-tag" style="font-size: 9px;"
+                                        x-text="(c.equipment || []).join(', ')"></span>
                                   <span x-show="c.is_custom" class="al-tag font-mono"
                                         style="font-size: 8px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft);"
                                         title="Esercizio personalizzato — visibile solo a te">
@@ -303,7 +303,7 @@
                       <span>Collegato a</span>
                       <strong x-text="ex.matched_exercise_name"></strong>
                       <span x-show="ex.matched_primary_muscle" class="al-tag font-mono"
-                            style="font-size: 9px; background: var(--al-marble); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.25);"
+                            style="font-size: 9px; background: var(--al-marble); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.25);"
                             x-text="ex.matched_primary_muscle"></span>
                       <span x-show="ex.matched_equipment" class="al-tag font-mono"
                             style="font-size: 9px;" x-text="ex.matched_equipment"></span>
@@ -327,7 +327,7 @@
               <i class="ph ph-list text-[10px]"></i><span>Singolo</span>
             </button>
             <button type="button" @click="addBlock(sIdx, 'superset')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(28,74,82,0.3); color: var(--al-aegean);">
+                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(30,58,95,0.3); color: var(--al-aegean);">
               <i class="ph ph-link text-[10px]"></i><span>Superset</span>
             </button>
             <button type="button" @click="addBlock(sIdx, 'circuit')" class="al-tag transition-all"
@@ -335,11 +335,11 @@
               <i class="ph ph-arrows-clockwise text-[10px]"></i><span>Circuit</span>
             </button>
             <button type="button" @click="addBlock(sIdx, 'emom')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(166,128,43,0.35); color: var(--al-warn);">
+                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(138,106,30,0.35); color: var(--al-warn);">
               <i class="ph ph-timer text-[10px]"></i><span>EMOM</span>
             </button>
             <button type="button" @click="addBlock(sIdx, 'amrap')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(138,58,58,0.35); color: var(--al-danger);">
+                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(162,59,59,0.35); color: var(--al-danger);">
               <i class="ph ph-lightning text-[10px]"></i><span>AMRAP</span>
             </button>
           </div>
@@ -439,7 +439,7 @@
         <div x-data="{ hover: null }" class="relative">
           <template x-if="totalSets() === 0">
             <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
-                 style="background: linear-gradient(180deg, rgba(244,239,228,0.4) 0%, rgba(244,239,228,0.85) 100%);">
+                 style="background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.85) 100%);">
               <p class="al-tag" style="color: var(--al-ink-mute); font-size: 9px;">
                 <i class="ph ph-chart-bar text-bronze"></i>
                 <span>Nessun set</span>
@@ -560,17 +560,6 @@
         </div>
 
         <div>
-          <label class="al-label">Sport *</label>
-          <div class="flex flex-wrap gap-1.5">
-            <template x-for="s in sports" :key="s.id">
-              <button type="button" @click="toggleCustomMulti('sport_ids', s.id)"
-                      :class="customExercise.sport_ids.includes(s.id) ? 'al-badge al-badge-bronze' : 'al-badge'"
-                      style="font-size: 10px; cursor: pointer;" x-text="s.name"></button>
-            </template>
-          </div>
-        </div>
-
-        <div>
           <label class="al-label">Muscoli primari *</label>
           <div class="flex flex-wrap gap-1.5">
             <template x-for="m in muscleGroups" :key="'p' + m.id">
@@ -594,18 +583,24 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="al-label">Attrezzatura</label>
-            <input type="text" class="al-input" x-model="customExercise.equipment">
+            <label class="al-label">Categoria</label>
+            <select class="al-select" x-model.number="customExercise.category_id">
+              <option :value="null">—</option>
+              <template x-for="c in categoryOptions" :key="c.id">
+                <option :value="c.id" x-text="c.name_it"></option>
+              </template>
+            </select>
           </div>
           <div>
-            <label class="al-label">Difficoltà</label>
-            <input type="text" class="al-input" x-model="customExercise.difficulty_level">
+            <label class="al-label">Attrezzatura</label>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="e in equipmentOptions" :key="e.id">
+                <button type="button" @click="toggleCustomMulti('equipment_ids', e.id)"
+                        :class="customExercise.equipment_ids.includes(e.id) ? 'al-badge al-badge-bronze' : 'al-badge'"
+                        style="font-size: 10px; cursor: pointer;" x-text="e.name_it"></button>
+              </template>
+            </div>
           </div>
-        </div>
-
-        <div>
-          <label class="al-label">Video URL (opz.)</label>
-          <input type="url" class="al-input" x-model="customExercise.video_url">
         </div>
 
         <div>

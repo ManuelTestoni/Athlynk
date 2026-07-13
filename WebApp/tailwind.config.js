@@ -15,31 +15,40 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        /* Athlynk palette */
-        ink:        '#14110d',
-        'ink-soft': '#2a2620',
-        'ink-mute': '#5b554a',
-        'ink-line': '#8a8270',
+        /* Athlynk palette — deep luxury blue */
+        ink:        '#0B1D3A',
+        'ink-soft': '#16294A',
+        'ink-mute': '#4B5D75',
+        'ink-line': '#7C8CA3',
 
-        parchment:    '#f4efe4',
-        marble:       '#ece5d6',
-        'marble-warm':'#e7dfcb',
-        stone:        '#d8cfba',
-        'stone-deep': '#c4b89c',
+        parchment:    '#FFFFFF',
+        marble:       '#F4F6F9',
+        'marble-warm':'#EEF1F6',
+        stone:        '#E8ECF2',
+        'stone-deep': '#C9D2DE',
 
-        aegean:       '#1c4a52',
-        'aegean-deep':'#0e2f36',
-        'aegean-tint':'#2a6a72',
+        aegean:       '#1E3A5F',
+        'aegean-deep':'#132A47',
+        'aegean-tint':'#5B89B6',
 
-        bronze:        '#8a6a3a',
-        'bronze-soft': '#a78554',
-        'bronze-light':'#c8a774',
+        /* Bronze retired as a role; kept pointing at primary so any class
+           reference not yet migrated degrades to the new primary blue
+           instead of the old warm hue. New code should use accent/gold. */
+        bronze:        '#1E3A5F',
+        'bronze-soft': '#132A47',
+        'bronze-light':'#5B89B6',
 
-        /* Legacy aliases (do not break old templates) */
-        primary: '#14110d',
-        accent:  '#1c4a52',
-        surface: '#f4efe4',
-        brand:   '#8a6a3a',
+        /* New deep-luxury-blue vocabulary */
+        'accent-text':       '#3E6E95',
+        gold:                '#FFE066',
+        'highlight-premium': '#FFE066',
+
+        /* Legacy aliases (do not break old templates) — kept equal to their
+           same-named --al-* CSS custom property so nothing silently diverges */
+        primary: '#1E3A5F',
+        accent:  '#5B89B6',
+        surface: '#FFFFFF',
+        brand:   '#1E3A5F',
       },
       fontFamily: {
         display: ['"Bodoni Moda"', 'Didot', 'Georgia', 'serif'],

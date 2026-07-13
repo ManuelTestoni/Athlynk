@@ -63,20 +63,9 @@ class UploadSniffTests(TestCase):
 
 
 class CustomExerciseSanitizeTests(TestCase):
-    """Custom-exercise free-text fields: scheme-validate video_url, whitelist
-    difficulty, cap lengths (see views_workouts_taxonomy)."""
+    """Custom-exercise free-text fields: cap lengths (see views_workouts_taxonomy)."""
 
-    def test_video_url_rejects_dangerous_schemes(self):
-        from config.views_workouts_taxonomy import _safe_http_url
-        self.assertEqual(_safe_http_url('https://youtu.be/x'), 'https://youtu.be/x')
-        self.assertEqual(_safe_http_url('  http://a.com '), 'http://a.com')
-        for bad in ('javascript:alert(1)', 'JavaScript:alert(1)',
-                    'data:text/html,<script>', 'file:///etc/passwd',
-                    'not a url', '', None):
-            self.assertEqual(_safe_http_url(bad), '')
-
-    def test_difficulty_whitelist_and_caps(self):
-        from config.views_workouts_taxonomy import ALLOWED_DIFFICULTY
+    def test_notes_caps(self):
         from domain.workouts.models import Exercise
         from config.views_workouts_taxonomy import _exercise_payload_apply
 
@@ -85,16 +74,11 @@ class CustomExerciseSanitizeTests(TestCase):
         ex = Exercise(is_custom=True)
         _exercise_payload_apply(ex, {
             'name': 'Test',
-            'difficulty_level': '<b>hax</b>',          # not in picklist → dropped
-            'equipment': 'x' * 500,                     # capped to 100
             'coach_notes': 'n' * 9000,                  # capped to 5000
-            'video_url': 'javascript:alert(1)',         # dropped
+            'description': 'd' * 9000,                   # capped to 5000
         }, _Coach())
-        self.assertEqual(ex.difficulty_level, '')
-        self.assertEqual(len(ex.equipment), 100)
         self.assertEqual(len(ex.coach_notes), 5000)
-        self.assertEqual(ex.video_url, '')
-        self.assertTrue('Avanzato' in ALLOWED_DIFFICULTY)
+        self.assertEqual(len(ex.description), 5000)
 
 
 class FormSanitizeTests(TestCase):

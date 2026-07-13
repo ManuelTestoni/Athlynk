@@ -58,7 +58,7 @@
         </div>
         <div class="flex-1 min-w-0">
           <p class="al-h-4 truncate" x-text="a.plan_title"></p>
-          <p class="al-tag mt-0.5" x-text="[a.level, a.goal, a.sport_name].filter(Boolean).join(' · ')"></p>
+          <p class="al-tag mt-0.5" x-text="[a.level, a.goal].filter(Boolean).join(' · ')"></p>
           <p class="al-small mt-1" style="color: var(--al-ink-faint);"
              x-text="(a.start_date || '—') + (a.end_date ? ' → ' + a.end_date : '') + ' · ' + a.completed_session_count + '/' + (a.expected_session_count || '—') + ' sessioni'"></p>
         </div>

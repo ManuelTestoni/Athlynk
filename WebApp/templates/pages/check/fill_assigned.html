@@ -45,7 +45,7 @@
     </div>
 
     <!-- Scadenza alert -->
-    <div class="al-toast mb-6" style="background:rgba(138,106,58,.08);color:var(--al-bronze);border-left-color:var(--al-bronze);">
+    <div class="al-toast mb-6" style="background:rgba(30,58,95,.08);color:var(--al-bronze);border-left-color:var(--al-bronze);">
         <i class="ph ph-clock shrink-0"></i>
         <span>Compila entro <strong>{{ instance.expires_at|date:"d M Y" }} alle {{ instance.expires_at|date:"H:i" }}</strong></span>
     </div>
@@ -78,7 +78,7 @@
     {% endif %}
 
     <!-- Step pills -->
-    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background:rgba(244,239,228,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--al-rule);">
+    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--al-rule);">
         <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
             <template x-for="s in visibleSteps" :key="s.id">
                 <button @click="goTo(s.id)" type="button"

@@ -127,7 +127,7 @@ window.NUTRITION_WIZARD_INIT = {
     background: var(--al-parchment); color: var(--al-ink-soft);
     transition: all .15s ease;
   }
-  .nzp-chip:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); }
+  .nzp-chip:hover { border-color: var(--al-accent, var(--al-bronze)); }
   .nzp-chip.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: var(--al-parchment); }
   .nzp-body { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
   .nzp-row {
@@ -173,7 +173,7 @@ window.NUTRITION_WIZARD_INIT = {
     <div class="flex gap-2 items-center shrink-0">
       <button type="button" @click="exitWithoutSaving()" :disabled="saving"
               class="al-btn al-btn-ghost"
-              style="color: var(--al-danger); border-color: rgba(138,58,58,0.25);"
+              style="color: var(--al-danger); border-color: rgba(162,59,59,0.25);"
               x-show="step !== 'riepilogo'"
               title="Annulla e torna ai piani">
         <i class="ph ph-x text-sm"></i>
@@ -434,7 +434,7 @@ window.NUTRITION_WIZARD_INIT = {
     <!-- WEEKLY: sticky day tabs -->
     <template x-if="planKind === 'WEEKLY'">
       <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
-           style="padding: 12px 16px; background: rgba(244,239,228,0.95); backdrop-filter: saturate(140%) blur(8px);">
+           style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
         <div class="flex items-center gap-1 overflow-x-auto">
           <template x-for="d in weekDays" :key="d.code">
             <button type="button" @click="activeDay = d.code"
@@ -491,17 +491,17 @@ window.NUTRITION_WIZARD_INIT = {
                 <p class="font-mono font-medium text-ink mt-1" style="font-size: 22px;" x-text="avgKcal()"></p>
               </div>
               <div class="text-center py-4 px-2"
-                   style="background: var(--al-info-bg); border: 1px solid rgba(28,74,82,0.18); border-radius: var(--al-r-sm);">
+                   style="background: var(--al-info-bg); border: 1px solid rgba(30,58,95,0.18); border-radius: var(--al-r-sm);">
                 <p class="al-tag" style="font-size: 9px; color: var(--al-aegean);">Prot</p>
                 <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-aegean);" x-text="avgMacro('protein') + 'g'"></p>
               </div>
               <div class="text-center py-4 px-2"
-                   style="background: var(--al-warn-bg); border: 1px solid rgba(166,128,43,0.22); border-radius: var(--al-r-sm);">
+                   style="background: var(--al-warn-bg); border: 1px solid rgba(138,106,30,0.22); border-radius: var(--al-r-sm);">
                 <p class="al-tag" style="font-size: 9px; color: var(--al-warn);">Carb</p>
                 <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-warn);" x-text="avgMacro('carb') + 'g'"></p>
               </div>
               <div class="text-center py-4 px-2"
-                   style="background: var(--al-danger-bg); border: 1px solid rgba(138,58,58,0.22); border-radius: var(--al-r-sm);">
+                   style="background: var(--al-danger-bg); border: 1px solid rgba(162,59,59,0.22); border-radius: var(--al-r-sm);">
                 <p class="al-tag" style="font-size: 9px; color: var(--al-danger);">Fat</p>
                 <p class="font-mono font-medium mt-1" style="font-size: 22px; color: var(--al-danger);" x-text="avgMacro('fat') + 'g'"></p>
               </div>
@@ -576,7 +576,7 @@ window.NUTRITION_WIZARD_INIT = {
             <div x-data="{ hover: null }" class="relative">
               <template x-if="!hasAnyMealWithItem()">
                 <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
-                     style="background: linear-gradient(180deg, rgba(244,239,228,0.4) 0%, rgba(244,239,228,0.85) 100%);">
+                     style="background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.85) 100%);">
                   <p class="al-tag" style="color: var(--al-ink-mute);">
                     <i class="ph ph-chart-bar text-bronze"></i>
                     <span>Aggiungi alimenti per popolare il grafico</span>
@@ -792,13 +792,13 @@ window.NUTRITION_WIZARD_INIT = {
                               </button>
                               <button type="button" @click="item.addSubMode = 'ISOPROT'"
                                       class="al-tag transition-all"
-                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(28,74,82,0.3); color: var(--al-aegean);">
+                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(30,58,95,0.3); color: var(--al-aegean);">
                                 <i class="ph ph-barbell text-[10px]"></i>
                                 <span>iso-prot</span>
                               </button>
                               <button type="button" @click="item.addSubMode = 'ISOCARB'"
                                       class="al-tag transition-all"
-                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(166,128,43,0.35); color: var(--al-warn);">
+                                      style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(138,106,30,0.35); color: var(--al-warn);">
                                 <i class="ph ph-grains text-[10px]"></i>
                                 <span>iso-carb</span>
                               </button>
@@ -1037,7 +1037,7 @@ window.NUTRITION_WIZARD_INIT = {
               <div class="space-y-3">
                 <template x-for="row in [
                     {k:'protein',c:'var(--al-aegean)',  l:'Proteine',   t:protein_target_g, subs:[]},
-                    {k:'carb',   c:'var(--al-bronze)',  l:'Carboidrati',t:carb_target_g,
+                    {k:'carb',   c:'#8A6E5A',  l:'Carboidrati',t:carb_target_g,
                        subs:[{k:'sugars', l:'Zuccheri', u:'g'},
                              {k:'fiber',  l:'Fibre',    u:'g'}]},
                     {k:'fat',    c:'var(--al-ink-mute)',l:'Grassi',     t:fat_target_g,
@@ -1238,7 +1238,7 @@ window.NUTRITION_WIZARD_INIT = {
     <!-- WEEKLY: sticky day tabs -->
     <template x-if="planKind === 'WEEKLY'">
       <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
-           style="padding: 12px 16px; background: rgba(244,239,228,0.95); backdrop-filter: saturate(140%) blur(8px);">
+           style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
         <div class="flex items-center gap-1 overflow-x-auto">
           <template x-for="d in weekDays" :key="d.code">
             <button type="button" @click="activeDay = d.code"
@@ -1483,7 +1483,7 @@ window.NUTRITION_WIZARD_INIT = {
           <div class="space-y-3">
             <template x-for="row in [
                 {k:'protein', c:'var(--al-aegean)', l:'Proteine'},
-                {k:'carb',    c:'var(--al-bronze)', l:'Carboidrati'},
+                {k:'carb',    c:'#8A6E5A', l:'Carboidrati'},
                 {k:'fat',     c:'var(--al-ink-mute)',l:'Grassi'},
               ]" :key="row.k">
               <div class="flex items-center justify-between">
@@ -1709,7 +1709,7 @@ window.NUTRITION_WIZARD_INIT = {
                 <span class="al-tag" x-show="plan_type" x-text="plan_type"></span>
                 <span class="al-tag" x-show="nutrition_goal" x-text="nutrition_goal"></span>
                 <span class="al-tag" x-show="is_template"
-                      style="background: var(--al-info-bg); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.18);">
+                      style="background: var(--al-info-bg); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.18);">
                   <i class="ph ph-bookmark text-xs"></i><span>Template</span>
                 </span>
               </div>

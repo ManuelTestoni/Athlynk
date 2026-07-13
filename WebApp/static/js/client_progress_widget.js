@@ -25,9 +25,9 @@ document.addEventListener('alpine:init', () => {
             charts.loads = new Chart(ctx, {
               type: 'line',
               data: { labels: series.map(s => s.date), datasets: [{
-                data: series.map(s => s.load_max), borderColor: '#b8860b',
-                backgroundColor: 'rgba(184,134,11,0.12)', fill: true, tension: .3,
-                pointRadius: 2, pointBackgroundColor: '#b8860b',
+                data: series.map(s => s.load_max), borderColor: '#1E3A5F',
+                backgroundColor: 'rgba(30,58,95,0.12)', fill: true, tension: .3,
+                pointRadius: 2, pointBackgroundColor: '#1E3A5F',
               }] },
               options: {
                 responsive: true, maintainAspectRatio: false,
@@ -50,7 +50,7 @@ document.addEventListener('alpine:init', () => {
           this.$nextTick(() => {
             const ctx = document.getElementById('myVolumeChart');
             if (!ctx) return;
-            const colors = ['#b8860b', '#0d9488', '#dc2626', '#7c3aed', '#0ea5e9', '#16a34a', '#f59e0b', '#ec4899', '#6366f1', '#84cc16'];
+            const colors = ['#9C4448', '#1E3A5F', '#8A6E5A', '#3F7690', '#4F7A6A', '#6A5482', '#5B89B6', '#2B6E6E', '#8A6A1E', '#4A5A8A'];
             charts.volume = new Chart(ctx, {
               type: 'bar',
               data: {

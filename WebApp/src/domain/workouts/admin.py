@@ -1,18 +1,23 @@
 from django.contrib import admin
 
 from .models import (
-    Sport, MuscleGroup, WorkoutFolder, Exercise,
+    MuscleGroup, WorkoutFolder, Exercise, ExerciseCategory, Equipment,
     WorkoutPlan, WorkoutDay, WorkoutExercise,
 )
 
 
-@admin.register(Sport)
-class SportAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'category', 'order', 'is_system', 'created_by')
-    list_filter = ('category', 'is_system')
-    search_fields = ('name', 'slug')
-    ordering = ('order', 'name')
-    prepopulated_fields = {'slug': ('name',)}
+@admin.register(ExerciseCategory)
+class ExerciseCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name_it', 'name_en', 'wger_id')
+    search_fields = ('name_it', 'name_en')
+    ordering = ('name_it',)
+
+
+@admin.register(Equipment)
+class EquipmentAdmin(admin.ModelAdmin):
+    list_display = ('name_it', 'name_en', 'wger_id')
+    search_fields = ('name_it', 'name_en')
+    ordering = ('name_it',)
 
 
 @admin.register(MuscleGroup)
@@ -36,26 +41,27 @@ class WorkoutFolderAdmin(admin.ModelAdmin):
 class ExerciseAdmin(admin.ModelAdmin):
     list_display = (
         'name', 'is_custom', 'created_by',
-        'target_muscle_group', 'exercise_classification',
-        'updated_at',
+        'category', 'updated_at',
     )
-    list_filter = ('is_custom', 'difficulty_level', 'body_region')
-    search_fields = ('name', 'target_muscle_group', 'primary_muscle')
-    filter_horizontal = ('sports', 'primary_muscles', 'secondary_muscles')
+    list_filter = ('is_custom', 'category')
+    search_fields = ('name',)
+    filter_horizontal = ('equipment', 'primary_muscles', 'secondary_muscles')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Identificazione', {
-            'fields': ('name', 'slug', 'cover_image', 'video_url', 'is_custom', 'created_by'),
+            'fields': (
+                'name', 'slug', 'description', 'aliases',
+                'cover_image', 'is_custom', 'created_by',
+            ),
         }),
-        ('Tassonomia normalizzata', {
-            'fields': ('sports', 'primary_muscles', 'secondary_muscles'),
+        ('Tassonomia', {
+            'fields': ('category', 'equipment', 'primary_muscles', 'secondary_muscles'),
         }),
-        ('Tassonomia legacy (testo)', {
+        ('Fonte wger.de', {
             'classes': ('collapse',),
             'fields': (
-                'target_muscle_group', 'primary_muscle', 'secondary_muscle',
-                'equipment', 'movement_pattern_1', 'movement_pattern_2',
-                'body_region', 'exercise_classification', 'difficulty_level',
+                'wger_id', 'wger_uuid', 'wger_image_url',
+                'license_title', 'license_author',
             ),
         }),
         ('Meta', {
@@ -66,11 +72,11 @@ class ExerciseAdmin(admin.ModelAdmin):
 
 @admin.register(WorkoutPlan)
 class WorkoutPlanAdmin(admin.ModelAdmin):
-    list_display = ('title', 'coach', 'plan_kind', 'sport', 'folder',
+    list_display = ('title', 'coach', 'plan_kind', 'folder',
                     'status', 'duration_weeks', 'updated_at')
-    list_filter = ('plan_kind', 'status', 'sport', 'is_template')
+    list_filter = ('plan_kind', 'status', 'is_template')
     search_fields = ('title', 'coach__user__email')
-    raw_id_fields = ('coach', 'folder', 'sport')
+    raw_id_fields = ('coach', 'folder')
 
 
 @admin.register(WorkoutDay)

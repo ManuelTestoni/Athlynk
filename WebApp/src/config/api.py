@@ -386,9 +386,9 @@ def _exercise_dict(we):
     return {
         'id': we.id,
         'name': ex.name,
-        'video_url': ex.video_url,
-        'target_muscle_group': ex.target_muscle_group,
-        'equipment': ex.equipment,
+        'wger_image_url': ex.wger_image_url,
+        'primary_muscles': [m.name for m in ex.primary_muscles.all()],
+        'equipment': [eq.name_it for eq in ex.equipment.all()],
         'order_index': we.order_index,
         'set_count': we.set_count,
         'rep_count': we.rep_count,
@@ -1863,7 +1863,7 @@ def session_start(request, user):
         'workout_exercise_id': ex.id,
         'exercise_catalog_id': ex.exercise_id,
         'name': ex.exercise.name,
-        'target_muscle_group': ex.exercise.target_muscle_group,
+        'primary_muscles': [m.name for m in ex.exercise.primary_muscles.all()],
         'sets': ex.set_count or 3,
         'reps': ex.rep_range or (str(ex.rep_count) if ex.rep_count else '10'),
         'load_value': float(ex.load_value) if ex.load_value else None,
@@ -1872,7 +1872,7 @@ def session_start(request, user):
         'tempo': ex.tempo or '',
         'notes': ex.technique_notes or '',
         'set_details': ex.set_details or [],
-    } for ex in day.exercises.select_related('exercise').order_by('order_index')]
+    } for ex in day.exercises.select_related('exercise').prefetch_related('exercise__primary_muscles').order_by('order_index')]
 
     # Session-only deviations (removed/substituted/added), same shape as web.
     from .views_session import session_override_state
@@ -1889,7 +1889,7 @@ def session_start(request, user):
             'workout_exercise_id': None,
             'exercise_id': ex_obj.id,
             'name': ex_obj.name,
-            'target_muscle_group': ex_obj.target_muscle_group,
+            'primary_muscles': [m.name for m in ex_obj.primary_muscles.all()],
             'sets': 3,
             'reps': '10',
             'load_value': None,

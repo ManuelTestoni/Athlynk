@@ -12,7 +12,7 @@
     transition: all 140ms var(--al-ease);
 }
 .ck-pill:hover { transform: translateY(-1px); }
-.ck-pill.is-active { background: var(--al-ink); color: var(--al-parchment); box-shadow: 0 2px 8px rgba(20,17,13,.18); }
+.ck-pill.is-active { background: var(--al-ink); color: var(--al-parchment); box-shadow: 0 2px 8px rgba(11,29,58,.18); }
 .ck-pill.is-done { background: var(--al-bronze); color: white; }
 .ck-pill.is-todo { background: var(--al-marble); color: var(--al-ink-mute); }
 .ck-q-card {
@@ -43,7 +43,7 @@
     font-size: 12px; font-weight: 700; color: var(--al-bronze); cursor: pointer;
     transition: all 140ms var(--al-ease); white-space: nowrap;
 }
-.ck-restore-btn:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.ck-restore-btn:hover { border-color: var(--al-bronze); background: rgba(30,58,95,.06); }
 .ck-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--al-rule); }
 .ck-file-slot {
     display: flex; align-items: center; gap: 10px;
@@ -53,7 +53,7 @@
     transition: border-color 140ms;
 }
 .ck-file-slot:hover { border-color: var(--al-bronze); }
-.ck-file-slot.has-file { border-color: var(--al-bronze); background: rgba(138,106,58,.08); border-style: solid; }
+.ck-file-slot.has-file { border-color: var(--al-bronze); background: rgba(30,58,95,.08); border-style: solid; }
 
 /* ════════════════ Strumento: Calcolo Fabbisogni ════════════════ */
 .fb-tool { margin: 4px 0 6px; }
@@ -61,12 +61,12 @@
     display: flex; align-items: center; gap: 12px;
     padding: 14px 16px; margin-bottom: 16px;
     background:
-        radial-gradient(120% 160% at 100% 0%, rgba(138,106,58,.12), transparent 62%),
+        radial-gradient(120% 160% at 100% 0%, rgba(30,58,95,.12), transparent 62%),
         var(--al-marble);
-    border: 1px solid rgba(138,106,58,.30); border-left: 3px solid var(--al-bronze);
+    border: 1px solid rgba(30,58,95,.30); border-left: 3px solid var(--al-bronze);
     border-radius: var(--al-r-sm);
 }
-.fb-intro-ic { flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px; display: grid; place-content: center; background: var(--al-ink); color: var(--al-parchment); box-shadow: 0 3px 12px rgba(20,17,13,.18); }
+.fb-intro-ic { flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px; display: grid; place-content: center; background: var(--al-ink); color: var(--al-parchment); box-shadow: 0 3px 12px rgba(11,29,58,.18); }
 .fb-intro-ic i { font-size: 22px; }
 .fb-card {
     background: var(--al-parchment); border: 1px solid var(--al-rule);
@@ -80,7 +80,7 @@
 @media (min-width: 640px) { .fb-grid.is-4 { grid-template-columns: repeat(4, minmax(0,1fr)); } }
 .fb-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .fb-lab { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--al-ink); }
-.fb-lab .fb-from { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--al-bronze); background: rgba(138,106,58,.10); padding: 1px 6px; border-radius: 999px; }
+.fb-lab .fb-from { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--al-bronze); background: rgba(30,58,95,.10); padding: 1px 6px; border-radius: 999px; }
 .fb-in {
     display: flex; align-items: center; gap: 6px; padding: 0 10px;
     background: var(--al-marble); border: 1.5px solid var(--al-rule); border-radius: 9px;
@@ -106,7 +106,7 @@
     position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
     width: max-content; max-width: 280px; z-index: 40;
     background: var(--al-ink); color: var(--al-parchment);
-    padding: 9px 12px; border-radius: 9px; box-shadow: 0 8px 24px rgba(20,17,13,.28);
+    padding: 9px 12px; border-radius: 9px; box-shadow: 0 8px 24px rgba(11,29,58,.28);
     font-size: 11.5px; line-height: 1.5; letter-spacing: .01em;
     opacity: 0; pointer-events: none; transition: opacity 140ms var(--al-ease), transform 140ms var(--al-ease);
 }
@@ -115,7 +115,7 @@
 .fb-tip code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #fff; }
 .fb-formula:hover .fb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 .fb-add-formula { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 9px; border: 1.5px dashed var(--al-rule-strong); background: transparent; font-size: 12px; font-weight: 700; color: var(--al-bronze); cursor: pointer; transition: all 140ms var(--al-ease); }
-.fb-add-formula:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.fb-add-formula:hover { border-color: var(--al-bronze); background: rgba(30,58,95,.06); }
 
 /* DET / energetico */
 .fb-det {
@@ -194,7 +194,7 @@
         {% endif %}
 
         <!-- Step pills -->
-        <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background: rgba(244,239,228,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
+        <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-8" style="background: rgba(255,255,255,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
             <div class="flex items-center gap-2 overflow-x-auto pb-0.5">
                 <template x-for="(s, idx) in steps" :key="s.id">
                     <button @click="goTo(idx)" type="button"
@@ -278,7 +278,7 @@
                             </div>
                             <div class="fb-grid" style="margin-top:16px;">
                                 <div class="fb-field">
-                                    <label class="fb-lab">MB stimata <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">auto · modificabile</span></label>
+                                    <label class="fb-lab">MB stimata <span class="fb-from" style="background:rgba(11,29,58,.06);color:var(--al-ink-mute);">auto · modificabile</span></label>
                                     <span class="fb-in is-auto"><input type="number" inputmode="numeric" placeholder="—" :value="answers.mb_stimata_kcal ?? ''" @input="answers.mb_stimata_kcal=$event.target.value"><span class="fb-u">kcal</span></span>
                                 </div>
                             </div>
@@ -304,7 +304,7 @@
                             </div>
                             <div class="fb-grid" style="margin-top:14px;">
                                 <div class="fb-field">
-                                    <label class="fb-lab">DET base <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">MB × PAL</span></label>
+                                    <label class="fb-lab">DET base <span class="fb-from" style="background:rgba(11,29,58,.06);color:var(--al-ink-mute);">MB × PAL</span></label>
                                     <span class="fb-in is-auto"><input type="number" inputmode="numeric" placeholder="—" :value="answers.det_kcal ?? ''" @input="answers.det_kcal=$event.target.value"><span class="fb-u">kcal</span></span>
                                 </div>
                                 <div class="fb-field">
@@ -343,7 +343,7 @@
                                             <span class="fb-in"><input type="number" step="0.1" inputmode="decimal" min="0" placeholder="0.0" :value="answers[m.gkgKey] ?? ''" @input="answers[m.gkgKey]=$event.target.value; fbMacroFromGkg(m)"><span class="fb-u" x-text="m.gkgUnit"></span></span>
                                         </div>
                                         <div class="fb-field">
-                                            <label class="fb-lab">Grammi totali <span class="fb-from" style="background:rgba(20,17,13,.06);color:var(--al-ink-mute);">⇄</span></label>
+                                            <label class="fb-lab">Grammi totali <span class="fb-from" style="background:rgba(11,29,58,.06);color:var(--al-ink-mute);">⇄</span></label>
                                             <span class="fb-in"><input type="number" inputmode="numeric" min="0" placeholder="—" :value="answers[m.gKey] ?? ''" @input="answers[m.gKey]=$event.target.value; fbMacroFromGrams(m)"><span class="fb-u">g</span></span>
                                         </div>
                                         <div class="fb-out">
@@ -816,7 +816,7 @@ function checkFill() {
             { v: 1.725, l: 'Attivo' }, { v: 1.9, l: 'Molto attivo' },
         ],
         fbMacroDefs: [
-            { key: 'proteine',    label: 'Proteine',    gkgKey: 'proteine_gkg',    gKey: 'proteine_g_totale',    noteKey: 'proteine_note',    factor: 4, gkgUnit: 'g/kg', color: '#8a6a3a' },
+            { key: 'proteine',    label: 'Proteine',    gkgKey: 'proteine_gkg',    gKey: 'proteine_g_totale',    noteKey: 'proteine_note',    factor: 4, gkgUnit: 'g/kg', color: '#1E3A5F' },
             { key: 'carboidrati', label: 'Carboidrati', gkgKey: 'carboidrati_gkg', gKey: 'carboidrati_g_totale', noteKey: 'carboidrati_note', factor: 4, gkgUnit: 'g/kg', color: '#4f7d6a' },
             { key: 'lipidi',      label: 'Lipidi',      gkgKey: 'lipidi_target',   gKey: 'lipidi_g_totale',      noteKey: 'lipidi_note',      factor: 9, gkgUnit: 'g/kg', color: '#b5854a' },
         ],

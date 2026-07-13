@@ -6,7 +6,7 @@
   left: 16px; right: 16px; bottom: 16px;
   z-index: 9999;
   font-family: 'Inter', system-ui, sans-serif;
-  color: #14110d;
+  color: #0B1D3A;
   display: none;
 }
 .cc-root.is-open {
@@ -27,10 +27,10 @@
 
 .cc-banner {
   position: relative;
-  background: #f4efe4;
-  border: 1px solid #c4b89c;
-  border-top: 3px solid #8a6a3a;
-  box-shadow: 0 30px 80px -30px rgba(20,17,13,0.45);
+  background: #FFFFFF;
+  border: 1px solid #C9D2DE;
+  border-top: 3px solid #1E3A5F;
+  box-shadow: 0 30px 80px -30px rgba(11,29,58,0.45);
   padding: 22px 24px;
   border-radius: 16px;
 }
@@ -43,27 +43,27 @@
   border: 0;
   font-size: 22px;
   line-height: 1;
-  color: #8a8270;
+  color: #7C8CA3;
   cursor: pointer;
   border-radius: 999px;
   transition: color 200ms ease, background 200ms ease;
 }
-.cc-close-x:hover { color: #14110d; background: #ece5d6; }
+.cc-close-x:hover { color: #0B1D3A; background: #E8ECF2; }
 
 .cc-banner h2 {
   font-family: 'Bodoni Moda', Georgia, serif;
   font-size: 20px;
   margin: 0 0 8px;
-  color: #14110d;
+  color: #0B1D3A;
   letter-spacing: -0.01em;
 }
 .cc-banner p {
   font-size: 13px;
   line-height: 1.55;
   margin: 0;
-  color: #2a2620;
+  color: #16294A;
 }
-.cc-banner p a { color: #8a6a3a; text-decoration: underline; }
+.cc-banner p a { color: #3E6E95; text-decoration: underline; }
 
 .cc-actions {
   display: flex;
@@ -72,9 +72,9 @@
   margin-top: 18px;
 }
 .cc-btn {
-  border: 1px solid #8a8270;
-  background: #ffffff;
-  color: #14110d;
+  border: 1px solid #C9D2DE;
+  background: #FFFFFF;
+  color: #0B1D3A;
   padding: 10px 22px;
   font-size: 12px;
   letter-spacing: 0.1em;
@@ -84,25 +84,29 @@
   border-radius: 999px;
   transition: border-color 200ms ease, background 200ms ease, transform 180ms cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 180ms ease;
 }
-.cc-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -8px rgba(20,17,13,0.22); }
+.cc-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -8px rgba(11,29,58,0.22); }
 .cc-btn:active { transform: translateY(0) scale(0.985); }
-.cc-btn:hover { border-color: #8a6a3a; }
+.cc-btn:hover { border-color: #5B89B6; }
 .cc-btn-primary {
-  background: #14110d;
-  color: #f4efe4;
-  border-color: #14110d;
+  background: #1E3A5F;
+  color: #FFFFFF;
+  border-color: #1E3A5F;
 }
-.cc-btn-primary:hover { background: #2a2620; }
+.cc-btn-primary:hover { background: #132A47; }
+/* "3 buttons of equal visual weight" (see file header) — this used to be
+   the same bronze as .cc-btn-primary; now that bronze folds into primary,
+   it gets the accent blue instead so it stays visually distinct rather
+   than looking like a second primary CTA. */
 .cc-btn-bronze {
-  background: #8a6a3a;
-  color: #f4efe4;
-  border-color: #8a6a3a;
+  background: #5B89B6;
+  color: #FFFFFF;
+  border-color: #5B89B6;
 }
-.cc-btn-bronze:hover { background: #a78554; }
+.cc-btn-bronze:hover { background: #3E6E95; }
 
 .cc-modal-back {
   position: fixed; inset: 0;
-  background: rgba(20,17,13,0.55);
+  background: rgba(11,29,58,0.55);
   backdrop-filter: blur(2px);
   z-index: 10000;
   display: none;
@@ -119,18 +123,18 @@
 }
 .cc-modal.is-open { display: flex; }
 .cc-modal-panel {
-  background: #f4efe4;
-  border: 1px solid #c4b89c;
+  background: #FFFFFF;
+  border: 1px solid #C9D2DE;
   max-width: 520px;
   width: 100%;
   max-height: 86vh;
   overflow-y: auto;
   border-radius: 22px;
-  box-shadow: 0 30px 80px -30px rgba(20,17,13,0.5);
+  box-shadow: 0 30px 80px -30px rgba(11,29,58,0.5);
 }
 .cc-modal-head {
-  background: #14110d;
-  color: #f4efe4;
+  background: #0B1D3A;
+  color: #FFFFFF;
   padding: 18px 22px;
   display: flex; align-items: center; justify-content: space-between;
 }
@@ -140,13 +144,13 @@
   margin: 0;
 }
 .cc-modal-close {
-  background: transparent; border: 0; color: #f4efe4; cursor: pointer; font-size: 18px;
+  background: transparent; border: 0; color: #FFFFFF; cursor: pointer; font-size: 18px;
 }
 .cc-modal-body { padding: 20px 22px; }
 
 .cc-cat {
   padding: 14px 0;
-  border-bottom: 1px solid #d8cfba;
+  border-bottom: 1px solid #E8ECF2;
 }
 .cc-cat:last-child { border-bottom: 0; }
 .cc-cat-row {
@@ -155,32 +159,35 @@
 .cc-cat h4 {
   font-size: 14px;
   margin: 0 0 4px;
-  color: #14110d;
+  color: #0B1D3A;
   font-weight: 600;
 }
 .cc-cat p {
   font-size: 12px;
   line-height: 1.5;
-  color: #5b554a;
+  color: #4B5D75;
   margin: 0;
 }
 .cc-toggle {
   position: relative;
   width: 36px; height: 20px;
-  background: #d8cfba;
+  background: #E8ECF2;
   border-radius: 999px;
   cursor: pointer;
   transition: background 200ms ease;
   flex-shrink: 0;
 }
-.cc-toggle.is-on { background: #8a6a3a; }
-.cc-toggle.is-locked { background: #1c4a52; cursor: not-allowed; opacity: 0.85; }
+.cc-toggle.is-on { background: #1E3A5F; }
+/* "Locked" (necessary cookies, always on) used to be a distinct teal from
+   the regular "on" bronze; teal now folds into primary too, so this gets a
+   muted tone instead to still read as "on but not a free choice". */
+.cc-toggle.is-locked { background: #4B5D75; cursor: not-allowed; opacity: 0.85; }
 .cc-toggle::after {
   content: '';
   position: absolute;
   top: 2px; left: 2px;
   width: 16px; height: 16px;
-  background: #ffffff;
+  background: #FFFFFF;
   border-radius: 50%;
   transition: transform 200ms ease;
 }
@@ -188,8 +195,8 @@
 
 .cc-modal-foot {
   padding: 14px 22px;
-  border-top: 1px solid #d8cfba;
+  border-top: 1px solid #E8ECF2;
   display: flex; gap: 10px; flex-wrap: wrap;
-  background: #ece5d6;
+  background: #F4F6F9;
 }
 .cc-modal-foot .cc-btn { flex: 1; min-width: 140px; text-align: center; }

@@ -15,10 +15,10 @@ from .session_utils import get_session_user, get_session_coach, get_session_clie
 
 
 TYPE_COLORS = {
-    'check': '#6366f1',
-    'prima_visita': '#10b981',
-    'visita': '#3b82f6',
-    'consulenza': '#f59e0b',
+    'check': '#4A5A8A',
+    'prima_visita': '#4F7A6A',
+    'visita': '#1E3A5F',
+    'consulenza': '#8A6A1E',
 }
 
 
@@ -42,7 +42,7 @@ def _serialize_event(evt, *, coach_view):
         'end': evt.end_datetime.isoformat(),
         'duration_minutes': evt.duration_minutes,
         'type': evt.appointment_type,
-        'color': TYPE_COLORS.get(evt.appointment_type.lower(), '#64748b'),
+        'color': TYPE_COLORS.get(evt.appointment_type.lower(), '#5B6B78'),
         'client_id': evt.client_id,
         'client_name': f"{evt.client.first_name} {evt.client.last_name}",
         'status': evt.status,

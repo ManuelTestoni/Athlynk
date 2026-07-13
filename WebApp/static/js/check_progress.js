@@ -145,11 +145,11 @@
 
   /* ===================== chart styling ===================== */
 
-  var INK = '#14110d';
-  var LABEL = '#5b554a';
-  var GRID = 'rgba(91,85,74,0.10)';
-  var CREAM = '#f4efe4';
-  var COLORS = { weight: '#1c4a52', circ: '#1c4a52', skin: '#1c4a52' };
+  var INK = '#0B1D3A';
+  var LABEL = '#4B5D75';
+  var GRID = 'rgba(75,93,117,0.10)';
+  var CREAM = '#FFFFFF';
+  var COLORS = { weight: '#1E3A5F', circ: '#1E3A5F', skin: '#1E3A5F' };
   var MIN_PX_POINT = 34;   // spaziatura minima tra punti (leggibilità tick)
 
   function yBounds(values, pad) {
@@ -476,7 +476,7 @@
               min: 0,
               max: maxX,
               grid: { display: false },
-              border: { color: 'rgba(91,85,74,0.18)' },
+              border: { color: 'rgba(75,93,117,0.18)' },
               // un tick per settimana, sugli interi (dove sta la media)
               afterBuildTicks: function (axis) {
                 axis.ticks = entries.map(function (_, i) { return { value: i }; });

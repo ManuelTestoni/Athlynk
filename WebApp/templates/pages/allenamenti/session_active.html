@@ -340,7 +340,7 @@
     color: var(--al-parchment);
     border-color: var(--al-bronze);
   }
-  .ss-set-icon.power:hover { background: var(--al-bronze-s); }
+  .ss-set-icon.power:hover { background: var(--al-accent); }
   .ss-set-icon.power:active { transform: scale(0.95); }
   .ss-set-icon.check {
     background: var(--al-success-bg);
@@ -358,7 +358,7 @@
     font-size: .85rem; font-weight: 600;
     transition: color .15s, border-color .15s;
   }
-  .ss-add-set:hover { color: var(--al-bronze); border-color: var(--al-bronze); }
+  .ss-add-set:hover { color: var(--al-accent); border-color: var(--al-accent); }
 
   .ss-timer {
     margin-top: 1rem;
@@ -392,7 +392,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.15rem;
   }
-  .ss-timer-btn:hover { background: var(--al-bronze-s); }
+  .ss-timer-btn:hover { background: var(--al-accent); }
 
   .ss-notes-toggle {
     margin-top: 1rem;
@@ -435,7 +435,7 @@
   /* Bottom action bar */
   .ss-bottom {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(244,239,228,0.95);
+    background: rgba(255,255,255,0.95);
     backdrop-filter: blur(10px);
     border-top: 1px solid var(--al-rule-faint);
     padding: .8rem 1.5rem;
@@ -771,11 +771,10 @@
         <h3 class="text-xl font-bold" x-text="instructionsModal.ex?.name"></h3>
         <button @click="instructionsModal.open=false" class="ss-set-icon"><i class="ph ph-x"></i></button>
       </div>
+      <img x-show="instructionsModal.ex?.wger_image_url" :src="instructionsModal.ex?.wger_image_url" alt=""
+           class="w-full rounded-xl mb-3" style="max-height: 220px; object-fit: cover;">
       <p class="text-sm mb-3" style="color: var(--al-ink-mute);" x-text="instructionsModal.ex?.notes || 'Nessuna nota dal coach.'"></p>
       <p x-show="instructionsModal.ex?.instructions" class="text-sm" x-text="instructionsModal.ex?.instructions"></p>
-      <a x-show="instructionsModal.ex?.video_url" :href="instructionsModal.ex?.video_url" target="_blank" class="ss-bottom-btn block mt-4 text-center">
-        <i class="ph ph-play-circle"></i> Guarda video
-      </a>
     </div>
   </div>
 
@@ -830,7 +829,7 @@
               <button class="ss-picker-row" @click="choosePicked(item)">
                 <span class="flex-1 min-w-0">
                   <span class="block font-semibold text-sm truncate" x-text="item.name"></span>
-                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, item.equipment].filter(Boolean).join(' · ')"></span>
+                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, (item.equipment || []).join(', ')].filter(Boolean).join(' · ')"></span>
                 </span>
                 <i class="ph ph-caret-right ss-chev"></i>
               </button>
@@ -865,7 +864,7 @@
               <button class="ss-picker-row" @click="choosePicked(item)">
                 <span class="flex-1 min-w-0">
                   <span class="block font-semibold text-sm truncate" x-text="item.name"></span>
-                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, item.equipment].filter(Boolean).join(' · ')"></span>
+                  <span class="block text-xs" style="color: var(--al-ink-mute);" x-text="[item.primary_muscle, (item.equipment || []).join(', ')].filter(Boolean).join(' · ')"></span>
                 </span>
                 <i class="ph ph-caret-right ss-chev"></i>
               </button>

@@ -55,8 +55,8 @@
         background: var(--al-parchment);
         background-image:
           radial-gradient(ellipse 100% 60% at 50% -20%, rgba(255,255,255,0.7), transparent 60%),
-          radial-gradient(ellipse 80% 60% at 100% 110%, rgba(28,74,82,0.06), transparent 60%),
-          radial-gradient(ellipse 60% 40% at 0% 110%, rgba(138,106,58,0.06), transparent 60%);
+          radial-gradient(ellipse 80% 60% at 100% 110%, rgba(30,58,95,0.06), transparent 60%),
+          radial-gradient(ellipse 60% 40% at 0% 110%, rgba(30,58,95,0.06), transparent 60%);
       }
 
       /* Decorative columns silhouette behind the panel (md+) */
@@ -76,13 +76,13 @@
         background:
           repeating-linear-gradient(
             90deg,
-            #ece5d6 0 11px,
-            rgba(20,17,13,0.08) 11px 12px,
-            #e7dfcb 12px 22px,
-            rgba(20,17,13,0.05) 22px 23px
+            #F4F6F9 0 11px,
+            rgba(11,29,58,0.08) 11px 12px,
+            #EEF1F6 12px 22px,
+            rgba(11,29,58,0.05) 22px 23px
           );
-        border-top: 4px solid #d8cfba;
-        border-bottom: 4px solid #d8cfba;
+        border-top: 4px solid #E8ECF2;
+        border-bottom: 4px solid #E8ECF2;
       }
       @media (max-width: 880px) { .auth-columns { display: none; } }
 
@@ -155,7 +155,7 @@
         100% { opacity: 0; background-position: -90% 0; }
       }
 
-      .auth-mark { height: 34px; color: #14110d; }
+      .auth-mark { height: 34px; color: #0B1D3A; }
 
       /* Role tile */
       .auth-tile {
@@ -171,7 +171,7 @@
         border-radius: var(--al-r-md);
       }
       .auth-tile:hover { border-color: var(--al-bronze-s); transform: translateY(-2px); }
-      .auth-tile.is-on { border-color: var(--al-bronze); background: var(--al-marble-warm); box-shadow: 0 0 0 2px rgba(138,106,58,0.3); }
+      .auth-tile.is-on { border-color: var(--al-bronze); background: var(--al-marble-warm); box-shadow: 0 0 0 2px rgba(30,58,95,0.3); }
 
       .auth-tile-row {
         padding: 12px 14px;
@@ -183,7 +183,7 @@
         transition: border-color var(--al-d-base) var(--al-ease), background var(--al-d-base) var(--al-ease);
       }
       .auth-tile-row:hover { border-color: var(--al-bronze-s); }
-      .auth-tile-row.is-on { border-color: var(--al-bronze); background: var(--al-marble-warm); box-shadow: 0 0 0 2px rgba(138,106,58,0.25); }
+      .auth-tile-row.is-on { border-color: var(--al-bronze); background: var(--al-marble-warm); box-shadow: 0 0 0 2px rgba(30,58,95,0.25); }
 
       .auth-tile-icon {
         width: 40px; height: 40px;

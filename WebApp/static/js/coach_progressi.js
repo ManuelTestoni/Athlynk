@@ -108,9 +108,9 @@ document.addEventListener('alpine:init', () => {
         data: {
           labels,
           datasets: [
-            { label: 'Carico max (kg)', data: dsData[0], borderColor: '#b8860b', backgroundColor: 'rgba(184,134,11,0.15)', borderWidth: 2, tension: .3, yAxisID: 'y', hidden: hidden[0] },
-            { label: 'Rip medie', data: dsData[1], borderColor: '#0d9488', backgroundColor: 'rgba(13,148,136,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[1] },
-            { label: 'RPE medio', data: dsData[2], borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[2] },
+            { label: 'Carico max (kg)', data: dsData[0], borderColor: '#1E3A5F', backgroundColor: 'rgba(30,58,95,0.15)', borderWidth: 2, tension: .3, yAxisID: 'y', hidden: hidden[0] },
+            { label: 'Rip medie', data: dsData[1], borderColor: '#3F7690', backgroundColor: 'rgba(63,118,144,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[1] },
+            { label: 'RPE medio', data: dsData[2], borderColor: '#A23B3B', backgroundColor: 'rgba(162,59,59,0.1)', borderWidth: 2, tension: .3, yAxisID: 'y1', hidden: hidden[2] },
           ],
         },
         options: {
@@ -151,7 +151,7 @@ document.addEventListener('alpine:init', () => {
       const ctx = document.getElementById('volumeChart');
       if (!ctx) return;
       if (charts.volume) charts.volume.destroy();
-      const colors = ['#b8860b', '#0d9488', '#dc2626', '#7c3aed', '#0ea5e9', '#16a34a', '#f59e0b', '#ec4899', '#6366f1', '#84cc16', '#06b6d4'];
+      const colors = ['#9C4448', '#1E3A5F', '#8A6E5A', '#3F7690', '#4F7A6A', '#6A5482', '#5B89B6', '#2B6E6E', '#8A6A1E', '#4A5A8A', '#8A5A6B'];
       // Same histogram language as the adherence chart (flat fill, rounded
       // top); only the per-muscle colour differs, as intended.
       const datasets = this.volume.muscles.map((m, i) => ({
@@ -193,7 +193,7 @@ document.addEventListener('alpine:init', () => {
           datasets: [{
             label: '% completate',
             data: data.map(d => d.pct),
-            backgroundColor: data.map(d => d.pct >= 80 ? '#16a34a' : d.pct >= 50 ? '#f59e0b' : '#dc2626'),
+            backgroundColor: data.map(d => d.pct >= 80 ? '#3F7A5E' : d.pct >= 50 ? '#8A6A1E' : '#A23B3B'),
             borderRadius: 4,
           }],
         },
@@ -226,8 +226,8 @@ document.addEventListener('alpine:init', () => {
           datasets: [{
             label: 'RPE medio',
             data: data.map(d => d.avg_rpe),
-            borderColor: '#dc2626',
-            backgroundColor: 'rgba(220,38,38,0.15)',
+            borderColor: '#A23B3B',
+            backgroundColor: 'rgba(162,59,59,0.15)',
             borderWidth: 2,
             tension: .3,
           }],

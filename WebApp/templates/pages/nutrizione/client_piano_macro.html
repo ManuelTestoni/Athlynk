@@ -36,9 +36,9 @@
     position: relative; overflow: hidden;
     border: 1px solid var(--al-rule); border-radius: var(--al-r-md);
     background:
-      radial-gradient(circle at 95% -5%, rgba(138,106,58,0.24) 0%, transparent 50%),
-      radial-gradient(circle at -5% 110%, rgba(28,74,82,0.16) 0%, transparent 50%),
-      linear-gradient(160deg, var(--al-ink) 0%, #1c1812 60%, #2a2317 100%);
+      radial-gradient(circle at 95% -5%, rgba(30,58,95,0.24) 0%, transparent 50%),
+      radial-gradient(circle at -5% 110%, rgba(30,58,95,0.16) 0%, transparent 50%),
+      linear-gradient(160deg, var(--al-ink) 0%, #1c1812 60%, #1a3456 100%);
     color: var(--al-parchment);
     padding: 2.25rem 2rem 2rem; margin-bottom: 1.5rem;
   }
@@ -62,14 +62,14 @@
   .ml-meta { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; position: relative; }
   .ml-chip {
     display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem;
-    background: rgba(244,239,228,0.05); border: 1px solid rgba(244,239,228,0.12);
-    border-radius: 999px; font-size: .72rem; font-weight: 500; color: rgba(244,239,228,0.82);
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px; font-size: .72rem; font-weight: 500; color: rgba(255,255,255,0.82);
   }
   .ml-chip i { font-size: .9rem; color: var(--al-bronze); }
   .ml-note {
     margin-top: 1.3rem; padding: 1rem 1.2rem; border-radius: var(--al-r-sm);
-    background: rgba(244,239,228,0.05); border-left: 3px solid var(--al-bronze);
-    color: rgba(244,239,228,0.85); font-size: .88rem; line-height: 1.55; position: relative;
+    background: rgba(255,255,255,0.05); border-left: 3px solid var(--al-bronze);
+    color: rgba(255,255,255,0.85); font-size: .88rem; line-height: 1.55; position: relative;
   }
   .ml-note-label {
     font-family: var(--al-mono); font-size: .62rem; text-transform: uppercase;
@@ -142,7 +142,7 @@
     display: flex; align-items: center; justify-content: space-between;
     gap: .75rem; padding: .8rem 1.1rem .75rem;
     background: linear-gradient(135deg, #1a1612 0%, #2e2318 100%);
-    border-bottom: 1px solid rgba(138,106,58,0.18);
+    border-bottom: 1px solid rgba(30,58,95,0.18);
   }
 
   .ml-meal-left { min-width: 0; }
@@ -153,7 +153,7 @@
   }
   .ml-meal-kcal {
     font-family: var(--al-mono); font-size: .6rem;
-    color: rgba(244,239,228,0.42); margin-top: .1rem; display: block;
+    color: rgba(255,255,255,0.42); margin-top: .1rem; display: block;
   }
 
   .ml-meal-actions { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
@@ -166,12 +166,12 @@
     transition: all .15s; border: 1px solid;
   }
   .ml-meal-btn-add {
-    color: var(--al-bronze); border-color: rgba(138,106,58,0.3);
-    background: rgba(138,106,58,0.08);
+    color: var(--al-bronze); border-color: rgba(30,58,95,0.3);
+    background: rgba(30,58,95,0.08);
   }
-  .ml-meal-btn-add:hover { background: rgba(138,106,58,0.18); border-color: var(--al-bronze); }
+  .ml-meal-btn-add:hover { background: rgba(30,58,95,0.18); border-color: var(--al-bronze); }
   .ml-meal-btn-del {
-    color: rgba(244,239,228,0.35); border-color: rgba(244,239,228,0.1);
+    color: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.1);
     background: transparent;
   }
   .ml-meal-btn-del:hover { color: var(--al-danger); border-color: rgba(var(--al-danger-rgb,200,60,60),0.3); background: rgba(var(--al-danger-rgb,200,60,60),0.08); }
@@ -216,10 +216,10 @@
     display: inline-flex; align-items: center; gap: .5rem;
     font-family: var(--al-mono); font-size: .7rem; font-weight: 600;
     letter-spacing: .1em; text-transform: uppercase; color: var(--al-bronze);
-    background: rgba(138,106,58,0.06); border: 1px dashed rgba(138,106,58,0.3);
+    background: rgba(30,58,95,0.06); border: 1px dashed rgba(30,58,95,0.3);
     border-radius: var(--al-r-sm); padding: .65rem 1.4rem; cursor: pointer; transition: all .2s;
   }
-  .ml-meal-empty-btn:hover { background: rgba(138,106,58,0.12); border-style: solid; }
+  .ml-meal-empty-btn:hover { background: rgba(30,58,95,0.12); border-style: solid; }
 
   /* Macro proportion bar inside meal card */
   .ml-meal-bar {
@@ -241,14 +241,14 @@
 
   /* ══ Add meal panel ══════════════════════════════════════════════════════════ */
   .ml-add-meal-panel {
-    border: 1px solid var(--al-bronze-soft, rgba(138,106,58,0.3));
+    border: 1px solid var(--al-bronze-soft, rgba(30,58,95,0.3));
     border-radius: var(--al-r-md); overflow: hidden; margin-bottom: 1rem;
     background: white;
   }
   .ml-add-meal-top {
     padding: 1rem 1.15rem .85rem;
     background: linear-gradient(135deg, #1a1612 0%, #2e2318 100%);
-    border-bottom: 1px solid rgba(138,106,58,0.15);
+    border-bottom: 1px solid rgba(30,58,95,0.15);
   }
   .ml-add-meal-label {
     font-family: var(--al-mono); font-size: .62rem; font-weight: 700;
@@ -260,17 +260,17 @@
     font-family: var(--al-mono); font-size: .65rem; font-weight: 600;
     letter-spacing: .08em; text-transform: uppercase;
     padding: .3rem .75rem; border-radius: 999px; cursor: pointer; transition: all .15s;
-    border: 1px solid rgba(244,239,228,0.15); color: rgba(244,239,228,0.7);
-    background: rgba(244,239,228,0.05);
+    border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.05);
   }
-  .ml-preset-chip:hover { border-color: var(--al-bronze); color: var(--al-bronze); background: rgba(138,106,58,0.1); }
+  .ml-preset-chip:hover { border-color: var(--al-bronze); color: var(--al-bronze); background: rgba(30,58,95,0.1); }
   .ml-preset-chip--plus {
     padding: .3rem .55rem; border-style: dashed;
-    border-color: rgba(244,239,228,0.2);
+    border-color: rgba(255,255,255,0.2);
   }
   .ml-preset-chip--plus.is-active {
     border-style: solid; border-color: var(--al-bronze);
-    color: var(--al-bronze); background: rgba(138,106,58,0.1);
+    color: var(--al-bronze); background: rgba(30,58,95,0.1);
   }
   .ml-add-meal-body { padding: .85rem 1.15rem 1rem; display: flex; gap: .6rem; }
   .ml-add-meal-input {
@@ -305,7 +305,7 @@
   }
   .ml-add-meal-trigger:hover {
     border-color: var(--al-bronze); color: var(--al-bronze);
-    background: rgba(138,106,58,0.04);
+    background: rgba(30,58,95,0.04);
   }
   .ml-add-meal-trigger i { font-size: 1rem; }
 
@@ -450,7 +450,7 @@
       <span class="ml-chip"><i class="ph ph-chart-donut"></i>Obiettivi macronutrienti</span>
       {% if plan.plan_type %}<span class="ml-chip"><i class="ph ph-leaf"></i>{{ plan.plan_type }}</span>{% endif %}
     </div>
-    {% if plan.description %}<p class="ml-note" style="border-left-color: rgba(244,239,228,0.2); margin-top: 1.1rem;">{{ plan.description }}</p>{% endif %}
+    {% if plan.description %}<p class="ml-note" style="border-left-color: rgba(255,255,255,0.2); margin-top: 1.1rem;">{{ plan.description }}</p>{% endif %}
     {% if assignment.notes %}
       <div class="ml-note">
         <span class="ml-note-label">Note dal coach</span>{{ assignment.notes }}

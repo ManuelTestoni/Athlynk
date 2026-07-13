@@ -12,9 +12,9 @@
     border: 1px solid var(--al-rule);
     border-radius: var(--al-r-md);
     background:
-      radial-gradient(circle at 88% -10%, rgba(138,106,58,0.18) 0%, transparent 55%),
-      radial-gradient(circle at -5% 110%, rgba(28,74,82,0.14) 0%, transparent 50%),
-      linear-gradient(155deg, var(--al-ink) 0%, #1d1812 60%, #2a2317 100%);
+      radial-gradient(circle at 88% -10%, rgba(30,58,95,0.18) 0%, transparent 55%),
+      radial-gradient(circle at -5% 110%, rgba(30,58,95,0.14) 0%, transparent 50%),
+      linear-gradient(155deg, var(--al-ink) 0%, #142943 60%, #1a3456 100%);
     color: var(--al-parchment);
     padding: 2.25rem 2rem 2rem;
     margin-bottom: 2.5rem;
@@ -34,7 +34,7 @@
     transform: rotate(35deg);
     font-family: var(--al-font-mono);
     font-size: 8rem; font-weight: 900;
-    color: rgba(244,239,228,0.025);
+    color: rgba(255,255,255,0.025);
     letter-spacing: -.03em;
     pointer-events: none;
     line-height: 1;
@@ -81,17 +81,17 @@
   .ma-meta-chip {
     display: inline-flex; align-items: center; gap: .4rem;
     padding: .32rem .7rem;
-    background: rgba(244,239,228,0.05);
-    border: 1px solid rgba(244,239,228,0.12);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 999px;
     font-size: .72rem; font-weight: 500;
-    color: rgba(244,239,228,0.82);
+    color: rgba(255,255,255,0.82);
     letter-spacing: .02em;
   }
   .ma-meta-chip i { font-size: .9rem; color: var(--al-bronze); }
 
   .ma-desc {
-    color: rgba(244,239,228,0.62);
+    color: rgba(255,255,255,0.62);
     font-style: italic;
     max-width: 50ch;
     margin-bottom: 1.5rem;
@@ -101,8 +101,8 @@
   .ma-coach {
     display: inline-flex; align-items: center; gap: .6rem;
     padding: .5rem .8rem;
-    background: rgba(244,239,228,0.04);
-    border: 1px solid rgba(244,239,228,0.08);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--al-r-sm);
     margin-bottom: 1.5rem;
   }
@@ -113,7 +113,7 @@
     font-weight: 700; font-size: .8rem;
   }
   .ma-coach-name { font-size: .82rem; color: var(--al-parchment); }
-  .ma-coach-label { font-size: .65rem; color: rgba(244,239,228,0.55); display: block; letter-spacing: .06em; text-transform: uppercase; }
+  .ma-coach-label { font-size: .65rem; color: rgba(255,255,255,0.55); display: block; letter-spacing: .06em; text-transform: uppercase; }
 
   .ma-cta {
     display: inline-flex; align-items: center; gap: .65rem;
@@ -126,9 +126,9 @@
     border-radius: var(--al-r-sm);
     text-decoration: none;
     transition: all .2s var(--al-ease);
-    box-shadow: 0 14px 30px -14px rgba(138,106,58,0.7);
+    box-shadow: 0 14px 30px -14px rgba(30,58,95,0.7);
   }
-  .ma-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -14px rgba(138,106,58,0.8); }
+  .ma-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -14px rgba(30,58,95,0.8); }
   .ma-cta i { font-size: 1.1rem; }
 
   /* Right side — progress dial / numerals */
@@ -137,9 +137,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 1rem 1.5rem;
     padding-left: 2.5rem;
-    border-left: 1px solid rgba(244,239,228,0.1);
+    border-left: 1px solid rgba(255,255,255,0.1);
   }
-  @media (max-width: 768px) { .ma-stats { padding-left: 0; border-left: none; border-top: 1px solid rgba(244,239,228,0.1); padding-top: 1.5rem; } }
+  @media (max-width: 768px) { .ma-stats { padding-left: 0; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; } }
 
   .ma-stat-num {
     font-family: var(--al-font-display);
@@ -153,7 +153,7 @@
     font-family: var(--al-font);
     font-size: .8rem;
     font-weight: 500;
-    color: rgba(244,239,228,0.55);
+    color: rgba(255,255,255,0.55);
     margin-left: .25rem;
     letter-spacing: 0;
   }
@@ -162,14 +162,14 @@
     font-size: .65rem;
     text-transform: uppercase;
     letter-spacing: .14em;
-    color: rgba(244,239,228,0.55);
+    color: rgba(255,255,255,0.55);
     margin-top: .35rem;
   }
 
   .ma-progress-bar {
     grid-column: span 2;
     height: 6px;
-    background: rgba(244,239,228,0.08);
+    background: rgba(255,255,255,0.08);
     border-radius: 3px;
     overflow: hidden;
     position: relative;
@@ -183,7 +183,7 @@
   .ma-progress-label {
     grid-column: span 2;
     display: flex; justify-content: space-between;
-    font-size: .72rem; color: rgba(244,239,228,0.7);
+    font-size: .72rem; color: rgba(255,255,255,0.7);
     font-variant-numeric: tabular-nums;
   }
 
@@ -248,7 +248,7 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--al-bronze); font-size: 1.05rem;
   }
-  .ma-row-marker.is-program { background: rgba(28,74,82,0.1); color: var(--al-aegean); }
+  .ma-row-marker.is-program { background: rgba(30,58,95,0.1); color: var(--al-aegean); }
   .ma-row-title {
     font-weight: 600; font-size: .95rem; color: var(--al-ink);
     line-height: 1.25; margin: 0;
@@ -383,9 +383,9 @@
             </button>
             {% endif %}
             <a href="{% url 'client_assignment_detail' a.id %}"
-               style="display: inline-flex; align-items: center; gap: .55rem; padding: .85rem 1.2rem; background: rgba(244,239,228,0.06); border: 1px solid rgba(244,239,228,0.18); border-radius: var(--al-r-sm); color: var(--al-parchment); text-decoration: none; font-size: .88rem; font-weight: 600; transition: all .15s;"
-               onmouseover="this.style.background='rgba(244,239,228,0.12)'"
-               onmouseout="this.style.background='rgba(244,239,228,0.06)'">
+               style="display: inline-flex; align-items: center; gap: .55rem; padding: .85rem 1.2rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: var(--al-r-sm); color: var(--al-parchment); text-decoration: none; font-size: .88rem; font-weight: 600; transition: all .15s;"
+               onmouseover="this.style.background='rgba(255,255,255,0.12)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.06)'">
               <i class="ph ph-eye"></i> Dettagli
             </a>
           </div>
@@ -451,8 +451,6 @@
                 <h3 class="ma-row-title" x-text="a.plan_title"></h3>
                 <div class="ma-row-sub">
                   <span x-text="a.plan_kind === 'PROGRAM' ? 'Programmazione' : 'Settimanale'"></span>
-                  <template x-if="a.sport_name"><span>·</span></template>
-                  <template x-if="a.sport_name"><span x-text="a.sport_name"></span></template>
                   <template x-if="a.goal"><span>·</span></template>
                   <template x-if="a.goal"><span x-text="a.goal"></span></template>
                 </div>

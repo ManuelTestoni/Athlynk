@@ -3,35 +3,32 @@ from django.utils import timezone
 
 
 # ---------------------------------------------------------------------------
-# Taxonomy: Sport + MuscleGroup
+# Taxonomy: MuscleGroup + wger-sourced Exercise taxonomy
 # ---------------------------------------------------------------------------
 
-class Sport(models.Model):
-    REGION_CHOICES = [
-        ('FORCE', 'Forza'),
-        ('TEAM', 'Squadra'),
-        ('ENDURANCE', 'Endurance'),
-        ('COMBAT', 'Combattimento'),
-        ('RACKET', 'Racchetta'),
-        ('OTHER', 'Altro'),
-    ]
-    name = models.CharField(max_length=80, unique=True)
-    slug = models.SlugField(max_length=80, unique=True)
-    icon = models.CharField(max_length=60, blank=True, default='')  # phosphor icon name
-    category = models.CharField(max_length=20, choices=REGION_CHOICES, default='OTHER')
-    order = models.PositiveSmallIntegerField(default=0)
-    is_system = models.BooleanField(default=True)
-    created_by = models.ForeignKey(
-        'accounts.CoachProfile', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='sports_created',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
+class ExerciseCategory(models.Model):
+    wger_id = models.IntegerField(unique=True)
+    name_en = models.CharField(max_length=60)
+    name_it = models.CharField(max_length=60)
 
     class Meta:
-        ordering = ['order', 'name']
+        ordering = ['name_it']
 
     def __str__(self):
-        return self.name
+        return self.name_it
+
+
+class Equipment(models.Model):
+    wger_id = models.IntegerField(unique=True)
+    name_en = models.CharField(max_length=60)
+    name_it = models.CharField(max_length=60)
+
+    class Meta:
+        ordering = ['name_it']
+        verbose_name_plural = 'Equipment'
+
+    def __str__(self):
+        return self.name_it
 
 
 class MuscleGroup(models.Model):
@@ -83,18 +80,20 @@ class WorkoutFolder(models.Model):
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
-    video_url = models.URLField(max_length=500, null=True, blank=True)
-    difficulty_level = models.CharField(max_length=50, null=True, blank=True)
-    target_muscle_group = models.CharField(max_length=100, null=True, blank=True)
-    primary_muscle = models.CharField(max_length=100, null=True, blank=True)
-    secondary_muscle = models.CharField(max_length=100, null=True, blank=True)
-    equipment = models.CharField(max_length=100, null=True, blank=True)
-    movement_pattern_1 = models.CharField(max_length=100, null=True, blank=True)
-    movement_pattern_2 = models.CharField(max_length=100, null=True, blank=True)
-    body_region = models.CharField(max_length=50, null=True, blank=True)
-    exercise_classification = models.CharField(max_length=100, null=True, blank=True)
-    # New normalized taxonomy
-    sports = models.ManyToManyField(Sport, blank=True, related_name='exercises')
+    description = models.TextField(null=True, blank=True)
+    aliases = models.JSONField(null=True, blank=True)
+    # wger.de sourcing (null for coach-authored custom exercises)
+    wger_id = models.IntegerField(unique=True, null=True, blank=True)
+    wger_uuid = models.CharField(max_length=36, unique=True, null=True, blank=True)
+    wger_image_url = models.URLField(max_length=500, null=True, blank=True)
+    license_title = models.CharField(max_length=100, null=True, blank=True)
+    license_author = models.CharField(max_length=200, null=True, blank=True)
+    # Normalized taxonomy
+    category = models.ForeignKey(
+        ExerciseCategory, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='exercises',
+    )
+    equipment = models.ManyToManyField(Equipment, blank=True, related_name='exercises')
     primary_muscles = models.ManyToManyField(MuscleGroup, blank=True, related_name='exercises_primary')
     secondary_muscles = models.ManyToManyField(MuscleGroup, blank=True, related_name='exercises_secondary')
     is_custom = models.BooleanField(default=False)
@@ -139,10 +138,6 @@ class WorkoutPlan(models.Model):
     last_step = models.IntegerField(default=1)
     folder = models.ForeignKey(
         WorkoutFolder, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='plans',
-    )
-    sport = models.ForeignKey(
-        Sport, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='plans',
     )
     plan_kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_WEEKLY)

@@ -17,9 +17,9 @@
  * picked session). Two metrics: Volume (volume load) and Carico (top set).
  */
 (function () {
-  // Metric-driven accent — volume reads cool (aegean), load warm (bronze).
-  const C_VOLUME = '#1c4a52';
-  const C_LOAD = '#8a6a3a';
+  // Metric-driven accent — volume reads primary blue, load a distinct cyan-slate.
+  const C_VOLUME = '#1E3A5F';
+  const C_LOAD = '#3F7690';
 
   function _hexA(hex, a) {
     const h = hex.replace('#', '');
@@ -184,16 +184,16 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(20,17,13,0.92)',
-              titleColor: '#f4efe4',
-              bodyColor: '#f4efe4',
+              backgroundColor: 'rgba(11,29,58,0.92)',
+              titleColor: '#FFFFFF',
+              bodyColor: '#FFFFFF',
               padding: 10,
               cornerRadius: 6,
             },
           },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#5b554a', font: { size: 11 } } },
-            y: { beginAtZero: true, grid: { color: 'rgba(91,85,74,0.12)' }, ticks: { color: '#5b554a', font: { size: 11 } } },
+            x: { grid: { display: false }, ticks: { color: '#4B5D75', font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: 'rgba(75,93,117,0.12)' }, ticks: { color: '#4B5D75', font: { size: 11 } } },
           },
         };
       },
@@ -234,7 +234,7 @@
               borderColor: color,
               backgroundColor: _hexA(color, 0.12),
               pointBackgroundColor: color,
-              pointBorderColor: '#f4efe4',
+              pointBorderColor: '#FFFFFF',
               pointBorderWidth: 1.5,
               pointRadius: 5,
               pointHoverRadius: 8,
@@ -254,8 +254,8 @@
             plugins: {
               legend: { display: false },
               tooltip: {
-                backgroundColor: 'rgba(20,17,13,0.92)',
-                titleColor: '#f4efe4', bodyColor: '#f4efe4',
+                backgroundColor: 'rgba(11,29,58,0.92)',
+                titleColor: '#FFFFFF', bodyColor: '#FFFFFF',
                 padding: 10, cornerRadius: 6,
                 callbacks: {
                   label: (c) => {
@@ -301,8 +301,8 @@
             plugins: {
               legend: { display: false },
               tooltip: {
-                backgroundColor: 'rgba(20,17,13,0.92)',
-                titleColor: '#f4efe4', bodyColor: '#f4efe4',
+                backgroundColor: 'rgba(11,29,58,0.92)',
+                titleColor: '#FFFFFF', bodyColor: '#FFFFFF',
                 padding: 10, cornerRadius: 6,
                 callbacks: {
                   label: (c) => {

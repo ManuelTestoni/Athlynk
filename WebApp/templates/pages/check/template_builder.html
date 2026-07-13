@@ -26,9 +26,9 @@
 .tb-step:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
 .tb-step.is-active {
     background: var(--al-ink); border-color: var(--al-ink); color: var(--al-parchment);
-    box-shadow: 0 3px 12px rgba(20,17,13,0.18);
+    box-shadow: 0 3px 12px rgba(11,29,58,0.18);
 }
-.tb-step.is-dragover { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,.18); }
+.tb-step.is-dragover { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(30,58,95,.18); }
 .tb-step.is-report { background: var(--al-marble); border-style: dashed; color: var(--al-bronze); }
 .tb-step.is-report.is-active { background: var(--al-bronze); border-color: var(--al-bronze); color: white; border-style: solid; }
 .tb-step-icon { font-size: 16px; opacity: 0.85; }
@@ -44,7 +44,7 @@
     display: flex; align-items: center; justify-content: center; gap: 6px;
     font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
 }
-.tb-add-step:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.tb-add-step:hover { border-color: var(--al-bronze); background: rgba(30,58,95,.06); }
 .tb-q-card {
     background: var(--al-parchment); border: 1px solid var(--al-rule);
     border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
@@ -52,7 +52,7 @@
 }
 .tb-q-card:hover { border-color: var(--al-rule-strong); }
 .tb-q-card.is-dragging { opacity: .45; border-style: dashed; }
-.tb-q-card.drag-over { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,.18); }
+.tb-q-card.drag-over { border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(30,58,95,.18); }
 .tb-add-q {
     width: 100%; margin-top: 10px; padding: 12px;
     display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -60,7 +60,7 @@
     border-radius: var(--al-r-sm); cursor: pointer; font-size: 13px; font-weight: 600;
     color: var(--al-bronze); transition: all 140ms var(--al-ease);
 }
-.tb-add-q:hover { border-color: var(--al-bronze); background: rgba(138,106,58,.06); }
+.tb-add-q:hover { border-color: var(--al-bronze); background: rgba(30,58,95,.06); }
 .tb-type-card {
     cursor: pointer; border: 2px solid var(--al-rule);
     border-radius: var(--al-r-sm); padding: 9px 12px; text-align: left;
@@ -93,8 +93,8 @@
     border: 1px solid transparent; cursor: pointer;
     transition: background 140ms var(--al-ease), border-color 140ms var(--al-ease);
 }
-.tb-msel:hover { background: rgba(138,106,58,.05); }
-.tb-msel.is-on { background: rgba(138,106,58,.09); border-color: rgba(138,106,58,.28); }
+.tb-msel:hover { background: rgba(30,58,95,.05); }
+.tb-msel.is-on { background: rgba(30,58,95,.09); border-color: rgba(30,58,95,.28); }
 .tb-msel.is-locked { opacity: .38; cursor: not-allowed; }
 .tb-msel.is-locked:hover { background: transparent; }
 .tb-msel-name { font-size: 13px; color: var(--al-ink); }
@@ -141,9 +141,9 @@
 .tb-tool-built {
     position: relative; overflow: hidden;
     background:
-        radial-gradient(120% 140% at 100% 0%, rgba(138,106,58,.10), transparent 60%),
+        radial-gradient(120% 140% at 100% 0%, rgba(30,58,95,.10), transparent 60%),
         var(--al-marble);
-    border: 1px solid rgba(138,106,58,.32);
+    border: 1px solid rgba(30,58,95,.32);
     border-left: 3px solid var(--al-bronze);
     border-radius: var(--al-r-sm); padding: 14px 16px; margin-bottom: 10px;
 }
@@ -151,7 +151,7 @@
     flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
     display: grid; place-content: center;
     background: var(--al-ink); color: var(--al-parchment);
-    box-shadow: 0 3px 10px rgba(20,17,13,.16);
+    box-shadow: 0 3px 10px rgba(11,29,58,.16);
 }
 .tb-tool-ic i { font-size: 19px; }
 .tb-tool-badge {
@@ -188,7 +188,7 @@
 }
 .tb-tool-field .tb-tool-fu { color: var(--al-ink-mute); font-size: 10px; }
 .tb-tool-fk { font-size: 9px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--al-ink-mute); background: var(--al-marble); padding: 1px 6px; border-radius: 999px; }
-.tb-type-card.tb-tool-pick { border-color: rgba(138,106,58,.4); }
+.tb-type-card.tb-tool-pick { border-color: rgba(30,58,95,.4); }
 .tb-type-card.tb-tool-pick i { color: var(--al-ink); }
 .tb-type-card.is-disabled { opacity: .5; cursor: not-allowed; }
 .tb-type-card.is-disabled:hover { transform: none; border-color: var(--al-rule); background: var(--al-parchment); }
@@ -241,7 +241,7 @@
     </div>
 
     <!-- Step strip -->
-    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-6" style="background: rgba(244,239,228,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
+    <div class="sticky top-16 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 mb-6" style="background: rgba(255,255,255,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--al-rule);">
         <div class="tb-strip">
             <template x-for="(s, idx) in steps" :key="s.id">
                 <div :class="'tb-step ' + (activeStepId === s.id ? 'is-active' : '') + (dragOverStepId === s.id ? ' is-dragover' : '')"

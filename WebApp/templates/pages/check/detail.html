@@ -37,7 +37,7 @@
 
     <!-- Image Modal -->
     <div x-show="showImageModal" class="al-modal-backdrop" x-cloak @click.self="showImageModal = false">
-        <button @click="showImageModal = false" class="absolute top-6 right-6 al-btn al-btn-icon al-btn-ghost" style="background: rgba(244,239,228,0.9);">
+        <button @click="showImageModal = false" class="absolute top-6 right-6 al-btn al-btn-icon al-btn-ghost" style="background: rgba(255,255,255,0.9);">
             <i class="ph ph-x text-xl"></i>
         </button>
         <img :src="activeImage" class="max-w-full max-h-[90vh] object-contain" style="border-radius: var(--al-r-md); box-shadow: var(--al-shadow-3);">
@@ -63,11 +63,11 @@
             <div class="flex items-center gap-3 flex-wrap">
                 <h1 class="al-h-1">Check <span class="al-display-i">#{{ check_number }}</span></h1>
                 {% if response.status == 'REVIEWED' %}
-                <span class="al-pill" style="background: rgba(28,74,82,0.10); color: var(--al-aegean); border: 1px solid rgba(28,74,82,0.25);">
+                <span class="al-pill" style="background: rgba(30,58,95,0.10); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.25);">
                     <i class="ph-bold ph-check"></i> Revisionato
                 </span>
                 {% else %}
-                <span class="al-pill" style="background: rgba(138,106,58,0.10); color: var(--al-bronze); border: 1px solid rgba(138,106,58,0.25);">
+                <span class="al-pill" style="background: rgba(30,58,95,0.10); color: var(--al-bronze); border: 1px solid rgba(30,58,95,0.25);">
                     <span class="w-1.5 h-1.5 rounded-full" style="background: var(--al-bronze);"></span> Da Revisionare
                 </span>
                 {% endif %}
@@ -131,7 +131,7 @@
 
             <!-- Variazione peso -->
             {% if weight_delta is not None %}
-            <div class="al-card" style="{% if weight_delta < 0 %}background: rgba(28,74,82,0.06); border-color: rgba(28,74,82,0.25);{% elif weight_delta > 0 %}background: rgba(138,106,58,0.06); border-color: rgba(138,106,58,0.25);{% endif %}">
+            <div class="al-card" style="{% if weight_delta < 0 %}background: rgba(30,58,95,0.06); border-color: rgba(30,58,95,0.25);{% elif weight_delta > 0 %}background: rgba(30,58,95,0.06); border-color: rgba(30,58,95,0.25);{% endif %}">
                 <p class="al-eyebrow" style="color: var(--al-ink-mute);">Var. dal check precedente</p>
                 <div class="flex items-center gap-2 mt-2">
                     <span class="al-display font-mono" style="font-size: 28px; line-height: 1.1; color: {% if weight_delta < 0 %}var(--al-aegean){% elif weight_delta > 0 %}var(--al-bronze){% else %}var(--al-ink){% endif %};">
@@ -201,7 +201,7 @@
                                     <p class="font-mono text-ink-mute mt-1" style="font-size: 16px;">{{ q.previous }}{% if q.unit %} {{ q.unit }}{% endif %}</p>
                                     {% endif %}
                                     {% if q.delta is not None %}
-                                    <span class="al-pill mt-1" style="{% if q.delta < 0 %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% elif q.delta > 0 %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
+                                    <span class="al-pill mt-1" style="{% if q.delta < 0 %}background: rgba(30,58,95,0.10); color: var(--al-aegean);{% elif q.delta > 0 %}background: rgba(30,58,95,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
                                         {% if q.delta > 0 %}<i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ q.delta }}{% elif q.delta < 0 %}<i class="ph-bold ph-arrow-down-right mr-0.5"></i>{{ q.delta }}{% else %}= 0{% endif %}
                                     </span>
                                     {% endif %}
@@ -221,7 +221,7 @@
                                         {{ s.value }}{% if q.unit %}<span class="text-xs font-medium text-ink-mute"> {{ q.unit }}</span>{% endif %}
                                     </span>
                                     {% if s.delta is not None %}
-                                    <span class="al-pill" style="{% if s.delta < 0 %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% elif s.delta > 0 %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
+                                    <span class="al-pill" style="{% if s.delta < 0 %}background: rgba(30,58,95,0.10); color: var(--al-aegean);{% elif s.delta > 0 %}background: rgba(30,58,95,0.10); color: var(--al-bronze);{% else %}background: var(--al-marble); color: var(--al-ink-mute);{% endif %}">
                                         {% if s.delta > 0 %}<i class="ph-bold ph-arrow-up-right mr-0.5"></i>+{{ s.delta }}{% elif s.delta < 0 %}<i class="ph-bold ph-arrow-down-right mr-0.5"></i>{{ s.delta }}{% else %}= 0{% endif %}
                                     </span>
                                     {% endif %}
@@ -266,7 +266,7 @@
                         {% elif q.type == 'si_no' %}
                         <div class="flex items-center justify-between">
                             <span class="al-body">{{ q.label }}</span>
-                            <span class="al-pill" style="{% if q.value == 'si' %}background: rgba(28,74,82,0.10); color: var(--al-aegean);{% else %}background: rgba(138,106,58,0.10); color: var(--al-bronze);{% endif %}">
+                            <span class="al-pill" style="{% if q.value == 'si' %}background: rgba(30,58,95,0.10); color: var(--al-aegean);{% else %}background: rgba(30,58,95,0.10); color: var(--al-bronze);{% endif %}">
                                 <i class="ph-bold {% if q.value == 'si' %}ph-check{% else %}ph-x{% endif %}"></i>
                                 {% if q.value == 'si' %}Sì{% else %}No{% endif %}
                             </span>
@@ -289,10 +289,10 @@
                             {% if q.fb.det_finale %}
                             <div class="flex items-end justify-between gap-3 flex-wrap mb-4" style="padding: 12px 14px; background: var(--al-ink); color: var(--al-parchment); border-radius: 10px;">
                                 <div>
-                                    <p class="al-eyebrow" style="color: rgba(244,239,228,.7);">DET finale</p>
+                                    <p class="al-eyebrow" style="color: rgba(255,255,255,.7);">DET finale</p>
                                     <p class="al-display font-mono" style="font-size: 26px; line-height: 1;">{{ q.fb.det_finale }}<span class="text-sm"> kcal/die</span></p>
                                 </div>
-                                {% if q.fb.det_adjust %}<span class="al-tag font-mono" style="background: rgba(244,239,228,.14); color: var(--al-parchment);">base {{ q.fb.det_base }} · {% if q.fb.det_adjust > 0 %}+{% endif %}{{ q.fb.det_adjust }} kcal</span>{% endif %}
+                                {% if q.fb.det_adjust %}<span class="al-tag font-mono" style="background: rgba(255,255,255,.14); color: var(--al-parchment);">base {{ q.fb.det_base }} · {% if q.fb.det_adjust > 0 %}+{% endif %}{{ q.fb.det_adjust }} kcal</span>{% endif %}
                             </div>
                             {% endif %}
                             <div class="flex flex-wrap gap-x-6 gap-y-1 mb-3 text-sm" style="color: var(--al-ink-mute);">
@@ -362,7 +362,7 @@
                                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             <button type="button" @click="activeImage = '{{ photo.file_url }}'; showImageModal = true"
                                     class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                                    style="background: rgba(20,17,13,0.35);">
+                                    style="background: rgba(11,29,58,0.35);">
                                 <span class="w-10 h-10 flex items-center justify-center" style="background: var(--al-parchment); color: var(--al-bronze); border-radius: 999px; box-shadow: var(--al-shadow-2);">
                                     <i class="ph ph-arrows-out-simple text-xl"></i>
                                 </span>
@@ -383,7 +383,7 @@
                                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             <button type="button" @click="activeImage = '{{ f.file_url }}'; showImageModal = true"
                                     class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                                    style="background: rgba(20,17,13,0.35);">
+                                    style="background: rgba(11,29,58,0.35);">
                                 <span class="w-10 h-10 flex items-center justify-center" style="background: var(--al-parchment); color: var(--al-bronze); border-radius: 999px; box-shadow: var(--al-shadow-2);">
                                     <i class="ph ph-arrows-out-simple text-xl"></i>
                                 </span>
@@ -450,7 +450,7 @@
 
                 <!-- Feedback coach (visibile all'atleta solo se compilato) -->
                 {% if is_client and response.coach_feedback %}
-                <div class="al-card" style="background: rgba(138,106,58,0.06); border-color: rgba(138,106,58,0.30);">
+                <div class="al-card" style="background: rgba(30,58,95,0.06); border-color: rgba(30,58,95,0.30);">
                     <p class="al-eyebrow" style="color: var(--al-bronze);">Feedback del coach</p>
                     <p class="al-body mt-2 leading-relaxed whitespace-pre-line">{{ response.coach_feedback }}</p>
                 </div>

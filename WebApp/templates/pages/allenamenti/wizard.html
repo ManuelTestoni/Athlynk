@@ -18,7 +18,6 @@
     search_clients: "{% url 'api_search_clients' %}",
     filters: "{% url 'api_exercise_filters' %}",
     muscle_groups: "{% url 'api_muscle_groups' %}",
-    sports: "{% url 'api_workout_sports' %}",
     folders: "{% url 'api_workout_folders' %}",
     custom_exercises: "{% url 'api_custom_exercises' %}",
   };
@@ -31,7 +30,7 @@
   .wiz-step-pill.is-todo { background: var(--al-stone); color: var(--al-ink-faint); }
   .wiz-step-pill:hover { transform: translateY(-1px); }
   .wiz-lib-card { cursor: pointer; transition: all .15s; border: 1px solid var(--al-rule-faint); }
-  .wiz-lib-card:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
+  .wiz-lib-card:hover { border-color: var(--al-accent); transform: translateY(-1px); }
   .wiz-lib-card.flash { background: #d4f4dd; border-color: #16a34a; }
   .wiz-day-tab { padding: .5rem 1rem; border-radius: var(--al-r-sm) var(--al-r-sm) 0 0; cursor: pointer; }
   .wiz-day-tab.is-active { background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-bottom: none; font-weight: 600; }
@@ -41,7 +40,7 @@
   .wiz-drawer.open { transform: translateX(0); visibility: visible; transition: transform .3s, visibility 0s linear 0s; }
   .wiz-drawer-backdrop { position: fixed; top: 64px; right: 0; bottom: 0; left: 0; background: transparent; z-index: 59; pointer-events: none; visibility: hidden; }
   .wiz-drawer-backdrop.open { pointer-events: auto; visibility: visible; }
-  .wiz-bar { background: linear-gradient(90deg, var(--al-bronze), #d4af37); height: 14px; border-radius: 4px; }
+  .wiz-bar { background: linear-gradient(90deg, var(--al-bronze), var(--al-accent)); height: 14px; border-radius: 4px; }
   .wiz-superset-bracket { width: 4px; background: var(--al-bronze); border-radius: 2px; align-self: stretch; }
   .wiz-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--al-ink); color: var(--al-parchment); padding: 12px 20px; border-radius: var(--al-r-sm); z-index: 80; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
   @media (max-width: 768px) {
@@ -63,13 +62,13 @@
     align-items: center;
     gap: .35rem;
   }
-  .prog-week-pill:hover { border-color: var(--al-bronze); }
+  .prog-week-pill:hover { border-color: var(--al-accent); }
   .prog-week-pill.is-active { background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink); }
-  .prog-week-pill.is-deload { background: rgba(28,74,82,0.1); border-color: var(--al-aegean, #1c4a52); color: var(--al-aegean, #1c4a52); }
-  .prog-week-pill.is-deload.is-active { background: var(--al-aegean, #1c4a52); color: var(--al-parchment); }
-  .prog-week-pill.is-test { background: rgba(166,128,43,0.12); border-color: #a6802b; color: #a6802b; }
-  .prog-week-pill.is-tech { background: rgba(74,107,58,0.12); border-color: #4a6b3a; color: #4a6b3a; }
-  .prog-week-pill.is-recovery { background: rgba(138,58,58,0.1); border-color: #8a3a3a; color: #8a3a3a; }
+  .prog-week-pill.is-deload { background: rgba(30,58,95,0.1); border-color: var(--al-aegean, #1E3A5F); color: var(--al-aegean, #1E3A5F); }
+  .prog-week-pill.is-deload.is-active { background: var(--al-aegean, #1E3A5F); color: var(--al-parchment); }
+  .prog-week-pill.is-test { background: rgba(138,106,30,0.12); border-color: #8A6A1E; color: #8A6A1E; }
+  .prog-week-pill.is-tech { background: rgba(63,122,94,0.12); border-color: #3F7A5E; color: #3F7A5E; }
+  .prog-week-pill.is-recovery { background: rgba(162,59,59,0.1); border-color: #A23B3B; color: #A23B3B; }
   .prog-week-pill-suffix { font-size: .65rem; opacity: .85; text-transform: uppercase; letter-spacing: .03em; }
 
   .prog-ex-row {
@@ -84,7 +83,7 @@
     gap: .25rem;
     padding: 2px 8px;
     border-radius: 999px;
-    background: var(--al-bronze, #8a6a3a);
+    background: var(--al-bronze, #1E3A5F);
     color: white;
     font-size: .7rem;
     font-weight: 600;
@@ -112,7 +111,7 @@
     min-height: 54px;
   }
   .prog-preview-cell.is-active { border-color: var(--al-ink); box-shadow: inset 0 0 0 1px var(--al-ink); }
-  .prog-preview-cell.is-deload { background: rgba(28,74,82,0.08); border-color: var(--al-aegean, #1c4a52); }
+  .prog-preview-cell.is-deload { background: rgba(30,58,95,0.08); border-color: var(--al-aegean, #1E3A5F); }
   .prog-preview-w { font-size: .65rem; color: var(--al-ink-faint); margin: 0; font-weight: 600; }
   .prog-preview-v { font-size: .8rem; font-weight: 600; margin: 0; line-height: 1.1; }
 
@@ -124,7 +123,7 @@
     gap: 1.5rem; flex-wrap: wrap;
     padding: 1.25rem 1.5rem;
     background:
-      linear-gradient(135deg, rgba(244,239,228,0.85) 0%, rgba(236,229,214,0.65) 100%),
+      linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(236,229,214,0.65) 100%),
       var(--al-parchment);
     border: 1px solid var(--al-rule);
     border-left: 4px solid var(--al-bronze);
@@ -134,7 +133,7 @@
   }
   .prg-hero::after {
     content: ''; position: absolute; inset: 0;
-    background: radial-gradient(circle at 90% 20%, rgba(138,106,58,0.10), transparent 60%);
+    background: radial-gradient(circle at 90% 20%, rgba(30,58,95,0.10), transparent 60%);
     pointer-events: none;
   }
   .prg-title { font-family: var(--al-display); font-size: 26px; margin: 0; letter-spacing: -0.01em; line-height: 1.1; }
@@ -146,7 +145,7 @@
     background: var(--al-ink); color: var(--al-parchment);
     font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
   }
-  .prg-meta-pill.prg-meta-danger { background: #8a3a3a; }
+  .prg-meta-pill.prg-meta-danger { background: #A23B3B; }
 
   /* Week strip — bronze rail */
   .prg-week-strip {
@@ -167,10 +166,10 @@
     display: flex; flex-direction: column; align-items: center; gap: 1px;
     line-height: 1.05;
   }
-  .prg-week:hover { border-color: var(--al-bronze); transform: translateY(-1px); }
+  .prg-week:hover { border-color: var(--al-accent); transform: translateY(-1px); }
   .prg-week.is-active {
     background: var(--al-ink); border-color: var(--al-ink); color: var(--al-parchment);
-    box-shadow: 0 3px 12px rgba(20,17,13,0.18);
+    box-shadow: 0 3px 12px rgba(11,29,58,0.18);
   }
   .prg-week-lab {
     font-size: 9px; font-weight: 700; letter-spacing: 0.10em;
@@ -213,7 +212,7 @@
   }
   .prg-segctl button.is-active {
     background: var(--al-ink); color: var(--al-parchment);
-    box-shadow: 0 1px 4px rgba(20,17,13,0.18);
+    box-shadow: 0 1px 4px rgba(11,29,58,0.18);
   }
 
   .prg-chart-wrap {
@@ -318,12 +317,12 @@
     cursor: pointer;
     transition: all 140ms var(--al-ease);
   }
-  .prg-add-btn:hover { background: var(--al-bronze-s, #a78554); border-color: var(--al-bronze-s, #a78554); }
+  .prg-add-btn:hover { background: var(--al-accent, #5B89B6); border-color: var(--al-accent, #5B89B6); }
   .prg-add-btn.is-edit {
     background: transparent; color: var(--al-bronze);
     border-color: var(--al-rule-strong);
   }
-  .prg-add-btn.is-edit:hover { background: rgba(138,106,58,0.08); border-color: var(--al-bronze); }
+  .prg-add-btn.is-edit:hover { background: rgba(91,137,182,0.08); border-color: var(--al-accent); }
 
   .prg-ex-actions {
     flex-shrink: 0;
@@ -369,8 +368,8 @@
   .prg-rule {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 9px;
-    background: rgba(138,106,58,0.12);
-    border: 1px solid rgba(138,106,58,0.3);
+    background: rgba(30,58,95,0.12);
+    border: 1px solid rgba(30,58,95,0.3);
     color: var(--al-bronze);
     border-radius: 999px;
     font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
@@ -400,7 +399,7 @@
      ===================================================================== */
   .prg-drawer-head {
     position: sticky; top: 0;
-    background: linear-gradient(180deg, var(--al-parchment) 0%, rgba(244,239,228,0.95) 100%);
+    background: linear-gradient(180deg, var(--al-parchment) 0%, rgba(255,255,255,0.95) 100%);
     border-bottom: 1px solid var(--al-rule);
     padding: 18px 22px 14px;
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
@@ -410,7 +409,7 @@
   .prg-drawer-body { padding: 18px 22px 100px; display: flex; flex-direction: column; gap: 18px; }
   .prg-drawer-foot {
     position: sticky; bottom: 0;
-    background: rgba(244,239,228,0.96);
+    background: rgba(255,255,255,0.96);
     border-top: 1px solid var(--al-rule);
     padding: 12px 22px;
     display: flex; justify-content: flex-end; gap: 10px;
@@ -446,15 +445,15 @@
     transition: all 140ms var(--al-ease);
     text-align: left;
   }
-  .prg-subtype:hover { border-color: var(--al-bronze); background: rgba(138,106,58,0.04); }
+  .prg-subtype:hover { border-color: var(--al-accent); background: rgba(91,137,182,0.04); }
   .prg-subtype.is-selected {
     background: var(--al-ink); color: var(--al-parchment); border-color: var(--al-ink);
-    box-shadow: 0 4px 12px rgba(20,17,13,0.20);
+    box-shadow: 0 4px 12px rgba(11,29,58,0.20);
   }
   .prg-subtype input { display: none; }
   .prg-subtype-name { flex: 1; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
   .prg-subtype-check { font-size: 14px; opacity: 0.4; }
-  .prg-subtype.is-selected .prg-subtype-check { opacity: 1; color: var(--al-bronze-light, #c8a774); }
+  .prg-subtype.is-selected .prg-subtype-check { opacity: 1; color: var(--al-bronze-light, #5B89B6); }
 
   /* Existing rule cards in list mode */
   .prg-rule-card {
@@ -465,7 +464,7 @@
     display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
     transition: border-color 140ms var(--al-ease);
   }
-  .prg-rule-card:hover { border-color: var(--al-bronze); }
+  .prg-rule-card:hover { border-color: var(--al-accent); }
   .prg-rule-card-title {
     font-family: var(--al-display); font-size: 15px; font-weight: 600;
     margin: 0 0 3px; color: var(--al-ink);
@@ -489,7 +488,7 @@
     border-color: var(--al-ink); box-shadow: inset 0 0 0 1px var(--al-ink);
   }
   .prg-preview-cell.is-deload {
-    background: rgba(28,74,82,0.08); border-color: var(--al-aegean, #1c4a52);
+    background: rgba(30,58,95,0.08); border-color: var(--al-aegean, #1E3A5F);
   }
   .prg-preview-w {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
@@ -509,7 +508,7 @@
     position: relative;
     display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px;
     padding: 11px 18px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(244,239,228,0.85));
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(232,236,242,0.85));
     border: 1px solid var(--al-rule-faint);
     border-radius: 14px;
     cursor: pointer;
@@ -517,21 +516,21 @@
                 background 180ms var(--al-ease), border-color 180ms var(--al-ease),
                 color 180ms var(--al-ease);
     min-width: 118px;
-    box-shadow: 0 1px 0 rgba(244,239,228,0.6) inset, 0 1px 2px rgba(20,17,13,0.04);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(11,29,58,0.04);
   }
   .prg-day-tab .lab { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--al-ink-mute); }
   .prg-day-tab .name { font-family: var(--al-display); font-size: 15px; font-weight: 600; color: var(--al-ink); letter-spacing: -0.01em; }
   .prg-day-tab:hover {
-    border-color: var(--al-bronze-l, #c8a774);
+    border-color: var(--al-accent, #5B89B6);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px -8px rgba(138,106,58,0.35), 0 1px 0 rgba(244,239,228,0.6) inset;
+    box-shadow: 0 6px 16px -8px rgba(91,137,182,0.35), 0 1px 0 rgba(255,255,255,0.6) inset;
   }
   .prg-day-tab.is-active {
-    background: linear-gradient(180deg, #2a241b, #1c1917);
-    border-color: #1c1917;
-    box-shadow: 0 10px 24px -10px rgba(20,17,13,0.55);
+    background: linear-gradient(180deg, #16294A, #0B1D3A);
+    border-color: #0B1D3A;
+    box-shadow: 0 10px 24px -10px rgba(11,29,58,0.55);
   }
-  .prg-day-tab.is-active .lab { color: rgba(244,239,228,0.62); }
+  .prg-day-tab.is-active .lab { color: rgba(255,255,255,0.62); }
   .prg-day-tab.is-active .name { color: var(--al-parchment); }
 
   .prg-grid-wrap {
@@ -541,18 +540,18 @@
   .prg-grid-arrow {
     align-self: stretch;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244,239,228,0.85));
+    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.85));
     border: 1px solid var(--al-rule-faint);
     border-radius: 14px;
     cursor: pointer; color: var(--al-ink);
     transition: all 180ms var(--al-ease);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(20,17,13,0.04);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(11,29,58,0.04);
   }
   .prg-grid-arrow:hover:not(:disabled) {
     background: linear-gradient(180deg, #2a241b, #1c1917);
     color: var(--al-parchment); border-color: #1c1917;
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px -10px rgba(20,17,13,0.55);
+    box-shadow: 0 10px 22px -10px rgba(11,29,58,0.55);
   }
   .prg-grid-arrow:disabled { opacity: 0.30; cursor: not-allowed; }
   .prg-grid-arrow i { font-size: 20px; }
@@ -597,21 +596,21 @@
   .prg-wcol {
     display: flex; flex-direction: column; gap: 12px;
     background:
-      radial-gradient(ellipse 60% 30% at 50% 0%, rgba(138,106,58,0.05), transparent 70%),
-      linear-gradient(180deg, rgba(255,255,255,0.92), rgba(244,239,228,0.78));
+      radial-gradient(ellipse 60% 30% at 50% 0%, rgba(30,58,95,0.05), transparent 70%),
+      linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78));
     border: 1px solid var(--al-rule-faint);
     border-radius: 18px;
     padding: 16px 14px 14px;
     min-width: 0;
     box-shadow:
       0 1px 0 rgba(255,255,255,0.55) inset,
-      0 16px 40px -28px rgba(20,17,13,0.30),
-      0 2px 6px -2px rgba(20,17,13,0.05);
+      0 16px 40px -28px rgba(11,29,58,0.30),
+      0 2px 6px -2px rgba(11,29,58,0.05);
   }
   .prg-wcol-head {
     display: flex; align-items: baseline; justify-content: space-between;
     padding-bottom: 10px;
-    border-bottom: 1px solid rgba(138,106,58,0.10);
+    border-bottom: 1px solid rgba(30,58,95,0.10);
   }
   .prg-wcol-week {
     font-family: var(--al-display); font-size: 18px; font-weight: 600;
@@ -621,24 +620,24 @@
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--al-bronze);
     padding: 2px 8px;
-    background: rgba(138,106,58,0.08);
+    background: rgba(30,58,95,0.08);
     border-radius: 999px;
   }
 
   .prg-cell-ex {
-    background: linear-gradient(180deg, #ffffff 0%, rgba(244,239,228,0.55) 100%);
-    border: 1px solid rgba(91,85,74,0.10);
+    background: linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.55) 100%);
+    border: 1px solid rgba(75,93,117,0.10);
     border-radius: 14px;
     padding: 12px 13px;
     display: flex; flex-direction: column; gap: 10px;
     transition: transform 180ms var(--al-ease), border-color 180ms var(--al-ease),
                 box-shadow 180ms var(--al-ease);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(20,17,13,0.04);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 3px rgba(11,29,58,0.04);
   }
   .prg-cell-ex:hover {
-    border-color: rgba(138,106,58,0.28);
+    border-color: rgba(30,58,95,0.28);
     transform: translateY(-1px);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 8px 20px -10px rgba(20,17,13,0.18);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 8px 20px -10px rgba(11,29,58,0.18);
   }
   .prg-cell-ex.is-inherit-empty { opacity: 0.55; }
 
@@ -655,8 +654,8 @@
   .prg-cell-trash-btn {
     width: 28px; height: 28px; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(244,239,228,0.6);
-    border: 1px solid rgba(91,85,74,0.15);
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(75,93,117,0.15);
     border-radius: 9px;
     color: var(--al-ink-mute); cursor: pointer;
     transition: all 160ms var(--al-ease);
@@ -670,7 +669,7 @@
   /* Delete-cell confirm modal */
   .prg-confirm-backdrop {
     position: fixed; top: 64px; right: 0; bottom: 0; left: 0;
-    background: rgba(20,17,13,0.35);
+    background: rgba(11,29,58,0.35);
     backdrop-filter: blur(2px);
     z-index: 95;
     display: flex; align-items: center; justify-content: center;
@@ -678,9 +677,9 @@
   }
   .prg-confirm {
     background: var(--al-parchment);
-    border: 1px solid rgba(91,85,74,0.15);
+    border: 1px solid rgba(75,93,117,0.15);
     border-radius: 18px;
-    box-shadow: 0 24px 60px -20px rgba(20,17,13,0.45);
+    box-shadow: 0 24px 60px -20px rgba(11,29,58,0.45);
     width: 100%; max-width: 460px;
     padding: 22px 24px 18px;
   }
@@ -694,15 +693,15 @@
     display: flex; align-items: flex-start; gap: 10px;
     padding: 12px 14px;
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(91,85,74,0.15);
+    border: 1px solid rgba(75,93,117,0.15);
     border-radius: 12px;
     cursor: pointer; text-align: left;
     transition: all 160ms var(--al-ease);
   }
   .prg-confirm-opt:hover {
-    border-color: var(--al-bronze); background: rgba(138,106,58,0.06);
+    border-color: var(--al-accent); background: rgba(91,137,182,0.06);
     transform: translateY(-1px);
-    box-shadow: 0 8px 18px -10px rgba(138,106,58,0.45);
+    box-shadow: 0 8px 18px -10px rgba(91,137,182,0.45);
   }
   .prg-confirm-opt.is-danger:hover {
     border-color: #b91c1c; background: rgba(185,28,28,0.05);
@@ -719,19 +718,19 @@
   .prg-cell-stats-btn {
     width: 28px; height: 28px;
     display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(244,239,228,0.6);
-    border: 1px solid rgba(91,85,74,0.15);
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(75,93,117,0.15);
     border-radius: 9px;
     color: var(--al-ink); cursor: pointer;
     transition: all 160ms var(--al-ease);
   }
   .prg-cell-toggle-btn:hover {
     background: var(--al-bronze); color: var(--al-parchment); border-color: var(--al-bronze);
-    box-shadow: 0 6px 14px -6px rgba(138,106,58,0.55);
+    box-shadow: 0 6px 14px -6px rgba(30,58,95,0.55);
   }
   .prg-cell-stats-btn:hover {
     background: #1c1917; color: var(--al-parchment); border-color: #1c1917;
-    box-shadow: 0 6px 14px -6px rgba(20,17,13,0.55);
+    box-shadow: 0 6px 14px -6px rgba(11,29,58,0.55);
   }
   .prg-cell-toggle-btn i,
   .prg-cell-stats-btn i { font-size: 15px; }
@@ -749,7 +748,7 @@
   .prg-field {
     display: flex; flex-direction: column; gap: 2px;
     background: #ffffff;
-    border: 1px solid rgba(91,85,74,0.12);
+    border: 1px solid rgba(75,93,117,0.12);
     border-radius: 10px;
     padding: 7px 9px;
     cursor: text;
@@ -758,12 +757,12 @@
     min-width: 0;
   }
   .prg-field:hover {
-    border-color: rgba(138,106,58,0.35);
-    box-shadow: 0 4px 10px -6px rgba(20,17,13,0.12);
+    border-color: rgba(30,58,95,0.35);
+    box-shadow: 0 4px 10px -6px rgba(11,29,58,0.12);
   }
   .prg-field:focus-within {
     border-color: var(--al-ink);
-    box-shadow: 0 0 0 3px rgba(28,25,23,0.10), 0 6px 14px -6px rgba(20,17,13,0.18);
+    box-shadow: 0 0 0 3px rgba(28,25,23,0.10), 0 6px 14px -6px rgba(11,29,58,0.18);
     transform: translateY(-1px);
   }
   .prg-field.is-full { grid-column: 1 / -1; }
@@ -780,29 +779,29 @@
   }
   /* Inherited from base / earlier override: semi-transparent.
      Becomes opaque once the user explicitly sets a value on this week. */
-  .prg-field.is-inherited .prg-field-val { color: rgba(20,17,13,0.42); font-weight: 500; }
+  .prg-field.is-inherited .prg-field-val { color: rgba(11,29,58,0.42); font-weight: 500; }
   .prg-field.is-inherited.is-from-override .prg-field-val {
-    color: rgba(138,106,58,0.65); font-style: italic; font-weight: 500;
+    color: rgba(30,58,95,0.65); font-style: italic; font-weight: 500;
   }
   .prg-field.is-override {
-    background: linear-gradient(180deg, rgba(138,106,58,0.08), rgba(138,106,58,0.04));
-    border-color: rgba(138,106,58,0.45);
+    background: linear-gradient(180deg, rgba(30,58,95,0.08), rgba(30,58,95,0.04));
+    border-color: rgba(30,58,95,0.45);
   }
   .prg-field.is-override .prg-field-val { color: var(--al-bronze); }
   /* Week 1 = bidirectionally synced with the builder (Step 2): editable, but
      flagged so it's clear a change here also updates the exercise's base values. */
   .prg-field.is-linked-base {
-    background: linear-gradient(180deg, rgba(28,74,82,0.06), rgba(28,74,82,0.02));
-    border-color: rgba(28,74,82,0.22);
+    background: linear-gradient(180deg, rgba(30,58,95,0.06), rgba(30,58,95,0.02));
+    border-color: rgba(30,58,95,0.22);
   }
-  .prg-field.is-linked-base:hover { border-color: rgba(28,74,82,0.4); }
+  .prg-field.is-linked-base:hover { border-color: rgba(91,137,182,0.4); }
   .prg-field.is-linked-base .prg-field-val { color: var(--al-aegean); }
   .prg-field.is-linked-base .prg-field-lab i { font-size: 8px; margin-left: 2px; opacity: .7; }
 
   /* Per-set differentiation panel inside a progression cell */
   .prg-setdetails {
     margin-top: 8px; padding-top: 8px;
-    border-top: 1px dashed rgba(91,85,74,0.18);
+    border-top: 1px dashed rgba(75,93,117,0.18);
     display: flex; flex-direction: column; gap: 5px;
   }
   .prg-setdetails-head {
@@ -814,16 +813,16 @@
   .prg-setrow-in {
     font-size: 11.5px; font-weight: 600; color: var(--al-ink);
     font-variant-numeric: tabular-nums; width: 100%; min-width: 0;
-    background: #fff; border: 1px solid rgba(91,85,74,0.14);
+    background: #fff; border: 1px solid rgba(75,93,117,0.14);
     border-radius: 7px; padding: 4px 5px; outline: 0;
   }
   .prg-setrow-in:focus { border-color: var(--al-ink); box-shadow: 0 0 0 2px rgba(28,25,23,0.08); }
-  .prg-setrow-in[readonly] { background: rgba(91,85,74,0.04); color: var(--al-ink-soft); border-style: dashed; }
+  .prg-setrow-in[readonly] { background: rgba(75,93,117,0.04); color: var(--al-ink-soft); border-style: dashed; }
   .prg-setdetails-empty { font-size: 10.5px; color: var(--al-ink-mute); font-style: italic; }
 
   .prg-cell-inactive {
-    background: repeating-linear-gradient(135deg, rgba(91,85,74,0.04) 0 8px, transparent 8px 16px);
-    border: 1px dashed rgba(91,85,74,0.20);
+    background: repeating-linear-gradient(135deg, rgba(75,93,117,0.04) 0 8px, transparent 8px 16px);
+    border: 1px dashed rgba(75,93,117,0.20);
     border-radius: 12px;
     padding: 20px 12px;
     text-align: center;
@@ -836,8 +835,8 @@
     margin-top: 6px;
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
     padding: 10px 14px;
-    background: rgba(244,239,228,0.5);
-    border: 1.5px dashed rgba(138,106,58,0.35);
+    background: rgba(255,255,255,0.5);
+    border: 1.5px dashed rgba(30,58,95,0.35);
     border-radius: 12px;
     cursor: pointer; color: var(--al-bronze);
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em;
@@ -848,7 +847,7 @@
     background: var(--al-bronze); color: var(--al-parchment);
     border-color: var(--al-bronze); border-style: solid;
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px -10px rgba(138,106,58,0.55);
+    box-shadow: 0 10px 22px -10px rgba(30,58,95,0.55);
   }
   .prg-add-ex-btn i { font-size: 15px; }
 
@@ -876,7 +875,7 @@
   .rcp-head {
     padding: 1.5rem 1.75rem;
     background:
-      linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%),
+      linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(232,224,206,0.55) 100%),
       var(--al-parchment);
     border: 1px solid var(--al-rule);
     border-left: 4px solid var(--al-bronze);
@@ -887,7 +886,7 @@
   .rcp-head::after {
     content: ''; position: absolute; right: -40px; top: -40px;
     width: 180px; height: 180px;
-    background: radial-gradient(circle, rgba(138,106,58,0.08) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(30,58,95,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
   .rcp-head::before {
@@ -941,7 +940,7 @@
   }
   .rcp-duration-icon {
     width: 48px; height: 48px; border-radius: 50%;
-    background: rgba(138,106,58,0.1);
+    background: rgba(30,58,95,0.1);
     display: flex; align-items: center; justify-content: center;
     color: var(--al-bronze); font-size: 1.5rem; flex-shrink: 0;
   }
@@ -973,7 +972,7 @@
     background: var(--al-parchment); overflow: hidden;
     transition: border-color .15s, box-shadow .2s;
   }
-  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(20,17,13,.25)); }
+  .pd-day-block.is-open { border-color: var(--al-bronze-soft, var(--al-bronze)); box-shadow: var(--al-shadow-1, 0 6px 18px -12px rgba(11,29,58,.25)); }
   @media (max-width: 540px) { .pd-day-block { grid-template-columns: 40px minmax(0, 1fr); } }
 
   .pd-day-ordinal {
@@ -991,7 +990,7 @@
     padding: 1rem 1.1rem; background: transparent; border: none; cursor: pointer;
     transition: background .15s; text-align: left;
   }
-  .pd-day-btn:hover { background: rgba(138,106,58,0.06); }
+  .pd-day-btn:hover { background: rgba(91,137,182,0.06); }
   .pd-day-title { font-family: var(--al-display); font-weight: 500; color: var(--al-ink); font-size: 1.05rem; letter-spacing: -.005em; }
   .pd-day-meta { font-size: .75rem; color: var(--al-ink-mute); display: flex; align-items: center; gap: .6rem; }
   .pd-day-meta i.ph-caret-down { transition: transform .2s; font-size: 1rem; }
@@ -1034,11 +1033,11 @@
     background: var(--al-parchment);
     overflow: hidden;
     position: sticky; top: 84px;
-    box-shadow: 0 14px 34px -20px rgba(20,17,13,.35);
+    box-shadow: 0 14px 34px -20px rgba(11,29,58,.35);
   }
   .asg-head {
     padding: 1.1rem 1.25rem;
-    background: linear-gradient(135deg, rgba(244,239,228,0.9) 0%, rgba(232,224,206,0.55) 100%), var(--al-ink);
+    background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(232,224,206,0.55) 100%), var(--al-ink);
     color: var(--al-parchment);
     display: flex; align-items: center; gap: .65rem;
   }
@@ -1057,11 +1056,11 @@
     border-radius: 999px;
     background: var(--al-marble-warm);
     border-color: var(--al-rule-faint);
-    box-shadow: inset 0 1px 3px rgba(20,17,13,.06);
+    box-shadow: inset 0 1px 3px rgba(11,29,58,.06);
   }
   .asg-search-wrap input:focus {
     background: var(--al-parchment);
-    box-shadow: inset 0 1px 3px rgba(20,17,13,.06), 0 0 0 3px rgba(138,106,58,.16);
+    box-shadow: inset 0 1px 3px rgba(11,29,58,.06), 0 0 0 3px rgba(30,58,95,.16);
   }
   .asg-client-list {
     max-height: 260px; overflow-y: auto;
@@ -1077,8 +1076,8 @@
     cursor: pointer;
     transition: border-color .15s, background .15s, transform .15s;
   }
-  .asg-client:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble); transform: translateY(-1px); }
-  .asg-client.is-selected { border-color: var(--al-bronze); background: linear-gradient(135deg, rgba(138,106,58,.10), transparent 60%), var(--al-marble-warm); }
+  .asg-client:hover { border-color: var(--al-accent, var(--al-bronze)); background: var(--al-marble); transform: translateY(-1px); }
+  .asg-client.is-selected { border-color: var(--al-bronze); background: linear-gradient(135deg, rgba(30,58,95,.10), transparent 60%), var(--al-marble-warm); }
   .asg-client-avatar {
     width: 32px; height: 32px; border-radius: 50%;
     background: linear-gradient(135deg, var(--al-marble-warm), var(--al-marble));
@@ -1211,39 +1210,6 @@
         <input type="text" x-model="plan.title" @input="markDirty()" placeholder="Es. Ipertrofia Base 4gg" class="al-input">
       </div>
 
-      <!-- Sport combobox -->
-      <div class="wb-combobox" @click.away="sportCombobox.open = false">
-        <label class="al-label">Sport</label>
-        <input type="text"
-               class="al-input"
-               x-model="sportCombobox.query"
-               @input="onSportInput()"
-               @focus="sportCombobox.open = true; _refreshSportCombobox()"
-               @keydown.escape="sportCombobox.open = false"
-               placeholder="Es. Bodybuilding, Calcio, Tennis...">
-        <div class="wb-combobox-list" x-show="sportCombobox.open" x-cloak>
-          <template x-for="s in sportCombobox.filtered" :key="s.id">
-            <div class="wb-combobox-item" @click="pickSport(s)">
-              <i :class="'ph ' + (s.icon || 'ph-stack')"></i>
-              <span x-text="s.name"></span>
-              <span class="al-small ml-auto" style="color: var(--al-ink-mute);" x-show="!s.is_system">tuo</span>
-            </div>
-          </template>
-          <template x-if="sportCombobox.query && !sportCombobox.filtered.some(s => s.name.toLowerCase() === sportCombobox.query.toLowerCase().trim())">
-            <div class="wb-combobox-item wb-combobox-item-create" @click="createSportFromQuery()">
-              <i class="ph ph-plus-circle"></i>
-              <span>Crea sport "<span x-text="sportCombobox.query"></span>"</span>
-            </div>
-          </template>
-          <template x-if="sportCombobox.filtered.length === 0 && !sportCombobox.query">
-            <div class="wb-combobox-item" style="color: var(--al-ink-mute); cursor: default;">Nessuno sport disponibile.</div>
-          </template>
-        </div>
-        <p class="al-small mt-1" style="color: var(--al-ink-faint);" x-show="!plan.sport_id">
-          Senza sport vedrai tutti gli esercizi della libreria.
-        </p>
-      </div>
-
       <div>
         <label class="al-label">Cartella (opzionale)</label>
         <select x-model.number="plan.folder_id" @change="markDirty()" class="al-select">
@@ -1359,25 +1325,13 @@
           <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
                  placeholder="Cerca esercizio..." class="al-input">
 
-          <!-- Sport scope indicator (active filter + unlock) -->
-          <template x-if="activeSportSlugInLibrary()">
-            <div class="wb-sport-filter-row">
-              <i class="ph ph-target"></i>
-              <span class="al-small">Sport:</span>
-              <span class="wb-sport-name" x-text="activeSportNameInLibrary()"></span>
-              <button type="button" class="wb-unfilter" @click="unlockSportFilter()" title="Mostra tutti gli sport">
-                <i class="ph ph-x text-xs"></i> Rimuovi
-              </button>
-            </div>
-          </template>
-
-          <!-- Dropdown filters (sport / muscle / equipment) -->
+          <!-- Dropdown filters (category / muscle / equipment) -->
           <div class="grid grid-cols-2 gap-2">
             <select class="al-select wb-filter-select"
-                    @change="library.sport_slug = $event.target.value; library.sport_filter_locked = false; loadLibrary()">
-              <option value="" :selected="!library.sport_slug">Sport: tutti</option>
-              <template x-for="s in (sportsCatalog || [])" :key="s.slug">
-                <option :value="s.slug" :selected="library.sport_slug === s.slug" x-text="s.name"></option>
+                    @change="library.category_id = $event.target.value; loadLibrary()">
+              <option value="" :selected="!library.category_id">Categoria: tutte</option>
+              <template x-for="c in ((filters && filters.categories) || [])" :key="c.id">
+                <option :value="c.id" :selected="library.category_id == c.id" x-text="c.name_it"></option>
               </template>
             </select>
             <select class="al-select wb-filter-select"
@@ -1391,10 +1345,10 @@
 
           <div class="grid grid-cols-2 gap-2">
             <select class="al-select wb-filter-select"
-                    @change="library.equipment = $event.target.value; loadLibrary()">
-              <option value="" :selected="!library.equipment">Attrezzo: tutti</option>
-              <template x-for="e in ((filters && filters.equipment) || [])" :key="e">
-                <option :value="e" :selected="library.equipment === e" x-text="e"></option>
+                    @change="library.equipment_id = $event.target.value; loadLibrary()">
+              <option value="" :selected="!library.equipment_id">Attrezzo: tutti</option>
+              <template x-for="e in ((filters && filters.equipment) || [])" :key="e.id">
+                <option :value="e.id" :selected="library.equipment_id == e.id" x-text="e.name_it"></option>
               </template>
             </select>
             <label class="al-small flex items-center gap-2" title="Mostra solo esercizi personalizzati">
@@ -1424,11 +1378,8 @@
                   <template x-for="m in (ex.primary_muscles || [])" :key="m.slug">
                     <span class="mg" x-text="m.name"></span>
                   </template>
-                  <template x-if="(ex.primary_muscles?.length || 0) === 0 && ex.target_muscle_group">
-                    <span class="mg" x-text="ex.target_muscle_group"></span>
-                  </template>
-                  <template x-if="ex.equipment">
-                    <span class="al-tag" style="background: var(--al-stone); font-size: 10px;" x-text="ex.equipment"></span>
+                  <template x-for="eq in (ex.equipment || [])" :key="eq.id">
+                    <span class="al-tag" style="background: var(--al-stone); font-size: 10px;" x-text="eq.name_it"></span>
                   </template>
                 </div>
                 <template x-if="ex.is_custom">
@@ -1503,8 +1454,8 @@
                     <div class="wb-row-name">
                       <p class="wb-row-name-text" x-text="ex.exercise_name"></p>
                       <p class="wb-row-muscle"
-                         x-show="ex.target_muscle_group || ex.primary_muscle"
-                         x-text="ex.primary_muscle || ex.target_muscle_group"></p>
+                         x-show="ex.primary_muscles_data?.length"
+                         x-text="ex.primary_muscles_data?.[0]?.name"></p>
                     </div>
 
                     <!-- Set type chip dropdown -->
@@ -1725,23 +1676,6 @@
       </div>
 
       <div>
-        <label class="al-label">Sport *</label>
-        <div class="flex flex-wrap gap-2 mt-1">
-          <template x-for="s in sportsCatalog" :key="s.id">
-            <button type="button" class="wb-chip"
-                    :class="{ 'is-active': customExercise.sport_ids.includes(s.id) }"
-                    @click="toggleCustomSport(s.id)">
-              <i :class="'ph ' + (s.icon || 'ph-stack')"></i>
-              <span x-text="s.name"></span>
-            </button>
-          </template>
-        </div>
-        <p class="al-small mt-1" style="color: var(--al-ink-faint);">
-          Selezionando più sport, l'esercizio comparirà in tutte le tue librerie filtrate.
-        </p>
-      </div>
-
-      <div>
         <label class="al-label">Muscoli primari *</label>
         <div class="wb-msel mt-1" x-data="{ open: false }" @click.outside="open = false">
           <button type="button" class="wb-msel-trigger" :class="{ 'is-open': open }" @click="open = !open">
@@ -1817,24 +1751,26 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="al-label">Attrezzatura</label>
-          <input type="text" class="al-input" x-model="customExercise.equipment" placeholder="Es. Bilanciere">
-        </div>
-        <div>
-          <label class="al-label">Difficoltà</label>
-          <select class="al-select" x-model="customExercise.difficulty_level">
-            <option value="">—</option>
-            <option>Principiante</option>
-            <option>Intermedio</option>
-            <option>Avanzato</option>
-            <option>Agonista</option>
+          <label class="al-label">Categoria</label>
+          <select class="al-select" x-model.number="customExercise.category_id">
+            <option :value="null">—</option>
+            <template x-for="c in (filters.categories || [])" :key="c.id">
+              <option :value="c.id" x-text="c.name_it"></option>
+            </template>
           </select>
         </div>
-      </div>
-
-      <div>
-        <label class="al-label">Video URL (opzionale)</label>
-        <input type="url" class="al-input" x-model="customExercise.video_url" placeholder="https://...">
+        <div>
+          <label class="al-label">Attrezzatura</label>
+          <div class="flex flex-wrap gap-2 mt-1">
+            <template x-for="e in (filters.equipment || [])" :key="e.id">
+              <button type="button" class="wb-chip"
+                      :class="{ 'is-active': customExercise.equipment_ids.includes(e.id) }"
+                      @click="toggleCustomMuscle('equipment_ids', e.id)">
+                <span x-text="e.name_it"></span>
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -2086,7 +2022,7 @@
                       style="padding: 10px 12px;"
                       @click="confirmAddExerciseAtWeek(opt)">
                 <p class="font-semibold text-sm" x-text="opt.name"></p>
-                <p class="al-small" style="color: var(--al-ink-faint);" x-text="opt.target_muscle_group || opt.primary_muscle || ''"></p>
+                <p class="al-small" style="color: var(--al-ink-faint);" x-text="opt.primary_muscles?.[0]?.name || ''"></p>
               </button>
             </template>
             <template x-if="!addExUi.results.length && !addExUi.loading">
@@ -2118,9 +2054,6 @@
               <i :class="plan.plan_kind === 'PROGRAM' ? 'ph ph-chart-line-up' : 'ph ph-calendar-blank'"></i>
               <span x-text="plan.plan_kind === 'PROGRAM' ? 'Programmazione' : 'Settimanale'"></span>
             </span>
-            <template x-if="plan.sport_name">
-              <span class="rcp-chip"><i class="ph ph-trophy"></i><span x-text="plan.sport_name"></span></span>
-            </template>
             <template x-if="folderName()">
               <span class="rcp-chip"><i class="ph ph-folder"></i><span x-text="folderName()"></span></span>
             </template>

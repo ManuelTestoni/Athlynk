@@ -17,7 +17,10 @@
   };
 
   const BLOCK_TYPE_COLORS = {
-    straight: 'var(--al-ink-mute)', superset: 'var(--al-aegean)',
+    // superset used to be "aegean" and circuit "bronze" — both now resolve to
+    // the same primary blue post-rebrand, so superset gets a literal teal to
+    // stay visually distinct from circuit.
+    straight: 'var(--al-ink-mute)', superset: '#2B6E6E',
     circuit: 'var(--al-bronze)', emom: 'var(--al-warn)', amrap: 'var(--al-danger)',
   };
 
@@ -43,7 +46,8 @@
       customExerciseOpen: false,
       customExercise: null,
       muscleGroups: [],
-      sports: [],
+      equipmentOptions: [],
+      categoryOptions: [],
 
       init() {
         this._initCore();
@@ -196,10 +200,11 @@
         ex.matched_exercise_id = candidate.id;
         ex.matched_exercise_name = candidate.name;
         ex.matched_primary_muscle = candidate.primary_muscle
-            || candidate.target_muscle_group
             || (candidate.primary_muscles && candidate.primary_muscles[0]?.name)
             || '';
-        ex.matched_equipment = candidate.equipment || '';
+        ex.matched_equipment = Array.isArray(candidate.equipment)
+            ? candidate.equipment.join(', ')
+            : (candidate.equipment || '');
         ex.raw_name = candidate.name;
         ex.match_confidence = 'manual';
         ex.match_method = 'manual';
@@ -320,9 +325,12 @@
           }
         }
         const total = Object.values(buckets).reduce((a, b) => a + b, 0) || 1;
-        const palette = ['var(--al-bronze)', 'var(--al-aegean)', 'var(--al-warn)',
-                          'var(--al-danger)', 'var(--al-ink-mute)', 'var(--al-bronze-soft)',
-                          '#7d8a5c', '#9b5b6b', '#3f6470'];
+        // "aegean" now resolves to the same primary blue as "bronze" post-rebrand,
+        // so slots that used to be var-based and distinct are now literal jewel
+        // tones instead, keeping all 9 donut segments mutually distinguishable.
+        const palette = ['var(--al-bronze)', '#2B6E6E', 'var(--al-warn)',
+                          'var(--al-danger)', 'var(--al-ink-mute)', '#8A6E5A',
+                          '#4F7A6A', '#8A5A6B', '#3F7690'];
         const entries = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
         let acc = 0;
         return entries.map(([label, count], i) => {
@@ -379,20 +387,24 @@
       // ─── Custom exercise drawer ─────────────────────────
       _emptyCustomExercise() {
         return {
-          name: '', sport_ids: [], primary_muscle_ids: [], secondary_muscle_ids: [],
-          equipment: '', difficulty_level: '', video_url: '', coach_notes: '',
+          name: '', category_id: null, primary_muscle_ids: [], secondary_muscle_ids: [],
+          equipment_ids: [], coach_notes: '',
           saving: false, error: '',
         };
       },
 
       async _loadTaxonomy() {
         try {
-          const [mr, sr] = await Promise.all([
+          const [mr, fr] = await Promise.all([
             fetch('/api/muscle-groups/'),
-            fetch('/api/allenamenti/sport/'),
+            fetch('/api/exercises/filters/'),
           ]);
           if (mr.ok) this.muscleGroups = await mr.json();
-          if (sr.ok) this.sports = await sr.json();
+          if (fr.ok) {
+            const f = await fr.json();
+            this.equipmentOptions = f.equipment || [];
+            this.categoryOptions = f.categories || [];
+          }
         } catch (e) { console.warn('taxonomy fetch fail', e); }
       },
 
@@ -419,7 +431,6 @@
         const ce = this.customExercise;
         ce.error = '';
         if ((ce.name || '').trim().length < 3) { ce.error = 'Nome: minimo 3 caratteri.'; return; }
-        if (!ce.sport_ids.length) { ce.error = 'Seleziona almeno uno sport.'; return; }
         if (!ce.primary_muscle_ids.length) { ce.error = 'Seleziona almeno un muscolo primario.'; return; }
         ce.saving = true;
         try {
@@ -428,12 +439,10 @@
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.csrf },
             body: JSON.stringify({
               name: ce.name.trim(),
-              sport_ids: ce.sport_ids,
+              category_id: ce.category_id,
               primary_muscle_ids: ce.primary_muscle_ids,
               secondary_muscle_ids: ce.secondary_muscle_ids,
-              equipment: ce.equipment,
-              difficulty_level: ce.difficulty_level,
-              video_url: ce.video_url,
+              equipment_ids: ce.equipment_ids,
               coach_notes: ce.coach_notes,
             }),
           });

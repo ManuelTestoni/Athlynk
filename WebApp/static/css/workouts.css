@@ -112,8 +112,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 
 .wb-folder-item.is-drop-target {
-  border-color: var(--al-bronze);
-  background: rgba(138,106,58,0.08);
+  border-color: var(--al-accent);
+  background: rgba(91,137,182,0.08);
 }
 
 .wb-folder-item.is-dragging {
@@ -153,7 +153,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 /* Inline-edit input on a folder */
 .wb-folder-inline-input {
   flex: 1;
-  border: 1px solid var(--al-bronze);
+  border: 1px solid var(--al-accent);
   background: var(--al-parchment);
   border-radius: 4px;
   padding: 2px 6px;
@@ -162,17 +162,20 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   color: var(--al-ink);
 }
 
-/* Folder label colors (mapped to label_color token) */
-.wb-folder-label-dot--bronze  { background: #8a6a3a; }
-.wb-folder-label-dot--aegean  { background: #1c4a52; }
-.wb-folder-label-dot--amber   { background: #d4a64d; }
-.wb-folder-label-dot--emerald { background: #4a6b3a; }
-.wb-folder-label-dot--rose    { background: #a85d6b; }
-.wb-folder-label-dot--violet  { background: #6a4a8a; }
-.wb-folder-label-dot--slate   { background: #5b6470; }
-.wb-folder-label-dot--sand    { background: #c8a774; }
-.wb-folder-label-dot--crimson { background: #8a3a3a; }
-.wb-folder-label-dot--teal    { background: #2a6a72; }
+/* Folder label colors (mapped to label_color token) — bronze keeps the
+   brand primary since it's the DB default (views_client.py); the rest draw
+   from the categorical jewel-tone palette so all 10 stay distinguishable
+   now that "aegean" itself resolves to the same blue as primary. */
+.wb-folder-label-dot--bronze  { background: #1E3A5F; }
+.wb-folder-label-dot--aegean  { background: #2B6E6E; }
+.wb-folder-label-dot--amber   { background: #8A6A1E; }
+.wb-folder-label-dot--emerald { background: #4F7A6A; }
+.wb-folder-label-dot--rose    { background: #8A5A6B; }
+.wb-folder-label-dot--violet  { background: #6A5482; }
+.wb-folder-label-dot--slate   { background: #5B6B78; }
+.wb-folder-label-dot--sand    { background: #8A6E5A; }
+.wb-folder-label-dot--crimson { background: #9C4448; }
+.wb-folder-label-dot--teal    { background: #3F7690; }
 
 .wb-folder-chip {
   display: inline-flex;
@@ -187,16 +190,16 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   background: var(--al-stone);
   color: var(--al-ink);
 }
-.wb-folder-chip--bronze  { background: rgba(138,106,58,.15); color: #6b5128; }
-.wb-folder-chip--aegean  { background: rgba(28,74,82,.15);  color: #173b41; }
-.wb-folder-chip--amber   { background: rgba(212,166,77,.20); color: #806230; }
-.wb-folder-chip--emerald { background: rgba(74,107,58,.18); color: #38502a; }
-.wb-folder-chip--rose    { background: rgba(168,93,107,.18); color: #6b3a44; }
-.wb-folder-chip--violet  { background: rgba(106,74,138,.18); color: #4a3360; }
-.wb-folder-chip--slate   { background: rgba(91,100,112,.18); color: #3d4550; }
-.wb-folder-chip--sand    { background: rgba(200,167,116,.20); color: #6d562f; }
-.wb-folder-chip--crimson { background: rgba(138,58,58,.18); color: #5d2727; }
-.wb-folder-chip--teal    { background: rgba(42,106,114,.18); color: #1d4347; }
+.wb-folder-chip--bronze  { background: rgba(30,58,95,.15);   color: #132A47; }
+.wb-folder-chip--aegean  { background: rgba(43,110,110,.15); color: #1A4444; }
+.wb-folder-chip--amber   { background: rgba(138,106,30,.20); color: #5C4714; }
+.wb-folder-chip--emerald { background: rgba(79,122,106,.18); color: #365548; }
+.wb-folder-chip--rose    { background: rgba(138,90,107,.18); color: #5E3D48; }
+.wb-folder-chip--violet  { background: rgba(106,84,130,.18); color: #493A5A; }
+.wb-folder-chip--slate   { background: rgba(91,107,120,.18); color: #3D4954; }
+.wb-folder-chip--sand    { background: rgba(138,110,90,.20); color: #5E4B3D; }
+.wb-folder-chip--crimson { background: rgba(156,68,72,.18);  color: #6B2F32; }
+.wb-folder-chip--teal    { background: rgba(63,118,144,.18); color: #2A4E5E; }
 
 /* Su mobile il pannello cartelle diventa una strip orizzontale fissata in
    alto (sticky dentro main.al-canvas, che è lo scroller): le cartelle si
@@ -213,8 +216,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
     max-height: none;
     overflow: visible;
     padding: 10px 12px;
-    background: rgba(250, 247, 242, 0.92);
-    box-shadow: 0 10px 24px -18px rgba(20, 17, 13, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 10px 24px -18px rgba(11, 29, 58, 0.35);
   }
   .wb-sidebar-header { margin-bottom: 6px; }
   .wb-folder-list {
@@ -234,7 +237,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
     border-radius: 999px;
     padding: 6px 12px;
   }
-  .wb-folder-item.is-drop-target { border-color: var(--al-bronze); }
+  .wb-folder-item.is-drop-target { border-color: var(--al-accent); }
 }
 
 /* --------- Workout card grid ------------------------------------- */
@@ -331,8 +334,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.wb-kind-badge--program  { background: rgba(28,74,82,.12); color: var(--al-aegean); }
-.wb-kind-badge--weekly   { background: rgba(138,106,58,.14); color: var(--al-bronze); }
+.wb-kind-badge--program  { background: rgba(30,58,95,.12); color: var(--al-aegean); }
+.wb-kind-badge--weekly   { background: rgba(91,137,182,.16); color: var(--al-accent-text); }
 
 .wb-prog-tags {
   display: flex;
@@ -345,7 +348,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   gap: 3px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(28,74,82,.08);
+  background: rgba(30,58,95,.08);
   color: var(--al-aegean);
   font-size: 10px;
   font-weight: 600;
@@ -407,7 +410,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 /* Import-variant card: subtle diagonal accent + pill at top-right. */
 .wb-type-card--import {
   background:
-    linear-gradient(135deg, rgba(244,239,228,0) 60%, rgba(138,90,43,0.06) 100%),
+    linear-gradient(135deg, rgba(244,239,228,0) 60%, rgba(30,58,95,0.06) 100%),
     var(--al-parchment);
   overflow: hidden;
 }
@@ -416,7 +419,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   position: absolute;
   top: 0; right: 0;
   width: 120px; height: 120px;
-  background: radial-gradient(circle at 100% 0%, rgba(138,90,43,0.10) 0%, transparent 60%);
+  background: radial-gradient(circle at 100% 0%, rgba(30,58,95,0.10) 0%, transparent 60%);
   pointer-events: none;
 }
 .wb-type-card--import .wb-type-card-icon {
@@ -425,7 +428,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 .wb-type-card--import.is-selected {
   background:
-    linear-gradient(135deg, rgba(244,239,228,0) 50%, rgba(138,90,43,0.10) 100%),
+    linear-gradient(135deg, rgba(244,239,228,0) 50%, rgba(30,58,95,0.10) 100%),
     var(--al-parchment);
 }
 .wb-type-card-pill {
@@ -503,13 +506,13 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   position: relative;
 }
 .wb-kind-toggle-opt:hover {
-  border-color: var(--al-bronze-soft);
+  border-color: var(--al-accent);
   transform: translateY(-1px);
 }
 .wb-kind-toggle-opt.is-active {
   border-color: var(--al-bronze);
   background: var(--al-marble-warm);
-  box-shadow: 0 0 0 2px rgba(138,90,43,0.12);
+  box-shadow: 0 0 0 2px rgba(30,58,95,0.12);
 }
 .wb-kind-toggle-icon {
   font-size: 22px;
@@ -562,8 +565,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   transition: all 180ms ease;
 }
 .wb-ex-search-input:focus-within {
-  border-color: var(--al-bronze);
-  box-shadow: 0 0 0 2px rgba(138,90,43,0.10);
+  border-color: var(--al-accent);
+  box-shadow: 0 0 0 2px rgba(91,137,182,0.10);
 }
 .wb-ex-search-input > input[type=text] {
   flex: 1;
@@ -632,7 +635,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   gap: 8px;
   width: 100%;
   padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(138,90,43,0.06) 0%, rgba(138,90,43,0.02) 100%);
+  background: linear-gradient(135deg, rgba(30,58,95,0.06) 0%, rgba(30,58,95,0.02) 100%);
   border: 0;
   border-top: 1px dashed var(--al-rule);
   color: var(--al-bronze);
@@ -827,8 +830,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 .wb-msel-trigger:hover { border-color: var(--al-rule-strong); }
 .wb-msel-trigger.is-open {
-  border-color: var(--al-bronze);
-  box-shadow: 0 0 0 3px rgba(138,106,58,0.12);
+  border-color: var(--al-accent);
+  box-shadow: 0 0 0 3px rgba(91,137,182,0.12);
 }
 .wb-msel-trigger .wb-msel-caret {
   margin-left: auto;
@@ -923,8 +926,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   gap: var(--al-s-2);
   padding: 6px 10px;
   border-radius: var(--al-r-sm);
-  background: rgba(138,106,58,0.08);
-  border: 1px solid rgba(138,106,58,0.20);
+  background: rgba(30,58,95,0.08);
+  border: 1px solid rgba(30,58,95,0.20);
 }
 .wb-sport-filter-row .wb-sport-name {
   font-size: 12px;
@@ -946,7 +949,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   transition: all 140ms var(--al-ease);
 }
 .wb-sport-filter-row button.wb-unfilter:hover {
-  background: var(--al-bronze);
+  background: var(--al-accent);
   color: var(--al-parchment);
 }
 
@@ -970,7 +973,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   animation: wb-card-in 240ms var(--al-ease-emp) backwards;
 }
 .wb-lib-item:hover {
-  border-color: var(--al-bronze);
+  border-color: var(--al-accent);
   transform: translateX(2px);
 }
 .wb-lib-item.flash {
@@ -994,7 +997,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-size: 10px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(138,106,58,0.10);
+  background: rgba(30,58,95,0.10);
   color: var(--al-bronze);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1109,9 +1112,9 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   transition: all 140ms var(--al-ease);
 }
 .wb-chip-set-type:hover { border-color: var(--al-rule-strong); }
-.wb-chip-set-type.is-rep    { background: rgba(138,106,58,.15); color: var(--al-bronze); }
-.wb-chip-set-type.is-ramp   { background: rgba(28,74,82,.14); color: var(--al-aegean); }
-.wb-chip-set-type.is-test   { background: rgba(166,128,43,.15); color: var(--al-warn); }
+.wb-chip-set-type.is-rep    { background: rgba(30,58,95,.15); color: var(--al-bronze); }
+.wb-chip-set-type.is-ramp   { background: rgba(91,137,182,.16); color: var(--al-accent-text); }
+.wb-chip-set-type.is-test   { background: rgba(138,106,30,.16); color: var(--al-warn); }
 
 .wb-row-params {
   display: grid;
@@ -1144,7 +1147,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 .wb-mini-input:focus {
   outline: none;
-  border-color: var(--al-bronze);
+  border-color: var(--al-accent);
   box-shadow: var(--al-shadow-glow-bronze);
 }
 
@@ -1205,7 +1208,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 .wb-row-ribbon textarea:focus {
   outline: none;
-  border-color: var(--al-bronze);
+  border-color: var(--al-accent);
 }
 
 /* --------- Custom exercise drawer ----------------------------- */
@@ -1272,7 +1275,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   display: flex;
   gap: var(--al-s-2);
   justify-content: flex-end;
-  background: rgba(244,239,228,0.8);
+  background: rgba(255,255,255,0.8);
   flex-shrink: 0;             /* always visible — never pushed off-screen */
 }
 
@@ -1309,7 +1312,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   margin-top: var(--al-s-2);
   padding: 8px 12px;
   border-left: 3px solid var(--al-bronze);
-  background: rgba(138,106,58,0.06);
+  background: rgba(30,58,95,0.06);
   border-radius: 0 6px 6px 0;
   font-size: 13px;
   line-height: 1.5;
@@ -1375,7 +1378,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--al-s-3);
-  background: linear-gradient(180deg, var(--al-parchment) 0%, rgba(244,239,228,0.7) 100%);
+  background: linear-gradient(180deg, var(--al-parchment) 0%, rgba(255,255,255,0.7) 100%);
 }
 .va-header h3 {
   font-family: var(--al-display);
@@ -1430,7 +1433,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .va-segctl button.is-active {
   background: var(--al-ink);
   color: var(--al-parchment);
-  box-shadow: 0 1px 4px rgba(20,17,13,0.18);
+  box-shadow: 0 1px 4px rgba(11,29,58,0.18);
 }
 /* When the sliding pill is present, the moving pill provides the fill —
    drop the active button's own background so it glides instead of snapping. */
@@ -1482,7 +1485,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-family: var(--al-body);
 }
 .va-secondary-select:hover { border-color: var(--al-rule-strong); }
-.va-secondary-select:focus { outline: none; border-color: var(--al-bronze); box-shadow: 0 0 0 2px rgba(138,106,58,0.1); }
+.va-secondary-select:focus { outline: none; border-color: var(--al-accent); box-shadow: 0 0 0 2px rgba(91,137,182,0.1); }
 .va-secondary-select option { color: var(--al-ink); background: white; }
 
 /* Chart canvas frame — Chart.js standard layout pattern:
@@ -1538,8 +1541,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 
 /* Week diff card */
 .va-diff-card {
-  background: rgba(138,106,58,0.06);
-  border: 1px solid rgba(138,106,58,0.18);
+  background: rgba(30,58,95,0.06);
+  border: 1px solid rgba(30,58,95,0.18);
   border-radius: var(--al-r-md);
   padding: var(--al-s-4);
 }
@@ -1571,7 +1574,7 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .va-diff-row .delta--flat { color: var(--al-ink-mute); }
 
 .va-info-banner {
-  background: rgba(28,74,82,0.08);
+  background: rgba(30,58,95,0.08);
   border-left: 3px solid var(--al-aegean);
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;

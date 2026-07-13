@@ -131,7 +131,7 @@ def fuzzy_match_exercise(
         qs = qs.filter(Q(is_custom=False) | Q(created_by=coach))
     else:
         qs = qs.filter(is_custom=False)
-    qs = qs.distinct()[:80]
+    qs = qs.prefetch_related('primary_muscles', 'equipment').distinct()[:80]
 
     candidates = list(qs)
     name_norm = _normalize(name)
@@ -170,13 +170,13 @@ def fuzzy_match_exercise(
 
     out: list[dict] = []
     for score, ex in scored[:limit]:
+        primary_muscles = [m.name for m in ex.primary_muscles.all()]
         out.append({
             'id': ex.id,
             'name': ex.name,
             'is_custom': ex.is_custom,
-            'equipment': ex.equipment or '',
-            'primary_muscle': ex.primary_muscle or '',
-            'target_muscle_group': ex.target_muscle_group or '',
+            'equipment': [eq.name_it for eq in ex.equipment.all()],
+            'primary_muscle': primary_muscles[0] if primary_muscles else '',
             'cover_image': ex.cover_image.url if ex.cover_image else '',
             'score': round(float(score), 3),
         })

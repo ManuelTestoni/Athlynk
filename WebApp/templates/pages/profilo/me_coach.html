@@ -30,7 +30,7 @@
     <!-- Hero card -->
     <div class="al-card al-card-flush overflow-hidden mb-6">
         <div class="relative" style="background: linear-gradient(135deg, var(--al-ink) 0%, var(--al-aegean-deep) 100%); height: 200px;">
-            <div class="absolute inset-0" style="background-image: radial-gradient(ellipse 40% 30% at 20% 100%, rgba(138,106,58,0.25), transparent 70%);"></div>
+            <div class="absolute inset-0" style="background-image: radial-gradient(ellipse 40% 30% at 20% 100%, rgba(30,58,95,0.25), transparent 70%);"></div>
             <div class="absolute bottom-5 left-6 right-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div class="flex items-end gap-4">
                     <div class="w-20 h-20 overflow-hidden shrink-0 flex items-center justify-center text-3xl font-bold"
@@ -45,11 +45,11 @@
                     </div>
                     <div>
                         {% if coach.professional_type == 'ALLENATORE' %}
-                        <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3);">
+                        <span class="al-pill" style="background: rgba(255,255,255,0.15); color: var(--al-parchment); border: 1px solid rgba(255,255,255,0.3);">
                             <i class="ph-fill ph-barbell"></i> Allenatore
                         </span>
                         {% elif coach.professional_type == 'NUTRIZIONISTA' %}
-                        <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3);">
+                        <span class="al-pill" style="background: rgba(255,255,255,0.15); color: var(--al-parchment); border: 1px solid rgba(255,255,255,0.3);">
                             <i class="ph-fill ph-leaf"></i> Nutrizionista
                         </span>
                         {% else %}
@@ -58,11 +58,11 @@
                         </span>
                         {% endif %}
                         <h2 class="mt-2 al-display" style="font-size: 28px; line-height: 1.1; color: var(--al-parchment);">{{ coach_name }}</h2>
-                        <p class="text-sm mt-1" style="color: rgba(244,239,228,0.7);">{{ coach.specialization|default:"Personal Trainer" }}</p>
+                        <p class="text-sm mt-1" style="color: rgba(255,255,255,0.7);">{{ coach.specialization|default:"Personal Trainer" }}</p>
                     </div>
                 </div>
                 {% if coach.city %}
-                <span class="al-pill" style="background: rgba(244,239,228,0.15); color: var(--al-parchment); border: 1px solid rgba(244,239,228,0.3); backdrop-filter: blur(8px);">
+                <span class="al-pill" style="background: rgba(255,255,255,0.15); color: var(--al-parchment); border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(8px);">
                     <i class="ph ph-map-pin"></i> {{ coach.city }}
                 </span>
                 {% endif %}
@@ -108,7 +108,7 @@
             {% if coach.specialization %}
             <div>
                 <p class="al-eyebrow" style="color: var(--al-ink-mute);">Specializzazione</p>
-                <span class="al-pill mt-2" style="background: rgba(138,106,58,0.10); color: var(--al-bronze); border: 1px solid rgba(138,106,58,0.30);">
+                <span class="al-pill mt-2" style="background: rgba(30,58,95,0.10); color: var(--al-bronze); border: 1px solid rgba(30,58,95,0.30);">
                     {{ coach.specialization }}
                 </span>
             </div>

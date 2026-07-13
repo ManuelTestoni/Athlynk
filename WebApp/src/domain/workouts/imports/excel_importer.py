@@ -120,8 +120,8 @@ def _match_exercise_into(entry: dict, coach=None) -> None:
     if best:
         entry['matched_exercise_id'] = best['id']
         entry['matched_exercise_name'] = best['name']
-        entry['matched_primary_muscle'] = best.get('primary_muscle') or best.get('target_muscle_group') or ''
-        entry['matched_equipment'] = best.get('equipment') or ''
+        entry['matched_primary_muscle'] = best.get('primary_muscle') or ''
+        entry['matched_equipment'] = ', '.join(best.get('equipment') or [])
         entry['match_confidence'] = confidence
         entry['match_method'] = method
         entry['candidates'] = others

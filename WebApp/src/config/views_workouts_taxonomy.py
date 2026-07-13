@@ -1,7 +1,6 @@
 """API endpoints for the workouts redesign foundation:
 
 - Workout folders (per coach)
-- Sport catalog (system + custom)
 - Muscle groups (system)
 - Custom exercises (per coach)
 - Plan volume aggregator (per muscle group, per week)
@@ -12,16 +11,14 @@ suitable for both web (Alpine.js) and future mobile (Swift / Flutter) clients.
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit
-
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
 
 from domain.workouts.models import (
-    Exercise, MuscleGroup, Sport, WorkoutExercise,
+    Exercise, ExerciseCategory, Equipment, MuscleGroup, WorkoutExercise,
     WorkoutFolder, WorkoutPlan,
 )
 
@@ -35,27 +32,6 @@ ALLOWED_LABEL_COLORS = {
     'violet', 'slate', 'sand', 'crimson', 'teal',
 }
 
-# Difficulty picklist — must match the <select> in wizard.html / _import_review.html
-ALLOWED_DIFFICULTY = {'Principiante', 'Intermedio', 'Avanzato', 'Agonista'}
-
-
-def _safe_http_url(raw, max_length=500):
-    """Return a trimmed http(s) URL, or '' for anything else.
-
-    Blocks javascript:/data:/file: and other schemes that HTML-escaping does
-    not defang when the value lands in an href.
-    """
-    if not isinstance(raw, str):
-        return ''
-    url = raw.strip()[:max_length]
-    if not url:
-        return ''
-    try:
-        scheme = urlsplit(url).scheme.lower()
-    except ValueError:
-        return ''
-    return url if scheme in ('http', 'https') else ''
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -68,17 +44,6 @@ def _require_coach(request):
 def _serialize_folder(folder, plan_count=None):
     count = plan_count if plan_count is not None else folder.plans.count()
     return serialize_folder(folder, 'plan_count', count)
-
-
-def _serialize_sport(sport):
-    return {
-        'id': sport.id,
-        'slug': sport.slug,
-        'name': sport.name,
-        'icon': sport.icon or '',
-        'category': sport.category,
-        'is_system': sport.is_system,
-    }
 
 
 def _serialize_muscle(m):
@@ -95,19 +60,17 @@ def _serialize_exercise_full(ex):
     return {
         'id': ex.id,
         'name': ex.name,
-        'video_url': ex.video_url or '',
+        'description': ex.description or '',
         'cover_image': ex.cover_image.url if ex.cover_image else '',
+        'wger_image_url': ex.wger_image_url or '',
+        'license_title': ex.license_title or '',
+        'license_author': ex.license_author or '',
         'is_custom': ex.is_custom,
-        'sports': [_serialize_sport(s) for s in ex.sports.all()],
+        'category': {'id': ex.category_id, 'name': ex.category.name_it} if ex.category_id else None,
+        'equipment': [{'id': eq.id, 'name': eq.name_it} for eq in ex.equipment.all()],
         'primary_muscles': [_serialize_muscle(m) for m in ex.primary_muscles.all()],
         'secondary_muscles': [_serialize_muscle(m) for m in ex.secondary_muscles.all()],
-        'equipment': ex.equipment or '',
-        'difficulty_level': ex.difficulty_level or '',
         'coach_notes': ex.coach_notes or '',
-        # legacy text (kept for backward compat)
-        'target_muscle_group': ex.target_muscle_group or '',
-        'primary_muscle': ex.primary_muscle or '',
-        'secondary_muscle': ex.secondary_muscle or '',
     }
 
 
@@ -237,41 +200,6 @@ def api_folders_reorder(request):
 
 
 # ---------------------------------------------------------------------------
-# Sports
-# ---------------------------------------------------------------------------
-
-def api_sports(request):
-    coach, err = _require_coach(request)
-    if err:
-        return err
-
-    if request.method == 'GET':
-        sports = Sport.objects.filter(Q(is_system=True) | Q(created_by=coach)).order_by('order', 'name')
-        return JsonResponse([_serialize_sport(s) for s in sports], safe=False)
-
-    if request.method == 'POST':
-        data, perr = _parse_body(request)
-        if perr:
-            return perr
-        name = (data.get('name') or '').strip()
-        if not name or len(name) < 2:
-            return JsonResponse({'error': 'Nome sport richiesto (min 2 caratteri).'}, status=400)
-        slug = slugify(name)[:80]
-        if Sport.objects.filter(slug=slug).exists():
-            return JsonResponse({'error': 'Esiste già uno sport con questo nome.'}, status=400)
-        sport = Sport.objects.create(
-            name=name, slug=slug,
-            icon=(data.get('icon') or '').strip()[:60],
-            category=(data.get('category') or 'OTHER'),
-            is_system=False, created_by=coach,
-            order=999,
-        )
-        return JsonResponse(_serialize_sport(sport), status=201)
-
-    return JsonResponse({'error': 'method not allowed'}, status=405)
-
-
-# ---------------------------------------------------------------------------
 # Muscle groups
 # ---------------------------------------------------------------------------
 
@@ -303,30 +231,30 @@ def _exercise_payload_apply(ex, data, coach):
 
     # Free-text fields: trim + cap to the DB column length. Output is rendered
     # through Django auto-escaping, but length caps still prevent abuse.
-    text_caps = {'equipment': 100, 'coach_notes': 5000}
+    text_caps = {'coach_notes': 5000, 'description': 5000}
     for fld, cap in text_caps.items():
         if fld in data:
             value = data.get(fld)
             value = value.strip()[:cap] if isinstance(value, str) else ''
             setattr(ex, fld, value)
 
-    # difficulty_level is a fixed picklist on the UI — reject anything else.
-    if 'difficulty_level' in data:
-        diff = (data.get('difficulty_level') or '').strip()
-        ex.difficulty_level = diff if diff in ALLOWED_DIFFICULTY else ''
-
-    # video_url: only http(s). HTML-escaping does NOT neutralise a javascript:
-    # href, so the scheme must be validated here before it reaches an <a href>.
-    if 'video_url' in data:
-        ex.video_url = _safe_http_url(data.get('video_url'))
+    if 'category_id' in data:
+        category_id = data.get('category_id')
+        if category_id in (None, '', 0):
+            ex.category = None
+        else:
+            try:
+                ex.category = ExerciseCategory.objects.get(id=int(category_id))
+            except (ExerciseCategory.DoesNotExist, TypeError, ValueError):
+                pass
 
     if 'cover_image' in data and not data.get('cover_image'):
         ex.cover_image = None
     ex.save()
 
-    if 'sport_ids' in data:
-        ids = [int(x) for x in (data.get('sport_ids') or []) if str(x).isdigit()]
-        ex.sports.set(Sport.objects.filter(id__in=ids))
+    if 'equipment_ids' in data:
+        ids = [int(x) for x in (data.get('equipment_ids') or []) if str(x).isdigit()]
+        ex.equipment.set(Equipment.objects.filter(id__in=ids))
     if 'primary_muscle_ids' in data:
         ids = [int(x) for x in (data.get('primary_muscle_ids') or []) if str(x).isdigit()]
         ex.primary_muscles.set(MuscleGroup.objects.filter(id__in=ids))
@@ -343,7 +271,8 @@ def api_custom_exercises(request):
     if request.method == 'GET':
         qs = (
             Exercise.objects.filter(is_custom=True, created_by=coach)
-            .prefetch_related('sports', 'primary_muscles', 'secondary_muscles')
+            .select_related('category')
+            .prefetch_related('equipment', 'primary_muscles', 'secondary_muscles')
             .order_by('name')
         )
         return JsonResponse([_serialize_exercise_full(e) for e in qs], safe=False)
@@ -358,9 +287,6 @@ def api_custom_exercises(request):
         primary_ids = data.get('primary_muscle_ids') or []
         if not primary_ids:
             return JsonResponse({'error': 'Seleziona almeno un muscolo primario.'}, status=400)
-        sport_ids = data.get('sport_ids') or []
-        if not sport_ids:
-            return JsonResponse({'error': 'Seleziona almeno uno sport.'}, status=400)
 
         with transaction.atomic():
             ex = Exercise(is_custom=True, created_by=coach)
