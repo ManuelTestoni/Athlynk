@@ -399,8 +399,8 @@ body {
   color: var(--al-ink);
   border-color: var(--al-rule-strong);
 }
-.al-btn-ghost::after { background: var(--al-highlight-premium); }
-.al-btn-ghost:hover { color: var(--al-ink); }
+.al-btn-ghost::after { background: var(--al-ink); }
+.al-btn-ghost:hover { color: var(--al-highlight-premium); }
 
 /* Icon-only ghost buttons (card corner actions): the shared ::after slide-up
    above is too slow to guarantee contrast on tap/sticky-hover, producing a
@@ -432,8 +432,8 @@ body {
   border-color: var(--al-rule-strong);
   color: var(--al-ink);
 }
-.al-btn-light::after { background: var(--al-highlight-premium); }
-.al-btn-light:hover { color: var(--al-ink); }
+.al-btn-light::after { background: var(--al-bronze-l); }
+.al-btn-light:hover { color: var(--al-highlight-premium); }
 
 /* Ghost button carrying a destructive action (elimina/rimuovi): overrides the
    shared gold hover fill so danger buttons stay red end-to-end instead of
