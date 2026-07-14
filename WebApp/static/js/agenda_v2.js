@@ -9,6 +9,14 @@ const APPOINTMENT_TYPES = [
   { value: 'consulenza',   label: 'Consulenza',      color: '#8A6A1E', icon: 'ph ph-video-camera' },
 ];
 
+// Read-only athlete activity markers (server: views_agenda.ACTIVITY_TYPE_COLORS)
+// — not schedulable, so kept out of APPOINTMENT_TYPES (the create/edit dropdown).
+const ACTIVITY_TYPES = [
+  { value: 'allenamento_fatto', label: 'Allenamento fatto', color: '#3F7A5E', icon: 'ph ph-barbell' },
+  { value: 'check_fatto',       label: 'Check inviato',     color: '#4A5A8A', icon: 'ph ph-clipboard-text' },
+  { value: 'macro',             label: 'Macro registrati',  color: '#8A6A1E', icon: 'ph ph-chart-donut' },
+];
+
 const IT_DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const IT_DOW_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
@@ -74,8 +82,9 @@ document.addEventListener('alpine:init', () => {
     selectedDate: new Date(),
 
     canManage: window.AGENDA_CAN_MANAGE === true,
-    typeFilter: APPOINTMENT_TYPES.map(t => t.value), // all enabled
+    typeFilter: APPOINTMENT_TYPES.concat(ACTIVITY_TYPES).map(t => t.value), // all enabled
     types: APPOINTMENT_TYPES,
+    activityTypes: ACTIVITY_TYPES,
     dowLabels: IT_DOW,
 
     // modals
@@ -136,15 +145,15 @@ document.addEventListener('alpine:init', () => {
     },
 
     typeLabel(t) {
-      const m = APPOINTMENT_TYPES.find(x => x.value === t);
+      const m = APPOINTMENT_TYPES.find(x => x.value === t) || ACTIVITY_TYPES.find(x => x.value === t);
       return m ? m.label : t;
     },
     typeColor(t) {
-      const m = APPOINTMENT_TYPES.find(x => x.value === t);
+      const m = APPOINTMENT_TYPES.find(x => x.value === t) || ACTIVITY_TYPES.find(x => x.value === t);
       return m ? m.color : '#5B6B78';
     },
     typeClass(t) {
-      const known = APPOINTMENT_TYPES.find(x => x.value === t);
+      const known = APPOINTMENT_TYPES.find(x => x.value === t) || ACTIVITY_TYPES.find(x => x.value === t);
       return known ? `event-${t}` : 'event-default';
     },
 

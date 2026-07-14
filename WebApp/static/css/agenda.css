@@ -337,7 +337,7 @@
 }
 .agenda-week-headrow {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(7, minmax(0, 1fr));
   position: sticky; top: 0; z-index: 3;
   background: var(--al-marble-warm);
   border-bottom: 1px solid var(--al-rule);
@@ -376,7 +376,7 @@
 }
 .agenda-week-body {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(7, minmax(0, 1fr));
 }
 .agenda-week-gutter {
   display: flex;
@@ -439,11 +439,15 @@
 .agenda-week-event.event-prima_visita { background: #4F7A6A; border-left-color: #395A4E; }
 .agenda-week-event.event-visita       { background: #1E3A5F; border-left-color: #132A47; }
 .agenda-week-event.event-consulenza   { background: #8A6A1E; border-left-color: #6B5217; }
+/* Athlete activity (read-only): allenamento fatto / check inviato / macro registrati */
+.agenda-week-event.event-allenamento_fatto { background: #3F7A5E; border-left-color: #2F5C46; }
+.agenda-week-event.event-check_fatto       { background: #4A5A8A; border-left-color: #333F61; }
+.agenda-week-event.event-macro              { background: #8A6A1E; border-left-color: #6B5217; }
 
 /* ----- Month view ----- */
 .agenda-month-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-auto-rows: minmax(110px, 1fr);
 }
 .agenda-month-dow {
@@ -468,6 +472,7 @@
   flex-direction: column;
   gap: 4px;
   min-height: 110px;
+  min-width: 0;
   position: relative;
   transition: background var(--al-d-fast) var(--al-ease);
 }
@@ -504,6 +509,9 @@
 .agenda-month-pill.event-prima_visita { background: #4F7A6A; border-left-color: #395A4E; }
 .agenda-month-pill.event-visita       { background: #1E3A5F; border-left-color: #132A47; }
 .agenda-month-pill.event-consulenza   { background: #d97706; border-left-color: #92500a; }
+.agenda-month-pill.event-allenamento_fatto { background: #3F7A5E; border-left-color: #2F5C46; }
+.agenda-month-pill.event-check_fatto        { background: #4A5A8A; border-left-color: #333F61; }
+.agenda-month-pill.event-macro               { background: #8A6A1E; border-left-color: #6B5217; }
 .agenda-month-more {
   font-size: 10px;
   color: var(--al-ink-mute);

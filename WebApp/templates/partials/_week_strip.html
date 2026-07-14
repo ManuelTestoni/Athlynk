@@ -1,0 +1,23 @@
+{% comment %}
+Shared week strip: 7 day-circles (L M M G V S D), one marked as selected.
+Usage: {% include 'partials/_week_strip.html' with strip_event='agenda-day-selected' %}
+Dispatches `strip_event` (default 'week-strip-day-selected') on window with
+{ date: 'YYYY-MM-DD' } whenever a day is picked — the host page listens for
+it to filter its own content. Needs static/js/week_strip.js loaded.
+{% endcomment %}
+<div class="al-week-strip" x-data="weekStrip('{{ strip_event|default:'week-strip-day-selected' }}')">
+  <button type="button" class="al-week-strip-nav" @click="prevWeek()" aria-label="Settimana precedente">
+    <i class="ph ph-caret-left"></i>
+  </button>
+  <div class="al-week-strip-days">
+    <template x-for="d in days" :key="d.iso">
+      <button type="button" class="al-week-strip-day" :class="{ 'is-selected': d.isSelected, 'is-today': d.isToday }" @click="selectDay(d)">
+        <span class="al-week-strip-day-label" x-text="d.label"></span>
+        <span class="al-week-strip-day-circle" x-text="d.initial"></span>
+      </button>
+    </template>
+  </div>
+  <button type="button" class="al-week-strip-nav" @click="nextWeek()" aria-label="Settimana successiva">
+    <i class="ph ph-caret-right"></i>
+  </button>
+</div>

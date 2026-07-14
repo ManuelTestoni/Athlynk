@@ -138,6 +138,18 @@
             <span x-text="t.label"></span>
           </label>
         </template>
+        {% if not can_manage_agenda %}
+        <template x-for="t in activityTypes" :key="t.value">
+          <label class="agenda-filter-row">
+            <input type="checkbox"
+                   :checked="typeFilter.includes(t.value)"
+                   @change="toggleType(t.value)"
+                   class="al-checkbox">
+            <span class="agenda-filter-swatch" :style="`background: ${t.color};`"></span>
+            <span x-text="t.label"></span>
+          </label>
+        </template>
+        {% endif %}
       </div>
 
       <!-- Upcoming -->
@@ -320,7 +332,7 @@
         </div>
       </div>
       <div class="al-modal-body space-y-3" x-show="selectedEvent">
-        <div class="flex items-start gap-3 py-2">
+        <div x-show="selectedEvent?.client_name" class="flex items-start gap-3 py-2">
           <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-marble); color: var(--al-ink-soft);">
             <i class="ph ph-user"></i>
           </div>
@@ -334,9 +346,9 @@
             <i class="ph ph-clock"></i>
           </div>
           <div>
-            <p class="al-tag">Quando</p>
+            <p class="al-tag" x-text="selectedEvent?.is_activity ? 'Giorno' : 'Quando'"></p>
             <p class="font-medium text-ink mt-0.5"
-               x-text="selectedEvent ? fmtFullDate(selectedEvent._start) + ' · ' + fmtTime(selectedEvent._start) + ' – ' + fmtTime(selectedEvent._end) : ''"></p>
+               x-text="selectedEvent ? (selectedEvent.is_activity ? fmtFullDate(selectedEvent._start) : fmtFullDate(selectedEvent._start) + ' · ' + fmtTime(selectedEvent._start) + ' – ' + fmtTime(selectedEvent._end)) : ''"></p>
           </div>
         </div>
         <div x-show="selectedEvent?.description" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
@@ -346,6 +358,23 @@
           <div>
             <p class="al-tag mb-1">Note</p>
             <p class="al-body" x-text="selectedEvent?.description"></p>
+          </div>
+        </div>
+        <div x-show="selectedEvent?.type === 'macro' && selectedEvent?.items?.length"
+             class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">
+          <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-warn-bg); color: var(--al-warn);">
+            <i class="ph ph-chart-donut"></i>
+          </div>
+          <div class="flex-1">
+            <p class="al-tag mb-1">Alimenti registrati</p>
+            <ul class="space-y-1">
+              <template x-for="item in (selectedEvent?.items || [])" :key="item.name + item.quantity_g">
+                <li class="al-small flex items-center justify-between gap-3">
+                  <span x-text="item.name"></span>
+                  <span class="font-mono" x-text="item.quantity_g + 'g · ' + item.kcal + 'kcal'"></span>
+                </li>
+              </template>
+            </ul>
           </div>
         </div>
         <div x-show="selectedEvent?.meeting_url" class="flex items-start gap-3 py-2 border-t" style="border-color: var(--al-rule-faint);">

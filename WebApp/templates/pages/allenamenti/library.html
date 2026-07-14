@@ -223,11 +223,11 @@
                    @dragstart="draggedPlanId = plan.id; dragSourceEl = $event.currentTarget; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null">
             <div>
-              <div class="flex justify-between items-center mb-4">
-                <span class="wb-kind-badge"
+              <div class="flex justify-between items-center mb-4 min-w-0">
+                <span class="wb-kind-badge min-w-0"
                       :class="plan.plan_kind === 'PROGRAM' ? 'wb-kind-badge--program' : 'wb-kind-badge--weekly'"
                       x-text="plan.plan_kind === 'PROGRAM' ? 'Programma' : 'Settimana'"></span>
-                <div class="flex items-center gap-1" @click.stop>
+                <div class="flex items-center gap-1 shrink-0" @click.stop>
                   <template x-if="plan.status === 'DRAFT'">
                     <span class="al-badge al-badge-warn"><i class="ph ph-pencil-simple"></i>Bozza</span>
                   </template>

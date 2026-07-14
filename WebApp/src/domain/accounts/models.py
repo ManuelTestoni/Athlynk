@@ -23,6 +23,10 @@ class User(models.Model):
     # account-creation moment (coach signup, athlete activation, mobile gate).
     terms_accepted_at = models.DateTimeField(null=True, blank=True)
     terms_version = models.CharField(max_length=40, blank=True, default='')
+    # Per-user app branding (Impostazioni → Aspetto). Blank = Athlynk default.
+    brand_name = models.CharField(max_length=40, blank=True, default='')
+    brand_primary = models.CharField(max_length=7, blank=True, default='')
+    brand_accent = models.CharField(max_length=7, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -19,10 +19,20 @@
   --al-ink-mute:  #4B5D75;
   --al-ink-line:  #7C8CA3;
 
+  /* Per-user branding seam: two colors a coach/athlete can override
+     (Impostazioni → Aspetto, session_utils.build_identity_context). Every
+     brand-role token below is DERIVED from these two triplets, so an override
+     of just --al-primary-rgb/--al-accent-rgb on :root retints the whole app —
+     Tailwind's aegean/bronze/primary/accent utilities included (see
+     tailwind.config.js, which reads the same variables). */
+  --al-primary-rgb:   30 58 95;    /* #1E3A5F */
+  --al-primary-d-rgb: 19 42 71;    /* #132A47 */
+  --al-accent-rgb:    91 137 182;  /* #5B89B6 */
+
   /* Primary — royal blue dark (structural operational accent, was "Aegean") */
-  --al-aegean:    #1E3A5F;
-  --al-aegean-d:  #132A47;
-  --al-aegean-t:  #5B89B6;
+  --al-aegean:    rgb(var(--al-primary-rgb));
+  --al-aegean-d:  rgb(var(--al-primary-d-rgb));
+  --al-aegean-t:  rgb(var(--al-accent-rgb));
 
   /* AA-safe darker step of the light-blue accent, for link/small-text use */
   --al-accent-text: #3E6E95;
@@ -30,10 +40,10 @@
   /* Bronze retired as a role — kept as an alias onto primary so any missed
      reference degrades gracefully instead of showing the old warm hue.
      Real usages are reclassified per-component into primary/accent/gold. */
-  --al-bronze:    #1E3A5F;
-  --al-bronze-s:  #132A47;
-  --al-bronze-l:  #5B89B6;
-  --al-bronze-soft: #132A47;
+  --al-bronze:    rgb(var(--al-primary-rgb));
+  --al-bronze-s:  rgb(var(--al-primary-d-rgb));
+  --al-bronze-l:  rgb(var(--al-accent-rgb));
+  --al-bronze-soft: rgb(var(--al-primary-d-rgb));
 
   /* Marble alias */
   --al-marble-warm: #EEF1F6;
@@ -417,7 +427,7 @@ body {
 .al-btn-icon.al-btn-ghost:focus-visible {
   background: transparent;
   color: var(--al-accent);
-  transform: scale(1.18) translateY(-1px);
+  transform: scale(1.1) translateY(-1px);
   box-shadow: 0 6px 14px -6px rgba(20, 17, 13, 0.35);
 }
 .al-btn-icon.al-btn-ghost:active {
@@ -466,6 +476,7 @@ body {
   align-items: center;
   justify-content: center;
   width: 36px; height: 36px;
+  flex: 0 0 auto;
   padding: 0;
   font-size: 16px;
 }
@@ -4295,3 +4306,104 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
 @media (max-width: 520px) {
   .antro-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Shared week strip (partials/_week_strip.html) ---------- */
+.al-week-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.al-week-strip-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.al-week-strip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  min-width: 0;
+}
+.al-week-strip-day-label {
+  font-family: var(--al-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--al-ink-mute);
+}
+.al-week-strip-day-circle {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--al-marble);
+  border: 1px solid var(--al-rule);
+  font-family: var(--al-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--al-ink);
+  transition: all var(--al-d-fast) var(--al-ease);
+}
+.al-week-strip-day.is-today .al-week-strip-day-circle {
+  border-color: var(--al-primary);
+  color: var(--al-primary);
+}
+.al-week-strip-day.is-selected .al-week-strip-day-circle {
+  background: var(--al-primary);
+  border-color: var(--al-primary);
+  color: var(--al-parchment);
+}
+.al-week-strip-nav {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--al-rule);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--al-ink-mute);
+  flex-shrink: 0;
+}
+.al-week-strip-nav:hover { color: var(--al-ink); border-color: var(--al-rule-strong); }
+
+/* ---------- Shared Chart.js tooltip (chart_theme.js) ----------
+   Appended to <body>, not the chart's card, so its z-index always wins
+   against sibling overlays (e.g. .pc-yaxis) instead of being capped by
+   the card's own stacking context. */
+.al-chart-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--al-ink);
+  border: 1px solid var(--al-highlight-premium);
+  color: #FFFFFF;
+  padding: 8px 10px;
+  border-radius: var(--al-r-2, 6px);
+  font-family: var(--al-sans);
+  font-size: 11px;
+  line-height: 1.5;
+  box-shadow: 0 6px 20px -6px rgba(11, 29, 58, 0.45);
+  white-space: nowrap;
+}
+.al-chart-tooltip-title {
+  font-family: var(--al-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--al-highlight-premium);
+  margin-bottom: 4px;
+}
+.al-chart-tooltip-line { color: #FFFFFF; }

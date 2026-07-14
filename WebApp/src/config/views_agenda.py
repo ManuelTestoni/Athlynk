@@ -12,6 +12,7 @@ except ImportError:
     from domain.appointments.models import Appointment  # type: ignore[no-redef]
 
 from .session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+from .views_client import _build_activity_events
 
 
 TYPE_COLORS = {
@@ -20,6 +21,58 @@ TYPE_COLORS = {
     'visita': '#1E3A5F',
     'consulenza': '#8A6A1E',
 }
+
+# Athlete activity (workouts actually done, checks submitted, food logged) —
+# distinct from the scheduled-appointment types above. 'check' is remapped to
+# 'check_fatto' so it never collides with the appointment_type='check' color.
+ACTIVITY_TYPE_COLORS = {
+    'allenamento_fatto': '#3F7A5E',
+    'check_fatto': '#4A5A8A',
+    'macro': '#8A6A1E',
+}
+ACTIVITY_CALENDAR_TYPE = {'check': 'check_fatto'}
+
+# Athlete activity only ever looks backward (a workout/check/food entry can't
+# be logged for the future) — bound the trailing history so an active
+# athlete's full log doesn't get re-serialized into every agenda load.
+ACTIVITY_TRAILING_DAYS = 90
+
+
+def _activity_to_agenda_event(ev):
+    """Adapt a _build_activity_events() row into the same envelope shape
+    _serialize_event() produces for Appointment, so the agenda grid/pill
+    rendering doesn't need to special-case the two sources."""
+    d = datetime.date.fromisoformat(ev['date'])
+    start = datetime.datetime.combine(d, datetime.time(12, 0))
+    cal_type = ACTIVITY_CALENDAR_TYPE.get(ev['type'], ev['type'])
+    return {
+        'id': f"activity-{ev['id']}",
+        'title': ev['title'],
+        'start': start.isoformat(),
+        'end': (start + datetime.timedelta(minutes=30)).isoformat(),
+        'duration_minutes': 30,
+        'type': cal_type,
+        'color': ACTIVITY_TYPE_COLORS.get(cal_type, '#5B6B78'),
+        'client_id': None,
+        'client_name': '',
+        'status': 'DONE',
+        'description': ev.get('subtitle', ''),
+        'meeting_url': '',
+        'is_recurring': False,
+        'recurrence_rule': '',
+        'check_url': '',
+        'is_activity': True,
+        'detail_url': ev.get('url', ''),
+        'count': ev.get('count'),
+        'items': ev.get('items'),
+    }
+
+
+def _client_activity_agenda_events(client):
+    today = datetime.date.today()
+    window_start = today - datetime.timedelta(days=ACTIVITY_TRAILING_DAYS)
+    return [_activity_to_agenda_event(ev)
+            for ev in _build_activity_events(client, window_start, today)]
 
 
 def _parse_duration(raw):
@@ -67,6 +120,7 @@ def agenda_dashboard_view(request):
 
         events = Appointment.objects.filter(coach=relationship.coach, client=client).select_related('client')
         events_data = [_serialize_event(e, coach_view=False) for e in events]
+        events_data += _client_activity_agenda_events(client)
 
         context = {
             'coach': relationship.coach,
@@ -113,7 +167,9 @@ def api_agenda_events(request):
             return JsonResponse({'error': 'Forbidden'}, status=403)
 
         events = Appointment.objects.filter(coach=relationship.coach, client=client).select_related('client')
-        return JsonResponse([_serialize_event(e, coach_view=False) for e in events], safe=False)
+        events_data = [_serialize_event(e, coach_view=False) for e in events]
+        events_data += _client_activity_agenda_events(client)
+        return JsonResponse(events_data, safe=False)
 
     coach = get_session_coach(request)
     if not coach:

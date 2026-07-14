@@ -333,6 +333,8 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .wb-kind-badge--program  { background: rgba(30,58,95,.12); color: var(--al-aegean); }
 .wb-kind-badge--weekly   { background: rgba(91,137,182,.16); color: var(--al-accent-text); }

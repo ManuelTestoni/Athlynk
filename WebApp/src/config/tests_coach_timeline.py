@@ -78,3 +78,68 @@ class CoachTimelineReproTests(TestCase):
             **self._auth())
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()['has_data'])
+
+
+@override_settings(CACHES=LOCMEM)
+class WebPercorsoReproTests(TestCase):
+    """The web percorso route (/api/coach/clienti/<id>/percorso/) is the one
+    the coach's client-detail page actually uses. It had its own copy of the
+    window-clipping bug that /api/v1/coach/clients/<id>/percorso already had
+    fixed — this reproduces it directly against the web route."""
+
+    def setUp(self):
+        cu = User.objects.create(email='c2@e.com', password_hash=make_password('x'),
+                                 role='COACH', is_verified=True)
+        self.coach = CoachProfile.objects.create(user=cu, first_name='C', last_name='O',
+                                                 professional_type='COACH')
+        au = User.objects.create(email='a2@e.com', password_hash=make_password('x'),
+                                 role='CLIENT', is_verified=True)
+        self.athlete = ClientProfile.objects.create(user=au, first_name='A', last_name='T')
+
+        plan = WorkoutPlan.objects.create(coach=self.coach, title='Plan', status='PUBLISHED')
+        # created_at (what the timeline plots) lands "now"; start_date is a
+        # separate plan-level field the event builder never reads.
+        WorkoutAssignment.objects.create(workout_plan=plan, client=self.athlete,
+                                         coach=self.coach, status='ACTIVE',
+                                         start_date=date.today())
+
+    def _login(self):
+        session = self.client.session
+        session['user_id'] = self.coach.user_id
+        session.save()
+
+    def test_web_percorso_not_empty_when_relationship_starts_later(self):
+        """An athlete who re-signed: the CURRENT relationship's start_date is
+        legitimately later than an assignment created under an earlier
+        engagement. Before the fix, _percorso_response clipped
+        _build_percorso_events to window_start=relationship_start — a
+        start_date in a later month than the assignment's created_at silently
+        emptied the timeline even though the assignment still exists."""
+        CoachingRelationship.objects.create(
+            coach=self.coach, client=self.athlete, status='ACTIVE',
+            start_date=date.today() + timedelta(days=60))
+
+        self._login()
+        r = self.client.get(f'/api/coach/clienti/{self.athlete.id}/percorso/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(len(data['events']) >= 1)
+
+    def test_web_percorso_picks_active_relationship_over_stale_one(self):
+        """Two relationship rows for the same coach/client pair (a gap then a
+        re-sign): an older INACTIVE row and the current ACTIVE one. Without a
+        status filter and explicit ordering, .first() can return either row
+        non-deterministically — assert the ACTIVE one wins."""
+        CoachingRelationship.objects.create(
+            coach=self.coach, client=self.athlete, status='INACTIVE',
+            start_date=date.today() - timedelta(days=400))
+        active_rel = CoachingRelationship.objects.create(
+            coach=self.coach, client=self.athlete, status='ACTIVE',
+            start_date=date.today() - timedelta(days=10))
+
+        self._login()
+        r = self.client.get(f'/api/coach/clienti/{self.athlete.id}/percorso/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['relationship_start'],
+                         active_rel.start_date.replace(day=1).isoformat())

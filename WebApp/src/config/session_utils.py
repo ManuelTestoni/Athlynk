@@ -1,4 +1,5 @@
 import logging
+import re
 
 from domain.accounts.models import User, CoachProfile, ClientProfile
 from domain.coaching.models import CoachingRelationship
@@ -6,6 +7,31 @@ from domain.coaching.models import CoachingRelationship
 logger = logging.getLogger(__name__)
 
 _UNSET = object()
+
+# Per-user branding (Impostazioni → Aspetto): default Athlynk primary/accent,
+# matching --al-primary-rgb / --al-accent-rgb in athlynk.css.
+BRAND_DEFAULT_PRIMARY = '#1E3A5F'
+BRAND_DEFAULT_ACCENT = '#5B89B6'
+_HEX_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
+
+def _rgb_triplet(hex_color, default=BRAND_DEFAULT_PRIMARY):
+    """'#1E3A5F' -> '30 58 95' (the space-separated form CSS custom
+    properties use so rgb(var(--x) / <alpha>) works). Invalid hex -> default."""
+    if not hex_color or not _HEX_RE.match(hex_color):
+        hex_color = default
+    r, g, b = int(hex_color[1:3], 16), int(hex_color[3:5], 16), int(hex_color[5:7], 16)
+    return f'{r} {g} {b}'
+
+
+def _shade(hex_color, factor=0.72, default=BRAND_DEFAULT_PRIMARY):
+    """Darkened RGB triplet of hex_color — the hover/pressed variant, so a
+    single primary picker is enough (no second "dark primary" swatch)."""
+    if not hex_color or not _HEX_RE.match(hex_color):
+        hex_color = default
+    r, g, b = int(hex_color[1:3], 16), int(hex_color[3:5], 16), int(hex_color[5:7], 16)
+    clamp = lambda v: max(0, min(255, round(v * factor)))
+    return f'{clamp(r)} {clamp(g)} {clamp(b)}'
 
 
 def get_session_user(request):
@@ -246,15 +272,35 @@ def build_identity_context(request):
             'has_coach': False,
             'can_manage_workouts': False,
             'can_manage_nutrition': False,
+            'has_chiron': False,
             'trainer': None,
             'nutritionist': None,
             'has_any_professional': False,
             'display_name': 'Utente',
+            'brand_name': 'Athlynk',
+            'brand_css_vars': '',
         }
+
+    # Per-user branding: role-independent (lives on User, not on
+    # CoachProfile/ClientProfile), so both a coach and an athlete can retint
+    # their own app the same way. Empty fields -> no override, page renders
+    # the default Athlynk theme exactly as before.
+    brand_name = user.brand_name or 'Athlynk'
+    brand_css_vars = ''
+    if user.brand_primary or user.brand_accent:
+        parts = []
+        if user.brand_primary:
+            parts.append(f'--al-primary-rgb:{_rgb_triplet(user.brand_primary)};')
+            parts.append(f'--al-primary-d-rgb:{_shade(user.brand_primary)};')
+        if user.brand_accent:
+            parts.append(f'--al-accent-rgb:{_rgb_triplet(user.brand_accent)};')
+        brand_css_vars = ' '.join(parts)
 
     context = {
         'current_user': user,
         'user_role': user.role,
+        'brand_name': brand_name,
+        'brand_css_vars': brand_css_vars,
         'is_coach': False,
         'is_client': False,
         'coach': None,
@@ -263,6 +309,7 @@ def build_identity_context(request):
         'has_coach': False,
         'can_manage_workouts': False,
         'can_manage_nutrition': False,
+        'has_chiron': False,
         'trainer': None,
         'nutritionist': None,
         'has_any_professional': False,
@@ -275,6 +322,7 @@ def build_identity_context(request):
         context['coach'] = coach
         context['can_manage_workouts'] = can_manage_workouts(coach)
         context['can_manage_nutrition'] = can_manage_nutrition(coach)
+        context['has_chiron'] = coach_has_chiron_access(coach)
         context['display_name'] = f"{coach.first_name} {coach.last_name}".strip() if coach else user.email
     elif user.role == 'CLIENT':
         client = get_session_client(request)

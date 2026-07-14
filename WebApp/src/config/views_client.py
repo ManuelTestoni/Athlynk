@@ -13,8 +13,8 @@ from domain.accounts.models import ClientProfile, User
 from domain.billing.models import Bundle, BundleItem, ClientSubscription, SubscriptionPlan
 from domain.checks.models import QuestionnaireResponse
 from domain.coaching.models import CoachingRelationship, CoachingPhase, ClientLabel
-from domain.nutrition.models import NutritionAssignment, SupplementProtocolAssignment
-from domain.workouts.models import WorkoutAssignment
+from domain.nutrition.models import NutritionAssignment, SupplementProtocolAssignment, ClientMacroLogEntry
+from domain.workouts.models import WorkoutAssignment, WorkoutSession
 
 from .session_utils import (
     get_session_client, get_session_coach, get_session_user, get_active_relationship,
@@ -929,14 +929,18 @@ def _build_percorso_events(client, coach, window_start, window_end):
             'url': f'/nutrizione/piani/{na.nutrition_plan_id}/',
         })
 
-    # Check responses
+    # Check responses — filter on the same field used as the event date
+    # (submitted_at with created_at fallback), otherwise a check submitted in
+    # a later month than it was created can fall outside the window while
+    # being plotted as if it were inside it.
     for qr in (QuestionnaireResponse.objects
                .filter(client=client, coach=coach)
                .select_related('questionnaire_template')
                .defer('answers_json', 'body_circumferences', 'skinfolds',
-                      'coach_feedback', 'coach_private_notes')
-               .filter(created_at__date__gte=window_start, created_at__date__lte=window_end)):
+                      'coach_feedback', 'coach_private_notes')):
         ref_date = (qr.submitted_at.date() if qr.submitted_at else qr.created_at.date())
+        if ref_date < window_start or ref_date > window_end:
+            continue
         events.append({
             'id': f'check-{qr.id}',
             'type': 'check',
@@ -946,6 +950,69 @@ def _build_percorso_events(client, coach, window_start, window_end):
             'status': qr.status,
             'status_label': 'Revisionato' if qr.status == 'REVIEWED' else 'Da revisionare',
             'url': f'/check/{qr.id}/',
+        })
+
+    events.sort(key=lambda e: e['date'])
+    return events
+
+
+def _build_activity_events(client, window_start, window_end):
+    """Athlete activity for the agenda: workouts actually completed, checks
+    submitted, and food logged — as opposed to _build_percorso_events, which
+    tracks what the coach assigned. Same three sources as
+    domain.analytics.services.features._collect_stamps, unioned the same way,
+    but keyed on log_date (the day the food was eaten) rather than
+    created_at (when it was typed in) since this feeds a day-by-day agenda."""
+    events = []
+
+    for sess in (WorkoutSession.objects
+                 .filter(client=client, completed=True,
+                         started_at__date__gte=window_start, started_at__date__lte=window_end)
+                 .select_related('workout_day')):
+        events.append({
+            'id': f'workout-session-{sess.id}',
+            'type': 'allenamento_fatto',
+            'date': sess.started_at.date().isoformat(),
+            'title': sess.workout_day.day_name if sess.workout_day_id else 'Allenamento',
+            'subtitle': 'Allenamento completato',
+            'url': f'/clienti/{client.id}/progressi/',
+        })
+
+    for qr in (QuestionnaireResponse.objects
+               .filter(client=client, submitted_at__isnull=False,
+                        submitted_at__date__gte=window_start, submitted_at__date__lte=window_end)
+               .select_related('questionnaire_template')):
+        events.append({
+            'id': f'check-{qr.id}',
+            'type': 'check',
+            'date': qr.submitted_at.date().isoformat(),
+            'title': qr.questionnaire_template.title,
+            'subtitle': 'Check compilato',
+            'url': f'/check/{qr.id}/',
+        })
+
+    # Many food rows collapse into ONE "Macro" event per day — the individual
+    # foods are a detail behind it, not separate agenda entries.
+    macro_by_day = {}
+    for entry in (ClientMacroLogEntry.objects
+                  .filter(assignment__client=client, log_date__isnull=False,
+                          log_date__gte=window_start, log_date__lte=window_end)
+                  .select_related('food')):
+        macro_by_day.setdefault(entry.log_date, []).append(entry)
+
+    for log_date, entries in macro_by_day.items():
+        events.append({
+            'id': f'macro-{log_date.isoformat()}',
+            'type': 'macro',
+            'date': log_date.isoformat(),
+            'title': 'Macro',
+            'subtitle': f'{len(entries)} alimenti registrati',
+            'count': len(entries),
+            'items': [{
+                'name': e.food.nome_alimento if e.food else (e.raw_name or ''),
+                'quantity_g': e.quantity_g,
+                'kcal': e.kcal,
+            } for e in entries],
         })
 
     events.sort(key=lambda e: e['date'])
@@ -974,8 +1041,8 @@ def api_coach_client_percorso(request, client_id):
         return JsonResponse({'error': 'Unauthorized'}, status=401)
 
     relationship = CoachingRelationship.objects.filter(
-        coach=coach, client_id=client_id
-    ).select_related('client').first()
+        coach=coach, client_id=client_id, status='ACTIVE'
+    ).select_related('client').order_by('-start_date').first()
     if not relationship:
         return JsonResponse({'error': 'Not found'}, status=404)
 
@@ -1159,9 +1226,10 @@ def _percorso_response(request, client, coach, relationship_start=None):
 
     window_start = rel_start
 
-    # All recorded activity is past-dated, so collect everything up to today;
-    # phases may reach into the future and are folded in below.
-    events = _build_percorso_events(client, coach, window_start, today)
+    # Collect the whole history for the timeline, not just from the (possibly
+    # renewed) relationship start — otherwise older plans/checks silently
+    # vanish. window_start is only the display track's backward bound.
+    events = _build_percorso_events(client, coach, date_type(2000, 1, 1), today)
     phases = _serialize_phases(client, coach)
 
     # Forward bound is open-ended: one year past the latest activity (last event

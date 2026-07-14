@@ -27,16 +27,19 @@ module.exports = {
         stone:        '#E8ECF2',
         'stone-deep': '#C9D2DE',
 
-        aegean:       '#1E3A5F',
-        'aegean-deep':'#132A47',
-        'aegean-tint':'#5B89B6',
+        /* Brand colors read the same --al-primary-rgb/--al-accent-rgb
+           triplets as athlynk.css (per-user override seam), via Tailwind's
+           <alpha-value> so bg-aegean/20 etc. keep working. */
+        aegean:       'rgb(var(--al-primary-rgb) / <alpha-value>)',
+        'aegean-deep':'rgb(var(--al-primary-d-rgb) / <alpha-value>)',
+        'aegean-tint':'rgb(var(--al-accent-rgb) / <alpha-value>)',
 
         /* Bronze retired as a role; kept pointing at primary so any class
            reference not yet migrated degrades to the new primary blue
            instead of the old warm hue. New code should use accent/gold. */
-        bronze:        '#1E3A5F',
-        'bronze-soft': '#132A47',
-        'bronze-light':'#5B89B6',
+        bronze:        'rgb(var(--al-primary-rgb) / <alpha-value>)',
+        'bronze-soft': 'rgb(var(--al-primary-d-rgb) / <alpha-value>)',
+        'bronze-light':'rgb(var(--al-accent-rgb) / <alpha-value>)',
 
         /* New deep-luxury-blue vocabulary */
         'accent-text':       '#3E6E95',
@@ -45,10 +48,10 @@ module.exports = {
 
         /* Legacy aliases (do not break old templates) — kept equal to their
            same-named --al-* CSS custom property so nothing silently diverges */
-        primary: '#1E3A5F',
-        accent:  '#5B89B6',
+        primary: 'rgb(var(--al-primary-rgb) / <alpha-value>)',
+        accent:  'rgb(var(--al-accent-rgb) / <alpha-value>)',
         surface: '#FFFFFF',
-        brand:   '#1E3A5F',
+        brand:   'rgb(var(--al-primary-rgb) / <alpha-value>)',
       },
       fontFamily: {
         display: ['"Bodoni Moda"', 'Didot', 'Georgia', 'serif'],

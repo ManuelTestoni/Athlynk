@@ -6,11 +6,35 @@ from django.contrib.auth.hashers import check_password
 from django.views.decorators.http import require_POST
 from django.db import transaction
 
-from .session_utils import get_session_user, get_session_coach, get_session_client
+from .session_utils import get_session_user, get_session_coach, get_session_client, _HEX_RE
 from .services.images import to_webp, is_image
 from domain.chat.services import DEFAULT_PLAN_DELETED_BODY
 
 logger = logging.getLogger(__name__)
+
+
+def _save_brand(user, request):
+    """Handle the 'aspetto' settings action: validates the two hex colors
+    server-side (they're interpolated into a <style> block, so malformed
+    input from a non-browser client is a trust boundary, not just cosmetic).
+    A native <input type="color"> can never submit an empty value, so
+    "restore defaults" is a second submit button (name="reset") that clears
+    all three fields regardless of what the color inputs currently hold.
+    Returns an error string, or None on success."""
+    if request.POST.get('reset') == '1':
+        name, primary, accent = '', '', ''
+    else:
+        name = request.POST.get('brand_name', '').strip()[:40]
+        primary = request.POST.get('brand_primary', '').strip()
+        accent = request.POST.get('brand_accent', '').strip()
+        for hex_value in (primary, accent):
+            if hex_value and not _HEX_RE.match(hex_value):
+                return 'Colore non valido.'
+    user.brand_name = name
+    user.brand_primary = primary
+    user.brand_accent = accent
+    user.save(update_fields=['brand_name', 'brand_primary', 'brand_accent', 'updated_at'])
+    return None
 
 
 def _newsletter_status(email):
@@ -62,6 +86,12 @@ def impostazioni_view(request):
                 user.save(update_fields=['email_prefs', 'updated_at'])
                 return redirect(f"{request.path}?saved=nutrizione")
 
+            if action == 'aspetto':
+                error = _save_brand(user, request)
+                if not error:
+                    return redirect(f"{request.path}?saved=aspetto")
+                active_tab = 'aspetto'
+
         saved = request.GET.get('saved')
         if saved and not error:
             active_tab = saved
@@ -80,6 +110,9 @@ def impostazioni_view(request):
             'newsletter_status': _newsletter_status(user.email),
             'reset_request_sent': reset_request_sent,
             'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
+            'brand_name_value': user.brand_name,
+            'brand_primary_value': user.brand_primary,
+            'brand_accent_value': user.brand_accent,
         })
 
     # COACH
@@ -124,6 +157,12 @@ def impostazioni_view(request):
             user.save(update_fields=['email_prefs', 'updated_at'])
             return redirect(f"{request.path}?saved=nutrizione")
 
+        if action == 'aspetto':
+            error = _save_brand(user, request)
+            if not error:
+                return redirect(f"{request.path}?saved=aspetto")
+            active_tab = 'aspetto'
+
     saved = request.GET.get('saved')
     if saved and not error:
         active_tab = saved
@@ -146,6 +185,9 @@ def impostazioni_view(request):
         'reset_request_sent': reset_request_sent,
         'food_search_mode': (user.email_prefs or {}).get('food_search_mode', 'alimento'),
         'auto_msg_rows': _auto_msg_rows(coach),
+        'brand_name_value': user.brand_name,
+        'brand_primary_value': user.brand_primary,
+        'brand_accent_value': user.brand_accent,
     })
 
 

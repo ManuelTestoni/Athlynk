@@ -145,7 +145,6 @@
 
   /* ===================== chart styling ===================== */
 
-  var INK = '#0B1D3A';
   var LABEL = '#4B5D75';
   var GRID = 'rgba(75,93,117,0.10)';
   var CREAM = '#FFFFFF';
@@ -426,17 +425,9 @@
           },
           plugins: {
             legend: { display: false },
+            // Styling (colors, fonts, gold border) comes from the shared
+            // Chart.defaults.plugins.tooltip external renderer (chart_theme.js).
             tooltip: {
-              backgroundColor: INK,
-              titleColor: CREAM,
-              bodyColor: CREAM,
-              borderColor: color,
-              borderWidth: 1,
-              padding: 10,
-              cornerRadius: 6,
-              displayColors: false,
-              titleFont: { family: 'JetBrains Mono, monospace', size: 10, weight: '500' },
-              bodyFont: { family: 'Inter, sans-serif', size: 11, weight: '500' },
               callbacks: {
                 title: function (items) {
                   if (!items.length) return '';

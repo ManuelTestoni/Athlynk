@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Athlynk | {% block title %}Dashboard{% endblock %}</title>
+    <title>{{ brand_name }} | {% block title %}Dashboard{% endblock %}</title>
     <!-- Area applicativa riservata: mai indicizzata dai motori di ricerca -->
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=2">
@@ -52,6 +52,7 @@
     <!-- Chart.js (shared across analytics views) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
             integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY" crossorigin="anonymous"></script>
+    <script src="{% static 'js/chart_theme.js' %}?v={{ ASSET_VERSION }}"></script>
 
     <!-- Pre-set the footer-height CSS variable BEFORE first paint so layout never
          flashes a stale value (the precise px is re-measured by JS later). The
@@ -80,6 +81,12 @@
     <!-- Global responsive layer — must load LAST so it can adapt the design system + Tailwind utilities on phones/tablets -->
     <link rel="stylesheet" href="{% static 'css/responsive.css' %}?v={{ ASSET_VERSION }}">
 
+    {% if brand_css_vars %}
+    <!-- Per-user branding override (Impostazioni → Aspetto): must come after
+         athlynk.css so its :root wins on the same custom properties. -->
+    <style>:root { {{ brand_css_vars }} }</style>
+    {% endif %}
+
     {% include 'partials/posthog.html' %}
     {% block extra_head %}{% endblock %}
 </head>
@@ -99,7 +106,7 @@
             <a href="{% url 'dashboard' %}" class="al-sidebar-brand">
                 <!-- Athlynk app mark -->
                 <span class="al-mark shrink-0" style="height: 24px; color: #FFE066;"></span>
-                <span class="al-sidebar-brand-name">Athlynk</span>
+                <span class="al-sidebar-brand-name">{{ brand_name }}</span>
             </a>
 
             <!-- Nav -->
@@ -584,8 +591,8 @@
     </script>
     {% block extra_js %}{% endblock %}
 
-    {# CHIRON — assistente AI, solo coach loggati #}
-    {% if is_coach %}
+    {# CHIRON — assistente AI, solo coach con Chiron incluso nel piano #}
+    {% if is_coach and has_chiron %}
       {% include 'partials/chiron_widget.html' %}
     {% endif %}
 </body>
