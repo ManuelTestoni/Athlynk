@@ -10,10 +10,12 @@ struct SplashView: View {
     @EnvironmentObject var app: AppState
     @State private var charge: CGFloat = 0
     @State private var show = false
+    @State private var arrived = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            VoltBackground(palette: [Palette.magenta, Palette.cyan, Palette.violet, Palette.lime])
+            VoltBackground(palette: [Palette.magenta, Palette.gold, Palette.violet, Palette.lime])
 
             VStack(spacing: 18) {
                 Image(systemName: "building.columns.fill")
@@ -23,8 +25,9 @@ struct SplashView: View {
                                        startPoint: .top, endPoint: .bottom)
                     )
                     .neonGlow(Palette.bronze, radius: 18)
+                    .goldPulse(arrived)
                     .scaleEffect(show ? 1 : 0.4)
-                    .rotationEffect(.degrees(show ? 0 : -25))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : (show ? 0 : -25)))
 
                 GlitchText(text: "ATHLYNK", size: 56)
 
@@ -61,9 +64,10 @@ struct SplashView: View {
             }
         }
         .task {
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.6)) { show = true }
-            withAnimation(.easeInOut(duration: 1.1)) { charge = 1 }
-            try? await Task.sleep(for: .seconds(1.2))
+            withAnimation(reduceMotion ? nil : .spring(response: 0.7, dampingFraction: 0.6)) { show = true }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.1)) { charge = 1 }
+            try? await Task.sleep(for: .seconds(reduceMotion ? 0.2 : 1.2))
+            arrived = true
             await app.bootstrap()
         }
     }

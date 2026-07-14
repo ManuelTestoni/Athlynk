@@ -57,6 +57,7 @@ struct LoginView: View {
                         Task { await app.login(email: email, password: password, role: "CLIENT") }
                     }
                     .revealUp(appear, index: 2)
+                    .goldPulse(appear)
                     .disabled(email.isEmpty || password.isEmpty)
 
                     Button { showForgot = true } label: {

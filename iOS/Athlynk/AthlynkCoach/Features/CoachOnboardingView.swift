@@ -95,6 +95,7 @@ struct CoachOnboardingView: View {
                 .padding(.horizontal, 26)
                 .padding(.bottom, 44)
                 .animation(.easeInOut(duration: 0.25), value: page)
+                .goldPulse(isLast)
             }
         }
     }
@@ -130,6 +131,7 @@ private struct CoachSlideCard: View {
     @State private var iconRing = 0.0
     @State private var iconBob = false
     @State private var aura = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -176,7 +178,8 @@ private struct CoachSlideCard: View {
             iconScale = 0.5
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
                 appeared = true
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.62)) { iconScale = 1 }
+                withAnimation(reduceMotion ? nil : .spring(response: 0.55, dampingFraction: 0.62)) { iconScale = 1 }
+                guard !reduceMotion else { return }
                 withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) { aura = true }
                 withAnimation(.easeInOut(duration: 2.1).repeatForever(autoreverses: true)) { iconBob = true }
                 withAnimation(.linear(duration: 22).repeatForever(autoreverses: false)) { iconRing = 360 }
