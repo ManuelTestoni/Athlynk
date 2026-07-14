@@ -236,9 +236,7 @@ skill
 .DS_Store
 .mcp.json
 
-# Brand / generated images (Chiron centaur mascot + Athlynk logo / app icon)
-iOS/Athlynk/Athlynk/Assets.xcassets/ChironCentaur.imageset/*.png
-iOS/Athlynk/Athlynk/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+
 WebApp/static/img/AthlynkLogo.png
 WebApp/static/img/favicon.png
 # Trained analytics/ML model artifacts
