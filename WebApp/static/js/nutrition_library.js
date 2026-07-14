@@ -38,6 +38,7 @@ function nutritionLibrary() {
 
     /* drag */
     draggedPlanId: null,
+    dragSourceEl: null,
     dropTargetId: null,
     draggedFolderId: null,
 
@@ -290,14 +291,14 @@ function nutritionLibrary() {
     /* === drag & drop === */
     /* Drop su una cartella: o sto riordinando le cartelle (drag della voce
        sidebar) o sto archiviando un piano (drag della card). */
-    handleFolderDrop(folderId) {
+    handleFolderDrop(folderId, evt) {
       if (this.draggedFolderId) {
         if (folderId && this.draggedFolderId !== folderId) this.reorderFolders(folderId);
         this.draggedFolderId = null;
         this.dropTargetId = null;
         return;
       }
-      this.dropPlanOnFolder(folderId);
+      this.dropPlanOnFolder(folderId, evt);
     },
     async reorderFolders(targetId) {
       const srcIdx = this.folders.findIndex(f => f.id === this.draggedFolderId);
@@ -316,15 +317,20 @@ function nutritionLibrary() {
         toastError('Riordino non salvato. Riprova.');
       }
     },
-    async dropPlanOnFolder(folderId) {
+    async dropPlanOnFolder(folderId, evt) {
       this.dropTargetId = null;
       const pid = this.draggedPlanId;
+      const sourceEl = this.dragSourceEl;
       this.draggedPlanId = null;
+      this.dragSourceEl = null;
       if (!pid) return;
       const plan = this.plans.find(p => p.id === pid);
       if (!plan) return;
       const previousFolderId = plan.folder_id;
       if (previousFolderId === folderId) return;
+      if (window.alGenieMove && sourceEl && evt?.currentTarget) {
+        await window.alGenieMove(sourceEl, evt.currentTarget);
+      }
       plan.folder_id = folderId;
       try {
         const res = await fetch(this.urls.planFolder.replace('__ID__', pid), {

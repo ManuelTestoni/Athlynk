@@ -14,6 +14,9 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     z-index: 9000;
     font-family: var(--al-sans, 'Inter', system-ui, sans-serif);
     color: var(--al-ink, #0B1D3A);
+    /* gold accent (from --al-highlight-premium #FFE066), used as rgba(var(--chiron-gold), alpha)
+       throughout this file to replace the pre-rebrand warm-brown literals. */
+    --chiron-gold: 255,224,102;
   }
 
   /* ---------- FAB ---------- */
@@ -28,11 +31,11 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     border-radius: 50%;
     background:
       radial-gradient(circle at 30% 25%, rgba(255,255,255,0.22), transparent 55%),
-      linear-gradient(140deg, #132A47 0%, #1E3A5F 55%, #5e4824 100%);
+      linear-gradient(140deg, #132A47 0%, #1E3A5F 55%, var(--al-highlight-premium, #FFE066) 100%);
     color: var(--al-parchment, #FFFFFF);
     border: none;
     box-shadow:
-      0 18px 36px -14px rgba(94,72,36,0.55),
+      0 18px 36px -14px rgba(var(--chiron-gold),0.45),
       0 4px 10px -2px rgba(11,29,58,0.18),
       inset 0 1px 0 rgba(255,255,255,0.20);
     display: inline-flex;
@@ -49,7 +52,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     position: absolute;
     inset: -6px;
     border-radius: inherit;
-    background: radial-gradient(circle, rgba(200,167,116,0.30) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(var(--chiron-gold),0.30) 0%, transparent 70%);
     opacity: 0;
     transition: opacity 0.3s ease;
     z-index: -1;
@@ -57,7 +60,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   .chiron-fab:hover {
     transform: translateY(-3px) scale(1.03);
     box-shadow:
-      0 24px 44px -16px rgba(94,72,36,0.65),
+      0 24px 44px -16px rgba(var(--chiron-gold),0.55),
       0 6px 14px -2px rgba(11,29,58,0.22),
       inset 0 1px 0 rgba(255,255,255,0.24);
   }
@@ -65,18 +68,18 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   .chiron-fab:focus-visible {
     outline: none;
     box-shadow:
-      0 18px 36px -14px rgba(94,72,36,0.55),
-      0 0 0 4px rgba(200,167,116,0.30);
+      0 18px 36px -14px rgba(var(--chiron-gold),0.45),
+      0 0 0 4px rgba(var(--chiron-gold),0.35);
   }
   .chiron-fab.is-open {
-    background: linear-gradient(140deg, #2a221a 0%, #0B1D3A 100%);
+    background: linear-gradient(140deg, var(--al-ink-soft, #16294A) 0%, var(--al-ink, #0B1D3A) 100%);
     color: var(--al-bronze-l, #5B89B6);
   }
 
   /* Soft breathing pulse when idle */
   @keyframes chiron-pulse {
-    0%, 100% { box-shadow: 0 18px 36px -14px rgba(94,72,36,0.55), 0 4px 10px -2px rgba(11,29,58,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 0 rgba(200,167,116,0.0); }
-    50%      { box-shadow: 0 18px 36px -14px rgba(94,72,36,0.55), 0 4px 10px -2px rgba(11,29,58,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 10px rgba(200,167,116,0.0); }
+    0%, 100% { box-shadow: 0 18px 36px -14px rgba(var(--chiron-gold),0.45), 0 4px 10px -2px rgba(11,29,58,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 0 rgba(var(--chiron-gold),0.0); }
+    50%      { box-shadow: 0 18px 36px -14px rgba(var(--chiron-gold),0.45), 0 4px 10px -2px rgba(11,29,58,0.18), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 10px rgba(var(--chiron-gold),0.0); }
   }
   .chiron-fab:not(.is-open) { animation: chiron-pulse 4s ease-in-out infinite; }
 
@@ -89,7 +92,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     max-width: calc(100vw - 32px);
     height: 600px;
     max-height: calc(100vh - 130px);
-    background: linear-gradient(180deg, #f8f3e8 0%, #FFFFFF 100%);
+    background: linear-gradient(180deg, #FAFBFD 0%, #FFFFFF 100%);
     border: 1px solid rgba(11,29,58,0.06);
     border-radius: 26px;
     box-shadow:
@@ -113,6 +116,24 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     pointer-events: auto;
   }
 
+  /* Staggered content reveal on open: header, then messages, then input bar. */
+  @keyframes chiron-content-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .chiron-panel.is-open .chiron-head {
+    animation: chiron-content-in var(--al-d-fast, 0.18s) var(--al-ease-out, ease-out) both;
+    animation-delay: 0.05s;
+  }
+  .chiron-panel.is-open .chiron-messages {
+    animation: chiron-content-in var(--al-d-fast, 0.18s) var(--al-ease-out, ease-out) both;
+    animation-delay: 0.10s;
+  }
+  .chiron-panel.is-open .chiron-input {
+    animation: chiron-content-in var(--al-d-fast, 0.18s) var(--al-ease-out, ease-out) both;
+    animation-delay: 0.15s;
+  }
+
   /* ---------- Header ---------- */
   .chiron-head {
     position: relative;
@@ -121,8 +142,8 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     gap: 14px;
     padding: 18px 20px 16px;
     background:
-      radial-gradient(120% 140% at 0% 0%, rgba(200,167,116,0.18) 0%, transparent 55%),
-      linear-gradient(135deg, #1c1814 0%, #0B1D3A 60%, #0e0b08 100%);
+      radial-gradient(120% 140% at 0% 0%, rgba(var(--chiron-gold),0.18) 0%, transparent 55%),
+      linear-gradient(135deg, #0A1428 0%, #0B1D3A 60%, #050B18 100%);
     color: var(--al-parchment, #FFFFFF);
     border-radius: 26px 26px 0 0;
   }
@@ -131,15 +152,15 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     position: absolute;
     left: 20px; right: 20px; bottom: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(200,167,116,0.35), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--chiron-gold),0.35), transparent);
   }
   .chiron-head .logo {
     width: 40px; height: 40px;
     border-radius: 14px;
     background:
       radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 60%),
-      linear-gradient(140deg, rgba(200,167,116,0.20), rgba(200,167,116,0.05));
-    border: 1px solid rgba(200,167,116,0.30);
+      linear-gradient(140deg, rgba(var(--chiron-gold),0.20), rgba(var(--chiron-gold),0.05));
+    border: 1px solid rgba(var(--chiron-gold),0.30);
     color: var(--al-bronze-l, #5B89B6);
     display: inline-flex; align-items: center; justify-content: center;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
@@ -156,7 +177,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     font-size: 9.5px;
     text-transform: uppercase;
     letter-spacing: 0.22em;
-    color: rgba(200,167,116,0.85);
+    color: rgba(var(--chiron-gold),0.85);
     margin-top: 4px;
     display: inline-flex;
     align-items: center;
@@ -187,7 +208,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   }
   .chiron-head button:hover {
     background: rgba(255,255,255,0.12);
-    border-color: rgba(200,167,116,0.35);
+    border-color: rgba(var(--chiron-gold),0.35);
     transform: translateY(-1px);
   }
 
@@ -200,9 +221,9 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     flex-direction: column;
     gap: 8px;
     background:
-      radial-gradient(60% 40% at 0% 0%, rgba(200,167,116,0.06), transparent 65%),
+      radial-gradient(60% 40% at 0% 0%, rgba(var(--chiron-gold),0.06), transparent 65%),
       radial-gradient(50% 35% at 100% 100%, rgba(30,58,95,0.04), transparent 60%),
-      linear-gradient(180deg, #f8f3e8 0%, #FFFFFF 100%);
+      linear-gradient(180deg, #FAFBFD 0%, #FFFFFF 100%);
     scroll-behavior: smooth;
   }
   .chiron-messages::-webkit-scrollbar { width: 6px; }
@@ -310,7 +331,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     font-size: 12.5px;
     font-weight: 600;
     color: var(--al-parchment, #FFFFFF);
-    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, #6e5430 100%);
+    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, var(--al-highlight-premium, #FFE066) 100%);
     border-radius: 999px;
     padding: 7px 13px;
     box-shadow:
@@ -358,7 +379,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     align-items: flex-end;
     gap: 10px;
     padding: 14px 16px 18px;
-    background: linear-gradient(180deg, rgba(236,229,214,0) 0%, rgba(236,229,214,0.55) 100%);
+    background: linear-gradient(180deg, rgba(11,29,58,0) 0%, rgba(11,29,58,0.04) 100%);
     border-top: 1px solid rgba(11,29,58,0.05);
   }
   .chiron-input .field {
@@ -379,7 +400,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     border-color: rgba(30,58,95,0.45);
     box-shadow:
       0 4px 14px -6px rgba(30,58,95,0.20),
-      0 0 0 3px rgba(200,167,116,0.18);
+      0 0 0 3px rgba(var(--chiron-gold),0.18);
   }
   .chiron-input textarea {
     flex: 1;
@@ -401,7 +422,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   .chiron-send {
     width: 40px; height: 40px;
     flex: 0 0 40px;
-    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, #6e5430 100%);
+    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, var(--al-highlight-premium, #FFE066) 100%);
     color: var(--al-parchment, #FFFFFF);
     border: none;
     border-radius: 50%;
@@ -422,7 +443,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   .chiron-send:disabled {
     opacity: 0.40;
     cursor: not-allowed;
-    background: linear-gradient(140deg, #b8b1a4, #7C8CA3);
+    background: linear-gradient(140deg, #A6B0C2, var(--al-ink-line, #7C8CA3));
     box-shadow: none;
   }
 
@@ -432,7 +453,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     left: 14px; right: 14px;
     top: 86px;
     z-index: 20;
-    background: linear-gradient(180deg, #ffffff 0%, #fbf6ec 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #FAFBFD 100%);
     border: 1px solid rgba(11,29,58,0.08);
     border-radius: 18px;
     padding: 16px 16px 14px;
@@ -511,7 +532,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     box-shadow: 0 10px 20px -8px rgba(185,28,28,0.65), inset 0 1px 0 rgba(255,255,255,0.18);
   }
   .chiron-confirm .btn.primary {
-    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, #6e5430 100%);
+    background: linear-gradient(140deg, #132A47 0%, #1E3A5F 60%, var(--al-highlight-premium, #FFE066) 100%);
     color: #fff;
     box-shadow: 0 6px 14px -6px rgba(30,58,95,0.55), inset 0 1px 0 rgba(255,255,255,0.14);
   }
@@ -543,7 +564,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
   }
   .chiron-confirm textarea:focus {
     border-color: rgba(30,58,95,0.45);
-    box-shadow: 0 0 0 3px rgba(200,167,116,0.18);
+    box-shadow: 0 0 0 3px rgba(var(--chiron-gold),0.18);
   }
 
   /* ---------- Carica messaggi precedenti ---------- */

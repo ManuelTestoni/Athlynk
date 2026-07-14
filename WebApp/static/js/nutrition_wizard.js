@@ -326,11 +326,11 @@ function nutritionWizard() {
           if (this.planMode === 'MACRO') {
             this.tryFallbackToast(this.planKind === 'WEEKLY'
               ? 'Imposta gli obiettivi macro per almeno un giorno.'
-              : 'Imposta almeno un obiettivo macro.');
+              : 'Imposta almeno un obiettivo macro.', 'warn');
           } else {
             this.tryFallbackToast(this.planKind === 'WEEKLY'
               ? 'Compila almeno un giorno con un pasto.'
-              : 'Aggiungi almeno un pasto con un alimento.');
+              : 'Aggiungi almeno un pasto con un alimento.', 'warn');
           }
           return;
         }
@@ -398,7 +398,7 @@ function nutritionWizard() {
         return;
       }
       const ok = await this.persist();
-      if (ok) this.tryFallbackToast('Bozza salvata.');
+      if (ok) this.tryFallbackToast('Bozza salvata.', 'success');
     },
     async persist() {
       this.saving = true;
@@ -432,7 +432,7 @@ function nutritionWizard() {
         const data = await res.json().catch(() => ({}));
         this.saving = false;
         if (!res.ok) {
-          this.tryFallbackToast(data.error || 'Errore di salvataggio.');
+          this.tryFallbackToast(data.error || 'Errore di salvataggio.', 'error');
           return false;
         }
         if (!this.planId && data.plan_id) {
@@ -441,7 +441,7 @@ function nutritionWizard() {
         return true;
       } catch (e) {
         this.saving = false;
-        this.tryFallbackToast('Errore di rete.');
+        this.tryFallbackToast('Errore di rete.', 'error');
         return false;
       }
     },
@@ -500,7 +500,7 @@ function nutritionWizard() {
         });
         this.suppSavedSnapshot = this._suppSerialize();
       } catch (e) {
-        this.tryFallbackToast('Integratori non salvati.');
+        this.tryFallbackToast('Integratori non salvati.', 'error');
       }
     },
 
@@ -634,7 +634,10 @@ function nutritionWizard() {
         subsOpen: false,
         addSubMode: null,
         substitutions: [],
+        _justAdded: true,
       });
+      const addedItem = m.items[m.items.length - 1];
+      setTimeout(() => { addedItem._justAdded = false; }, 320);
     },
 
     /* === substitution CRUD === */
@@ -669,7 +672,7 @@ function nutritionWizard() {
       if (!it) return;
       const grams = this.computeSubGrams(it, food, mode);
       if (grams === null) {
-        this.tryFallbackToast('Sostituzione non applicabile: macro target a zero.');
+        this.tryFallbackToast('Sostituzione non applicabile: macro target a zero.', 'warn');
         return;
       }
       it.substitutions.push({
@@ -1024,7 +1027,7 @@ function nutritionWizard() {
 
     async finalize(mode) {
       if (!this.title.trim()) {
-        this.tryFallbackToast('Titolo obbligatorio.');
+        this.tryFallbackToast('Titolo obbligatorio.', 'warn');
         this.step = 'info';
         return;
       }
@@ -1032,7 +1035,7 @@ function nutritionWizard() {
       const ok = await this.persist();
       if (!ok) return;
       await this.persistSupplements();
-      this.tryFallbackToast(mode === 'template' ? 'Template salvato.' : 'Bozza salvata.');
+      this.tryFallbackToast(mode === 'template' ? 'Template salvato.' : 'Bozza salvata.', 'success');
       window.location.href = INIT.urls.piani;
     },
 
@@ -1127,14 +1130,14 @@ function nutritionWizard() {
           window.location.href = INIT.urls.piani;
         }, 700);
       } else {
-        this.tryFallbackToast('Errore durante l\'assegnazione.');
+        this.tryFallbackToast('Errore durante l\'assegnazione.', 'error');
       }
     },
 
-    tryFallbackToast(msg) {
+    tryFallbackToast(msg, kind = 'info') {
       try {
         if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
-          Alpine.store('toasts').push({ kind: 'info', msg });
+          Alpine.store('toasts').push({ kind, msg });
           return;
         }
       } catch (e) {}

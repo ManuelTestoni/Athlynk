@@ -27,6 +27,7 @@ function checkLibrary() {
 
     /* drag */
     draggedTemplateId: null,
+    dragSourceEl: null,
     dropTargetId: null,
     draggedFolderId: null,
 
@@ -218,14 +219,14 @@ function checkLibrary() {
     /* === drag & drop === */
     /* Drop su una cartella: o sto riordinando le cartelle (drag della voce
        sidebar) o sto archiviando un template (drag della card). */
-    handleFolderDrop(folderId) {
+    handleFolderDrop(folderId, evt) {
       if (this.draggedFolderId) {
         if (folderId && this.draggedFolderId !== folderId) this.reorderFolders(folderId);
         this.draggedFolderId = null;
         this.dropTargetId = null;
         return;
       }
-      this.dropTemplateOnFolder(folderId);
+      this.dropTemplateOnFolder(folderId, evt);
     },
     async reorderFolders(targetId) {
       const srcIdx = this.folders.findIndex(f => f.id === this.draggedFolderId);
@@ -244,15 +245,20 @@ function checkLibrary() {
         toastError('Riordino non salvato. Riprova.');
       }
     },
-    async dropTemplateOnFolder(folderId) {
+    async dropTemplateOnFolder(folderId, evt) {
       this.dropTargetId = null;
       const tid = this.draggedTemplateId;
+      const sourceEl = this.dragSourceEl;
       this.draggedTemplateId = null;
+      this.dragSourceEl = null;
       if (!tid) return;
       const tpl = this.templates.find(t => t.id === tid);
       if (!tpl) return;
       const previousFolderId = tpl.folder_id;
       if (previousFolderId === folderId) return;
+      if (window.alGenieMove && sourceEl && evt?.currentTarget) {
+        await window.alGenieMove(sourceEl, evt.currentTarget);
+      }
       tpl.folder_id = folderId;
       try {
         const res = await fetch(this.urls.templateFolder.replace('__ID__', tid), {

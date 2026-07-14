@@ -246,8 +246,8 @@
   top: 0; left: 0; right: 0;
   height: 4px;
   background: linear-gradient(90deg,
-    var(--al-bronze) 0%,
-    rgba(30,58,95,0.4) 35%,
+    var(--al-highlight-premium) 0%,
+    rgba(255,224,102,0.4) 35%,
     transparent 65%);
 }
 
@@ -298,8 +298,8 @@
 .nz-pane-no {
   width: 32px; height: 32px;
   display: grid; place-items: center;
-  border: 1px solid var(--al-bronze);
-  color: var(--al-bronze);
+  border: 1px solid var(--al-highlight-premium);
+  color: #9C7A1F;
   font-family: var(--al-display);
   font-size: 13px;
   border-radius: 999px;
@@ -584,26 +584,26 @@
   animation: nzSpin .9s linear infinite;
 }
 
-/* Overwrite warning banner */
+/* Overwrite warning banner — same destructive severity as account deletion */
 .nz-overwrite {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  border: 1px solid #fdba74;
-  border-left: 3px solid #ea580c;
+  background: var(--al-danger-bg);
+  border: 1px solid rgba(162,59,59,0.35);
+  border-left: 3px solid var(--al-danger);
   border-radius: var(--al-r-sm);
   padding: .7rem .85rem;
   font-size: .8rem;
-  color: #7c2d12;
+  color: var(--al-danger);
   line-height: 1.4;
   margin-bottom: 16px;
 }
-.nz-overwrite strong { color: #9a3412; }
+.nz-overwrite strong { color: var(--al-danger); font-weight: 700; }
 .nz-overwrite-confirm {
   display: flex; align-items: center; gap: .5rem;
   margin-top: .55rem;
   padding-top: .55rem;
-  border-top: 1px dashed rgba(234,88,12,0.4);
+  border-top: 1px dashed rgba(162,59,59,0.35);
   font-size: .8rem; cursor: pointer; user-select: none;
-  color: #7c2d12; font-weight: 600;
+  color: var(--al-danger); font-weight: 600;
 }
 
 /* Fabbisogni suggestion banner */

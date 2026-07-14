@@ -98,7 +98,7 @@
                          @click="selectFolder('unfiled')"
                          @dragover.prevent="dropTargetId = 'unfiled'"
                          @dragleave="dropTargetId = null"
-                         @drop.prevent="handleFolderDrop(null)">
+                         @drop.prevent="handleFolderDrop(null, $event)">
                         <i class="ph ph-folder-dashed"></i>
                         <span>Senza cartella</span>
                         <span class="wb-folder-count" x-text="unfiledCount"></span>
@@ -115,7 +115,7 @@
                              @dragend="draggedFolderId = null; dropTargetId = null"
                              @dragover.prevent="dropTargetId = folder.id"
                              @dragleave="dropTargetId = null"
-                             @drop.prevent="handleFolderDrop(folder.id)">
+                             @drop.prevent="handleFolderDrop(folder.id, $event)">
                             <span class="wb-folder-label-dot"
                                   :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
                                   :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
@@ -231,7 +231,7 @@
                     <template x-for="t in visibleTemplates()" :key="t.id">
                         <article class="wb-card"
                                  draggable="true"
-                                 @dragstart="draggedTemplateId = t.id; $event.dataTransfer.effectAllowed = 'move'"
+                                 @dragstart="draggedTemplateId = t.id; dragSourceEl = $event.currentTarget; $event.dataTransfer.effectAllowed = 'move'"
                                  @dragend="draggedTemplateId = null; dropTargetId = null">
                             <span class="wb-card-handle"><i class="ph ph-dots-six-vertical"></i></span>
 

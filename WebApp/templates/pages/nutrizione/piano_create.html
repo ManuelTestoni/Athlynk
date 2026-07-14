@@ -109,6 +109,21 @@ window.NUTRITION_WIZARD_INIT = {
     width: 12px; height: 1px; background: var(--al-rule);
   }
 
+  /* Newly added from the food-library drawer: slide-in + gold pulse, same
+     timing/family as the workout builder's add-exercise animation. */
+  .nz-item.nz-item-just-added {
+    animation: nz-item-in var(--al-d-base, 220ms) var(--al-ease-emp, ease-out) backwards,
+               nz-item-added-glow 900ms var(--al-ease-out, ease-out);
+  }
+  @keyframes nz-item-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes nz-item-added-glow {
+    0%   { background: rgba(255,224,102,0.16); }
+    100% { background: transparent; }
+  }
+
   /* ── Add-food slide-in panel (from left) ────────────────────────── */
   .nzp-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(20,16,10,0.32); }
   .nzp-panel {
@@ -704,7 +719,7 @@ window.NUTRITION_WIZARD_INIT = {
                   <!-- Items -->
                   <div>
                     <template x-for="(item, iIndex) in meal.items" :key="item._key">
-                      <div class="nz-item" style="border-bottom: 1px solid var(--al-rule);">
+                      <div class="nz-item" :class="{ 'nz-item-just-added': item._justAdded }" style="border-bottom: 1px solid var(--al-rule);">
                         <!-- Primary row -->
                         <div class="flex items-center gap-3 pl-2 pr-5 py-3">
                           <button type="button"
@@ -1561,7 +1576,7 @@ window.NUTRITION_WIZARD_INIT = {
       <!-- Barra azioni bulk -->
       <div x-show="selectedSuppKeys.length > 0" x-cloak class="flex items-center gap-3 mb-3">
         <span class="al-tag font-mono" x-text="selectedSuppKeys.length + (selectedSuppKeys.length === 1 ? ' selezionato' : ' selezionati')"></span>
-        <button type="button" @click="bulkDeleteSupplements()" class="al-btn al-btn-ghost al-btn-sm" style="color: var(--al-danger);">
+        <button type="button" @click="bulkDeleteSupplements()" class="al-btn al-btn-ghost al-btn-ghost-danger al-btn-sm">
           <i class="ph ph-trash"></i> Elimina selezionati
         </button>
         <button type="button" @click="selectedSuppKeys = []" class="al-btn al-btn-ghost al-btn-sm">Deseleziona</button>

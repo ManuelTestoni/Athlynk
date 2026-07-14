@@ -59,7 +59,6 @@ document.addEventListener('alpine:init', () => {
     recapDaysOpen: {},
 
     errors: { step1: '', step2: '', assign: '', finalize: '' },
-    toast: '',
 
     urls: window.WIZARD_URLS,
 
@@ -676,6 +675,7 @@ document.addEventListener('alpine:init', () => {
       if (!day) return;
       day.exercises.push({
         local_id: `ex-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+        _justAdded: true,
         pk: null,
         exercise_id: libEx.id,
         exercise_name: libEx.name,
@@ -703,6 +703,8 @@ document.addEventListener('alpine:init', () => {
       setTimeout(() => {
         this.flashIds = this.flashIds.filter(x => x !== libEx.id);
       }, 600);
+      const addedEx = day.exercises[day.exercises.length - 1];
+      setTimeout(() => { addedEx._justAdded = false; }, 320);
       this.markDirty();
       this.$nextTick(() => this.bindSortable());
     },
@@ -1702,9 +1704,8 @@ document.addEventListener('alpine:init', () => {
       );
     },
 
-    _showToast(msg) {
-      this.toast = msg;
-      setTimeout(() => { this.toast = ''; }, 2000);
+    _showToast(msg, kind = 'success') {
+      Alpine.store('toasts').push({ kind: kind === 'error' ? 'danger' : kind, msg });
     },
 
     // ============================================================
@@ -1761,7 +1762,7 @@ document.addEventListener('alpine:init', () => {
         });
         if (!r.ok) {
           local.week_type = previous;
-          this._showToast('Errore aggiornamento settimana');
+          this._showToast('Errore aggiornamento settimana', 'error');
           return;
         }
         // Trigger reload of weekly values via plain save (which recomputes server-side).
@@ -2272,7 +2273,7 @@ document.addEventListener('alpine:init', () => {
       } else if (numericMetrics.includes(metric)) {
         const n = parseFloat(trimmed);
         if (isNaN(n)) {
-          this._showToast('Valore non valido');
+          this._showToast('Valore non valido', 'error');
           await this.loadProgGrid();
           return;
         }
@@ -2298,7 +2299,7 @@ document.addEventListener('alpine:init', () => {
         });
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
-          this._showToast(d.error || 'Errore aggiornamento');
+          this._showToast(d.error || 'Errore aggiornamento', 'error');
         } else {
           const d = await r.json().catch(() => ({}));
           if (d.computed) {
@@ -2309,7 +2310,7 @@ document.addEventListener('alpine:init', () => {
           if (week === 1) this._syncBaseFieldToBuilder(ex.pk, metric, payloadValue);
         }
       } catch (_) {
-        this._showToast('Errore di rete');
+        this._showToast('Errore di rete', 'error');
       }
       await this.loadProgGrid();
     },
@@ -2363,12 +2364,12 @@ document.addEventListener('alpine:init', () => {
         });
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
-          this._showToast(d.error || 'Errore aggiornamento serie');
+          this._showToast(d.error || 'Errore aggiornamento serie', 'error');
         } else if (week === 1) {
           this._syncBaseFieldToBuilder(ex.pk, 'set_details', rows);
         }
       } catch (_) {
-        this._showToast('Errore di rete');
+        this._showToast('Errore di rete', 'error');
       }
       await this.loadProgGrid();
     },
@@ -2400,11 +2401,11 @@ document.addEventListener('alpine:init', () => {
         });
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
-          this._showToast(d.error || 'Errore cancellazione');
+          this._showToast(d.error || 'Errore cancellazione', 'error');
           return;
         }
       } catch (_) {
-        this._showToast('Errore di rete');
+        this._showToast('Errore di rete', 'error');
         return;
       }
       await this.loadProgGrid();
@@ -2443,7 +2444,7 @@ document.addEventListener('alpine:init', () => {
     async confirmAddExerciseAtWeek(opt) {
       const day = this._currentDay();
       if (!day || !day.pk) {
-        this._showToast('Salva la bozza prima di aggiungere esercizi.');
+        this._showToast('Salva la bozza prima di aggiungere esercizi.', 'warn');
         return;
       }
       try {
@@ -2458,13 +2459,13 @@ document.addEventListener('alpine:init', () => {
         });
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
-          this._showToast(d.error || 'Errore aggiunta');
+          this._showToast(d.error || 'Errore aggiunta', 'error');
           return;
         }
         this.closeAddExerciseAtWeek();
         await this.loadProgGrid();
       } catch (_) {
-        this._showToast('Errore di rete');
+        this._showToast('Errore di rete', 'error');
       }
     },
   }));

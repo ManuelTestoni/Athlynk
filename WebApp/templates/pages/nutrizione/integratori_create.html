@@ -72,7 +72,7 @@ window._suppClients = {{ clients_json|json_js }};
             <!-- Barra azioni bulk -->
             <div x-show="selectedKeys.length > 0" x-cloak class="flex items-center gap-3 mb-4">
                 <span class="al-tag font-mono" x-text="selectedKeys.length + (selectedKeys.length === 1 ? ' selezionato' : ' selezionati')"></span>
-                <button type="button" @click="bulkDelete()" class="al-btn al-btn-ghost al-btn-sm" style="color: var(--al-danger);">
+                <button type="button" @click="bulkDelete()" class="al-btn al-btn-ghost al-btn-ghost-danger al-btn-sm">
                     <i class="ph ph-trash"></i> Elimina selezionati
                 </button>
                 <button type="button" @click="selectedKeys = []" class="al-btn al-btn-ghost al-btn-sm">Deseleziona</button>

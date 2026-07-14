@@ -1061,6 +1061,18 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 }
 .wb-row.is-superset { border-left: 4px solid var(--al-bronze); }
 
+/* Newly added from the library (paired with the source card's flash): a
+   gold pulse on top of the standard wb-card-in slide-in, so the cross-panel
+   move (library -> editor) reads as one deliberate motion, not an instant pop. */
+.wb-row.wb-row-just-added {
+  animation: wb-card-in 320ms var(--al-ease-emp) backwards,
+             wb-row-added-glow 900ms var(--al-ease-out);
+}
+@keyframes wb-row-added-glow {
+  0%   { box-shadow: 0 0 0 3px rgba(255,224,102,0.55); background: rgba(255,224,102,0.14); }
+  100% { box-shadow: 0 0 0 0 rgba(255,224,102,0); background: rgba(255,255,255,0.72); }
+}
+
 .wb-row-top {
   display: flex;
   align-items: center;

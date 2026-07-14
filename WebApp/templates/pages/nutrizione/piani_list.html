@@ -103,7 +103,7 @@
              @click="selectedFolderId = 'unfiled'"
              @dragover.prevent="dropTargetId = 'unfiled'"
              @dragleave="dropTargetId = null"
-             @drop.prevent="handleFolderDrop(null)">
+             @drop.prevent="handleFolderDrop(null, $event)">
           <i class="ph ph-folder-dashed"></i>
           <span>Senza cartella</span>
           <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
@@ -120,7 +120,7 @@
                @dragend="draggedFolderId = null; dropTargetId = null"
                @dragover.prevent="dropTargetId = folder.id"
                @dragleave="dropTargetId = null"
-               @drop.prevent="handleFolderDrop(folder.id)">
+               @drop.prevent="handleFolderDrop(folder.id, $event)">
             <span class="wb-folder-label-dot"
                   :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
                   :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
@@ -239,7 +239,7 @@
         <template x-for="plan in visiblePlans()" :key="plan.id">
           <article class="al-card flex flex-col justify-between"
                    draggable="true"
-                   @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
+                   @dragstart="draggedPlanId = plan.id; dragSourceEl = $event.currentTarget; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null">
             <div>
               <div class="flex justify-between items-center mb-4">

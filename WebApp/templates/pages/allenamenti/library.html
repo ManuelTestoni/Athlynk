@@ -85,7 +85,7 @@
              @click="selectedFolderId = 'unfiled'"
              @dragover.prevent="dropTargetId = 'unfiled'"
              @dragleave="dropTargetId = null"
-             @drop.prevent="handleFolderDrop(null)">
+             @drop.prevent="handleFolderDrop(null, $event)">
           <i class="ph ph-folder-dashed"></i>
           <span>Senza cartella</span>
           <span class="wb-folder-count" x-text="plans.filter(p => !p.folder_id).length"></span>
@@ -102,7 +102,7 @@
                @dragend="draggedFolderId = null; dropTargetId = null"
                @dragover.prevent="dropTargetId = folder.id"
                @dragleave="dropTargetId = null"
-               @drop.prevent="handleFolderDrop(folder.id)">
+               @drop.prevent="handleFolderDrop(folder.id, $event)">
             <span class="wb-folder-label-dot"
                   :class="folder.label_color ? 'wb-folder-label-dot--' + folder.label_color : ''"
                   :style="!folder.label_color ? 'background: var(--al-ink-line);' : ''"></span>
@@ -220,7 +220,7 @@
         <template x-for="plan in visiblePlans()" :key="plan.id">
           <article class="al-card flex flex-col justify-between"
                    draggable="true"
-                   @dragstart="draggedPlanId = plan.id; $event.dataTransfer.effectAllowed = 'move'"
+                   @dragstart="draggedPlanId = plan.id; dragSourceEl = $event.currentTarget; $event.dataTransfer.effectAllowed = 'move'"
                    @dragend="draggedPlanId = null; dropTargetId = null">
             <div>
               <div class="flex justify-between items-center mb-4">
@@ -510,6 +510,7 @@ function workoutLibrary() {
 
     /* drag */
     draggedPlanId: null,
+    dragSourceEl: null,
     dropTargetId: null,
     draggedFolderId: null,
 
@@ -807,14 +808,14 @@ function workoutLibrary() {
     /* === drag & drop === */
     /* Drop su una cartella: o sto riordinando le cartelle (drag della voce
        sidebar) o sto archiviando una scheda (drag della card). */
-    handleFolderDrop(folderId) {
+    handleFolderDrop(folderId, evt) {
       if (this.draggedFolderId) {
         if (folderId && this.draggedFolderId !== folderId) this.reorderFolders(folderId);
         this.draggedFolderId = null;
         this.dropTargetId = null;
         return;
       }
-      this.dropPlanOnFolder(folderId);
+      this.dropPlanOnFolder(folderId, evt);
     },
     async reorderFolders(targetId) {
       const srcIdx = this.folders.findIndex(f => f.id === this.draggedFolderId);
@@ -833,13 +834,18 @@ function workoutLibrary() {
         toastError('Riordino non salvato. Riprova.');
       }
     },
-    async dropPlanOnFolder(folderId) {
+    async dropPlanOnFolder(folderId, evt) {
       this.dropTargetId = null;
       const pid = this.draggedPlanId;
+      const sourceEl = this.dragSourceEl;
       this.draggedPlanId = null;
+      this.dragSourceEl = null;
       if (!pid) return;
       const plan = this.plans.find(p => p.id === pid);
       if (!plan) return;
+      if (window.alGenieMove && sourceEl && evt?.currentTarget) {
+        await window.alGenieMove(sourceEl, evt.currentTarget);
+      }
       const previousFolderId = plan.folder_id;
       plan.folder_id = folderId;
       try {

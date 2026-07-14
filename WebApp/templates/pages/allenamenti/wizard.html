@@ -42,7 +42,6 @@
   .wiz-drawer-backdrop.open { pointer-events: auto; visibility: visible; }
   .wiz-bar { background: linear-gradient(90deg, var(--al-bronze), var(--al-accent)); height: 14px; border-radius: 4px; }
   .wiz-superset-bracket { width: 4px; background: var(--al-bronze); border-radius: 2px; align-self: stretch; }
-  .wiz-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--al-ink); color: var(--al-parchment); padding: 12px 20px; border-radius: var(--al-r-sm); z-index: 80; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
   @media (max-width: 768px) {
     .wiz-drawer { max-width: 100vw; }
   }
@@ -1443,7 +1442,7 @@
 
             <div :id="'day-list-' + activeDay().local_id" class="space-y-2">
               <template x-for="(ex, exIdx) in activeDay().exercises" :key="ex.local_id">
-                <div class="wb-row" :class="{'is-superset': ex.superset_group_id}" :data-local-id="ex.local_id">
+                <div class="wb-row" :class="{'is-superset': ex.superset_group_id, 'wb-row-just-added': ex._justAdded}" :data-local-id="ex.local_id">
 
                   <!-- TOP ROW: handle + name + set-type + actions -->
                   <div class="wb-row-top">
@@ -2318,8 +2317,6 @@
     </div>
   </section>
 
-  <!-- Toast -->
-  <div x-show="toast" x-transition class="wiz-toast" x-text="toast"></div>
 
 </div>
 

@@ -500,17 +500,17 @@
             <div x-show="activeTab === 'elimina'" class="p-6 md:p-8" x-cloak>
                 <div class="al-section-head">
                     <p class="al-eyebrow" style="color: var(--al-ink-mute);">{% if is_coach %}07{% else %}06{% endif %}</p>
-                    <h2 class="al-h-2 mt-1" style="color: #b91c1c;">Elimina account</h2>
+                    <h2 class="al-h-2 mt-1" style="color: var(--al-danger);">Elimina account</h2>
                     <p class="al-small mt-2">Operazione irreversibile. Tutti i tuoi dati saranno rimossi dalla piattaforma.</p>
                 </div>
 
                 <div class="max-w-xl mt-6">
-                    <div class="border" style="border-color: #fecaca; background: #fef2f2; padding: 18px; border-radius: var(--al-r-sm);">
+                    <div class="border" style="border-color: var(--al-danger); background: var(--al-danger-bg); padding: var(--al-s-5); border-radius: var(--al-r-sm);">
                         <div class="flex items-start gap-3">
-                            <i class="ph-fill ph-warning-octagon text-2xl" style="color: #b91c1c;"></i>
+                            <i class="ph-fill ph-warning-octagon text-2xl" style="color: var(--al-danger);"></i>
                             <div class="flex-1">
-                                <p class="font-semibold text-[14px]" style="color: #991b1b;">Cosa succede se elimini l'account?</p>
-                                <ul class="al-small mt-2 space-y-1" style="color: #7f1d1d; list-style: disc; padding-left: 18px;">
+                                <p class="font-semibold text-[14px]" style="color: var(--al-danger);">Cosa succede se elimini l'account?</p>
+                                <ul class="al-small mt-2 space-y-1" style="color: var(--al-danger); list-style: disc; padding-left: 18px;">
                                     <li>Account e profilo cancellati definitivamente.</li>
                                     {% if is_coach %}
                                     <li>Schede di allenamento, piani nutrizionali, schede integratori, abbonamenti e relazioni con gli atleti vengono rimossi.</li>
@@ -526,8 +526,7 @@
                     </div>
 
                     <div class="mt-6">
-                        <button type="button" @click="showDeleteModal = true" class="al-btn"
-                                style="background: #b91c1c; color: #fff; border-color: #b91c1c;">
+                        <button type="button" @click="showDeleteModal = true" class="al-btn al-btn-danger">
                             <i class="ph ph-trash text-sm"></i>
                             <span>Elimina il mio account</span>
                         </button>
