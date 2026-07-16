@@ -94,6 +94,13 @@
     {% endif %}
   </div>
 
+  {% if not can_manage_agenda %}
+  <div class="al-card mb-6" style="padding: 14px 18px;"
+       @week-strip-day-selected.window="currentDate = new Date($event.detail.date + 'T00:00:00'); view = 'today';">
+    {% include 'partials/_week_strip.html' %}
+  </div>
+  {% endif %}
+
   <div class="agenda-shell">
 
     <!-- ============ SIDEBAR ============ -->

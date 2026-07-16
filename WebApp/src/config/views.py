@@ -27,6 +27,65 @@ def healthz_view(request):
     return JsonResponse({'status': 'ok'})
 
 
+def _client_dashboard_kpis(client, active_relationship):
+    """Shared KPI block for the CLIENT dashboard: weight+delta, sessions this
+    week, active plan's kcal target, days to subscription renewal. Used by both
+    the web dashboard and the mobile `GET /api/v1/dashboard/summary` endpoint
+    so the numbers always match.
+    """
+    today = timezone.now().date()
+
+    last_two_weights = list(
+        QuestionnaireResponse.objects
+        .filter(client=client, weight_kg__isnull=False)
+        .order_by('-submitted_at')
+        .values_list('weight_kg', flat=True)[:2]
+    )
+    weight_current = float(last_two_weights[0]) if last_two_weights else None
+    weight_delta = (
+        round(float(last_two_weights[0]) - float(last_two_weights[1]), 1)
+        if len(last_two_weights) == 2 else None
+    )
+
+    week_start = today - timedelta(days=today.weekday())
+    sessions_this_week = WorkoutSession.objects.filter(
+        client=client, completed=True, started_at__date__gte=week_start,
+    ).count()
+
+    kcal_target = None
+    nutrition_coach = get_nutrition_coach(client)
+    if nutrition_coach:
+        active_assignment = (
+            NutritionAssignment.objects
+            .select_related('nutrition_plan')
+            .filter(client=client, coach=nutrition_coach, status='ACTIVE')
+            .order_by('-created_at')
+            .first()
+        )
+        if active_assignment:
+            plan = active_assignment.nutrition_plan
+            if plan.plan_mode == 'MACRO':
+                kcal_target = _plan_macro_targets(plan)['avg']['kcal']
+            else:
+                kcal_target = _bulk_plan_macros({plan.id}).get(plan.id, {}).get('kcal', 0)
+
+    subscription = ClientSubscription.objects.filter(
+        client=client, status='ACTIVE', subscription_plan__coach=active_relationship.coach,
+    ).select_related('subscription_plan').first()
+    days_to_renewal = (
+        (subscription.end_date - today).days
+        if subscription and subscription.end_date else None
+    )
+
+    return {
+        'weight_current': weight_current,
+        'weight_delta': weight_delta,
+        'sessions_this_week': sessions_this_week,
+        'kcal_target': kcal_target,
+        'days_to_renewal': days_to_renewal,
+    }
+
+
 def dashboard_view(request):
     user = get_session_user(request)
     if not user:
@@ -95,53 +154,7 @@ def dashboard_view(request):
         }
 
         if active_relationship is not None:
-            today = timezone.now().date()
-
-            # Peso attuale + delta vs check precedente.
-            last_two_weights = list(
-                QuestionnaireResponse.objects
-                .filter(client=client, weight_kg__isnull=False)
-                .order_by('-submitted_at')
-                .values_list('weight_kg', flat=True)[:2]
-            )
-            weight_current = float(last_two_weights[0]) if last_two_weights else None
-            weight_delta = (
-                round(float(last_two_weights[0]) - float(last_two_weights[1]), 1)
-                if len(last_two_weights) == 2 else None
-            )
-
-            # Sessioni di allenamento completate questa settimana (lun-oggi).
-            week_start = today - timedelta(days=today.weekday())
-            sessions_this_week = WorkoutSession.objects.filter(
-                client=client, completed=True, started_at__date__gte=week_start,
-            ).count()
-
-            # Target kcal del piano nutrizionale attivo.
-            kcal_target = None
-            nutrition_coach = get_nutrition_coach(client)
-            if nutrition_coach:
-                active_assignment = (
-                    NutritionAssignment.objects
-                    .select_related('nutrition_plan')
-                    .filter(client=client, coach=nutrition_coach, status='ACTIVE')
-                    .order_by('-created_at')
-                    .first()
-                )
-                if active_assignment:
-                    plan = active_assignment.nutrition_plan
-                    if plan.plan_mode == 'MACRO':
-                        kcal_target = _plan_macro_targets(plan)['avg']['kcal']
-                    else:
-                        kcal_target = _bulk_plan_macros({plan.id}).get(plan.id, {}).get('kcal', 0)
-
-            # Giorni al rinnovo dell'abbonamento col coach principale.
-            subscription = ClientSubscription.objects.filter(
-                client=client, status='ACTIVE', subscription_plan__coach=active_relationship.coach,
-            ).select_related('subscription_plan').first()
-            days_to_renewal = (
-                (subscription.end_date - today).days
-                if subscription and subscription.end_date else None
-            )
+            context.update(_client_dashboard_kpis(client, active_relationship))
 
             # Sparkline: ultime rilevazioni di peso (in ordine cronologico).
             weight_points = list(
@@ -152,13 +165,6 @@ def dashboard_view(request):
             )
             weight_points.reverse()
 
-            context.update({
-                'weight_current': weight_current,
-                'weight_delta': weight_delta,
-                'sessions_this_week': sessions_this_week,
-                'kcal_target': kcal_target,
-                'days_to_renewal': days_to_renewal,
-            })
             if len(weight_points) >= 2:
                 context['weight_chart_json'] = json.dumps({
                     'labels': [d.strftime('%d/%m') for d, _ in weight_points],

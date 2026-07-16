@@ -42,7 +42,7 @@ struct MacroHistoryView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 44)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Storico pasti")

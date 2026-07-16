@@ -141,18 +141,50 @@
         {% endif %}
     </div>
 
-    <!-- Status Cards (4 col) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+    <!-- Attività atleta: settimana/range + selettore dominio -->
+    <div class="al-card al-reveal" x-data="clientDetailPanel({{ client.id }})" x-init="init()">
 
-        <!-- Allenamento -->
-        <div class="al-card al-reveal" style="--d:0ms;">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
-                        <i class="ph ph-barbell"></i>
-                    </div>
-                    <span class="al-eyebrow" style="color: var(--al-ink-mute);">Allenamento</span>
+        <!-- Day/range picker -->
+        <div class="flex items-center justify-between gap-3 mb-5">
+            <div class="al-week-strip" style="flex:1;">
+                <button type="button" class="al-week-strip-nav" @click="prevRange()" aria-label="Precedente"><i class="ph ph-caret-left"></i></button>
+                <div class="al-week-strip-days">
+                    <template x-for="d in days" :key="d.iso">
+                        <button type="button" class="al-week-strip-day" :class="{ 'is-selected': d.isSelected, 'is-today': d.isToday }" @click="selectDay(d)">
+                            <span class="al-week-strip-day-label" x-text="d.label"></span>
+                            <span class="al-week-strip-day-circle" x-text="d.initial"></span>
+                        </button>
+                    </template>
                 </div>
+                <button type="button" class="al-week-strip-nav" @click="nextRange()" aria-label="Successivo"><i class="ph ph-caret-right"></i></button>
+            </div>
+            <select x-model="rangeMode" @change="onRangeChange()" class="al-select" style="width:150px; flex-shrink:0;">
+                <option value="week">Settimanale</option>
+                <option value="biweek">Bisettimanale</option>
+                <option value="month">Mensile</option>
+            </select>
+        </div>
+
+        <!-- Domain selector -->
+        <div class="flex flex-wrap gap-2 mb-6 pb-5 border-b" style="border-color: var(--al-rule);">
+            <button type="button" class="al-btn al-btn-sm" :class="domain === 'allenamento' ? 'al-btn-bronze' : 'al-btn-ghost'" @click="setDomain('allenamento')">
+                <i class="ph ph-barbell text-xs"></i><span>Allenamento</span>
+            </button>
+            <button type="button" class="al-btn al-btn-sm" :class="domain === 'nutrizione' ? 'al-btn-bronze' : 'al-btn-ghost'" @click="setDomain('nutrizione')">
+                <i class="ph ph-leaf text-xs"></i><span>Nutrizione</span>
+            </button>
+            <button type="button" class="al-btn al-btn-sm" :class="domain === 'check' ? 'al-btn-bronze' : 'al-btn-ghost'" @click="setDomain('check')">
+                <i class="ph ph-clipboard-text text-xs"></i><span>Check</span>
+            </button>
+            <button type="button" class="al-btn al-btn-sm" :class="domain === 'abbonamento' ? 'al-btn-bronze' : 'al-btn-ghost'" @click="setDomain('abbonamento')">
+                <i class="ph ph-credit-card text-xs"></i><span>Abbonamento</span>
+            </button>
+        </div>
+
+        <!-- Allenamento panel -->
+        <div x-show="domain === 'allenamento'" x-transition.opacity.duration.150ms>
+            <div class="flex items-center justify-between mb-4">
+                <span class="al-eyebrow" style="color: var(--al-ink-mute);">Piano attivo</span>
                 <div class="flex items-center gap-3">
                     {% if active_workout %}
                     <a href="{% url 'allenamenti_plan_detail' active_workout.workout_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Dettagli Piano</a>
@@ -175,17 +207,26 @@
                 <i class="ph ph-plus-circle text-xs"></i>Assegna piano
             </a>
             {% endif %}
+            <template x-if="!feedLoading && feedItems.length === 0">
+                <p class="al-small mt-5 pt-4 border-t" style="border-color: var(--al-rule-faint);">Nessun allenamento fatto il giorno selezionato.</p>
+            </template>
+            <div class="mt-5 pt-4 border-t space-y-2" style="border-color: var(--al-rule-faint);" x-show="feedItems.length > 0">
+                <template x-for="ev in feedItems" :key="ev.id">
+                    <div class="flex items-center justify-between gap-3 py-2">
+                        <div>
+                            <p class="font-medium text-ink text-[13px]" x-text="ev.title"></p>
+                            <p class="al-small" x-text="ev.subtitle"></p>
+                        </div>
+                    </div>
+                </template>
+                <button type="button" x-show="feedHasMore" @click="loadMoreFeed()" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Carica altri</button>
+            </div>
         </div>
 
-        <!-- Nutrizione -->
-        <div class="al-card al-reveal" style="--d:60ms;">
+        <!-- Nutrizione panel -->
+        <div x-show="domain === 'nutrizione'" x-transition.opacity.duration.150ms>
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-success-bg); color: var(--al-success);">
-                        <i class="ph ph-leaf"></i>
-                    </div>
-                    <span class="al-eyebrow" style="color: var(--al-ink-mute);">Nutrizione</span>
-                </div>
+                <span class="al-eyebrow" style="color: var(--al-ink-mute);">Piano attivo</span>
                 {% if active_nutrition %}
                 <div class="flex items-center gap-3">
                     <a href="{% url 'nutrizione_piano_detail' active_nutrition.nutrition_plan.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Dettagli piano</a>
@@ -214,17 +255,31 @@
                 <i class="ph ph-plus-circle text-xs"></i>Assegna piano
             </a>
             {% endif %}
+            <template x-if="!feedLoading && feedItems.length === 0">
+                <p class="al-small mt-5 pt-4 border-t" style="border-color: var(--al-rule-faint);">Nessun alimento registrato il giorno selezionato.</p>
+            </template>
+            <div class="mt-5 pt-4 border-t space-y-3" style="border-color: var(--al-rule-faint);" x-show="feedItems.length > 0">
+                <template x-for="ev in feedItems" :key="ev.id">
+                    <div class="py-1">
+                        <p class="font-medium text-ink text-[13px]" x-text="ev.subtitle"></p>
+                        <ul class="mt-1 space-y-0.5">
+                            <template x-for="item in (ev.items || [])" :key="item.name + item.quantity_g">
+                                <li class="al-small flex items-center justify-between gap-3">
+                                    <span x-text="item.name"></span>
+                                    <span class="font-mono" x-text="item.quantity_g + 'g · ' + item.kcal + 'kcal'"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+                <button type="button" x-show="feedHasMore" @click="loadMoreFeed()" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Carica altri</button>
+            </div>
         </div>
 
-        <!-- Check -->
-        <div class="al-card al-reveal" style="--d:90ms;">
+        <!-- Check panel -->
+        <div x-show="domain === 'check'" x-transition.opacity.duration.150ms>
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-info-bg); color: var(--al-aegean);">
-                        <i class="ph ph-clipboard-text"></i>
-                    </div>
-                    <span class="al-eyebrow" style="color: var(--al-ink-mute);">Check</span>
-                </div>
+                <span class="al-eyebrow" style="color: var(--al-ink-mute);">Ultimo check</span>
                 <div class="flex items-center gap-3">
                     <a href="{% url 'check_comparator_client' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Comparatore</a>
                     <a href="{% url 'check_client_history' client.id %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Storico</a>
@@ -246,17 +301,26 @@
                     <i class="ph ph-plus-circle text-xs"></i>Assegna
                 </a>
             </div>
+            <template x-if="!feedLoading && feedItems.length === 0">
+                <p class="al-small mt-5 pt-4 border-t" style="border-color: var(--al-rule-faint);">Nessun check inviato il giorno selezionato.</p>
+            </template>
+            <div class="mt-5 pt-4 border-t space-y-2" style="border-color: var(--al-rule-faint);" x-show="feedItems.length > 0">
+                <template x-for="ev in feedItems" :key="ev.id">
+                    <div class="flex items-center justify-between gap-3 py-2">
+                        <a :href="ev.url" class="font-medium text-ink text-[13px] al-link">
+                            <span x-text="ev.title"></span>
+                        </a>
+                        <span class="al-small" x-text="ev.subtitle"></span>
+                    </div>
+                </template>
+                <button type="button" x-show="feedHasMore" @click="loadMoreFeed()" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Carica altri</button>
+            </div>
         </div>
 
-        <!-- Abbonamento -->
-        <div class="al-card al-reveal" style="--d:120ms;">
+        <!-- Abbonamento panel -->
+        <div x-show="domain === 'abbonamento'" x-transition.opacity.duration.150ms>
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: rgba(30,58,95,0.12); color: var(--al-bronze);">
-                        <i class="ph ph-credit-card"></i>
-                    </div>
-                    <span class="al-eyebrow" style="color: var(--al-ink-mute);">Abbonamento</span>
-                </div>
+                <span class="al-eyebrow" style="color: var(--al-ink-mute);">Abbonamento</span>
                 <a href="{% url 'abbonamenti_dashboard' %}" class="al-link al-link-bronze text-[11px] uppercase tracking-widest">Tutti</a>
             </div>
             {% if active_subscription %}
@@ -362,6 +426,81 @@ function labelManager(assignedData, allLabelsData, clientId) {
                 body: JSON.stringify({ label_id: data.id }),
             });
             this.newName = '';
+        },
+    };
+}
+
+function clientDetailPanel(clientId) {
+    const DOMAIN_TYPE = { allenamento: 'allenamento_fatto', nutrizione: 'macro', check: 'check', abbonamento: null };
+    const RANGE_DAYS = { week: 7, biweek: 14, month: 30 };
+    const IT_LABELS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+
+    function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+    function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    function isoWeekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return x; }
+
+    return {
+        clientId,
+        rangeMode: 'week',
+        anchor: new Date(),
+        selected: new Date(),
+        days: [],
+        domain: 'allenamento',
+        feedItems: [],
+        feedHasMore: false,
+        feedOffset: 0,
+        feedLoading: false,
+
+        init() {
+            this.buildDays();
+            this.fetchFeed();
+        },
+        buildDays() {
+            const n = RANGE_DAYS[this.rangeMode];
+            const start = isoWeekStart(this.anchor);
+            const today = new Date();
+            this.days = Array.from({ length: n }, (_, i) => {
+                const d = addDays(start, i);
+                return {
+                    iso: ymd(d), date: d,
+                    initial: IT_LABELS[i % 7],
+                    label: IT_LABELS[i % 7],
+                    isToday: sameDay(d, today),
+                    isSelected: sameDay(d, this.selected),
+                };
+            });
+        },
+        prevRange() { this.anchor = addDays(this.anchor, -RANGE_DAYS[this.rangeMode]); this.buildDays(); },
+        nextRange() { this.anchor = addDays(this.anchor, RANGE_DAYS[this.rangeMode]); this.buildDays(); },
+        onRangeChange() { this.buildDays(); },
+        selectDay(d) { this.selected = d.date; this.buildDays(); this.fetchFeed(); },
+        setDomain(domain) { this.domain = domain; this.fetchFeed(); },
+
+        async fetchFeed() {
+            this.feedOffset = 0;
+            const type = DOMAIN_TYPE[this.domain];
+            if (!type) { this.feedItems = []; this.feedHasMore = false; return; }
+            this.feedLoading = true;
+            try {
+                const r = await fetch(`/api/coach/clienti/${this.clientId}/attivita/?date=${ymd(this.selected)}&type=${type}&offset=0`);
+                const data = await r.json();
+                this.feedItems = data.items || [];
+                this.feedHasMore = !!data.has_more;
+            } catch (e) {
+                this.feedItems = [];
+                this.feedHasMore = false;
+            }
+            this.feedLoading = false;
+        },
+        async loadMoreFeed() {
+            const type = DOMAIN_TYPE[this.domain];
+            if (!type) return;
+            this.feedOffset += 10;
+            const r = await fetch(`/api/coach/clienti/${this.clientId}/attivita/?date=${ymd(this.selected)}&type=${type}&offset=${this.feedOffset}`);
+            const data = await r.json();
+            this.feedItems = this.feedItems.concat(data.items || []);
+            this.feedHasMore = !!data.has_more;
         },
     };
 }

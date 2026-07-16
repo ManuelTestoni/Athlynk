@@ -38,7 +38,7 @@ struct HelpView: View {
                     Text("CONTATTI").voltEyebrow()
                     contactCard
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Aiuto")

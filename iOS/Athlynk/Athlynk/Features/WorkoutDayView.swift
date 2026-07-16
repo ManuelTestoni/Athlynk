@@ -45,7 +45,7 @@ struct WorkoutDayView: View {
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 12)
-                .padding(.bottom, 60)
+                .padding(.bottom, AppLayout.tabBarClearance)
             }
 
             ParticleBurst(trigger: burst)

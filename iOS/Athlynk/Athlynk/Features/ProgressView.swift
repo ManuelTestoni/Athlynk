@@ -13,12 +13,19 @@ import SwiftUI
 struct ProgressTrackerView: View {
     @State private var entries: [ProgressEntryDTO] = []
     @State private var exerciseHistory: [ExerciseHistoryItemDTO] = []
+    /// Sites the athlete has EVER recorded a value for — independent of the
+    /// paginated `entries`, so the trend charts show every site with data
+    /// (see MeasurementTrends' `everRecordedSites`), not just recently-loaded ones.
+    @State private var everRecordedSites: MeasurementSitesDTO?
     @State private var loading = true
     @State private var loadingMore = false
     @State private var hasMore = false
     @State private var error: String?
     @State private var showAdd = false
     @State private var appear = false
+    /// Id of the last-opened history row, so popping back from the detail
+    /// screen restores this scroll position instead of jumping to the top.
+    @State private var lastOpenedId: Int?
 
     /// Entries oldest → newest.
     private var chrono: [ProgressEntryDTO] {
@@ -43,34 +50,42 @@ struct ProgressTrackerView: View {
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.violet, Palette.cyan, Palette.magenta, Palette.violet])
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    if loading {
-                        ProgressSkeleton()
-                    } else if let error {
-                        EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
-                    } else if entries.isEmpty {
-                        EmptyPanel(icon: "chart.xyaxis.line",
-                                   text: "Nessun check completato.\nI tuoi progressi appariranno qui.")
-                    } else {
-                        MeasurementTrends(samples: samples).revealUp(appear, index: 0)
-                        if photoEntries.count >= 2 { comparatorCard.revealUp(appear, index: 1) }
-                        Text("STORICO CHECK").voltEyebrow().padding(.top, 4).revealUp(appear, index: 2)
-                        ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
-                            NavigationLink { CheckHistoryDetailView(responseId: e.id) } label: { entryCard(e, index: i) }
-                                .buttonStyle(.plain)
-                                .revealUp(appear, index: min(i, 5) + 3)
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        if loading {
+                            ProgressSkeleton()
+                        } else if let error {
+                            EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
+                        } else if entries.isEmpty {
+                            EmptyPanel(icon: "chart.xyaxis.line",
+                                       text: "Nessun check completato.\nI tuoi progressi appariranno qui.")
+                        } else {
+                            MeasurementTrends(samples: samples, everRecordedSites: everRecordedSites)
+                                .revealUp(appear, index: 0)
+                            if photoEntries.count >= 2 { comparatorCard.revealUp(appear, index: 1) }
+                            Text("STORICO CHECK").voltEyebrow().padding(.top, 4).revealUp(appear, index: 2)
+                            ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
+                                NavigationLink { CheckHistoryDetailView(responseId: e.id) } label: { entryCard(e, index: i) }
+                                    .buttonStyle(.plain)
+                                    .id(e.id)
+                                    .simultaneousGesture(TapGesture().onEnded { lastOpenedId = e.id })
+                                    .revealUp(appear, index: min(i, 5) + 3)
+                            }
+                            if hasMore {
+                                LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }
+                            }
                         }
-                        if hasMore {
-                            LoadMoreButton(loading: loadingMore, accent: Palette.violet) { Task { await loadMore() } }
+                        if !loading, !exerciseHistory.isEmpty {
+                            GreekDivider(color: Palette.control).padding(.top, 8)
+                            exercisesSection.revealUp(appear, index: 4)
                         }
                     }
-                    if !loading, !exerciseHistory.isEmpty {
-                        GreekDivider(color: Palette.control).padding(.top, 8)
-                        exercisesSection.revealUp(appear, index: 4)
-                    }
+                    .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .onAppear {
+                    if let id = lastOpenedId { proxy.scrollTo(id, anchor: .top) }
+                }
             }
         }
         .navigationTitle("Il mio andamento")
@@ -93,7 +108,7 @@ struct ProgressTrackerView: View {
             }
             .presentationDetents([.medium, .large])
         }
-        .task { await load() }
+        .task { if entries.isEmpty { await load() } }
         .onChange(of: loading) { _, l in if !l { appear = true } }
     }
 
@@ -232,6 +247,7 @@ struct ProgressTrackerView: View {
         }
         catch { self.error = error.localizedDescription }
         exerciseHistory = (try? await APIClient.shared.progressExercises()) ?? []
+        everRecordedSites = try? await APIClient.shared.measurementSites()
         loading = false
     }
 
@@ -267,7 +283,7 @@ struct ExerciseTrendByNameView: View {
                         try await APIClient.shared.exerciseTrend(name: name)
                     }, accent: Palette.control)
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")

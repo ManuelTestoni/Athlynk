@@ -28,7 +28,7 @@ struct MealDetailView: View {
                         itemRow(item).revealUp(appear, index: min(i, 6) + 3)
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")

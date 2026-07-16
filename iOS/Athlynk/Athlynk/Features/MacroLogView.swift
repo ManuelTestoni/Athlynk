@@ -12,18 +12,31 @@ struct MacroLogView: View {
     let planTitle: String
     /// ISO yyyy-MM-dd of a past day to review/edit; nil = today's diary.
     var logDate: String? = nil
+    /// The week's 7 ISO dates (Mon→Sun) this day belongs to. When set, shows
+    /// visible prev/next-day chevrons + swipe (opened from the MACRO weekly
+    /// day-strip in NutritionView). Nil when opened as a standalone diary.
+    var weekDates: [String]? = nil
 
+    @State private var pagedDate: String?
     @State private var day: MacroDayDTO?
     @State private var loading = true
     @State private var error: String?
     @State private var showSearch = false
     @State private var barFill = false
 
+    private var effectiveDate: String? { pagedDate ?? logDate }
+    private var weekIndex: Int? {
+        guard let weekDates, let effectiveDate else { return nil }
+        return weekDates.firstIndex(of: effectiveDate)
+    }
+    private var isToday: Bool { effectiveDate == nil || effectiveDate == todayISO() }
+
     var body: some View {
         ZStack {
             VoltBackground(palette: [Palette.lime, Palette.cyan, Palette.amber, Palette.lime])
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
+                    if weekDates != nil { dayPagerHeader }
                     if loading {
                         MacroLogSkeleton()
                     } else if let error {
@@ -37,19 +50,70 @@ struct MacroLogView: View {
                         entriesSection(day)
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 44)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
-        .navigationTitle(logDate == nil ? "Diario di oggi" : "Giorno passato")
+        .navigationTitle(weekDates != nil ? "" : (isToday ? "Diario di oggi" : "Giorno passato"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Palette.lime)
-        .task { await load() }
+        .task(id: effectiveDate) { await load() }
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { v in
+                    guard weekDates != nil else { return }
+                    if v.translation.width < -40 { goNext() }
+                    else if v.translation.width > 40 { goPrev() }
+                }
+        )
         .sheet(isPresented: $showSearch) {
-            FoodSearchSheet(assignmentId: assignmentId, logDate: logDate) {
+            FoodSearchSheet(assignmentId: assignmentId, logDate: effectiveDate) {
                 Task { await load(animated: true) }
             }
         }
+    }
+
+    // MARK: Day pager (weekly context only)
+
+    private var dayPagerHeader: some View {
+        HStack {
+            Button { goPrev() } label: {
+                Image(systemName: "chevron.left").font(.system(size: 15, weight: .black))
+                    .foregroundStyle(canGoPrev ? Palette.lime : Palette.textLow)
+                    .frame(width: 36, height: 36).background(Circle().fill(Palette.void2))
+            }
+            .disabled(!canGoPrev)
+            Spacer()
+            VStack(spacing: 2) {
+                Text(prettyDate(effectiveDate ?? todayISO())).font(Typo.display(18)).foregroundStyle(Palette.textHi)
+                Text("Scorri per cambiare giorno").font(Typo.mono(9, .bold)).foregroundStyle(Palette.textLow)
+            }
+            Spacer()
+            Button { goNext() } label: {
+                Image(systemName: "chevron.right").font(.system(size: 15, weight: .black))
+                    .foregroundStyle(canGoNext ? Palette.lime : Palette.textLow)
+                    .frame(width: 36, height: 36).background(Circle().fill(Palette.void2))
+            }
+            .disabled(!canGoNext)
+        }
+    }
+
+    private var canGoPrev: Bool { guard let i = weekIndex else { return false }; return i > 0 }
+    private var canGoNext: Bool {
+        guard let i = weekIndex, let weekDates else { return false }
+        return i < weekDates.count - 1
+    }
+    private func goPrev() {
+        guard canGoPrev, let i = weekIndex, let weekDates else { return }
+        Haptics.tap(); pagedDate = weekDates[i - 1]
+    }
+    private func goNext() {
+        guard canGoNext, let i = weekIndex, let weekDates else { return }
+        Haptics.tap(); pagedDate = weekDates[i + 1]
+    }
+    private func todayISO() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.calendar = Calendar(identifier: .gregorian)
+        return f.string(from: Date())
     }
 
     // MARK: Calorie ring
@@ -121,7 +185,7 @@ struct MacroLogView: View {
 
     @ViewBuilder
     private func entriesSection(_ day: MacroDayDTO) -> some View {
-        Text(logDate == nil ? "ALIMENTI DI OGGI" : "ALIMENTI DEL GIORNO").voltEyebrow().padding(.top, 6)
+        Text(isToday ? "ALIMENTI DI OGGI" : "ALIMENTI DEL GIORNO").voltEyebrow().padding(.top, 6)
         if day.entries.isEmpty {
             EmptyPanel(icon: "fork.knife", text: "Nessun alimento registrato.\nTocca «Aggiungi alimento».",
                        color: Palette.lime)
@@ -159,7 +223,7 @@ struct MacroLogView: View {
         if !animated { loading = true }
         error = nil
         do {
-            let d = try await APIClient.shared.macroDay(assignment: assignmentId, date: logDate)
+            let d = try await APIClient.shared.macroDay(assignment: assignmentId, date: effectiveDate)
             if animated { withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) { day = d } }
             else { day = d }
         } catch { self.error = error.localizedDescription }

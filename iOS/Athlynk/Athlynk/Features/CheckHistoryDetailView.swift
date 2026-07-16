@@ -31,7 +31,7 @@ struct CheckHistoryDetailView: View {
                         if hasNotes(d) { notes(d) }
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle(data?.title ?? "Check")

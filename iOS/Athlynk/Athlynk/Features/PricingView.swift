@@ -33,7 +33,7 @@ struct PricingView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Piani e Prezzi")

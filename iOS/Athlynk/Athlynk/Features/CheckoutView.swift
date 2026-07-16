@@ -37,7 +37,7 @@ struct CheckoutView: View {
                         .font(Typo.mono(10)).foregroundStyle(Palette.textLow)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Checkout")
@@ -141,7 +141,7 @@ struct CheckoutSuccessView: View {
                     .multilineTextAlignment(.center).padding(.horizontal, 30)
                 Spacer()
                 NeonButton(title: "Fatto", icon: "checkmark", color: Palette.lime) { dismiss() }
-                    .padding(.horizontal, 26).padding(.bottom, 40)
+                    .padding(.horizontal, 26).padding(.bottom, AppLayout.tabBarClearance)
             }
             ParticleBurst(trigger: burst)
         }

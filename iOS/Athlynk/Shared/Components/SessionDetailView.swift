@@ -32,7 +32,7 @@ struct SessionDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 40)
+            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
         }
         .navigationTitle("Sessione")
         .navigationBarTitleDisplayMode(.inline)

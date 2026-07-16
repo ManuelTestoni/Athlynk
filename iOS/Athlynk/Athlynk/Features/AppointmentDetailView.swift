@@ -21,7 +21,7 @@ struct AppointmentDetailView: View {
                     if let url = appointment.meetingUrl, let link = URL(string: url) { joinButton(link) }
                     if let desc = appointment.description, !desc.isEmpty { notesCard(desc) }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")

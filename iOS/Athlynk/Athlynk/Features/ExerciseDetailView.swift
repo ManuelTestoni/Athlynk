@@ -26,7 +26,7 @@ struct ExerciseDetailView: View {
                     }
                     .revealUp(appear, index: 5)
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")

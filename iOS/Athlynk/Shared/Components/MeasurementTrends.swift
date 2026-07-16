@@ -22,6 +22,11 @@ struct MeasurementSample {
 struct MeasurementTrends: View {
     let samples: [MeasurementSample]
     var accent: Color = Palette.cyan
+    /// Sites the athlete has EVER recorded a value for, independent of which
+    /// (possibly paginated) `samples` are currently loaded — so a site shows
+    /// up in the picker immediately instead of only once enough history pages
+    /// have been fetched. Nil falls back to whatever `samples` contains locally.
+    var everRecordedSites: MeasurementSitesDTO? = nil
 
     @State private var selectedCirc: String?
     @State private var selectedSkin: String?
@@ -140,29 +145,31 @@ struct MeasurementTrends: View {
         chrono.compactMap { s in s.skinfolds[key].map { ($0, s.date) } }
     }
 
-    /// Site keys that have at least two readings, ordered by the ISAK catalog
-    /// (same vocabulary as the add-measurement dropdown and the checks) then tail.
+    /// Site keys the athlete has EVER recorded (see `everRecordedSites`; falls
+    /// back to whatever's in the currently-loaded `samples`), ordered by the
+    /// ISAK catalog (same vocabulary as the add-measurement dropdown) then tail.
+    /// A site appearing here doesn't guarantee a drawable line yet — `siteBlock`
+    /// separately requires ≥2 loaded points before it draws one.
     private var circKeys: [String] {
-        orderedKeys(present: chrono.flatMap { Array($0.circumferences.keys) },
+        let present = everRecordedSites?.measurements ?? chrono.flatMap { Array($0.circumferences.keys) }
+        return orderedKeys(present: present,
                     order: ["head", "neck", "chest", "arm_relaxed_r", "arm_relaxed_l",
                             "arm_flexed_r", "arm_flexed_l", "forearm_r", "forearm_l",
                             "wrist_r", "wrist_l", "waist", "gluteal", "thigh_r", "thigh_l",
-                            "calf_r", "calf_l", "ankle_r", "ankle_l"],
-                    series: circSeries)
+                            "calf_r", "calf_l", "ankle_r", "ankle_l"])
     }
     private var skinKeys: [String] {
-        orderedKeys(present: chrono.flatMap { Array($0.skinfolds.keys) },
+        let present = everRecordedSites?.skinfolds ?? chrono.flatMap { Array($0.skinfolds.keys) }
+        return orderedKeys(present: present,
                     order: ["biceps", "triceps", "subscapular", "supraspinale", "suprailiac",
-                            "abdominal", "front_thigh", "medial_calf"],
-                    series: skinSeries)
+                            "abdominal", "front_thigh", "medial_calf"])
     }
 
-    private func orderedKeys(present: [String], order: [String],
-                             series: (String) -> [(Double, Date)]) -> [String] {
+    private func orderedKeys(present: [String], order: [String]) -> [String] {
         let avail = Set(present)
         let head = order.filter { avail.contains($0) }
         let tail = avail.subtracting(order).sorted()
-        return (head + tail).filter { series($0).count >= 2 }
+        return head + tail
     }
 
     // MARK: Labels

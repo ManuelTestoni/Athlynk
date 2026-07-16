@@ -207,12 +207,23 @@ final class APIClient {
         try decode(SubscriptionResponse.self, from: try await request("/api/v1/subscription")).subscription
     }
 
+    func dashboardSummary() async throws -> DashboardSummaryDTO {
+        try decode(DashboardSummaryDTO.self, from: try await request("/api/v1/dashboard/summary"))
+    }
+
     func appointments(offset: Int = 0) async throws -> AppointmentsResponse {
         try decode(AppointmentsResponse.self, from: try await request("/api/v1/appointments?offset=\(offset)"))
     }
 
     func progress(offset: Int = 0) async throws -> ProgressResponse {
         try decode(ProgressResponse.self, from: try await request("/api/v1/progress?offset=\(offset)"))
+    }
+
+    /// Body-part sites the client has EVER recorded a value for — independent
+    /// of `progress`'s pagination, so the trend charts can show every site
+    /// with data instead of only the ones on the currently-loaded page.
+    func measurementSites() async throws -> MeasurementSitesDTO {
+        try decode(MeasurementSitesDTO.self, from: try await request("/api/v1/progress/measurement-sites"))
     }
 
     func exerciseTrend(workoutExerciseId id: Int) async throws -> ExerciseTrendDTO {

@@ -27,7 +27,7 @@ struct ChatListView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 22).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("").navigationBarTitleDisplayMode(.inline)

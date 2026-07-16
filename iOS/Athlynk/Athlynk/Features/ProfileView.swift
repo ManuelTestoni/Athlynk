@@ -1,9 +1,10 @@
 //
 //  ProfileView.swift
 //  "Altro" dell'atleta — hub a rettangoli (come l'Altro del coach): identità in
-//  testa, i tuoi professionisti, poi una griglia di sezioni (andamento, percorso,
-//  messaggi, agenda, abbonamento, notifiche, profilo, anamnesi, impostazioni, aiuto)
-//  e il logout.
+//  testa, poi una griglia di sezioni (andamento, percorso, messaggi, agenda,
+//  abbonamento, notifiche, profilo & impostazioni, anamnesi, aiuto).
+//  Profilo e Impostazioni sono un'unica voce (AthleteProfileView), come nel
+//  coach; login/logout vive lì, non più in questo hub.
 //
 
 import SwiftUI
@@ -15,7 +16,7 @@ struct AthleteMoreView: View {
 
     private enum Route: Hashable {
         case andamento, percorso, messaggi, agenda, abbonamento
-        case notifiche, profilo, anamnesi, impostazioni, aiuto
+        case notifiche, profiloImpostazioni, anamnesi, aiuto
     }
 
     private struct Item: Identifiable {
@@ -40,29 +41,20 @@ struct AthleteMoreView: View {
               subtitle: "Il tuo piano", accent: Palette.magenta),
         .init(route: .notifiche, icon: "bell.fill", title: "Notifiche",
               subtitle: "Centro notifiche", accent: Palette.amber),
-        .init(route: .profilo, icon: "person.fill", title: "Modifica profilo",
-              subtitle: "I tuoi dati", accent: Palette.amber),
         .init(route: .anamnesi, icon: "doc.text.magnifyingglass", title: "Prima Valutazione",
               subtitle: "Anamnesi e fabbisogni", accent: Palette.lime),
-        .init(route: .impostazioni, icon: "gearshape.fill", title: "Impostazioni",
-              subtitle: "Preferenze e privacy", accent: Palette.cyan),
+        .init(route: .profiloImpostazioni, icon: "person.crop.square.fill", title: "Profilo & Impostazioni",
+              subtitle: "I tuoi dati e preferenze", accent: Palette.amber),
         .init(route: .aiuto, icon: "questionmark.circle.fill", title: "Aiuto",
               subtitle: "Guida e supporto", accent: Palette.violet),
     ]
 
-    @State private var showLogoutConfirm = false
-
     var body: some View {
         NavigationStack(path: $path) {
-            ZStack {
             ScreenScroll {
                 identityCard.revealUp(appear, index: 0)
 
-                Text("I TUOI PROFESSIONISTI").voltEyebrow().padding(.top, 4)
-                    .revealUp(appear, index: 1)
-                coachList.revealUp(appear, index: 2)
-
-                Text("GESTIONE").voltEyebrow().padding(.top, 4).revealUp(appear, index: 4)
+                Text("GESTIONE").voltEyebrow().padding(.top, 4).revealUp(appear, index: 1)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
                           spacing: 14) {
                     ForEach(items) { item in
@@ -70,42 +62,19 @@ struct AthleteMoreView: View {
                             .buttonStyle(PressableButtonStyle())
                     }
                 }
-                .revealUp(appear, index: 5)
-
-                NeonButton(title: "Esci", icon: "rectangle.portrait.and.arrow.right",
-                           color: Palette.control, filled: false) {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true }
-                }
-                .padding(.top, 8)
-                .revealUp(appear, index: 6)
-            }
-
-            if showLogoutConfirm {
-                ConfirmDialogCard(
-                    icon: "rectangle.portrait.and.arrow.right",
-                    title: "Esci dall'account",
-                    message: "Verrai disconnesso da questo dispositivo. Potrai rientrare con le tue credenziali.",
-                    confirmTitle: "Esci",
-                    accent: Palette.control,
-                    onConfirm: { app.logout() },
-                    onCancel: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showLogoutConfirm = false }
-                    }
-                )
-            }
+                .revealUp(appear, index: 2)
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .andamento:    ProgressTrackerView()
-                case .percorso:     JourneyView()
-                case .messaggi:     ChatListView()
-                case .agenda:       AgendaView()
-                case .abbonamento:  SubscriptionView()
-                case .notifiche:    NotificheView()
-                case .profilo:      EditProfileView()
-                case .anamnesi:     AnamnesisView()
-                case .impostazioni: SettingsView()
-                case .aiuto:        HelpView()
+                case .andamento:            ProgressTrackerView()
+                case .percorso:             JourneyView()
+                case .messaggi:             ChatListView()
+                case .agenda:               AgendaView()
+                case .abbonamento:          SubscriptionView()
+                case .notifiche:            NotificheView()
+                case .profiloImpostazioni:  AthleteProfileView()
+                case .anamnesi:             AnamnesisView()
+                case .aiuto:                HelpView()
                 }
             }
             .navigationDestination(for: ConversationDTO.self) { conv in
@@ -133,50 +102,6 @@ struct AthleteMoreView: View {
             Spacer()
         }
         .padding(18).voltPanel(Palette.amber.opacity(0.4))
-    }
-
-    private func statCard(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(spacing: 5) {
-            Text(value).font(Typo.display(18)).foregroundStyle(color)
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(label.uppercased())
-                .font(Typo.mono(8, .bold)).tracking(1).foregroundStyle(Palette.textLow)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 14)
-        .voltPanel(color.opacity(0.35))
-    }
-
-    @ViewBuilder
-    private var coachList: some View {
-        let coaches = [app.me?.coach, app.me?.trainer, app.me?.nutritionist].compactMap { $0 }
-        let unique = Array(Dictionary(grouping: coaches, by: \.id).values.compactMap(\.first))
-        if unique.isEmpty {
-            EmptyPanel(icon: "person.crop.circle.badge.questionmark",
-                       text: "Nessun coach collegato.")
-        } else {
-            ForEach(unique) { coach in
-                NavigationLink { CoachDetailView(coachId: coach.id) } label: {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12).fill(Palette.violet.opacity(0.18))
-                                .frame(width: 48, height: 48)
-                            Image(systemName: "figure.strengthtraining.traditional")
-                                .font(.system(size: 20, weight: .black)).foregroundStyle(Palette.violet)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(coach.fullName).font(Typo.display(17)).foregroundStyle(Palette.textHi)
-                            Text((coach.specialization ?? coach.professionalType ?? "Coach"))
-                                .font(Typo.mono(10, .bold)).tracking(1).foregroundStyle(Palette.violet)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .black))
-                            .foregroundStyle(Palette.violet)
-                    }
-                    .padding(14).voltPanel(Palette.violet.opacity(0.35))
-                }
-                .buttonStyle(PressableButtonStyle())
-            }
-        }
     }
 
     private var initials: String {

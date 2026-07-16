@@ -691,6 +691,24 @@ struct SubscriptionDTO: Codable, Hashable {
 
 struct SubscriptionResponse: Codable { let subscription: SubscriptionDTO? }
 
+/// Dashboard KPIs — same numbers as the web dashboard's tiles, computed
+/// server-side by `_client_dashboard_kpis` so both surfaces always match.
+struct DashboardSummaryDTO: Codable, Hashable {
+    let weightCurrent: Double?
+    let weightDelta: Double?
+    let sessionsThisWeek: Int
+    let kcalTarget: Double?
+    let daysToRenewal: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case weightCurrent = "weight_current"
+        case weightDelta = "weight_delta"
+        case sessionsThisWeek = "sessions_this_week"
+        case kcalTarget = "kcal_target"
+        case daysToRenewal = "days_to_renewal"
+    }
+}
+
 // MARK: - Appointments (Agenda)
 
 struct AppointmentDTO: Codable, Identifiable, Hashable {
@@ -760,6 +778,12 @@ struct ProgressEntryDTO: Codable, Identifiable, Hashable {
         case weightKg = "weight_kg"
         case coachFeedback = "coach_feedback"
     }
+}
+
+/// Site keys the client has ever recorded a value for — see APIClient.measurementSites().
+struct MeasurementSitesDTO: Codable, Hashable {
+    let measurements: [String]
+    let skinfolds: [String]
 }
 
 struct ProgressResponse: Codable {

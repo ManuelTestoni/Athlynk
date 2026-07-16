@@ -37,7 +37,7 @@ struct SubscriptionView: View {
                             .revealUp(appear, index: 2)
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Abbonamento")

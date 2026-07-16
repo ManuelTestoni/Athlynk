@@ -2,7 +2,8 @@
 //  DietDayDetailView.swift
 //  One day of a FOOD-mode nutrition plan: the day's meals (each opens
 //  MealDetailView) plus the day total. Used by NutritionView's weekly carousel
-//  and as the single-day detail for DAILY plans.
+//  and as the single-day detail for DAILY plans. When opened from a WEEKLY
+//  plan, shows visible prev/next-day chevrons + swipe across the other days.
 //
 
 import SwiftUI
@@ -22,12 +23,52 @@ enum DietWeekday {
     static func sorted(_ days: [DietDayDTO]) -> [DietDayDTO] {
         days.sorted { (order.firstIndex(of: $0.dayOfWeek) ?? 99) < (order.firstIndex(of: $1.dayOfWeek) ?? 99) }
     }
+
+    /// Today's backend day code (MONDAY…SUNDAY).
+    static func todayCode() -> String {
+        let weekday = Calendar.current.component(.weekday, from: Date()) // 1=Sun...7=Sat
+        return order[(weekday + 5) % 7] // Mon=0...Sun=6
+    }
+
+    private static let isoFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.calendar = Calendar(identifier: .gregorian)
+        return f
+    }()
+
+    /// ISO date (yyyy-MM-dd) of `dayCode` within the current calendar week (Mon→Sun).
+    static func isoDate(for dayCode: String) -> String? {
+        guard let idx = order.firstIndex(of: dayCode) else { return nil }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let todayIdx = (cal.component(.weekday, from: today) + 5) % 7
+        guard let monday = cal.date(byAdding: .day, value: -todayIdx, to: today),
+              let target = cal.date(byAdding: .day, value: idx, to: monday) else { return nil }
+        return isoFormatter.string(from: target)
+    }
+
+    /// The current week's 7 ISO dates, Mon→Sun.
+    static func thisWeekISODates() -> [String] { order.compactMap(isoDate(for:)) }
+}
+
+/// Navigation payload for `DietDayDetailView`: the full week so the detail
+/// screen can page prev/next without re-fetching.
+struct DietDayNavContext: Hashable {
+    let days: [DietDayDTO]
+    let startId: Int
 }
 
 struct DietDayDetailView: View {
-    let day: DietDayDTO
+    let days: [DietDayDTO]
+    @State private var currentIndex: Int
 
+    init(days: [DietDayDTO], startId: Int) {
+        self.days = days
+        _currentIndex = State(initialValue: days.firstIndex(where: { $0.id == startId }) ?? 0)
+    }
+
+    private var day: DietDayDTO { days[currentIndex] }
     private var totalKcal: Int { Int(day.meals.reduce(0) { $0 + $1.kcal }) }
+    private var canPage: Bool { days.count > 1 }
 
     var body: some View {
         ZStack {
@@ -47,18 +88,52 @@ struct DietDayDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 44)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { v in
+                    guard canPage else { return }
+                    if v.translation.width < -40 { goNext() }
+                    else if v.translation.width > 40 { goPrev() }
+                }
+        )
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text((DietWeekday.long[day.dayOfWeek] ?? day.dayOfWeek).uppercased())
-                .font(Typo.poster(34)).foregroundStyle(Palette.textHi)
+            HStack {
+                if canPage {
+                    Button { goPrev() } label: {
+                        Image(systemName: "chevron.left").font(.system(size: 15, weight: .black))
+                            .foregroundStyle(currentIndex > 0 ? Palette.lime : Palette.textLow)
+                            .frame(width: 36, height: 36).background(Circle().fill(Palette.void2))
+                    }
+                    .disabled(currentIndex == 0)
+                }
+                Spacer()
+                Text((DietWeekday.long[day.dayOfWeek] ?? day.dayOfWeek).uppercased())
+                    .font(Typo.poster(30)).foregroundStyle(Palette.textHi)
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Spacer()
+                if canPage {
+                    Button { goNext() } label: {
+                        Image(systemName: "chevron.right").font(.system(size: 15, weight: .black))
+                            .foregroundStyle(currentIndex < days.count - 1 ? Palette.lime : Palette.textLow)
+                            .frame(width: 36, height: 36).background(Circle().fill(Palette.void2))
+                    }
+                    .disabled(currentIndex == days.count - 1)
+                }
+            }
+            if canPage {
+                Text("Scorri per cambiare giorno")
+                    .font(Typo.mono(9, .bold)).foregroundStyle(Palette.textLow)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("TOTALE GIORNO").font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(Palette.textLow)
                 Spacer()
@@ -67,6 +142,17 @@ struct DietDayDetailView: View {
             }
             Rectangle().fill(Palette.lime).frame(height: 1).opacity(0.5)
         }
+    }
+
+    private func goPrev() {
+        guard currentIndex > 0 else { return }
+        Haptics.tap()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { currentIndex -= 1 }
+    }
+    private func goNext() {
+        guard currentIndex < days.count - 1 else { return }
+        Haptics.tap()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { currentIndex += 1 }
     }
 
     private func mealCard(_ meal: MealDTO, index: Int) -> some View {

@@ -38,7 +38,7 @@ struct AnamnesisView: View {
                                    text: "Prima valutazione non ancora completata.\nChiedi al tuo coach di assegnare il check.")
                     }
                 }
-                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 40)
+                .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("Prima Valutazione")

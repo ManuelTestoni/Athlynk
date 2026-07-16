@@ -1035,6 +1035,49 @@ def _serialize_phases(client, coach):
     return phases
 
 
+ACTIVITY_FEED_PAGE_SIZE = 10
+
+
+def api_coach_client_activity_feed(request, client_id):
+    """Athlete activity (workout done / check submitted / macro logged) for a
+    single day, optionally filtered by type, paginated — feeds the week-strip
+    + domain selector on the coach client-detail page."""
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    relationship = CoachingRelationship.objects.filter(
+        coach=coach, client_id=client_id, status='ACTIVE'
+    ).select_related('client').first()
+    if not relationship:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    client = relationship.client
+
+    from datetime import date as date_type
+    raw_date = request.GET.get('date', '')
+    try:
+        day = date_type.fromisoformat(raw_date) if raw_date else date_type.today()
+    except ValueError:
+        day = date_type.today()
+
+    activity_type = request.GET.get('type', '')
+    try:
+        offset = max(0, int(request.GET.get('offset', 0)))
+    except (TypeError, ValueError):
+        offset = 0
+    limit = ACTIVITY_FEED_PAGE_SIZE
+
+    events = _build_activity_events(client, day, day)
+    if activity_type:
+        events = [e for e in events if e['type'] == activity_type]
+
+    total = len(events)
+    items = events[offset:offset + limit]
+    has_more = (offset + limit) < total
+
+    return JsonResponse({'items': items, 'has_more': has_more, 'total': total})
+
+
 def api_coach_client_percorso(request, client_id):
     coach = get_session_coach(request)
     if not coach:

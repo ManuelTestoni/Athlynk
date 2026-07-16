@@ -48,9 +48,10 @@ from domain.checks.anthropometry import (
     measurement_options,
 )
 from .session_utils import (
-    get_active_relationships, client_has_active_access, enforce_client_access,
-    coach_has_active_platform_access,
+    get_active_relationship, get_active_relationships, client_has_active_access,
+    enforce_client_access, coach_has_active_platform_access,
 )
+from .views import _client_dashboard_kpis
 from .services import ratelimit, sanitize
 from .services.images import is_image, to_webp
 from .services.uploads import store_attachment
@@ -1225,6 +1226,23 @@ def subscription(request, user):
 
 
 # ---------------------------------------------------------------------------
+# Dashboard summary — same KPIs as the web dashboard (weight, sessions this
+# week, kcal target, days to renewal), for the athlete app's home cards.
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def dashboard_summary(request, user):
+    client = getattr(user, 'client_profile', None)
+    rel = get_active_relationship(client) if client else None
+    if not client or not rel:
+        return JsonResponse({
+            'weight_current': None, 'weight_delta': None,
+            'sessions_this_week': 0, 'kcal_target': None, 'days_to_renewal': None,
+        })
+    return JsonResponse(_client_dashboard_kpis(client, rel))
+
+
+# ---------------------------------------------------------------------------
 # Appointments — "Agenda"
 # ---------------------------------------------------------------------------
 
@@ -1358,6 +1376,33 @@ def check_detail(request, user, response_id):
 @api_view(['GET'])
 def measurement_catalog(request, user):
     return JsonResponse(measurement_options())
+
+
+@api_view(['GET'])
+def measurement_sites(request, user):
+    """Which circumference/skinfold sites this client has EVER recorded a value
+    for — independent of the paginated /api/v1/progress list, so the trend
+    charts can show every site the athlete has data for, not just the ones
+    present on the currently-loaded page of check history.
+    """
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'measurements': [], 'skinfolds': []})
+    circ_keys, skin_keys = set(), set()
+    rows = (
+        QuestionnaireResponse.objects
+        .filter(client=client, submitted_at__isnull=False)
+        .values_list('body_circumferences', 'skinfolds')
+    )
+    for circumferences, skinfolds in rows:
+        for k, v in (circumferences or {}).items():
+            if v not in (None, ''):
+                circ_keys.add(k)
+        for k, v in (skinfolds or {}).items():
+            if v not in (None, ''):
+                skin_keys.add(k)
+    # 'measurements' (not 'circumferences') to match GET /api/v1/progress's vocabulary.
+    return JsonResponse({'measurements': sorted(circ_keys), 'skinfolds': sorted(skin_keys)})
 
 
 def _parse_measurement_body(request):

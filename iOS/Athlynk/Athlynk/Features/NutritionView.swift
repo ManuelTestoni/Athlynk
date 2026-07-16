@@ -14,6 +14,8 @@ struct NutritionView: View {
     @State private var error: String?
     @State private var appear = false
     @State private var loadToken = UUID()
+    @State private var weekScrollID: Int?
+    @State private var macroWeekScrollID: Int?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -25,10 +27,6 @@ struct NutritionView: View {
                              accent: Palette.lime)
                     .revealUp(appear, index: 0)
 
-                NavigationLink { SupplementsView() } label: { supplementsLink }
-                    .buttonStyle(PressableButtonStyle())
-                    .revealUp(appear, index: 1)
-
                 if loading {
                     NutritionSkeleton()
                 } else if let error {
@@ -37,12 +35,15 @@ struct NutritionView: View {
                     EmptyPanel(icon: "fork.knife", text: "Non hai ancora una dieta. Chiedi al tuo coach o nutrizionista di assegnartene una.")
                 } else {
                     ForEach(Array(plans.enumerated()), id: \.element.id) { i, plan in
-                        planCard(plan, active: i == 0).revealUp(appear, index: i + 2)
+                        NavigationLink(value: plan) { planCard(plan, active: i == 0) }
+                            .buttonStyle(PressableButtonStyle())
+                            .revealUp(appear, index: i + 1)
                     }
                     if let plan = plans.first {
                         if plan.planMode == "MACRO" {
-                            macroDiaryLink(plan).revealUp(appear, index: 2)
-                            macroHistoryLink(plan).revealUp(appear, index: 3)
+                            macroDiaryLink(plan).revealUp(appear, index: 1)
+                            macroHistoryLink(plan).revealUp(appear, index: 2)
+                            if plan.planKind == "WEEKLY" { macroWeekStrip(plan) }
                         } else if plan.planKind == "WEEKLY" {
                             weekCarousel(plan)
                         } else {
@@ -50,12 +51,20 @@ struct NutritionView: View {
                         }
                     }
                 }
+
+                NavigationLink { SupplementsView() } label: { supplementsLink }
+                    .buttonStyle(PressableButtonStyle())
+                    .padding(.top, 6)
+                    .revealUp(appear, index: 1)
             }
             .navigationDestination(for: MealDTO.self) { meal in
                 MealDetailView(meal: meal)
             }
-            .navigationDestination(for: DietDayDTO.self) { day in
-                DietDayDetailView(day: day)
+            .navigationDestination(for: DietDayNavContext.self) { ctx in
+                DietDayDetailView(days: ctx.days, startId: ctx.startId)
+            }
+            .navigationDestination(for: NutritionPlanDTO.self) { plan in
+                NutritionPlanDetailView(plan: plan)
             }
         }
         .tint(Palette.lime)
@@ -190,8 +199,84 @@ struct NutritionView: View {
         .buttonStyle(PressableButtonStyle())
     }
 
+    /// MACRO+WEEKLY plans: same day-strip idiom as FOOD plans, but showing
+    /// each weekday's macro target; tapping opens that day's diary.
+    @ViewBuilder
+    private func macroWeekStrip(_ plan: NutritionPlanDTO) -> some View {
+        let days = DietWeekday.sorted(plan.days)
+        if !days.isEmpty {
+            let weekDates = DietWeekday.thisWeekISODates()
+            VStack(alignment: .leading, spacing: 10) {
+                Text("PIANO SETTIMANALE").voltEyebrow().padding(.top, 6)
+                Text("Scorri i giorni · tocca per il diario")
+                    .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+            }
+            .revealUp(appear, index: 3)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(days) { day in
+                        NavigationLink {
+                            MacroLogView(assignmentId: plan.assignmentId, planTitle: plan.title,
+                                         logDate: DietWeekday.isoDate(for: day.dayOfWeek), weekDates: weekDates)
+                        } label: {
+                            macroDayCard(day)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .containerRelativeFrame(.horizontal)
+                        .id(day.id)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .contentMargins(.horizontal, 34, for: .scrollContent)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $macroWeekScrollID)
+            .revealUp(appear, index: 4)
+            .onAppear {
+                if macroWeekScrollID == nil {
+                    let todayCode = DietWeekday.todayCode()
+                    macroWeekScrollID = days.first(where: { $0.dayOfWeek == todayCode })?.id ?? days.first?.id
+                }
+            }
+        }
+    }
+
+    private func macroDayCard(_ day: DietDayDTO) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text((DietWeekday.long[day.dayOfWeek] ?? day.dayOfWeek).uppercased())
+                    .font(Typo.display(20)).foregroundStyle(Palette.textHi)
+                Spacer()
+                Text(DietWeekday.short[day.dayOfWeek] ?? "")
+                    .font(Typo.mono(11, .black)).tracking(1.5).foregroundStyle(Palette.lime)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(day.targetKcal ?? 0)").font(Typo.poster(34)).foregroundStyle(Palette.lime)
+                Text("kcal").font(Typo.mono(12, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
+                Spacer()
+            }
+            Divider().overlay(Palette.lime.opacity(0.2))
+            HStack(spacing: 10) {
+                macroCol("PRO", day.targetProteinG, Palette.magenta)
+                macroCol("CARB", day.targetCarbG, Palette.cyan)
+                macroCol("FAT", day.targetFatG, Palette.amber)
+            }
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Text("Diario").font(Typo.mono(10, .bold)).foregroundStyle(Palette.lime)
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .black))
+                    .foregroundStyle(Palette.lime)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, minHeight: 240, alignment: .topLeading)
+        .voltPanel(Palette.lime.opacity(0.4))
+    }
+
     /// WEEKLY FOOD plans: swipe through the 7 days (neighbours peek at the edges),
-    /// tap a day to open its meals.
+    /// defaults to today's day, tap a day to open its meals.
     @ViewBuilder
     private func weekCarousel(_ plan: NutritionPlanDTO) -> some View {
         let days = DietWeekday.sorted(plan.days)
@@ -201,21 +286,31 @@ struct NutritionView: View {
                 Text("Scorri i giorni · tocca per i dettagli")
                     .font(Typo.body(12)).foregroundStyle(Palette.textMid)
             }
-            .revealUp(appear, index: 2)
+            .revealUp(appear, index: 1)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(days) { day in
-                        NavigationLink(value: day) { dayCarouselCard(day) }
-                            .buttonStyle(PressableButtonStyle())
-                            .containerRelativeFrame(.horizontal)
+                        NavigationLink(value: DietDayNavContext(days: days, startId: day.id)) {
+                            dayCarouselCard(day)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .containerRelativeFrame(.horizontal)
+                        .id(day.id)
                     }
                 }
                 .scrollTargetLayout()
             }
             .contentMargins(.horizontal, 34, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
-            .revealUp(appear, index: 3)
+            .scrollPosition(id: $weekScrollID)
+            .revealUp(appear, index: 2)
+            .onAppear {
+                if weekScrollID == nil {
+                    let todayCode = DietWeekday.todayCode()
+                    weekScrollID = days.first(where: { $0.dayOfWeek == todayCode })?.id ?? days.first?.id
+                }
+            }
         }
     }
 

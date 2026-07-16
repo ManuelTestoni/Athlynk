@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+/// Shared layout constants used by both apps.
+enum AppLayout {
+    /// Bottom clearance reserved for the floating tab bar: home-indicator inset
+    /// (~34) + bar height (~69) + its own bottom padding + a clearance gap.
+    /// Single source of truth for `MainTabView`/`CoachShell`'s `safeAreaInset`
+    /// AND for pushed screens that can't reliably inherit that inset (screens
+    /// presented via `.sheet` get a fresh safe-area root; some raw `ScrollView`
+    /// screens set their own `.ignoresSafeArea()` that can shadow it) — those
+    /// screens reserve this same value directly instead of a smaller ad-hoc number.
+    static let tabBarClearance: CGFloat = 120
+}
+
 /// Shared scroll container giving every screen the same top inset + tab-bar clearance.
 struct ScreenScroll<Content: View>: View {
     @ViewBuilder var content: Content
