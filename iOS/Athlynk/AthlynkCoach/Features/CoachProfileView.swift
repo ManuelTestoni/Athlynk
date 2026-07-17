@@ -9,6 +9,7 @@ import PhotosUI
 
 struct CoachProfileView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var profile: CoachProfileDTO?
     @State private var settings: SettingsDTO?
     @State private var loading = true
@@ -16,8 +17,12 @@ struct CoachProfileView: View {
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var showAutoReplies = false
+    @State private var showBrandSettings = false
+    @State private var showCalendarFeed = false
     @State private var deleting = false
     @State private var appear = false
+    @StateObject private var flash = StatusFlash()
+    private let billingWebFlow = StripeWebFlow()
 
     var body: some View {
         ZStack {
@@ -72,6 +77,7 @@ struct CoachProfileView: View {
             }
         }
         .onChange(of: loading) { _, l in if !l { appear = true } }
+        .statusOverlay(flash)
         .task { await load() }
         .sheet(isPresented: $editing) {
             if let p = profile {
@@ -79,6 +85,47 @@ struct CoachProfileView: View {
             }
         }
         .sheet(isPresented: $showAutoReplies) { CoachAutoMessagesView() }
+        .sheet(isPresented: $showBrandSettings) {
+            if let p = profile {
+                BrandSettingsView(brandName: p.brandName, brandPrimary: p.brandPrimary, brandAccent: p.brandAccent,
+                                   accent: Palette.bronze) { name, primary, accentHex in
+                    let fields: [String: Any] = ["brand_name": name, "brand_primary": primary, "brand_accent": accentHex]
+                    profile = try await APIClient.shared.coachUpdateProfile(fields)
+                } onReset: {
+                    profile = try await APIClient.shared.coachUpdateProfile(["reset": true])
+                }
+            }
+        }
+        .sheet(isPresented: $showCalendarFeed) { CoachCalendarFeedView() }
+    }
+
+    private func sendPasswordReset() {
+        guard let email = profile?.email else { return }
+        Task {
+            guard await confirmCenter.confirm(.init(
+                title: "Reimposta password?",
+                subtitle: "Ti invieremo un'email a \(email) con il link per crearne una nuova.",
+                icon: "lock.rotation", variant: .neutral,
+                confirmLabel: "Invia link")) else { return }
+            do {
+                try await APIClient.shared.forgotPassword(email: email)
+                flash.success("Email inviata")
+            } catch {
+                flash.failure("Invio non riuscito")
+            }
+        }
+    }
+
+    private func openBillingPortal() {
+        Task {
+            do {
+                let urlString = try await APIClient.shared.coachBillingPortal()
+                guard let url = URL(string: urlString) else { return }
+                _ = try await billingWebFlow.run(url: url, callbackScheme: "athlynkcoach")
+            } catch {
+                flash.failure("Nessun abbonamento Athlynk attivo")
+            }
+        }
     }
 
     private func dismissConfirms() {
@@ -203,6 +250,22 @@ struct CoachProfileView: View {
                        title: "Risposte automatiche",
                        subtitle: "Messaggi inviati in automatico",
                        accent: Palette.violet) { showAutoReplies = true }
+
+            NavListRow(icon: "paintpalette.fill", title: "Aspetto",
+                       subtitle: "Nome e colori del tuo brand",
+                       accent: Palette.bronze) { showBrandSettings = true }
+
+            NavListRow(icon: "calendar.badge.clock", title: "Calendario",
+                       subtitle: "Sincronizza appuntamenti con Google/Apple",
+                       accent: Palette.cyan) { showCalendarFeed = true }
+
+            NavListRow(icon: "creditcard.fill", title: "Abbonamento Athlynk",
+                       subtitle: "Gestisci il tuo piano e la fatturazione",
+                       accent: Palette.amber) { openBillingPortal() }
+
+            NavListRow(icon: "lock.fill", title: "Sicurezza",
+                       subtitle: "Reimposta la password",
+                       accent: Palette.control) { sendPasswordReset() }
 
             AccountActions(
                 onLogout: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true } },
@@ -388,5 +451,68 @@ struct CoachEditProfileView: View {
         if let updated = try? await APIClient.shared.coachUpdateProfile(fields) {
             Haptics.success(); onSave(updated); dismiss()
         } else { Haptics.error() }
+    }
+}
+
+// MARK: - Calendar feed subscription
+
+struct CoachCalendarFeedView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var feed: CoachCalendarFeedDTO?
+    @State private var loading = true
+    @State private var rotating = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let feed {
+                    Section("Google Calendar") {
+                        Link(destination: URL(string: feed.googleSubscribeUrl)!) {
+                            Label("Aggiungi a Google Calendar", systemImage: "arrow.up.right.square")
+                        }
+                    }
+                    Section("Apple Calendar") {
+                        Link(destination: URL(string: feed.webcalUrl)!) {
+                            Label("Aggiungi a Apple Calendar", systemImage: "arrow.up.right.square")
+                        }
+                    }
+                    Section {
+                        Button {
+                            UIPasteboard.general.string = feed.feedUrl
+                            Haptics.success()
+                        } label: {
+                            Label("Copia link feed", systemImage: "doc.on.doc")
+                        }
+                        Button(role: .destructive) {
+                            Task { await rotate() }
+                        } label: {
+                            HStack {
+                                Text("Rigenera link")
+                                if rotating { Spacer(); ProgressView() }
+                            }
+                        }
+                        .disabled(rotating)
+                    } footer: {
+                        Text("Rigenerando il link, quello precedente smette di funzionare nei calendari già collegati.")
+                    }
+                } else if loading {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Calendario")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
+            .task { await load() }
+        }
+    }
+
+    private func load() async {
+        loading = true; defer { loading = false }
+        feed = try? await APIClient.shared.coachCalendarFeed()
+    }
+
+    private func rotate() async {
+        rotating = true; defer { rotating = false }
+        feed = try? await APIClient.shared.coachRotateCalendarFeed()
     }
 }

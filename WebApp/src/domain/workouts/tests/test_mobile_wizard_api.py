@@ -113,7 +113,10 @@ class MobileWorkoutWizardTests(TestCase):
                                {'action': 'template'},
                                content_type='application/json', **self.auth)
         self.assertEqual(fin.status_code, 200)
-        self.assertEqual(WorkoutPlan.objects.get(id=plan_id).status, 'TEMPLATE')
+        plan = WorkoutPlan.objects.get(id=plan_id)
+        self.assertEqual(plan.status, 'TEMPLATE')
+        # Saving as template auto-files it into the coach's default folder.
+        self.assertEqual(plan.folder.title, 'Template')
 
         deleted = self.client.post(f'/api/allenamenti/{plan_id}/elimina/',
                                    content_type='application/json', **self.auth)

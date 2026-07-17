@@ -7,7 +7,13 @@ function notificationsBell() {
 
         init() {
             this.fetchUnreadCount();
-            this.pollInterval = setInterval(() => this.fetchUnreadCount(), 15000);
+            this.pollInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') this.fetchUnreadCount();
+            }, 15000);
+            // Refresh immediately on return so the badge isn't stale for up to 15s.
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') this.fetchUnreadCount();
+            });
         },
 
         async fetchUnreadCount() {

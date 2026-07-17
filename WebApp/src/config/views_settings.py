@@ -6,35 +6,26 @@ from django.contrib.auth.hashers import check_password
 from django.views.decorators.http import require_POST
 from django.db import transaction
 
-from .session_utils import get_session_user, get_session_coach, get_session_client, _HEX_RE
+from .session_utils import get_session_user, get_session_coach, get_session_client, apply_brand_update
 from .services.images import to_webp, is_image
-from domain.chat.services import DEFAULT_PLAN_DELETED_BODY
+from domain.chat.services import (
+    DEFAULT_PLAN_DELETED_BODY, DEFAULT_WELCOME_BODY, DEFAULT_GOODBYE_BODY,
+    DEFAULT_SUBSCRIPTION_EXPIRING_BODY,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _save_brand(user, request):
-    """Handle the 'aspetto' settings action: validates the two hex colors
-    server-side (they're interpolated into a <style> block, so malformed
-    input from a non-browser client is a trust boundary, not just cosmetic).
-    A native <input type="color"> can never submit an empty value, so
-    "restore defaults" is a second submit button (name="reset") that clears
-    all three fields regardless of what the color inputs currently hold.
-    Returns an error string, or None on success."""
-    if request.POST.get('reset') == '1':
-        name, primary, accent = '', '', ''
-    else:
-        name = request.POST.get('brand_name', '').strip()[:40]
-        primary = request.POST.get('brand_primary', '').strip()
-        accent = request.POST.get('brand_accent', '').strip()
-        for hex_value in (primary, accent):
-            if hex_value and not _HEX_RE.match(hex_value):
-                return 'Colore non valido.'
-    user.brand_name = name
-    user.brand_primary = primary
-    user.brand_accent = accent
-    user.save(update_fields=['brand_name', 'brand_primary', 'brand_accent', 'updated_at'])
-    return None
+    """Handle the 'aspetto' settings action. A native <input type="color">
+    can never submit an empty value, so "restore defaults" is a second submit
+    button (name="reset") that clears all three fields regardless of what the
+    color inputs currently hold. Returns an error string, or None on success."""
+    data = {'reset': request.POST.get('reset') == '1',
+            'brand_name': request.POST.get('brand_name', ''),
+            'brand_primary': request.POST.get('brand_primary', ''),
+            'brand_accent': request.POST.get('brand_accent', '')}
+    return apply_brand_update(user, data)
 
 
 def _newsletter_status(email):
@@ -308,13 +299,18 @@ def notifications_view(request):
 
 
 _AUTO_MSG_EVENTS = [
-    ('WELCOME', '01', 'Benvenuto', 'Inviato automaticamente quando aggiungi un nuovo atleta.',
-     'Ciao {nome}, benvenuto/a! 🎉 Sono felice di iniziare questo percorso insieme.'),
-    ('GOODBYE', '02', 'Arrivederci', 'Inviato quando un atleta interrompe il percorso con te.',
-     'Grazie di tutto {nome} 🙏 È stato un piacere allenarti. Le porte restano sempre aperte!'),
+    ('WELCOME', '01', 'Benvenuto',
+     'Inviato automaticamente quando aggiungi un nuovo atleta, se attivi l’interruttore. '
+     'Se non scrivi nulla viene inviato il testo predefinito.',
+     DEFAULT_WELCOME_BODY),
+    ('GOODBYE', '02', 'Arrivederci',
+     'Inviato quando un atleta interrompe il percorso con te, se attivi l’interruttore. '
+     'Se non scrivi nulla viene inviato il testo predefinito.',
+     DEFAULT_GOODBYE_BODY),
     ('SUBSCRIPTION_EXPIRING', '03', 'Abbonamento in scadenza',
-     'Inviato qualche giorno prima della scadenza dell’abbonamento.',
-     'Ciao {nome}, il tuo abbonamento sta per scadere ⏳ Rinnova per non perdere i progressi!'),
+     'Inviato qualche giorno prima della scadenza dell’abbonamento, se attivi l’interruttore. '
+     'Se non scrivi nulla viene inviato il testo predefinito.',
+     DEFAULT_SUBSCRIPTION_EXPIRING_BODY),
     ('PLAN_DELETED', '04', 'Scheda eliminata',
      'Inviato quando elimini una scheda o un piano assegnato a un atleta. Attivo di default: '
      'se non scrivi nulla viene inviato il testo predefinito.',

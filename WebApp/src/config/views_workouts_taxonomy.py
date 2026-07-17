@@ -88,6 +88,8 @@ def api_folders(request):
         return err
 
     if request.method == 'GET':
+        from .views_workouts import _get_or_create_templates_folder
+        _get_or_create_templates_folder(coach)
         folders = WorkoutFolder.objects.filter(coach=coach).annotate(_count=Count('plans'))
         return JsonResponse(
             [_serialize_folder(f, plan_count=f._count) for f in folders],
@@ -197,6 +199,36 @@ def api_folders_reorder(request):
             folder.order = idx + 1
             folder.save(update_fields=['order', 'updated_at'])
     return JsonResponse({'status': 'ok'})
+
+
+def api_workout_plan_folder(request, plan_id):
+    """Lightweight PATCH to move a WorkoutPlan in/out of a folder. Mirrors
+    api_nutrition_plan_folder — the only folder-assignment path workout plans
+    previously lacked (they could only get a folder via the heavy api_plan_save)."""
+    coach, err = _require_coach(request)
+    if err:
+        return err
+    plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
+
+    if request.method != 'PATCH':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+
+    data, perr = _parse_body(request)
+    if perr:
+        return perr
+    if 'folder_id' not in data:
+        return JsonResponse({'error': 'folder_id richiesto.'}, status=400)
+
+    folder_id = data.get('folder_id')
+    if folder_id in (None, '', 0):
+        plan.folder = None
+    else:
+        try:
+            plan.folder = WorkoutFolder.objects.get(id=int(folder_id), coach=coach)
+        except (WorkoutFolder.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'error': 'Cartella non trovata.'}, status=404)
+    plan.save(update_fields=['folder', 'updated_at'])
+    return JsonResponse({'status': 'ok', 'folder_id': plan.folder_id})
 
 
 # ---------------------------------------------------------------------------

@@ -32,29 +32,40 @@
 
     <!-- Tailwind (build locale: vedi tailwind.config.js in radice WebApp) -->
     <link rel="stylesheet" href="{% static 'css/tailwind.css' %}?v={{ ASSET_VERSION }}">
-    <!-- Alpine.js + plugins (plugins must load before core) — versioni pinnate + SRI -->
+    <!-- Phosphor Icons: intentionally blocking (not defer) — icon glyphs are
+         used inline throughout every page and deferring causes a flash of
+         missing icons. -->
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.2/src/index.js"
+            integrity="sha384-J7cw2fbG1T4C5MirTVUxsZGaMfw2m0XsCgOQEqUvB1OF9VIsHWuZF1GmyVRzs7eu" crossorigin="anonymous"></script>
+
+    <!-- Flatpickr (modern date/time picker). defer: only used by specific
+         interactive widgets, not needed before first paint. Placed — and kept
+         — before Alpine below: Alpine self-inits as soon as its own deferred
+         script runs, and a component's init() may call flatpickr()/Chart
+         synchronously, so these must finish executing first. Defer scripts
+         run in document order, not registration order. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"
+          integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"
+            integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js"
+            integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ" crossorigin="anonymous"></script>
+
+    <!-- Chart.js (shared across analytics views). defer, same ordering note as Flatpickr above. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
+            integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY" crossorigin="anonymous"></script>
+    <script defer src="{% static 'js/chart_theme.js' %}?v={{ ASSET_VERSION }}"></script>
+    <!-- Shared week strip (partials/_week_strip.html): registered globally so any page can include the partial without remembering a script tag. -->
+    <script defer src="{% static 'js/week_strip.js' %}?v={{ ASSET_VERSION }}"></script>
+
+    <!-- Alpine.js + plugins (plugins must load before core) — versioni pinnate + SRI.
+         Deliberately last among defer scripts: Alpine self-initializes (scans
+         the DOM and calls x-data init()) as soon as its script runs, so every
+         library a component might use synchronously must already be loaded. -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.15.12/dist/cdn.min.js"
             integrity="sha384-NArNwzWsUSF+kY2lgW4YriEkjLqi+J+za6HrENUn/3nZqkBnWbxV22kCJEK5Uu6n" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
             integrity="sha384-pb6hrQvo4s23cEUFtj0CZkzGE3jyK3pj26RIupXXxhSrrcUA/Cn0lZgcCrGH0t6L" crossorigin="anonymous"></script>
-    <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web@2.1.2/src/index.js"
-            integrity="sha384-J7cw2fbG1T4C5MirTVUxsZGaMfw2m0XsCgOQEqUvB1OF9VIsHWuZF1GmyVRzs7eu" crossorigin="anonymous"></script>
-
-    <!-- Flatpickr (modern date/time picker) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"
-          integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"
-            integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js"
-            integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ" crossorigin="anonymous"></script>
-
-    <!-- Chart.js (shared across analytics views) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
-            integrity="sha384-e6cc9LaIG7xZ3XD5B+jtr1NhTWPQGQdRCh6xiZ+ZFUtWCpg4ycv3Sh+SkZoopvUY" crossorigin="anonymous"></script>
-    <script src="{% static 'js/chart_theme.js' %}?v={{ ASSET_VERSION }}"></script>
-    <!-- Shared week strip (partials/_week_strip.html): registered globally so any page can include the partial without remembering a script tag. -->
-    <script src="{% static 'js/week_strip.js' %}?v={{ ASSET_VERSION }}"></script>
 
     <!-- Pre-set the footer-height CSS variable BEFORE first paint so layout never
          flashes a stale value (the precise px is re-measured by JS later). The
@@ -393,8 +404,11 @@
             </div>
         </main>
 
-        <!-- Fixed footer pinned to viewport bottom; on lg+ screens starts after the sidebar so it never sits under it. -->
-        <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(255,255,255,0.92); backdrop-filter: saturate(140%) blur(10px);">
+        <!-- Fixed footer pinned to viewport bottom; on lg+ screens starts after the sidebar so it never sits under it.
+             Solid (no backdrop-filter): a blurred fixed overlay directly over the scrollable canvas forces a
+             continuous GPU compositor re-sample on every scroll frame, which is the classic mobile-Safari
+             stutter pattern — worst when something else (e.g. screen recording) is also competing for GPU/encoder time. -->
+        <footer class="al-footer shrink-0 px-4 sm:px-8 py-1.5 left-0 lg:left-64" style="position: fixed; bottom: 0; right: 0; z-index: 40; border-top: 1px solid var(--al-rule-faint); background: rgba(255,255,255,0.98);">
             <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 al-small">
                 <div class="flex items-center gap-2">
                     <span class="al-mark" style="height: 15px; color: #1E3A5F;"></span>
@@ -577,7 +591,10 @@
     </script>
     {% endif %}
     <script src="{% static 'js/notifications.js' %}?v={{ ASSET_VERSION }}"></script>
-    <script src="{% static 'js/pickers.js' %}?v={{ ASSET_VERSION }}"></script>
+    <!-- defer: Flatpickr itself is now deferred (see head), and this guards
+         on `typeof flatpickr === 'undefined'` at top level — it must run
+         after Flatpickr's script, which document-order defer guarantees. -->
+    <script src="{% static 'js/pickers.js' %}?v={{ ASSET_VERSION }}" defer></script>
     <script src="{% static 'js/volume_analytics.js' %}?v={{ ASSET_VERSION }}"></script>
     <script src="{% static 'js/global_search.js' %}?v={{ ASSET_VERSION }}"></script>
     <script>

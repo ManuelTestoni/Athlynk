@@ -2046,9 +2046,9 @@ body[data-page="chat"] .chiron-root { display: none !important; }
 /* ---------- Topbar ---------- */
 .al-topbar {
   height: 64px;
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: saturate(140%) blur(14px);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  /* Solid, no backdrop-filter: a saturate+blur compositor pass on every page
+     is a needless GPU cost given the topbar doesn't overlay scrolling content. */
+  background: rgba(255,255,255,0.96);
   border-bottom: 1px solid var(--al-rule);
   position: relative;
   z-index: 10;
@@ -2559,14 +2559,6 @@ input[type="number"] { -moz-appearance: textfield; }
 }
 .al-nav-link:hover i { transform: translateX(2px); }
 .al-nav-link.is-active i { transform: translateX(2px); }
-
-@keyframes al-pulse-bronze {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(91,137,182,0.45); }
-  60%      { box-shadow: 0 0 0 6px rgba(91,137,182,0); }
-}
-.al-pulse-bronze {
-  animation: al-pulse-bronze 2s var(--al-ease) infinite;
-}
 
 /* ---- Card interactive ---- */
 .al-card.al-interactive {
@@ -3238,14 +3230,24 @@ body[data-al-page-ready="1"] .al-canvas > *:not(.al-modal-backdrop):not(.al-moda
 .al-nav-link:hover svg,
 .al-nav-link:hover [class*="ph-"] { transform: translateX(2px); }
 
-/* Notification badge pulse */
-@keyframes al-pulse-bronze-v3 {
-  0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--al-accent) 55%, transparent); }
-  70%  { box-shadow: 0 0 0 8px color-mix(in oklch, var(--al-accent) 0%, transparent); }
-  100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--al-accent) 0%, transparent); }
+/* Notification badge pulse — a separate ring pseudo-element animates
+   transform/opacity (compositor-only) instead of the badge itself animating
+   box-shadow (paint-triggering), since this runs indefinitely on every page
+   with unread notifications. */
+.al-pulse-bronze::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid var(--al-accent);
+  opacity: 0;
+  animation: al-pulse-ring 1.8s var(--al-ease-silk) infinite;
+  pointer-events: none;
 }
-.al-pulse-bronze {
-  animation: al-pulse-bronze-v3 1.8s var(--al-ease-silk) infinite;
+@keyframes al-pulse-ring {
+  0%   { transform: scale(0.85); opacity: 0.55; }
+  70%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
 
 /* Shake on invalid input */

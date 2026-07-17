@@ -6,6 +6,18 @@ DEFAULT_PLAN_DELETED_BODY = (
     'non preoccuparti, te ne invio subito una nuova!'
 )
 
+DEFAULT_WELCOME_BODY = 'Ciao {nome}, benvenuto/a! 🎉 Sono felice di iniziare questo percorso insieme.'
+DEFAULT_GOODBYE_BODY = 'Grazie di tutto {nome} 🙏 È stato un piacere allenarti. Le porte restano sempre aperte!'
+DEFAULT_SUBSCRIPTION_EXPIRING_BODY = (
+    'Ciao {nome}, il tuo abbonamento sta per scadere ⏳ Rinnova per non perdere i progressi!'
+)
+
+_DEFAULT_BODIES = {
+    'WELCOME': DEFAULT_WELCOME_BODY,
+    'GOODBYE': DEFAULT_GOODBYE_BODY,
+    'SUBSCRIPTION_EXPIRING': DEFAULT_SUBSCRIPTION_EXPIRING_BODY,
+}
+
 
 def _render(body, client):
     """Replace personalization tokens with the client's name."""
@@ -46,15 +58,20 @@ def _deliver(coach, client, body, attachment=None):
 def send_automatic_message(coach, client, event_type):
     """Send a coach's configured automatic message to a client's chat.
 
-    No-op when no enabled template exists or the template is empty.
+    No-op when the event is disabled. When enabled with no custom text, falls
+    back to a generic default message the coach can later personalize —
+    matching how PLAN_DELETED already behaves.
     """
     template = AutomaticMessageTemplate.objects.filter(
         coach=coach, event_type=event_type, is_enabled=True
     ).first()
-    if not template or (not template.body and not template.attachment):
+    if not template:
+        return
+    body = template.body or _DEFAULT_BODIES.get(event_type)
+    if not body and not template.attachment:
         return
 
-    _deliver(coach, client, template.body, template.attachment)
+    _deliver(coach, client, body, template.attachment)
 
 
 def send_plan_deleted_message(coach, client):

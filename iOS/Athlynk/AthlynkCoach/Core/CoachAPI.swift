@@ -125,19 +125,22 @@ extension APIClient {
         return true
     }
 
-    func coachWorkouts(q: String = "", offset: Int = 0) async throws -> CoachWorkoutsResponse {
+    /// folderId: nil = all plans, "unfiled" = no folder, or a numeric folder id as string.
+    func coachWorkouts(q: String = "", offset: Int = 0, folderId: String? = nil) async throws -> CoachWorkoutsResponse {
         var path = "/api/v1/coach/workouts?offset=\(offset)"
         if !q.isEmpty, let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             path += "&q=\(enc)"
         }
+        if let folderId { path += "&folder_id=\(folderId)" }
         return try decode(CoachWorkoutsResponse.self, from: try await request(path))
     }
 
-    func coachNutrition(q: String = "", offset: Int = 0) async throws -> CoachNutritionResponse {
+    func coachNutrition(q: String = "", offset: Int = 0, folderId: String? = nil) async throws -> CoachNutritionResponse {
         var path = "/api/v1/coach/nutrition?offset=\(offset)"
         if !q.isEmpty, let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             path += "&q=\(enc)"
         }
+        if let folderId { path += "&folder_id=\(folderId)" }
         return try decode(CoachNutritionResponse.self, from: try await request(path))
     }
 
@@ -185,6 +188,15 @@ extension APIClient {
     /// Accepts or rejects an athlete's PENDING appointment request. `action` is
     /// "accept" | "reject". Accept requires `confirmedDate`/`confirmedTime`;
     /// reject may include a counter-proposal.
+    func coachRequestAppointment(conversation: Int, title: String, preferredDate: String,
+                                  timeFrom: String, timeTo: String, notes: String?) async throws -> MessageDTO {
+        let data = try await request("/api/v1/coach/conversations/\(conversation)/appointment", method: "POST", body: [
+            "title": title, "preferred_date": preferredDate,
+            "time_from": timeFrom, "time_to": timeTo, "notes": notes ?? "",
+        ])
+        return try decode(MessageDTO.self, from: data)
+    }
+
     func coachRespondAppointment(conversation: Int, appointmentId: Int, action: String,
                                   counterDate: String? = nil, counterTime: String? = nil) async throws -> MessageDTO {
         var body: [String: Any] = ["action": action]
@@ -210,6 +222,23 @@ extension APIClient {
     /// account.updated webhook remains the source of truth server-side.
     func coachConnectStatus() async throws -> CoachConnectStatusResponse {
         try decode(CoachConnectStatusResponse.self, from: try await request("/api/v1/coach/connect/status"))
+    }
+
+    /// Stripe-hosted Billing Portal URL for the coach's own Athlynk platform
+    /// subscription — open the returned URL in StripeWebFlow.
+    func coachBillingPortal() async throws -> String {
+        struct Resp: Decodable { let url: String }
+        return try decode(Resp.self, from: try await request("/api/v1/coach/billing-portal", method: "POST")).url
+    }
+
+    func coachCalendarFeed() async throws -> CoachCalendarFeedDTO {
+        try decode(CoachCalendarFeedDTO.self, from: try await request("/api/v1/coach/calendar-feed"))
+    }
+
+    @discardableResult
+    func coachRotateCalendarFeed() async throws -> CoachCalendarFeedDTO {
+        try decode(CoachCalendarFeedDTO.self, from: try await request(
+            "/api/v1/coach/calendar-feed", method: "POST", body: ["action": "rotate"]))
     }
 
     @discardableResult
@@ -608,8 +637,9 @@ extension APIClient {
         return (try coachJSONObject(data)["grid"] as? [String: Any]) ?? [:]
     }
 
-    /// Upsert (or clear) one (exercise, week, metric) override. Week 1 is the
-    /// builder-defined base and must not be edited here.
+    /// Upsert (or clear) one (exercise, week, metric) value. Week 1 writes
+    /// straight onto the builder's base exercise fields; week 2+ writes a
+    /// forward-filled WeeklyOverride — same branch the web builder uses.
     @discardableResult
     func coachProgressionCell(planId: Int, exerciseId: Int, week: Int,
                               metric: String, value: Any?, clear: Bool) async throws -> [String: Any] {
@@ -858,5 +888,76 @@ extension APIClient {
         var path = "/api/v1/coach/supplements/assignable-clients"
         if let excludeProtocolId { path += "?exclude_protocol_id=\(excludeProtocolId)" }
         return try decode([CoachSupplementAssignableClient].self, from: try await request(path))
+    }
+
+    // MARK: Folders (workout / nutrition / check — identical CRUD shape server-side)
+
+    func coachFolders(_ domain: CoachFolderDomain) async throws -> [CoachFolder] {
+        try decode([CoachFolder].self, from: try await request("\(domain.basePath)/"))
+    }
+
+    @discardableResult
+    func coachCreateFolder(_ domain: CoachFolderDomain, title: String,
+                           labelText: String = "", labelColor: String = "") async throws -> CoachFolder {
+        var body: [String: Any] = ["title": title]
+        if !labelText.isEmpty { body["label_text"] = labelText }
+        if !labelColor.isEmpty { body["label_color"] = labelColor }
+        return try decode(CoachFolder.self,
+                          from: try await request("\(domain.basePath)/", method: "POST", body: body))
+    }
+
+    @discardableResult
+    func coachRenameFolder(_ domain: CoachFolderDomain, folderId: Int, title: String) async throws -> CoachFolder {
+        try decode(CoachFolder.self, from: try await request(
+            "\(domain.basePath)/\(folderId)/", method: "PATCH", body: ["title": title]))
+    }
+
+    /// action: "move_to_unfiled" | "move_to" (needs targetFolderId) | "delete_plans"
+    /// (same action names server-side for all three domains — checks call their contents "plans" too).
+    @discardableResult
+    func coachDeleteFolder(_ domain: CoachFolderDomain, folderId: Int,
+                           action: String, targetFolderId: Int? = nil) async throws -> Bool {
+        var path = "\(domain.basePath)/\(folderId)/?action=\(action)"
+        if let targetFolderId { path += "&target_folder_id=\(targetFolderId)" }
+        _ = try await request(path, method: "DELETE")
+        return true
+    }
+
+    /// Moves a single plan/template in or out of a folder. `folderId: nil` unfiles it.
+    @discardableResult
+    func coachMoveItemToFolder(_ domain: CoachFolderDomain, itemId: Int, folderId: Int?) async throws -> Bool {
+        let body: [String: Any] = ["folder_id": (folderId as Any?) ?? NSNull()]
+        _ = try await request("\(domain.moveItemPath)/\(itemId)/cartella/", method: "PATCH", body: body)
+        return true
+    }
+
+    /// Paginated custom check templates for one folder — the check-only counterpart
+    /// of coachWorkouts/coachNutrition's built-in folder_id + offset pagination.
+    func coachCheckTemplatesPage(folderId: String = "all", q: String = "", offset: Int = 0) async throws -> CoachCheckTemplatePage {
+        var path = "/api/v1/coach/check-templates/page?folder_id=\(folderId)&offset=\(offset)"
+        if !q.isEmpty, let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            path += "&q=\(enc)"
+        }
+        return try decode(CoachCheckTemplatePage.self, from: try await request(path))
+    }
+}
+
+enum CoachFolderDomain {
+    case workout, nutrition, check
+
+    var basePath: String {
+        switch self {
+        case .workout: return "/api/allenamenti/cartelle"
+        case .nutrition: return "/api/nutrizione/cartelle"
+        case .check: return "/api/check/cartelle"
+        }
+    }
+    /// Path used to move a single plan/template into a folder (`/{id}/cartella/` appended by the caller).
+    var moveItemPath: String {
+        switch self {
+        case .workout: return "/api/allenamenti/piani"
+        case .nutrition: return "/api/nutrizione/piani"
+        case .check: return "/api/check/modelli"
+        }
     }
 }

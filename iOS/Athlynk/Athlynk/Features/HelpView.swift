@@ -34,7 +34,7 @@ struct HelpView: View {
                     ForEach(Array(faqs.enumerated()), id: \.offset) { i, item in
                         faqCard(i, item.q, item.a).revealUp(appear, index: min(i, 6) + 2)
                     }
-                    GreekDivider(color: Palette.cyan).padding(.top, 4)
+                    SectionDivider(color: Palette.cyan).padding(.top, 4)
                     Text("CONTATTI").voltEyebrow()
                     contactCard
                 }

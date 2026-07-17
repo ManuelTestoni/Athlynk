@@ -50,7 +50,7 @@ struct CoachSubscriptionsView: View {
                 }
 
                 if !subs.isEmpty {
-                    GreekDivider(color: Palette.amber)
+                    SectionDivider(color: Palette.amber)
                     CoachSectionTitle(eyebrow: "Clienti", title: "Abbonamenti", accent: Palette.cyan)
                     ForEach(subs) { s in subRow(s) }
                 }

@@ -20,6 +20,7 @@ struct CoachPlanCreateView: View {
     let kind: CoachPlanKind
     var onSaved: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @StateObject private var flash = StatusFlash()
 
     @State private var mode = 0            // 0 = builder, 1 = Chiron import
@@ -84,6 +85,7 @@ struct CoachPlanCreateView: View {
                 handlePicked(result)
             }
             .statusOverlay(flash)
+            .confirmDialogHost(confirmCenter)
         }
     }
 
@@ -284,7 +286,14 @@ struct CoachPlanCreateView: View {
             summary = buildSummary(extracted ?? [:])
             flash.success("Documento analizzato")
         } catch {
-            flash.failure(error.localizedDescription)
+            // 403 here means the coach's plan doesn't include the Chiron add-on
+            // (server message is already the exact upsell copy) — surface it
+            // verbatim instead of the generic "Si è verificato un errore".
+            if case APIError.http(403, let detail) = error {
+                flash.failure(detail)
+            } else {
+                flash.failure(error.localizedDescription)
+            }
         }
     }
 

@@ -357,7 +357,13 @@ function chatRoom(conversationId, currentUserId, hasOlderInit, oldestIdInit) {
         });
       });
       window.addEventListener('load', () => this.scrollToBottom(), { once: true });
-      this.pollingInterval = setInterval(() => this.poll(), 5000);
+      this.pollingInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') this.poll();
+      }, 5000);
+      // Catch up immediately on return so a backgrounded tab isn't stale.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this.poll();
+      });
     },
 
     formatTime(iso) {

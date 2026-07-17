@@ -275,6 +275,23 @@ struct NutritionPlanDTO: Codable, Identifiable, Hashable {
         case carbTargetG = "carb_target_g"
         case fatTargetG = "fat_target_g"
     }
+
+    /// Plan-level overview targets (matches the web app's plan summary card,
+    /// not a single day). MACRO plans don't set a plan-level daily_kcal/macro
+    /// — those live per-day, so fall back to the week's average, same as the
+    /// web dashboard's `_plan_macro_targets(plan)['avg']` for MACRO plans.
+    var overviewTargets: (kcal: Int, protein: Int?, carb: Int?, fat: Int?) {
+        if let k = dailyKcal, k > 0 { return (k, proteinTargetG, carbTargetG, fatTargetG) }
+        if planMode == "MACRO" {
+            func avg(_ f: (DietDayDTO) -> Int?) -> Int? {
+                let vals = days.compactMap(f)
+                return vals.isEmpty ? nil : vals.reduce(0, +) / vals.count
+            }
+            return (avg { $0.targetKcal } ?? 0, avg { $0.targetProteinG }, avg { $0.targetCarbG }, avg { $0.targetFatG })
+        }
+        let kcal = Int((days.first?.meals.reduce(0) { $0 + $1.kcal }) ?? 0)
+        return (kcal, proteinTargetG, carbTargetG, fatTargetG)
+    }
 }
 
 struct NutritionResponse: Codable { let plans: [NutritionPlanDTO] }
@@ -870,6 +887,9 @@ struct ClientProfileDTO: Codable, Hashable {
     let gender: String?
     let birthDate: String?
     let imageUrl: String?
+    let brandName: String?
+    let brandPrimary: String?
+    let brandAccent: String?
 
     enum CodingKeys: String, CodingKey {
         case phone, gender, sport
@@ -878,6 +898,9 @@ struct ClientProfileDTO: Codable, Hashable {
         case weightKg = "weight_kg"
         case birthDate = "birth_date"
         case imageUrl = "profile_image_url"
+        case brandName = "brand_name"
+        case brandPrimary = "brand_primary"
+        case brandAccent = "brand_accent"
     }
 }
 

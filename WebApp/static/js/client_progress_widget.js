@@ -22,6 +22,7 @@ document.addEventListener('alpine:init', () => {
           this.$nextTick(() => {
             const ctx = document.getElementById('myLoadsChart');
             if (!ctx) return;
+            if (charts.loads) charts.loads.destroy();
             charts.loads = new Chart(ctx, {
               type: 'line',
               data: { labels: series.map(s => s.date), datasets: [{
@@ -51,6 +52,7 @@ document.addEventListener('alpine:init', () => {
             const ctx = document.getElementById('myVolumeChart');
             if (!ctx) return;
             const colors = ['#9C4448', '#1E3A5F', '#8A6E5A', '#3F7690', '#4F7A6A', '#6A5482', '#5B89B6', '#2B6E6E', '#8A6A1E', '#4A5A8A'];
+            if (charts.volume) charts.volume.destroy();
             charts.volume = new Chart(ctx, {
               type: 'bar',
               data: {

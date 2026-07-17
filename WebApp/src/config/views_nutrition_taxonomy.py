@@ -42,6 +42,8 @@ def api_nutrition_folders(request):
         return err
 
     if request.method == 'GET':
+        from .views_nutrition import _get_or_create_templates_folder
+        _get_or_create_templates_folder(coach)
         folders = NutritionFolder.objects.filter(coach=coach).annotate(_count=Count('plans'))
         return JsonResponse(
             [_serialize_folder(f, plan_count=f._count) for f in folders],

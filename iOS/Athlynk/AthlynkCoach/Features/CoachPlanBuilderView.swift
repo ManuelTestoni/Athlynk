@@ -48,6 +48,14 @@ struct WBExerciseDraft: Identifiable {
         }
     }
 
+    /// Switches which field (RIR/RPE) is active, carrying this exercise's own
+    /// value across so it isn't lost — never copies another exercise's value.
+    mutating func applyRpeRirType(_ newType: String) {
+        guard newType != rpeRirType else { return }
+        if newType == "RPE" { rpe = rir; rir = nil } else { rir = rpe; rpe = nil }
+        rpeRirType = newType
+    }
+
     var summary: String {
         let r = repRange.isEmpty ? "\(reps)" : repRange
         var s = "\(sets)×\(r) · \(recoverySeconds)″"
@@ -139,7 +147,8 @@ struct WorkoutBuilderSection: View {
                     accent: accent,
                     index: days.firstIndex(where: { $0.id == day.id }) ?? 0,
                     onAddExercise: { pickingForDay = day.id },
-                    onDelete: { remove(day.id) }
+                    onDelete: { remove(day.id) },
+                    onExerciseTypeChanged: { exId, newType in propagateRpeRirType(newType, excluding: exId) }
                 )
             }
 
@@ -194,6 +203,16 @@ struct WorkoutBuilderSection: View {
         Haptics.warning()
         withAnimation(.snappy) { days.removeAll { $0.id == id } }
     }
+
+    /// Only the RIR/RPE *type* propagates — each exercise keeps its own numeric value.
+    private func propagateRpeRirType(_ newType: String, excluding exId: UUID) {
+        for di in days.indices {
+            for ei in days[di].exercises.indices {
+                guard days[di].exercises[ei].id != exId else { continue }
+                days[di].exercises[ei].applyRpeRirType(newType)
+            }
+        }
+    }
 }
 
 private struct WBDayCard: View {
@@ -202,6 +221,9 @@ private struct WBDayCard: View {
     let index: Int
     let onAddExercise: () -> Void
     let onDelete: () -> Void
+    let onExerciseTypeChanged: (UUID, String) -> Void
+
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
 
     var body: some View {
         VStack(spacing: 0) {
@@ -213,7 +235,17 @@ private struct WBDayCard: View {
                           prompt: Text("Nome giorno").foregroundStyle(Palette.textLow))
                     .font(Typo.display(18)).foregroundStyle(Palette.textHi).tint(accent)
                 Spacer(minLength: 4)
-                Button { onDelete() } label: {
+                Button {
+                    Haptics.tap()
+                    Task {
+                        if await confirmCenter.confirm(.init(
+                            title: "Eliminare il giorno?",
+                            subtitle: "\"\(day.name)\" e tutti i suoi esercizi verranno rimossi.",
+                            icon: "trash")) {
+                            onDelete()
+                        }
+                    }
+                } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Palette.crimson.opacity(0.8))
@@ -235,7 +267,8 @@ private struct WBDayCard: View {
                     WBExerciseRow(ex: $ex, accent: accent,
                                   onDelete: { removeExercise(ex.id) },
                                   onMoveUp: { move(ex.id, by: -1) },
-                                  onMoveDown: { move(ex.id, by: +1) })
+                                  onMoveDown: { move(ex.id, by: +1) },
+                                  onTypeChanged: { newType in onExerciseTypeChanged(ex.id, newType) })
                     if ex.id != day.exercises.last?.id {
                         Rectangle().fill(Palette.line.opacity(0.6)).frame(height: 1)
                             .padding(.leading, 16)
@@ -278,7 +311,9 @@ private struct WBExerciseRow: View {
     let onDelete: () -> Void
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
+    let onTypeChanged: (String) -> Void
 
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var expanded = false
 
     var body: some View {
@@ -366,8 +401,8 @@ private struct WBExerciseRow: View {
                         // text-field cells so the row stays symmetric.
                         VStack(alignment: .leading, spacing: 5) {
                             Menu {
-                                Button("RPE") { ex.rpeRirType = "RPE" }
-                                Button("RIR") { ex.rpeRirType = "RIR" }
+                                Button("RPE") { changeType("RPE") }
+                                Button("RIR") { changeType("RIR") }
                             } label: {
                                 HStack(spacing: 3) {
                                     Text(ex.rpeRirType)
@@ -375,10 +410,6 @@ private struct WBExerciseRow: View {
                                     Image(systemName: "chevron.up.chevron.down")
                                         .font(.system(size: 7, weight: .semibold)).foregroundStyle(Palette.textLow)
                                 }
-                            }
-                            .onChange(of: ex.rpeRirType) { _, newType in
-                                if newType == "RPE" { ex.rpe = ex.rir; ex.rir = nil }
-                                else { ex.rir = ex.rpe; ex.rpe = nil }
                             }
                             TextField("", value: Binding(get: { ex.rpeRirValue },
                                                          set: { ex.rpeRirValue = $0 }),
@@ -452,7 +483,16 @@ private struct WBExerciseRow: View {
                             Image(systemName: "arrow.down").frame(width: 36, height: 30)
                         }
                         Spacer()
-                        Button { onDelete() } label: {
+                        Button {
+                            Task {
+                                if await confirmCenter.confirm(.init(
+                                    title: "Eliminare l'esercizio?",
+                                    subtitle: "\"\(ex.name)\" verrà rimosso dalla scheda.",
+                                    icon: "trash")) {
+                                    onDelete()
+                                }
+                            }
+                        } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "trash")
                                 Text("Rimuovi")
@@ -469,6 +509,13 @@ private struct WBExerciseRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+    }
+
+    private func changeType(_ newType: String) {
+        guard newType != ex.rpeRirType else { return }
+        Haptics.tap()
+        ex.applyRpeRirType(newType)
+        onTypeChanged(newType)
     }
 }
 
@@ -669,6 +716,8 @@ private struct WBMealCard: View {
     let onAddFood: () -> Void
     let onDelete: () -> Void
 
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -680,7 +729,17 @@ private struct WBMealCard: View {
                     Text("\(Int(meal.kcal.rounded())) kcal")
                         .font(Typo.mono(11, .semibold)).foregroundStyle(accent)
                 }
-                Button { onDelete() } label: {
+                Button {
+                    Haptics.tap()
+                    Task {
+                        if await confirmCenter.confirm(.init(
+                            title: "Eliminare il pasto?",
+                            subtitle: "\"\(meal.name)\" e tutti i suoi alimenti verranno rimossi.",
+                            icon: "trash")) {
+                            onDelete()
+                        }
+                    }
+                } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Palette.crimson.opacity(0.8))
@@ -733,6 +792,7 @@ private struct WBFoodRow: View {
     let accent: Color
     let onDelete: () -> Void
 
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var showSubs = false
 
     var body: some View {
@@ -782,7 +842,17 @@ private struct WBFoodRow: View {
             .buttonStyle(.plain)
             .voltPanel(radius: 10)
 
-            Button { onDelete() } label: {
+            Button {
+                Haptics.tap()
+                Task {
+                    if await confirmCenter.confirm(.init(
+                        title: "Eliminare l'alimento?",
+                        subtitle: "\"\(item.food.name)\" verrà rimosso dal pasto.",
+                        icon: "trash")) {
+                        onDelete()
+                    }
+                }
+            } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Palette.textLow)
@@ -813,6 +883,7 @@ private struct SubstitutionSheet: View {
     let accent: Color
 
     @Environment(\.dismiss) private var dismiss
+    @State private var tab: Tab
     @State private var mode = "ISOKCAL"
     @State private var query = ""
     @State private var results: [BuilderFood] = []
@@ -822,81 +893,28 @@ private struct SubstitutionSheet: View {
 
     private let modes = [("ISOKCAL", "iso-kcal"), ("ISOPROT", "iso-prot"), ("ISOCARB", "iso-carb")]
 
+    enum Tab { case active, add }
+
+    init(item: Binding<WBItemDraft>, accent: Color) {
+        self._item = item
+        self.accent = accent
+        self._tab = State(initialValue: item.wrappedValue.substitutions.isEmpty ? .add : .active)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                // existing substitutions
-                if !item.substitutions.isEmpty {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(Array(item.substitutions.enumerated()), id: \.offset) { idx, sub in
-                                existingRow(sub, idx)
-                            }
-                        }.padding(.horizontal, 16)
-                    }
-                    .frame(maxHeight: 150)
+                Picker("", selection: $tab) {
+                    Text("Attive (\(item.substitutions.count))").tag(Tab.active)
+                    Text("Aggiungi").tag(Tab.add)
                 }
-
-                // mode picker
-                HStack(spacing: 8) {
-                    ForEach(modes, id: \.0) { key, label in
-                        Button {
-                            Haptics.tap(); mode = key
-                        } label: {
-                            Text(label)
-                                .font(Typo.body(12, .semibold))
-                                .foregroundStyle(mode == key ? Palette.void0 : Palette.textMid)
-                                .padding(.horizontal, 14).padding(.vertical, 7)
-                                .background(Capsule().fill(mode == key ? accent : Palette.void2))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                }
+                .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
 
-                VoltField(icon: "magnifyingglass", placeholder: "Cerca sostituto…",
-                          text: $query, accent: accent)
-                    .padding(.horizontal, 16)
-
-                if let errorText {
-                    Text(errorText).font(Typo.body(12)).foregroundStyle(Palette.crimson)
-                        .padding(.horizontal, 16)
-                }
-
-                if loading && results.isEmpty {
-                    Spacer(); SwiftUI.ProgressView().tint(accent); Spacer()
-                } else if results.isEmpty {
-                    Spacer()
-                    Text(query.isEmpty ? "Cerca un alimento da proporre come alternativa."
-                                       : "Nessun alimento trovato.")
-                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
-                        .multilineTextAlignment(.center).padding(.horizontal, 24)
-                    Spacer()
+                if tab == .active {
+                    activeList
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(results) { food in
-                                Button { add(food) } label: {
-                                    HStack(spacing: 10) {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(food.name).font(Typo.body(14, .semibold))
-                                                .foregroundStyle(Palette.textHi).multilineTextAlignment(.leading)
-                                            Text("\(Int(food.kcal.rounded())) kcal · P \(Int(food.protein.rounded())) · C \(Int(food.carb.rounded())) · G \(Int(food.fat.rounded()))  /100g")
-                                                .font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
-                                        }
-                                        Spacer(minLength: 4)
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 18, weight: .bold)).foregroundStyle(accent)
-                                    }
-                                    .padding(.horizontal, 14).padding(.vertical, 12)
-                                    .contentShape(Rectangle())
-                                    .voltPanel(radius: 12)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }.padding(.horizontal, 16).padding(.bottom, 24)
-                    }
+                    addSearch
                 }
             }
             .padding(.top, 8)
@@ -909,6 +927,91 @@ private struct SubstitutionSheet: View {
             .onChange(of: query) { _, _ in scheduleSearch() }
         }
         .presentationDetents([.large])
+    }
+
+    @ViewBuilder
+    private var activeList: some View {
+        if item.substitutions.isEmpty {
+            Spacer()
+            Text("Nessuna sostituzione attiva. Passa a \"Aggiungi\" per proporne una.")
+                .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                .multilineTextAlignment(.center).padding(.horizontal, 24)
+            Spacer()
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(item.substitutions.enumerated()), id: \.offset) { idx, sub in
+                        existingRow(sub, idx)
+                    }
+                }.padding(.horizontal, 16).padding(.bottom, 24)
+            }
+        }
+    }
+
+    private var addSearch: some View {
+        VStack(spacing: 12) {
+            // mode picker
+            HStack(spacing: 8) {
+                ForEach(modes, id: \.0) { key, label in
+                    Button {
+                        Haptics.tap(); mode = key
+                    } label: {
+                        Text(label)
+                            .font(Typo.body(12, .semibold))
+                            .foregroundStyle(mode == key ? Palette.void0 : Palette.textMid)
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(Capsule().fill(mode == key ? accent : Palette.void2))
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+
+            VoltField(icon: "magnifyingglass", placeholder: "Cerca sostituto…",
+                      text: $query, accent: accent)
+                .padding(.horizontal, 16)
+
+            if let errorText {
+                Text(errorText).font(Typo.body(12)).foregroundStyle(Palette.crimson)
+                    .padding(.horizontal, 16)
+            }
+
+            if loading && results.isEmpty {
+                Spacer(); SwiftUI.ProgressView().tint(accent); Spacer()
+            } else if results.isEmpty {
+                Spacer()
+                Text(query.isEmpty ? "Cerca un alimento da proporre come alternativa."
+                                   : "Nessun alimento trovato.")
+                    .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                    .multilineTextAlignment(.center).padding(.horizontal, 24)
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(results) { food in
+                            Button { add(food) } label: {
+                                HStack(spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(food.name).font(Typo.body(14, .semibold))
+                                            .foregroundStyle(Palette.textHi).multilineTextAlignment(.leading)
+                                        Text("\(Int(food.kcal.rounded())) kcal · P \(Int(food.protein.rounded())) · C \(Int(food.carb.rounded())) · G \(Int(food.fat.rounded()))  /100g")
+                                            .font(Typo.mono(10, .semibold)).foregroundStyle(Palette.textMid)
+                                    }
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 18, weight: .bold)).foregroundStyle(accent)
+                                }
+                                .padding(.horizontal, 14).padding(.vertical, 12)
+                                .contentShape(Rectangle())
+                                .voltPanel(radius: 12)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }.padding(.horizontal, 16).padding(.bottom, 24)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -983,6 +1086,7 @@ private struct SubstitutionSheet: View {
                 "carb_per_100g": food.carb,
                 "fat_per_100g": food.fat,
             ])
+            tab = .active
         }
     }
 

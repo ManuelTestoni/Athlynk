@@ -24,13 +24,18 @@ struct CoachChecksView: View {
                              subtitle: "\(pendingCount) in attesa di feedback", accent: Palette.bronze)
                     .revealUp(appear, index: 0)
 
+                CoachCheckTemplatesSection()
+                    .revealUp(appear, index: 1)
+
+                SectionDivider().padding(.vertical, 4)
+
                 Picker("", selection: $filter) {
                     Text("In attesa").tag("pending")
                     Text("Tutti").tag("all")
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
-                .revealUp(appear, index: 1)
+                .revealUp(appear, index: 2)
 
                 if loading && checks.isEmpty {
                     AvatarRowsSkeleton(accent: Palette.bronze)
@@ -42,7 +47,7 @@ struct CoachChecksView: View {
                     ForEach(Array(checks.enumerated()), id: \.element.id) { i, c in
                         NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
                             .buttonStyle(PressableButtonStyle())
-                            .revealUp(appear, index: min(i, 6) + 2)
+                            .revealUp(appear, index: min(i, 6) + 3)
                     }
                     if hasMore {
                         LoadMoreButton(loading: loadingMore, accent: Palette.bronze) {
@@ -50,9 +55,6 @@ struct CoachChecksView: View {
                         }
                     }
                 }
-
-                GreekDivider().padding(.top, 8)
-                CoachCheckTemplatesSection()
             }
             .onChange(of: loading) { _, l in if !l { appear = true } }
             .onAppear { if !checks.isEmpty { appear = true } }

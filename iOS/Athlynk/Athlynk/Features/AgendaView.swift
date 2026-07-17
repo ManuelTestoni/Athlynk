@@ -40,7 +40,7 @@ struct AgendaView: View {
                             }
                         }
                         if !past.isEmpty {
-                            GreekDivider(color: Palette.cyan).padding(.top, 8)
+                            SectionDivider(color: Palette.cyan).padding(.top, 8)
                                 .revealUp(appear, index: 2)
                             Text("PASSATI").voltEyebrow()
                                 .revealUp(appear, index: 3)

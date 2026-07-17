@@ -60,6 +60,9 @@ struct DietDayNavContext: Hashable {
 struct DietDayDetailView: View {
     let days: [DietDayDTO]
     @State private var currentIndex: Int
+    /// +1 paging to next day (content slides in from the right), -1 to
+    /// previous (slides in from the left) — drives the asymmetric transition.
+    @State private var direction: Int = 1
 
     init(days: [DietDayDTO], startId: Int) {
         self.days = days
@@ -88,16 +91,24 @@ struct DietDayDetailView: View {
                         }
                     }
                 }
+                .id(currentIndex)
+                .transition(.asymmetric(
+                    insertion: .move(edge: direction >= 0 ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: direction >= 0 ? .leading : .trailing).combined(with: .opacity)))
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .gesture(
+        // simultaneousGesture (not .gesture) so this never blocks the system's
+        // edge-swipe-back recognizer. A swipe that STARTS at the extreme left
+        // edge is left alone (system pops the screen); everywhere else, a
+        // rightward swipe pages to the previous day instead of exiting.
+        .simultaneousGesture(
             DragGesture(minimumDistance: 30)
                 .onEnded { v in
-                    guard canPage else { return }
+                    guard canPage, v.startLocation.x > 24 else { return }
                     if v.translation.width < -40 { goNext() }
                     else if v.translation.width > 40 { goPrev() }
                 }
@@ -147,12 +158,14 @@ struct DietDayDetailView: View {
     private func goPrev() {
         guard currentIndex > 0 else { return }
         Haptics.tap()
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { currentIndex -= 1 }
+        direction = -1
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { currentIndex -= 1 }
     }
     private func goNext() {
         guard currentIndex < days.count - 1 else { return }
         Haptics.tap()
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { currentIndex += 1 }
+        direction = 1
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { currentIndex += 1 }
     }
 
     private func mealCard(_ meal: MealDTO, index: Int) -> some View {

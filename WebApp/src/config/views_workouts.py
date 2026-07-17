@@ -25,12 +25,22 @@ from .services import import_quota
 logger = logging.getLogger(__name__)
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client,
-    get_workout_coach, can_manage_workouts,
+    get_workout_coach, can_manage_workouts, coach_has_chiron_access,
 )
 from .http_utils import safe_int, duration_timedelta
 
 
 WORKOUT_HISTORY_PAGE_SIZE = 5
+
+TEMPLATES_FOLDER_TITLE = 'Template'
+
+
+def _get_or_create_templates_folder(coach):
+    """The coach's default 'Template' folder — auto-created lazily, one per coach."""
+    folder, _ = WorkoutFolder.objects.get_or_create(
+        coach=coach, title=TEMPLATES_FOLDER_TITLE,
+    )
+    return folder
 
 
 def _enrich_client_assignment(a, client, today):
@@ -876,6 +886,7 @@ def api_plan_finalize(request, plan_id):
     if action == 'template':
         plan.status = 'TEMPLATE'
         plan.is_template = True
+        plan.folder = _get_or_create_templates_folder(coach)
         plan.save()
         return JsonResponse({'status': 'ok', 'redirect_url': '/allenamenti/'})
 
@@ -1200,6 +1211,16 @@ def api_search_exercises(request):
 
     coach = get_session_coach(request)
 
+    # Global, read-mostly catalog hit on every keystroke of the builder's
+    # search field — cache the serialized result per (coach, filters).
+    _key = 'exercise_search:' + ':'.join([
+        str(coach.id) if coach else 'anon', query, muscle_slug,
+        equipment_id, category_id, str(custom_only),
+    ])
+    _cached = cache.get(_key)
+    if _cached is not None:
+        return JsonResponse(_cached, safe=False)
+
     qs = Exercise.objects.all()
 
     # Hide other coaches' custom exercises
@@ -1241,7 +1262,9 @@ def api_search_exercises(request):
         })
         return card
 
-    return JsonResponse([_card(e) for e in qs], safe=False)
+    data = [_card(e) for e in qs]
+    cache.set(_key, data, 60)
+    return JsonResponse(data, safe=False)
 
 
 def api_exercise_filters(request):
@@ -1418,6 +1441,9 @@ def api_workout_import_excel(request):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    if not coach_has_chiron_access(coach):
+        from .views_chiron import CHIRON_ADDON_MESSAGE
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     uploaded = request.FILES.get('file')
     if not uploaded:
@@ -1530,6 +1556,9 @@ def api_workout_import_pdf(request):
     coach = get_session_coach(request)
     if not coach or not can_manage_workouts(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    if not coach_has_chiron_access(coach):
+        from .views_chiron import CHIRON_ADDON_MESSAGE
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     uploaded = request.FILES.get('file')
     if not uploaded:

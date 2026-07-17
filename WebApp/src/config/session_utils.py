@@ -34,6 +34,35 @@ def _shade(hex_color, factor=0.72, default=BRAND_DEFAULT_PRIMARY):
     return f'{clamp(r)} {clamp(g)} {clamp(b)}'
 
 
+def brand_dict(user):
+    """Per-user branding, same shape web `impostazioni` (tab aspetto) reads/writes."""
+    return {
+        'brand_name': user.brand_name or '',
+        'brand_primary': user.brand_primary or '',
+        'brand_accent': user.brand_accent or '',
+    }
+
+
+def apply_brand_update(user, data):
+    """Mobile counterpart of views_settings._save_brand — validates the two
+    hex colors (interpolated server-side into CSS, so untrusted input is a
+    trust boundary) and saves. Returns an error string, or None on success."""
+    if data.get('reset'):
+        name, primary, accent = '', '', ''
+    else:
+        name = (data.get('brand_name') or '').strip()[:40]
+        primary = (data.get('brand_primary') or '').strip()
+        accent = (data.get('brand_accent') or '').strip()
+        for hex_value in (primary, accent):
+            if hex_value and not _HEX_RE.match(hex_value):
+                return 'Colore non valido.'
+    user.brand_name = name
+    user.brand_primary = primary
+    user.brand_accent = accent
+    user.save(update_fields=['brand_name', 'brand_primary', 'brand_accent', 'updated_at'])
+    return None
+
+
 def get_session_user(request):
     # Memoized per-request: identity_context, get_session_coach/client, and
     # middleware each call this, so an un-cached lookup re-fetches the same

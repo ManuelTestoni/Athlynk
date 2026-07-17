@@ -50,6 +50,7 @@ from domain.checks.anthropometry import (
 from .session_utils import (
     get_active_relationship, get_active_relationships, client_has_active_access,
     enforce_client_access, coach_has_active_platform_access,
+    apply_brand_update, brand_dict,
 )
 from .views import _client_dashboard_kpis
 from .services import ratelimit, sanitize
@@ -1491,6 +1492,7 @@ def _client_profile_dict(request, client):
         'gender': client.gender,
         'birth_date': _iso(client.birth_date),
         'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
+        **brand_dict(client.user),
     }
 
 
@@ -1501,6 +1503,10 @@ def profile(request, user):
         return JsonResponse({'error': 'Profilo non disponibile'}, status=404)
     if request.method == 'PATCH':
         data = _body(request)
+        if any(k in data for k in ('brand_name', 'brand_primary', 'brand_accent', 'reset')):
+            err = apply_brand_update(user, data)
+            if err:
+                return JsonResponse({'error': err}, status=400)
         if data.get('first_name'):
             client.first_name = data['first_name'].strip()
         if data.get('last_name'):

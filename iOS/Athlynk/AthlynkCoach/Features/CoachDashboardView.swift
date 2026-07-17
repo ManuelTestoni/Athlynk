@@ -9,6 +9,9 @@ struct CoachDashboardView: View {
     @Binding var tab: CoachTab
     /// Deep-link into the "Altro" hub for sections that no longer have a tab.
     @State private var sheetRoute: CoachRoute?
+    @State private var creatingWorkout = false
+    @State private var creatingNutrition = false
+    @State private var checkPickerMode: CoachQuickCheckMode?
     @EnvironmentObject private var app: AppState
     @State private var data: CoachDashboardDTO?
     @State private var loading = true
@@ -54,6 +57,15 @@ struct CoachDashboardView: View {
             // the sheet closes so the shell isn't left without its bar.
             .onDisappear { app.tabBarHidden = false }
         }
+        .sheet(isPresented: $creatingWorkout, onDismiss: { loadToken = UUID() }) {
+            CoachPlanCreateView(kind: .workout)
+        }
+        .sheet(isPresented: $creatingNutrition, onDismiss: { loadToken = UUID() }) {
+            CoachPlanCreateView(kind: .nutrition)
+        }
+        .sheet(item: $checkPickerMode) { mode in
+            CoachQuickCheckPickerSheet(mode: mode)
+        }
     }
 
     private var greeting: String {
@@ -84,30 +96,30 @@ struct CoachDashboardView: View {
         let cols = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
         return LazyVGrid(columns: cols, spacing: 14) {
             CoachStatTile(value: "\(s.activeClients)", label: "Atleti attivi",
-                          icon: "person.2.fill", accent: Palette.cyan)
+                          icon: "person.2.fill", accent: Palette.cyan) { sheetRoute = .clients }
             CoachStatTile(value: "\(s.pendingChecks)", label: "Check in attesa",
                           icon: "checkmark.seal.fill", accent: Palette.bronze,
-                          flag: s.pendingChecks > 0 ? "DA FARE" : nil)
+                          flag: s.pendingChecks > 0 ? "DA FARE" : nil) { tab = .check }
             CoachStatTile(value: "\(s.appointmentsToday)", label: "Appuntamenti oggi",
-                          icon: "calendar", accent: Palette.amber)
+                          icon: "calendar", accent: Palette.amber) { sheetRoute = .agenda }
             CoachStatTile(value: "\(s.unreadMessages)", label: "Messaggi",
                           icon: "bubble.left.fill", accent: Palette.violet,
-                          flag: s.unreadMessages > 0 ? "NUOVI" : nil)
+                          flag: s.unreadMessages > 0 ? "NUOVI" : nil) { sheetRoute = .chat }
         }
     }
 
     private var quickActions: some View {
         HStack(spacing: 12) {
-            CoachQuickAction(icon: "person.crop.circle.badge.checkmark", label: "Atleti",
-                             accent: Palette.cyan) { sheetRoute = .clients }
-            CoachQuickAction(icon: "checkmark.seal.fill", label: "Revisione", accent: Palette.bronze) {
-                tab = .check
+            CoachQuickAction(icon: "dumbbell.fill", label: "Allenamento", accent: Palette.cyan,
+                             badge: "plus") { creatingWorkout = true }
+            CoachQuickAction(icon: "flame.fill", label: "Nutrizione", accent: Palette.lime,
+                             badge: "plus") { creatingNutrition = true }
+            CoachQuickAction(icon: "checkmark.seal.fill", label: "Compila Check", accent: Palette.bronze) {
+                checkPickerMode = .fill
             }
-            CoachQuickAction(icon: "calendar.badge.clock", label: "Agenda", accent: Palette.amber) {
-                sheetRoute = .agenda
+            CoachQuickAction(icon: "paperplane.fill", label: "Assegna Check", accent: Palette.violet) {
+                checkPickerMode = .assign
             }
-            CoachQuickAction(icon: "bubble.left.and.bubble.right.fill", label: "Chat",
-                             accent: Palette.violet) { sheetRoute = .chat }
         }
     }
 

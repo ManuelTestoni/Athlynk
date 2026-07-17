@@ -23,6 +23,9 @@ struct MacroLogView: View {
     @State private var error: String?
     @State private var showSearch = false
     @State private var barFill = false
+    /// +1 paging to next day (content slides in from the right), -1 to
+    /// previous (slides in from the left) — drives the asymmetric transition.
+    @State private var direction: Int = 1
 
     private var effectiveDate: String? { pagedDate ?? logDate }
     private var weekIndex: Int? {
@@ -42,12 +45,18 @@ struct MacroLogView: View {
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
                     } else if let day {
-                        ringCard(day)
-                        macrosCard(day)
-                        NeonButton(title: "Aggiungi alimento", icon: "plus.circle.fill", color: Palette.lime) {
-                            showSearch = true
+                        VStack(alignment: .leading, spacing: 18) {
+                            ringCard(day)
+                            macrosCard(day)
+                            NeonButton(title: "Aggiungi alimento", icon: "plus.circle.fill", color: Palette.lime) {
+                                showSearch = true
+                            }
+                            entriesSection(day)
                         }
-                        entriesSection(day)
+                        .id(effectiveDate)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: direction >= 0 ? .trailing : .leading).combined(with: .opacity),
+                            removal: .move(edge: direction >= 0 ? .leading : .trailing).combined(with: .opacity)))
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
@@ -57,11 +66,14 @@ struct MacroLogView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .tint(Palette.lime)
-        .task(id: effectiveDate) { await load() }
-        .gesture(
+        .task(id: effectiveDate) { await load(animated: true) }
+        // simultaneousGesture so the system edge-swipe-back stays intact for
+        // swipes starting at the extreme left; elsewhere a rightward swipe
+        // pages to the previous day instead of popping the screen.
+        .simultaneousGesture(
             DragGesture(minimumDistance: 30)
                 .onEnded { v in
-                    guard weekDates != nil else { return }
+                    guard weekDates != nil, v.startLocation.x > 24 else { return }
                     if v.translation.width < -40 { goNext() }
                     else if v.translation.width > 40 { goPrev() }
                 }
@@ -105,11 +117,11 @@ struct MacroLogView: View {
     }
     private func goPrev() {
         guard canGoPrev, let i = weekIndex, let weekDates else { return }
-        Haptics.tap(); pagedDate = weekDates[i - 1]
+        Haptics.tap(); direction = -1; pagedDate = weekDates[i - 1]
     }
     private func goNext() {
         guard canGoNext, let i = weekIndex, let weekDates else { return }
-        Haptics.tap(); pagedDate = weekDates[i + 1]
+        Haptics.tap(); direction = 1; pagedDate = weekDates[i + 1]
     }
     private func todayISO() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.calendar = Calendar(identifier: .gregorian)

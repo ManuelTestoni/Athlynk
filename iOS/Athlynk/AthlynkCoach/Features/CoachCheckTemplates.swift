@@ -11,17 +11,39 @@ struct CheckTemplateRoute: Hashable { let id: Int }
 // MARK: - Sezione "I tuoi modelli" (mostrata in CoachChecksView)
 
 struct CoachCheckTemplatesSection: View {
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var presets: [CoachCheckTemplate] = []
     @State private var customs: [CoachCheckTemplate] = []
     @State private var loading = true
     @State private var showBuilder = false
+    @State private var showingFolders = false
     @State private var reloadToken = 0
+    @State private var showingCustom = false
+    @State private var flipAngle: Double = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
-                CoachSectionTitle(eyebrow: "Libreria", title: "I tuoi modelli", accent: Palette.violet)
+                CoachSectionTitle(eyebrow: "Libreria", title: showingCustom ? "Personalizzati" : "Preset",
+                                  accent: Palette.violet)
                 Spacer()
+                Button { flip() } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Palette.violet)
+                        .padding(9)
+                        .background(Circle().stroke(Palette.violet.opacity(0.4), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Passa a \(showingCustom ? "Preset" : "Personalizzati")")
+                Button { showingFolders = true } label: {
+                    Image(systemName: "folder")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Palette.violet)
+                        .padding(9)
+                        .background(Circle().stroke(Palette.violet.opacity(0.4), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
                 Button { showBuilder = true } label: {
                     Label("Nuovo", systemImage: "plus")
                         .font(Typo.mono(10, .bold)).tracking(1)
@@ -32,29 +54,70 @@ struct CoachCheckTemplatesSection: View {
                 .buttonStyle(.plain)
             }
 
-            if loading && presets.isEmpty && customs.isEmpty {
-                AvatarRowsSkeleton(accent: Palette.violet)
-            } else {
-                if !presets.isEmpty {
-                    Text("PRESET").font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
-                    ForEach(presets) { t in row(t) }
-                }
-                if !customs.isEmpty {
-                    Text("PERSONALIZZATI").font(Typo.mono(9, .bold)).tracking(2)
-                        .foregroundStyle(Palette.textLow).padding(.top, 4)
-                    ForEach(customs) { t in row(t) }
-                } else if !loading {
-                    Text("Nessun modello personalizzato. Creane uno nuovo.")
-                        .font(Typo.body(12)).foregroundStyle(Palette.textLow)
+            Group {
+                if loading && presets.isEmpty && customs.isEmpty {
+                    AvatarRowsSkeleton(accent: Palette.violet)
+                } else if showingCustom {
+                    customFace
+                } else {
+                    presetFace
                 }
             }
+            .rotation3DEffect(.degrees(flipAngle), axis: (0, 1, 0))
         }
+        .padding(16)
+        .voltPanel(radius: 18)
         .task(id: reloadToken) {
             do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
             await load()
         }
         .sheet(isPresented: $showBuilder) {
             CoachCheckBuilderView(templateId: nil) { presets = []; customs = []; reloadToken += 1 }
+        }
+        .sheet(isPresented: $showingFolders, onDismiss: { presets = []; customs = []; reloadToken += 1 }) {
+            NavigationStack {
+                CoachFolderListView(domain: .check, loadPage: { folderId, offset in
+                    let page = try await APIClient.shared.coachCheckTemplatesPage(folderId: folderId, offset: offset)
+                    let rows = page.templates.map { t in
+                        FolderRowItem(id: t.id, title: t.title,
+                                     subtitle: "\(t.questionsCount) domande · \(t.stepsCount) step")
+                    }
+                    return (rows, page.hasMore)
+                }, destination: { id in AnyView(CoachCheckTemplateDetailView(templateId: id)) })
+                .toolbar { ToolbarItem(placement: .topBarLeading) {
+                    Button("Chiudi") { showingFolders = false }.tint(Palette.textMid)
+                } }
+                .confirmDialogHost(confirmCenter)
+            }
+        }
+    }
+
+    /// Flip animation: rotate to 90°, swap the face, rotate back — a cheap
+    /// stand-in for a true two-sided card that keeps the view tree simple.
+    private func flip() {
+        Haptics.tap()
+        withAnimation(.easeIn(duration: 0.2)) { flipAngle += 90 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showingCustom.toggle()
+            withAnimation(.easeOut(duration: 0.2)) { flipAngle += 90 }
+        }
+    }
+
+    @ViewBuilder private var presetFace: some View {
+        if presets.isEmpty {
+            Text("Nessun modello preset disponibile.")
+                .font(Typo.body(12)).foregroundStyle(Palette.textLow)
+        } else {
+            VStack(spacing: 8) { ForEach(presets) { t in row(t) } }
+        }
+    }
+
+    @ViewBuilder private var customFace: some View {
+        if customs.isEmpty {
+            Text("Nessun modello personalizzato. Creane uno nuovo.")
+                .font(Typo.body(12)).foregroundStyle(Palette.textLow)
+        } else {
+            VStack(spacing: 8) { ForEach(customs) { t in row(t) } }
         }
     }
 
@@ -212,6 +275,116 @@ struct CoachCheckTemplateDetailView: View {
         do { try await APIClient.shared.coachDeleteCheckTemplate(id: templateId)
             Haptics.success(); dismiss() }
         catch { flash.failure("Eliminazione non riuscita") }
+    }
+}
+
+// MARK: - Quick check picker (dashboard shortcuts: "Compila Check" / "Assegna Check")
+
+extension CoachCheckTemplateDetail: Identifiable {}
+
+enum CoachQuickCheckMode: Identifiable {
+    case fill, assign
+    var id: Self { self }
+    var title: String { self == .fill ? "Compila un check" : "Assegna un check" }
+    var accent: Color { self == .fill ? Palette.lime : Palette.cyan }
+}
+
+struct CoachQuickCheckPickerSheet: View {
+    let mode: CoachQuickCheckMode
+    @Environment(\.dismiss) private var dismiss
+    @State private var presets: [CoachCheckTemplate] = []
+    @State private var customs: [CoachCheckTemplate] = []
+    @State private var loading = true
+    @State private var loadingId: Int?
+    @State private var detail: CoachCheckTemplateDetail?
+    @StateObject private var flash = StatusFlash()
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    if loading {
+                        AvatarRowsSkeleton(accent: mode.accent)
+                    } else if presets.isEmpty && customs.isEmpty {
+                        EmptyPanel(icon: "doc.questionmark", text: "Nessun modello di check disponibile.")
+                    } else {
+                        if !customs.isEmpty {
+                            Text("PERSONALIZZATI").font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
+                            ForEach(customs) { row($0) }
+                        }
+                        if !presets.isEmpty {
+                            Text("PRESET").font(Typo.mono(9, .bold)).tracking(2).foregroundStyle(Palette.textLow)
+                                .padding(.top, customs.isEmpty ? 0 : 4)
+                            ForEach(presets) { row($0) }
+                        }
+                    }
+                }
+                .padding(16)
+            }
+            .background(Palette.void0.ignoresSafeArea())
+            .navigationTitle(mode.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarLeading) {
+                Button("Chiudi") { dismiss() }.tint(Palette.textMid)
+            } }
+            .task { await load() }
+            .statusOverlay(flash)
+        }
+        .sheet(item: $detail) { d in
+            if mode == .fill {
+                CoachCheckFormView(mode: .fill(templateId: d.id), title: d.title,
+                                   questions: d.questions, steps: d.steps) {
+                    Haptics.success(); dismiss()
+                }
+            } else {
+                CoachAssignCheckView(template: d) {
+                    Haptics.success(); dismiss()
+                }
+            }
+        }
+    }
+
+    private func row(_ t: CoachCheckTemplate) -> some View {
+        Button { pick(t) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: t.isPreset ? "square.stack.3d.up.fill" : "doc.text.fill")
+                    .font(.system(size: 15, weight: .bold)).foregroundStyle(mode.accent).frame(width: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(t.title).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
+                    Text("\(t.questionsCount) domande · \(t.stepsCount) step")
+                        .font(Typo.mono(10)).foregroundStyle(Palette.textLow)
+                }
+                Spacer()
+                if loadingId == t.id {
+                    SwiftUI.ProgressView().tint(mode.accent)
+                } else {
+                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Palette.textLow)
+                }
+            }
+            .padding(14).voltPanel()
+        }
+        .buttonStyle(PressableButtonStyle())
+        .disabled(loadingId != nil)
+    }
+
+    private func pick(_ t: CoachCheckTemplate) {
+        Haptics.tap()
+        loadingId = t.id
+        Task {
+            defer { loadingId = nil }
+            guard let d = try? await APIClient.shared.coachCheckTemplate(id: t.id) else {
+                flash.failure("Impossibile caricare il modello"); return
+            }
+            detail = d
+        }
+    }
+
+    private func load() async {
+        loading = true; defer { loading = false }
+        if let res = try? await APIClient.shared.coachCheckTemplates() {
+            presets = res.presets; customs = res.customs
+        }
     }
 }
 

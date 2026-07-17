@@ -63,6 +63,15 @@ class AutomaticMessageTests(TestCase):
         self._create_active_relationship()
         self.assertEqual(Message.objects.count(), 0)
 
+    def test_welcome_sent_with_default_body_when_enabled_and_empty(self):
+        # Enabling the event with no custom text must still send a generic
+        # default message, matching how PLAN_DELETED already behaves.
+        from domain.chat.services import DEFAULT_WELCOME_BODY
+        self._template('WELCOME', '', enabled=True)
+        self._create_active_relationship()
+        msg = Message.objects.get()
+        self.assertEqual(msg.body, DEFAULT_WELCOME_BODY.replace('{nome}', 'Luca'))
+
     # ---- goodbye ------------------------------------------------------------
 
     def test_goodbye_sent_on_transition_to_inactive(self):

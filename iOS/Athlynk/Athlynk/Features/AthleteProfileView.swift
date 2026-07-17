@@ -11,14 +11,17 @@ import PhotosUI
 
 struct AthleteProfileView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var profile: ClientProfileDTO?
     @State private var settings: SettingsDTO?
     @State private var loading = true
     @State private var editing = false
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
+    @State private var showBrandSettings = false
     @State private var deleting = false
     @State private var appear = false
+    @StateObject private var flash = StatusFlash()
 
     var body: some View {
         ZStack {
@@ -73,10 +76,39 @@ struct AthleteProfileView: View {
             }
         }
         .onChange(of: loading) { _, l in if !l { appear = true } }
+        .statusOverlay(flash)
         .task { await load() }
         .sheet(isPresented: $editing) {
             if let p = profile {
                 AthleteEditProfileView(profile: p) { updated in profile = updated }
+            }
+        }
+        .sheet(isPresented: $showBrandSettings) {
+            if let p = profile {
+                BrandSettingsView(brandName: p.brandName ?? "", brandPrimary: p.brandPrimary ?? "",
+                                   brandAccent: p.brandAccent ?? "", accent: Palette.amber) { name, primary, accentHex in
+                    let fields: [String: Any] = ["brand_name": name, "brand_primary": primary, "brand_accent": accentHex]
+                    profile = try await APIClient.shared.updateProfile(fields)
+                } onReset: {
+                    profile = try await APIClient.shared.updateProfile(["reset": true])
+                }
+            }
+        }
+    }
+
+    private func sendPasswordReset() {
+        guard let email = app.user?.email else { return }
+        Task {
+            guard await confirmCenter.confirm(.init(
+                title: "Reimposta password?",
+                subtitle: "Ti invieremo un'email a \(email) con il link per crearne una nuova.",
+                icon: "lock.rotation", variant: .neutral,
+                confirmLabel: "Invia link")) else { return }
+            do {
+                try await APIClient.shared.forgotPassword(email: email)
+                flash.success("Email inviata")
+            } catch {
+                flash.failure("Invio non riuscito")
             }
         }
     }
@@ -141,10 +173,20 @@ struct AthleteProfileView: View {
     }
 
     private var accountCard: some View {
-        AccountActions(
-            onLogout: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true } },
-            onDelete: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showDeleteConfirm = true } }
-        )
+        VStack(spacing: 12) {
+            NavListRow(icon: "paintpalette.fill", title: "Aspetto",
+                       subtitle: "Nome e colori del tuo profilo",
+                       accent: Palette.amber) { showBrandSettings = true }
+
+            NavListRow(icon: "lock.fill", title: "Sicurezza",
+                       subtitle: "Reimposta la password",
+                       accent: Palette.control) { sendPasswordReset() }
+
+            AccountActions(
+                onLogout: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showLogoutConfirm = true } },
+                onDelete: { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showDeleteConfirm = true } }
+            )
+        }
         .padding(.top, 8)
     }
 

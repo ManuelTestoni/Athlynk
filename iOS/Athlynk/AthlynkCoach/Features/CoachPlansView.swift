@@ -8,6 +8,7 @@ import SwiftUI
 
 struct CoachWorkoutsView: View {
     @Binding var path: NavigationPath
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var plans: [CoachPlanRow] = []
     @State private var assignments: [CoachAssignmentRow] = []
     @State private var hasMore = false
@@ -15,6 +16,7 @@ struct CoachWorkoutsView: View {
     @State private var loadingMore = false
     @State private var query = ""
     @State private var creating = false
+    @State private var showingFolders = false
     @State private var loadToken = UUID()
     @State private var appear = false
 
@@ -50,7 +52,7 @@ struct CoachWorkoutsView: View {
                         }
                     }
                     if !assignments.isEmpty {
-                        GreekDivider(color: Palette.cyan)
+                        SectionDivider(color: Palette.cyan)
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
                         ForEach(assignments) { a in assignmentCard(a, accent: Palette.cyan) }
                     }
@@ -59,9 +61,14 @@ struct CoachWorkoutsView: View {
             .onChange(of: loading) { _, l in if !l { appear = true } }
             .onAppear { if !plans.isEmpty { appear = true } }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) {
-                Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
-            } }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingFolders = true } label: { Image(systemName: "folder") }.tint(Palette.cyan)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.cyan)
+                }
+            }
             .navigationDestination(for: CoachPlanRoute.self) { route in
                 switch route {
                 case .workout(let id): CoachWorkoutDetailView(planId: id)
@@ -70,6 +77,22 @@ struct CoachWorkoutsView: View {
             }
             .sheet(isPresented: $creating, onDismiss: { plans = []; loadToken = UUID() }) {
                 CoachPlanCreateView(kind: .workout)
+            }
+            .sheet(isPresented: $showingFolders, onDismiss: { plans = []; loadToken = UUID() }) {
+                NavigationStack {
+                    CoachFolderListView(domain: .workout, loadPage: { folderId, offset in
+                        let res = try await APIClient.shared.coachWorkouts(offset: offset, folderId: folderId)
+                        let rows = res.plans.map { p in
+                            FolderRowItem(id: p.id, title: p.title,
+                                         subtitle: [p.goal, p.level].compactMap { $0 }.joined(separator: " · "))
+                        }
+                        return (rows, res.hasMore)
+                    }, destination: { id in AnyView(CoachWorkoutDetailView(planId: id)) })
+                    .toolbar { ToolbarItem(placement: .topBarLeading) {
+                        Button("Chiudi") { showingFolders = false }.tint(Palette.textMid)
+                    } }
+                    .confirmDialogHost(confirmCenter)
+                }
             }
             .task(id: loadToken) {
                 do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
@@ -115,6 +138,7 @@ struct CoachWorkoutsView: View {
 
 struct CoachNutritionView: View {
     @Binding var path: NavigationPath
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var plans: [CoachPlanRow] = []
     @State private var assignments: [CoachAssignmentRow] = []
     @State private var hasMore = false
@@ -122,6 +146,7 @@ struct CoachNutritionView: View {
     @State private var loadingMore = false
     @State private var query = ""
     @State private var creating = false
+    @State private var showingFolders = false
     @State private var loadToken = UUID()
     @State private var appear = false
 
@@ -157,7 +182,7 @@ struct CoachNutritionView: View {
                         }
                     }
                     if !assignments.isEmpty {
-                        GreekDivider(color: Palette.lime)
+                        SectionDivider(color: Palette.lime)
                         CoachSectionTitle(eyebrow: "In corso", title: "Assegnazioni", accent: Palette.bronze)
                         ForEach(assignments) { a in assignmentCard(a, accent: Palette.lime) }
                     }
@@ -166,9 +191,14 @@ struct CoachNutritionView: View {
             .onChange(of: loading) { _, l in if !l { appear = true } }
             .onAppear { if !plans.isEmpty { appear = true } }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) {
-                Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)
-            } }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingFolders = true } label: { Image(systemName: "folder") }.tint(Palette.lime)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { creating = true } label: { Image(systemName: "plus.circle.fill") }.tint(Palette.lime)
+                }
+            }
             .navigationDestination(for: CoachPlanRoute.self) { route in
                 switch route {
                 case .workout(let id): CoachWorkoutDetailView(planId: id)
@@ -177,6 +207,22 @@ struct CoachNutritionView: View {
             }
             .sheet(isPresented: $creating, onDismiss: { plans = []; loadToken = UUID() }) {
                 CoachPlanCreateView(kind: .nutrition)
+            }
+            .sheet(isPresented: $showingFolders, onDismiss: { plans = []; loadToken = UUID() }) {
+                NavigationStack {
+                    CoachFolderListView(domain: .nutrition, loadPage: { folderId, offset in
+                        let res = try await APIClient.shared.coachNutrition(offset: offset, folderId: folderId)
+                        let rows = res.plans.map { p in
+                            FolderRowItem(id: p.id, title: p.title,
+                                         subtitle: [p.planMode, p.planKind].compactMap { $0 }.joined(separator: " · "))
+                        }
+                        return (rows, res.hasMore)
+                    }, destination: { id in AnyView(CoachNutritionDetailView(planId: id)) })
+                    .toolbar { ToolbarItem(placement: .topBarLeading) {
+                        Button("Chiudi") { showingFolders = false }.tint(Palette.textMid)
+                    } }
+                    .confirmDialogHost(confirmCenter)
+                }
             }
             .task(id: loadToken) {
                 do { try await Task.sleep(for: .milliseconds(400)) } catch { return }

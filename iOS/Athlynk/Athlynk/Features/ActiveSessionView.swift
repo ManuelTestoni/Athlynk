@@ -256,7 +256,7 @@ struct ActiveSessionView: View {
     @State private var showFinishConfirm = false
     @State private var showAddPicker = false
     @State private var substituteTarget: SessionExerciseDTO?
-    @State private var removeTarget: SessionExerciseDTO?
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
         _vm = StateObject(wrappedValue: ActiveSessionVM(assignmentId: assignmentId, day: day))
@@ -323,18 +323,6 @@ struct ActiveSessionView: View {
                                   accent: Palette.control) { item in
                 vm.substitute(ex, with: item)
             }
-        }
-        .alert("Eliminare esercizio?", isPresented: Binding(
-            get: { removeTarget != nil },
-            set: { if !$0 { removeTarget = nil } }
-        )) {
-            Button("Elimina", role: .destructive) {
-                if let ex = removeTarget { vm.removeExercise(ex) }
-                removeTarget = nil
-            }
-            Button("Annulla", role: .cancel) { removeTarget = nil }
-        } message: {
-            Text("\(removeTarget?.name ?? "") verrà rimosso solo da questa sessione. La scheda assegnata dal coach non cambia.")
         }
         .alert("Sessione incompleta", isPresented: $showFinishConfirm) {
             Button("Termina comunque", role: .destructive) {
@@ -417,7 +405,14 @@ struct ActiveSessionView: View {
                             }
                         }
                         Button(role: .destructive) {
-                            removeTarget = ex
+                            Task {
+                                if await confirmCenter.confirm(.init(
+                                    title: "Eliminare esercizio?",
+                                    subtitle: "\(ex.name) verrà rimosso solo da questa sessione. La scheda assegnata dal coach non cambia.",
+                                    icon: "trash")) {
+                                    vm.removeExercise(ex)
+                                }
+                            }
                         } label: {
                             Label("Elimina da questa sessione", systemImage: "trash")
                         }

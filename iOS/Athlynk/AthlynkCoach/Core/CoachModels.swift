@@ -62,6 +62,9 @@ struct CoachProfileDTO: Codable, Hashable {
     let stripeConnectAccountId: String?
     let stripeConnectChargesEnabled: Bool
     let stripeConnectDetailsSubmitted: Bool
+    let brandName: String
+    let brandPrimary: String
+    let brandAccent: String
 
     var fullName: String { "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces) }
     var initials: String {
@@ -90,6 +93,9 @@ struct CoachProfileDTO: Codable, Hashable {
         case stripeConnectAccountId = "stripe_connect_account_id"
         case stripeConnectChargesEnabled = "stripe_connect_charges_enabled"
         case stripeConnectDetailsSubmitted = "stripe_connect_details_submitted"
+        case brandName = "brand_name"
+        case brandPrimary = "brand_primary"
+        case brandAccent = "brand_accent"
     }
 
     init(from decoder: Decoder) throws {
@@ -114,10 +120,24 @@ struct CoachProfileDTO: Codable, Hashable {
         stripeConnectAccountId = try c.decodeIfPresent(String.self, forKey: .stripeConnectAccountId)
         stripeConnectChargesEnabled = (try? c.decode(Bool.self, forKey: .stripeConnectChargesEnabled)) ?? false
         stripeConnectDetailsSubmitted = (try? c.decode(Bool.self, forKey: .stripeConnectDetailsSubmitted)) ?? false
+        brandName = try c.decodeIfPresent(String.self, forKey: .brandName) ?? ""
+        brandPrimary = try c.decodeIfPresent(String.self, forKey: .brandPrimary) ?? ""
+        brandAccent = try c.decodeIfPresent(String.self, forKey: .brandAccent) ?? ""
     }
 }
 
 struct CoachProfileResponse: Codable { let profile: CoachProfileDTO }
+
+struct CoachCalendarFeedDTO: Codable {
+    let feedUrl: String
+    let webcalUrl: String
+    let googleSubscribeUrl: String
+    enum CodingKeys: String, CodingKey {
+        case feedUrl = "feed_url"
+        case webcalUrl = "webcal_url"
+        case googleSubscribeUrl = "google_subscribe_url"
+    }
+}
 
 // MARK: - Stripe Connect onboarding
 
@@ -628,6 +648,9 @@ struct CoachPlanRow: Codable, Identifiable, Hashable {
     let planKind: String?
     let dailyKcal: Int?
     let assignedCount: Int
+    let folderId: Int?
+    let status: String?
+    let isTemplate: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, title, goal, level
@@ -637,7 +660,92 @@ struct CoachPlanRow: Codable, Identifiable, Hashable {
         case planKind = "plan_kind"
         case dailyKcal = "daily_kcal"
         case assignedCount = "assigned_count"
+        case folderId = "folder_id"
+        case status
+        case isTemplate = "is_template"
     }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        goal = try c.decodeIfPresent(String.self, forKey: .goal)
+        level = try c.decodeIfPresent(String.self, forKey: .level)
+        durationWeeks = try c.decodeIfPresent(Int.self, forKey: .durationWeeks)
+        frequencyPerWeek = try c.decodeIfPresent(Int.self, forKey: .frequencyPerWeek)
+        planMode = try c.decodeIfPresent(String.self, forKey: .planMode)
+        planKind = try c.decodeIfPresent(String.self, forKey: .planKind)
+        dailyKcal = try c.decodeIfPresent(Int.self, forKey: .dailyKcal)
+        assignedCount = try c.decode(Int.self, forKey: .assignedCount)
+        folderId = try c.decodeIfPresent(Int.self, forKey: .folderId)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        isTemplate = try c.decodeIfPresent(Bool.self, forKey: .isTemplate) ?? false
+    }
+}
+
+// MARK: - Folders (workout / nutrition / check — identical shape server-side)
+
+struct CoachFolder: Decodable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let labelText: String
+    let labelColor: String
+    let order: Int
+    let count: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, order
+        case labelText = "label_text"
+        case labelColor = "label_color"
+        case planCount = "plan_count"
+        case templateCount = "template_count"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        labelText = try c.decodeIfPresent(String.self, forKey: .labelText) ?? ""
+        labelColor = try c.decodeIfPresent(String.self, forKey: .labelColor) ?? ""
+        order = try c.decodeIfPresent(Int.self, forKey: .order) ?? 0
+        count = (try? c.decode(Int.self, forKey: .planCount))
+            ?? (try? c.decode(Int.self, forKey: .templateCount)) ?? 0
+    }
+
+    /// The auto-created "Template" folder every coach has by default — pinned
+    /// first, not renamable/deletable. Matched by title (server enforces one
+    /// unique folder per coach per title, so this is unambiguous).
+    var isDefaultTemplates: Bool { title == "Template" }
+}
+
+/// Lightweight row shape returned by the paginated check-templates-by-folder
+/// endpoint — distinct from `CoachCheckTemplate` (which backs the unpaginated
+/// presets+customs list and requires preset_key/questionnaire_type).
+struct CoachFolderedCheckTemplate: Codable, Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let description: String
+    let questionsCount: Int
+    let stepsCount: Int
+    let folderId: Int?
+    let isPreset: Bool
+    let isModifiedPreset: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description
+        case questionsCount = "questions_count"
+        case stepsCount = "steps_count"
+        case folderId = "folder_id"
+        case isPreset = "is_preset"
+        case isModifiedPreset = "is_modified_preset"
+    }
+}
+
+struct CoachCheckTemplatePage: Codable {
+    let templates: [CoachFolderedCheckTemplate]
+    let hasMore: Bool
+    let total: Int
+    enum CodingKeys: String, CodingKey { case templates, total; case hasMore = "has_more" }
 }
 
 struct CoachAssignmentRow: Codable, Identifiable, Hashable {

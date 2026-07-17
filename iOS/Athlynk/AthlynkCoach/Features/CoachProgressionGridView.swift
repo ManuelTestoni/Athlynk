@@ -2,8 +2,9 @@
 //  CoachProgressionGridView.swift
 //  Manual per-week progression editor — 1:1 with the web Step-3 grid.
 //  Loads the server-computed day grid (forward-filled overrides), lets the coach
-//  edit each week 2+ value (week 1 is the builder-defined base, read-only), and
-//  shows a live weekly-volume chart. Edits persist immediately via the shared
+//  edit every week including week 1 (the server writes week-1 edits straight onto
+//  the builder's base exercise fields, same as web), and shows a live weekly
+//  chart (tonnage / volume / intensity). Edits persist immediately via the shared
 //  `/progression/cell/` endpoint (the same one the web builder uses).
 //
 
@@ -21,6 +22,7 @@ struct CoachProgressionGridView: View {
     @State private var cells: [String: [String: [String: PGCell]]] = [:]
     @State private var loading = true
     @State private var editing: PGEditTarget?
+    @State private var chartMetric: ProgMetric = .tonnage
     @StateObject private var flash = StatusFlash()
 
     private var weeks: [Int] { Array(1...max(1, durationWeeks)) }
@@ -60,7 +62,7 @@ struct CoachProgressionGridView: View {
                 .font(.system(size: 22, weight: .bold)).foregroundStyle(accent)
             Text("Progressione su \(durationWeeks) settimane")
                 .font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-            Text("Settimana 1 è impostata nel builder. Da S2 modifica i valori: si propagano alle settimane successive finché non li cambi di nuovo.")
+            Text("Modifica i valori per ogni settimana: si propagano alle settimane successive finché non li cambi di nuovo.")
                 .font(Typo.body(12)).foregroundStyle(Palette.textMid)
                 .multilineTextAlignment(.center)
         }
@@ -86,15 +88,20 @@ struct CoachProgressionGridView: View {
     // MARK: Volume chart
 
     private var volumeChart: some View {
-        let points = weeks.map { w in (week: w, volume: weeklyVolume(w)) }
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("VOLUME SETTIMANALE (TONNELLAGGIO)")
+        let points = weeks.map { w in (week: w, value: weeklyMetricValue(chartMetric, w)) }
+        return VStack(alignment: .leading, spacing: 10) {
+            Picker("", selection: $chartMetric) {
+                ForEach(ProgMetric.allCases) { m in Text(m.label).tag(m) }
+            }
+            .pickerStyle(.segmented)
+
+            Text(chartMetric.chartTitle)
                 .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
             Chart(points, id: \.week) { p in
-                LineMark(x: .value("Sett.", p.week), y: .value("Volume", p.volume))
+                LineMark(x: .value("Sett.", p.week), y: .value(chartMetric.label, p.value))
                     .foregroundStyle(accent)
                     .interpolationMethod(.catmullRom)
-                PointMark(x: .value("Sett.", p.week), y: .value("Volume", p.volume))
+                PointMark(x: .value("Sett.", p.week), y: .value(chartMetric.label, p.value))
                     .foregroundStyle(accent)
             }
             .chartXAxis { AxisMarks(values: weeks) { v in
@@ -120,10 +127,8 @@ struct CoachProgressionGridView: View {
     }
 
     private func weekCell(_ ex: PGExercise, _ w: Int) -> some View {
-        let readOnly = w == 1
         let rir = rpeRirMetric(ex)
         return Button {
-            guard !readOnly else { return }
             Haptics.tap()
             editing = PGEditTarget(exerciseId: ex.id, exerciseName: ex.name, week: w,
                                    rpeRirMetric: rir,
@@ -135,7 +140,7 @@ struct CoachProgressionGridView: View {
                                    tut: cellString(ex.id, w, "tempo"))
         } label: {
             VStack(alignment: .leading, spacing: 3) {
-                Text("S\(w)").font(Typo.mono(9, .bold)).foregroundStyle(readOnly ? Palette.textLow : accent)
+                Text("S\(w)").font(Typo.mono(9, .bold)).foregroundStyle(accent)
                 metricLine("Serie", cellString(ex.id, w, "set_count"), ex.id, w, "set_count")
                 metricLine("Reps", cellString(ex.id, w, "rep_range"), ex.id, w, "rep_range")
                 metricLine("Car.", cellString(ex.id, w, "load_value"), ex.id, w, "load_value")
@@ -146,9 +151,9 @@ struct CoachProgressionGridView: View {
             .frame(width: 96, alignment: .leading)
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(readOnly ? Palette.void2.opacity(0.5) : Palette.void2))
+                .fill(Palette.void2))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(readOnly ? Palette.line.opacity(0.4) : accent.opacity(0.25), lineWidth: 1))
+                .stroke(accent.opacity(0.25), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -181,13 +186,28 @@ struct CoachProgressionGridView: View {
         return "rpe"
     }
 
-    private func weeklyVolume(_ w: Int) -> Double {
-        exercises.reduce(0.0) { acc, ex in
-            let sets = Double(cellString(ex.id, w, "set_count")) ?? 0
-            let reps = Double(firstNumber(cellString(ex.id, w, "rep_range"))) ?? 0
-            let load = Double(cellString(ex.id, w, "load_value")) ?? 0
-            let tonnage = sets * reps * max(load, 1)
-            return acc + tonnage
+    /// Client-side only — same shape as the web builder's tonnage/volume/intensity
+    /// switch, computed from the grid data already in memory (no extra network call).
+    private func weeklyMetricValue(_ metric: ProgMetric, _ w: Int) -> Double {
+        switch metric {
+        case .tonnage:
+            return exercises.reduce(0.0) { acc, ex in
+                let sets = Double(cellString(ex.id, w, "set_count")) ?? 0
+                let reps = Double(firstNumber(cellString(ex.id, w, "rep_range"))) ?? 0
+                let load = Double(cellString(ex.id, w, "load_value")) ?? 0
+                return acc + sets * reps * max(load, 1)
+            }
+        case .volume:
+            return exercises.reduce(0.0) { acc, ex in
+                let sets = Double(cellString(ex.id, w, "set_count")) ?? 0
+                let reps = Double(firstNumber(cellString(ex.id, w, "rep_range"))) ?? 0
+                return acc + sets * reps
+            }
+        case .intensity:
+            // Reads each exercise's own effective value, RIR or RPE, whichever it uses.
+            let values = exercises.compactMap { ex in Double(cellString(ex.id, w, rpeRirMetric(ex))) }
+            guard !values.isEmpty else { return 0 }
+            return values.reduce(0, +) / Double(values.count)
         }
     }
     private func firstNumber(_ s: String) -> String {
@@ -249,6 +269,25 @@ struct CoachProgressionGridView: View {
 }
 
 // MARK: - Models
+
+enum ProgMetric: String, CaseIterable, Identifiable {
+    case tonnage, volume, intensity
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .tonnage: return "Tonnellaggio"
+        case .volume: return "Volume"
+        case .intensity: return "Intensità"
+        }
+    }
+    var chartTitle: String {
+        switch self {
+        case .tonnage: return "VOLUME SETTIMANALE (TONNELLAGGIO)"
+        case .volume: return "VOLUME SETTIMANALE (SERIE × REPS)"
+        case .intensity: return "INTENSITÀ MEDIA (RPE/RIR)"
+        }
+    }
+}
 
 struct PGExercise: Identifiable {
     let id: Int

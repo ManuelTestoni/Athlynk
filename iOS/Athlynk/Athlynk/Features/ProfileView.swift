@@ -16,7 +16,7 @@ struct AthleteMoreView: View {
 
     private enum Route: Hashable {
         case andamento, percorso, messaggi, agenda, abbonamento
-        case notifiche, profiloImpostazioni, anamnesi, aiuto
+        case notifiche, profiloImpostazioni, aiuto
     }
 
     private struct Item: Identifiable {
@@ -41,8 +41,6 @@ struct AthleteMoreView: View {
               subtitle: "Il tuo piano", accent: Palette.magenta),
         .init(route: .notifiche, icon: "bell.fill", title: "Notifiche",
               subtitle: "Centro notifiche", accent: Palette.amber),
-        .init(route: .anamnesi, icon: "doc.text.magnifyingglass", title: "Prima Valutazione",
-              subtitle: "Anamnesi e fabbisogni", accent: Palette.lime),
         .init(route: .profiloImpostazioni, icon: "person.crop.square.fill", title: "Profilo & Impostazioni",
               subtitle: "I tuoi dati e preferenze", accent: Palette.amber),
         .init(route: .aiuto, icon: "questionmark.circle.fill", title: "Aiuto",
@@ -73,7 +71,6 @@ struct AthleteMoreView: View {
                 case .abbonamento:          SubscriptionView()
                 case .notifiche:            NotificheView()
                 case .profiloImpostazioni:  AthleteProfileView()
-                case .anamnesi:             AnamnesisView()
                 case .aiuto:                HelpView()
                 }
             }

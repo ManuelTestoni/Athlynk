@@ -190,3 +190,44 @@ class CoachPlatformAccessTests(TestCase):
         self._login(coach.user)
         resp = self.client.get('/')
         self.assertEqual(resp.status_code, 200)
+
+
+class ChironImportGatingTests(TestCase):
+    """AI import (workout/diet, Excel/PDF) requires the has_chiron add-on,
+    same as the Chiron chat endpoints — see [[reference_middleware_multipart_gate]]."""
+
+    IMPORT_URLS = [
+        '/api/allenamenti/import/excel/', '/api/allenamenti/import/pdf/',
+        '/api/nutrizione/import/excel/', '/api/nutrizione/import/pdf/',
+    ]
+
+    def _login(self, user):
+        s = self.client.session
+        s['user_id'] = user.id
+        s['user_role'] = user.role
+        s.save()
+
+    def test_import_blocked_without_chiron(self):
+        coach = make_coach('noaddon@e.com', 'COACH')
+        purchase = make_purchase('noaddon@e.com', code='ATHLYNK-IMP1-0001',
+                                  current_period_end=timezone.now() + timedelta(days=10), has_chiron=False)
+        coach.platform_purchase = purchase
+        coach.save(update_fields=['platform_purchase'])
+        self._login(coach.user)
+        for url in self.IMPORT_URLS:
+            resp = self.client.post(url, data={})
+            self.assertEqual(resp.status_code, 403, url)
+            self.assertEqual(resp.json()['error'], 'Il tuo piano non include Chiron.', url)
+
+    def test_import_allowed_with_chiron(self):
+        coach = make_coach('addon@e.com', 'COACH')
+        purchase = make_purchase('addon@e.com', code='ATHLYNK-IMP2-0001',
+                                  current_period_end=timezone.now() + timedelta(days=10), has_chiron=True)
+        coach.platform_purchase = purchase
+        coach.save(update_fields=['platform_purchase'])
+        self._login(coach.user)
+        for url in self.IMPORT_URLS:
+            # No file attached: the chiron gate must be passed, next failure is
+            # the view's own "missing file" validation, never the 403 above.
+            resp = self.client.post(url, data={})
+            self.assertEqual(resp.status_code, 422, url)

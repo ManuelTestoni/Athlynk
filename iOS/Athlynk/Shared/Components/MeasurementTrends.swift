@@ -30,27 +30,53 @@ struct MeasurementTrends: View {
 
     @State private var selectedCirc: String?
     @State private var selectedSkin: String?
+    @State private var page = 0
 
     private var chrono: [MeasurementSample] { samples.sorted { $0.date < $1.date } }
 
+    /// One page per chart type, present only when there's a site to show —
+    /// swiped through like cards instead of stacked vertically.
+    private var pages: [AnyView] {
+        var arr: [AnyView] = [AnyView(weightBlock)]
+        if !circKeys.isEmpty {
+            arr.append(AnyView(siteBlock(title: "Circonferenze", icon: "ruler.fill", unit: "cm",
+                      keys: circKeys, selection: $selectedCirc, color: Palette.lime,
+                      series: { circSeries($0) }, label: circLabel)))
+        }
+        if !skinKeys.isEmpty {
+            arr.append(AnyView(siteBlock(title: "Pliche", icon: "drop.fill", unit: "mm",
+                      keys: skinKeys, selection: $selectedSkin, color: Palette.violet,
+                      series: { skinSeries($0) }, label: skinLabel)))
+        }
+        return arr
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            weightBlock
-            if !circKeys.isEmpty {
-                siteBlock(title: "Circonferenze", icon: "ruler.fill", unit: "cm",
-                          keys: circKeys, selection: $selectedCirc, color: Palette.lime,
-                          series: { circSeries($0) }, label: circLabel)
+        VStack(alignment: .leading, spacing: 10) {
+            TabView(selection: $page) {
+                ForEach(Array(pages.enumerated()), id: \.offset) { i, p in
+                    p.frame(maxWidth: .infinity, alignment: .top).tag(i)
+                }
             }
-            if !skinKeys.isEmpty {
-                siteBlock(title: "Pliche", icon: "drop.fill", unit: "mm",
-                          keys: skinKeys, selection: $selectedSkin, color: Palette.violet,
-                          series: { skinSeries($0) }, label: skinLabel)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 360)
+            if pages.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(pages.indices, id: \.self) { i in
+                        Capsule()
+                            .fill(i == page ? accent : Palette.line)
+                            .frame(width: i == page ? 18 : 6, height: 6)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: page)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .onAppear {
             if selectedCirc == nil { selectedCirc = circKeys.first }
             if selectedSkin == nil { selectedSkin = skinKeys.first }
         }
+        .onChange(of: pages.count) { _, n in if page >= n { page = max(0, n - 1) } }
     }
 
     // MARK: Bodyweight (weekly means)

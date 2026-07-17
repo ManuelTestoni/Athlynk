@@ -62,7 +62,16 @@ final class DashboardVM: ObservableObject {
 
     /// First session of the active plan, shown as "today's" workout.
     var todayDay: WorkoutDayDTO? { workouts.first?.days.first }
-    var nextMeal: MealDTO? { nutrition.first?.days.first?.meals.first }
+    /// The active FOOD plan's meals for TODAY (MACRO plans have no meal list —
+    /// their "next meal" concept doesn't apply, the diary card covers those).
+    private var foodPlan: NutritionPlanDTO? { nutrition.first { $0.planMode != "MACRO" } }
+    var nextMealPlan: NutritionPlanDTO? { foodPlan }
+    var todaysMeals: [MealDTO] {
+        guard let plan = foodPlan else { return [] }
+        let todayCode = DietWeekday.todayCode()
+        return (plan.days.first { $0.dayOfWeek == todayCode } ?? plan.days.first)?.meals ?? []
+    }
+    var nextMeal: MealDTO? { todaysMeals.first }
     var lastConversation: ConversationDTO? { conversations.first }
 }
 
@@ -81,6 +90,8 @@ struct DashboardView: View {
     @State private var appear = false
     @State private var loadToken = UUID()
     @State private var sheetRoute: AthleteQuickRoute?
+    @State private var mealFlipped = false
+    @State private var mealSquashed = false
 
     var body: some View {
         ScreenScroll {
@@ -110,10 +121,10 @@ struct DashboardView: View {
                 Text("OGGI").voltEyebrow().padding(.top, 6).revealUp(appear, index: 3)
                 todayCard.revealUp(appear, index: 4)
 
-                // Next meal
-                if vm.nextMeal != nil {
+                // Next meal (flippable: front = today's next meal, back = plan overview)
+                if let plan = vm.nextMealPlan {
                     Text("PROSSIMO PASTO").voltEyebrow().padding(.top, 2).revealUp(appear, index: 5)
-                    mealCard.revealUp(appear, index: 6)
+                    mealCard(plan).revealUp(appear, index: 6)
                 }
 
                 // Coach message
@@ -248,12 +259,46 @@ struct DashboardView: View {
         .buttonStyle(PressableButtonStyle())
     }
 
-    private var mealCard: some View {
-        Button {
+    private func mealCard(_ plan: NutritionPlanDTO) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Text(mealFlipped ? "PIANO — OVERVIEW" : "PROSSIMO PASTO")
+                    .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                Spacer()
+                Button {
+                    Haptics.soft()
+                    withAnimation(.easeIn(duration: 0.16)) { mealSquashed = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                        mealFlipped.toggle()
+                        withAnimation(.easeOut(duration: 0.22)) { mealSquashed = false }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: mealFlipped ? "fork.knife" : "chart.pie.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(mealFlipped ? "Pasto" : "Piano").font(Typo.mono(10, .bold))
+                    }
+                    .foregroundStyle(Palette.lime)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Group {
+                if mealFlipped { planOverviewFace(plan) } else { nextMealFace }
+            }
+            .scaleEffect(x: mealSquashed ? 0.0 : 1.0, anchor: .center)
+        }
+        .padding(18).voltPanel(Palette.lime.opacity(0.4))
+        .contentShape(Rectangle())
+        .onTapGesture {
             Haptics.tap()
             withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .fuel }
-        } label: {
-            let meal = vm.nextMeal!
+        }
+    }
+
+    @ViewBuilder
+    private var nextMealFace: some View {
+        if let meal = vm.nextMeal {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
@@ -274,9 +319,25 @@ struct DashboardView: View {
                     macroChip("FAT", grams: meal.items.reduce(0) { $0 + $1.fat }, Palette.amber)
                 }
             }
-            .padding(18).voltPanel(Palette.lime.opacity(0.4))
+        } else {
+            Text("Nessun pasto previsto per oggi.").font(Typo.body(14)).foregroundStyle(Palette.textMid)
         }
-        .buttonStyle(PressableButtonStyle())
+    }
+
+    private func planOverviewFace(_ plan: NutritionPlanDTO) -> some View {
+        let t = plan.overviewTargets
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(plan.title).font(Typo.display(18)).foregroundStyle(Palette.textHi)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(t.kcal)").font(Typo.poster(26)).foregroundStyle(Palette.lime)
+                Text("kcal/giorno").font(Typo.mono(11, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
+            }
+            HStack(spacing: 10) {
+                macroChip("PRO", grams: Double(t.protein ?? 0), Palette.magenta)
+                macroChip("CARB", grams: Double(t.carb ?? 0), Palette.cyan)
+                macroChip("FAT", grams: Double(t.fat ?? 0), Palette.amber)
+            }
+        }
     }
 
     private func coachCard(_ conv: ConversationDTO, message: String) -> some View {

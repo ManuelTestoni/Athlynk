@@ -29,9 +29,10 @@ struct ScreenScroll<Content: View>: View {
             }
             .padding(.horizontal, 22)
             .padding(.top, 64)
-            // Tab-bar clearance now comes from the shell's bottom safeAreaInset,
-            // so this only needs a small trailing margin (avoids double padding).
-            .padding(.bottom, 24)
+            // Root tab screens sit directly in the shell's ZStack, not behind a
+            // NavigationStack push — the shell's bottom safeAreaInset doesn't
+            // reliably reach this deep, so reserve the clearance explicitly.
+            .padding(.bottom, AppLayout.tabBarClearance)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

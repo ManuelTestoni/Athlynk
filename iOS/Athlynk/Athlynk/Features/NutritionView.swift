@@ -95,7 +95,7 @@ struct NutritionView: View {
     }
 
     private func planCard(_ plan: NutritionPlanDTO, active: Bool) -> some View {
-        let kcal = plan.dailyKcal ?? dayTotalsKcal(plan)
+        let t = plan.overviewTargets
         return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -110,19 +110,19 @@ struct NutritionView: View {
                 Text("TARGET GIORNALIERO")
                     .font(Typo.mono(9, .bold)).tracking(1).foregroundStyle(Palette.textLow)
                 Spacer()
-                Text("\(kcal)").font(Typo.poster(28)).foregroundStyle(Palette.lime)
+                Text("\(t.kcal)").font(Typo.poster(28)).foregroundStyle(Palette.lime)
                 Text("kcal").font(Typo.mono(11, .bold)).foregroundStyle(Palette.lime.opacity(0.7))
             }
 
-            if let split = macroSplit(plan) {
+            if let split = macroSplit(t.protein, t.carb, t.fat) {
                 Text("MACROS  \(split)")
                     .font(Typo.mono(10, .bold)).tracking(2).foregroundStyle(Palette.textMid)
             }
 
             HStack(spacing: 10) {
-                macroCol("PRO", plan.proteinTargetG, Palette.magenta)
-                macroCol("CARB", plan.carbTargetG, Palette.cyan)
-                macroCol("FAT", plan.fatTargetG, Palette.amber)
+                macroCol("PRO", t.protein, Palette.magenta)
+                macroCol("CARB", t.carb, Palette.cyan)
+                macroCol("FAT", t.fat, Palette.amber)
             }
         }
         .padding(18)
@@ -140,8 +140,8 @@ struct NutritionView: View {
     }
 
     /// kcal-based macro split, e.g. "40/40/20" (P/C/F).
-    private func macroSplit(_ plan: NutritionPlanDTO) -> String? {
-        guard let p = plan.proteinTargetG, let c = plan.carbTargetG, let f = plan.fatTargetG else { return nil }
+    private func macroSplit(_ p: Int?, _ c: Int?, _ f: Int?) -> String? {
+        guard let p, let c, let f else { return nil }
         let pk = Double(p * 4), ck = Double(c * 4), fk = Double(f * 9)
         let total = pk + ck + fk
         guard total > 0 else { return nil }
@@ -397,10 +397,6 @@ struct NutritionView: View {
         }
         .padding(16)
         .voltPanel(accent.opacity(0.35))
-    }
-
-    private func dayTotalsKcal(_ plan: NutritionPlanDTO) -> Int {
-        Int((plan.days.first?.meals.reduce(0) { $0 + $1.kcal }) ?? 0)
     }
 
     private var initials: String {

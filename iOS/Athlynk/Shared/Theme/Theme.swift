@@ -11,6 +11,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum Palette {
     // Surfaces (light, layered) — names kept for source compatibility.
@@ -172,5 +173,21 @@ extension Color {
             blue:  Double(hex & 0xFF) / 255,
             opacity: alpha
         )
+    }
+
+    /// "#RRGGBB" -> Color, or nil if malformed. Mirrors the web brand-color
+    /// hex format (session_utils._HEX_RE).
+    init?(hexString: String) {
+        guard hexString.hasPrefix("#"), hexString.count == 7,
+              let value = UInt32(hexString.dropFirst(), radix: 16) else { return nil }
+        self.init(hex: value)
+    }
+
+    /// Color -> "#RRGGBB" for round-tripping through the brand-color API.
+    var hexString: String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }

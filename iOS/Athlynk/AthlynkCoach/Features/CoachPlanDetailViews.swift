@@ -18,10 +18,10 @@ enum CoachPlanRoute: Hashable {
 struct CoachWorkoutDetailView: View {
     let planId: Int
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var plan: CoachWorkoutDetailDTO?
     @State private var loading = true
     @State private var editing = false
-    @State private var confirmDelete = false
     @State private var deleting = false
     @StateObject private var flash = StatusFlash()
 
@@ -51,7 +51,16 @@ struct CoachWorkoutDetailView: View {
             Menu {
                 Button { editing = true } label: { Label("Modifica", systemImage: "pencil") }
                 Button { Task { await duplicatePlan() } } label: { Label("Duplica", systemImage: "doc.on.doc") }
-                Button(role: .destructive) { confirmDelete = true } label: {
+                Button(role: .destructive) {
+                    Task {
+                        if await confirmCenter.confirm(.init(
+                            title: "Eliminare questa scheda?",
+                            subtitle: "Verrà rimossa anche dagli atleti a cui è assegnata.",
+                            icon: "trash")) {
+                            await deletePlan()
+                        }
+                    }
+                } label: {
                     Label("Elimina", systemImage: "trash")
                 }
             } label: {
@@ -61,12 +70,6 @@ struct CoachWorkoutDetailView: View {
         } }
         .sheet(isPresented: $editing, onDismiss: { Task { await load() } }) {
             CoachWorkoutWizardView(planId: planId)
-        }
-        .confirmationDialog("Eliminare questa scheda?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Elimina scheda", role: .destructive) { Task { await deletePlan() } }
-            Button("Annulla", role: .cancel) {}
-        } message: {
-            Text("Verrà rimossa anche dagli atleti a cui è assegnata.")
         }
         .task { await load() }
         .statusOverlay(flash)
@@ -134,10 +137,10 @@ struct CoachWorkoutDetailView: View {
 struct CoachNutritionDetailView: View {
     let planId: Int
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var plan: CoachNutritionDetailDTO?
     @State private var loading = true
     @State private var editing = false
-    @State private var confirmDelete = false
     @State private var deleting = false
     @StateObject private var flash = StatusFlash()
 
@@ -176,7 +179,16 @@ struct CoachNutritionDetailView: View {
             Menu {
                 Button { editing = true } label: { Label("Modifica", systemImage: "pencil") }
                 Button { Task { await duplicatePlan() } } label: { Label("Duplica", systemImage: "doc.on.doc") }
-                Button(role: .destructive) { confirmDelete = true } label: {
+                Button(role: .destructive) {
+                    Task {
+                        if await confirmCenter.confirm(.init(
+                            title: "Eliminare questo piano?",
+                            subtitle: "Verrà rimosso anche dagli atleti a cui è assegnato.",
+                            icon: "trash")) {
+                            await deletePlan()
+                        }
+                    }
+                } label: {
                     Label("Elimina", systemImage: "trash")
                 }
             } label: {
@@ -186,12 +198,6 @@ struct CoachNutritionDetailView: View {
         } }
         .sheet(isPresented: $editing, onDismiss: { Task { await load() } }) {
             CoachNutritionWizardView(planId: planId)
-        }
-        .confirmationDialog("Eliminare questo piano?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Elimina piano", role: .destructive) { Task { await deletePlan() } }
-            Button("Annulla", role: .cancel) {}
-        } message: {
-            Text("Verrà rimosso anche dagli atleti a cui è assegnato.")
         }
         .task { await load() }
         .statusOverlay(flash)

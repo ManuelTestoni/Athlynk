@@ -93,6 +93,7 @@ struct CoachThreadView: View {
     @State private var draft = ""
     @State private var confirmTarget: MessageDTO?
     @State private var rejectTarget: MessageDTO?
+    @State private var showRequestSheet = false
     @FocusState private var composerFocused: Bool
     @StateObject private var flash = StatusFlash()
 
@@ -134,6 +135,18 @@ struct CoachThreadView: View {
         .onAppear { app.tabBarHidden = true; app.chironHidden = true }
         .onDisappear { pollTask?.cancel(); app.tabBarHidden = false; app.chironHidden = false }
         .statusOverlay(flash)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showRequestSheet = true } label: {
+                    Image(systemName: "calendar.badge.plus").foregroundStyle(Palette.bronze)
+                }
+            }
+        }
+        .sheet(isPresented: $showRequestSheet) {
+            CoachAppointmentRequestSheet(conversationId: conversation.id) { msg in
+                messages.append(msg)
+            }
+        }
         .sheet(item: $confirmTarget) { target in
             CoachAppointmentConfirmSheet(conversationId: conversation.id, appointmentId: target.appointmentId ?? 0,
                                           title: target.appointmentTitle ?? "Appuntamento",
@@ -294,6 +307,64 @@ private func formatCoachAppointmentWhen(_ iso: String?) -> String {
     f.locale = Locale(identifier: "it_IT")
     f.dateFormat = "EEEE d MMMM · HH:mm"
     return f.string(from: d)
+}
+
+/// "Fissa appuntamento" — coach proposes a day + time range to the athlete from chat.
+struct CoachAppointmentRequestSheet: View {
+    let conversationId: Int
+    let onSent: (MessageDTO) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var date = Date()
+    @State private var timeFrom = Date()
+    @State private var timeTo = Date().addingTimeInterval(3600)
+    @State private var notes = ""
+    @State private var error = ""
+    @State private var sending = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Titolo") {
+                    TextField("Es. Check-in mensile", text: $title)
+                }
+                Section("Data e orario") {
+                    DatePicker("Giorno", selection: $date, displayedComponents: .date)
+                    DatePicker("Dalle", selection: $timeFrom, displayedComponents: .hourAndMinute)
+                    DatePicker("Alle", selection: $timeTo, displayedComponents: .hourAndMinute)
+                }
+                Section("Note (opzionale)") {
+                    TextField("", text: $notes, axis: .vertical)
+                }
+                if !error.isEmpty {
+                    Text(error).font(Typo.body(13)).foregroundStyle(Palette.danger)
+                }
+            }
+            .navigationTitle("Fissa appuntamento")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Invia") { Task { await submit() } }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || sending)
+                }
+            }
+        }
+    }
+
+    private func submit() async {
+        sending = true
+        do {
+            let msg = try await APIClient.shared.coachRequestAppointment(
+                conversation: conversationId, title: title,
+                preferredDate: coachDayFmt.string(from: date),
+                timeFrom: coachClockFmt.string(from: timeFrom), timeTo: coachClockFmt.string(from: timeTo),
+                notes: notes.isEmpty ? nil : notes)
+            onSent(msg)
+            dismiss()
+        } catch { self.error = "Errore, riprova" }
+        sending = false
+    }
 }
 
 /// Accepts the slot the athlete already proposed, as-is — no date/time re-entry.

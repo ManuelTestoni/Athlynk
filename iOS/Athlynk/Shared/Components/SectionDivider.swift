@@ -1,52 +1,27 @@
 //
-//  GreekOrnament.swift
-//  Brand identity motifs from the website: the meander (greca) used as a
-//  section divider, and a small laurel-adjacent seal mark. Ink on parchment,
-//  always subtle — ornament, never decoration noise.
+//  SectionDivider.swift
+//  A quiet hairline used between page sections — fades to transparent at
+//  both ends instead of running edge to edge, so it reads as a pause rather
+//  than a hard rule.
 //
 
 import SwiftUI
 
-/// Meander (greek key) divider. Use between page sections in place of a
-/// plain hairline when the section deserves ceremony.
-struct GreekDivider: View {
+/// Soft-fade hairline divider. Use between page sections.
+struct SectionDivider: View {
     var color: Color = Palette.bronze
     var height: CGFloat = 10
     var opacity: Double = 0.55
 
     var body: some View {
-        HStack(spacing: 12) {
-            Rectangle().fill(color.opacity(0.35)).frame(height: 1)
-            Meander(unit: height)
-                .stroke(color, lineWidth: 1.1)
-                .frame(width: height * 6, height: height)
-            Rectangle().fill(color.opacity(0.35)).frame(height: 1)
-        }
+        LinearGradient(
+            colors: [.clear, color.opacity(0.4), .clear],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(height: 1)
         .opacity(opacity)
         .accessibilityHidden(true)
-    }
-}
-
-/// One run of greek-key units, drawn as a continuous stroke.
-private struct Meander: Shape {
-    var unit: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let h = rect.height / 2
-        var x: CGFloat = 0
-        var y: CGFloat = rect.maxY
-        p.move(to: CGPoint(x: x, y: y))
-        // Classic key: up, across, half-down, half-back, down, across — repeat.
-        while x + 3 * h <= rect.width + 0.5 {
-            y = rect.minY;     p.addLine(to: CGPoint(x: x, y: y))
-            x += 2 * h;        p.addLine(to: CGPoint(x: x, y: y))
-            y = rect.minY + h; p.addLine(to: CGPoint(x: x, y: y))
-            x -= h;            p.addLine(to: CGPoint(x: x, y: y))
-            y = rect.maxY;     p.addLine(to: CGPoint(x: x, y: y))
-            x += 2 * h;        p.addLine(to: CGPoint(x: x, y: y))
-        }
-        return p
     }
 }
 

@@ -10,11 +10,14 @@ import SwiftUI
 struct AthlynkApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var app = AppState()
+    @StateObject private var confirmCenter = ConfirmCenter()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(app)
+                .environmentObject(confirmCenter)
+                .confirmDialogHost(confirmCenter)
                 .preferredColorScheme(.light)
                 .statusBarHidden(false)
         }

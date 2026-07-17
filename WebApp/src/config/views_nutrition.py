@@ -13,7 +13,7 @@ from django.core.cache import cache
 
 from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
-    get_nutrition_coach,
+    get_nutrition_coach, coach_has_chiron_access,
 )
 from config.services import import_quota
 from config.http_utils import safe_int, duration_timedelta
@@ -31,6 +31,16 @@ logger = logging.getLogger(__name__)
 
 
 NUTRITION_HISTORY_PAGE_SIZE = 5
+
+TEMPLATES_FOLDER_TITLE = 'Template'
+
+
+def _get_or_create_templates_folder(coach):
+    """The coach's default 'Template' folder — auto-created lazily, one per coach."""
+    folder, _ = NutritionFolder.objects.get_or_create(
+        coach=coach, title=TEMPLATES_FOLDER_TITLE,
+    )
+    return folder
 
 
 def _bulk_plan_macros(plan_ids):
@@ -1259,6 +1269,18 @@ def api_food_search(request):
     PAGE = 30
 
     food_search_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
+
+    # Global, read-mostly catalog hit on every keystroke/meal-log — cache the
+    # serialized result, except "recent" (per-user log history, must stay live).
+    _cache_key = None
+    if flt != 'recent':
+        _cache_key = 'food_search:' + ':'.join([
+            q, category, food_search_mode, str(offset), str(bool(request.GET.get('include_cats'))),
+        ])
+        _cached = cache.get(_cache_key)
+        if _cached is not None:
+            return JsonResponse(_cached)
+
     foods = Food.objects.all()
     if food_search_mode == 'media':
         foods = foods.filter(nome_alimento__icontains='media')
@@ -1367,6 +1389,8 @@ def api_food_search(request):
                            .exclude(categoria_alimento='')
                            .values_list('categoria_alimento', flat=True).distinct()
         )
+    if _cache_key is not None:
+        cache.set(_cache_key, payload, 60)
     return JsonResponse(payload)
 
 
@@ -1941,8 +1965,17 @@ def _handle_plan_save(request, coach, plan):
 
     meals_raw = data.get('meals', [])
 
+    # Becoming a template (False→True in this request) always routes the plan
+    # into the coach's default "Template" folder, overriding any folder_id
+    # sent alongside — mirrors the workout wizard's finalize(action='template').
+    was_template = bool(plan.is_template) if plan is not None else False
+    is_template_flag = bool(data.get('is_template', False))
+    becoming_template = is_template_flag and not was_template
+
     folder_obj = None
-    if 'folder_id' in data:
+    if becoming_template:
+        folder_obj = _get_or_create_templates_folder(coach)
+    elif 'folder_id' in data:
         fid = data.get('folder_id')
         if fid not in (None, '', 0):
             try:
@@ -2048,7 +2081,7 @@ def _handle_plan_save(request, coach, plan):
             plan.is_template = data.get('is_template', False)
             if 'include_substitutions_in_avg' in data:
                 plan.include_substitutions_in_avg = bool(data.get('include_substitutions_in_avg'))
-            if 'folder_id' in data:
+            if becoming_template or 'folder_id' in data:
                 plan.folder = folder_obj
             plan.save()
             plan.meals.all().delete()
@@ -2470,6 +2503,9 @@ def api_diet_import_excel(request):
     coach = get_session_coach(request)
     if not coach or not can_manage_nutrition(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    if not coach_has_chiron_access(coach):
+        from .views_chiron import CHIRON_ADDON_MESSAGE
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     uploaded = request.FILES.get('file')
     if not uploaded:
@@ -2795,6 +2831,9 @@ def api_diet_import_pdf(request):
     coach = get_session_coach(request)
     if not coach or not can_manage_nutrition(coach):
         return JsonResponse({'error': 'Non autorizzato'}, status=403)
+    if not coach_has_chiron_access(coach):
+        from .views_chiron import CHIRON_ADDON_MESSAGE
+        return JsonResponse({'error': CHIRON_ADDON_MESSAGE}, status=403)
 
     uploaded = request.FILES.get('file')
     if not uploaded:

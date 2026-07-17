@@ -77,7 +77,7 @@ struct ProgressTrackerView: View {
                             }
                         }
                         if !loading, !exerciseHistory.isEmpty {
-                            GreekDivider(color: Palette.control).padding(.top, 8)
+                            SectionDivider(color: Palette.control).padding(.top, 8)
                             exercisesSection.revealUp(appear, index: 4)
                         }
                     }

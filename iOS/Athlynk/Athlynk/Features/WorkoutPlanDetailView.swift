@@ -20,7 +20,7 @@ struct WorkoutPlanDetailView: View {
                     if let pct = plan.progressFraction { progressBar(pct).revealUp(appear, index: 1) }
                     metrics.revealUp(appear, index: 2)
                     if let desc = plan.description, !desc.isEmpty { descriptionCard(desc).revealUp(appear, index: 3) }
-                    GreekDivider().revealUp(appear, index: 4)
+                    SectionDivider().revealUp(appear, index: 4)
                     Text("GIORNI").voltEyebrow().revealUp(appear, index: 4)
                     ForEach(Array(plan.days.enumerated()), id: \.element.id) { i, day in
                         NavigationLink(value: WorkoutDaySelection(day: day, assignmentId: plan.assignmentId)) {

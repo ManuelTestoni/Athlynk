@@ -24,7 +24,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from domain.accounts.models import ClientProfile, CoachProfile
 from domain.billing.models import ClientSubscription, SubscriptionPlan
 from domain.calendar.models import Appointment
-from domain.calendar.services import respond_to_appointment
+from domain.calendar.services import respond_to_appointment, create_appointment_request
 from domain.chat.models import AutomaticMessageTemplate, Conversation, Message, Notification
 from domain.checks.models import QuestionnaireResponse, QuestionnaireTemplate
 from domain.coaching.models import CoachingRelationship
@@ -44,13 +44,16 @@ from .api import (
     _bearer, _user_from_token, _day_dict, macro_history_payload,
 )
 from .http_utils import safe_int
-from .session_utils import can_manage_nutrition, can_manage_workouts, coach_has_chiron_access
+from .session_utils import (
+    can_manage_nutrition, can_manage_workouts, coach_has_chiron_access,
+    apply_brand_update, brand_dict,
+)
 from .views_check import (
     create_quick_measurement, QuickMeasurementError,
     build_measurements, RESERVED_FIELD_MAP,
 )
 from .views_check.helpers import _response_config, _build_prefill
-from .views_check.templates_admin import _ensure_preset_clones, PRESET_ORDER
+from .views_check.templates_admin import _ensure_preset_clones, PRESET_ORDER, _templates_page_data
 from .views_check.assignments import _create_instance
 from .views_client import (
     _create_client_subscription, _rel_type_for,
@@ -151,6 +154,7 @@ def _coach_profile_dict(request, coach):
         'stripe_connect_account_id': coach.stripe_connect_account_id,
         'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
         'stripe_connect_details_submitted': coach.stripe_connect_details_submitted,
+        **brand_dict(coach.user),
     }
 
 
@@ -810,6 +814,19 @@ def check_templates(request, user):
 
 
 @api_view(['GET'])
+def check_templates_page(request, user):
+    """Paginated custom templates for a folder — mobile counterpart of the web
+    check_templates_api, reusing the same page-data builder (offset/has_more/total)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    folder_id_raw = request.GET.get('folder_id', 'all')
+    q = (request.GET.get('q') or '').strip()
+    offset = max(0, safe_int(request.GET, 'offset', 0))
+    return JsonResponse(_templates_page_data(coach, folder_id_raw, q, offset))
+
+
+@api_view(['GET'])
 def check_template_detail(request, user, template_id):
     coach, err = _require_coach(user)
     if err:
@@ -1078,6 +1095,14 @@ def workouts(request, user):
     )
     if q:
         plans_qs = plans_qs.filter(title__icontains=q)
+    folder_id_raw = request.GET.get('folder_id', 'all')
+    if folder_id_raw == 'unfiled':
+        plans_qs = plans_qs.filter(folder__isnull=True)
+    elif folder_id_raw not in (None, 'all', ''):
+        try:
+            plans_qs = plans_qs.filter(folder_id=int(folder_id_raw))
+        except (TypeError, ValueError):
+            pass
     total = plans_qs.count()
     plans = [{
         'id': p.id,
@@ -1087,6 +1112,9 @@ def workouts(request, user):
         'duration_weeks': p.duration_weeks,
         'frequency_per_week': p.frequency_per_week,
         'assigned_count': p.assigned,
+        'folder_id': p.folder_id,
+        'status': p.status,
+        'is_template': p.is_template,
     } for p in plans_qs[offset:offset + PAGE]]
     assignments = [{
         'id': wa.id,
@@ -1116,6 +1144,14 @@ def nutrition(request, user):
     )
     if q:
         plans_qs = plans_qs.filter(title__icontains=q)
+    folder_id_raw = request.GET.get('folder_id', 'all')
+    if folder_id_raw == 'unfiled':
+        plans_qs = plans_qs.filter(folder__isnull=True)
+    elif folder_id_raw not in (None, 'all', ''):
+        try:
+            plans_qs = plans_qs.filter(folder_id=int(folder_id_raw))
+        except (TypeError, ValueError):
+            pass
     total = plans_qs.count()
     plans = [{
         'id': p.id,
@@ -1124,6 +1160,9 @@ def nutrition(request, user):
         'plan_kind': p.plan_kind,
         'daily_kcal': p.daily_kcal,
         'assigned_count': p.assigned,
+        'folder_id': p.folder_id,
+        'status': p.status,
+        'is_template': p.is_template,
     } for p in plans_qs[offset:offset + PAGE]]
     assignments = [{
         'id': na.id,
@@ -1418,6 +1457,29 @@ def send_message(request, user, conversation_id):
 
 
 @api_view(['POST'])
+def request_appointment(request, user, conversation_id):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    conv = _own_conversation(coach, conversation_id)
+    if not conv:
+        return JsonResponse({'error': 'Conversazione non trovata'}, status=404)
+    data = _body(request)
+    try:
+        msg = create_appointment_request(
+            user, conv,
+            title=data.get('title'),
+            preferred_date_str=data.get('preferred_date'),
+            time_from_str=data.get('time_from'),
+            time_to_str=data.get('time_to'),
+            notes=data.get('notes'),
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse(_message_dict(msg, user.id), status=201)
+
+
+@api_view(['POST'])
 def respond_appointment(request, user, conversation_id, appointment_id):
     coach, err = _require_coach(user)
     if err:
@@ -1452,6 +1514,10 @@ def profile(request, user):
         return err
     if request.method == 'PATCH':
         data = _body(request)
+        if any(k in data for k in ('brand_name', 'brand_primary', 'brand_accent', 'reset')):
+            err = apply_brand_update(user, data)
+            if err:
+                return JsonResponse({'error': err}, status=400)
         for field in ('first_name', 'last_name'):
             if data.get(field):
                 setattr(coach, field, data[field].strip())
@@ -1494,6 +1560,51 @@ def profile_photo(request, user):
         return JsonResponse({'error': 'Immagine non valida'}, status=400)
     coach.profile_image.save(webp.name, webp, save=True)
     return JsonResponse({'profile_image_url': _coach_avatar(request, coach)})
+
+
+@api_view(['GET', 'POST'])
+def calendar_feed(request, user):
+    """Mobile counterpart of views_settings.calendar_view: the coach's Google/
+    Apple Calendar subscription feed, plus a rotate-token action."""
+    from .views_agenda import coach_calendar_feed_urls
+
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    if request.method == 'POST' and _body(request).get('action') == 'rotate':
+        import secrets as _secrets
+        coach.calendar_feed_token = _secrets.token_urlsafe(24)
+        coach.save(update_fields=['calendar_feed_token', 'updated_at'])
+
+    abs_url, webcal_url, google_subscribe = coach_calendar_feed_urls(coach)
+    return JsonResponse({'feed_url': abs_url, 'webcal_url': webcal_url, 'google_subscribe_url': google_subscribe})
+
+
+@api_view(['POST'])
+def billing_portal(request, user):
+    """Mobile counterpart of views_settings.billing_portal_view: returns the
+    Stripe-hosted Billing Portal URL for the coach's own Athlynk platform
+    subscription (coach -> Athlynk billing), opened in StripeWebFlow client-side."""
+    import stripe
+    from django.conf import settings as _settings
+
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    purchase = coach.platform_purchase
+    if not purchase or not purchase.stripe_customer_id or not _settings.STRIPE_SECRET_KEY:
+        return JsonResponse({'error': 'Nessun abbonamento Athlynk attivo.'}, status=404)
+
+    stripe.api_key = _settings.STRIPE_SECRET_KEY
+    try:
+        portal = stripe.billing_portal.Session.create(
+            customer=purchase.stripe_customer_id,
+            return_url=f"{_settings.SITE_URL}/impostazioni/?tab=abbonamento",
+        )
+    except Exception:
+        logger.exception('billing_portal.mobile_session_create_failed coach=%s', coach.id)
+        return JsonResponse({'error': 'Impossibile aprire il portale di fatturazione.'}, status=502)
+    return JsonResponse({'url': portal.url})
 
 
 # ---------------------------------------------------------------------------

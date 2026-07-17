@@ -805,6 +805,7 @@ struct CoachNutritionWizardView: View {
     var embedded = false
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
     @StateObject private var flash = StatusFlash()
 
     @State private var step = 0
@@ -835,7 +836,6 @@ struct CoachNutritionWizardView: View {
     @State private var showSupplementProtocols = false
     @State private var supplementProtocolsLoading = false
     @State private var supplementProtocols: [CoachSupplementSummary] = []
-    @State private var supplementPendingDeleteItem: CoachSupplementItem? = nil
     @State private var supplementsSaved = false
     @State private var supplementsSavedSnapshot: String? = nil
 
@@ -1018,18 +1018,6 @@ struct CoachNutritionWizardView: View {
             }
         }
         .sheet(isPresented: $showSupplementProtocols) { wzSupplementProtocolsSheet }
-        .confirmationDialog(
-            "Eliminare l'integratore?",
-            isPresented: .init(get: { supplementPendingDeleteItem != nil },
-                               set: { if !$0 { supplementPendingDeleteItem = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Elimina", role: .destructive) {
-                if let it = supplementPendingDeleteItem { supplementItems.removeAll { $0.rowId == it.rowId } }
-                supplementPendingDeleteItem = nil
-            }
-            Button("Annulla", role: .cancel) { supplementPendingDeleteItem = nil }
-        }
     }
 
     private var supplementIsDirty: Bool {
@@ -1047,7 +1035,17 @@ struct CoachNutritionWizardView: View {
             HStack(spacing: 10) {
                 TextField("", text: item.name, prompt: Text("Nome integratore").foregroundStyle(Palette.textLow))
                     .font(Typo.body(15)).foregroundStyle(Palette.textHi).tint(accent)
-                Button(role: .destructive) { supplementPendingDeleteItem = item.wrappedValue } label: {
+                Button(role: .destructive) {
+                    let it = item.wrappedValue
+                    Task {
+                        if await confirmCenter.confirm(.init(
+                            title: "Eliminare l'integratore?",
+                            subtitle: it.name.isEmpty ? nil : "\"\(it.name)\" verrà rimosso dal protocollo.",
+                            icon: "trash")) {
+                            supplementItems.removeAll { $0.rowId == it.rowId }
+                        }
+                    }
+                } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Palette.textLow)
@@ -1329,18 +1327,31 @@ struct CoachNutritionWizardView: View {
                        icon: "tray.and.arrow.down.fill", color: accent, loading: busy) {
                 let conflicts = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }
                 if conflicts.isEmpty {
-                    Task { await save() }
+                    Task { await saveAndFinalize(action: nil) }
                 } else {
                     showOverwriteConfirm = true
                 }
             }
             .alert("Piano attivo presente", isPresented: $showOverwriteConfirm) {
-                Button("Sostituisci", role: .destructive) { Task { await save() } }
+                Button("Sostituisci", role: .destructive) { Task { await saveAndFinalize(action: nil) } }
                 Button("Annulla", role: .cancel) {}
             } message: {
                 let n = clients.filter { selectedClients.contains($0.id) && $0.activeAssignment != nil }.count
                 Text("\(n == 1 ? "Un atleta ha" : "\(n) atleti hanno") già un piano attivo. Continuare sostituirà il piano corrente con quello nuovo.")
             }
+            NeonButton(title: "Salva come template", icon: "square.on.square",
+                       color: Palette.bronze, loading: busy) {
+                Task { await saveAndFinalize(action: "template") }
+            }
+            Button {
+                Task { await saveAndFinalize(action: "draft") }
+            } label: {
+                Text("Salva come bozza")
+                    .font(Typo.body(14, .semibold)).foregroundStyle(Palette.textMid)
+                    .frame(maxWidth: .infinity).padding(.vertical, 13)
+                    .voltPanel(radius: 14)
+            }
+            .buttonStyle(.plain)
 
             wzBackLink { withAnimation(.snappy) { step = 2 } }
         }
@@ -1510,11 +1521,15 @@ struct CoachNutritionWizardView: View {
         return p
     }
 
-    private func save() async {
+    /// action: "template" | "draft" | nil (normal save, optionally assigning
+    /// selected clients). Mirrors the workout wizard's saveAndFinalize.
+    private func saveAndFinalize(action: String?) async {
         busy = true; defer { busy = false }
         do {
+            var payload = buildPayload()
+            payload["is_template"] = (action == "template")
             let pid = try await APIClient.shared.coachSaveNutritionPlan(
-                planId: savedPlanId ?? planId, payload: buildPayload())
+                planId: savedPlanId ?? planId, payload: payload)
             guard pid > 0 else { flash.failure("Salvataggio non riuscito"); return }
             savedPlanId = pid
 
@@ -1525,11 +1540,16 @@ struct CoachNutritionWizardView: View {
                                                  "unit": $0.unit, "timing": $0.timing, "notes": $0.notes] },
                 notes: supplementNotes)
 
-            for clientId in selectedClients {
-                try await APIClient.shared.coachAssignNutrition(planId: pid, clientId: clientId)
+            // A template/draft isn't ready to hand to an athlete yet.
+            if action == nil {
+                for clientId in selectedClients {
+                    try await APIClient.shared.coachAssignNutrition(planId: pid, clientId: clientId)
+                }
             }
             Analytics.shared.capture(.planUpdated, ["kind": "nutrition"])
-            flash.success(selectedClients.isEmpty ? "Piano salvato" : "Piano assegnato")
+            flash.success(action == "template" ? "Template salvato"
+                          : action == "draft" ? "Bozza salvata"
+                          : selectedClients.isEmpty ? "Piano salvato" : "Piano assegnato")
             try? await Task.sleep(for: .seconds(1.1))
             onSaved()
             dismiss()
