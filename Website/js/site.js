@@ -130,50 +130,66 @@
   }
 
   /* ============================================================
-     DEMO REEL — slideshow automatico di screenshot reali
-     .reel[data-interval] > .reel-frame > img.reel-slide* + .reel-dots
+     EXPLORER — perspective + feature picker
+     .explorer > .explorer-menu (.explorer-tab[data-view]*, .explorer-list
+       [data-view-panel]* > .explorer-item[data-target]* + .explorer-indicator)
+     .explorer > .explorer-stage (frame[data-view-panel]* > .reel-frame >
+       .reel-slide* , .explorer-caption)
+     Nothing plays on its own — the visitor picks a perspective and a
+     feature, the stage crossfades to match, a gold rule slides to the
+     active row.
      ============================================================ */
-  document.querySelectorAll(".reel").forEach((reel) => {
-    const slides = [...reel.querySelectorAll(".reel-slide")];
-    if (slides.length < 2) return;
-    const dotsBox = reel.querySelector(".reel-dots");
-    const labelEl = reel.querySelector(".reel-label");
-    /* the console rail is shared across slides: move its highlight with the
-       slide so the mockup behaves like the real app being clicked through */
-    const navs = [...reel.querySelectorAll(".app-rail [data-nav]")];
-    const dots = slides.map((s, i) => {
-      const d = document.createElement("button");
-      d.type = "button";
-      d.className = "reel-dot";
-      d.setAttribute("aria-label", `Vai alla schermata ${i + 1}`);
-      d.addEventListener("click", () => go(i, true));
-      dotsBox && dotsBox.appendChild(d);
-      return d;
-    });
-    let idx = 0, timer = null;
-    const every = parseInt(reel.dataset.interval, 10) || 3200;
+  document.querySelectorAll(".explorer").forEach((explorer) => {
+    const tabs = [...explorer.querySelectorAll(".explorer-tab")];
+    const lists = [...explorer.querySelectorAll(".explorer-list")];
+    const frames = [...explorer.querySelectorAll(".explorer-stage [data-view-panel]")];
+    const caption = explorer.querySelector(".explorer-caption");
+    if (!tabs.length || !lists.length) return;
 
-    function go(i, manual) {
-      idx = (i + slides.length) % slides.length;
-      slides.forEach((s, k) => s.classList.toggle("is-active", k === idx));
-      dots.forEach((d, k) => d.classList.toggle("is-active", k === idx));
-      navs.forEach((n) => n.classList.toggle("is-active", +n.dataset.nav === idx));
-      if (labelEl) labelEl.textContent = slides[idx].dataset.label || "";
-      if (manual) restart();
+    function placeIndicator(list) {
+      const indicator = list.querySelector(".explorer-indicator");
+      const active = list.querySelector(".explorer-item.is-active");
+      if (!indicator || !active) return;
+      indicator.style.transform = `translateY(${active.offsetTop}px)`;
+      indicator.style.height = `${active.offsetHeight}px`;
     }
-    function restart() {
-      if (timer) clearInterval(timer);
-      if (!reduceMotion) timer = setInterval(() => go(idx + 1), every);
+
+    function activateItem(list, index) {
+      const items = [...list.querySelectorAll(".explorer-item")];
+      const view = list.dataset.viewPanel;
+      const frame = frames.find((f) => f.dataset.viewPanel === view);
+      const slides = frame ? [...frame.querySelectorAll(".reel-slide")] : [];
+      items.forEach((it, k) => it.classList.toggle("is-active", k === index));
+      slides.forEach((s, k) => s.classList.toggle("is-active", k === index));
+      if (caption && slides[index]) caption.textContent = slides[index].dataset.label || "";
+      placeIndicator(list);
     }
-    /* parte solo quando visibile */
-    const io = new IntersectionObserver((es) => {
-      es.forEach((e) => {
-        if (e.isIntersecting) restart();
-        else if (timer) { clearInterval(timer); timer = null; }
+
+    lists.forEach((list) => {
+      const items = [...list.querySelectorAll(".explorer-item")];
+      items.forEach((item, i) => item.addEventListener("click", () => activateItem(list, i)));
+    });
+
+    function activateView(view) {
+      tabs.forEach((t) => {
+        const on = t.dataset.view === view;
+        t.classList.toggle("is-active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
       });
-    }, { threshold: 0.25 });
-    io.observe(reel);
-    go(0);
+      lists.forEach((l) => { l.hidden = l.dataset.viewPanel !== view; });
+      frames.forEach((f) => { f.hidden = f.dataset.viewPanel !== view; });
+      const list = lists.find((l) => l.dataset.viewPanel === view);
+      if (list) activateItem(list, 0);
+    }
+
+    tabs.forEach((t) => t.addEventListener("click", () => activateView(t.dataset.view)));
+
+    const initialList = lists.find((l) => !l.hidden) || lists[0];
+    activateItem(initialList, 0);
+    window.addEventListener("resize", () => {
+      const visible = lists.find((l) => !l.hidden);
+      if (visible) placeIndicator(visible);
+    });
   });
 
   /* ============================================================

@@ -45,7 +45,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260717a">
+<link rel="stylesheet" href="css/style.css?v=20260717c">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
 <body>
@@ -222,34 +222,129 @@
 
 <div class="meander-rule reveal" aria-hidden="true"></div>
 
-<!-- ====================== GALLERIA — in attesa degli screen reali ====================== -->
+<!-- ====================== GALLERIA — schermate reali ====================== -->
 <section class="section section-mist" id="galleria">
   <div class="container">
     <header class="section-head section-head-center reveal">
       <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Dall'app<span class="eyebrow-rule"></span></p>
-      <h2 class="section-title">Le schermate,<br><em>appena escono.</em></h2>
-      <p class="section-lede">Le app sono in rifinitura sui dispositivi reali. Qui arriveranno le schermate definitive — niente mockup travestiti da fotografie.</p>
+      <h2 class="section-title">Le schermate,<br><em>vere.</em></h2>
+      <p class="section-lede">Niente mockup: quello che vedi è quello che c'è. Scegli una prospettiva, poi cosa vedere.</p>
     </header>
 
-    <div class="soon reveal">
-      <div class="soon-plate" style="--d:0s">
-        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
-        <b>Sessione</b>
-        <span>In arrivo</span>
+    <div class="explorer reveal">
+      <div class="explorer-menu">
+        <div class="explorer-tabs" role="tablist" aria-label="Prospettiva">
+          <button type="button" class="explorer-tab is-active" data-view="coach" role="tab" aria-selected="true">Coach</button>
+          <button type="button" class="explorer-tab" data-view="atleta" role="tab" aria-selected="false">Atleta</button>
+        </div>
+
+        <nav class="explorer-list" data-view-panel="coach" aria-label="Schermate app coach">
+          <button type="button" class="explorer-item is-active reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Schede</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Dieta</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+            <span class="explorer-item-label">Agenda</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+            <span class="explorer-item-label">Check</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
+
+        <nav class="explorer-list" data-view-panel="atleta" aria-label="Schermate app atleta" hidden>
+          <button type="button" class="explorer-item is-active reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Allenamenti</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 4h11l-2 4 2 4H6"/></svg>
+            <span class="explorer-item-label">Percorso</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Dieta</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+            <span class="explorer-item-label">Macro</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 4"/></svg>
+            <span class="explorer-item-label">Peso</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V11M10 21V6M16 21v-9M22 21V3"/></svg>
+            <span class="explorer-item-label">Carichi</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
       </div>
-      <div class="soon-plate" style="--d:0.6s">
-        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
-        <b>Dieta</b>
-        <span>In arrivo</span>
-      </div>
-      <div class="soon-plate" style="--d:1.2s">
-        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
-        <b>Check</b>
-        <span>In arrivo</span>
+
+      <div class="explorer-stage">
+        <div class="reel-phone" data-view-panel="coach">
+          <div class="reel-frame">
+            <img class="reel-slide is-active" data-label="Dashboard — la sintesi dello studio" data-zoom
+                 src="assets/screens-opt/Dashboard_coach.webp" loading="lazy" decoding="async"
+                 alt="Dashboard dell'app coach: atleti attivi, check in attesa, appuntamenti e messaggi del giorno">
+            <img class="reel-slide" data-label="Builder scheda — carichi e RPE" data-zoom
+                 src="assets/screens-opt/builder_scheda.webp" loading="lazy" decoding="async"
+                 alt="Builder di una scheda di allenamento sull'app coach, con struttura settimanale e livello">
+            <img class="reel-slide" data-label="Builder dieta — macro e pasti" data-zoom
+                 src="assets/screens-opt/builder_dieta.webp" loading="lazy" decoding="async"
+                 alt="Builder di un piano alimentare sull'app coach">
+            <img class="reel-slide" data-label="Fissa un appuntamento dalla chat" data-zoom
+                 src="assets/gif-opt/coach_fissa_appuntamenti.webp" loading="lazy" decoding="async"
+                 alt="Il coach fissa un appuntamento direttamente dalla chat con l'atleta">
+            <img class="reel-slide" data-label="Prima valutazione — preset check" data-zoom
+                 src="assets/gif-opt/complazione_prima_valutazione.webp" loading="lazy" decoding="async"
+                 alt="Il coach assegna il preset Prima valutazione a un atleta">
+          </div>
+        </div>
+
+        <div class="reel-phone" data-view-panel="atleta" hidden>
+          <div class="reel-frame">
+            <img class="reel-slide is-active" data-label="Dashboard — tutto a un tocco" data-zoom
+                 src="assets/screens-opt/DashboardA_atleta.webp" loading="lazy" decoding="async"
+                 alt="Dashboard dell'app atleta: sessioni, target giornaliero, abbonamento e peso attuale">
+            <img class="reel-slide" data-label="Storico allenamenti" data-zoom
+                 src="assets/screens-opt/Storico_Workout.webp" loading="lazy" decoding="async"
+                 alt="Storico degli allenamenti completati dall'atleta">
+            <img class="reel-slide" data-label="Il mio percorso" data-zoom
+                 src="assets/gif-opt/percorso_atleta.webp" loading="lazy" decoding="async"
+                 alt="Timeline del percorso dell'atleta: fasi, allenamenti e piani nutrizionali nel tempo">
+            <img class="reel-slide" data-label="Aggiungi un alimento al diario" data-zoom
+                 src="assets/gif-opt/Inserimento_alimento.webp" loading="lazy" decoding="async"
+                 alt="L'atleta cerca e aggiunge un alimento al diario nutrizionale">
+            <img class="reel-slide" data-label="Piano nutrizionale — macro del giorno" data-zoom
+                 src="assets/gif-opt/dieta_micro_macro.webp" loading="lazy" decoding="async"
+                 alt="Dettaglio del piano nutrizionale con macro per giorno della settimana">
+            <img class="reel-slide" data-label="Andamento peso corporeo" data-zoom
+                 src="assets/gif-opt/progressi_atleta.webp" loading="lazy" decoding="async"
+                 alt="Grafico dell'andamento del peso corporeo dell'atleta">
+            <img class="reel-slide" data-label="Progressi sui carichi" data-zoom
+                 src="assets/gif-opt/progressi_carichi_atleta.webp" loading="lazy" decoding="async"
+                 alt="Storico dei carichi per esercizio con progressione nel tempo">
+          </div>
+        </div>
+
+        <p class="explorer-caption">Dashboard — la sintesi dello studio</p>
       </div>
     </div>
-
-    <p class="soon-note reveal">Nel frattempo, la console web è pienamente esplorabile.</p>
   </div>
 </section>
 
@@ -301,7 +396,7 @@
 </footer>
 
 <script src="js/main.js?v=20260717a"></script>
-<script src="js/site.js?v=20260717a"></script>
+<script src="js/site.js?v=20260717c"></script>
 <script src="js/dust.js?v=20260717a" defer></script>
 <div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Preferenze cookie" aria-modal="true">
   <div class="cookie-banner__inner">

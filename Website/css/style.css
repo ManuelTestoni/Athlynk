@@ -32,6 +32,9 @@
   --gold-m:     #E8C24A;
   --gold-deep:  #8A6A1E;   /* AA-safe gold for text */
 
+  /* ---- signal ---- */
+  --danger:     #A6412E;   /* muted brick, not a stock Material red */
+
   /* ---- hairlines ---- */
   --line:        rgba(11, 29, 58, 0.09);
   --line-strong: rgba(11, 29, 58, 0.16);
@@ -778,41 +781,6 @@ body > header, body > main, body > footer { position: relative; z-index: 2; }
 }
 
 /* ============================================================
-   MARQUEE
-   ============================================================ */
-.marquee {
-  border-block: 1px solid var(--line);
-  padding-block: 20px;
-  overflow: hidden;
-  background: var(--paper);
-}
-.marquee-track {
-  display: flex; align-items: center; gap: 48px;
-  width: max-content;
-  animation: marquee-scroll 34s linear infinite;
-}
-.marquee-track span {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 22px;
-  color: var(--ink-mute);
-  white-space: nowrap;
-}
-.marquee-track i { color: var(--gold-m); font-style: normal; font-size: 9px; }
-@keyframes marquee-scroll { to { transform: translateX(-50%); } }
-
-.marquee-hero {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  z-index: 2;
-  background: transparent;
-  border-block: none;
-  border-top: 1px solid var(--line);
-  padding-block: 18px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
-}
-
-/* ============================================================
    INTRO
    ============================================================ */
 .intro { background: var(--paper); }
@@ -852,41 +820,26 @@ body > header, body > main, body > footer { position: relative; z-index: 2; }
 }
 
 /* ============================================================
-   REEL (screens carousel)
+   EXPLORER STAGE — the frame content picked from the menu below
    ============================================================ */
-.reel { position: relative; }
-/* The rail is shared by every slide — only the main pane changes, exactly as
-   it would if you clicked through the real app. A browser viewport on a
-   laptop, not a 16:10 photo. */
 .reel-app { aspect-ratio: 16 / 9; }
 .reel-frame { position: relative; overflow: hidden; background: var(--mist); min-width: 0; }
 .reel-slide {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   opacity: 0;
-  transition: opacity 0.7s var(--ease-inout);
+  transform: translateY(12px) scale(0.99);
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
-.reel-slide.is-active { opacity: 1; }
+.reel-slide.is-active { opacity: 1; transform: translateY(0) scale(1); }
 img.reel-slide { object-fit: cover; object-position: top; }
-.reel-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--line);
-  background: var(--mist);
-}
-.reel-label {
+.explorer-caption {
+  margin-top: 16px;
+  text-align: center;
   font-family: var(--font-mono);
   font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--azure-text);
 }
-.reel-dots { display: flex; gap: 8px; }
-.reel-dot {
-  width: 22px; height: 3px; border-radius: 2px;
-  background: var(--stone-d);
-  transition: background 0.3s ease;
-}
-.reel-dot.is-active { background: var(--foil-gold); }
-.reel-dot:hover { background: var(--azure); }
 
 /* ============================================================
    FILM — hero overture: scrub on scroll, dissolving UP into white
@@ -1159,7 +1112,7 @@ img.reel-slide { object-fit: cover; object-position: top; }
 .prevw {
   position: relative;
   display: flex; flex-direction: column;
-  border-radius: var(--radius);
+  border-radius: 28px;
   background: var(--paper);
   overflow: hidden;
   box-shadow: inset 0 0 0 1px var(--line), var(--elev-1);
@@ -1171,7 +1124,7 @@ img.reel-slide { object-fit: cover; object-position: top; }
 }
 .prevw-media {
   position: relative;
-  aspect-ratio: 16 / 10.5;
+  aspect-ratio: 4 / 3.3;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
   background: var(--mist);
@@ -1181,16 +1134,37 @@ img.reel-slide { object-fit: cover; object-position: top; }
 .prevw-media .prevw-veil { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, rgba(11, 29, 58, 0.10)); }
 
 /* ---- preview art: miniatures, not shrunken screenshots ----
-   A whole console scaled into a 16:10.5 thumb is illegible. These
-   show each page's *shape* at a size that actually reads. */
+   A whole console scaled into a small thumb is illegible. These show
+   each page's *shape* at a size that actually reads, paired with one
+   real, concrete number — the same big-serif-number motif as the
+   intro stats, so a glance at the card tells you something true. */
 .prevw-art {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  padding: 22px;
-  background: radial-gradient(90% 90% at 50% 0%, rgba(91, 137, 182, 0.10), transparent 62%), var(--mist);
+  padding: 30px;
+  background: radial-gradient(95% 95% at 50% 0%, rgba(91, 137, 182, 0.12), transparent 64%), var(--mist);
   overflow: hidden;
 }
-.prevw:hover .prevw-art { background: radial-gradient(90% 90% at 50% 0%, rgba(255, 224, 102, 0.14), transparent 62%), var(--mist); }
+.prevw:hover .prevw-art { background: radial-gradient(95% 95% at 50% 0%, rgba(255, 224, 102, 0.16), transparent 64%), var(--mist); }
+.prevw-stat {
+  position: absolute; left: 18px; bottom: 18px; z-index: 2;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px var(--line-gold), var(--elev-1);
+}
+.prevw-stat b {
+  font-family: var(--font-display); font-weight: 500;
+  font-size: 30px; line-height: 1; color: var(--royal);
+}
+.prevw-stat span {
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
 
 /* console miniature */
 .art-console {
@@ -1337,6 +1311,114 @@ img.reel-slide { object-fit: cover; object-position: top; }
 .phone-coach .volt-foot b { color: var(--gold-deep); }
 
 /* ============================================================
+   REEL — PHONE variant (real screenshots/clips, always portrait)
+   Bezel wraps the frame; the frame alone carries the aspect ratio,
+   so the caption bar (.reel-foot) adds height below it instead of
+   overlapping it. Real captures already contain their own status
+   bar/notch, so no fake chrome is layered on top.
+   ============================================================ */
+.reel-phone {
+  width: min(320px, 74vw);
+  margin-inline: auto;
+  border-radius: 44px;
+  background: var(--ink);
+  box-shadow: 0 0 0 9px #101F38, 0 0 0 10px var(--silver), var(--elev-4);
+  overflow: hidden;
+}
+.reel-phone .reel-frame { aspect-ratio: 9 / 19.2; }
+
+/* ============================================================
+   EXPLORER — perspective + feature picker
+   Replaces the old autoplay carousel: the visitor chooses what to
+   see, nothing cycles on its own. One framed panel holds the
+   Coach/Atleta tabs and the feature list; a slim gold rule slides
+   to the active row (the site's meander-line motif, put to work
+   as a UI element instead of a divider); the stage on the right
+   crossfades + lifts in to match.
+   ============================================================ */
+.explorer {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: clamp(28px, 3.4vw, 56px);
+  align-items: start;
+}
+.explorer-menu {
+  border-radius: 26px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line-gold), var(--elev-2);
+  padding: 14px;
+  position: sticky;
+  top: calc(var(--header-h) + 24px);
+}
+.explorer-tabs {
+  display: flex; gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--stone);
+  box-shadow: inset 0 0 0 1px var(--line);
+  margin-bottom: 16px;
+}
+.explorer-tab {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 10px 0;
+  border-radius: 999px;
+  transition: background 0.35s var(--ease-out), color 0.35s var(--ease-out), box-shadow 0.35s ease;
+}
+.explorer-tab.is-active {
+  background: var(--paper); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-gold), var(--elev-1);
+}
+.explorer-list {
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  padding-left: 14px;
+}
+.explorer-list[hidden] { display: none; }
+@keyframes explorer-list-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+.explorer-list:not([hidden]) { animation: explorer-list-in 0.4s var(--ease-out); }
+.explorer-indicator {
+  position: absolute; left: 0; top: 0; width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--gold), var(--gold-m));
+  transition: transform 0.45s var(--ease-inout), height 0.45s var(--ease-inout);
+  will-change: transform;
+}
+.explorer-item {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--ink-mute);
+  text-align: left;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+.explorer-item:hover { background: var(--mist); color: var(--ink); transform: translateX(2px); }
+.explorer-item.is-active { background: var(--mist); color: var(--ink); }
+.explorer-item-ico {
+  width: 18px; height: 18px; flex-shrink: 0;
+  stroke: currentColor; fill: none; stroke-width: 1.6;
+  opacity: 0.65;
+  transition: opacity 0.3s ease, color 0.3s ease;
+}
+.explorer-item.is-active .explorer-item-ico { opacity: 1; color: var(--gold-deep); }
+.explorer-item-label {
+  font-size: 14.5px; font-weight: 500;
+  transition: color 0.3s ease;
+}
+.explorer-item.is-active .explorer-item-label { color: var(--ink); font-weight: 600; }
+.explorer-stage { min-width: 0; }
+
+@media (max-width: 960px) {
+  .explorer { grid-template-columns: 1fr; }
+  .explorer-menu { position: static; }
+  .explorer-list { max-height: 260px; overflow-y: auto; }
+}
+
+/* ============================================================
    CINEMATIC (app scroll scenes)
    ============================================================ */
 .cine { position: relative; background: var(--mist); }
@@ -1376,53 +1458,6 @@ img.reel-slide { object-fit: cover; object-position: top; }
 .cine-step h3 { font-family: var(--font-display); font-weight: 500; font-size: clamp(22px, 2.6vw, 32px); color: var(--ink); line-height: 1.1; }
 .cine-step h3 em { font-style: italic; font-weight: 400; color: var(--royal); }
 .cine-step p { margin-top: 10px; color: var(--ink-mute); font-size: 15px; }
-
-/* ---- app screens: awaiting real captures ---- */
-.soon {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: clamp(18px, 2.4vw, 30px);
-}
-.soon-plate {
-  position: relative;
-  aspect-ratio: 9 / 19.2;
-  border-radius: 30px;
-  background:
-    repeating-linear-gradient(135deg, transparent 0 12px, rgba(91, 137, 182, 0.05) 12px 13px),
-    var(--mist);
-  box-shadow: inset 0 0 0 1px var(--line-silver);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; padding: 24px;
-  text-align: center;
-  overflow: hidden;
-}
-/* a slow gold light sweeps the empty plates, so they read as "reserved", not "broken" */
-.soon-plate::after {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(105deg, transparent 40%, rgba(255, 224, 102, 0.22) 50%, transparent 60%);
-  transform: translateX(-110%);
-  animation: sweep 5s var(--ease-inout) var(--d, 0s) infinite;
-}
-@keyframes sweep { 0% { transform: translateX(-110%); } 55%, 100% { transform: translateX(110%); } }
-.soon-mark {
-  width: 34px; height: 28px; object-fit: contain;
-  opacity: 0.25;
-  filter: brightness(0) saturate(100%) invert(9%) sepia(38%) saturate(2200%) hue-rotate(196deg);
-}
-.soon-plate b { font-family: var(--font-display); font-size: 17px; font-weight: 500; color: var(--ink); }
-.soon-plate span {
-  font-family: var(--font-mono);
-  font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
-  color: var(--ink-faint);
-}
-.soon-note {
-  margin-top: clamp(28px, 4vh, 44px);
-  text-align: center;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 17px;
-  color: var(--ink-mute);
-}
 
 /* ============================================================
    FEATURE ROWS
@@ -1542,6 +1577,46 @@ img.reel-slide { object-fit: cover; object-position: top; }
 .switch-title em { font-style: italic; color: var(--royal); }
 .switch-sub { font-size: 13px; color: var(--ink-mute); }
 .switch-sub b { color: var(--gold-deep); font-weight: 600; }
+
+/* ============================================================
+   CHECKOUT STEP — "sei già cliente?" + consenso termini
+   Framed like every other elevated card on the page (chiron-switch,
+   price-card), not a bare paragraph with inline styles bolted on.
+   ============================================================ */
+.checkout-step {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 26px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line-gold), var(--elev-1);
+  text-align: left;
+}
+.checkout-step + .checkout-step { margin-top: 16px; }
+.checkout-step-label {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+.consent-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  cursor: pointer;
+  font-size: 14.5px; line-height: 1.55;
+  color: var(--ink-mute);
+}
+.consent-row input[type="checkbox"] {
+  margin-top: 2px; width: 19px; height: 19px; flex: 0 0 auto;
+  accent-color: var(--royal);
+}
+.consent-row a { color: var(--azure-text); text-decoration: underline; text-underline-offset: 2px; }
+.field-error {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--danger);
+}
+.field-error::before { content: "⚠"; font-size: 12px; }
 
 .price-cap {
   font-family: var(--font-mono);
@@ -2023,7 +2098,6 @@ body.modal-open { overflow: hidden; }
   .featrow { grid-template-columns: 1fr; gap: 32px; }
   .featrow:nth-child(even) .featrow-media { order: 0; }
   .assure { grid-template-columns: 1fr; gap: 28px; }
-  .soon { grid-template-columns: repeat(2, 1fr); max-width: 520px; margin-inline: auto; }
 }
 
 @media (max-width: 900px) {
@@ -2053,8 +2127,6 @@ body.modal-open { overflow: hidden; }
   .intro-stats { grid-template-columns: 1fr 1fr; }
   .film-cap { max-width: 78vw; }
   .footer-top { flex-direction: column; }
-  .marquee-hero .marquee-track span { font-size: 17px; }
-  .soon { grid-template-columns: 1fr; max-width: 280px; }
 }
 
 @media (max-width: 600px) {

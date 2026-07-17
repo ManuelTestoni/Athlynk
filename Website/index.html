@@ -115,7 +115,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260717a">
+<link rel="stylesheet" href="css/style.css?v=20260717c">
 <link rel="preload" as="image" href="assets/hero-film/poster.webp" fetchpriority="high">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
@@ -231,70 +231,59 @@
   <div class="container">
     <header class="section-head section-head-center reveal">
       <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>La piattaforma<span class="eyebrow-rule"></span></p>
-      <h2 class="section-title">Il tuo studio,<br><em>in una console.</em></h2>
-      <p class="section-lede">La dashboard, il builder delle schede, la nutrizione e i check — come li vede un coach ogni giorno.</p>
+      <h2 class="section-title">Una console,<br><em>due prospettive.</em></h2>
+      <p class="section-lede">Il coach ha lo studio completo. L'atleta ha solo ciò che gli serve — semplice, leggibile, senza menu nascosti. Zero caos da app che promettono tutto e non fanno gestire niente.</p>
     </header>
 
-    <div class="console-stage reveal">
-      <div class="browser-frame reel" data-interval="4600">
-        <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it</span></div>
+    <div class="explorer reveal">
+      <div class="explorer-menu">
+        <div class="explorer-tabs" role="tablist" aria-label="Prospettiva">
+          <button type="button" class="explorer-tab is-active" data-view="coach" role="tab" aria-selected="true">Coach</button>
+          <button type="button" class="explorer-tab" data-view="atleta" role="tab" aria-selected="false">Atleta</button>
+        </div>
 
-        <div class="app reel-app">
+        <nav class="explorer-list" data-view-panel="coach" aria-label="Sezioni console coach">
+          <button type="button" class="explorer-item is-active reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Schede</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Nutrizione</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+            <span class="explorer-item-label">Check</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
 
-          <!-- one rail, shared: its highlight follows the slide -->
-          <nav class="app-rail" aria-hidden="true">
-            <div class="app-rail-brand">
-              <img src="assets/athlynk-mark.png" alt="" decoding="async">
-              <b>Athlynk</b>
-            </div>
-            <span class="app-nav is-active" data-nav="0">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              Dashboard
-            </span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2"/><path d="M17 8h5M19.5 5.5v5"/></svg>
-              Atleti
-            </span>
-            <span class="app-nav" data-nav="3">
-              <svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 5-7 4 4"/></svg>
-              Check progressi
-              <i class="app-nav-dot"></i>
-            </span>
-            <span class="app-nav" data-nav="1">
-              <svg viewBox="0 0 24 24"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
-              Allenamenti
-            </span>
-            <span class="app-nav" data-nav="2">
-              <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
-              Nutrizione
-            </span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Chat
-            </span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-              Abbonamenti
-            </span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 1 1-3-6.2L21 8"/><path d="M21 4v4h-4"/></svg>
-              Analisi
-            </span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
-              Agenda
-            </span>
-            <span class="app-rail-gap"></span>
-            <span class="app-nav">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
-              Impostazioni
-            </span>
-            <div class="app-rail-user">
-              <span class="app-avatar">FB</span>
-              <span><b>Francesco B.</b><i>Coach</i></span>
-            </div>
-          </nav>
+        <nav class="explorer-list" data-view-panel="atleta" aria-label="Sezioni console atleta" hidden>
+          <button type="button" class="explorer-item is-active reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 4h11l-2 4 2 4H6"/></svg>
+            <span class="explorer-item-label">Il mio percorso</span>
+          </button>
+          <button type="button" class="explorer-item reveal">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Nutrizione</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
+      </div>
 
+      <div class="explorer-stage">
+        <div class="browser-frame" data-view-panel="coach">
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it</span></div>
+
+          <div class="app reel-app app-solo">
           <div class="reel-frame">
 
             <!-- ---- 1 · Dashboard ---- -->
@@ -581,17 +570,173 @@
             </div>
 
           </div>
+          </div>
         </div>
 
-        <div class="reel-foot">
-          <span class="reel-label">Dashboard — la sintesi dello studio</span>
-          <span class="reel-dots" role="tablist" aria-label="Schermate della piattaforma"></span>
+        <div class="browser-frame" data-view-panel="atleta" hidden>
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it</span></div>
+
+          <div class="app reel-app app-solo">
+          <div class="reel-frame">
+
+            <!-- ---- 1 · Dashboard ---- -->
+            <div class="reel-slide app-main is-active" role="img" data-label="Dashboard — tutto a un tocco"
+                 aria-label="Dashboard dell'atleta: peso attuale, sessioni della settimana, target giornaliero e giorni all'abbonamento">
+              <div class="app-topbar" aria-hidden="true">
+                <span class="app-search">Cerca allenamenti, pasti, check…</span>
+                <span class="app-avatar">ER</span>
+              </div>
+              <p class="app-greet">Ciao, <em>Elena</em></p>
+              <div class="app-kpis">
+                <div class="app-kpi"><span>Peso attuale</span><b>70,2 kg</b></div>
+                <div class="app-kpi app-kpi-gold"><span>Sessioni settimana</span><b>4</b></div>
+                <div class="app-kpi"><span>Target giornaliero</span><b>2 150</b></div>
+                <div class="app-kpi"><span>Abbonamento</span><b>12 gg</b></div>
+              </div>
+              <div class="app-cols">
+                <div class="app-card">
+                  <div class="app-card-head"><b>Andamento peso</b><span>8 settimane</span></div>
+                  <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+                    <path class="app-spark-area" d="M0 16 L43 18 L86 14 L129 20 L171 24 L214 22 L257 28 L300 30 L300 54 L0 54 Z"/>
+                    <path class="app-spark-line" d="M0 16 L43 18 L86 14 L129 20 L171 24 L214 22 L257 28 L300 30"/>
+                    <circle class="app-spark-dot" cx="300" cy="30" r="3.5"/>
+                  </svg>
+                </div>
+                <div class="app-side">
+                  <div class="app-card">
+                    <div class="app-card-head"><b>Carichi principali</b><span>Squat</span></div>
+                    <div class="app-chart" aria-hidden="true">
+                      <i style="--h:50%; --d:0s"></i><i style="--h:58%; --d:0.1s"></i>
+                      <i style="--h:66%; --d:0.2s"></i><i style="--h:80%; --d:0.3s"></i>
+                    </div>
+                  </div>
+                  <div class="app-card">
+                    <div class="app-card-head"><b>Volume settimanale</b><span>7 giorni</span></div>
+                    <div class="app-chart" aria-hidden="true">
+                      <i style="--h:44%; --d:0s"></i><i style="--h:60%; --d:0.1s"></i>
+                      <i style="--h:52%; --d:0.2s"></i><i style="--h:71%; --d:0.3s"></i>
+                      <i style="--h:65%; --d:0.4s"></i><i style="--h:84%; --d:0.5s"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- 2 · Il mio percorso ---- -->
+            <div class="reel-slide app-main" role="img" data-label="Il mio percorso — la storia"
+                 aria-label="Timeline del percorso: fase di allenamento in corso, ultimo piano nutrizionale attivato e ultimo check compilato">
+              <div class="app-topbar" aria-hidden="true">
+                <span class="app-search">Il mio percorso</span>
+                <span class="app-avatar">ER</span>
+              </div>
+              <p class="app-greet">Il tuo <em>percorso</em></p>
+              <div class="app-card">
+                <div class="app-card-head"><b>Panoramica</b><span>Tutto</span></div>
+                <div class="app-row">
+                  <span class="app-row-id"><b>Fase — Ipertrofia</b><span>12 mar → 12 giu</span></span>
+                  <span class="app-tag app-tag-gold">3 mesi</span>
+                </div>
+                <div class="app-row">
+                  <span class="app-row-id"><b>Allenamento assegnato</b><span>Ipertrofia · settimana 1</span></span>
+                  <span class="app-tag app-tag-ok">14 lug</span>
+                </div>
+                <div class="app-row">
+                  <span class="app-row-id"><b>Piano nutrizionale attivato</b><span>Ricomposizione · 2 150 kcal</span></span>
+                  <span class="app-tag app-tag-ok">11 lug</span>
+                </div>
+                <div class="app-row">
+                  <span class="app-row-id"><b>Check compilato</b><span>Peso, circonferenze, foto</span></span>
+                  <span class="app-tag app-tag-ok">9 lug</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- 3 · Nutrizione ---- -->
+            <div class="reel-slide app-main" role="img" data-label="Nutrizione — il tuo piano"
+                 aria-label="Piano nutrizionale personale: 2 150 kcal, cinque pasti con macro per pasto e aderenza al 96 per cento">
+              <div class="app-topbar" aria-hidden="true">
+                <span class="app-search">Ricomposizione · settimana 3</span>
+                <span class="app-avatar">ER</span>
+              </div>
+              <p class="app-greet">Piano — <em>2 150 kcal</em></p>
+              <div class="app-kpis">
+                <div class="app-kpi"><span>Proteine</span><b>158</b></div>
+                <div class="app-kpi"><span>Carboidrati</span><b>212</b></div>
+                <div class="app-kpi"><span>Grassi</span><b>64</b></div>
+                <div class="app-kpi app-kpi-gold"><span>Aderenza</span><b>96%</b></div>
+              </div>
+              <div class="app-cols">
+                <div class="app-card">
+                  <div class="app-card-head"><b>Pasti</b><span>Giornata tipo</span></div>
+                  <div class="app-meal">
+                    <span class="app-meal-i" aria-hidden="true">07:30</span>
+                    <span class="app-meal-id"><b>Colazione</b><span>P 30 · C 48 · G 12</span></span>
+                    <span class="app-meal-kcal">460 kcal</span>
+                  </div>
+                  <div class="app-meal">
+                    <span class="app-meal-i" aria-hidden="true">12:30</span>
+                    <span class="app-meal-id"><b>Pranzo</b><span>P 42 · C 68 · G 16</span></span>
+                    <span class="app-meal-kcal">620 kcal</span>
+                  </div>
+                  <div class="app-meal">
+                    <span class="app-meal-i" aria-hidden="true">16:30</span>
+                    <span class="app-meal-id"><b>Pre-workout</b><span>P 16 · C 40 · G 4</span></span>
+                    <span class="app-meal-kcal">280 kcal</span>
+                  </div>
+                  <div class="app-meal">
+                    <span class="app-meal-i" aria-hidden="true">20:00</span>
+                    <span class="app-meal-id"><b>Cena</b><span>P 48 · C 44 · G 20</span></span>
+                    <span class="app-meal-kcal">560 kcal</span>
+                  </div>
+                  <div class="app-meal">
+                    <span class="app-meal-i" aria-hidden="true">22:00</span>
+                    <span class="app-meal-id"><b>Spuntino serale</b><span>P 22 · C 12 · G 12</span></span>
+                    <span class="app-meal-kcal">230 kcal</span>
+                  </div>
+                </div>
+                <div class="app-side">
+                  <div class="app-card">
+                    <div class="app-card-head"><b>Macro</b><span>Oggi</span></div>
+                    <div class="app-rings" aria-hidden="true">
+                      <div>
+                        <div class="app-ring app-ring-1">
+                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
+                          <b>158</b>
+                        </div>
+                        <p class="app-ring-cap">Proteine</p>
+                      </div>
+                      <div>
+                        <div class="app-ring app-ring-2">
+                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
+                          <b>212</b>
+                        </div>
+                        <p class="app-ring-cap">Carboidrati</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="app-card">
+                    <div class="app-card-head"><b>Aderenza</b><span>4 settimane</span></div>
+                    <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+                      <path class="app-spark-area" d="M0 30 L43 24 L86 26 L129 18 L171 20 L214 14 L257 16 L300 10 L300 54 L0 54 Z"/>
+                      <path class="app-spark-line" d="M0 30 L43 24 L86 26 L129 18 L171 20 L214 14 L257 16 L300 10"/>
+                      <circle class="app-spark-dot" cx="300" cy="10" r="3.5"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          </div>
         </div>
+
+        <p class="explorer-caption">Dashboard — la sintesi dello studio</p>
       </div>
     </div>
 
     <div class="hero-cta reveal" style="margin-top: 44px; justify-content: center;">
       <a href="piattaforma.html" class="btn btn-ghost">Esplora tutte le funzionalità<span class="btn-arrow">→</span></a>
+      <a href="app.html" class="btn btn-ghost">Vedi anche le app iOS<span class="btn-arrow">→</span></a>
     </div>
   </div>
 </section>
@@ -695,6 +840,7 @@
               </div>
             </div>
           </div>
+          <div class="prevw-stat" aria-hidden="true"><b>9</b><span>Moduli in console</span></div>
         </div>
         <div class="prevw-body">
           <p class="prevw-kicker">Piattaforma</p>
@@ -721,6 +867,7 @@
               </div>
             </div>
           </div>
+          <div class="prevw-stat" aria-hidden="true"><b>2</b><span>App iOS sincronizzate</span></div>
         </div>
         <div class="prevw-body">
           <p class="prevw-kicker">App Mobile</p>
@@ -740,6 +887,7 @@
               <div class="art-col"><i></i><i></i><i></i><i></i></div>
             </div>
           </div>
+          <div class="prevw-stat" aria-hidden="true"><b>3</b><span>Piani, stesso metodo</span></div>
         </div>
         <div class="prevw-body">
           <p class="prevw-kicker">Pricing</p>
@@ -751,14 +899,6 @@
     </div>
   </div>
 </section>
-
-<!-- ====================== MARQUEE ====================== -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
-    <span>Allenamento</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Gestione</span><i>◆</i><span>Metodo</span><i>◆</i><span>Precisione</span><i>◆</i><span>Forza</span><i>◆</i>
-    <span>Allenamento</span><i>◆</i><span>Nutrizione</span><i>◆</i><span>Gestione</span><i>◆</i><span>Metodo</span><i>◆</i><span>Precisione</span><i>◆</i><span>Forza</span><i>◆</i>
-  </div>
-</div>
 
 <!-- ====================== CTA FINALE ====================== -->
 <section class="cta-band section">
@@ -809,7 +949,7 @@
 </footer>
 
 <script src="js/main.js?v=20260717a"></script>
-<script src="js/site.js?v=20260717a"></script>
+<script src="js/site.js?v=20260717c"></script>
 <script src="js/dust.js?v=20260717a" defer></script>
 
 <!-- Cookie consent banner -->

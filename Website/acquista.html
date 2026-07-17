@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260702a">
+<link rel="stylesheet" href="css/style.css?v=20260717c">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
   .checkout-section { padding-top: calc(var(--header-h) + clamp(56px, 10vh, 120px)); }
@@ -179,25 +179,21 @@
       </article>
     </div>
 
-    <div id="returningRow" style="max-width:560px;margin:0 auto;text-align:left;">
-      <p style="font-size:14px;margin:0 0 8px;">Sei già stato cliente Athlynk?</p>
+    <div id="returningRow" class="checkout-step">
+      <p class="checkout-step-label">Sei già stato cliente Athlynk?</p>
       <div class="billing-switch" id="returningSwitch" role="radiogroup" aria-label="Sei già stato cliente Athlynk?">
         <button type="button" class="billing-opt" data-returning="0" role="radio" aria-checked="false">No, sono nuovo</button>
         <button type="button" class="billing-opt" data-returning="1" role="radio" aria-checked="false">Sì, ho già avuto un account</button>
       </div>
-      <p id="returningError" role="alert" hidden style="color:#b3261e;font-size:13px;margin:8px 0 0;">
-        Seleziona una delle due opzioni per procedere.
-      </p>
+      <p id="returningError" class="field-error" role="alert" hidden>Seleziona una delle due opzioni per procedere.</p>
     </div>
 
-    <div id="consentRow" style="max-width:560px;margin:22px auto 0;text-align:left;">
-      <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:1.5;">
-        <input type="checkbox" id="acceptTerms" style="margin-top:3px;width:18px;height:18px;flex:0 0 auto;">
+    <div id="consentRow" class="checkout-step">
+      <label class="consent-row" for="acceptTerms">
+        <input type="checkbox" id="acceptTerms">
         <span>Ho letto e accetto i <a href="tos.html">Termini di Servizio</a> e la <a href="privacy.html">Privacy Policy</a>.</span>
       </label>
-      <p id="consentError" role="alert" hidden style="color:#b3261e;font-size:13px;margin:8px 0 0;">
-        Per procedere, accetta i Termini di Servizio e la Privacy Policy.
-      </p>
+      <p id="consentError" class="field-error" role="alert" hidden>Per procedere, accetta i Termini di Servizio e la Privacy Policy.</p>
     </div>
 
     <p class="checkout-note">
