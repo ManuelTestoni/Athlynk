@@ -19,7 +19,7 @@ struct CoachCheckTemplatesSection: View {
     @State private var showingFolders = false
     @State private var reloadToken = 0
     @State private var showingCustom = false
-    @State private var flipAngle: Double = 0
+    @State private var squashed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -63,7 +63,7 @@ struct CoachCheckTemplatesSection: View {
                     presetFace
                 }
             }
-            .rotation3DEffect(.degrees(flipAngle), axis: (0, 1, 0))
+            .scaleEffect(x: squashed ? 0 : 1, y: 1, anchor: .center)
         }
         .padding(16)
         .voltPanel(radius: 18)
@@ -92,14 +92,14 @@ struct CoachCheckTemplatesSection: View {
         }
     }
 
-    /// Flip animation: rotate to 90°, swap the face, rotate back — a cheap
-    /// stand-in for a true two-sided card that keeps the view tree simple.
+    /// Squash to zero width, swap the face, un-squash — a cheap stand-in for
+    /// a true two-sided card that keeps the view tree simple.
     private func flip() {
         Haptics.tap()
-        withAnimation(.easeIn(duration: 0.2)) { flipAngle += 90 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        withAnimation(.easeIn(duration: 0.16)) { squashed = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
             showingCustom.toggle()
-            withAnimation(.easeOut(duration: 0.2)) { flipAngle += 90 }
+            withAnimation(.easeOut(duration: 0.22)) { squashed = false }
         }
     }
 

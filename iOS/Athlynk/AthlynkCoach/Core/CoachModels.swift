@@ -483,12 +483,18 @@ struct CoachCheckRow: Codable, Identifiable, Hashable {
     let title: String
     let submittedAt: String?
     let weightKg: Double?
-    let reviewed: Bool
+    var reviewed: Bool
     let client: CoachClient?
+    let questionnaireType: String?
+    let isQuickMeasurement: Bool
+    let filledByCoach: Bool
     enum CodingKeys: String, CodingKey {
         case id, title, reviewed, client
         case submittedAt = "submitted_at"
         case weightKg = "weight_kg"
+        case questionnaireType = "questionnaire_type"
+        case isQuickMeasurement = "is_quick_measurement"
+        case filledByCoach = "filled_by_coach"
     }
 }
 
@@ -587,6 +593,12 @@ struct CoachChecksResponse: Codable {
         pendingCount = (try? c.decode(Int.self, forKey: .pendingCount)) ?? 0
         hasMore = (try? c.decode(Bool.self, forKey: .hasMore)) ?? false
     }
+}
+
+struct CoachClientChecksResponse: Codable {
+    let checks: [CoachCheckRow]
+    let hasMore: Bool
+    enum CodingKeys: String, CodingKey { case checks; case hasMore = "has_more" }
 }
 
 struct CoachCheckPhoto: Codable, Identifiable, Hashable {

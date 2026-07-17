@@ -94,19 +94,25 @@ extension APIClient {
     }
 
     func coachClients(query: String = "", status: String = "",
-                      offset: Int = 0, limit: Int? = nil) async throws -> CoachClientsResponse {
+                      offset: Int = 0, limit: Int? = nil, hasChecks: Bool = false) async throws -> CoachClientsResponse {
         var path = "/api/v1/coach/clients"
         var qs: [String] = []
         if !query.isEmpty { qs.append("q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") }
         if !status.isEmpty { qs.append("status=\(status)") }
         if offset > 0 { qs.append("offset=\(offset)") }
         if let limit { qs.append("limit=\(limit)") }
+        if hasChecks { qs.append("has_checks=1") }
         if !qs.isEmpty { path += "?" + qs.joined(separator: "&") }
         return try decode(CoachClientsResponse.self, from: try await request(path))
     }
 
     func coachClient(id: Int) async throws -> CoachClientDetailDTO {
         try decode(CoachClientDetailDTO.self, from: try await request("/api/v1/coach/clients/\(id)"))
+    }
+
+    func coachClientChecks(clientId: Int, offset: Int = 0) async throws -> CoachClientChecksResponse {
+        try decode(CoachClientChecksResponse.self,
+                   from: try await request("/api/v1/coach/clients/\(clientId)/checks?offset=\(offset)"))
     }
 
     func coachChecks(filter: String = "pending", offset: Int = 0) async throws -> CoachChecksResponse {
