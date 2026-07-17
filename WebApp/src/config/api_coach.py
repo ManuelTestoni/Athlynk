@@ -574,6 +574,12 @@ def client_fabbisogni(request, client_id):
             return int(float(answers.get(key) or 0)) or None
         except (TypeError, ValueError):
             return None
+    def _num(key):
+        try:
+            v = float(answers.get(key) or 0)
+            return round(v, 1) if v > 0 else None
+        except (TypeError, ValueError):
+            return None
     return JsonResponse({
         'fresh': fresh,
         'submitted_at': _iso(resp.submitted_at),
@@ -584,6 +590,7 @@ def client_fabbisogni(request, client_id):
             'lipidi_g':        _int('lipidi_g_totale'),
             'fibra_g':         _int('fibra_gdie'),
             'idrico_ml':       _int('idrico_mldie'),
+            'peso_kg':         _num('peso_kg'),
         },
     })
 

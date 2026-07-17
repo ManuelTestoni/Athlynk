@@ -39,6 +39,7 @@ window.NUTRITION_WIZARD_INIT = {
     supplementsPattern: "/api/nutrizione/piani/__ID__/integratori/",
     deletePattern: "/api/nutrizione/piani/__ID__/elimina/",
     fabbisogniPattern: "/api/v1/coach/clients/__CLIENT_ID__/fabbisogni",
+    checkCreate: "{% url 'check_create' %}",
   },
 };
 </script>
@@ -267,7 +268,7 @@ window.NUTRITION_WIZARD_INIT = {
               <p class="al-tag mt-1" x-show="errors.title" style="color: var(--al-danger);" x-text="errors.title"></p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 gap-5">
               <div>
                 <label class="al-label">Tipologia</label>
                 <select x-model="plan_type" class="al-select">
@@ -279,10 +280,6 @@ window.NUTRITION_WIZARD_INIT = {
                   <option>Vegana</option>
                   <option>Vegetariana</option>
                 </select>
-              </div>
-              <div>
-                <label class="al-label">Obiettivo</label>
-                <input type="text" x-model="nutrition_goal" placeholder="Es. Perdita di peso" class="al-input">
               </div>
             </div>
 
@@ -302,12 +299,6 @@ window.NUTRITION_WIZARD_INIT = {
                 </template>
               </select>
             </div>
-
-            <label class="flex items-center gap-2 cursor-pointer pt-1">
-              <input type="checkbox" x-model="is_template" class="w-4 h-4 cursor-pointer"
-                     style="accent-color: var(--al-bronze);">
-              <span class="al-body">Salva come modello riutilizzabile</span>
-            </label>
           </div>
         </div>
       </div>
@@ -376,13 +367,16 @@ window.NUTRITION_WIZARD_INIT = {
                         @click="pickFabClient(c)">
                   <span class="nz-athlete-avatar"
                         x-text="c.name.split(' ').filter(Boolean).slice(0,2).map(n => n[0]?.toUpperCase()).join('') || '?'"></span>
-                  <span class="nz-athlete-name" x-text="c.name"></span>
+                  <span class="flex items-center gap-1.5 min-w-0" style="overflow:hidden;">
+                    <span class="nz-athlete-name" x-text="c.name"></span>
+                    <span x-show="!c.has_fab" class="al-tag shrink-0" style="font-size:8px; padding:1px 5px; color: var(--al-ink-line);">Da calcolare</span>
+                  </span>
                   <span class="nz-athlete-mark" aria-hidden="true"><i class="ph ph-check"></i></span>
                 </button>
               </template>
               <div class="nz-athlete-empty" x-show="fabFilteredClients().length === 0">
                 <i class="ph ph-user-circle-minus"></i>
-                <p x-text="fabClientsAll().length === 0 ? 'Non hai ancora compilato i fabbisogni per i tuoi atleti.' : 'Nessun atleta.'"></p>
+                <p x-text="fabClientsAll().length === 0 ? 'Non hai ancora nessun atleta attivo.' : 'Nessun atleta trovato.'"></p>
               </div>
             </div>
 
@@ -426,16 +420,32 @@ window.NUTRITION_WIZARD_INIT = {
               </div>
             </template>
 
-            <!-- Generic error: athlete has no computed fabbisogni -->
+            <!-- Not computed yet: offer to fill it in now, without leaving the wizard -->
             <template x-if="fabPicked && !fabbisogniLoading && !fabbisogniData">
-              <p class="nz-fab-banner al-small" style="color: var(--al-ink-mute);">
-                <span x-text="fabClient?.name"></span> non ha ancora un «Calcolo Fabbisogni» recente.
-                Compila lo strumento in un check, poi torna qui.
-              </p>
+              <div class="nz-fab-banner">
+                <p class="al-small" style="color: var(--al-ink-mute);">
+                  <span x-text="fabClient?.name"></span> non ha ancora un «Calcolo Fabbisogni» recente.
+                </p>
+                <button type="button" @click="compileFabbisogniNow()" :disabled="fabRedirecting"
+                        class="al-btn al-btn-ghost mt-2"
+                        style="font-size: 11px; padding: 5px 10px; border-color: var(--al-bronze); color: var(--al-bronze);">
+                  <i class="ph ph-calculator text-xs"></i>
+                  <span x-show="!fabRedirecting">Compila ora i fabbisogni</span>
+                  <span x-show="fabRedirecting">Apertura…</span>
+                </button>
+              </div>
             </template>
           </div>
         </div>
       </aside>
+    </div>
+
+    <!-- Step nav footer -->
+    <div class="flex items-center justify-end mt-7 pt-5 gap-3"
+         style="border-top: 1px solid var(--al-rule);">
+      <button type="button" @click="goNext()" :disabled="saving" class="al-btn al-btn-bronze">
+        <span>Avanti</span><i class="ph ph-arrow-right text-sm"></i>
+      </button>
     </div>
   </div>
 
@@ -1513,6 +1523,61 @@ window.NUTRITION_WIZARD_INIT = {
           </div>
         </div>
 
+        <!-- Volatile g/kg calculator -->
+        <div class="al-card" style="border: 1px dashed var(--al-bronze-soft); background: linear-gradient(180deg, var(--al-parchment) 0%, var(--al-marble-warm) 100%);">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="ph ph-scales text-bronze text-base"></i>
+            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Calcolatore g/kg</p>
+            <span class="al-tag ml-auto" style="font-size: 8px; letter-spacing: 0.14em; color: var(--al-ink-line);">volatile</span>
+          </div>
+
+          <label class="al-label flex items-center justify-between" style="margin-bottom: 4px;">
+            <span>Peso paziente</span>
+            <span class="font-mono" style="color: var(--al-ink-line); font-size: 10px;">kg</span>
+          </label>
+          <input type="number" min="0" step="0.1" x-model.number="calc_weight_kg"
+                 @input="if (calc_weight_kg !== null && calc_weight_kg !== '' && calc_weight_kg < 0) calc_weight_kg = 0"
+                 placeholder="es. 72" class="al-input text-center font-mono"
+                 style="font-size: 15px; letter-spacing: 0.02em;">
+
+          <template x-if="!calc_weight_kg || calc_weight_kg <= 0">
+            <p class="al-small mt-3 text-center" style="color: var(--al-ink-line); font-style: italic;">
+              Inserisci il peso per vedere g/kg e kcal/kg.
+            </p>
+          </template>
+
+          <template x-if="calc_weight_kg && calc_weight_kg > 0">
+            <div class="mt-3 space-y-1.5">
+              <template x-for="r in [
+                  {l:'kcal/kg', v:currentMacroTarget().kcal,    c:'var(--al-bronze)',  u:''},
+                  {l:'Prot',    v:currentMacroTarget().protein, c:'var(--al-aegean)',  u:'g/kg'},
+                  {l:'Carb',    v:currentMacroTarget().carb,    c:'var(--al-warn)',    u:'g/kg'},
+                  {l:'Fat',     v:currentMacroTarget().fat,     c:'var(--al-danger)',  u:'g/kg'}
+                ]" :key="r.l">
+                <div class="flex items-center justify-between gap-2"
+                     style="padding: 7px 10px; background: var(--al-parchment); border: 1px solid var(--al-rule-faint); border-radius: var(--al-r-sm);">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span :style="'width:6px;height:6px;border-radius:999px;background:' + r.c + '; flex-shrink:0;'"></span>
+                    <span class="al-body" style="font-size: 12px;" x-text="r.l"></span>
+                  </div>
+                  <template x-if="r.v">
+                    <div class="flex items-baseline gap-1">
+                      <span class="font-mono font-bold"
+                            :style="'color:' + r.c + '; font-size: 14px;'"
+                            x-text="(r.v / calc_weight_kg).toFixed(r.u ? 2 : 1)"></span>
+                      <span class="font-mono" style="font-size: 9px; color: var(--al-ink-line); letter-spacing: 0.08em;"
+                            x-text="r.u || 'kcal/kg'"></span>
+                    </div>
+                  </template>
+                  <template x-if="!r.v">
+                    <span class="font-mono" style="font-size: 11px; color: var(--al-ink-line);">target —</span>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+
         <div class="al-card al-card-warm">
           <div class="flex items-center gap-2 mb-1.5">
             <i class="ph ph-info text-bronze text-base"></i>
@@ -1595,10 +1660,10 @@ window.NUTRITION_WIZARD_INIT = {
                      style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
                      x-text="idx + 1"></div>
                 <div class="flex-1 min-w-0">
-                  <input type="text" x-model="supp.name" placeholder="Nome integratore"
-                         class="w-full bg-transparent text-sm font-bold text-ink focus:outline-none placeholder-ink-mute"
-                         :class="supp._invalid ? 'is-error' : ''" @input="supp._invalid = false"
-                         style="border: none; padding: 0;">
+                  <label class="al-label">Nome integratore</label>
+                  <input type="text" x-model="supp.name" placeholder="Es. Creatina monoidrato"
+                         class="al-input" :class="supp._invalid ? 'is-error' : ''"
+                         @input="supp._invalid = false">
                   <span x-show="supp._invalid" x-cloak class="al-input-error">Compila questo campo per proseguire o cancella integratore.</span>
                 </div>
               </div>
@@ -1623,7 +1688,12 @@ window.NUTRITION_WIZARD_INIT = {
 
               <div>
                 <label class="al-label">Quando</label>
-                <input type="text" x-model="supp.timing" placeholder="Es. post-workout" class="al-input">
+                <select x-model="supp.timing" class="al-input">
+                  <option value="">—</option>
+                  <template x-for="t in timingOptions" :key="t">
+                    <option :value="t" x-text="t"></option>
+                  </template>
+                </select>
               </div>
 
               <div>
