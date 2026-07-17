@@ -44,6 +44,7 @@ from .helpers import (
     _compute_deltas, _build_prefill,
 )
 from .assignments import _generate_due_instances, _notify_coach_check_completed
+from .templates_admin import _ensure_preset_clones
 
 
 def _template_has_fabbisogni(questions):
@@ -75,6 +76,42 @@ def _fabbisogni_prefill(client):
     elif g[:1] == 'f' or g in ('femmina', 'female', 'donna'):
         prefill['sesso'] = 'Femmina'
     return prefill
+
+
+ALLOWED_FAB_PRESET_KEYS = ('nutrizione',)
+
+
+def _valid_return_plan_id(raw, coach):
+    """Int plan id di proprietà di `coach`, altrimenti None. Difesa
+    open-redirect/IDOR: mai costruire un redirect da un id non validato."""
+    try:
+        pid = int(raw)
+    except (TypeError, ValueError):
+        return None
+    from domain.nutrition.models import NutritionPlan
+    if NutritionPlan.objects.filter(id=pid, coach=coach).exists():
+        return pid
+    return None
+
+
+def _resolve_fabbisogni_template(coach, client, preset_key):
+    """Entry point "compila ora i fabbisogni" dal wizard nutrizione. Riusa
+    un'assegnazione self-fill già pendente per un preset con lo strumento
+    fabbisogni (evita un secondo check parallelo); altrimenti il clone del
+    coach di `preset_key` (creato al volo)."""
+    pending = (AssignedCheckInstance.objects
+               .filter(assignment__coach=coach, assignment__client=client, status='pending')
+               .select_related('assignment__template')
+               .order_by('-assignment__assigned_at'))
+    for inst in pending:
+        tpl = inst.assignment.template
+        if not tpl:
+            continue
+        cfg = inst.assignment.snapshot_config or tpl.questions_config or []
+        if any((q or {}).get('type') == 'strumento_fabbisogni' for q in cfg):
+            return tpl
+    _ensure_preset_clones(coach)
+    return QuestionnaireTemplate.objects.get(coach=coach, preset_key=preset_key, is_active=True)
 
 
 def check_dashboard_view(request):
@@ -190,7 +227,8 @@ def check_create_view(request):
             return redirect('login')
         client_id = request.GET.get('client_id') or request.POST.get('client_id')
         template_id = request.GET.get('template_id') or request.POST.get('template_id')
-        if not client_id or not template_id:
+        preset_key = request.GET.get('preset_key')
+        if not client_id or not (template_id or preset_key):
             return redirect('check_dashboard')
         try:
             client = ClientProfile.objects.get(
@@ -201,7 +239,12 @@ def check_create_view(request):
         except ClientProfile.DoesNotExist:
             return redirect('check_dashboard')
         try:
-            template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+            if template_id:
+                template = QuestionnaireTemplate.objects.get(id=template_id, coach=coach, is_active=True)
+            elif preset_key in ALLOWED_FAB_PRESET_KEYS:
+                template = _resolve_fabbisogni_template(coach, client, preset_key)
+            else:
+                return redirect('check_dashboard')
         except QuestionnaireTemplate.DoesNotExist:
             return redirect('check_dashboard')
         coach_filling_for_client = True
@@ -226,6 +269,7 @@ def check_create_view(request):
             'catalog_json': json.dumps(catalog_json()),
             'prefill_json': json.dumps(prefill),
             'custom_bmr_formulas_json': json.dumps(coach.custom_bmr_formulas or []),
+            'return_plan_id': _valid_return_plan_id(request.GET.get('return_plan_id'), coach),
         })
 
     # ── POST ───────────────────────────────────────────────────────
@@ -303,6 +347,9 @@ def check_create_view(request):
             body=f'Il tuo coach ha compilato un check "{check_title}" per te.',
             link_url='/check/',
         )
+        return_plan_id = _valid_return_plan_id(request.POST.get('return_plan_id'), coach)
+        if return_plan_id:
+            return redirect(f"{reverse('nutrizione_piano_edit', args=[return_plan_id])}?step=info&fab_client={client.id}")
         return redirect('clienti_detail', client_id=client.id)
 
     return redirect('check_dashboard')

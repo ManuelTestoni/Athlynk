@@ -155,6 +155,7 @@
     <input type="hidden" name="client_id" value="{{ client.id }}">
     <input type="hidden" name="template_id" value="{{ template.id }}">
     <input type="hidden" name="answers_json" id="input-answers-json">
+    {% if return_plan_id %}<input type="hidden" name="return_plan_id" value="{{ return_plan_id }}">{% endif %}
 
     <div class="max-w-3xl mx-auto pb-16" x-data="checkFill()" x-cloak>
 
@@ -840,6 +841,14 @@ function checkFill() {
         init() {
             if (!Array.isArray(this.steps) || this.steps.length === 0) {
                 this.steps = [{ id: 's_1', label: 'Check', icon: 'ph-list' }];
+            }
+            // Deep-link a uno step specifico (es. dal wizard nutrizione "compila
+            // ora i fabbisogni"). Whitelist esplicita: nessun indirizzamento libero.
+            const GOTO_STEP_WHITELIST = ['s_fabbisogni'];
+            const gotoStep = new URLSearchParams(window.location.search).get('goto_step');
+            if (gotoStep && GOTO_STEP_WHITELIST.includes(gotoStep)) {
+                const idx = this.steps.findIndex(s => s.id === gotoStep);
+                if (idx >= 0) this.stepIdx = idx;
             }
             // Pre-init defaults
             this.questions.forEach(q => {

@@ -91,6 +91,16 @@ function nutritionWizard() {
     }
   });
 
+  /* Stesso set fisso usato da nutrizione/integratori_create.html (TIMINGS) e
+     da iOS (CoachPlanWizards.swift) — elenco chiuso, nessuna voce "Altro".
+     Duplicato qui: il progetto non ha un sistema di moduli JS condiviso per
+     una dozzina di stringhe. */
+  const SUPPLEMENT_TIMING_OPTIONS = [
+    'Mattina', 'Colazione', 'Pranzo', 'Pomeriggio', 'Cena', 'Sera',
+    'Pre Workout', 'Intra Workout', 'Post Workout',
+    'A digiuno', 'Con i pasti', 'Pre nanna',
+  ];
+
   const base = {
     /* === init data === */
     planId: plan ? plan.id : null,
@@ -140,6 +150,7 @@ function nutritionWizard() {
       _shake: false,
     })),
     supplementNotes: (INIT.supplements && INIT.supplements.notes) || '',
+    timingOptions: SUPPLEMENT_TIMING_OPTIONS,
 
     /* === Step 3: multi-select bulk actions === */
     selectedSuppKeys: [],
@@ -192,10 +203,12 @@ function nutritionWizard() {
     fabClient: null,        // athlete picked in the info-step card
     fabPicked: false,       // a client was chosen (distinguishes "none" from "not yet")
     fabApplied: false,      // targets pulled into the plan
+    fabRedirecting: false,  // "Compila ora i fabbisogni" hand-off to the check builder in flight
 
     init() {
       const params = new URLSearchParams(window.location.search);
       const requestedStep = params.get('step');
+      const fabClientId = params.get('fab_client');
       /* MACRO plans set targets, not meals — relabel step 2 accordingly. */
       if (this.planMode === 'MACRO') {
         const s = this.stepDefs.find(d => d.id === 'builder');
@@ -218,6 +231,20 @@ function nutritionWizard() {
         this._originalSnapshot = null;
       }
       this.suppSavedSnapshot = this._suppSerialize();
+
+      /* Return trip from "Compila ora i fabbisogni" (compileFabbisogniNow):
+         pick the athlete back up and apply the freshly computed targets
+         automatically — no manual "Usa questi target" click in this case. */
+      if (fabClientId) {
+        const c = this.clientsAll.find(x => String(x.id) === String(fabClientId));
+        if (c) {
+          this.fabCardOpen = true;
+          this.pickFabClient(c).then(() => {
+            this.applyFabbisogniTargets();
+            this.syncUrlStep();
+          });
+        }
+      }
     },
 
     _snapshotState() {
@@ -1061,12 +1088,26 @@ function nutritionWizard() {
       if (d.proteine_g)    this.protein_target_g = d.proteine_g;
       if (d.carboidrati_g) this.carb_target_g    = d.carboidrati_g;
       if (d.lipidi_g)      this.fat_target_g     = d.lipidi_g;
+      if (d.peso_kg)       this.calc_weight_kg   = d.peso_kg;
+      /* MACRO/WEEKLY reads targets from macroDayTargets[day], not from the
+         plan-level fields above — apply the same fabbisogni result to every
+         day of the week so it actually shows up regardless of activeDay. */
+      if (this.planMode === 'MACRO' && this.planKind === 'WEEKLY') {
+        this.weekDays.forEach(day => {
+          const t = this.macroDayTargets[day.code];
+          if (!t) return;
+          if (d.det_kcal)      t.kcal    = d.det_kcal;
+          if (d.proteine_g)    t.protein = d.proteine_g;
+          if (d.carboidrati_g) t.carb    = d.carboidrati_g;
+          if (d.lipidi_g)      t.fat     = d.lipidi_g;
+        });
+      }
       this.fabApplied = true;
     },
 
     /* Info-step card: pick an athlete and pull their computed fabbisogni. */
     fabClientsAll() {
-      return this.clientsAll.filter(c => c.has_fab);
+      return this.clientsAll;
     },
     fabFilteredClients() {
       const q = (this.fabSearch || '').toLowerCase();
@@ -1078,6 +1119,29 @@ function nutritionWizard() {
       this.fabPicked = false;
       await this.loadClientFabbisogni(c.id);   // sets fabbisogniData (null if no fresh model)
       this.fabPicked = true;
+    },
+    /* Athlete has no (fresh) fabbisogni yet: save the current draft, then hand
+       off to the check builder pre-scoped to that athlete's "Nutrizione"
+       check, jumping straight to the Fabbisogni step. On return (see init()
+       fab_client handling) the targets are applied automatically. */
+    async compileFabbisogniNow() {
+      if (!this.fabClient) return;
+      if (!this.title.trim()) {
+        this.errors = { title: 'Titolo obbligatorio.' };
+        this.tryFallbackToast('Aggiungi un titolo al piano prima di continuare.', 'warn');
+        this.step = 'info';
+        return;
+      }
+      this.fabRedirecting = true;
+      const ok = await this.persist();   // ensures planId exists before navigating away
+      if (!ok) { this.fabRedirecting = false; return; }
+      const params = new URLSearchParams({
+        client_id: this.fabClient.id,
+        preset_key: 'nutrizione',
+        goto_step: 's_fabbisogni',
+        return_plan_id: this.planId,
+      });
+      window.location.href = INIT.urls.checkCreate + '?' + params.toString();
     },
 
     /* === Assign modal === */
