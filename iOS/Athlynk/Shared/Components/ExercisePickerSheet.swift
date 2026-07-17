@@ -284,6 +284,6 @@ private struct ExerciseResultRow: View {
     }
 
     private var subtitle: String {
-        [item.primaryMuscle, item.equipment].filter { !$0.isEmpty }.joined(separator: " · ")
+        ([item.primaryMuscle] + item.equipment).filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }

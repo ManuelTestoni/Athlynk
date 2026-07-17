@@ -19,7 +19,7 @@ struct ExerciseDetailView: View {
                     hero.revealUp(appear, index: 0)
                     titleBlock.revealUp(appear, index: 1)
                     statGrid.revealUp(appear, index: 2)
-                    if let eq = exercise.equipment, !eq.isEmpty { equipmentTag(eq).revealUp(appear, index: 3) }
+                    if !exercise.equipment.isEmpty { equipmentTag(exercise.equipment).revealUp(appear, index: 3) }
                     if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes).revealUp(appear, index: 4) }
                     ExerciseTrendCard {
                         try await APIClient.shared.exerciseTrend(workoutExerciseId: exercise.id)
@@ -92,10 +92,10 @@ struct ExerciseDetailView: View {
         .padding(14).voltPanel(Palette.magenta.opacity(0.35))
     }
 
-    private func equipmentTag(_ eq: String) -> some View {
+    private func equipmentTag(_ eq: [String]) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "dumbbell.fill").font(.system(size: 13, weight: .bold))
-            Text(eq.uppercased()).font(Typo.mono(11, .bold)).tracking(1)
+            Text(eq.joined(separator: " · ").uppercased()).font(Typo.mono(11, .bold)).tracking(1)
         }
         .foregroundStyle(Palette.textMid)
         .padding(.horizontal, 12).padding(.vertical, 8)

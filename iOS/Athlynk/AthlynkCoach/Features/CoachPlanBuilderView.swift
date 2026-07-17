@@ -1195,8 +1195,8 @@ struct ExercisePickerSheet: View {
                                                         .font(Typo.mono(9, .semibold)).tracking(1.5)
                                                         .foregroundStyle(accent)
                                                 }
-                                                if let e = ex.equipment, !e.isEmpty {
-                                                    Text(e.uppercased())
+                                                if !ex.equipment.isEmpty {
+                                                    Text(ex.equipment.map { $0.nameIt }.joined(separator: " · ").uppercased())
                                                         .font(Typo.mono(9, .semibold)).tracking(1.5)
                                                         .foregroundStyle(Palette.textLow)
                                                 }
