@@ -6,8 +6,12 @@
 <title>App Mobile — Coach e atleta, sincronizzati | Athlynk</title>
 <meta name="description" content="Le app iOS di Athlynk: l'atleta si allena con sessioni guidate, dieta e check in tasca; il coach gestisce lo studio ovunque. Sincronizzazione in tempo reale con la console web.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#0b0a08">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<meta name="language" content="it">
 <link rel="canonical" href="https://athlynk.it/app.html">
+<link rel="alternate" hreflang="it-IT" href="https://athlynk.it/app.html">
+<link rel="alternate" hreflang="x-default" href="https://athlynk.it/app.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Athlynk">
 <meta property="og:title" content="Le app mobile Athlynk — coach e atleta, sincronizzati">
@@ -16,15 +20,38 @@
 <meta property="og:image" content="https://athlynk.it/assets/og-cover.png">
 <meta property="og:locale" content="it_IT">
 <meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://athlynk.it/" },
+        { "@type": "ListItem", "position": 2, "name": "App Mobile", "item": "https://athlynk.it/app.html" }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "url": "https://athlynk.it/app.html",
+      "name": "App Mobile — Coach e atleta, sincronizzati",
+      "inLanguage": "it-IT",
+      "isPartOf": { "@id": "https://athlynk.it/#website" },
+      "about": { "@id": "https://athlynk.it/#software" }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260704a">
+<link rel="stylesheet" href="css/style.css?v=20260717a">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
 <body>
 
 <div class="grain" aria-hidden="true"></div>
+<canvas class="dust" aria-hidden="true"></canvas>
 
 <header class="site-header" id="siteHeader">
   <div class="header-inner">
@@ -75,7 +102,7 @@
             <div class="volt-row"><b>Rematore — prossimo</b><span>4×8 · 82,5 kg</span></div>
             <div class="volt-card" style="margin-top:4px">
               <span>Nota del coach</span>
-              <b style="font-weight:500; font-size:12.5px">«Fermati a 2 dal cedimento, la settimana pesante è la prossima.»</b>
+              <b class="volt-note">«Fermati a 2 dal cedimento, la settimana pesante è la prossima.»</b>
             </div>
             <div class="volt-foot"><b>Allenati</b><span>Dieta</span><span>Check</span><span>Chat</span></div>
           </div>
@@ -127,7 +154,7 @@
             <div class="volt-row"><b>Cena</b><span>760 kcal</span></div>
             <div class="volt-card" style="margin-top:4px">
               <span>Check di domenica</span>
-              <b style="font-weight:500; font-size:12.5px">Peso, circonferenze e 3 foto — 5 minuti.</b>
+              <b class="volt-note">Peso, circonferenze e 3 foto — 5 minuti.</b>
             </div>
             <div class="volt-foot"><span>Allenati</span><b>Dieta</b><span>Check</span><span>Chat</span></div>
           </div>
@@ -148,22 +175,22 @@
 
     <div class="featrow reveal">
       <div class="featrow-media" style="display:flex; justify-content:center;">
-        <div class="phone" aria-hidden="true">
-          <div class="phone-screen" style="background:#0b0a08;">
-            <div class="volt-head"><b style="font-family: 'Bodoni Moda', serif; font-weight:500;">Studio</b><span style="color:#c9a96a">COACH</span></div>
-            <div class="volt-card" style="border-color: rgba(201,169,106,0.28); background: linear-gradient(160deg, rgba(201,169,106,0.12), rgba(201,169,106,0.02));">
-              <span style="color:#9b9181">Check da rivedere</span>
-              <b style="color:#f4efe4">7 in coda</b>
-              <span class="volt-bar" style="background:rgba(244,239,228,0.08)"><i style="--w:58%; background: linear-gradient(90deg, #e6cf9a, #c9a96a);"></i></span>
+        <div class="phone phone-coach" aria-hidden="true">
+          <div class="phone-screen">
+            <div class="volt-head"><b>Studio</b><span class="volt-badge">Coach</span></div>
+            <div class="volt-card volt-card-gold">
+              <span>Check da rivedere</span>
+              <b>7 in coda</b>
+              <span class="volt-bar"><i style="--w:58%"></i></span>
             </div>
-            <div class="volt-row" style="border-color: rgba(244,239,228,0.08); background: rgba(244,239,228,0.03);"><b style="color:#f4efe4">Marco R. — check</b><span style="color:#c9a96a">Analizza</span></div>
-            <div class="volt-row" style="border-color: rgba(244,239,228,0.08); background: rgba(244,239,228,0.03);"><b style="color:#f4efe4">Giulia S. — scheda</b><span style="color:#c9a96a">Scade in 3gg</span></div>
-            <div class="volt-row" style="border-color: rgba(244,239,228,0.08); background: rgba(244,239,228,0.03);"><b style="color:#f4efe4">Chiron</b><span style="color:#c9a96a">2 proposte</span></div>
-            <div class="volt-card" style="margin-top:4px; border-color: rgba(201,169,106,0.28); background: rgba(201,169,106,0.06);">
-              <span style="color:#9b9181">Progressione — Sett. 4</span>
-              <b style="color:#f4efe4; font-weight:500; font-size:12.5px">Squat +5 kg confermato su 3 atleti</b>
+            <div class="volt-row"><b>Marco R. — check</b><span>Analizza</span></div>
+            <div class="volt-row"><b>Giulia S. — scheda</b><span>Scade in 3 gg</span></div>
+            <div class="volt-row"><b>Chiron</b><span>2 proposte</span></div>
+            <div class="volt-card volt-card-gold" style="margin-top:4px">
+              <span>Progressione — settimana 4</span>
+              <b class="volt-note">Squat +5 kg confermato su 3 atleti</b>
             </div>
-            <div class="volt-foot" style="border-color: rgba(244,239,228,0.08); color:#9b9181;"><b style="color:#c9a96a">Studio</b><span>Atleti</span><span>Agenda</span><span>Chat</span></div>
+            <div class="volt-foot"><b>Studio</b><span>Atleti</span><span>Agenda</span><span>Chat</span></div>
           </div>
         </div>
       </div>
@@ -190,6 +217,39 @@
       <div class="intro-stat"><b>Offline</b><span>La sessione non si ferma</span></div>
       <div class="intro-stat"><b>iOS</b><span>Native, veloci, essenziali</span></div>
     </div>
+  </div>
+</section>
+
+<div class="meander-rule reveal" aria-hidden="true"></div>
+
+<!-- ====================== GALLERIA — in attesa degli screen reali ====================== -->
+<section class="section section-mist" id="galleria">
+  <div class="container">
+    <header class="section-head section-head-center reveal">
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Dall'app<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Le schermate,<br><em>appena escono.</em></h2>
+      <p class="section-lede">Le app sono in rifinitura sui dispositivi reali. Qui arriveranno le schermate definitive — niente mockup travestiti da fotografie.</p>
+    </header>
+
+    <div class="soon reveal">
+      <div class="soon-plate" style="--d:0s">
+        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
+        <b>Sessione</b>
+        <span>In arrivo</span>
+      </div>
+      <div class="soon-plate" style="--d:0.6s">
+        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
+        <b>Dieta</b>
+        <span>In arrivo</span>
+      </div>
+      <div class="soon-plate" style="--d:1.2s">
+        <img class="soon-mark" src="assets/athlynk-mark.png" alt="" decoding="async">
+        <b>Check</b>
+        <span>In arrivo</span>
+      </div>
+    </div>
+
+    <p class="soon-note reveal">Nel frattempo, la console web è pienamente esplorabile.</p>
   </div>
 </section>
 
@@ -240,8 +300,9 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=20260704a"></script>
-<script src="js/site.js?v=20260704a"></script>
+<script src="js/main.js?v=20260717a"></script>
+<script src="js/site.js?v=20260717a"></script>
+<script src="js/dust.js?v=20260717a" defer></script>
 <div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Preferenze cookie" aria-modal="true">
   <div class="cookie-banner__inner">
     <p class="cookie-banner__text">

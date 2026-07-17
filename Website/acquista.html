@@ -6,7 +6,8 @@
 <title>Acquista Athlynk — accesso alla piattaforma per coach</title>
 <meta name="description" content="Acquista l'accesso ad Athlynk, il gestionale per coach. Pagamento sicuro con Stripe: ricevi via email il tuo codice di accesso all'app.">
 <meta name="robots" content="noindex, follow">
-<meta name="theme-color" content="#0b0a08">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://athlynk.it/acquista.html">
 
 <meta property="og:type" content="website">
@@ -24,13 +25,13 @@
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
   .checkout-section { padding-top: calc(var(--header-h) + clamp(56px, 10vh, 120px)); }
-  .checkout-note { text-align: center; color: var(--ivory-mute); font-size: 13px; line-height: 1.6; margin-top: 32px; }
-  .checkout-note a { color: var(--gold); }
+  .checkout-note { text-align: center; color: var(--ink-mute); font-size: 13px; line-height: 1.6; margin-top: 32px; }
+  .checkout-note a { color: var(--azure-text); text-decoration: underline; text-underline-offset: 2px; }
   .checkout-banner {
     max-width: 560px; margin: 0 auto clamp(28px, 5vh, 44px);
     border: 1px solid var(--line-gold); border-radius: 2px;
     background: rgba(201, 169, 106, 0.06);
-    padding: 14px 18px; color: var(--ivory-soft); font-size: 14px; text-align: center;
+    padding: 14px 18px; color: var(--ink-soft); font-size: 14px; text-align: center;
   }
 </style>
 </head>
@@ -38,6 +39,7 @@
 
 <!-- grain overlay -->
 <div class="grain" aria-hidden="true"></div>
+<canvas class="dust" aria-hidden="true"></canvas>
 
 <!-- ====================== HEADER ====================== -->
 <header class="site-header" id="siteHeader">
@@ -340,6 +342,7 @@
     </div>
   </div>
 </div>
+<script src="js/dust.js?v=20260717a" defer></script>
 <script src="js/cookie-consent.js"></script>
 </body>
 </html>

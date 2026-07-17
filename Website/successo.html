@@ -6,7 +6,8 @@
 <title>Ordine confermato — Athlynk</title>
 <meta name="description" content="Ordine confermato. Controlla la tua email: ti abbiamo inviato il codice di accesso ad Athlynk.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0b0a08">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://athlynk.it/successo.html">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,10 +21,10 @@
   .success-mark {
     width: 64px; height: 64px; margin: 0 auto clamp(28px, 5vh, 40px);
     border: 1px solid var(--line-gold); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: var(--gold);
+    display: flex; align-items: center; justify-content: center; color: var(--gold-deep);
   }
   .success-mark svg { width: 28px; height: 28px; }
-  .success-lede { color: var(--ivory-mute); font-size: 18px; max-width: 46ch; margin: 22px auto clamp(36px, 6vh, 52px); }
+  .success-lede { color: var(--ink-mute); font-size: 18px; max-width: 46ch; margin: 22px auto clamp(36px, 6vh, 52px); }
   .success-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 </style>
 </head>
@@ -31,6 +32,7 @@
 
 <!-- grain overlay -->
 <div class="grain" aria-hidden="true"></div>
+<canvas class="dust" aria-hidden="true"></canvas>
 
 <!-- ====================== HEADER ====================== -->
 <header class="site-header" id="siteHeader">
@@ -80,9 +82,9 @@
         <a href="https://app.athlynk.it" class="btn btn-bronze">Vai all'app</a>
         <a href="index.html" class="btn btn-ghost">Torna al sito</a>
       </div>
-      <p class="checkout-note" style="margin-top:32px;color:var(--ivory-mute);font-size:13px;">
+      <p class="checkout-note" style="margin-top:32px;color:var(--ink-mute);font-size:13px;">
         Non trovi l'email? Controlla lo spam o scrivici a
-        <a href="mailto:info@athlynk.it" style="color:var(--gold)">info@athlynk.it</a>.
+        <a href="mailto:info@athlynk.it" style="color:var(--gold-deep)">info@athlynk.it</a>.
       </p>
     </div>
   </div>
@@ -148,6 +150,7 @@
     </div>
   </div>
 </div>
+<script src="js/dust.js?v=20260717a" defer></script>
 <script src="js/cookie-consent.js"></script>
 </body>
 </html>

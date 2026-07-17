@@ -25,3 +25,6 @@ User-agent: Google-Extended
 Allow: /
 
 Sitemap: https://athlynk.it/sitemap.xml
+
+# Plain-language summary of the product for LLMs — see llms.txt
+# https://athlynk.it/llms.txt
