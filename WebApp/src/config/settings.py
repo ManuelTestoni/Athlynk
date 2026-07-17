@@ -405,16 +405,16 @@ MEDIA_ROOT = BASE_DIR.parent / 'media'
 # .url() returns short-lived signed URLs (querystring_auth).
 SUPABASE_S3_ENDPOINT = config('SUPABASE_S3_ENDPOINT', default='')
 
-# Precompresses static files (gzip/brotli) at collectstatic time; whitenoise
-# serves the precompressed variant when the browser accepts it. No hashed
-# filenames (that's a separate, riskier change — cache-busting stays on the
-# existing ?v=ASSET_VERSION querystring).
+# Minifies .css/.js then precompresses (gzip/brotli) at collectstatic time;
+# whitenoise serves the precompressed variant when the browser accepts it. No
+# hashed filenames (that's a separate, riskier change — cache-busting stays on
+# the existing ?v=ASSET_VERSION querystring).
 STORAGES: dict[str, dict[str, Any]] = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        'BACKEND': 'config.storage.MinifiedCompressedStaticFilesStorage',
     },
 }
 
