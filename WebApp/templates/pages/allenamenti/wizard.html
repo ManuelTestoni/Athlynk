@@ -2198,7 +2198,7 @@
                        class="al-input w-full">
               </div>
 
-              <div x-show="clientQuery || selectedClientIds.length > 0" x-transition class="asg-client-list mt-2">
+              <div x-show="clientQuery || selectedClientIds.length > 0 || clientsList.length > 0" x-transition class="asg-client-list mt-2">
                 <template x-for="c in visibleClients()" :key="c.id">
                   <label class="asg-client" :class="{ 'is-selected': selectedClientIds.includes(c.id) }">
                     <input type="checkbox" class="al-checkbox" :value="c.id" :checked="selectedClientIds.includes(c.id)" @change="toggleClient(c.id)">

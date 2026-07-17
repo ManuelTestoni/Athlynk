@@ -1320,11 +1320,21 @@ struct CoachRiskResponse: Codable {
 
 // MARK: - Builder search results (exercise DB + food DB)
 
+struct BuilderEquipmentRef: Codable, Identifiable, Hashable {
+    let id: Int
+    let nameIt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case nameIt = "name_it"
+    }
+}
+
 struct BuilderExercise: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let targetMuscleGroup: String?
-    let equipment: String?
+    let equipment: [BuilderEquipmentRef]
 
     enum CodingKeys: String, CodingKey {
         case id, name, equipment

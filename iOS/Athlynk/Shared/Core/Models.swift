@@ -91,7 +91,7 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
     let name: String
     let videoUrl: String?
     let targetMuscleGroup: String?
-    let equipment: String?
+    let equipment: [String]
     let orderIndex: Int
     let setCount: Int?
     let repCount: Int?
@@ -1439,7 +1439,7 @@ struct ExerciseSearchItemDTO: Codable, Identifiable, Hashable {
     let name: String
     let primaryMuscle: String
     let muscles: [String]
-    let equipment: String
+    let equipment: [String]
     let videoUrl: String
 
     enum CodingKeys: String, CodingKey {

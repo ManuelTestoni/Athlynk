@@ -231,6 +231,11 @@ document.addEventListener('alpine:init', () => {
       this.loadMuscleGroups();
       this.loadFoldersCatalog();
       this.loadLibrary();
+      // Prefetch the coach's own athletes so the assign panel (step 4) shows
+      // them immediately — without this, resuming a draft directly at step 4
+      // (last_step) lands on an empty client list until the coach types a
+      // search query, making the assign button look permanently disabled.
+      this.loadClients();
 
       // Volume drawer close → clear flag
       window.addEventListener('volume-analytics:closed', () => { this._volumeOpen = false; });
