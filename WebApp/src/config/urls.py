@@ -404,6 +404,7 @@ urlpatterns = [
     path('api/v1/coach/clients/<int:client_id>', coach_api.client_detail, name='api_v1_coach_client_detail'),
     path('api/v1/coach/clients/<int:client_id>/progress', coach_api.client_progress, name='api_v1_coach_client_progress'),
     path('api/v1/coach/clients/<int:client_id>/measurement', coach_api.client_measurement_create, name='api_v1_coach_client_measurement'),
+    path('api/v1/coach/clients/<int:client_id>/checks', coach_api.client_checks_review, name='api_v1_coach_client_checks'),
     path('api/v1/coach/clients/<int:client_id>/fabbisogni', coach_api.client_fabbisogni, name='api_v1_coach_client_fabbisogni'),
     path('api/v1/coach/clients/<int:client_id>/macro-history', coach_api.client_macro_history, name='api_v1_coach_client_macro_history'),
     path('api/v1/coach/agenda/create', coach_api.agenda_create, name='api_v1_coach_agenda_create'),

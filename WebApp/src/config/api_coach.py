@@ -16,7 +16,7 @@ import logging
 from datetime import date, timedelta
 
 from django.db import transaction
-from django.db.models import Q, Max, Count, Sum, OuterRef, Subquery
+from django.db.models import Q, Max, Count, Sum, OuterRef, Subquery, Exists
 from django.http import JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -174,10 +174,12 @@ def _coach_profile_dict(request, coach):
 
 
 def _pending_review_qs(coach):
-    """Submitted check-ins still awaiting the coach's written feedback."""
+    """Genuine athlete full-check submissions still awaiting the coach's
+    written feedback (excludes coach-filled checks and quick measurements,
+    neither of which ever set status='COMPLETED')."""
     return (
         QuestionnaireResponse.objects
-        .filter(coach=coach, submitted_at__isnull=False)
+        .filter(coach=coach, submitted_at__isnull=False, status='COMPLETED')
         .filter(Q(coach_feedback__isnull=True) | Q(coach_feedback=''))
     )
 
@@ -315,6 +317,12 @@ def clients(request, user):
         qs = qs.filter(status=status_filter)
     if search:
         qs = qs.filter(Q(client__first_name__icontains=search) | Q(client__last_name__icontains=search))
+    if (request.GET.get('has_checks') or '').strip() in ('1', 'true'):
+        qs = qs.filter(Exists(
+            QuestionnaireResponse.objects.filter(
+                coach=coach, client_id=OuterRef('client_id'), submitted_at__isnull=False
+            )
+        ))
 
     # Page the list (10 per page) but keep the header counts over the full set.
     total = qs.count()
@@ -460,6 +468,51 @@ def _measurements(r):
 
 
 @api_view(['GET'])
+def client_checks_review(request, user, client_id):
+    """One athlete's checks (all types/statuses), paginated. ?offset=N."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    rel = _own_relationship(coach, client_id)
+    if not rel:
+        return JsonResponse({'error': 'Cliente non trovato'}, status=404)
+    offset = max(0, safe_int(request.GET, 'offset', 0))
+    PAGE = 10
+    qs = (
+        QuestionnaireResponse.objects
+        .filter(client=rel.client, coach=coach, submitted_at__isnull=False)
+        .defer('answers_json', 'questions_snapshot', 'steps_snapshot',
+               'body_circumferences', 'skinfolds')
+        .select_related('client', 'client__user', 'questionnaire_template')
+        .order_by('-submitted_at')
+    )
+    window = list(qs[offset:offset + PAGE + 1])
+    return JsonResponse({
+        'checks': [_check_row_dict(request, r) for r in window[:PAGE]],
+        'has_more': len(window) > PAGE,
+    })
+
+
+def _check_row_dict(request, r):
+    return {
+        'id': r.id,
+        'title': r.questionnaire_template.title if r.questionnaire_template else 'Check',
+        'submitted_at': _iso(r.submitted_at),
+        'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
+        'reviewed': bool(r.coach_feedback),
+        'questionnaire_type': r.questionnaire_template.questionnaire_type if r.questionnaire_template else None,
+        'is_quick_measurement': bool(
+            r.questionnaire_template and r.questionnaire_template.questionnaire_type == 'quick_measurement'
+        ),
+        'filled_by_coach': bool(
+            r.status == 'REVIEWED'
+            and not (r.questionnaire_template and r.questionnaire_template.questionnaire_type == 'quick_measurement')
+        ),
+        'client': _client_brief(request, r.client),
+    }
+
+
+@api_view(['GET'])
 def checks_review(request, user):
     """Submitted check-ins. ?filter=pending (default) | all. ?offset=N for pagination."""
     coach, err = _require_coach(user)
@@ -477,17 +530,10 @@ def checks_review(request, user):
         .order_by('-submitted_at')
     )
     if which == 'pending':
-        qs = qs.filter(Q(coach_feedback__isnull=True) | Q(coach_feedback=''))
+        qs = qs.filter(status='COMPLETED').filter(Q(coach_feedback__isnull=True) | Q(coach_feedback=''))
 
     window = list(qs[offset:offset + PAGE + 1])
-    out = [{
-        'id': r.id,
-        'title': r.questionnaire_template.title if r.questionnaire_template else 'Check',
-        'submitted_at': _iso(r.submitted_at),
-        'weight_kg': float(r.weight_kg) if r.weight_kg is not None else None,
-        'reviewed': bool(r.coach_feedback),
-        'client': _client_brief(request, r.client),
-    } for r in window[:PAGE]]
+    out = [_check_row_dict(request, r) for r in window[:PAGE]]
     return JsonResponse({
         'checks': out,
         'pending_count': _pending_review_qs(coach).count(),

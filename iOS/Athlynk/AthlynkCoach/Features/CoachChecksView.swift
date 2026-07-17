@@ -37,15 +37,17 @@ struct CoachChecksView: View {
                 .onChange(of: filter) { _, _ in checks = []; loadToken = UUID() }
                 .revealUp(appear, index: 2)
 
-                if loading && checks.isEmpty {
+                if filter == "all" {
+                    CoachCheckAthleteListView()
+                        .revealUp(appear, index: 3)
+                } else if loading && checks.isEmpty {
                     AvatarRowsSkeleton(accent: Palette.bronze)
                 } else if checks.isEmpty {
-                    EmptyPanel(icon: "checkmark.seal", text: filter == "pending"
-                               ? "Nessun check da revisionare. Ottimo lavoro!"
-                               : "Nessun check ricevuto.", color: Palette.lime)
+                    EmptyPanel(icon: "checkmark.seal", text: "Nessun check da revisionare. Ottimo lavoro!",
+                               color: Palette.lime)
                 } else {
                     ForEach(Array(checks.enumerated()), id: \.element.id) { i, c in
-                        NavigationLink(value: CheckRoute(id: c.id)) { card(c) }
+                        NavigationLink(value: CheckRoute(id: c.id)) { coachCheckCard(c) }
                             .buttonStyle(PressableButtonStyle())
                             .revealUp(appear, index: min(i, 6) + 3)
                     }
@@ -59,37 +61,31 @@ struct CoachChecksView: View {
             .onChange(of: loading) { _, l in if !l { appear = true } }
             .onAppear { if !checks.isEmpty { appear = true } }
             .navigationDestination(for: CheckRoute.self) {
-                CoachCheckDetailView(responseId: $0.id)
+                CoachCheckDetailView(responseId: $0.id) { id in markFeedbackSent(id) }
             }
             .navigationDestination(for: CheckTemplateRoute.self) {
                 CoachCheckTemplateDetailView(templateId: $0.id)
             }
+            .navigationDestination(for: CheckAthleteRoute.self) {
+                CoachAthleteChecksListView(route: $0)
+            }
             .task(id: loadToken) {
+                guard filter == "pending" else { return }
                 do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
                 await load()
             }
             .onRemoteChange(["CHECK_SUBMITTED"]) { checks = []; loadToken = UUID() }
-            .refreshable { await load(force: true) }
+            .refreshable { if filter == "pending" { await load(force: true) } }
         }
     }
 
-    private func card(_ c: CoachCheckRow) -> some View {
-        HStack(spacing: 14) {
-            CoachClientAvatar(url: c.client?.profileImageUrl, initials: c.client?.initials ?? "A", size: 48)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(c.client?.displayName ?? "Atleta").font(Typo.body(16, .semibold))
-                    .foregroundStyle(Palette.textHi)
-                Text(c.title).font(Typo.body(13)).foregroundStyle(Palette.textMid).lineLimit(1)
-                Text(CoachDate.relative(c.submittedAt)).font(Typo.mono(9)).foregroundStyle(Palette.textLow)
-            }
-            Spacer()
-            if c.reviewed {
-                StatusBadge(text: "Fatto", color: Palette.lime)
-            } else {
-                StatusBadge(text: "Nuovo", color: Palette.bronze)
-            }
-        }
-        .padding(14).voltPanel()
+    private func markFeedbackSent(_ id: Int) {
+        // Feedback can be (re)written from any check detail, including ones opened
+        // from "Tutti" that were never pending — only decrement/remove if this id
+        // was actually part of the currently loaded "in attesa" list.
+        guard checks.contains(where: { $0.id == id }) else { return }
+        checks.removeAll { $0.id == id }
+        pendingCount = max(0, pendingCount - 1)
     }
 
     private func load(force: Bool = false) async {
@@ -112,8 +108,34 @@ struct CoachChecksView: View {
     }
 }
 
+/// Shared check-row card, reused by `CoachChecksView`'s "In attesa" list and
+/// `CoachAthleteChecksListView`'s per-athlete "Tutti" list.
+func coachCheckCard(_ c: CoachCheckRow) -> some View {
+    HStack(spacing: 14) {
+        CoachClientAvatar(url: c.client?.profileImageUrl, initials: c.client?.initials ?? "A", size: 48)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(c.client?.displayName ?? "Atleta").font(Typo.body(16, .semibold))
+                .foregroundStyle(Palette.textHi)
+            Text(c.title).font(Typo.body(13)).foregroundStyle(Palette.textMid).lineLimit(1)
+            Text(CoachDate.relative(c.submittedAt)).font(Typo.mono(9)).foregroundStyle(Palette.textLow)
+        }
+        Spacer()
+        if c.isQuickMeasurement {
+            StatusBadge(text: "Misurazione", color: Palette.cyan, filled: false)
+        } else if c.filledByCoach {
+            StatusBadge(text: "Compilato", color: Palette.violet, filled: false)
+        } else if c.reviewed {
+            StatusBadge(text: "Fatto", color: Palette.lime)
+        } else {
+            StatusBadge(text: "Nuovo", color: Palette.bronze)
+        }
+    }
+    .padding(14).voltPanel()
+}
+
 struct CoachCheckDetailView: View {
     let responseId: Int
+    var onFeedbackSent: ((Int) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var app: AppState
     @StateObject private var flash = StatusFlash()
@@ -431,6 +453,7 @@ struct CoachCheckDetailView: View {
             try await APIClient.shared.coachSendFeedback(
                 checkId: responseId, feedback: feedback, privateNotes: privateNotes)
             Haptics.success(); sent = true
+            onFeedbackSent?(responseId)
             Analytics.shared.capture(.checkinReviewCompleted, ["check_id": responseId])
             flash.success("Feedback inviato")
         } catch {
