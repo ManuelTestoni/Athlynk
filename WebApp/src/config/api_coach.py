@@ -46,8 +46,10 @@ from .api import (
 from .http_utils import safe_int
 from .session_utils import (
     can_manage_nutrition, can_manage_workouts, coach_has_chiron_access,
-    apply_brand_update, brand_dict,
+    apply_brand_update, brand_dict, coach_can_sell_online,
 )
+from .forms import SubscriptionPlanForm
+from .services.stripe_connect import sync_plan_to_stripe
 from .views_check import (
     create_quick_measurement, QuickMeasurementError,
     build_measurements, RESERVED_FIELD_MAP,
@@ -56,7 +58,7 @@ from .views_check.helpers import _response_config, _build_prefill
 from .views_check.templates_admin import _ensure_preset_clones, PRESET_ORDER, _templates_page_data
 from .views_check.assignments import _create_instance
 from .views_client import (
-    _create_client_subscription, _rel_type_for,
+    _create_client_subscription, _rel_type_for, _pairing_conflict,
     _build_percorso_events, _serialize_phases, _one_year_after_month,
 )
 from .views_nutrition import WEEKDAY_REVERSE, _serialize_protocol, _parse_supplement_items
@@ -132,6 +134,18 @@ def _client_brief(request, client):
     }
 
 
+def _platform_purchase_dict(coach):
+    pp = coach.platform_purchase
+    if not pp:
+        return None
+    return {
+        'plan': pp.get_plan_display(),
+        'status': pp.status,
+        'billing_interval': pp.billing_interval,
+        'current_period_end': _iso(pp.current_period_end),
+    }
+
+
 def _coach_profile_dict(request, coach):
     return {
         'id': coach.id,
@@ -154,6 +168,7 @@ def _coach_profile_dict(request, coach):
         'stripe_connect_account_id': coach.stripe_connect_account_id,
         'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
         'stripe_connect_details_submitted': coach.stripe_connect_details_submitted,
+        'platform_purchase': _platform_purchase_dict(coach),
         **brand_dict(coach.user),
     }
 
@@ -637,19 +652,69 @@ def subscription_plans(request, user):
 
 @api_view(['POST'])
 def create_client(request, user):
-    """Crea un nuovo atleta + relazione + abbonamento e invia l'email di attivazione.
-    Rispecchia il ramo "nuovo atleta" di registra_client_view (web)."""
+    """Aggiunge un atleta al roster del coach: un nuovo account (con email di
+    attivazione) o un atleta già registrato sulla piattaforma (mode=existing).
+    In entrambi i casi l'abbonamento è creato solo se already_paid. Rispecchia
+    esattamente registra_client_view (web)."""
     coach, err = _require_coach(user)
     if err:
         return err
     data = _body(request)
+    mode = (data.get('mode') or 'new').strip().lower()
+    already_paid = bool(data.get('already_paid'))
+    plan_id = str(data.get('subscription_plan_id') or '').strip()
+    payment_notes = (data.get('payment_notes') or '').strip() or None
+    new_rel_type = _rel_type_for(coach)
+
+    if mode == 'existing':
+        email = (data.get('email') or '').strip().lower()
+        errors = {}
+        client = None
+        if not email:
+            errors['email'] = "Inserisci l'email dell'atleta già registrato."
+        else:
+            client = (
+                ClientProfile.objects
+                .filter(user__email__iexact=email, user__role='CLIENT')
+                .select_related('user')
+                .first()
+            )
+            if not client:
+                errors['email'] = 'Nessun atleta registrato con questa email.'
+            elif CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').exists():
+                errors['email'] = 'Hai già una collaborazione attiva con questo atleta.'
+            else:
+                conflict = _pairing_conflict(
+                    CoachingRelationship.objects.filter(client=client, status='ACTIVE'),
+                    new_rel_type,
+                )
+                if conflict:
+                    errors['email'] = conflict
+        if already_paid and not plan_id:
+            errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
+        if errors:
+            return JsonResponse({'error': 'Dati non validi', 'fields': errors}, status=400)
+
+        with transaction.atomic():
+            CoachingRelationship.objects.create(
+                coach=coach, client=client, status='ACTIVE',
+                start_date=timezone.now().date(), relationship_type=new_rel_type,
+            )
+            if already_paid:
+                _create_client_subscription(coach, client, plan_id, payment_notes)
+
+        return JsonResponse({
+            'id': client.id,
+            'display_name': f"{client.first_name} {client.last_name}".strip(),
+            'message': 'Atleta aggiunto al tuo studio.',
+        }, status=201)
+
+    # --- new athlete ---
     first_name = (data.get('first_name') or '').strip()
     last_name = (data.get('last_name') or '').strip()
     email = (data.get('email') or '').strip().lower()
     phone = (data.get('phone') or '').strip() or None
     gender = (data.get('gender') or '').strip() or None
-    plan_id = str(data.get('subscription_plan_id') or '').strip()
-    payment_notes = (data.get('payment_notes') or '').strip() or None
     birth_date = parse_date((data.get('birth_date') or '').strip()) if data.get('birth_date') else None
 
     errors = {}
@@ -661,7 +726,7 @@ def create_client(request, user):
         errors['email'] = "L'email è obbligatoria."
     elif User.objects.filter(email__iexact=email).exists():
         errors['email'] = 'Questa email è già registrata sulla piattaforma.'
-    if not plan_id:
+    if already_paid and not plan_id:
         errors['subscription_plan_id'] = 'Seleziona un piano di abbonamento.'
     if errors:
         return JsonResponse({'error': 'Dati non validi', 'fields': errors}, status=400)
@@ -686,9 +751,10 @@ def create_client(request, user):
         )
         CoachingRelationship.objects.create(
             coach=coach, client=client, status='ACTIVE',
-            start_date=timezone.now().date(), relationship_type=_rel_type_for(coach),
+            start_date=timezone.now().date(), relationship_type=new_rel_type,
         )
-        _create_client_subscription(coach, client, plan_id, payment_notes)
+        if already_paid:
+            _create_client_subscription(coach, client, plan_id, payment_notes)
 
     token = pwd_reset.issue_token(
         new_user,
@@ -1187,23 +1253,30 @@ def nutrition(request, user):
 # Subscriptions ("Gestione Abbonamenti")
 # ---------------------------------------------------------------------------
 
+def _plan_dict(p):
+    return {
+        'id': p.id,
+        'name': p.name,
+        'plan_type': p.plan_type,
+        'kind': p.kind,
+        'description': p.description or '',
+        'price': float(p.price),
+        'currency': p.currency,
+        'duration_days': p.duration_days,
+        'billing_interval': p.billing_interval,
+        'is_active': p.is_active,
+        'is_online_purchasable': p.is_online_purchasable,
+        'active_count': getattr(p, 'active_count', None) or ClientSubscription.objects.filter(
+            subscription_plan=p, status='ACTIVE').count(),
+    }
+
+
 @api_view(['GET'])
 def subscriptions(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
-    plans = [{
-        'id': p.id,
-        'name': p.name,
-        'plan_type': p.plan_type,
-        'kind': p.kind,
-        'price': float(p.price),
-        'currency': p.currency,
-        'billing_interval': p.billing_interval,
-        'is_active': p.is_active,
-        'is_online_purchasable': p.is_online_purchasable,
-        'active_count': p.active_count,
-    } for p in (
+    plans = [_plan_dict(p) for p in (
         SubscriptionPlan.objects.filter(coach=coach)
         .annotate(active_count=Count('client_subscriptions',
                                      filter=Q(client_subscriptions__status='ACTIVE')))
@@ -1240,6 +1313,60 @@ def subscriptions(request, user):
         'has_more': len(window) > PAGE,
         'stripe_connect_charges_enabled': coach.stripe_connect_charges_enabled,
     })
+
+
+@api_view(['POST'])
+def subscription_plan_create(request, user):
+    """Mobile counterpart of subscription_plan_create_view."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    form = SubscriptionPlanForm(data=_body(request))
+    if not form.is_valid():
+        return JsonResponse({'error': 'Dati non validi', 'fields': form.errors}, status=400)
+    plan = form.save(commit=False)
+    plan.coach = coach
+    plan.save()
+    if coach_can_sell_online(coach):
+        try:
+            sync_plan_to_stripe(plan)
+        except Exception:
+            logger.exception('stripe_connect.plan_sync_failed plan=%s', plan.id)
+    return JsonResponse(_plan_dict(plan), status=201)
+
+
+@api_view(['PUT', 'PATCH', 'DELETE'])
+def subscription_plan_edit(request, user, plan_id):
+    """Mobile counterpart of subscription_plan_edit_view/_delete_view, one path
+    routed by method (mirrors this module's `agenda_detail` convention)."""
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    plan = SubscriptionPlan.objects.filter(id=plan_id, coach=coach).first()
+    if not plan:
+        return JsonResponse({'error': 'Piano non trovato'}, status=404)
+
+    if request.method == 'DELETE':
+        active_subs = ClientSubscription.objects.filter(subscription_plan=plan, status='ACTIVE')
+        if active_subs.exists():
+            return JsonResponse({
+                'error': f'Impossibile eliminare: {active_subs.count()} atleti attivi su questo piano',
+            }, status=400)
+        plan.delete()
+        return JsonResponse({'success': True})
+
+    prior = (plan.price, plan.currency, plan.kind)
+    form = SubscriptionPlanForm(data=_body(request), instance=plan)
+    if not form.is_valid():
+        return JsonResponse({'error': 'Dati non validi', 'fields': form.errors}, status=400)
+    form.save()
+    price_changed = prior != (plan.price, plan.currency, plan.kind)
+    if coach_can_sell_online(coach) and (price_changed or not plan.stripe_price_id):
+        try:
+            sync_plan_to_stripe(plan)
+        except Exception:
+            logger.exception('stripe_connect.plan_sync_failed plan=%s', plan.id)
+    return JsonResponse(_plan_dict(plan))
 
 
 @api_view(['POST'])

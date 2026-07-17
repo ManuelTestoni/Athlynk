@@ -760,13 +760,16 @@ struct CoachAddClientView: View {
     var onSaved: () async -> Void
     @Environment(\.dismiss) private var dismiss
 
+    @State private var mode = "new"          // "new" | "existing"
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var email = ""
     @State private var phone = ""
     @State private var hasBirthDate = false
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
-    @State private var gender = ""           // "" | M | F
+    @State private var gender = ""           // "" | M | F | X
+    @State private var alreadyPaid = false
+    @State private var paymentNotes = ""
     @State private var plans: [CoachSubscriptionPlanDTO] = []
     @State private var planId: Int?
     @State private var loadingPlans = true
@@ -774,67 +777,106 @@ struct CoachAddClientView: View {
     @State private var error: String?
 
     private var canSave: Bool {
-        !firstName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !lastName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        email.contains("@") && planId != nil && !saving
+        guard !saving, email.contains("@") else { return false }
+        if mode == "new" {
+            guard !firstName.trimmingCharacters(in: .whitespaces).isEmpty,
+                  !lastName.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        }
+        if alreadyPaid && planId == nil { return false }
+        return true
     }
 
     var body: some View {
         NavigationStack {
             ScreenScroll {
                 ScreenHeader(eyebrow: "Onboarding", title: "Aggiungi atleta",
-                             subtitle: "Riceverà un'email per impostare la password", accent: Palette.cyan)
+                             subtitle: mode == "existing"
+                                ? "Aggiungilo al tuo studio tramite la sua email"
+                                : "Riceverà un'email per impostare la password", accent: Palette.cyan)
 
-                field("Nome") {
-                    TextField("", text: $firstName, prompt: Text("Mario").foregroundStyle(Palette.textLow))
-                        .font(Typo.body(15)).tint(Palette.cyan).textContentType(.givenName)
+                Picker("", selection: $mode.animation()) {
+                    Text("Nuovo").tag("new")
+                    Text("Esistente").tag("existing")
                 }
-                field("Cognome") {
-                    TextField("", text: $lastName, prompt: Text("Rossi").foregroundStyle(Palette.textLow))
-                        .font(Typo.body(15)).tint(Palette.cyan).textContentType(.familyName)
-                }
-                field("Email") {
-                    TextField("", text: $email, prompt: Text("mario@email.com").foregroundStyle(Palette.textLow))
-                        .font(Typo.body(15)).tint(Palette.cyan)
-                        .keyboardType(.emailAddress).textInputAutocapitalization(.never)
-                        .autocorrectionDisabled().textContentType(.emailAddress)
-                }
-                field("Telefono") {
-                    TextField("", text: $phone, prompt: Text("Opzionale").foregroundStyle(Palette.textLow))
-                        .font(Typo.body(15)).tint(Palette.cyan).keyboardType(.phonePad)
-                }
-                field("Sesso") {
-                    Picker("", selection: $gender) {
-                        Text("Non indicato").tag("")
-                        Text("Uomo").tag("M")
-                        Text("Donna").tag("F")
+                .pickerStyle(.segmented)
+
+                if mode == "existing" {
+                    Text("L'atleta è già su Athlynk (es. seguito da un altro professionista): lo aggiungi al tuo studio tramite la sua email.")
+                        .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    field("Email dell'atleta") {
+                        TextField("", text: $email, prompt: Text("mario@email.com").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan)
+                            .keyboardType(.emailAddress).textInputAutocapitalization(.never)
+                            .autocorrectionDisabled().textContentType(.emailAddress)
                     }
-                    .pickerStyle(.segmented)
-                }
-                field("Data di nascita") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Toggle("Imposta data", isOn: $hasBirthDate.animation())
-                            .font(Typo.body(13)).tint(Palette.cyan)
-                        if hasBirthDate {
-                            DatePicker("", selection: $birthDate, in: ...Date(), displayedComponents: .date)
-                                .labelsHidden().tint(Palette.cyan)
+                } else {
+                    Text("Crei un nuovo account: l'atleta riceverà un'email per creare la propria password e accedere.")
+                        .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                    field("Nome") {
+                        TextField("", text: $firstName, prompt: Text("Mario").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan).textContentType(.givenName)
+                    }
+                    field("Cognome") {
+                        TextField("", text: $lastName, prompt: Text("Rossi").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan).textContentType(.familyName)
+                    }
+                    field("Email") {
+                        TextField("", text: $email, prompt: Text("mario@email.com").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan)
+                            .keyboardType(.emailAddress).textInputAutocapitalization(.never)
+                            .autocorrectionDisabled().textContentType(.emailAddress)
+                    }
+                    field("Telefono") {
+                        TextField("", text: $phone, prompt: Text("Opzionale").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan).keyboardType(.phonePad)
+                    }
+                    field("Sesso") {
+                        Picker("", selection: $gender) {
+                            Text("Non indicato").tag("")
+                            Text("Uomo").tag("M")
+                            Text("Donna").tag("F")
+                            Text("Altro").tag("X")
                         }
+                        .pickerStyle(.segmented)
                     }
-                }
-                field("Piano di abbonamento") {
-                    if loadingPlans {
-                        Text("Caricamento…").font(Typo.body(13)).foregroundStyle(Palette.textLow)
-                    } else if plans.isEmpty {
-                        Text("Nessun piano attivo. Crea un piano dal web.")
-                            .font(Typo.body(13)).foregroundStyle(Palette.amber)
-                    } else {
-                        Picker("", selection: $planId) {
-                            ForEach(plans) { p in
-                                Text("\(p.name) · €\(String(format: "%.0f", p.price))").tag(Optional(p.id))
+                    field("Data di nascita") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle("Imposta data", isOn: $hasBirthDate.animation())
+                                .font(Typo.body(13)).tint(Palette.cyan)
+                            if hasBirthDate {
+                                DatePicker("", selection: $birthDate, in: ...Date(), displayedComponents: .date)
+                                    .labelsHidden().tint(Palette.cyan)
                             }
                         }
-                        .pickerStyle(.menu).tint(Palette.cyan)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                field("Già pagato?") {
+                    Toggle(alreadyPaid ? "Sì" : "No", isOn: $alreadyPaid.animation())
+                        .font(Typo.body(14)).tint(Palette.cyan)
+                }
+
+                if alreadyPaid {
+                    field("Piano di abbonamento") {
+                        if loadingPlans {
+                            Text("Caricamento…").font(Typo.body(13)).foregroundStyle(Palette.textLow)
+                        } else if plans.isEmpty {
+                            Text("Nessun piano attivo. Crea un piano dal web.")
+                                .font(Typo.body(13)).foregroundStyle(Palette.amber)
+                        } else {
+                            Picker("", selection: $planId) {
+                                Text("Seleziona…").tag(Int?.none)
+                                ForEach(plans) { p in
+                                    Text("\(p.name) · €\(String(format: "%.0f", p.price))").tag(Optional(p.id))
+                                }
+                            }
+                            .pickerStyle(.menu).tint(Palette.cyan)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    field("Note pagamento") {
+                        TextField("", text: $paymentNotes, prompt: Text("Opzionale").foregroundStyle(Palette.textLow))
+                            .font(Typo.body(15)).tint(Palette.cyan)
                     }
                 }
 
@@ -842,8 +884,8 @@ struct CoachAddClientView: View {
                     Text(error).font(Typo.body(13)).foregroundStyle(Palette.amber)
                 }
 
-                NeonButton(title: saving ? "Creazione…" : "Crea atleta", icon: "person.badge.plus",
-                           color: Palette.cyan) {
+                NeonButton(title: saving ? "Salvataggio…" : (mode == "existing" ? "Aggiungi atleta" : "Registra atleta"),
+                           icon: "person.badge.plus", color: Palette.cyan) {
                     Task { await save() }
                 }
                 .disabled(!canSave)
@@ -870,29 +912,29 @@ struct CoachAddClientView: View {
     private func loadPlans() async {
         loadingPlans = true; defer { loadingPlans = false }
         plans = (try? await APIClient.shared.coachSubscriptionPlans()) ?? []
-        if planId == nil { planId = plans.first?.id }
     }
 
     private func save() async {
-        guard let planId else { return }
         saving = true; defer { saving = false }
         error = nil
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
         do {
             try await APIClient.shared.coachCreateClient(
-                firstName: firstName.trimmingCharacters(in: .whitespaces),
-                lastName: lastName.trimmingCharacters(in: .whitespaces),
+                mode: mode,
+                firstName: mode == "new" ? firstName.trimmingCharacters(in: .whitespaces) : nil,
+                lastName: mode == "new" ? lastName.trimmingCharacters(in: .whitespaces) : nil,
                 email: email.trimmingCharacters(in: .whitespaces).lowercased(),
-                phone: phone.isEmpty ? nil : phone,
-                birthDate: hasBirthDate ? f.string(from: birthDate) : nil,
-                gender: gender.isEmpty ? nil : gender,
-                subscriptionPlanId: planId,
-                paymentNotes: nil)
+                phone: (mode == "new" && !phone.isEmpty) ? phone : nil,
+                birthDate: (mode == "new" && hasBirthDate) ? f.string(from: birthDate) : nil,
+                gender: (mode == "new" && !gender.isEmpty) ? gender : nil,
+                alreadyPaid: alreadyPaid,
+                subscriptionPlanId: alreadyPaid ? planId : nil,
+                paymentNotes: (alreadyPaid && !paymentNotes.isEmpty) ? paymentNotes : nil)
             Haptics.success()
             await onSaved()
             dismiss()
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? "Impossibile creare l'atleta. Riprova."
+            self.error = (error as? APIError)?.errorDescription ?? "Impossibile salvare. Riprova."
         }
     }
 }

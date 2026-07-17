@@ -91,12 +91,16 @@ struct CoachProfileView: View {
                                    accent: Palette.bronze) { name, primary, accentHex in
                     let fields: [String: Any] = ["brand_name": name, "brand_primary": primary, "brand_accent": accentHex]
                     profile = try await APIClient.shared.coachUpdateProfile(fields)
+                    app.applyBrand(primary: primary, accent: accentHex)
                 } onReset: {
                     profile = try await APIClient.shared.coachUpdateProfile(["reset": true])
+                    app.applyBrand(primary: nil, accent: nil)
                 }
             }
         }
-        .sheet(isPresented: $showCalendarFeed) { CoachCalendarFeedView() }
+        .sheet(isPresented: $showCalendarFeed) {
+            CalendarFeedView(load: APIClient.shared.coachCalendarFeed, rotate: APIClient.shared.coachRotateCalendarFeed)
+        }
     }
 
     private func sendPasswordReset() {
@@ -259,6 +263,9 @@ struct CoachProfileView: View {
                        subtitle: "Sincronizza appuntamenti con Google/Apple",
                        accent: Palette.cyan) { showCalendarFeed = true }
 
+            if let pp = profile?.platformPurchase {
+                platformPurchaseSummary(pp)
+            }
             NavListRow(icon: "creditcard.fill", title: "Abbonamento Athlynk",
                        subtitle: "Gestisci il tuo piano e la fatturazione",
                        accent: Palette.amber) { openBillingPortal() }
@@ -273,6 +280,38 @@ struct CoachProfileView: View {
             )
         }
         .padding(.top, 8)
+    }
+
+    private var renewalDateFormatter: DateFormatter {
+        let f = DateFormatter(); f.dateFormat = "d MMM yyyy"; f.locale = Locale(identifier: "it_IT")
+        return f
+    }
+
+    private func platformPurchaseSummary(_ pp: PlatformPurchaseDTO) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(pp.plan).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                if let end = pp.currentPeriodEnd, let d = CoachDate.parse(end) {
+                    Text("Rinnovo \(renewalDateFormatter.string(from: d))")
+                        .font(Typo.body(12)).foregroundStyle(Palette.textMid)
+                }
+            }
+            Spacer()
+            StatusBadge(text: statusLabel(pp.status),
+                        color: pp.status == "active" ? Palette.lime : Palette.amber)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .voltPanel(radius: 14)
+    }
+
+    private func statusLabel(_ s: String) -> String {
+        switch s {
+        case "active": return "Attivo"
+        case "past_due": return "Pagamento in ritardo"
+        case "canceled": return "Annullato"
+        default: return s.capitalized
+        }
     }
 
     private func hasSocials(_ p: CoachProfileDTO) -> Bool {
@@ -454,65 +493,4 @@ struct CoachEditProfileView: View {
     }
 }
 
-// MARK: - Calendar feed subscription
-
-struct CoachCalendarFeedView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var feed: CoachCalendarFeedDTO?
-    @State private var loading = true
-    @State private var rotating = false
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let feed {
-                    Section("Google Calendar") {
-                        Link(destination: URL(string: feed.googleSubscribeUrl)!) {
-                            Label("Aggiungi a Google Calendar", systemImage: "arrow.up.right.square")
-                        }
-                    }
-                    Section("Apple Calendar") {
-                        Link(destination: URL(string: feed.webcalUrl)!) {
-                            Label("Aggiungi a Apple Calendar", systemImage: "arrow.up.right.square")
-                        }
-                    }
-                    Section {
-                        Button {
-                            UIPasteboard.general.string = feed.feedUrl
-                            Haptics.success()
-                        } label: {
-                            Label("Copia link feed", systemImage: "doc.on.doc")
-                        }
-                        Button(role: .destructive) {
-                            Task { await rotate() }
-                        } label: {
-                            HStack {
-                                Text("Rigenera link")
-                                if rotating { Spacer(); ProgressView() }
-                            }
-                        }
-                        .disabled(rotating)
-                    } footer: {
-                        Text("Rigenerando il link, quello precedente smette di funzionare nei calendari già collegati.")
-                    }
-                } else if loading {
-                    ProgressView()
-                }
-            }
-            .navigationTitle("Calendario")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
-            .task { await load() }
-        }
-    }
-
-    private func load() async {
-        loading = true; defer { loading = false }
-        feed = try? await APIClient.shared.coachCalendarFeed()
-    }
-
-    private func rotate() async {
-        rotating = true; defer { rotating = false }
-        feed = try? await APIClient.shared.coachRotateCalendarFeed()
-    }
-}
+// Calendar feed subscription screen: `Shared/Components/CalendarFeedView.swift`.

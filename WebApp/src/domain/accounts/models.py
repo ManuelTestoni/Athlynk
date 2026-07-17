@@ -119,6 +119,7 @@ class ClientProfile(models.Model):
     onboarding_status = models.CharField(max_length=100, null=True, blank=True)
     client_status = models.CharField(max_length=100, null=True, blank=True)
     profile_image = models.FileField(upload_to='client_photos/', null=True, blank=True)
+    calendar_feed_token = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

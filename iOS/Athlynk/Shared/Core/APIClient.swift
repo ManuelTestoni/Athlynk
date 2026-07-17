@@ -203,8 +203,30 @@ final class APIClient {
         return try decode(MessageDTO.self, from: data)
     }
 
-    func subscription() async throws -> SubscriptionDTO? {
-        try decode(SubscriptionResponse.self, from: try await request("/api/v1/subscription")).subscription
+    /// All of the client's own subscriptions — can be more than one when they
+    /// have multiple coaches (e.g. a trainer + a nutritionist).
+    func subscription() async throws -> [SubscriptionDTO] {
+        try decode(SubscriptionListResponse.self, from: try await request("/api/v1/subscription")).subscriptions
+    }
+
+    /// Stripe Billing Portal URL for one subscription (cancel / change card).
+    /// Only meaningful when `SubscriptionDTO.manageable` is true.
+    func subscriptionBillingPortal(id: Int) async throws -> String {
+        struct Resp: Decodable { let url: String }
+        return try decode(Resp.self, from: try await request(
+            "/api/v1/subscription/\(id)/billing-portal", method: "POST")).url
+    }
+
+    /// The athlete's own Google/Apple Calendar subscription feed (appointments
+    /// across all their coaches). Coach counterpart: `CoachAPI.coachCalendarFeed`.
+    func calendarFeed() async throws -> CalendarFeedDTO {
+        try decode(CalendarFeedDTO.self, from: try await request("/api/v1/calendar-feed"))
+    }
+
+    @discardableResult
+    func rotateCalendarFeed() async throws -> CalendarFeedDTO {
+        try decode(CalendarFeedDTO.self, from: try await request(
+            "/api/v1/calendar-feed", method: "POST", body: ["action": "rotate"]))
     }
 
     func dashboardSummary() async throws -> DashboardSummaryDTO {

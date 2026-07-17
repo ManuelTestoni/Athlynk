@@ -65,6 +65,7 @@ struct CoachProfileDTO: Codable, Hashable {
     let brandName: String
     let brandPrimary: String
     let brandAccent: String
+    let platformPurchase: PlatformPurchaseDTO?
 
     var fullName: String { "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces) }
     var initials: String {
@@ -96,6 +97,7 @@ struct CoachProfileDTO: Codable, Hashable {
         case brandName = "brand_name"
         case brandPrimary = "brand_primary"
         case brandAccent = "brand_accent"
+        case platformPurchase = "platform_purchase"
     }
 
     init(from decoder: Decoder) throws {
@@ -123,21 +125,26 @@ struct CoachProfileDTO: Codable, Hashable {
         brandName = try c.decodeIfPresent(String.self, forKey: .brandName) ?? ""
         brandPrimary = try c.decodeIfPresent(String.self, forKey: .brandPrimary) ?? ""
         brandAccent = try c.decodeIfPresent(String.self, forKey: .brandAccent) ?? ""
+        platformPurchase = try c.decodeIfPresent(PlatformPurchaseDTO.self, forKey: .platformPurchase)
+    }
+}
+
+/// The coach's own Athlynk platform subscription (Athena/Apollo/Zeus, paid via
+/// Stripe from the marketing site) — surfaced read-only above the "Gestisci
+/// abbonamento" billing-portal action, mirroring the web settings page.
+struct PlatformPurchaseDTO: Codable, Hashable {
+    let plan: String
+    let status: String
+    let billingInterval: String?
+    let currentPeriodEnd: String?
+    enum CodingKeys: String, CodingKey {
+        case plan, status
+        case billingInterval = "billing_interval"
+        case currentPeriodEnd = "current_period_end"
     }
 }
 
 struct CoachProfileResponse: Codable { let profile: CoachProfileDTO }
-
-struct CoachCalendarFeedDTO: Codable {
-    let feedUrl: String
-    let webcalUrl: String
-    let googleSubscribeUrl: String
-    enum CodingKeys: String, CodingKey {
-        case feedUrl = "feed_url"
-        case webcalUrl = "webcal_url"
-        case googleSubscribeUrl = "google_subscribe_url"
-    }
-}
 
 // MARK: - Stripe Connect onboarding
 
@@ -789,15 +796,18 @@ struct CoachPlanSummary: Codable, Identifiable, Hashable {
     let name: String
     let planType: String?
     let kind: String?
+    let description: String
     let price: Double
     let currency: String
+    let durationDays: Int?
     let billingInterval: String?
     let isActive: Bool
     let isOnlinePurchasable: Bool
     let activeCount: Int
     enum CodingKeys: String, CodingKey {
-        case id, name, price, currency, kind
+        case id, name, price, currency, kind, description
         case planType = "plan_type"
+        case durationDays = "duration_days"
         case billingInterval = "billing_interval"
         case isActive = "is_active"
         case isOnlinePurchasable = "is_online_purchasable"
@@ -809,8 +819,10 @@ struct CoachPlanSummary: Codable, Identifiable, Hashable {
         name = try c.decode(String.self, forKey: .name)
         planType = try c.decodeIfPresent(String.self, forKey: .planType)
         kind = try c.decodeIfPresent(String.self, forKey: .kind)
+        description = (try? c.decode(String.self, forKey: .description)) ?? ""
         price = try c.decode(Double.self, forKey: .price)
         currency = try c.decode(String.self, forKey: .currency)
+        durationDays = try c.decodeIfPresent(Int.self, forKey: .durationDays)
         billingInterval = try c.decodeIfPresent(String.self, forKey: .billingInterval)
         isActive = try c.decode(Bool.self, forKey: .isActive)
         isOnlinePurchasable = (try? c.decode(Bool.self, forKey: .isOnlinePurchasable)) ?? false

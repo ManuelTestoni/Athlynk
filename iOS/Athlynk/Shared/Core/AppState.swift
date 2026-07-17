@@ -38,6 +38,9 @@ final class AppState: ObservableObject {
     /// (offline, server hiccup) — the token is kept and the splash screen
     /// offers a retry instead of dropping the user back to the login form.
     @Published var bootstrapRetryable = false
+    /// Bumped whenever the brand color changes, so the root view can `.id()`
+    /// itself and remount with the freshly-applied `Palette.magenta`/`.cyan`.
+    @Published var themeVersion = 0
 
     private let tokenKey = "athlynk.api.token"
     private let api = APIClient.shared
@@ -54,6 +57,7 @@ final class AppState: ObservableObject {
             self.me = me
             self.user = me.user
             self.avatarUrl = me.profile?.imageUrl
+            BrandTheme.apply(primary: me.profile?.brandPrimary, accent: me.profile?.brandAccent)
             needsTermsConsent = me.user.needsTermsConsent
             showChiron = me.user.needsChironIntro
             if me.user.role.uppercased() == "COACH"
@@ -89,6 +93,7 @@ final class AppState: ObservableObject {
             user = res.user
             me = try? await api.me()
             avatarUrl = me?.profile?.imageUrl
+            BrandTheme.apply(primary: me?.profile?.brandPrimary, accent: me?.profile?.brandAccent)
             // Prefer the richer /me payload, but fall back to the login user.
             let identified = me?.user ?? res.user
             needsTermsConsent = identified.needsTermsConsent
@@ -166,6 +171,17 @@ final class AppState: ObservableObject {
             let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
             guard granted else { return }
             UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+
+    /// Apply a newly-saved brand color. Updates `Palette.magenta`/`.cyan`
+    /// immediately (no visual effect until something re-reads them), then
+    /// bumps `themeVersion` after a short delay so the settings sheet has
+    /// finished its own dismiss animation before the root view remounts.
+    func applyBrand(primary: String?, accent: String?) {
+        BrandTheme.apply(primary: primary, accent: accent)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            self?.themeVersion += 1
         }
     }
 

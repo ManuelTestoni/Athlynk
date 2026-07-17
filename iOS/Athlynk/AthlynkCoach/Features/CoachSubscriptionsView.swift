@@ -16,6 +16,8 @@ struct CoachSubscriptionsView: View {
     @State private var chargesEnabled = false
     @State private var connecting = false
     @State private var connectError: String?
+    @State private var editingPlan: CoachPlanSummary?
+    @State private var creatingPlan = false
     private let webFlow = StripeWebFlow()
 
     var body: some View {
@@ -60,30 +62,46 @@ struct CoachSubscriptionsView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { creatingPlan = true } label: { Image(systemName: "plus") }
+                    .tint(Palette.cyan)
+            }
+        }
         .onChange(of: loading) { _, l in if !l { appear = true } }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $creatingPlan) {
+            CoachPlanFormView(existingPlan: nil) { await load() }
+        }
+        .sheet(item: $editingPlan) { plan in
+            CoachPlanFormView(existingPlan: plan) { await load() }
+        }
     }
 
     private func planRow(_ p: CoachPlanSummary) -> some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(p.name).font(Typo.body(16, .semibold)).foregroundStyle(Palette.textHi)
-                Text("€\(String(format: "%.0f", p.price)) · \(p.billingInterval ?? p.planType ?? "")")
-                    .font(Typo.body(13)).foregroundStyle(Palette.textMid)
-                StatusBadge(text: p.isOnlinePurchasable ? "Online" : "Solo manuale",
-                            color: p.isOnlinePurchasable ? Palette.lime : Palette.textLow,
-                            filled: p.isOnlinePurchasable)
+        Button { editingPlan = p } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(p.name).font(Typo.body(16, .semibold)).foregroundStyle(Palette.textHi)
+                    Text("€\(String(format: "%.0f", p.price)) · \(p.billingInterval ?? p.planType ?? "")")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                    StatusBadge(text: p.isOnlinePurchasable ? "Online" : "Solo manuale",
+                                color: p.isOnlinePurchasable ? Palette.lime : Palette.textLow,
+                                filled: p.isOnlinePurchasable)
+                }
+                Spacer()
+                VStack(spacing: 2) {
+                    Text("\(p.activeCount)").font(Typo.poster(24)).foregroundStyle(Palette.amber)
+                    Text("attivi").font(Typo.mono(8, .semibold)).tracking(1).textCase(.uppercase)
+                        .foregroundStyle(Palette.textLow)
+                }
+                if !p.isActive { StatusBadge(text: "Off", color: Palette.textLow, filled: false) }
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
             }
-            Spacer()
-            VStack(spacing: 2) {
-                Text("\(p.activeCount)").font(Typo.poster(24)).foregroundStyle(Palette.amber)
-                Text("attivi").font(Typo.mono(8, .semibold)).tracking(1).textCase(.uppercase)
-                    .foregroundStyle(Palette.textLow)
-            }
-            if !p.isActive { StatusBadge(text: "Off", color: Palette.textLow, filled: false) }
+            .padding(14).voltPanel()
         }
-        .padding(14).voltPanel()
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var connectBanner: some View {

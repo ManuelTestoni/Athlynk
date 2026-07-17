@@ -485,6 +485,8 @@ def me(request, user):
         payload['nutritionist'] = _coach_dict(rels['nutrition'].coach if rels['nutrition'] else None)
         payload['profile'] = {
             'profile_image_url': _abs_media(request, client.profile_image.url) if client.profile_image else None,
+            'brand_primary': user.brand_primary or None,
+            'brand_accent': user.brand_accent or None,
         }
     coach = getattr(user, 'coach_profile', None)
     if coach:
@@ -499,6 +501,8 @@ def me(request, user):
         }
         payload['profile'] = {
             'profile_image_url': img,
+            'brand_primary': user.brand_primary or None,
+            'brand_accent': user.brand_accent or None,
         }
     return JsonResponse(payload)
 
@@ -1191,39 +1195,88 @@ def respond_appointment(request, user, conversation_id, appointment_id):
 
 @api_view(['GET'])
 def subscription(request, user):
+    """A client can have more than one simultaneous subscription (e.g. a
+    trainer's plan + a nutritionist's plan) — return all of them, not just
+    the most recent, so each coach's subscription is visible."""
     client = getattr(user, 'client_profile', None)
     if not client:
-        return JsonResponse({'subscription': None})
-    sub = (
+        return JsonResponse({'subscriptions': []})
+    subs = (
         ClientSubscription.objects
         .filter(client=client)
+        .exclude(status='CANCELLED')
         .select_related('subscription_plan', 'subscription_plan__coach')
         .order_by('-start_date')
-        .first()
     )
+    out = []
+    for sub in subs:
+        plan = sub.subscription_plan
+        out.append({
+            'id': sub.id,
+            'status': sub.status,
+            'payment_status': sub.payment_status,
+            'start_date': _iso(sub.start_date),
+            'end_date': _iso(sub.end_date),
+            'auto_renew': sub.auto_renew,
+            'manageable': bool(sub.stripe_subscription_id),
+            'plan': {
+                'id': plan.id,
+                'name': plan.name,
+                'plan_type': plan.plan_type,
+                'description': plan.description,
+                'price': float(plan.price),
+                'currency': plan.currency,
+                'duration_days': plan.duration_days,
+                'billing_interval': plan.billing_interval,
+                'included_services': plan.included_services or [],
+                'coach': _coach_dict(plan.coach),
+            },
+        })
+    return JsonResponse({'subscriptions': out})
+
+
+@api_view(['POST'])
+def subscription_billing_portal(request, user, id):
+    """Stripe-hosted Billing Portal URL for one of the client's own subscriptions
+    (cancel / change card), scoped to the coach's Stripe Connect account that
+    owns it. Manual/cash subscriptions have nothing to manage online."""
+    from .services.stripe_connect import create_billing_portal_session
+
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    sub = ClientSubscription.objects.filter(id=id, client=client).select_related(
+        'subscription_plan', 'subscription_plan__coach').first()
     if not sub:
-        return JsonResponse({'subscription': None})
-    plan = sub.subscription_plan
-    return JsonResponse({'subscription': {
-        'id': sub.id,
-        'status': sub.status,
-        'payment_status': sub.payment_status,
-        'start_date': _iso(sub.start_date),
-        'end_date': _iso(sub.end_date),
-        'auto_renew': sub.auto_renew,
-        'plan': {
-            'id': plan.id,
-            'name': plan.name,
-            'plan_type': plan.plan_type,
-            'description': plan.description,
-            'price': float(plan.price),
-            'currency': plan.currency,
-            'duration_days': plan.duration_days,
-            'billing_interval': plan.billing_interval,
-            'included_services': plan.included_services or [],
-            'coach': _coach_dict(plan.coach),
-        },
-    }})
+        return JsonResponse({'error': 'Abbonamento non trovato'}, status=404)
+    if not sub.stripe_subscription_id:
+        return JsonResponse({'error': 'Questo abbonamento non è gestito online.'}, status=400)
+
+    try:
+        url = create_billing_portal_session(sub, return_url='athlynk://subscription-return')
+    except Exception:
+        logger.exception('stripe_connect.billing_portal_failed subscription=%s', sub.id)
+        return JsonResponse({'error': 'Impossibile aprire la gestione abbonamento. Riprova.'}, status=502)
+    return JsonResponse({'url': url})
+
+
+@api_view(['GET', 'POST'])
+def calendar_feed(request, user):
+    """Mobile counterpart of api_coach.calendar_feed: the athlete's own Google/
+    Apple Calendar subscription feed (appointments across all their coaches),
+    plus a rotate-token action."""
+    from .views_agenda import client_calendar_feed_urls
+
+    client = getattr(user, 'client_profile', None)
+    if not client:
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    if request.method == 'POST' and _body(request).get('action') == 'rotate':
+        import secrets as _secrets
+        client.calendar_feed_token = _secrets.token_urlsafe(24)
+        client.save(update_fields=['calendar_feed_token', 'updated_at'])
+
+    abs_url, webcal_url, google_subscribe = client_calendar_feed_urls(client)
+    return JsonResponse({'feed_url': abs_url, 'webcal_url': webcal_url, 'google_subscribe_url': google_subscribe})
 
 
 # ---------------------------------------------------------------------------

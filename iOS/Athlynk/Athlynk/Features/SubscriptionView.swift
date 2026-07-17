@@ -8,10 +8,12 @@
 import SwiftUI
 
 struct SubscriptionView: View {
-    @State private var sub: SubscriptionDTO?
+    @State private var subs: [SubscriptionDTO] = []
     @State private var loading = true
     @State private var error: String?
     @State private var appear = false
+    @State private var managingId: Int?
+    private let billingWebFlow = StripeWebFlow()
 
     var body: some View {
         ZStack {
@@ -22,10 +24,12 @@ struct SubscriptionView: View {
                         SubscriptionSkeleton()
                     } else if let error {
                         EmptyPanel(icon: "wifi.exclamationmark", text: error, color: Palette.danger)
-                    } else if let sub {
-                        planCard(sub).revealUp(appear, index: 0)
-                        if !sub.plan.includedServices.isEmpty {
-                            servicesCard(sub.plan.includedServices).revealUp(appear, index: 1)
+                    } else if !subs.isEmpty {
+                        ForEach(Array(subs.enumerated()), id: \.element.id) { i, sub in
+                            planCard(sub).revealUp(appear, index: i * 2)
+                            if !sub.plan.includedServices.isEmpty {
+                                servicesCard(sub.plan.includedServices).revealUp(appear, index: i * 2 + 1)
+                            }
                         }
                     } else {
                         EmptyPanel(icon: "crown", text: "Nessun abbonamento attivo.")
@@ -34,7 +38,7 @@ struct SubscriptionView: View {
                     if !loading {
                         NavigationLink { PricingView() } label: { pricingLink }
                             .buttonStyle(PressableButtonStyle())
-                            .revealUp(appear, index: 2)
+                            .revealUp(appear, index: subs.count * 2 + 2)
                     }
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
@@ -107,8 +111,27 @@ struct SubscriptionView: View {
             if let coach = sub.plan.coach {
                 HStack { Spacer(); CoachChip(coach: coach, color: Palette.magenta) }
             }
+
+            if sub.manageable {
+                NeonButton(title: managingId == sub.id ? "Apertura…" : "Gestisci abbonamento",
+                           icon: "creditcard.fill", color: Palette.magenta, loading: managingId == sub.id, compact: true) {
+                    Task { await manage(sub) }
+                }
+            }
         }
         .padding(18).voltPanel(Palette.amber.opacity(0.45))
+    }
+
+    private func manage(_ sub: SubscriptionDTO) async {
+        guard managingId == nil else { return }
+        managingId = sub.id; defer { managingId = nil }
+        do {
+            let urlString = try await APIClient.shared.subscriptionBillingPortal(id: sub.id)
+            guard let url = URL(string: urlString) else { return }
+            _ = try await billingWebFlow.run(url: url, callbackScheme: "athlynk")
+        } catch {
+            Haptics.error()
+        }
     }
 
     private func servicesCard(_ services: [String]) -> some View {
@@ -159,7 +182,7 @@ struct SubscriptionView: View {
 
     private func load() async {
         loading = true; error = nil
-        do { sub = try await APIClient.shared.subscription() }
+        do { subs = try await APIClient.shared.subscription() }
         catch { self.error = error.localizedDescription }
         loading = false
     }

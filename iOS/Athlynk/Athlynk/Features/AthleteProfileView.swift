@@ -19,6 +19,7 @@ struct AthleteProfileView: View {
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var showBrandSettings = false
+    @State private var showCalendarFeed = false
     @State private var deleting = false
     @State private var appear = false
     @StateObject private var flash = StatusFlash()
@@ -89,10 +90,15 @@ struct AthleteProfileView: View {
                                    brandAccent: p.brandAccent ?? "", accent: Palette.amber) { name, primary, accentHex in
                     let fields: [String: Any] = ["brand_name": name, "brand_primary": primary, "brand_accent": accentHex]
                     profile = try await APIClient.shared.updateProfile(fields)
+                    app.applyBrand(primary: primary, accent: accentHex)
                 } onReset: {
                     profile = try await APIClient.shared.updateProfile(["reset": true])
+                    app.applyBrand(primary: nil, accent: nil)
                 }
             }
+        }
+        .sheet(isPresented: $showCalendarFeed) {
+            CalendarFeedView(load: APIClient.shared.calendarFeed, rotate: APIClient.shared.rotateCalendarFeed)
         }
     }
 
@@ -177,6 +183,10 @@ struct AthleteProfileView: View {
             NavListRow(icon: "paintpalette.fill", title: "Aspetto",
                        subtitle: "Nome e colori del tuo profilo",
                        accent: Palette.amber) { showBrandSettings = true }
+
+            NavListRow(icon: "calendar.badge.clock", title: "Calendario",
+                       subtitle: "Sincronizza gli appuntamenti con Google/Apple",
+                       accent: Palette.amber) { showCalendarFeed = true }
 
             NavListRow(icon: "lock.fill", title: "Sicurezza",
                        subtitle: "Reimposta la password",

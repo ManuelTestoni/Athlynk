@@ -124,6 +124,25 @@ def cancel_subscription(client_subscription):
         )
 
 
+def create_billing_portal_session(client_subscription, return_url):
+    """Stripe Billing Portal URL for a client to manage (cancel, change card)
+    one of their own Connect subscriptions. The customer lives on the coach's
+    connected account, fetched at request time via the Stripe subscription —
+    ClientSubscription doesn't need its own stripe_customer_id column."""
+    coach = client_subscription.subscription_plan.coach
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    sub = stripe.Subscription.retrieve(
+        client_subscription.stripe_subscription_id,
+        stripe_account=coach.stripe_connect_account_id,
+    )
+    session = stripe.billing_portal.Session.create(
+        customer=sub['customer'],
+        return_url=return_url,
+        stripe_account=coach.stripe_connect_account_id,
+    )
+    return session['url']
+
+
 def sync_account_status(coach, account):
     """Update the coach's cached Connect status flags from a Stripe Account
     object (webhook payload or a fresh retrieve)."""

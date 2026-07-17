@@ -148,6 +148,23 @@ extension APIClient {
         try decode(CoachSubscriptionsDTO.self, from: try await request("/api/v1/coach/subscriptions?offset=\(offset)"))
     }
 
+    /// Create/edit/delete a subscription plan. `body` mirrors `SubscriptionPlanForm`'s
+    /// fields (name/plan_type/kind/description/price/currency/duration_days/
+    /// billing_interval/is_active) — see `CoachPlanFormView`.
+    func coachCreatePlan(_ body: [String: Any]) async throws -> CoachPlanSummary {
+        try decode(CoachPlanSummary.self, from: try await request(
+            "/api/v1/coach/subscription-plans/create", method: "POST", body: body))
+    }
+
+    func coachUpdatePlan(id: Int, _ body: [String: Any]) async throws -> CoachPlanSummary {
+        try decode(CoachPlanSummary.self, from: try await request(
+            "/api/v1/coach/subscription-plans/\(id)", method: "PUT", body: body))
+    }
+
+    func coachDeletePlan(id: Int) async throws {
+        _ = try await request("/api/v1/coach/subscription-plans/\(id)", method: "DELETE")
+    }
+
     func coachResources() async throws -> [CoachResourceSection] {
         try decode(CoachResourcesResponse.self, from: try await request("/api/v1/coach/resources")).sections
     }
@@ -231,13 +248,13 @@ extension APIClient {
         return try decode(Resp.self, from: try await request("/api/v1/coach/billing-portal", method: "POST")).url
     }
 
-    func coachCalendarFeed() async throws -> CoachCalendarFeedDTO {
-        try decode(CoachCalendarFeedDTO.self, from: try await request("/api/v1/coach/calendar-feed"))
+    func coachCalendarFeed() async throws -> CalendarFeedDTO {
+        try decode(CalendarFeedDTO.self, from: try await request("/api/v1/coach/calendar-feed"))
     }
 
     @discardableResult
-    func coachRotateCalendarFeed() async throws -> CoachCalendarFeedDTO {
-        try decode(CoachCalendarFeedDTO.self, from: try await request(
+    func coachRotateCalendarFeed() async throws -> CalendarFeedDTO {
+        try decode(CalendarFeedDTO.self, from: try await request(
             "/api/v1/coach/calendar-feed", method: "POST", body: ["action": "rotate"]))
     }
 
@@ -332,18 +349,22 @@ extension APIClient {
                    from: try await request("/api/v1/coach/subscription-plans")).plans
     }
 
-    /// Creates a brand-new athlete; the server emails them an activation link.
-    /// `birthDate` is ISO `yyyy-MM-dd` or nil; `gender` is "M"/"F"/nil.
-    func coachCreateClient(firstName: String, lastName: String, email: String,
-                           phone: String?, birthDate: String?, gender: String?,
-                           subscriptionPlanId: Int, paymentNotes: String?) async throws {
-        var body: [String: Any] = [
-            "first_name": firstName, "last_name": lastName, "email": email,
-            "subscription_plan_id": subscriptionPlanId,
-        ]
+    /// Adds an athlete to the coach's roster. `mode == "new"` creates a
+    /// brand-new account and emails an activation link (first/last name
+    /// required); `mode == "existing"` attaches an athlete already on the
+    /// platform by email (all other `new`-only fields are ignored server-side).
+    /// `subscriptionPlanId`/`paymentNotes` only matter when `alreadyPaid`.
+    /// `birthDate` is ISO `yyyy-MM-dd` or nil; `gender` is "M"/"F"/"X"/nil.
+    func coachCreateClient(mode: String = "new", firstName: String? = nil, lastName: String? = nil,
+                           email: String, phone: String? = nil, birthDate: String? = nil, gender: String? = nil,
+                           alreadyPaid: Bool, subscriptionPlanId: Int? = nil, paymentNotes: String? = nil) async throws {
+        var body: [String: Any] = ["mode": mode, "email": email, "already_paid": alreadyPaid]
+        body["first_name"] = firstName ?? NSNull()
+        body["last_name"] = lastName ?? NSNull()
         body["phone"] = phone ?? NSNull()
         body["birth_date"] = birthDate ?? NSNull()
         body["gender"] = gender ?? NSNull()
+        body["subscription_plan_id"] = subscriptionPlanId ?? NSNull()
         body["payment_notes"] = paymentNotes ?? NSNull()
         _ = try await request("/api/v1/coach/clients/create", method: "POST", body: body)
     }

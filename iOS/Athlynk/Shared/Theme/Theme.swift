@@ -13,6 +13,27 @@
 import SwiftUI
 import UIKit
 
+/// Per-user brand color override, backing `Palette.magenta`/`.cyan` (and their
+/// aliases `bronze`/`aegean`/`primary`/`control`). Set from the server's
+/// `brand_primary`/`brand_accent` hex on bootstrap and whenever the user saves
+/// "Aspetto"; persisted to `UserDefaults` so the app opens with the right
+/// colors before the profile fetch resolves.
+enum BrandTheme {
+    private static let primaryKey = "athlynk.brand.primary"
+    private static let accentKey = "athlynk.brand.accent"
+
+    static var primaryHex: String? = UserDefaults.standard.string(forKey: primaryKey)
+    static var accentHex: String? = UserDefaults.standard.string(forKey: accentKey)
+
+    static func apply(primary: String?, accent: String?) {
+        primaryHex = primary
+        accentHex = accent
+        let defaults = UserDefaults.standard
+        if let primary { defaults.set(primary, forKey: primaryKey) } else { defaults.removeObject(forKey: primaryKey) }
+        if let accent { defaults.set(accent, forKey: accentKey) } else { defaults.removeObject(forKey: accentKey) }
+    }
+}
+
 enum Palette {
     // Surfaces (light, layered) — names kept for source compatibility.
     static let void0   = Color(hex: 0xFFFFFF)   // parchment — page background
@@ -22,8 +43,10 @@ enum Palette {
 
     // Accents — all drawn from the Athlynk palette, dark enough to carry
     // white text when used as a fill. (Slot names kept from VOLT.)
-    static let magenta = Color(hex: 0x1E3A5F)   // royal blue — primary
-    static let cyan    = Color(hex: 0x5B89B6)   // royal blue, light — control
+    // Brand-overridable: falls back to the default royal blue when the user
+    // hasn't customized "Aspetto".
+    static var magenta: Color { BrandTheme.primaryHex.flatMap(Color.init(hexString:)) ?? Color(hex: 0x1E3A5F) }
+    static var cyan:    Color { BrandTheme.accentHex.flatMap(Color.init(hexString:)) ?? Color(hex: 0x5B89B6) }
     static let lime    = Color(hex: 0x3F7A5E)   // success
     static let violet  = Color(hex: 0x132A47)   // royal blue, deep
     static let amber   = Color(hex: 0xB8860B)   // gold — text-safe (headlines, icons)
@@ -35,8 +58,8 @@ enum Palette {
     static let textMid = Color(hex: 0x4B5D75)   // ink-mute
     static let textLow = Color(hex: 0x7C8CA3)   // ink-line
 
-    static let bronze  = magenta
-    static let aegean  = cyan
+    static var bronze: Color { magenta }
+    static var aegean: Color { cyan }
 
     // Premium gold — glows/highlights only, never a solid text/fill colour
     // (mirrors the web's restraint: --al-highlight-premium).
@@ -46,11 +69,11 @@ enum Palette {
     // Semantic roles — use these instead of raw slots so intent survives reskins.
     static let danger  = crimson    // destructive actions, errors
     static let success = lime
-    static let primary = bronze     // royal blue — primary CTA / brand accent
-    static let control = cyan       // interactive controls (toggles, pickers, links)
+    static var primary: Color { bronze }     // royal blue — primary CTA / brand accent
+    static var control: Color { aegean }     // interactive controls (toggles, pickers, links)
 
     /// Rotating accent set used to colour cards / rings by index.
-    static let accents: [Color] = [cyan, magenta, lime, violet, amber]
+    static var accents: [Color] { [cyan, magenta, lime, violet, amber] }
     static func accent(_ i: Int) -> Color { accents[((i % accents.count) + accents.count) % accents.count] }
 }
 

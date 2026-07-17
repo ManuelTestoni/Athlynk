@@ -20,7 +20,7 @@ struct ContentView: View {
                 } else {
                     OnboardingView { withAnimation(.spring) { onboarded = true } }
                 }
-            case .app: MainTabView()
+            case .app: MainTabView().id(app.themeVersion)
             }
         }
         .animation(.spring(response: 0.7, dampingFraction: 0.85), value: app.phase)

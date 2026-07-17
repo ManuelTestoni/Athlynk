@@ -40,7 +40,7 @@ struct CoachRootView: View {
                 } else {
                     CoachOnboardingView { withAnimation(.spring(response: 0.7, dampingFraction: 0.85)) { coachOnboarded = true } }
                 }
-            case .app: CoachMainTabView()
+            case .app: CoachMainTabView().id(app.themeVersion)
             }
         }
         .animation(.spring(response: 0.7, dampingFraction: 0.85), value: app.phase)

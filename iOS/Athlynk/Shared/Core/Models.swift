@@ -64,8 +64,12 @@ struct Coach: Codable, Identifiable, Hashable {
 
 struct MeProfile: Codable {
     let imageUrl: String?
+    let brandPrimary: String?
+    let brandAccent: String?
     enum CodingKeys: String, CodingKey {
         case imageUrl = "profile_image_url"
+        case brandPrimary = "brand_primary"
+        case brandAccent = "brand_accent"
     }
 }
 
@@ -610,6 +614,19 @@ struct ConversationDTO: Codable, Identifiable, Hashable {
 
 struct ConversationsResponse: Codable { let conversations: [ConversationDTO] }
 
+/// Google/Apple Calendar subscription feed — shared shape for both the
+/// athlete's and the coach's own agenda feed.
+struct CalendarFeedDTO: Codable {
+    let feedUrl: String
+    let webcalUrl: String
+    let googleSubscribeUrl: String
+    enum CodingKeys: String, CodingKey {
+        case feedUrl = "feed_url"
+        case webcalUrl = "webcal_url"
+        case googleSubscribeUrl = "google_subscribe_url"
+    }
+}
+
 struct MessageDTO: Codable, Identifiable, Hashable {
     let id: Int
     let body: String
@@ -688,17 +705,18 @@ struct SubscriptionPlanDTO: Codable, Hashable, Identifiable {
     }
 }
 
-struct SubscriptionDTO: Codable, Hashable {
+struct SubscriptionDTO: Codable, Hashable, Identifiable {
     let id: Int
     let status: String
     let paymentStatus: String?
     let startDate: String?
     let endDate: String?
     let autoRenew: Bool
+    let manageable: Bool
     let plan: SubscriptionPlanDTO
 
     enum CodingKeys: String, CodingKey {
-        case id, status, plan
+        case id, status, plan, manageable
         case paymentStatus = "payment_status"
         case startDate = "start_date"
         case endDate = "end_date"
@@ -706,7 +724,7 @@ struct SubscriptionDTO: Codable, Hashable {
     }
 }
 
-struct SubscriptionResponse: Codable { let subscription: SubscriptionDTO? }
+struct SubscriptionListResponse: Codable { let subscriptions: [SubscriptionDTO] }
 
 /// Dashboard KPIs — same numbers as the web dashboard's tiles, computed
 /// server-side by `_client_dashboard_kpis` so both surfaces always match.

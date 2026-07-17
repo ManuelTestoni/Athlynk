@@ -92,6 +92,7 @@ struct DashboardView: View {
     @State private var sheetRoute: AthleteQuickRoute?
     @State private var mealFlipped = false
     @State private var mealSquashed = false
+    @State private var chatDetailConv: ConversationDTO?
 
     var body: some View {
         ScreenScroll {
@@ -142,9 +143,25 @@ struct DashboardView: View {
         .sheet(item: $sheetRoute) { route in
             NavigationStack {
                 sheetDestination(route)
+                    .navigationDestination(for: ConversationDTO.self) { conv in
+                        ChatDetailView(conversation: conv)
+                    }
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button { sheetRoute = nil } label: {
+                                Image(systemName: "xmark").font(.system(size: 15, weight: .semibold))
+                            }
+                            .tint(Palette.textHi)
+                        }
+                    }
+            }
+        }
+        .sheet(item: $chatDetailConv) { conv in
+            NavigationStack {
+                ChatDetailView(conversation: conv)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { chatDetailConv = nil } label: {
                                 Image(systemName: "xmark").font(.system(size: 15, weight: .semibold))
                             }
                             .tint(Palette.textHi)
@@ -343,7 +360,7 @@ struct DashboardView: View {
     private func coachCard(_ conv: ConversationDTO, message: String) -> some View {
         Button {
             Haptics.tap()
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .altro }
+            chatDetailConv = conv
         } label: {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {

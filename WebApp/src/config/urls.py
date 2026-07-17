@@ -312,6 +312,7 @@ urlpatterns = [
     path('impostazioni/abbonamento/portale/', views_settings.billing_portal_view, name='settings_billing_portal'),
     path('api/agenda/calendar-token/', views_agenda.api_coach_calendar_token, name='api_coach_calendar_token'),
     path('calendar/coach/<str:token>.ics', views_agenda.coach_calendar_feed, name='coach_calendar_feed'),
+    path('calendar/client/<str:token>.ics', views_agenda.client_calendar_feed, name='client_calendar_feed'),
 
     # Chat
     path('chat/', views_chat.chat_list_view, name='chat_list'),
@@ -353,6 +354,8 @@ urlpatterns = [
     path('api/v1/conversations/<int:conversation_id>/appointment', mobile_api.request_appointment, name='api_v1_request_appointment'),
     path('api/v1/conversations/<int:conversation_id>/appointment/<int:appointment_id>/respond', mobile_api.respond_appointment, name='api_v1_respond_appointment'),
     path('api/v1/subscription', mobile_api.subscription, name='api_v1_subscription'),
+    path('api/v1/subscription/<int:id>/billing-portal', mobile_api.subscription_billing_portal, name='api_v1_subscription_billing_portal'),
+    path('api/v1/calendar-feed', mobile_api.calendar_feed, name='api_v1_calendar_feed'),
     path('api/v1/dashboard/summary', mobile_api.dashboard_summary, name='api_v1_dashboard_summary'),
     path('api/v1/appointments', mobile_api.appointments, name='api_v1_appointments'),
     path('api/v1/progress', mobile_api.progress, name='api_v1_progress'),
@@ -396,6 +399,8 @@ urlpatterns = [
     path('api/v1/coach/clients', coach_api.clients, name='api_v1_coach_clients'),
     path('api/v1/coach/clients/create', coach_api.create_client, name='api_v1_coach_client_create'),
     path('api/v1/coach/subscription-plans', coach_api.subscription_plans, name='api_v1_coach_subscription_plans'),
+    path('api/v1/coach/subscription-plans/create', coach_api.subscription_plan_create, name='api_v1_coach_subscription_plan_create'),
+    path('api/v1/coach/subscription-plans/<int:plan_id>', coach_api.subscription_plan_edit, name='api_v1_coach_subscription_plan_edit'),
     path('api/v1/coach/clients/<int:client_id>', coach_api.client_detail, name='api_v1_coach_client_detail'),
     path('api/v1/coach/clients/<int:client_id>/progress', coach_api.client_progress, name='api_v1_coach_client_progress'),
     path('api/v1/coach/clients/<int:client_id>/measurement', coach_api.client_measurement_create, name='api_v1_coach_client_measurement'),

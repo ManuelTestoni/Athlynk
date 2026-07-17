@@ -305,6 +305,7 @@ import secrets as _secrets
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404 as _get_or_404
 from domain.accounts.models import CoachProfile as _CoachProfile
+from domain.accounts.models import ClientProfile as _ClientProfile
 from domain.calendar.models import Appointment as _Appointment
 
 
@@ -313,6 +314,13 @@ def _ensure_coach_feed_token(coach):
         coach.calendar_feed_token = _secrets.token_urlsafe(24)
         coach.save(update_fields=['calendar_feed_token', 'updated_at'])
     return coach.calendar_feed_token
+
+
+def _ensure_client_feed_token(client):
+    if not client.calendar_feed_token:
+        client.calendar_feed_token = _secrets.token_urlsafe(24)
+        client.save(update_fields=['calendar_feed_token', 'updated_at'])
+    return client.calendar_feed_token
 
 
 def coach_calendar_feed_urls(coach):
@@ -327,6 +335,19 @@ def coach_calendar_feed_urls(coach):
     import urllib.parse
     token = _ensure_coach_feed_token(coach)
     feed_path = reverse('coach_calendar_feed', args=[token])
+    abs_url = settings.SITE_URL.rstrip('/') + feed_path
+    webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
+    google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + urllib.parse.quote(abs_url, safe='')
+    return abs_url, webcal_url, google_subscribe
+
+
+def client_calendar_feed_urls(client):
+    """Same as coach_calendar_feed_urls, for the athlete's own feed."""
+    from django.conf import settings
+    from django.urls import reverse
+    import urllib.parse
+    token = _ensure_client_feed_token(client)
+    feed_path = reverse('client_calendar_feed', args=[token])
     abs_url = settings.SITE_URL.rstrip('/') + feed_path
     webcal_url = abs_url.replace('https://', 'webcal://').replace('http://', 'webcal://')
     google_subscribe = 'https://calendar.google.com/calendar/r?cid=' + urllib.parse.quote(abs_url, safe='')
@@ -356,20 +377,18 @@ def _fmt_ics_dt(dt):
     return dt.strftime('%Y%m%dT%H%M%SZ')
 
 
-def coach_calendar_feed(request, token):
-    """Public ICS feed for a coach's appointments. Token-protected URL so it can
-    be subscribed in Google Calendar / Apple Calendar without login."""
-    coach = _get_or_404(_CoachProfile, calendar_feed_token=token)
-
-    appts = _Appointment.objects.filter(coach=coach).exclude(status='CANCELLED').select_related('client').order_by('start_datetime')
-
+def _build_ics_feed(calendar_label, appts, other_party_name):
+    """Shared VCALENDAR/VEVENT builder for both the coach and client feeds.
+    `other_party_name(appt)` returns the counterpart's display name to append
+    to the summary/description (client name for the coach feed, coach name
+    for the client feed)."""
     lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//Athlynk//Coach Agenda//IT',
+        'PRODID:-//Athlynk//Agenda//IT',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH',
-        f'X-WR-CALNAME:Athlynk · {_ics_escape((coach.first_name or "") + " " + (coach.last_name or ""))}',
+        f'X-WR-CALNAME:Athlynk · {_ics_escape(calendar_label)}',
         'X-WR-TIMEZONE:UTC',
         'REFRESH-INTERVAL;VALUE=DURATION:PT30M',
     ]
@@ -377,21 +396,16 @@ def coach_calendar_feed(request, token):
     for a in appts:
         uid = f'athlynk-appt-{a.id}@athlynk'
         summary = a.title or 'Appuntamento'
-        client_name = ''
-        if a.client_id:
-            try:
-                client_name = f"{a.client.first_name} {a.client.last_name}".strip()
-            except Exception:
-                client_name = ''
-        if client_name:
-            summary = f'{summary} — {client_name}'
+        other_name = other_party_name(a)
+        if other_name:
+            summary = f'{summary} — {other_name}'
         description_parts = []
         if a.description:
             description_parts.append(a.description)
         if a.meeting_url:
             description_parts.append(f'Link: {a.meeting_url}')
-        if client_name:
-            description_parts.append(f'Atleta: {client_name}')
+        if other_name:
+            description_parts.append(other_name)
         description = '\n'.join(description_parts)
         lines += [
             'BEGIN:VEVENT',
@@ -414,6 +428,42 @@ def coach_calendar_feed(request, token):
     resp = HttpResponse(body, content_type='text/calendar; charset=utf-8')
     resp['Content-Disposition'] = 'inline; filename="athlynk-agenda.ics"'
     return resp
+
+
+def coach_calendar_feed(request, token):
+    """Public ICS feed for a coach's appointments. Token-protected URL so it can
+    be subscribed in Google Calendar / Apple Calendar without login."""
+    coach = _get_or_404(_CoachProfile, calendar_feed_token=token)
+    appts = _Appointment.objects.filter(coach=coach).exclude(status='CANCELLED').select_related('client').order_by('start_datetime')
+
+    def client_name(a):
+        if not a.client_id:
+            return ''
+        try:
+            return f"{a.client.first_name} {a.client.last_name}".strip()
+        except Exception:
+            return ''
+
+    label = f"{coach.first_name or ''} {coach.last_name or ''}".strip()
+    return _build_ics_feed(label, appts, client_name)
+
+
+def client_calendar_feed(request, token):
+    """Public ICS feed for an athlete's own appointments (across all their
+    coaches). Same token-protected scheme as the coach feed."""
+    client = _get_or_404(_ClientProfile, calendar_feed_token=token)
+    appts = _Appointment.objects.filter(client=client).exclude(status='CANCELLED').select_related('coach').order_by('start_datetime')
+
+    def coach_name(a):
+        if not a.coach_id:
+            return ''
+        try:
+            return f"{a.coach.first_name} {a.coach.last_name}".strip()
+        except Exception:
+            return ''
+
+    label = f"{client.first_name or ''} {client.last_name or ''}".strip()
+    return _build_ics_feed(label, appts, coach_name)
 
 
 def api_coach_calendar_token(request):
