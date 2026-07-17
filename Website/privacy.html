@@ -7,8 +7,11 @@
 <meta name="description" content="Informativa privacy del sito athlynk.it: quali dati raccoglie il sito vetrina, perché e quali diritti hai ai sensi del GDPR (Reg. UE 2016/679).">
 <meta name="robots" content="index, follow">
 <meta name="author" content="Athlynk">
-<meta name="theme-color" content="#0b0a08">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://athlynk.it/privacy.html">
+<link rel="alternate" hreflang="it-IT" href="https://athlynk.it/privacy.html">
+<link rel="alternate" hreflang="x-default" href="https://athlynk.it/privacy.html">
 <meta name="language" content="it">
 
 <!-- Open Graph -->
@@ -27,6 +30,28 @@
 <meta name="twitter:title" content="Privacy Policy — Athlynk">
 <meta name="twitter:image" content="https://athlynk.it/assets/og-cover.png">
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://athlynk.it/" },
+        { "@type": "ListItem", "position": 2, "name": "Privacy Policy", "item": "https://athlynk.it/privacy.html" }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "url": "https://athlynk.it/privacy.html",
+      "name": "Privacy Policy",
+      "inLanguage": "it-IT",
+      "isPartOf": { "@id": "https://athlynk.it/#website" },
+      "about": { "@id": "https://athlynk.it/#software" }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -37,6 +62,7 @@
 
 <!-- grain overlay -->
 <div class="grain" aria-hidden="true"></div>
+<canvas class="dust" aria-hidden="true"></canvas>
 
 <!-- ====================== HEADER ====================== -->
 <header class="site-header" id="siteHeader">
@@ -252,6 +278,7 @@
 </footer>
 
 <script src="js/main.js?v=20260613"></script>
+<script src="js/dust.js?v=20260717a" defer></script>
 <script src="js/cookie-consent.js"></script>
 </body>
 </html>

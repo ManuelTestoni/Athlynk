@@ -17,7 +17,7 @@
 
 - **Backend**: Django (Python), PostgreSQL su Supabase, hosting su Railway.
 - **Frontend**: Django templates, Tailwind CSS, Alpine.js.
-- **App mobile**: SwiftUI (iOS 17+), design system VOLT con palette neon.
+- **App mobile**: SwiftUI (iOS 17+), design system condiviso con la console web: superfici chiare (bianco, marmo, pietra), blu royale come accento strutturale, oro per i dettagli.
 - **AI**: GPT-OSS 120B via Ollama (non GPT-20B). Ricerca web tramite Tavily.
 - **Analytics**: PostHog (EU cloud, opt-in). Monitoraggio errori: Sentry (no PII, no prompt).
 - **Pagamenti**: Stripe (solo per coach→Athlynk; pagamenti coach→atleta gestiti esternamente).
@@ -48,3 +48,4 @@ Coach professionisti del fitness (personal trainer, strength coach, nutrizionist
 - App coach: https://app.athlynk.it/
 - Email: info@athlynk.it
 - Lingua: italiano
+- Mercato: Italia

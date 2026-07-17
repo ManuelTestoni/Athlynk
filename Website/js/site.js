@@ -138,6 +138,9 @@
     if (slides.length < 2) return;
     const dotsBox = reel.querySelector(".reel-dots");
     const labelEl = reel.querySelector(".reel-label");
+    /* the console rail is shared across slides: move its highlight with the
+       slide so the mockup behaves like the real app being clicked through */
+    const navs = [...reel.querySelectorAll(".app-rail [data-nav]")];
     const dots = slides.map((s, i) => {
       const d = document.createElement("button");
       d.type = "button";
@@ -154,6 +157,7 @@
       idx = (i + slides.length) % slides.length;
       slides.forEach((s, k) => s.classList.toggle("is-active", k === idx));
       dots.forEach((d, k) => d.classList.toggle("is-active", k === idx));
+      navs.forEach((n) => n.classList.toggle("is-active", +n.dataset.nav === idx));
       if (labelEl) labelEl.textContent = slides[idx].dataset.label || "";
       if (manual) restart();
     }

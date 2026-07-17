@@ -6,8 +6,11 @@
 <title>About — Dove la scienza incontra la scultura | Athlynk</title>
 <meta name="description" content="Athlynk nasce da una convinzione: il miglioramento fisico è una cultura. Uniamo biomeccanica, nutrizione quantificata e coaching umano in un ecosistema con una prova per ogni progresso.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#0b0a08">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://athlynk.it/about.html">
+<link rel="alternate" hreflang="it-IT" href="https://athlynk.it/about.html">
+<link rel="alternate" hreflang="x-default" href="https://athlynk.it/about.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Athlynk">
 <meta property="og:title" content="About Athlynk — dove la scienza incontra la scultura">
@@ -16,15 +19,39 @@
 <meta property="og:image" content="https://athlynk.it/assets/og-cover.png">
 <meta property="og:locale" content="it_IT">
 <meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://athlynk.it/" },
+        { "@type": "ListItem", "position": 2, "name": "About", "item": "https://athlynk.it/about.html" }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "url": "https://athlynk.it/about.html",
+      "name": "About",
+      "inLanguage": "it-IT",
+      "isPartOf": { "@id": "https://athlynk.it/#website" },
+      "about": { "@id": "https://athlynk.it/#software" },
+      "speakable": { "@type": "SpeakableSpecification", "cssSelector": [".about-text"] }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260704a">
+<link rel="stylesheet" href="css/style.css?v=20260717a">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
 <body>
 
 <div class="grain" aria-hidden="true"></div>
+<canvas class="dust" aria-hidden="true"></canvas>
 
 <header class="site-header" id="siteHeader">
   <div class="header-inner">
@@ -177,8 +204,9 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=20260704a"></script>
-<script src="js/site.js?v=20260704a"></script>
+<script src="js/main.js?v=20260717a"></script>
+<script src="js/site.js?v=20260717a"></script>
+<script src="js/dust.js?v=20260717a" defer></script>
 <div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Preferenze cookie" aria-modal="true">
   <div class="cookie-banner__inner">
     <p class="cookie-banner__text">
