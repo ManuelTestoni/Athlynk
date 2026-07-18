@@ -44,7 +44,7 @@
       "@id": "https://athlynk.it/#org",
       "name": "Athlynk",
       "url": "https://athlynk.it/",
-      "logo": "https://athlynk.it/assets/athlynk-mark.png",
+      "logo": "https://athlynk.it/assets/favicon.png",
       "image": "https://athlynk.it/assets/og-cover.png",
       "email": "info@athlynk.it",
       "slogan": "Una piattaforma: Allenamento, Nutrizione, Gestione.",
@@ -77,7 +77,7 @@
       "inLanguage": "it-IT",
       "speakable": {
         "@type": "SpeakableSpecification",
-        "cssSelector": [".intro-lede", ".intro-copy"]
+        "cssSelector": [".section-lede"]
       }
     },
     {
@@ -103,7 +103,7 @@
         "@type": "Offer",
         "price": "29.90",
         "priceCurrency": "EUR",
-        "url": "https://athlynk.it/pricing.html",
+        "url": "https://athlynk.it/#pricing",
         "availability": "https://schema.org/InStock",
         "eligibleRegion": { "@type": "Country", "name": "Italia" }
       },
@@ -115,9 +115,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260717c">
+<link rel="stylesheet" href="css/style.css?v=20260718b">
 <link rel="preload" as="image" href="assets/hero-film/poster.webp" fetchpriority="high">
 <link rel="icon" type="image/png" href="assets/favicon.png">
+<script src="https://script.supademo.com/supademo.js"></script>
 </head>
 <body>
 
@@ -129,16 +130,17 @@
 <header class="site-header site-header--over" id="siteHeader">
   <div class="header-inner">
     <a href="index.html" class="brand" aria-label="Athlynk — home">
-      <img class="brand-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
+      <img class="brand-mark" src="assets/favicon.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
       <span class="brand-name">Athlynk</span>
     </a>
     <nav class="main-nav" id="mainNav" aria-label="Navigazione principale">
-      <a href="index.html" class="nav-link" aria-current="page">Home</a>
-      <a href="piattaforma.html" class="nav-link">Piattaforma</a>
-      <a href="app.html" class="nav-link">App Mobile</a>
-      <a href="pricing.html" class="nav-link">Pricing</a>
+      <a href="#hero" class="nav-link" aria-current="page">Home</a>
+      <a href="#piattaforma" class="nav-link">Piattaforma</a>
+      <a href="#app-mobile" class="nav-link">App Mobile</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
       <a href="about.html" class="nav-link">About</a>
       <a href="faq.html" class="nav-link">FAQ</a>
+      <a href="#live-demo" class="nav-link">Live Demo</a>
     </nav>
     <div class="header-actions">
       <a href="https://app.athlynk.it" class="login-link" aria-label="Accedi alla web app Athlynk">
@@ -149,7 +151,7 @@
         </svg>
         <span>Accedi</span>
       </a>
-      <a href="pricing.html" class="btn btn-bronze btn-sm">Inizia il percorso</a>
+      <a href="#pricing" class="btn btn-bronze btn-sm">Inizia il percorso</a>
       <button class="nav-toggle" id="navToggle" aria-label="Apri menu" aria-expanded="false">
         <span></span><span></span>
       </button>
@@ -193,8 +195,8 @@
         </h1>
         <p class="film-tagline">Una piattaforma: <b>Allenamento · Nutrizione · Gestione</b></p>
         <div class="film-ctas">
-          <a href="pricing.html" class="btn btn-bronze">Inizia il percorso</a>
-          <a href="piattaforma.html" class="btn btn-ghost">Scopri la piattaforma<span class="btn-arrow">→</span></a>
+          <a href="#pricing" class="btn btn-bronze">Inizia il percorso</a>
+          <a href="#piattaforma" class="btn btn-ghost">Scopri la piattaforma<span class="btn-arrow">→</span></a>
         </div>
       </div>
 
@@ -203,36 +205,13 @@
   </div>
 </section>
 
-<!-- ====================== INTRO — posizionamento ====================== -->
-<section class="intro section">
-  <div class="container">
-    <div class="intro-grid">
-      <div>
-        <p class="eyebrow reveal"><span class="eyebrow-rule"></span>Il gestionale professionale</p>
-        <p class="intro-lede reveal">Dietro ogni atleta c'è un coach.<br>Dietro ogni coach c'è <em>Athlynk.</em></p>
-      </div>
-      <div>
-        <p class="intro-copy reveal">Athlynk è la piattaforma con cui coach, nutrizionisti e allenatori gestiscono l'intero studio: programmazione degli allenamenti, piani alimentari, check dei progressi, agenda, pagamenti e comunicazione — in un'unica console.</p>
-        <p class="intro-copy reveal">Niente fogli di calcolo, niente chat sparse. Il tuo metodo, i tuoi atleti, i tuoi dati: tutto in un sistema costruito sul lavoro reale del coach.</p>
-      </div>
-    </div>
-    <div class="intro-stats">
-      <div class="intro-stat reveal"><b>1</b><span>Console per tutto lo studio</span></div>
-      <div class="intro-stat reveal"><b>2</b><span>App iOS — coach e atleta</span></div>
-      <div class="intro-stat reveal"><b>∞</b><span>Atleti con il piano Zeus</span></div>
-    </div>
-  </div>
-</section>
-
-<div class="meander-rule reveal" aria-hidden="true"></div>
-
-<!-- ====================== PIATTAFORMA — la console ====================== -->
-<section class="section section-mist" id="piattaforma-demo">
+<!-- ====================== PIATTAFORMA — schermate reali ====================== -->
+<section class="section section-mist" id="piattaforma">
   <div class="container">
     <header class="section-head section-head-center reveal">
       <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>La piattaforma<span class="eyebrow-rule"></span></p>
       <h2 class="section-title">Una console,<br><em>due prospettive.</em></h2>
-      <p class="section-lede">Il coach ha lo studio completo. L'atleta ha solo ciò che gli serve — semplice, leggibile, senza menu nascosti. Zero caos da app che promettono tutto e non fanno gestire niente.</p>
+      <p class="section-lede">Il coach ha lo studio completo. L'atleta ha solo ciò che gli serve — semplice, leggibile, senza menu nascosti. Niente mockup: quello che vedi è quello che c'è nell'app.</p>
     </header>
 
     <div class="explorer reveal">
@@ -243,37 +222,61 @@
         </div>
 
         <nav class="explorer-list" data-view-panel="coach" aria-label="Sezioni console coach">
-          <button type="button" class="explorer-item is-active reveal">
-            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            <span class="explorer-item-label">Dashboard</span>
-          </button>
-          <button type="button" class="explorer-item reveal">
+          <button type="button" class="explorer-item is-active reveal" data-asset-count="5">
             <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
-            <span class="explorer-item-label">Schede</span>
+            <span class="explorer-item-label">Allenamento</span>
           </button>
-          <button type="button" class="explorer-item reveal">
+          <button type="button" class="explorer-item reveal" data-asset-count="3">
             <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
             <span class="explorer-item-label">Nutrizione</span>
           </button>
-          <button type="button" class="explorer-item reveal">
-            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
-            <span class="explorer-item-label">Check</span>
+          <button type="button" class="explorer-item reveal" data-asset-count="2">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-6M22 20V14"/></svg>
+            <span class="explorer-item-label">Progressi</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 6.2L21 12l-6.6 2.8L12 21l-2.4-6.2L3 12l6.6-2.8z"/></svg>
+            <span class="explorer-item-label">Chiron</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 13l2 2 6-6"/></svg>
+            <span class="explorer-item-label">Analisi</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+            <span class="explorer-item-label">Agenda</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            <span class="explorer-item-label">Gestione abbonamenti</span>
           </button>
           <span class="explorer-indicator" aria-hidden="true"></span>
         </nav>
 
         <nav class="explorer-list" data-view-panel="atleta" aria-label="Sezioni console atleta" hidden>
-          <button type="button" class="explorer-item is-active reveal">
+          <button type="button" class="explorer-item is-active reveal" data-asset-count="1">
             <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             <span class="explorer-item-label">Dashboard</span>
           </button>
-          <button type="button" class="explorer-item reveal">
-            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 4h11l-2 4 2 4H6"/></svg>
-            <span class="explorer-item-label">Il mio percorso</span>
-          </button>
-          <button type="button" class="explorer-item reveal">
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
             <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
             <span class="explorer-item-label">Nutrizione</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Allenamento</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="2">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 4"/></svg>
+            <span class="explorer-item-label">Andamento e grafici</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 4h11l-2 4 2 4H6"/></svg>
+            <span class="explorer-item-label">Percorso</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+            <span class="explorer-item-label">Agenda</span>
           </button>
           <span class="explorer-indicator" aria-hidden="true"></span>
         </nav>
@@ -281,452 +284,190 @@
 
       <div class="explorer-stage">
         <div class="browser-frame" data-view-panel="coach">
-          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it</span></div>
-
-          <div class="app reel-app app-solo">
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it/allenamenti/033</span></div>
           <div class="reel-frame">
-
-            <!-- ---- 1 · Dashboard ---- -->
-            <div class="reel-slide app-main is-active" role="img" data-label="Dashboard — la sintesi dello studio"
-                 aria-label="Dashboard del coach: 7 atleti in studio, 3 check da vedere, 6 piani in scadenza, gli atleti recenti e il volume settimanale">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Cerca atleti, allenamenti, nutrizione…</span>
-                <span class="app-avatar">FB</span>
-              </div>
-              <p class="app-greet">Bentornato, <em>Coach</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi"><span>Atleti totali</span><b>7</b></div>
-                <div class="app-kpi app-kpi-gold"><span>Check da vedere</span><b>3</b></div>
-                <div class="app-kpi"><span>Piani in scadenza</span><b>6</b></div>
-                <div class="app-kpi"><span>Appuntamenti</span><b>2</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Atleti recenti</b><span>Vedi tutti</span></div>
-                  <div class="app-row">
-                    <span class="app-avatar">DC</span>
-                    <span class="app-row-id"><b>Dennis Ciuffo</b><span>Ipertrofia · settimana 4</span></span>
-                    <span class="app-tag app-tag-ok">In corso</span>
-                  </div>
-                  <div class="app-row">
-                    <span class="app-avatar">GS</span>
-                    <span class="app-row-id"><b>Giulia Santoro</b><span>Ricomposizione · settimana 2</span></span>
-                    <span class="app-tag app-tag-gold">Check</span>
-                  </div>
-                  <div class="app-row">
-                    <span class="app-avatar">SR</span>
-                    <span class="app-row-id"><b>Sara Riva</b><span>Forza · settimana 7</span></span>
-                    <span class="app-tag app-tag-ok">In corso</span>
-                  </div>
-                  <div class="app-row">
-                    <span class="app-avatar">AG</span>
-                    <span class="app-row-id"><b>Alessandro Greco</b><span>Ipertrofia · settimana 1</span></span>
-                    <span class="app-tag app-tag-ok">In corso</span>
-                  </div>
-                  <div class="app-row">
-                    <span class="app-avatar">MR</span>
-                    <span class="app-row-id"><b>Marco Rinaldi</b><span>Forza · settimana 9</span></span>
-                    <span class="app-tag app-tag-gold">Check</span>
-                  </div>
-                  <div class="app-row">
-                    <span class="app-avatar">LB</span>
-                    <span class="app-row-id"><b>Laura Bianchi</b><span>Ricomposizione · settimana 5</span></span>
-                    <span class="app-tag app-tag-ok">In corso</span>
-                  </div>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Volume</b><span>7 giorni</span></div>
-                    <div class="app-chart" aria-hidden="true">
-                      <i style="--h:52%; --d:0s"></i><i style="--h:74%; --d:0.1s"></i>
-                      <i style="--h:61%; --d:0.2s"></i><i style="--h:88%; --d:0.3s"></i>
-                      <i style="--h:70%; --d:0.4s"></i><i style="--h:95%; --d:0.5s"></i>
-                    </div>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Piani attivi</b><span>Gestisci</span></div>
-                    <div class="app-row">
-                      <span class="app-row-id"><b>Coaching Base</b><span>30 giorni</span></span>
-                      <span class="app-meal-kcal">80,00 €</span>
-                    </div>
-                    <div class="app-row">
-                      <span class="app-row-id"><b>Coaching Premium</b><span>30 giorni</span></span>
-                      <span class="app-meal-kcal">180,00 €</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <img class="reel-slide is-active" src="assets/webapp-screens/coach/allenamento/dettaglop_allenamento.webp" data-url="app.athlynk.it/allenamenti/033" data-label="Dettaglio scheda — esercizi per giorno e assegnazione" loading="lazy" decoding="async" data-zoom alt="Dettaglio di una scheda di allenamento con esercizi per giorno, atleta assegnato e date di validità">
+            <img class="reel-slide" src="assets/webapp-screens/coach/allenamento/progressioni.webp" data-url="app.athlynk.it/allenamenti/033/progressione" data-label="Builder progressione — serie, reps e carico per settimana" loading="lazy" decoding="async" data-zoom alt="Builder della progressione settimanale con serie, reps, carico e recupero per ogni settimana del blocco">
+            <img class="reel-slide" src="assets/webapp-screens/coach/allenamento/volume_progressioni.webp" data-url="app.athlynk.it/allenamenti/analisi-volume" data-label="Analisi volume — istogramma e radar per gruppo muscolare" loading="lazy" decoding="async" data-zoom alt="Analisi del volume di allenamento per gruppo muscolare, con vista a istogramma o radar">
+            <img class="reel-slide" src="assets/webapp-screens/coach/allenamento/carico_progressioni.webp" data-url="app.athlynk.it/allenamenti/analisi-carico" data-label="Statistiche esercizio — andamento di carico e volume" loading="lazy" decoding="async" data-zoom alt="Statistiche di un esercizio con andamento del carico settimana per settimana">
+            <img class="reel-slide" src="assets/webapp-screens/coach/allenamento/volume_scheda.webp" data-url="app.athlynk.it/allenamenti/033/volume" data-label="Apertura del pannello volume dalla scheda" loading="lazy" decoding="async" data-zoom alt="Il coach apre il pannello di analisi volume direttamente dalla scheda, filtrando per gruppo muscolare">
+            <img class="reel-slide" src="assets/webapp-screens/coach/nutrizione/nutrizione_macro_settimanale.webp" data-url="app.athlynk.it/nutrizione/piani/037" data-label="Obiettivi macro per ogni giorno della settimana" loading="lazy" decoding="async" data-zoom alt="Obiettivi di energia e macronutrienti impostati per ogni giorno della settimana">
+            <img class="reel-slide" src="assets/webapp-screens/coach/nutrizione/alimenti_giornaliero.webp" data-url="app.athlynk.it/nutrizione/piani/018" data-label="Dettaglio piano — pasti, alimenti e sostituzioni" loading="lazy" decoding="async" data-zoom alt="Dettaglio di un piano alimentare con pasti, alimenti e sostituzioni isocaloriche">
+            <img class="reel-slide" src="assets/webapp-screens/coach/nutrizione/dettaglio_piano_nutrizionale.webp" data-url="app.athlynk.it/nutrizione/piani/006" data-label="Piano settimanale — pasti giorno per giorno" loading="lazy" decoding="async" data-zoom alt="Piano nutrizionale settimanale con la distribuzione dei pasti giorno per giorno">
+            <img class="reel-slide" src="assets/webapp-screens/coach/progressi/progressi_1.webp" data-url="app.athlynk.it/atleti/progressi" data-label="Progressioni carichi — sessioni, aderenza, streak" loading="lazy" decoding="async" data-zoom alt="Progressioni sui carichi di un atleta, con sessioni totali, aderenza e streak di allenamento">
+            <img class="reel-slide" src="assets/webapp-screens/coach/progressi/progressi_2.webp" data-url="app.athlynk.it/atleti/progressi/volume" data-label="Volume per gruppo muscolare e andamento RPE" loading="lazy" decoding="async" data-zoom alt="Volume settimanale per gruppo muscolare e andamento dell'RPE medio">
+            <img class="reel-slide" src="assets/webapp-screens/coach/chiron.webp" data-url="app.athlynk.it/chiron" data-label="Chiron — chiedi lo stato di un atleta, in linguaggio naturale" loading="lazy" decoding="async" data-zoom alt="Conversazione con Chiron, l'assistente AI: il coach chiede lo stato di un atleta e riceve dati reali e azioni rapide">
+            <img class="reel-slide" src="assets/webapp-screens/coach/analisi_atleti.webp" data-url="app.athlynk.it/analisi" data-label="Andamento dello studio — rischio, rinnovi, ricavi" loading="lazy" decoding="async" data-zoom alt="Analisi dello studio: atleti a rischio abbandono, rinnovi in scadenza, ricavo attivo e aderenza al servizio">
+            <img class="reel-slide" src="assets/webapp-screens/coach/agenda_coach_atleta.webp" data-url="app.athlynk.it/agenda" data-label="Calendario appuntamenti — check, visite, consulenze" loading="lazy" decoding="async" data-zoom alt="Calendario degli appuntamenti con check periodici, prime visite e consulenze in un unico flusso">
+            <img class="reel-slide" src="assets/webapp-screens/coach/gestione_abbonamenti.webp" data-url="app.athlynk.it/abbonamenti" data-label="Listino piani, iscritti e stato dei pagamenti" loading="lazy" decoding="async" data-zoom alt="Gestione abbonamenti: listino piani, atleti iscritti e stato dei pagamenti">
+            <div class="reel-nav" aria-hidden="true">
+              <button type="button" class="reel-arrow reel-prev" aria-label="Schermata precedente">‹</button>
+              <span class="reel-count"></span>
+              <button type="button" class="reel-arrow reel-next" aria-label="Schermata successiva">›</button>
             </div>
-
-            <!-- ---- 2 · Builder ---- -->
-            <div class="reel-slide app-main" role="img" data-label="Schede — carichi, recuperi, RPE"
-                 aria-label="Builder della scheda Lower A: squat, stacco rumeno, leg press e hip thrust con carichi e RPE per serie, e la progressione su quattro settimane">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Dennis Ciuffo · Ipertrofia · settimana 4</span>
-                <span class="app-avatar">FB</span>
-              </div>
-              <p class="app-greet">Lower A — <em>giorno 1</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi"><span>Esercizi</span><b>4</b></div>
-                <div class="app-kpi"><span>Serie totali</span><b>16</b></div>
-                <div class="app-kpi"><span>Durata stimata</span><b>68′</b></div>
-                <div class="app-kpi app-kpi-gold"><span>Record oggi</span><b>1</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Esercizi</b><span>Trascina per riordinare</span></div>
-                  <div class="app-ex">
-                    <div class="app-ex-head"><b>Squat bilanciere</b><span>RPE 8 · rec. 3′</span></div>
-                    <div class="app-sets" aria-hidden="true">
-                      <span class="app-set app-set-done">130×5</span>
-                      <span class="app-set app-set-done">135×5</span>
-                      <span class="app-set app-set-pr">140×3 ✦</span>
-                      <span class="app-set">140×3</span>
-                      <span class="app-set">140×3</span>
-                    </div>
-                  </div>
-                  <div class="app-ex">
-                    <div class="app-ex-head"><b>Stacco rumeno</b><span>RPE 7 · rec. 2′</span></div>
-                    <div class="app-sets" aria-hidden="true">
-                      <span class="app-set app-set-done">100×8</span>
-                      <span class="app-set">100×8</span>
-                      <span class="app-set">100×8</span>
-                    </div>
-                  </div>
-                  <div class="app-ex">
-                    <div class="app-ex-head"><b>Leg press</b><span>RPE 8 · rec. 2′</span></div>
-                    <div class="app-sets" aria-hidden="true">
-                      <span class="app-set">220×10</span>
-                      <span class="app-set">220×10</span>
-                      <span class="app-set">220×10</span>
-                    </div>
-                  </div>
-                  <div class="app-ex">
-                    <div class="app-ex-head"><b>Hip thrust</b><span>RPE 8 · rec. 90″</span></div>
-                    <div class="app-sets" aria-hidden="true">
-                      <span class="app-set">120×12</span>
-                      <span class="app-set">120×12</span>
-                      <span class="app-set">120×12</span>
-                      <span class="app-set">120×12</span>
-                      <span class="app-set">120×12</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Progressione</b><span>4 settimane</span></div>
-                    <div class="app-chart" aria-hidden="true">
-                      <i style="--h:48%; --d:0s"></i><i style="--h:62%; --d:0.12s"></i>
-                      <i style="--h:78%; --d:0.24s"></i><i style="--h:96%; --d:0.36s"></i>
-                    </div>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Massimale stimato</b><span>Squat</span></div>
-                    <div class="app-metric"><b>167,5</b><i>+12,5 kg</i></div>
-                    <div class="app-row" style="border:0; padding-top:0">
-                      <span class="app-row-id"><span>da 155 kg quattro settimane fa</span></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ---- 3 · Nutrizione ---- -->
-            <div class="reel-slide app-main" role="img" data-label="Nutrizione — macro e pasti"
-                 aria-label="Piano alimentare di Giulia Santoro: 2 480 kcal, cinque pasti con macro per pasto e aderenza al 94 per cento">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Giulia Santoro · Ricomposizione · settimana 2</span>
-                <span class="app-avatar">FB</span>
-              </div>
-              <p class="app-greet">Piano — <em>2 480 kcal</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi"><span>Proteine</span><b>150</b></div>
-                <div class="app-kpi"><span>Carboidrati</span><b>266</b></div>
-                <div class="app-kpi"><span>Grassi</span><b>72</b></div>
-                <div class="app-kpi app-kpi-gold"><span>Aderenza</span><b>94%</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Pasti</b><span>Giornata tipo</span></div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">08:00</span>
-                    <span class="app-meal-id"><b>Colazione</b><span>P 32 · C 58 · G 14</span></span>
-                    <span class="app-meal-kcal">548 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">13:00</span>
-                    <span class="app-meal-id"><b>Pranzo</b><span>P 48 · C 92 · G 18</span></span>
-                    <span class="app-meal-kcal">820 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">17:30</span>
-                    <span class="app-meal-id"><b>Pre-workout</b><span>P 18 · C 54 · G 6</span></span>
-                    <span class="app-meal-kcal">390 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">20:30</span>
-                    <span class="app-meal-id"><b>Cena</b><span>P 52 · C 62 · G 22</span></span>
-                    <span class="app-meal-kcal">722 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">22:30</span>
-                    <span class="app-meal-id"><b>Spuntino serale</b><span>P 24 · C 12 · G 8</span></span>
-                    <span class="app-meal-kcal">216 kcal</span>
-                  </div>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Macro</b><span>Oggi</span></div>
-                    <div class="app-rings" aria-hidden="true">
-                      <div>
-                        <div class="app-ring app-ring-1">
-                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
-                          <b>150</b>
-                        </div>
-                        <p class="app-ring-cap">Proteine</p>
-                      </div>
-                      <div>
-                        <div class="app-ring app-ring-2">
-                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
-                          <b>266</b>
-                        </div>
-                        <p class="app-ring-cap">Carboidrati</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Peso</b><span>8 settimane</span></div>
-                    <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
-                      <path class="app-spark-area" d="M0 14 L43 18 L86 16 L129 24 L171 27 L214 33 L257 36 L300 42 L300 54 L0 54 Z"/>
-                      <path class="app-spark-line" d="M0 14 L43 18 L86 16 L129 24 L171 27 L214 33 L257 36 L300 42"/>
-                      <circle class="app-spark-dot" cx="300" cy="42" r="3.5"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ---- 4 · Check ---- -->
-            <div class="reel-slide app-main" role="img" data-label="Check — la coda di revisione"
-                 aria-label="Coda dei check progressi: cinque atleti con foto, variazione di peso e stato di revisione">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Check in coda · più recenti</span>
-                <span class="app-avatar">FB</span>
-              </div>
-              <p class="app-greet">Check — <em>3 in coda</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi app-kpi-gold"><span>Da revisionare</span><b>3</b></div>
-                <div class="app-kpi"><span>Questa settimana</span><b>9</b></div>
-                <div class="app-kpi"><span>Aderenza media</span><b>91%</b></div>
-                <div class="app-kpi"><span>Tempo medio</span><b>4′</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Da revisionare</b><span>Oggi</span></div>
-                  <div class="app-check">
-                    <span class="app-check-thumb" aria-hidden="true"></span>
-                    <span class="app-check-id"><b>Giulia Santoro</b><span>−1,2 kg · settimana 2</span></span>
-                    <span class="app-tag app-tag-gold">Nuovo</span>
-                  </div>
-                  <div class="app-check">
-                    <span class="app-check-thumb" aria-hidden="true"></span>
-                    <span class="app-check-id"><b>Marco Rinaldi</b><span>+0,4 kg · settimana 9</span></span>
-                    <span class="app-tag app-tag-gold">Nuovo</span>
-                  </div>
-                  <div class="app-check">
-                    <span class="app-check-thumb" aria-hidden="true"></span>
-                    <span class="app-check-id"><b>Dennis Ciuffo</b><span>+0,8 kg · settimana 4</span></span>
-                    <span class="app-tag app-tag-gold">Nuovo</span>
-                  </div>
-                  <div class="app-check">
-                    <span class="app-check-thumb" aria-hidden="true"></span>
-                    <span class="app-check-id"><b>Sara Riva</b><span>stabile · settimana 7</span></span>
-                    <span class="app-tag app-tag-ok">Vista</span>
-                  </div>
-                  <div class="app-check">
-                    <span class="app-check-thumb" aria-hidden="true"></span>
-                    <span class="app-check-id"><b>Laura Bianchi</b><span>−0,6 kg · settimana 5</span></span>
-                    <span class="app-tag app-tag-ok">Vista</span>
-                  </div>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Andamento peso</b><span>Giulia S.</span></div>
-                    <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
-                      <path class="app-spark-area" d="M0 12 L43 16 L86 15 L129 22 L171 26 L214 31 L257 35 L300 41 L300 54 L0 54 Z"/>
-                      <path class="app-spark-line" d="M0 12 L43 16 L86 15 L129 22 L171 26 L214 31 L257 35 L300 41"/>
-                      <circle class="app-spark-dot" cx="300" cy="41" r="3.5"/>
-                    </svg>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Variazione</b><span>8 settimane</span></div>
-                    <div class="app-metric"><b>−4,8</b><i>kg</i></div>
-                    <div class="app-row" style="border:0; padding-top:0">
-                      <span class="app-row-id"><span>obiettivo −6 kg entro settimana 12</span></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
           </div>
         </div>
 
         <div class="browser-frame" data-view-panel="atleta" hidden>
-          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it</span></div>
-
-          <div class="app reel-app app-solo">
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it/dashboard</span></div>
           <div class="reel-frame">
-
-            <!-- ---- 1 · Dashboard ---- -->
-            <div class="reel-slide app-main is-active" role="img" data-label="Dashboard — tutto a un tocco"
-                 aria-label="Dashboard dell'atleta: peso attuale, sessioni della settimana, target giornaliero e giorni all'abbonamento">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Cerca allenamenti, pasti, check…</span>
-                <span class="app-avatar">ER</span>
-              </div>
-              <p class="app-greet">Ciao, <em>Elena</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi"><span>Peso attuale</span><b>70,2 kg</b></div>
-                <div class="app-kpi app-kpi-gold"><span>Sessioni settimana</span><b>4</b></div>
-                <div class="app-kpi"><span>Target giornaliero</span><b>2 150</b></div>
-                <div class="app-kpi"><span>Abbonamento</span><b>12 gg</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Andamento peso</b><span>8 settimane</span></div>
-                  <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
-                    <path class="app-spark-area" d="M0 16 L43 18 L86 14 L129 20 L171 24 L214 22 L257 28 L300 30 L300 54 L0 54 Z"/>
-                    <path class="app-spark-line" d="M0 16 L43 18 L86 14 L129 20 L171 24 L214 22 L257 28 L300 30"/>
-                    <circle class="app-spark-dot" cx="300" cy="30" r="3.5"/>
-                  </svg>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Carichi principali</b><span>Squat</span></div>
-                    <div class="app-chart" aria-hidden="true">
-                      <i style="--h:50%; --d:0s"></i><i style="--h:58%; --d:0.1s"></i>
-                      <i style="--h:66%; --d:0.2s"></i><i style="--h:80%; --d:0.3s"></i>
-                    </div>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Volume settimanale</b><span>7 giorni</span></div>
-                    <div class="app-chart" aria-hidden="true">
-                      <i style="--h:44%; --d:0s"></i><i style="--h:60%; --d:0.1s"></i>
-                      <i style="--h:52%; --d:0.2s"></i><i style="--h:71%; --d:0.3s"></i>
-                      <i style="--h:65%; --d:0.4s"></i><i style="--h:84%; --d:0.5s"></i>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <img class="reel-slide is-active" src="assets/webapp-screens/athlete/dashboard.webp" data-url="app.athlynk.it/dashboard" data-label="Dashboard — peso, sessioni, target e abbonamento" loading="lazy" decoding="async" data-zoom alt="Dashboard dell'atleta: peso attuale, sessioni della settimana, target calorico giornaliero e giorni all'abbonamento">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/nutrizione_atleta.webp" data-url="app.athlynk.it/nutrizione" data-label="Il piano alimentare assegnato dal coach" loading="lazy" decoding="async" data-zoom alt="Piano alimentare assegnato dal coach, con macro del giorno e integrazione attiva">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/Allenamento.webp" data-url="app.athlynk.it/allenamento" data-label="La scheda attiva, giorno per giorno" loading="lazy" decoding="async" data-zoom alt="Scheda di allenamento attiva organizzata per giorni, con volume settimanale e storico sessioni">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/andamento.webp" data-url="app.athlynk.it/check/andamento" data-label="Medie settimanali su peso, circonferenze e pliche" loading="lazy" decoding="async" data-zoom alt="Andamento con medie settimanali su peso, circonferenze e pliche, confrontate tra periodi omologhi">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/grafici_carichi.webp" data-url="app.athlynk.it/allenamento/carichi" data-label="Andamento dei carichi, sessione per sessione" loading="lazy" decoding="async" data-zoom alt="Grafico dell'andamento dei carichi per esercizio, sessione dopo sessione">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/percorso.webp" data-url="app.athlynk.it/percorso" data-label="La timeline personale, filtrabile" loading="lazy" decoding="async" data-zoom alt="Timeline personale con allenamenti, nutrizione e check nel tempo, filtrabile per tipo">
+            <img class="reel-slide" src="assets/webapp-screens/athlete/agenda_coach_atleta.webp" data-url="app.athlynk.it/agenda" data-label="Il calendario condiviso con il coach" loading="lazy" decoding="async" data-zoom alt="Calendario degli appuntamenti condiviso con il coach, sempre aggiornato">
+            <div class="reel-nav" aria-hidden="true">
+              <button type="button" class="reel-arrow reel-prev" aria-label="Schermata precedente">‹</button>
+              <span class="reel-count"></span>
+              <button type="button" class="reel-arrow reel-next" aria-label="Schermata successiva">›</button>
             </div>
-
-            <!-- ---- 2 · Il mio percorso ---- -->
-            <div class="reel-slide app-main" role="img" data-label="Il mio percorso — la storia"
-                 aria-label="Timeline del percorso: fase di allenamento in corso, ultimo piano nutrizionale attivato e ultimo check compilato">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Il mio percorso</span>
-                <span class="app-avatar">ER</span>
-              </div>
-              <p class="app-greet">Il tuo <em>percorso</em></p>
-              <div class="app-card">
-                <div class="app-card-head"><b>Panoramica</b><span>Tutto</span></div>
-                <div class="app-row">
-                  <span class="app-row-id"><b>Fase — Ipertrofia</b><span>12 mar → 12 giu</span></span>
-                  <span class="app-tag app-tag-gold">3 mesi</span>
-                </div>
-                <div class="app-row">
-                  <span class="app-row-id"><b>Allenamento assegnato</b><span>Ipertrofia · settimana 1</span></span>
-                  <span class="app-tag app-tag-ok">14 lug</span>
-                </div>
-                <div class="app-row">
-                  <span class="app-row-id"><b>Piano nutrizionale attivato</b><span>Ricomposizione · 2 150 kcal</span></span>
-                  <span class="app-tag app-tag-ok">11 lug</span>
-                </div>
-                <div class="app-row">
-                  <span class="app-row-id"><b>Check compilato</b><span>Peso, circonferenze, foto</span></span>
-                  <span class="app-tag app-tag-ok">9 lug</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- ---- 3 · Nutrizione ---- -->
-            <div class="reel-slide app-main" role="img" data-label="Nutrizione — il tuo piano"
-                 aria-label="Piano nutrizionale personale: 2 150 kcal, cinque pasti con macro per pasto e aderenza al 96 per cento">
-              <div class="app-topbar" aria-hidden="true">
-                <span class="app-search">Ricomposizione · settimana 3</span>
-                <span class="app-avatar">ER</span>
-              </div>
-              <p class="app-greet">Piano — <em>2 150 kcal</em></p>
-              <div class="app-kpis">
-                <div class="app-kpi"><span>Proteine</span><b>158</b></div>
-                <div class="app-kpi"><span>Carboidrati</span><b>212</b></div>
-                <div class="app-kpi"><span>Grassi</span><b>64</b></div>
-                <div class="app-kpi app-kpi-gold"><span>Aderenza</span><b>96%</b></div>
-              </div>
-              <div class="app-cols">
-                <div class="app-card">
-                  <div class="app-card-head"><b>Pasti</b><span>Giornata tipo</span></div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">07:30</span>
-                    <span class="app-meal-id"><b>Colazione</b><span>P 30 · C 48 · G 12</span></span>
-                    <span class="app-meal-kcal">460 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">12:30</span>
-                    <span class="app-meal-id"><b>Pranzo</b><span>P 42 · C 68 · G 16</span></span>
-                    <span class="app-meal-kcal">620 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">16:30</span>
-                    <span class="app-meal-id"><b>Pre-workout</b><span>P 16 · C 40 · G 4</span></span>
-                    <span class="app-meal-kcal">280 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">20:00</span>
-                    <span class="app-meal-id"><b>Cena</b><span>P 48 · C 44 · G 20</span></span>
-                    <span class="app-meal-kcal">560 kcal</span>
-                  </div>
-                  <div class="app-meal">
-                    <span class="app-meal-i" aria-hidden="true">22:00</span>
-                    <span class="app-meal-id"><b>Spuntino serale</b><span>P 22 · C 12 · G 12</span></span>
-                    <span class="app-meal-kcal">230 kcal</span>
-                  </div>
-                </div>
-                <div class="app-side">
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Macro</b><span>Oggi</span></div>
-                    <div class="app-rings" aria-hidden="true">
-                      <div>
-                        <div class="app-ring app-ring-1">
-                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
-                          <b>158</b>
-                        </div>
-                        <p class="app-ring-cap">Proteine</p>
-                      </div>
-                      <div>
-                        <div class="app-ring app-ring-2">
-                          <svg viewBox="0 0 72 72"><circle class="ring-bg" cx="36" cy="36" r="32"/><circle class="ring-val" cx="36" cy="36" r="32"/></svg>
-                          <b>212</b>
-                        </div>
-                        <p class="app-ring-cap">Carboidrati</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="app-card">
-                    <div class="app-card-head"><b>Aderenza</b><span>4 settimane</span></div>
-                    <svg class="app-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
-                      <path class="app-spark-area" d="M0 30 L43 24 L86 26 L129 18 L171 20 L214 14 L257 16 L300 10 L300 54 L0 54 Z"/>
-                      <path class="app-spark-line" d="M0 30 L43 24 L86 26 L129 18 L171 20 L214 14 L257 16 L300 10"/>
-                      <circle class="app-spark-dot" cx="300" cy="10" r="3.5"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
           </div>
+        </div>
+
+        <p class="explorer-caption">Dettaglio scheda — esercizi per giorno e assegnazione</p>
+      </div>
+    </div>
+
+    <div class="hero-cta reveal" style="margin-top: 44px; justify-content: center;">
+      <a href="#app-mobile" class="btn btn-ghost">Vedi anche le app iOS<span class="btn-arrow">→</span></a>
+      <a href="#pricing" class="btn btn-ghost">Vedi i piani<span class="btn-arrow">→</span></a>
+    </div>
+  </div>
+</section>
+
+<div class="meander-rule reveal" aria-hidden="true"></div>
+
+<!-- ====================== LIVE DEMO ====================== -->
+<section class="cta-band section" id="live-demo">
+  <div class="container container-narrow">
+    <p class="eyebrow eyebrow-center reveal"><span class="eyebrow-rule"></span>Live Demo<span class="eyebrow-rule"></span></p>
+    <h2 class="section-title reveal">Provala con le tue mani,<br><em>non solo con gli occhi.</em></h2>
+    <p class="section-lede reveal" style="margin-inline: auto;">Un percorso guidato dentro la vera console Athlynk: naviga schede, piani nutrizionali e check come farebbe un coach, senza registrarti.</p>
+    <div class="hero-cta reveal">
+      <button type="button" class="btn btn-bronze" onclick="Supademo.open('cmrqbpigd0a7fqm9w7t6c9dqu')">La nostra demo</button>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== APP MOBILE — schermate reali iOS ====================== -->
+<section class="section" id="app-mobile">
+  <div class="container">
+    <header class="section-head section-head-center reveal">
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>App Mobile<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Due app native iOS,<br><em>un solo ecosistema.</em></h2>
+      <p class="section-lede">L'atleta trova solo ciò che gli serve per eseguire. Il coach ha lo studio completo, ovunque. Sincronizzate in tempo reale con la console.</p>
+    </header>
+
+    <div class="explorer reveal">
+      <div class="explorer-menu">
+        <div class="explorer-tabs" role="tablist" aria-label="Prospettiva">
+          <button type="button" class="explorer-tab is-active" data-view="coach" role="tab" aria-selected="true">Coach</button>
+          <button type="button" class="explorer-tab" data-view="atleta" role="tab" aria-selected="false">Atleta</button>
+        </div>
+
+        <nav class="explorer-list" data-view-panel="coach" aria-label="Schermate app coach">
+          <button type="button" class="explorer-item is-active reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Schede</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Dieta</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+            <span class="explorer-item-label">Agenda</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+            <span class="explorer-item-label">Check</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
+
+        <nav class="explorer-list" data-view-panel="atleta" aria-label="Schermate app atleta" hidden>
+          <button type="button" class="explorer-item is-active reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="explorer-item-label">Dashboard</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 12h12"/></svg>
+            <span class="explorer-item-label">Allenamenti</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 4h11l-2 4 2 4H6"/></svg>
+            <span class="explorer-item-label">Percorso</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9"/></svg>
+            <span class="explorer-item-label">Dieta</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+            <span class="explorer-item-label">Macro</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 4"/></svg>
+            <span class="explorer-item-label">Peso</span>
+          </button>
+          <button type="button" class="explorer-item reveal" data-asset-count="1">
+            <svg class="explorer-item-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V11M10 21V6M16 21v-9M22 21V3"/></svg>
+            <span class="explorer-item-label">Carichi</span>
+          </button>
+          <span class="explorer-indicator" aria-hidden="true"></span>
+        </nav>
+      </div>
+
+      <div class="explorer-stage">
+        <div class="reel-phone" data-view-panel="coach">
+          <div class="reel-frame">
+            <img class="reel-slide is-active" data-label="Dashboard — la sintesi dello studio" data-zoom
+                 src="assets/screens/Dashboard_coach.webp" loading="lazy" decoding="async"
+                 alt="Dashboard dell'app coach: atleti attivi, check in attesa, appuntamenti e messaggi del giorno">
+            <img class="reel-slide" data-label="Builder scheda — carichi e RPE" data-zoom
+                 src="assets/screens/builder_scheda.webp" loading="lazy" decoding="async"
+                 alt="Builder di una scheda di allenamento sull'app coach, con struttura settimanale e livello">
+            <img class="reel-slide" data-label="Builder dieta — macro e pasti" data-zoom
+                 src="assets/screens/builder_dieta.webp" loading="lazy" decoding="async"
+                 alt="Builder di un piano alimentare sull'app coach">
+            <img class="reel-slide" data-label="Fissa un appuntamento dalla chat" data-zoom
+                 src="assets/gif/coach_fissa_appuntamenti.webp" loading="lazy" decoding="async"
+                 alt="Il coach fissa un appuntamento direttamente dalla chat con l'atleta">
+            <img class="reel-slide" data-label="Prima valutazione — preset check" data-zoom
+                 src="assets/gif/complazione_prima_valutazione.webp" loading="lazy" decoding="async"
+                 alt="Il coach assegna il preset Prima valutazione a un atleta">
+          </div>
+        </div>
+
+        <div class="reel-phone" data-view-panel="atleta" hidden>
+          <div class="reel-frame">
+            <img class="reel-slide is-active" data-label="Dashboard — tutto a un tocco" data-zoom
+                 src="assets/screens/DashboardA_atleta.webp" loading="lazy" decoding="async"
+                 alt="Dashboard dell'app atleta: sessioni, target giornaliero, abbonamento e peso attuale">
+            <img class="reel-slide" data-label="Storico allenamenti" data-zoom
+                 src="assets/screens/Storico_Workout.webp" loading="lazy" decoding="async"
+                 alt="Storico degli allenamenti completati dall'atleta">
+            <img class="reel-slide" data-label="Il mio percorso" data-zoom
+                 src="assets/gif/percorso_atleta.webp" loading="lazy" decoding="async"
+                 alt="Timeline del percorso dell'atleta: fasi, allenamenti e piani nutrizionali nel tempo">
+            <img class="reel-slide" data-label="Aggiungi un alimento al diario" data-zoom
+                 src="assets/gif/Inserimento_alimento.webp" loading="lazy" decoding="async"
+                 alt="L'atleta cerca e aggiunge un alimento al diario nutrizionale">
+            <img class="reel-slide" data-label="Piano nutrizionale — macro del giorno" data-zoom
+                 src="assets/gif/dieta_micro_macro.webp" loading="lazy" decoding="async"
+                 alt="Dettaglio del piano nutrizionale con macro per giorno della settimana">
+            <img class="reel-slide" data-label="Andamento peso corporeo" data-zoom
+                 src="assets/gif/progressi_atleta.webp" loading="lazy" decoding="async"
+                 alt="Grafico dell'andamento del peso corporeo dell'atleta">
+            <img class="reel-slide" data-label="Progressi sui carichi" data-zoom
+                 src="assets/gif/progressi_carichi_atleta.webp" loading="lazy" decoding="async"
+                 alt="Storico dei carichi per esercizio con progressione nel tempo">
           </div>
         </div>
 
@@ -734,9 +475,14 @@
       </div>
     </div>
 
+    <div class="intro-stats reveal" style="margin-top: 56px;">
+      <div class="intro-stat"><b>Push</b><span>Aggiornamenti in tempo reale</span></div>
+      <div class="intro-stat"><b>Offline</b><span>La sessione non si ferma</span></div>
+      <div class="intro-stat"><b>iOS</b><span>Native, veloci, essenziali</span></div>
+    </div>
+
     <div class="hero-cta reveal" style="margin-top: 44px; justify-content: center;">
-      <a href="piattaforma.html" class="btn btn-ghost">Esplora tutte le funzionalità<span class="btn-arrow">→</span></a>
-      <a href="app.html" class="btn btn-ghost">Vedi anche le app iOS<span class="btn-arrow">→</span></a>
+      <a href="#pricing" class="btn btn-ghost">Vedi i piani<span class="btn-arrow">→</span></a>
     </div>
   </div>
 </section>
@@ -764,152 +510,235 @@
     </div>
   </div>
   <div class="container">
-    <div class="chiron-layout">
-      <div class="chiron-text">
-        <p class="eyebrow reveal"><span class="eyebrow-rule"></span>L'assistente AI</p>
-        <h2 class="section-title reveal">Chiron.<br><em>Il maestro</em><br>dentro il metodo.</h2>
-        <p class="chiron-lede reveal">Chirone addestrava gli eroi. Il nostro Chiron affianca il coach: legge allenamenti, nutrizione e check dei tuoi atleti e risponde con proposte concrete — che restano sempre una tua decisione.</p>
-        <ul class="chiron-points">
-          <li class="reveal"><span class="point-num">01</span><div><h4>Contesto reale</h4><p>Chiron conosce i tuoi atleti: schede, diete, check e progressi. Niente risposte generiche.</p></div></li>
-          <li class="reveal"><span class="point-num">02</span><div><h4>Azioni, non solo parole</h4><p>Prepara messaggi, revisiona check, apre i progressi di un atleta. Tu confermi con un tocco.</p></div></li>
-          <li class="reveal"><span class="point-num">03</span><div><h4>Il coach decide</h4><p>Tecnologia al servizio del professionista, mai al suo posto. La macchina propone, l'uomo dispone.</p></div></li>
-        </ul>
-        <a href="piattaforma.html#chiron" class="btn btn-bronze reveal">Vedi Chiron in azione</a>
-      </div>
-      <div class="chiron-visual reveal">
-        <div class="browser-frame">
-          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">app.athlynk.it/chiron</span></div>
-          <div class="app" role="img" aria-label="Chiron risponde al coach sul volume di Dennis: propone di ridurre le serie e alzare l'intensità, con azioni da confermare">
-            <div class="app-main" style="grid-column: 1 / -1;">
-              <div class="app-card" style="flex: 1;">
-                <div class="app-card-head"><b>Chiron</b><span>Contesto: Dennis C.</span></div>
-                <div class="app-chiron">
-                  <div class="app-msg app-msg-coach">
-                    <span class="app-msg-av" aria-hidden="true">FB</span>
-                    <span class="app-msg-body">Dennis è fermo da due settimane sul volume. Che faccio?</span>
-                  </div>
-                  <div class="app-msg app-msg-ai">
-                    <span class="app-msg-av" aria-hidden="true">✦</span>
-                    <span class="app-msg-body">
-                      Il volume di Dennis è a <b>18 serie</b> per gruppo, stabile da 3 settimane, ma l'RPE medio è salito da 7,4 a <b>8,6</b>: sta spingendo di più per lo stesso lavoro.<br><br>
-                      Proposta: <b>−3 serie</b> sulla spinta e <b>+2,5 kg</b> sui complementari. Deload leggero, intensità invariata.
-                      <span class="app-msg-acts">
-                        <span class="app-msg-act app-msg-act-go">Applica alla scheda</span>
-                        <span class="app-msg-act">Apri progressi</span>
-                      </span>
-                    </span>
-                  </div>
-                  <div class="app-msg app-msg-ai">
-                    <span class="app-msg-av" aria-hidden="true">✦</span>
-                    <span class="app-typing" aria-hidden="true">
-                      <i style="--d:0s"></i><i style="--d:0.2s"></i><i style="--d:0.4s"></i>
-                    </span>
-                  </div>
-                </div>
-              </div>
+    <div class="chiron-stage" id="chironStage">
+
+      <button type="button" class="chiron-mascot" id="chironMascot" aria-label="Apri la demo interattiva di Chiron">
+        <span class="chiron-mascot-glyph" aria-hidden="true">✦</span>
+        <span class="chiron-mascot-bubble">Clicca qui</span>
+      </button>
+
+      <div class="chiron-layout" id="chironLayout" hidden>
+        <div class="chiron-text">
+          <p class="eyebrow"><span class="eyebrow-rule"></span>L'assistente AI</p>
+          <h2 class="section-title">Chiron.<br><em>Il maestro</em><br>dentro il metodo.</h2>
+          <p class="chiron-lede">Chirone addestrava gli eroi. Il nostro Chiron affianca il coach: legge allenamenti, nutrizione e check dei tuoi atleti e risponde con proposte concrete — che restano sempre una tua decisione.</p>
+          <ul class="chiron-points">
+            <li><span class="point-num">01</span><div><h4>Contesto reale</h4><p>Chiron conosce i tuoi atleti: schede, diete, check e progressi. Niente risposte generiche.</p></div></li>
+            <li><span class="point-num">02</span><div><h4>Azioni, non solo parole</h4><p>Prepara messaggi, revisiona check, apre i progressi di un atleta. Tu confermi con un tocco.</p></div></li>
+            <li><span class="point-num">03</span><div><h4>Il coach decide</h4><p>Tecnologia al servizio del professionista, mai al suo posto. La macchina propone, l'uomo dispone.</p></div></li>
+          </ul>
+        </div>
+
+        <div class="chiron-visual">
+          <div class="chiron-phone">
+            <div class="chiron-phone-head">
+              <span class="chiron-phone-av" aria-hidden="true">✦</span>
+              <span class="chiron-phone-title">Chiron</span>
+            </div>
+            <div class="app-chiron" id="chironLog" aria-live="polite"></div>
+            <div class="chiron-options" id="chironOptions">
+              <button type="button" class="app-msg-act" data-topic="allenamento">Allenamento</button>
+              <button type="button" class="app-msg-act" data-topic="nutrizione">Nutrizione</button>
+              <button type="button" class="app-msg-act" data-topic="gestione">Gestione atleti</button>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </section>
 
-<!-- ====================== ANTEPRIME PAGINE ====================== -->
-<section class="section section-mist" id="esplora">
+<!-- ====================== PRICING ====================== -->
+<section class="pricing section section-mist" id="pricing">
   <div class="container">
     <header class="section-head section-head-center reveal">
-      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Esplora<span class="eyebrow-rule"></span></p>
-      <h2 class="section-title">Tutto quello che serve<br>al tuo <em>studio.</em></h2>
+      <p class="eyebrow eyebrow-center"><span class="eyebrow-rule"></span>Inizia oggi<span class="eyebrow-rule"></span></p>
+      <h2 class="section-title">Un piano per ogni<br><em>studio.</em></h2>
+      <p class="section-lede">Paghi in base agli atleti che gestisci, non alle funzionalità. Console web, app coach e app atleta sono incluse in ogni piano. Chiron si aggiunge quando vuoi.</p>
     </header>
 
-    <div class="prevw-grid">
-      <article class="prevw reveal">
-        <a class="prevw-cover" href="piattaforma.html" aria-label="Vai alla pagina Piattaforma"></a>
-        <div class="prevw-media">
-          <div class="prevw-art" aria-hidden="true">
-            <div class="art-console">
-              <div class="art-rail"><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="art-body">
-                <div class="art-tiles"><i></i><i></i><i></i></div>
-                <div class="art-bars">
-                  <i style="--h:46%; --d:0s"></i><i style="--h:70%; --d:0.1s"></i>
-                  <i style="--h:58%; --d:0.2s"></i><i style="--h:86%; --d:0.3s"></i>
-                  <i style="--h:66%; --d:0.4s"></i><i style="--h:94%; --d:0.5s"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="prevw-stat" aria-hidden="true"><b>9</b><span>Moduli in console</span></div>
+    <!-- Billing cycle toggle -->
+    <div class="billing-switch reveal" id="billingSwitch" role="tablist" aria-label="Ciclo di fatturazione">
+      <button type="button" class="billing-opt is-active" data-billing="monthly" role="tab" aria-selected="true">Mensile</button>
+      <button type="button" class="billing-opt" data-billing="annual" role="tab" aria-selected="false">Annuale <span class="billing-save">2 mesi gratis</span></button>
+    </div>
+
+    <!-- Chiron toggle -->
+    <div class="chiron-switch reveal" id="chironSwitch" data-chiron-monthly="9.90" data-chiron-annual="99">
+      <button class="switch-btn" id="chironToggle" role="switch" aria-checked="false" aria-label="Aggiungi Chiron a tutti i piani">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </button>
+      <div class="switch-copy">
+        <span class="switch-title">Aggiungi <em>Chiron</em> — l'assistente AI del coach</span>
+        <span class="switch-sub">Risposte sui tuoi atleti, azioni con conferma, ricalibrazioni · <b>+€9,90</b> / mese per coach</span>
+      </div>
+    </div>
+
+    <!-- Sei già stato cliente? — richiesto dal checkout, sempre visibile -->
+    <div class="checkout-step reveal" id="returningRow">
+      <p class="checkout-step-label">Sei già stato cliente Athlynk?</p>
+      <div class="billing-switch" id="returningSwitch" role="radiogroup" aria-label="Sei già stato cliente Athlynk?">
+        <button type="button" class="billing-opt" data-returning="0" role="radio" aria-checked="false">No, sono nuovo</button>
+        <button type="button" class="billing-opt" data-returning="1" role="radio" aria-checked="false">Sì, ho già avuto un account</button>
+      </div>
+      <p id="returningError" class="field-error" role="alert" hidden>Seleziona una delle due opzioni prima di scegliere un piano.</p>
+    </div>
+
+    <div class="pricing-grid pricing-grid-3">
+      <!-- Athena -->
+      <article class="price-card reveal" data-monthly="29.90" data-monthly-old="49.90" data-annual="299" data-annual-old="598.80">
+        <div class="price-head">
+          <h3 class="price-name">Athena</h3>
+          <p class="price-tag">Lo studio agile</p>
         </div>
-        <div class="prevw-body">
-          <p class="prevw-kicker">Piattaforma</p>
-          <h3>La console del coach</h3>
-          <p>Builder schede con progressioni settimanali, piani nutrizionali, check, agenda, analytics e Chiron.</p>
-          <span class="prevw-cta">Approfondisci<span class="btn-arrow">→</span></span>
+        <p class="price-cap"><b data-cap>Fino a 15</b> atleti gestiti</p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€49,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>29,90</span><span class="price-per" data-price-per>/ mese</span>
         </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
+        <ul class="price-features">
+          <li>Console gestionale completa</li>
+          <li>Builder schede con progressioni settimanali</li>
+          <li>Piani nutrizionali e linee guida</li>
+          <li>Check progressi e agenda appuntamenti</li>
+          <li>Chat con i tuoi atleti</li>
+          <li>App coach + app atleta sincronizzate</li>
+        </ul>
+        <button type="button" class="btn btn-ghost btn-full" data-checkout data-plan="athena">Inizia con Athena</button>
       </article>
 
-      <article class="prevw reveal">
-        <a class="prevw-cover" href="app.html" aria-label="Vai alla pagina App Mobile"></a>
-        <div class="prevw-media">
-          <div class="prevw-art" aria-hidden="true" style="align-items: flex-end;">
-            <div class="phone" style="width: 150px; margin-bottom: -46px; box-shadow: 0 0 0 7px #101F38, 0 0 0 8px var(--silver), var(--elev-3);">
-              <div class="phone-screen" style="padding: 28px 10px 12px; gap: 7px;">
-                <div class="volt-head"><b style="font-size:11px">Sessione</b><span style="font-size:7px">LOWER A</span></div>
-                <div class="volt-card" style="padding:9px">
-                  <span style="font-size:7px">Squat — serie 3 di 5</span>
-                  <b style="font-size:10px">140 kg × 3</b>
-                  <span class="volt-bar" style="margin-top:5px"><i style="--w:64%"></i></span>
-                </div>
-                <div class="volt-row" style="padding:7px 8px"><b style="font-size:8.5px">RPE target</b><span style="font-size:8px">8,0</span></div>
-                <div class="volt-row" style="padding:7px 8px"><b style="font-size:8.5px">Recupero</b><span style="font-size:8px">2:30</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="prevw-stat" aria-hidden="true"><b>2</b><span>App iOS sincronizzate</span></div>
+      <!-- Apollo -->
+      <article class="price-card price-card-pro reveal" data-monthly="59.90" data-monthly-old="99.90" data-annual="599" data-annual-old="718.80">
+        <span class="price-badge">Il più scelto</span>
+        <div class="price-head">
+          <h3 class="price-name">Apollo</h3>
+          <p class="price-tag">Lo studio in crescita</p>
         </div>
-        <div class="prevw-body">
-          <p class="prevw-kicker">App Mobile</p>
-          <h3>In palestra, in tasca</h3>
-          <p>App atleta e app coach native iOS: sessioni guidate, dieta, check e chat — sincronizzate in tempo reale.</p>
-          <span class="prevw-cta">Scopri le app<span class="btn-arrow">→</span></span>
+        <p class="price-cap"><b data-cap>Fino a 50</b> atleti gestiti</p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€99,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>59,90</span><span class="price-per" data-price-per>/ mese</span>
         </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
+        <ul class="price-features">
+          <li><b>Tutto Athena, più:</b></li>
+          <li>Roster esteso fino a 50 atleti</li>
+          <li>Protocolli integratori personalizzati</li>
+          <li>Analytics business e rischio abbandono</li>
+          <li>Gestione abbonamenti e pagamenti atleti</li>
+          <li>Modelli e template riutilizzabili</li>
+          <li>Supporto prioritario</li>
+        </ul>
+        <button type="button" class="btn btn-bronze btn-full" data-checkout data-plan="apollo">Scegli Apollo</button>
+        <p class="price-note">La scelta dei coach con un roster attivo.</p>
       </article>
 
-      <article class="prevw reveal">
-        <a class="prevw-cover" href="pricing.html" aria-label="Vai alla pagina Pricing"></a>
-        <div class="prevw-media">
-          <div class="prevw-art" aria-hidden="true">
-            <div class="art-price">
-              <div class="art-col"><i></i><i></i><i></i><i></i></div>
-              <div class="art-col art-col-pro"><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="art-col"><i></i><i></i><i></i><i></i></div>
-            </div>
-          </div>
-          <div class="prevw-stat" aria-hidden="true"><b>3</b><span>Piani, stesso metodo</span></div>
+      <!-- Zeus -->
+      <article class="price-card reveal" data-monthly="99.90" data-monthly-old="149.90" data-annual="999" data-annual-old="1798.80">
+        <div class="price-head">
+          <h3 class="price-name">Zeus</h3>
+          <p class="price-tag">Il team senza limiti</p>
         </div>
-        <div class="prevw-body">
-          <p class="prevw-kicker">Pricing</p>
-          <h3>Un piano per ogni studio</h3>
-          <p>Da 15 atleti a un team senza limiti: Athena, Apollo e Zeus. Chiron si aggiunge quando vuoi.</p>
-          <span class="prevw-cta">Vedi i piani<span class="btn-arrow">→</span></span>
+        <p class="price-cap"><b data-cap>Atleti illimitati</b></p>
+        <div class="price-amount">
+          <span class="price-old" data-price-old>€149,90</span>
+          <span class="price-cur">€</span><span class="price-num" data-price>99,90</span><span class="price-per" data-price-per>/ mese</span>
         </div>
+        <p class="price-chiron" hidden>Chiron incluso · <b>+€9,90</b></p>
+        <ul class="price-features">
+          <li><b>Tutto Apollo, più:</b></li>
+          <li>Atleti illimitati, nessun tetto</li>
+          <li>Multi-coach e gestione del team</li>
+          <li>Branding personalizzato dello studio</li>
+          <li>Account manager dedicato</li>
+          <li>Accesso anticipato alle nuove funzionalità</li>
+          <li>API e integrazioni su misura</li>
+        </ul>
+        <button type="button" class="btn btn-ghost btn-full" data-checkout data-plan="zeus">Passa a Zeus</button>
       </article>
     </div>
-  </div>
-</section>
 
-<!-- ====================== CTA FINALE ====================== -->
-<section class="cta-band section">
-  <div class="container container-narrow">
-    <p class="eyebrow eyebrow-center reveal"><span class="eyebrow-rule"></span>Inizia oggi<span class="eyebrow-rule"></span></p>
-    <h2 class="section-title reveal">Il tuo metodo merita<br>uno strumento <em>all'altezza.</em></h2>
-    <div class="hero-cta reveal">
-      <a href="pricing.html" class="btn btn-bronze">Scegli il tuo piano</a>
-      <a href="piattaforma.html" class="btn btn-ghost">Guarda la piattaforma<span class="btn-arrow">→</span></a>
+    <p class="checkout-note reveal" style="text-align: center; margin-top: 24px;">
+      Acquistando uno dei piani qui sopra accetti i <a href="tos.html">Termini di Servizio</a> e la <a href="privacy.html">Privacy Policy</a>. Pagamento sicuro con Stripe — riceverai il codice di accesso all'email usata al checkout.
+    </p>
+
+    <!-- riassicurazioni -->
+    <div class="assure">
+      <div class="reveal">
+        <h4>Attivazione immediata</h4>
+        <p>Paghi con Stripe, ricevi il codice di attivazione via email e inizi a costruire la prima scheda in giornata.</p>
+      </div>
+      <div class="reveal">
+        <h4>Nessun vincolo</h4>
+        <p>Disdici quando vuoi: il piano resta attivo fino a fine periodo, i tuoi dati restano tuoi.</p>
+      </div>
+      <div class="reveal">
+        <h4>Cresci senza traslochi</h4>
+        <p>Passa da Athena ad Apollo o Zeus quando il roster cresce: stessi dati, stesse schede, zero migrazioni.</p>
+      </div>
     </div>
-    <p class="cta-note reveal">Attivazione immediata · Disdici quando vuoi</p>
+
+    <div class="compare-wrap reveal">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col">Funzionalità</th>
+            <th scope="col">Athena<span class="compare-price">€29,90 / mese</span></th>
+            <th scope="col" class="col-pro">Apollo<span class="compare-price">€59,90 / mese</span></th>
+            <th scope="col">Zeus<span class="compare-price">€99,90 / mese</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Atleti gestiti</td><td>15</td><td class="col-pro">50</td><td>Illimitati</td></tr>
+          <tr><td>Console gestionale web</td><td class="yes">✓</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>App coach + app atleta (iOS)</td><td class="yes">✓</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Builder schede + progressioni settimanali</td><td class="yes">✓</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Piani nutrizionali e linee guida</td><td class="yes">✓</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Check progressi, agenda e chat</td><td class="yes">✓</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Protocolli integratori</td><td class="no">—</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Analytics business e rischio abbandono</td><td class="no">—</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Abbonamenti e pagamenti degli atleti</td><td class="no">—</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Modelli e template riutilizzabili</td><td class="no">—</td><td class="col-pro yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Multi-coach e gestione team</td><td class="no">—</td><td class="col-pro no">—</td><td class="yes">✓</td></tr>
+          <tr><td>Branding personalizzato</td><td class="no">—</td><td class="col-pro no">—</td><td class="yes">✓</td></tr>
+          <tr><td>Account manager dedicato</td><td class="no">—</td><td class="col-pro no">—</td><td class="yes">✓</td></tr>
+          <tr><td>API e integrazioni su misura</td><td class="no">—</td><td class="col-pro no">—</td><td class="yes">✓</td></tr>
+          <tr><td>Chiron — assistente AI</td><td>+€9,90/m</td><td class="col-pro">+€9,90/m</td><td>+€9,90/m</td></tr>
+          <tr><td>Supporto</td><td>Standard</td><td class="col-pro">Prioritario</td><td>Dedicato</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note reveal">Prezzi IVA esclusa. Il piano annuale equivale a 10 mensilità: 2 mesi gratis.</p>
+
+    <div class="faq-list" style="margin-top: 64px;">
+      <details class="faq-item reveal">
+        <summary><span>Come avviene l'acquisto e l'attivazione?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Il pagamento è gestito da Stripe. Al termine ricevi via email un codice di attivazione (formato ATHLYNK-XXXX-XXXX) con cui attivi il tuo account coach sulla piattaforma. Da lì inviti gli atleti: per loro l'app è inclusa, senza costi.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Posso cambiare piano in seguito?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>Sì. Passi ad Apollo o Zeus quando il roster cresce, mantenendo dati, schede e storico. Nessuna migrazione, nessuna configurazione da rifare.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Cosa succede se supero il limite di atleti?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>La piattaforma ti avvisa quando ti avvicini al tetto del piano. Per aggiungere il sedicesimo (o cinquantunesimo) atleta basta passare al piano superiore direttamente dalle impostazioni.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Chiron è vincolante?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>No: è un add-on mensile da 9,90€ per coach che puoi attivare e disattivare in qualsiasi momento, su qualunque piano. Sull'annuale costa 99€ l'anno.</p></div>
+      </details>
+      <details class="faq-item reveal">
+        <summary><span>Gli atleti pagano qualcosa?</span><i class="faq-icon"></i></summary>
+        <div class="faq-body"><p>No. Gli atleti sono invitati dal coach e usano app e web app senza costi aggiuntivi: paga solo il coach, in base alla dimensione del roster.</p></div>
+      </details>
+    </div>
+
+    <div class="faq-cta reveal">
+      <p>Altre domande?</p>
+      <a href="faq.html" class="btn btn-ghost">Leggi tutte le FAQ<span class="btn-arrow">→</span></a>
+    </div>
   </div>
 </section>
 
@@ -922,18 +751,19 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a href="index.html" class="brand" aria-label="Athlynk — home">
-          <img class="brand-mark" src="assets/athlynk-mark.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
+          <img class="brand-mark" src="assets/favicon.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
           <span class="brand-name">Athlynk</span>
         </a>
         <p class="footer-tagline">Una piattaforma: Allenamento, Nutrizione, Gestione.</p>
       </div>
       <nav class="footer-nav" aria-label="Navigazione footer">
-        <a href="index.html">Home</a>
-        <a href="piattaforma.html">Piattaforma</a>
-        <a href="app.html">App Mobile</a>
-        <a href="pricing.html">Pricing</a>
+        <a href="index.html#hero">Home</a>
+        <a href="index.html#piattaforma">Piattaforma</a>
+        <a href="index.html#app-mobile">App Mobile</a>
+        <a href="index.html#pricing">Pricing</a>
         <a href="about.html">About</a>
         <a href="faq.html">FAQ</a>
+        <a href="#live-demo">Live Demo</a>
         <a href="privacy.html">Privacy</a>
         <a href="cookie.html">Cookie</a>
         <a href="tos.html">Termini di Servizio</a>
@@ -948,9 +778,9 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=20260717a"></script>
-<script src="js/site.js?v=20260717c"></script>
-<script src="js/dust.js?v=20260717a" defer></script>
+<script src="js/main.js?v=20260718b"></script>
+<script src="js/site.js?v=20260718b"></script>
+<script src="js/dust.js?v=20260718b" defer></script>
 
 <!-- Cookie consent banner -->
 <div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Preferenze cookie" aria-modal="true">
@@ -962,6 +792,7 @@
     <div class="cookie-banner__actions">
       <button id="cookie-accept" class="btn btn-bronze btn-sm">Accetta</button>
       <button id="cookie-reject" class="btn btn-ghost btn-sm">Solo necessari</button>
+      <button id="cookie-decline" class="btn btn-ghost btn-sm">Rifiuta</button>
     </div>
   </div>
 </div>

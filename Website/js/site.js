@@ -132,12 +132,16 @@
   /* ============================================================
      EXPLORER — perspective + feature picker
      .explorer > .explorer-menu (.explorer-tab[data-view]*, .explorer-list
-       [data-view-panel]* > .explorer-item[data-target]* + .explorer-indicator)
+       [data-view-panel]* > .explorer-item[data-asset-count]* + .explorer-indicator)
      .explorer > .explorer-stage (frame[data-view-panel]* > .reel-frame >
-       .reel-slide* , .explorer-caption)
+       .reel-slide* + .reel-nav(.reel-prev/.reel-next/.reel-count) ,
+       .explorer-caption)
      Nothing plays on its own — the visitor picks a perspective and a
      feature, the stage crossfades to match, a gold rule slides to the
-     active row.
+     active row. A feature can own more than one asset (data-asset-count on the
+     .explorer-item) — the reel-nav arrows then cycle within that feature's
+     own slides only, wrapping both ways, without changing which feature
+     is selected.
      ============================================================ */
   document.querySelectorAll(".explorer").forEach((explorer) => {
     const tabs = [...explorer.querySelectorAll(".explorer-tab")];
@@ -154,20 +158,58 @@
       indicator.style.height = `${active.offsetHeight}px`;
     }
 
+    function frameFor(view) {
+      return frames.find((f) => f.dataset.viewPanel === view);
+    }
+
+    function renderSlide(frame, slideIndex) {
+      const slides = [...frame.querySelectorAll(".reel-slide")];
+      slides.forEach((s, k) => s.classList.toggle("is-active", k === slideIndex));
+      const active = slides[slideIndex];
+      if (caption) caption.textContent = (active && active.dataset.label) || "";
+      const urlEl = frame.querySelector(".browser-url");
+      if (urlEl && active && active.dataset.url) urlEl.textContent = active.dataset.url;
+      const count = parseInt(frame.dataset.groupCount || "1", 10);
+      const offset = parseInt(frame.dataset.groupOffset || "0", 10);
+      const nav = frame.querySelector(".reel-nav");
+      if (nav) {
+        nav.hidden = count <= 1;
+        const counter = nav.querySelector(".reel-count");
+        if (counter) counter.textContent = count > 1 ? `${offset + 1} / ${count}` : "";
+      }
+    }
+
     function activateItem(list, index) {
       const items = [...list.querySelectorAll(".explorer-item")];
-      const view = list.dataset.viewPanel;
-      const frame = frames.find((f) => f.dataset.viewPanel === view);
-      const slides = frame ? [...frame.querySelectorAll(".reel-slide")] : [];
+      const frame = frameFor(list.dataset.viewPanel);
       items.forEach((it, k) => it.classList.toggle("is-active", k === index));
-      slides.forEach((s, k) => s.classList.toggle("is-active", k === index));
-      if (caption && slides[index]) caption.textContent = slides[index].dataset.label || "";
       placeIndicator(list);
+      if (!frame) return;
+      let start = 0;
+      items.forEach((it, k) => { if (k < index) start += parseInt(it.dataset.assetCount || "1", 10); });
+      frame.dataset.groupStart = start;
+      frame.dataset.groupCount = parseInt(items[index]?.dataset.assetCount || "1", 10);
+      frame.dataset.groupOffset = 0;
+      renderSlide(frame, start);
     }
 
     lists.forEach((list) => {
       const items = [...list.querySelectorAll(".explorer-item")];
       items.forEach((item, i) => item.addEventListener("click", () => activateItem(list, i)));
+    });
+
+    frames.forEach((frame) => {
+      const nav = frame.querySelector(".reel-nav");
+      if (!nav) return;
+      const step = (delta) => {
+        const start = parseInt(frame.dataset.groupStart || "0", 10);
+        const count = parseInt(frame.dataset.groupCount || "1", 10);
+        const offset = (parseInt(frame.dataset.groupOffset || "0", 10) + delta + count) % count;
+        frame.dataset.groupOffset = offset;
+        renderSlide(frame, start + offset);
+      };
+      nav.querySelector(".reel-prev")?.addEventListener("click", () => step(-1));
+      nav.querySelector(".reel-next")?.addEventListener("click", () => step(1));
     });
 
     function activateView(view) {
@@ -254,4 +296,121 @@
     box.addEventListener("click", close);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !box.hidden) close(); });
   }
+
+  /* ============================================================
+     CHIRON — mini-demo interattiva
+     Mascotte cliccabile → si apre chat + testo; l'utente sceglie un
+     argomento, Chiron "pensa" (puntini) e risponde. Rieleggibile.
+     ============================================================ */
+  (() => {
+    const stage = document.getElementById("chironStage");
+    const mascot = document.getElementById("chironMascot");
+    const layout = document.getElementById("chironLayout");
+    const log = document.getElementById("chironLog");
+    const optionsWrap = document.getElementById("chironOptions");
+    if (!stage || !mascot || !layout || !log || !optionsWrap) return;
+
+    const GREETING = "Ciao, sono <b>CHIRON</b>. Posso aiutarti su allenamenti, nutrizione e gestione atleti. Chiedi pure.";
+
+    const TOPICS = {
+      allenamento: {
+        label: "Allenamento",
+        html: `Posso aiutarti in tutti gli aspetti dell'allenamento:
+          <ul>
+            <li><b>Programmazione e periodizzazione</b>: creazione di macro-, meso- e micro-cicli, adattamento a obiettivi specifici (forza, potenza, resistenza, perdita di grasso, performance sportiva).</li>
+            <li><b>Pianificazione individualizzata</b>: analisi delle capacità, dei punti di forza e delle debolezze per costruire un programma su misura.</li>
+            <li><b>Tecnica e biomeccanica</b>: consigli su esecuzione corretta, prevenzione infortuni, ottimizzazione del movimento.</li>
+            <li><b>Progressione e carichi</b>: indicazioni su come aumentare volume, intensità e frequenza in modo sicuro.</li>
+            <li><b>Recupero e nutrizione</b>: integrazione di strategie di recupero (sleep, stretching, foam-rolling) e di supporto nutrizionale per massimizzare i risultati.</li>
+            <li><b>Monitoraggio e feedback</b>: interpretazione dei check, analisi dei dati di performance e suggerimenti per aggiustamenti in tempo reale.</li>
+          </ul>`,
+      },
+      nutrizione: {
+        label: "Nutrizione",
+        html: `Per la nutrizione posso aiutarti con:
+          <ul>
+            <li><b>Pianificazione alimentare personalizzata</b> (macro- e micro-nutrienti, calorie, timing dei pasti).</li>
+            <li><b>Calcolo dei fabbisogni energetici</b> in base a obiettivi (guadagno muscolare, perdita grasso, mantenimento).</li>
+            <li><b>Creazione di menu settimanali</b> con ricette, sostituzioni e consigli pratici.</li>
+            <li><b>Gestione di restrizioni dietetiche</b> (celiachia, intolleranze, veganesimo, ecc.).</li>
+            <li><b>Supporto per integrazione</b> (proteine, aminoacidi, vitamine, minerali).</li>
+            <li><b>Monitoraggio e analisi dei check nutrizionali</b>: confronto con obiettivi, suggerimenti di aggiustamento.</li>
+            <li><b>Consulenza su periodizzazione nutrizionale</b> (carb-cycling, refeed, fasting).</li>
+            <li><b>Educazione nutrizionale</b>: spiegazione di principi di bilancio energetico e micronutrienti essenziali.</li>
+          </ul>`,
+      },
+      gestione: {
+        label: "Gestione atleti",
+        html: `Posso aiutarti a gestire i tuoi atleti in modo completo:
+          <table>
+            <thead><tr><th>Area</th><th>Come aiuto</th></tr></thead>
+            <tbody>
+              <tr><td>Dashboard e report</td><td>Snapshot rapidi su check, sessioni, peso, infortuni.</td></tr>
+              <tr><td>Pianificazione</td><td>Macro-, meso- e micro-cicli personalizzati.</td></tr>
+              <tr><td>Monitoraggio</td><td>Analisi dei check, progressi, aree di miglioramento.</td></tr>
+              <tr><td>Comunicazione</td><td>Messaggi in chat, feedback automatici, check revisionati.</td></tr>
+              <tr><td>Follow-up</td><td>Atleti a rischio abbandono, promemoria mirati.</td></tr>
+              <tr><td>Integrazione</td><td>Suggerimenti basati sui check dell'atleta.</td></tr>
+              <tr><td>Report periodici</td><td>Report settimanali o mensili per ogni atleta.</td></tr>
+              <tr><td>Automazione</td><td>Azioni proposte da confermare con un tocco.</td></tr>
+            </tbody>
+          </table>`,
+      },
+    };
+
+    function scrollToBottom() { log.scrollTop = log.scrollHeight; }
+
+    function addAiMessage(html) {
+      const el = document.createElement("div");
+      el.className = "app-msg app-msg-ai";
+      el.innerHTML = `<span class="app-msg-av" aria-hidden="true">✦</span><span class="app-msg-body">${html}</span>`;
+      log.appendChild(el);
+      scrollToBottom();
+    }
+
+    function addUserMessage(text) {
+      const el = document.createElement("div");
+      el.className = "app-msg app-msg-coach";
+      el.innerHTML = `<span class="app-msg-av" aria-hidden="true">TU</span><span class="app-msg-body">${text}</span>`;
+      log.appendChild(el);
+      scrollToBottom();
+    }
+
+    function addTyping() {
+      const el = document.createElement("div");
+      el.className = "app-msg app-msg-ai";
+      el.innerHTML = '<span class="app-msg-av" aria-hidden="true">✦</span><span class="app-typing" aria-hidden="true"><i style="--d:0s"></i><i style="--d:0.2s"></i><i style="--d:0.4s"></i></span>';
+      log.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    mascot.addEventListener("click", () => {
+      mascot.classList.add("is-hidden");
+      setTimeout(() => { mascot.hidden = true; }, 400);
+      layout.hidden = false;
+      void layout.offsetWidth; // force reflow so the slide-in transition runs
+      stage.classList.add("is-active");
+      addAiMessage(GREETING);
+    }, { once: true });
+
+    const optionButtons = [...optionsWrap.querySelectorAll("[data-topic]")];
+    let busy = false;
+    optionButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (busy) return;
+        const topic = TOPICS[btn.dataset.topic];
+        if (!topic) return;
+        busy = true;
+        optionButtons.forEach((b) => b.classList.toggle("is-active", b === btn));
+        addUserMessage(topic.label);
+        const typingEl = addTyping();
+        setTimeout(() => {
+          typingEl.remove();
+          addAiMessage(topic.html);
+          busy = false;
+        }, 950);
+      });
+    });
+  })();
 })();
