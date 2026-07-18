@@ -88,6 +88,11 @@ class Exercise(models.Model):
     wger_image_url = models.URLField(max_length=500, null=True, blank=True)
     license_title = models.CharField(max_length=100, null=True, blank=True)
     license_author = models.CharField(max_length=200, null=True, blank=True)
+    # exercises-dataset (hasaneyldrm) sourcing
+    dataset_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    muscle_detail = models.CharField(max_length=100, null=True, blank=True)
+    instruction_steps = models.JSONField(null=True, blank=True)
+    demo_gif = models.FileField(upload_to='exercises/demos/', null=True, blank=True)
     # Normalized taxonomy
     category = models.ForeignKey(
         ExerciseCategory, null=True, blank=True,
