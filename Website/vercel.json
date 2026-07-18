@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    { "source": "/piattaforma.html", "destination": "/#piattaforma", "permanent": true },
+    { "source": "/app.html", "destination": "/#app-mobile", "permanent": true },
+    { "source": "/pricing.html", "destination": "/#pricing", "permanent": true },
+    { "source": "/acquista.html", "destination": "/#pricing", "permanent": true },
+    { "source": "/live-demo.html", "destination": "/#live-demo", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",

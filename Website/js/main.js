@@ -416,5 +416,39 @@
         });
       });
     }
+
+    /* ---------- Checkout: go straight to the live Stripe checkout ---------- */
+    // Mandatory "sei già stato cliente?" choice: no default, must be picked
+    // explicitly — the backend has no fallback for it (see /acquista/checkout/).
+    const returningSwitch = document.getElementById("returningSwitch");
+    const returningError = document.getElementById("returningError");
+    let returningChoice = null;
+    returningSwitch && returningSwitch.querySelectorAll("[data-returning]").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        returningChoice = opt.dataset.returning;
+        returningSwitch.querySelectorAll("[data-returning]").forEach((o) => {
+          o.classList.toggle("is-active", o === opt);
+          o.setAttribute("aria-checked", o === opt ? "true" : "false");
+        });
+        if (returningError) returningError.hidden = true;
+      });
+    });
+
+    const CHECKOUT_BASE = "https://app.athlynk.it/acquista/checkout/";
+    document.querySelectorAll("[data-checkout]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (returningChoice === null) {
+          if (returningError) returningError.hidden = false;
+          document.getElementById("returningRow")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        const url = new URL(CHECKOUT_BASE);
+        url.searchParams.set("plan", btn.dataset.plan);
+        url.searchParams.set("chiron", chironOn ? "1" : "0");
+        url.searchParams.set("billing", annual ? "annuale" : "mensile");
+        url.searchParams.set("returning", returningChoice);
+        location.href = url.toString();
+      });
+    });
   }
 })();

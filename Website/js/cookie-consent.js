@@ -21,6 +21,7 @@
   // No stored decision — wire up the banner.
   var acceptBtn = document.getElementById('cookie-accept');
   var rejectBtn = document.getElementById('cookie-reject');
+  var declineBtn = document.getElementById('cookie-decline');
   if (!acceptBtn || !rejectBtn) return;
 
   acceptBtn.addEventListener('click', function () {
@@ -29,8 +30,12 @@
     loadAnalytics();
   });
 
-  rejectBtn.addEventListener('click', function () {
+  // "Solo necessari" and "Rifiuta" both skip the only non-essential
+  // category (analytics) — same outcome, shown as distinct choices per UX.
+  function decline() {
     localStorage.setItem(KEY, 'rejected');
     hideBanner();
-  });
+  }
+  rejectBtn.addEventListener('click', decline);
+  declineBtn && declineBtn.addEventListener('click', decline);
 })();

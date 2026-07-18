@@ -139,29 +139,30 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 body > header, body > main, body > footer { position: relative; z-index: 2; }
 
-/* the gilded meander — Athlynk's Greek key, drawn in gold foil */
+/* the gilded rule — a hairline fading to a centered diamond, in gold foil */
 .meander-rule {
-  height: 14px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 1 H21 V8 H14 V5 H17 V4 H10 V11 H24 V1 H28' fill='none' stroke='%23E8C24A' stroke-width='1'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-m) 15%, var(--gold-m) 85%, transparent);
   opacity: 0.55;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.meander-rule::after {
+  content: "";
+  position: absolute; top: 50%; left: 50%;
+  width: 7px; height: 7px;
+  background: var(--gold-m);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 /* Draws itself in when revealed. The resting state hides with opacity, never
-   with clip-path or a zero-scale transform: those collapse the box to zero
+   with a zero-scale transform alone: that would collapse the box to zero
    area, IntersectionObserver then reports ratio 0, `.in` is never added, and
-   the rule stays invisible forever. Clipping happens inside the keyframes,
-   which only run once the observer has already fired. */
-.meander-rule.reveal { opacity: 0; transform: none; }
+   the rule stays invisible forever — so opacity carries the visibility, scale
+   is purely decorative on top of it. */
+.meander-rule.reveal { opacity: 0; transform: scaleX(0.3); transform-origin: center; }
 .meander-rule.reveal.in {
   opacity: 0.55;
-  animation: meander-draw 1.6s var(--ease-silk) both;
-  transition: opacity 0.6s ease;
-}
-@keyframes meander-draw {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0 0 0); }
+  transform: scaleX(1);
+  transition: opacity 1s var(--ease-silk), transform 1.1s var(--ease-silk);
 }
 
 /* ---------- layout ---------- */
@@ -833,6 +834,31 @@ body > header, body > main, body > footer { position: relative; z-index: 2; }
 }
 .reel-slide.is-active { opacity: 1; transform: translateY(0) scale(1); }
 img.reel-slide { object-fit: cover; object-position: top; }
+
+/* desktop screenshots inside a .browser-frame: preserve full screenshot,
+   never crop it (unlike the phone reel, which is fine to crop-to-fill) */
+.browser-frame .reel-frame { aspect-ratio: 16 / 9.6; background: var(--mist); }
+.browser-frame img.reel-slide { object-fit: contain; object-position: center; }
+
+.reel-nav {
+  position: absolute; left: 0; right: 0; bottom: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.reel-nav[hidden] { display: none; }
+.reel-arrow {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.94);
+  color: var(--ink); font-size: 19px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--elev-2);
+  transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+.reel-arrow:hover { background: var(--paper); transform: scale(1.07); }
+.reel-count {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.16em;
+  color: var(--ink-mute); background: rgba(255, 255, 255, 0.92);
+  padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line);
+}
 .explorer-caption {
   margin-top: 16px;
   text-align: center;
@@ -1072,13 +1098,116 @@ img.reel-slide { object-fit: cover; object-position: top; }
   animation: dot-pulse 3.5s ease-in-out infinite;
 }
 
+.chiron-stage {
+  position: relative; z-index: 2;
+  min-height: clamp(420px, 50vw, 600px);
+  display: flex; align-items: center; justify-content: center;
+}
+.chiron-mascot {
+  /* absolutely centered so it dissolves cleanly over the stage instead of
+     fighting the phone/text for space as a flex sibling while it fades */
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+}
+.chiron-mascot.is-hidden {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  pointer-events: none;
+}
+.chiron-mascot[hidden] { display: none; }
+.chiron-mascot-glyph {
+  width: 96px; height: 96px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 40px; color: var(--ink);
+  background: var(--foil-gold);
+  box-shadow: 0 0 60px rgba(255, 224, 102, 0.55), var(--elev-3);
+  animation: dot-pulse 3.5s ease-in-out infinite;
+}
+.chiron-mascot-bubble {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--royal);
+  background: var(--paper);
+  padding: 9px 18px; border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--line-gold), var(--elev-2);
+  animation: chiron-bubble-bounce 2.2s ease-in-out infinite;
+}
+@keyframes chiron-bubble-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
 .chiron-layout {
   position: relative; z-index: 2;
+  width: 100%;
+  perspective: 1600px;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   gap: clamp(48px, 6vw, 96px);
   align-items: center;
 }
+.chiron-layout[hidden] { display: none; }
+.chiron-text {
+  opacity: 0;
+  transform: translateX(-50px);
+  transition: opacity 0.6s var(--ease-out) 0.2s, transform 0.6s var(--ease-out) 0.2s;
+}
+/* the phone gets the scenic entrance: flies in from the right with a 3D
+   tilt and a slight overshoot as it settles, instead of a plain fade */
+.chiron-layout .chiron-visual {
+  opacity: 0;
+  transform-origin: right center;
+  transform: translateX(160px) scale(0.75) rotateY(-22deg);
+  transition: opacity 0.5s var(--ease-out) 0.2s,
+              transform 0.95s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s;
+}
+.chiron-stage.is-active .chiron-text { opacity: 1; transform: none; }
+.chiron-stage.is-active .chiron-layout .chiron-visual { opacity: 1; transform: translateX(0) scale(1) rotateY(0deg); }
+
+.chiron-phone {
+  width: min(340px, 82vw);
+  margin-inline: auto;
+  height: min(600px, 72vh);
+  border-radius: 40px;
+  background: var(--ink);
+  box-shadow: 0 0 0 9px #101F38, 0 0 0 10px var(--silver), var(--elev-4);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.chiron-phone-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 18px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.chiron-phone-av {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 14px; color: var(--ink);
+  background: var(--foil-gold);
+}
+.chiron-phone-title { font-family: var(--font-display); font-weight: 500; font-size: 15px; color: var(--ink); }
+.chiron-phone .app-chiron {
+  flex: 1; overflow-y: auto;
+  padding: 16px; background: var(--paper);
+  font-size: 14px;
+}
+.chiron-options {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  flex-shrink: 0;
+}
+.chiron-options .app-msg-act { cursor: pointer; border: none; font: inherit; }
+.chiron-options .app-msg-act:disabled { opacity: 0.5; cursor: default; }
+.app-msg-body table { width: 100%; border-collapse: collapse; margin-top: 0.6em; font-size: 0.9em; }
+.app-msg-body th, .app-msg-body td { text-align: left; padding: 0.4em 0.5em; border-bottom: 1px solid var(--line); }
+.app-msg-body th { font-family: var(--font-mono); font-size: 0.76em; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+.app-msg-body ul { margin: 0.3em 0 0; padding-left: 1.1em; }
+.app-msg-body li { margin-block: 0.35em; }
+
 .chiron-lede { color: var(--ink-mute); font-size: 18px; margin-block: 26px 44px; max-width: 52ch; }
 
 .chiron-points { display: flex; flex-direction: column; margin-bottom: 48px; }
@@ -1096,15 +1225,6 @@ img.reel-slide { object-fit: cover; object-position: top; }
 }
 .chiron-points h4 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin-bottom: 4px; color: var(--ink); }
 .chiron-points p { color: var(--ink-mute); font-size: 15px; }
-.chiron-visual img {
-  border-radius: var(--radius);
-  box-shadow: inset 0 0 0 1px var(--line), var(--elev-3);
-}
-/* the Chiron panel is a narrow chat, not a full console — it needs a
-   larger share of its container than the dashboard does of its own */
-.chiron-visual .app { font-size: clamp(11px, 2.7cqw, 16px); }
-.chiron-visual .app-main { padding: 1.15em 1.15em 1.3em; }
-
 /* ============================================================
    PREVIEW CARDS
    ============================================================ */
@@ -1855,11 +1975,18 @@ img.reel-slide { object-fit: cover; object-position: top; }
   padding-block: 0 40px;
 }
 .footer-meander {
-  height: 14px;
+  position: relative;
+  height: 1px;
   margin-bottom: 52px;
   opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 1 H21 V8 H14 V5 H17 V4 H10 V11 H24 V1 H28' fill='none' stroke='%23E8C24A' stroke-width='1'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
+  background: linear-gradient(90deg, transparent, var(--gold-m) 15%, var(--gold-m) 85%, transparent);
+}
+.footer-meander::after {
+  content: "";
+  position: absolute; top: 50%; left: 50%;
+  width: 7px; height: 7px;
+  background: var(--gold-m);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 .footer-top {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -2118,7 +2245,7 @@ body.modal-open { overflow: hidden; }
   .app-side { display: none; }
   .app-kpis { grid-template-columns: repeat(2, 1fr); }
   .app-greet { font-size: 1.7em; }
-  .chiron-visual .app, .app-solo { font-size: clamp(10px, 3.4cqw, 14px); }
+  .app-solo { font-size: clamp(10px, 3.4cqw, 14px); }
 }
 
 @media (max-width: 760px) {
@@ -2151,7 +2278,7 @@ body.modal-open { overflow: hidden; }
   }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; }
-  .meander-rule.reveal, .meander-rule.reveal.in { clip-path: none; opacity: 0.55; animation: none; }
+  .meander-rule.reveal, .meander-rule.reveal.in { opacity: 0.55; transform: none; transition: none; }
   .dust { display: none; }
   .cine-track { height: auto; }
   .cine-stage { position: relative; height: auto; padding-block: 60px; }
