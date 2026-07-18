@@ -27,6 +27,7 @@ struct WBExerciseDraft: Identifiable {
     let exerciseId: Int
     let name: String
     let muscle: String
+    var coverImageUrl: String? = nil
     var sets = 3
     var reps = 10
     var repRange = ""            // when set, wins over `reps`
@@ -134,6 +135,7 @@ struct WorkoutBuilderSection: View {
     let accent: Color
 
     @State private var pickingForDay: UUID?
+    @EnvironmentObject private var confirmCenter: ConfirmCenter
 
     var body: some View {
         VStack(spacing: 14) {
@@ -148,7 +150,9 @@ struct WorkoutBuilderSection: View {
                     index: days.firstIndex(where: { $0.id == day.id }) ?? 0,
                     onAddExercise: { pickingForDay = day.id },
                     onDelete: { remove(day.id) },
-                    onExerciseTypeChanged: { exId, newType in propagateRpeRirType(newType, excluding: exId) }
+                    onExerciseTypeChanged: { exId, newType in
+                        Task { await resolveRpeRirConflict(newType, excluding: exId) }
+                    }
                 )
             }
 
@@ -178,9 +182,14 @@ struct WorkoutBuilderSection: View {
                       let idx = days.firstIndex(where: { $0.id == dayId }) else { return }
                 Haptics.soft()
                 withAnimation(.snappy) {
-                    days[idx].exercises.append(WBExerciseDraft(
+                    var draft = WBExerciseDraft(
                         exerciseId: picked.id, name: picked.name,
-                        muscle: picked.targetMuscleGroup ?? ""))
+                        muscle: picked.targetMuscleGroup ?? "",
+                        coverImageUrl: picked.coverImageUrl)
+                    // No value yet, so nothing to conflict over — just start on
+                    // whichever metric the rest of the scheda already uses.
+                    draft.rpeRirType = establishedIntensityMetric(excluding: nil) ?? "RPE"
+                    days[idx].exercises.append(draft)
                 }
             }
         }
@@ -204,14 +213,94 @@ struct WorkoutBuilderSection: View {
         withAnimation(.snappy) { days.removeAll { $0.id == id } }
     }
 
-    /// Only the RIR/RPE *type* propagates — each exercise keeps its own numeric value.
-    private func propagateRpeRirType(_ newType: String, excluding exId: UUID) {
+    /* ---- RIR/RPE scheda-wide uniformity ----
+       Coaches pick RIR or RPE per exercise, but mixing both across one scheda
+       makes it unreadable. The first exercise with a real value sets the
+       plan's "established" metric; picking the other metric anywhere else
+       asks (via the shared ConfirmCenter, same dialog as delete confirms) to
+       unify — converting existing values, RPE ≈ 10 − RIR — or keep the mix.
+       Mirrors the web builder's workout_wizard.js logic 1:1. */
+
+    /// First metric found with a real (non-null) value among the plan's
+    /// exercises, optionally ignoring one exercise by id.
+    private func establishedIntensityMetric(excluding exId: UUID?) -> String? {
+        for day in days {
+            for ex in day.exercises where ex.id != exId {
+                if ex.rpe != nil { return "RPE" }
+                if ex.rir != nil { return "RIR" }
+                for sd in ex.setDetails {
+                    if sd.rpe != nil { return "RPE" }
+                    if sd.rir != nil { return "RIR" }
+                }
+            }
+        }
+        return nil
+    }
+
+    private func hasOtherIntensityValue(excluding exId: UUID, metric: String) -> Bool {
+        for day in days {
+            for ex in day.exercises where ex.id != exId {
+                if metric == "RPE" ? ex.rpe != nil : ex.rir != nil { return true }
+                for sd in ex.setDetails where (metric == "RPE" ? sd.rpe != nil : sd.rir != nil) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /// RPE and RIR aren't 1:1 convertible; RPE ≈ 10 − RIR is the standard
+    /// approximation (exact for RIR 0-5, clamped beyond).
+    private func convertRpeRir(_ value: Int) -> Int { max(0, min(10, 10 - value)) }
+
+    /// Converts every OTHER exercise (and its per-set overrides) compiled
+    /// under the opposite metric onto `metric`; exercises with no value stay
+    /// empty. `excluding` is the exercise that already made the choice.
+    private func applyUniformMetric(_ metric: String, excluding exId: UUID) {
         for di in days.indices {
             for ei in days[di].exercises.indices {
                 guard days[di].exercises[ei].id != exId else { continue }
-                days[di].exercises[ei].applyRpeRirType(newType)
+                if metric == "RPE" {
+                    if let rir = days[di].exercises[ei].rir { days[di].exercises[ei].rpe = convertRpeRir(rir) }
+                    days[di].exercises[ei].rir = nil
+                } else {
+                    if let rpe = days[di].exercises[ei].rpe { days[di].exercises[ei].rir = convertRpeRir(rpe) }
+                    days[di].exercises[ei].rpe = nil
+                }
+                days[di].exercises[ei].rpeRirType = metric
+                for si in days[di].exercises[ei].setDetails.indices {
+                    if metric == "RPE" {
+                        if let rir = days[di].exercises[ei].setDetails[si].rir {
+                            days[di].exercises[ei].setDetails[si].rpe = convertRpeRir(rir)
+                        }
+                        days[di].exercises[ei].setDetails[si].rir = nil
+                    } else {
+                        if let rpe = days[di].exercises[ei].setDetails[si].rpe {
+                            days[di].exercises[ei].setDetails[si].rir = convertRpeRir(rpe)
+                        }
+                        days[di].exercises[ei].setDetails[si].rpe = nil
+                    }
+                }
             }
         }
+    }
+
+    /// Asks the coach when `newMetric` conflicts with values already
+    /// compiled under the opposite metric elsewhere in the scheda. No-op
+    /// (no dialog) when there's nothing to conflict with yet.
+    private func resolveRpeRirConflict(_ newMetric: String, excluding exId: UUID) async {
+        let opposite = newMetric == "RPE" ? "RIR" : "RPE"
+        guard hasOtherIntensityValue(excluding: exId, metric: opposite) else { return }
+        let unify = await confirmCenter.confirm(.init(
+            title: "Uniformare la scheda su \(newMetric)?",
+            subtitle: "Il resto della scheda usa \(opposite). Puoi uniformare tutto su \(newMetric) — i valori \(opposite) già compilati verranno convertiti — oppure mantenere entrambi i metodi.",
+            icon: "arrow.triangle.merge",
+            variant: .neutral,
+            confirmLabel: "Uniforma tutto",
+            cancelLabel: "Mantieni entrambi"
+        ))
+        guard unify else { return }
+        withAnimation(.snappy) { applyUniformMetric(newMetric, excluding: exId) }
     }
 }
 
@@ -315,38 +404,52 @@ private struct WBExerciseRow: View {
 
     @EnvironmentObject private var confirmCenter: ConfirmCenter
     @State private var expanded = false
+    @State private var showDetail = false
 
     var body: some View {
         VStack(spacing: 0) {
-            Button {
-                Haptics.tap()
-                withAnimation(.snappy) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(ex.name)
-                            .font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
-                            .multilineTextAlignment(.leading)
-                        HStack(spacing: 8) {
-                            Text(ex.summary)
-                                .font(Typo.mono(11, .semibold)).foregroundStyle(accent)
-                            if !ex.muscle.isEmpty {
-                                Text(ex.muscle.uppercased())
-                                    .font(Typo.mono(9, .semibold)).tracking(1.5)
-                                    .foregroundStyle(Palette.textLow)
+            HStack(spacing: 10) {
+                Button {
+                    Haptics.tap()
+                    showDetail = true
+                } label: {
+                    ExerciseThumb(url: ex.coverImageUrl, size: 40)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    Haptics.tap()
+                    withAnimation(.snappy) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(ex.name)
+                                .font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi)
+                                .multilineTextAlignment(.leading)
+                            HStack(spacing: 8) {
+                                Text(ex.summary)
+                                    .font(Typo.mono(11, .semibold)).foregroundStyle(accent)
+                                if !ex.muscle.isEmpty {
+                                    Text(ex.muscle.uppercased())
+                                        .font(Typo.mono(9, .semibold)).tracking(1.5)
+                                        .foregroundStyle(Palette.textLow)
+                                }
                             }
                         }
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Palette.textLow)
+                            .rotationEffect(.degrees(expanded ? 180 : 0))
                     }
-                    Spacer(minLength: 4)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Palette.textLow)
-                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 16).padding(.vertical, 11)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 16).padding(.vertical, 11)
+            .sheet(isPresented: $showDetail) {
+                ExerciseCatalogDetailSheet(exerciseId: ex.exerciseId, fallbackName: ex.name, accent: accent)
+            }
 
             if expanded {
                 VStack(spacing: 12) {
@@ -1179,38 +1282,10 @@ struct ExercisePickerSheet: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(results) { ex in
-                                Button {
+                                BuilderExerciseRow(ex: ex, accent: accent, onPick: {
                                     onPick(ex)
                                     dismiss()
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(ex.name)
-                                                .font(Typo.body(15, .semibold))
-                                                .foregroundStyle(Palette.textHi)
-                                                .multilineTextAlignment(.leading)
-                                            HStack(spacing: 8) {
-                                                if let m = ex.targetMuscleGroup, !m.isEmpty {
-                                                    Text(m.uppercased())
-                                                        .font(Typo.mono(9, .semibold)).tracking(1.5)
-                                                        .foregroundStyle(accent)
-                                                }
-                                                if !ex.equipment.isEmpty {
-                                                    Text(ex.equipment.map { $0.nameIt }.joined(separator: " · ").uppercased())
-                                                        .font(Typo.mono(9, .semibold)).tracking(1.5)
-                                                        .foregroundStyle(Palette.textLow)
-                                                }
-                                            }
-                                        }
-                                        Spacer(minLength: 4)
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(accent)
-                                    }
-                                    .padding(.horizontal, 14).padding(.vertical, 12)
-                                    .voltPanel(radius: 13)
-                                }
-                                .buttonStyle(.plain)
+                                })
                             }
                         }
                         .padding(.horizontal, 16).padding(.bottom, 24)
@@ -1243,6 +1318,65 @@ struct ExercisePickerSheet: View {
         let found = (try? await APIClient.shared.coachSearchExercises(query: query)) ?? []
         guard !Task.isCancelled else { return }
         results = found
+    }
+}
+
+/// One search result row — tap the thumbnail for the gif/description sheet,
+/// tap the rest of the row to pick it. Same split as the web builder's
+/// library drawer (`.wbp-row-thumb` vs `.wbp-row-main`).
+private struct BuilderExerciseRow: View {
+    let ex: BuilderExercise
+    let accent: Color
+    let onPick: () -> Void
+
+    @State private var showDetail = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button {
+                Haptics.tap()
+                showDetail = true
+            } label: {
+                ExerciseThumb(url: ex.coverImageUrl, size: 44)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onPick()
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(ex.name)
+                            .font(Typo.body(15, .semibold))
+                            .foregroundStyle(Palette.textHi)
+                            .multilineTextAlignment(.leading)
+                        HStack(spacing: 8) {
+                            if let m = ex.targetMuscleGroup, !m.isEmpty {
+                                Text(m.uppercased())
+                                    .font(Typo.mono(9, .semibold)).tracking(1.5)
+                                    .foregroundStyle(accent)
+                            }
+                            if !ex.equipment.isEmpty {
+                                Text(ex.equipment.map { $0.nameIt }.joined(separator: " · ").uppercased())
+                                    .font(Typo.mono(9, .semibold)).tracking(1.5)
+                                    .foregroundStyle(Palette.textLow)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 4)
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(accent)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .voltPanel(radius: 13)
+        .sheet(isPresented: $showDetail) {
+            ExerciseCatalogDetailSheet(exerciseId: ex.id, fallbackName: ex.name, accent: accent)
+        }
     }
 }
 

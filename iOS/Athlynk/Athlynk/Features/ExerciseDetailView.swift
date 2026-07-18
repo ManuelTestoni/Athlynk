@@ -19,12 +19,18 @@ struct ExerciseDetailView: View {
                     hero.revealUp(appear, index: 0)
                     titleBlock.revealUp(appear, index: 1)
                     statGrid.revealUp(appear, index: 2)
-                    if !exercise.equipment.isEmpty { equipmentTag(exercise.equipment).revealUp(appear, index: 3) }
-                    if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes).revealUp(appear, index: 4) }
+                    if let desc = exercise.description, !desc.isEmpty {
+                        descriptionBlock(desc).revealUp(appear, index: 3)
+                    }
+                    if let steps = exercise.instructionSteps, !steps.isEmpty {
+                        instructionsBlock(steps).revealUp(appear, index: 4)
+                    }
+                    if !exercise.equipment.isEmpty { equipmentTag(exercise.equipment).revealUp(appear, index: 5) }
+                    if let notes = exercise.techniqueNotes, !notes.isEmpty { coachNote(notes).revealUp(appear, index: 6) }
                     ExerciseTrendCard {
                         try await APIClient.shared.exerciseTrend(workoutExerciseId: exercise.id)
                     }
-                    .revealUp(appear, index: 5)
+                    .revealUp(appear, index: 7)
                 }
                 .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, AppLayout.tabBarClearance)
             }
@@ -36,23 +42,8 @@ struct ExerciseDetailView: View {
     }
 
     private var hero: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(LinearGradient(colors: [Palette.void2, Palette.void1],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(height: 200)
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Palette.line, lineWidth: 1))
-            Image(systemName: "figure.strengthtraining.traditional")
-                .font(.system(size: 64, weight: .black)).foregroundStyle(Palette.magenta.opacity(0.5))
-            if let v = exercise.videoUrl, let url = URL(string: v) {
-                Link(destination: url) {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 56)).foregroundStyle(Palette.magenta)
-                        .background(Circle().fill(Palette.void0).padding(8))
-                        .neonGlow(Palette.magenta, radius: 12)
-                }
-            }
-        }
+        ExerciseMediaHero(demoGifUrl: exercise.demoGifUrl, coverImageUrl: exercise.coverImageUrl,
+                          videoUrl: exercise.videoUrl, accent: Palette.magenta)
     }
 
     private var titleBlock: some View {
@@ -100,6 +91,40 @@ struct ExerciseDetailView: View {
         .foregroundStyle(Palette.textMid)
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Capsule().fill(Palette.void2))
+    }
+
+    /// Catalog description (exercises-dataset sourcing) — distinct from
+    /// `coachNote`, which is the coach's own note on this prescription.
+    private func descriptionBlock(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle.fill").font(.system(size: 14, weight: .black))
+                    .foregroundStyle(Palette.magenta)
+                Text("ESERCIZIO").voltEyebrow()
+            }
+            Text(text).font(Typo.body(15)).foregroundStyle(Palette.textHi)
+        }
+        .padding(18).voltPanel(Palette.magenta.opacity(0.35))
+    }
+
+    private func instructionsBlock(_ steps: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "list.number").font(.system(size: 14, weight: .black))
+                    .foregroundStyle(Palette.cyan)
+                Text("ESECUZIONE").voltEyebrow()
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("\(i + 1)").font(Typo.mono(12, .black)).foregroundStyle(Palette.cyan)
+                            .frame(width: 18, alignment: .leading)
+                        Text(step).font(Typo.body(14)).foregroundStyle(Palette.textHi)
+                    }
+                }
+            }
+        }
+        .padding(18).voltPanel(Palette.cyan.opacity(0.35))
     }
 
     private func coachNote(_ notes: String) -> some View {

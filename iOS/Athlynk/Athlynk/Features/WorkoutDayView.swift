@@ -99,8 +99,7 @@ struct WorkoutDayView: View {
             NavigationLink(value: ex) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 12) {
-                        Text(String(format: "%02d", index + 1))
-                            .font(Typo.mono(15, .black)).foregroundStyle(accent)
+                        ExerciseThumb(url: ex.coverImageUrl, size: 40)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(ex.name)
                                 .font(Typo.display(19)).foregroundStyle(Palette.textHi)
@@ -118,7 +117,12 @@ struct WorkoutDayView: View {
                         spec(ex.setsReps, "SET×REP", accent)
                         if let load = ex.loadLabel { spec(load, "CARICO", accent) }
                         if let rec = ex.recoverySeconds { spec("\(rec)s", "REC", accent) }
+                        // RPE/RIR are mutually exclusive per exercise (the builder's
+                        // uniformity toggle always nils the other), so at most one
+                        // of these two ever renders alongside the rest.
                         if let rpe = ex.rpe { spec("\(rpe)", "RPE", accent) }
+                        if let rir = ex.rir { spec("\(rir)", "RIR", accent) }
+                        if let tempo = ex.tempo, !tempo.isEmpty { spec(tempo, "TUT", accent) }
                     }
 
                     if let notes = ex.techniqueNotes, !notes.isEmpty {

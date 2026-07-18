@@ -152,7 +152,8 @@ final class ActiveSessionVM: ObservableObject {
 
     func addExercise(_ item: ExerciseSearchItemDTO) {
         let ex = SessionExerciseDTO(addedExerciseId: item.id, name: item.name,
-                                    targetMuscleGroup: item.primaryMuscle)
+                                    targetMuscleGroup: item.primaryMuscle,
+                                    coverImageUrl: item.coverImageUrl, demoGifUrl: item.demoGifUrl)
         guard !exercises.contains(where: { $0.id == ex.id }) else { return }
         exercises.append(ex)
         for n in 1...max(ex.sets, 1) {
@@ -256,6 +257,7 @@ struct ActiveSessionView: View {
     @State private var showFinishConfirm = false
     @State private var showAddPicker = false
     @State private var substituteTarget: SessionExerciseDTO?
+    @State private var detailTarget: SessionExerciseDTO?
     @EnvironmentObject private var confirmCenter: ConfirmCenter
 
     init(assignmentId: Int, day: WorkoutDayDTO) {
@@ -324,6 +326,10 @@ struct ActiveSessionView: View {
                 vm.substitute(ex, with: item)
             }
         }
+        .sheet(item: $detailTarget) { ex in
+            ExerciseCatalogDetailSheet(exerciseId: ex.exerciseCatalogId ?? ex.exerciseId ?? 0,
+                                       fallbackName: ex.name, accent: Palette.magenta)
+        }
         .alert("Sessione incompleta", isPresented: $showFinishConfirm) {
             Button("Termina comunque", role: .destructive) {
                 Task { await vm.finish(interrupted: false) }
@@ -361,6 +367,14 @@ struct ActiveSessionView: View {
         let sub = vm.substitutions[ex.id]
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
+                Button {
+                    Haptics.tap()
+                    detailTarget = ex
+                } label: {
+                    ExerciseThumb(url: ex.coverImageUrl, size: 40)
+                }
+                .buttonStyle(.plain)
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(vm.displayName(ex)).font(Typo.display(20)).foregroundStyle(Palette.textHi)
                     if sub != nil {
@@ -430,6 +444,16 @@ struct ActiveSessionView: View {
                     // TUT (tempo) — only when the coach set it for this exercise.
                     if let t = ex.tempo?.trimmingCharacters(in: .whitespaces), !t.isEmpty {
                         Label(t, systemImage: "metronome")
+                            .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
+                    }
+                    // Target RPE/RIR the coach prescribed — distinct from the RPE
+                    // the athlete types per set below (that's the *actual* value).
+                    if let rpe = ex.rpe {
+                        Label("RPE \(rpe)", systemImage: "flame")
+                            .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
+                    }
+                    if let rir = ex.rir {
+                        Label("RIR \(rir)", systemImage: "gauge.medium")
                             .font(Typo.mono(11, .bold)).foregroundStyle(Palette.textMid)
                     }
                 }

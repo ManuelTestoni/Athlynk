@@ -389,6 +389,11 @@ def _exercise_dict(we):
         'id': we.id,
         'name': ex.name,
         'wger_image_url': ex.wger_image_url,
+        'cover_image': ex.cover_image.url if ex.cover_image else None,
+        'demo_gif': ex.demo_gif.url if ex.demo_gif else None,
+        'description': ex.description or '',
+        'instruction_steps': ex.instruction_steps or [],
+        'muscle_detail': ex.muscle_detail or '',
         'primary_muscles': [m.name for m in ex.primary_muscles.all()],
         'equipment': [eq.name_it for eq in ex.equipment.all()],
         'order_index': we.order_index,
@@ -1976,6 +1981,10 @@ def session_start(request, user):
         'tempo': ex.tempo or '',
         'notes': ex.technique_notes or '',
         'set_details': ex.set_details or [],
+        'rir': ex.rir,
+        'rpe': ex.rpe,
+        'cover_image': ex.exercise.cover_image.url if ex.exercise.cover_image else '',
+        'demo_gif': ex.exercise.demo_gif.url if ex.exercise.demo_gif else '',
     } for ex in day.exercises.select_related('exercise').prefetch_related('exercise__primary_muscles').order_by('order_index')]
 
     # Session-only deviations (removed/substituted/added), same shape as web.
@@ -2005,6 +2014,8 @@ def session_start(request, user):
             'added': True,
             'removed': False,
             'substituted_with': None,
+            'cover_image': ex_obj.cover_image.url if ex_obj.cover_image else '',
+            'demo_gif': ex_obj.demo_gif.url if ex_obj.demo_gif else '',
         })
 
     sets_logged = [_logged_set_dict(sl) for sl in session.set_logs.all() if sl.set_number != 0]

@@ -405,6 +405,11 @@ def _exercise_item(ex):
         'muscles': primaries,
         'equipment': [eq.name_it for eq in ex.equipment.all()],
         'wger_image_url': ex.wger_image_url or '',
+        'cover_image': ex.cover_image.url if ex.cover_image else '',
+        'demo_gif': ex.demo_gif.url if ex.demo_gif else '',
+        'description': ex.description or '',
+        'instruction_steps': ex.instruction_steps or [],
+        'muscle_detail': ex.muscle_detail or '',
     }
 
 
@@ -590,6 +595,11 @@ def client_session_active_view(request, assignment_id, day_id):
             'notes': ex.technique_notes or '',
             'set_details': ex.set_details or [],
             'wger_image_url': ex.exercise.wger_image_url or '',
+            'cover_image': ex.exercise.cover_image.url if ex.exercise.cover_image else '',
+            'demo_gif': ex.exercise.demo_gif.url if ex.exercise.demo_gif else '',
+            'description': ex.exercise.description or '',
+            'instruction_steps': ex.exercise.instruction_steps or [],
+            'muscle_detail': ex.exercise.muscle_detail or '',
             'superset_group_id': ex.superset_group_id,
             'primary_muscle': primaries[0] if primaries else '',
             'equipment': [eq.name_it for eq in ex.exercise.equipment.all()],
@@ -597,6 +607,8 @@ def client_session_active_view(request, assignment_id, day_id):
                 'id': alt.id,
                 'name': alt.name,
                 'wger_image_url': alt.wger_image_url or '',
+                'cover_image': alt.cover_image.url if alt.cover_image else '',
+                'demo_gif': alt.demo_gif.url if alt.demo_gif else '',
             } if alt else None,
         })
 
@@ -656,6 +668,11 @@ def api_session_start(request):
             'workout_exercise_id': ex.id,
             'name': ex.exercise.name,
             'wger_image_url': ex.exercise.wger_image_url or '',
+            'cover_image': ex.exercise.cover_image.url if ex.exercise.cover_image else '',
+            'demo_gif': ex.exercise.demo_gif.url if ex.exercise.demo_gif else '',
+            'description': ex.exercise.description or '',
+            'instruction_steps': ex.exercise.instruction_steps or [],
+            'muscle_detail': ex.exercise.muscle_detail or '',
             'sets': ex.set_count or 3,
             'reps': ex.rep_range or '10',
             'load_value': float(ex.load_value) if ex.load_value else None,
@@ -675,7 +692,11 @@ def api_session_start(request):
         item['added'] = False
         item['removed'] = we_id in removed
         item['substituted_with'] = (
-            {'id': se.id, 'name': se.name, 'wger_image_url': se.wger_image_url or ''}
+            {
+                'id': se.id, 'name': se.name, 'wger_image_url': se.wger_image_url or '',
+                'cover_image': se.cover_image.url if se.cover_image else '',
+                'demo_gif': se.demo_gif.url if se.demo_gif else '',
+            }
             if se else None
         )
     for ex_obj, _order in added:
@@ -684,6 +705,11 @@ def api_session_start(request):
             'exercise_id': ex_obj.id,
             'name': ex_obj.name,
             'wger_image_url': ex_obj.wger_image_url or '',
+            'cover_image': ex_obj.cover_image.url if ex_obj.cover_image else '',
+            'demo_gif': ex_obj.demo_gif.url if ex_obj.demo_gif else '',
+            'description': ex_obj.description or '',
+            'instruction_steps': ex_obj.instruction_steps or [],
+            'muscle_detail': ex_obj.muscle_detail or '',
             'sets': 3,
             'reps': '10',
             'load_value': None,

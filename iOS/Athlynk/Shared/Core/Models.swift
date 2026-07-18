@@ -104,6 +104,13 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
     let tempo: String?
     let techniqueNotes: String?
     let supersetGroupId: Int?
+    /// Catalog media/detail (exercises-dataset sourcing) — the coach's own
+    /// note (`techniqueNotes`) is per-prescription and separate from these.
+    let demoGifUrl: String?
+    let coverImageUrl: String?
+    let description: String?
+    let instructionSteps: [String]?
+    let muscleDetail: String?
 
     var setsReps: String {
         let s = setCount.map { "\($0)" } ?? "—"
@@ -121,7 +128,7 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, equipment, tempo, rir, rpe
+        case id, name, equipment, tempo, rir, rpe, description
         case videoUrl = "video_url"
         case targetMuscleGroup = "target_muscle_group"
         case orderIndex = "order_index"
@@ -133,6 +140,10 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
         case recoverySeconds = "recovery_seconds"
         case techniqueNotes = "technique_notes"
         case supersetGroupId = "superset_group_id"
+        case demoGifUrl = "demo_gif"
+        case coverImageUrl = "cover_image"
+        case instructionSteps = "instruction_steps"
+        case muscleDetail = "muscle_detail"
     }
 }
 
@@ -1338,12 +1349,18 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
     let added: Bool
     let removed: Bool
     let substitutedWith: SubstituteExerciseDTO?
+    /// Coach-prescribed targets — distinct from the athlete's own per-set
+    /// logged RPE (`LoggedSetDTO.rpe`).
+    let rir: Int?
+    let rpe: Int?
+    let coverImageUrl: String?
+    let demoGifUrl: String?
 
     var id: String { workoutExerciseId.map { "we-\($0)" } ?? "add-\(exerciseId ?? 0)" }
     var displayName: String { substitutedWith?.name ?? name }
 
     enum CodingKeys: String, CodingKey {
-        case name, sets, reps, notes, tempo, added, removed
+        case name, sets, reps, notes, tempo, added, removed, rir, rpe
         case workoutExerciseId = "workout_exercise_id"
         case exerciseId = "exercise_id"
         case exerciseCatalogId = "exercise_catalog_id"
@@ -1352,6 +1369,8 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
         case loadUnit = "load_unit"
         case recoverySeconds = "recovery_seconds"
         case substitutedWith = "substituted_with"
+        case coverImageUrl = "cover_image"
+        case demoGifUrl = "demo_gif"
     }
 
     init(from decoder: Decoder) throws {
@@ -1371,10 +1390,15 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
         added = try c.decodeIfPresent(Bool.self, forKey: .added) ?? false
         removed = try c.decodeIfPresent(Bool.self, forKey: .removed) ?? false
         substitutedWith = try c.decodeIfPresent(SubstituteExerciseDTO.self, forKey: .substitutedWith)
+        rir = try c.decodeIfPresent(Int.self, forKey: .rir)
+        rpe = try c.decodeIfPresent(Int.self, forKey: .rpe)
+        coverImageUrl = try c.decodeIfPresent(String.self, forKey: .coverImageUrl)
+        demoGifUrl = try c.decodeIfPresent(String.self, forKey: .demoGifUrl)
     }
 
     /// Local construction for exercises the athlete adds mid-session.
-    init(addedExerciseId: Int, name: String, targetMuscleGroup: String? = nil) {
+    init(addedExerciseId: Int, name: String, targetMuscleGroup: String? = nil,
+         coverImageUrl: String? = nil, demoGifUrl: String? = nil) {
         self.workoutExerciseId = nil
         self.exerciseId = addedExerciseId
         self.exerciseCatalogId = addedExerciseId
@@ -1390,6 +1414,10 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
         self.added = true
         self.removed = false
         self.substitutedWith = nil
+        self.rir = nil
+        self.rpe = nil
+        self.coverImageUrl = coverImageUrl
+        self.demoGifUrl = demoGifUrl
     }
 }
 
@@ -1440,12 +1468,20 @@ struct ExerciseSearchItemDTO: Codable, Identifiable, Hashable {
     let primaryMuscle: String
     let muscles: [String]
     let equipment: [String]
-    let videoUrl: String
+    /// The backend never actually sends this key today — kept optional so a
+    /// missing key doesn't fail the whole decode (it used to, silently,
+    /// since this was non-optional: every search came back empty).
+    let videoUrl: String?
+    let coverImageUrl: String?
+    let demoGifUrl: String?
+    let description: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, muscles, equipment
+        case id, name, muscles, equipment, description
         case primaryMuscle = "primary_muscle"
         case videoUrl = "video_url"
+        case coverImageUrl = "cover_image"
+        case demoGifUrl = "demo_gif"
     }
 }
 
@@ -1463,6 +1499,64 @@ struct ExerciseSearchResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case results
         case muscleGroups = "muscle_groups"
+    }
+}
+
+// MARK: - Exercise catalog detail (gif/description/instructions, by id)
+
+/// Full catalog detail for one exercise — backs `ExerciseCatalogDetailSheet`,
+/// shown from any list/picker row that only has a bare exercise id in hand
+/// (no prescription attached yet). Mirrors `_serialize_exercise_full`
+/// (`WebApp/src/config/views_workouts_taxonomy.py`), reachable by both apps
+/// via the same dual-auth `GET /api/exercises/<id>/` endpoint.
+struct ExerciseCatalogDetailDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let description: String?
+    let coverImageUrl: String?
+    let demoGifUrl: String?
+    let instructionSteps: [String]
+    let muscleDetail: String?
+    let isCustom: Bool
+    let category: ExerciseCatalogCategoryDTO?
+    let equipment: [ExerciseCatalogEquipmentDTO]
+    let primaryMuscles: [ExerciseCatalogMuscleDTO]
+    let secondaryMuscles: [ExerciseCatalogMuscleDTO]
+    let coachNotes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, category, equipment
+        case coverImageUrl = "cover_image"
+        case demoGifUrl = "demo_gif"
+        case instructionSteps = "instruction_steps"
+        case muscleDetail = "muscle_detail"
+        case isCustom = "is_custom"
+        case primaryMuscles = "primary_muscles"
+        case secondaryMuscles = "secondary_muscles"
+        case coachNotes = "coach_notes"
+    }
+}
+
+struct ExerciseCatalogCategoryDTO: Codable, Hashable {
+    let id: Int
+    let name: String
+}
+
+struct ExerciseCatalogEquipmentDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+}
+
+struct ExerciseCatalogMuscleDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let slug: String
+    let name: String
+    let region: String?
+    let colorToken: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, slug, name, region
+        case colorToken = "color_token"
     }
 }
 

@@ -236,6 +236,7 @@ urlpatterns = [
     path('api/muscle-groups/', views_workouts_taxonomy.api_muscle_groups, name='api_muscle_groups'),
     path('api/exercises/custom/', views_workouts_taxonomy.api_custom_exercises, name='api_custom_exercises'),
     path('api/exercises/custom/<int:exercise_id>/', views_workouts_taxonomy.api_custom_exercise_detail, name='api_custom_exercise_detail'),
+    path('api/exercises/<int:exercise_id>/', views_workouts_taxonomy.api_exercise_detail, name='api_exercise_detail'),
     path('api/allenamenti/<int:plan_id>/volume/', views_workouts_taxonomy.api_plan_volume, name='api_plan_volume'),
     # Legacy
     path('allenamenti/crea/', views_workouts.allenamenti_create_view, name='allenamenti_create'),

@@ -92,12 +92,10 @@ struct SessionExercisePickerSheet: View {
                     ScrollView(showsIndicators: false) {
                         LazyVStack(spacing: 8) {
                             ForEach(results) { item in
-                                Button {
-                                    Haptics.tap()
+                                ExerciseResultRow(item: item, accent: accent, onPick: {
                                     onPick(item)
                                     dismiss()
-                                } label: { ExerciseResultRow(item: item, accent: accent) }
-                                .buttonStyle(.plain)
+                                })
                             }
                         }
                         .padding(.horizontal, 16).padding(.bottom, 24)
@@ -214,12 +212,10 @@ struct SubstitutePickerSheet: View {
                             ScrollView(showsIndicators: false) {
                                 LazyVStack(spacing: 8) {
                                     ForEach(similar) { item in
-                                        Button {
-                                            Haptics.tap()
+                                        ExerciseResultRow(item: item, accent: accent, onPick: {
                                             onPick(item)
                                             dismiss()
-                                        } label: { ExerciseResultRow(item: item, accent: accent) }
-                                        .buttonStyle(.plain)
+                                        })
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -267,20 +263,46 @@ struct SubstitutePickerSheet: View {
 private struct ExerciseResultRow: View {
     let item: ExerciseSearchItemDTO
     let accent: Color
+    /// Tapping the thumbnail opens the catalog detail sheet instead; tapping
+    /// the rest of the row picks the exercise, same split as the web
+    /// builder's library drawer (`.wbp-row-thumb` vs `.wbp-row-main`).
+    let onPick: () -> Void
+
+    @State private var showDetail = false
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
-                if !subtitle.isEmpty {
-                    Text(subtitle).font(Typo.mono(10)).foregroundStyle(Palette.textMid)
-                }
+            Button {
+                Haptics.tap()
+                showDetail = true
+            } label: {
+                ExerciseThumb(url: item.coverImageUrl, size: 44)
             }
-            Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold))
-                .foregroundStyle(accent)
+            .buttonStyle(.plain)
+
+            Button {
+                Haptics.tap()
+                onPick()
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name).font(Typo.body(15, .semibold)).foregroundStyle(Palette.textHi).lineLimit(1)
+                        if !subtitle.isEmpty {
+                            Text(subtitle).font(Typo.mono(10)).foregroundStyle(Palette.textMid)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(accent)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(14).voltPanel(accent.opacity(0.3))
+        .sheet(isPresented: $showDetail) {
+            ExerciseCatalogDetailSheet(exerciseId: item.id, fallbackName: item.name, accent: accent)
+        }
     }
 
     private var subtitle: String {

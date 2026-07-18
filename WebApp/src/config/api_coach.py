@@ -2190,7 +2190,10 @@ def workout_detail(request, user, plan_id):
         'notes': d.notes,
         'exercises': [{
             'id': we.id,
+            'exercise_id': we.exercise_id,
             'name': we.exercise.name,
+            'cover_image': we.exercise.cover_image.url if we.exercise.cover_image else '',
+            'demo_gif': we.exercise.demo_gif.url if we.exercise.demo_gif else '',
             'sets': we.set_count,
             'reps': we.rep_count,
             'rep_range': we.rep_range,

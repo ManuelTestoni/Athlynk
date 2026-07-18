@@ -729,24 +729,6 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   font-weight: 600;
 }
 
-/* --------- Exercise library panel (Step 2) --------------------- */
-.wb-libpanel {
-  background: rgba(255,255,255,0.72);
-  border: 1px solid var(--al-rule);
-  border-radius: var(--al-r-md);
-  padding: var(--al-s-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--al-s-3);
-  max-height: calc(100vh - 130px);
-  position: sticky;
-  top: 12px;
-}
-/* Sticky needs the aside to NOT stretch — otherwise the libpanel has no
-   scroll headroom above/below to engage `position: sticky`. */
-.wb-shell-row { align-items: flex-start; }
-.wb-shell-row > aside { align-self: flex-start; }
-
 .wb-filter-chips {
   display: flex;
   flex-wrap: wrap;
@@ -955,55 +937,6 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   color: var(--al-parchment);
 }
 
-.wb-lib-results {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.wb-lib-item {
-  border: 1px solid var(--al-rule-faint);
-  border-radius: var(--al-r-sm);
-  padding: 10px 12px;
-  background: var(--al-parchment);
-  cursor: pointer;
-  transition: all 140ms var(--al-ease);
-  position: relative;
-  animation: wb-card-in 240ms var(--al-ease-emp) backwards;
-}
-.wb-lib-item:hover {
-  border-color: var(--al-accent);
-  transform: translateX(2px);
-}
-.wb-lib-item.flash {
-  background: #d4f4dd;
-  border-color: #16a34a;
-}
-.wb-lib-item-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--al-ink);
-  line-height: 1.3;
-  margin: 0;
-}
-.wb-lib-item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-}
-.wb-lib-item-meta .mg {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(30,58,95,0.10);
-  color: var(--al-bronze);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
 .wb-lib-item-custom-badge {
   position: absolute;
   top: 6px; right: 6px;
@@ -1017,12 +950,81 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
   color: var(--al-parchment);
 }
 
-.wb-lib-empty {
-  text-align: center;
-  padding: var(--al-s-6) var(--al-s-3);
-  color: var(--al-ink-mute);
-  font-size: 13px;
+/* --------- Exercise library drawer (Step 2) — mirrors the nutrition
+   add-food slide-in panel (.nzp-*) so both builders share one UX. ------- */
+.wbp-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(20,16,10,0.32); }
+.wbp-panel {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 71;
+  width: min(420px, 92vw);
+  display: flex; flex-direction: column;
+  background: var(--al-parchment);
+  border-right: 1px solid var(--al-rule);
+  box-shadow: var(--al-elev-pop, 0 12px 48px rgba(0,0,0,0.18));
 }
+.wbp-mode { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.wbp-head { padding: 22px 22px 14px; border-bottom: 1px solid var(--al-rule); }
+.wbp-body { flex: 1; overflow-y: auto; padding: 14px 16px 24px; }
+.wbp-foot { padding: 14px 16px; border-top: 1px solid var(--al-rule); }
+
+.wbp-row {
+  position: relative;
+  display: flex; align-items: stretch; gap: 10px;
+  padding: 8px; margin-bottom: 8px;
+  border: 1px solid var(--al-rule-faint);
+  border-radius: var(--al-r-sm); background: var(--al-parchment);
+  transition: border-color .15s, background .15s;
+}
+.wbp-row:hover { border-color: var(--al-bronze-soft, var(--al-bronze)); background: var(--al-marble-warm); }
+.wbp-row.is-added { border-color: var(--al-success, var(--al-bronze)); background: rgba(46,125,50,0.06); }
+
+.wbp-row-thumb {
+  flex: 0 0 auto; width: 56px; height: 56px;
+  border-radius: var(--al-r-sm); overflow: hidden;
+  background: var(--al-marble);
+  border: none; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.wbp-row-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.wbp-row-thumb i { font-size: 20px; color: var(--al-ink-mute); }
+
+.wbp-row-main {
+  flex: 1; min-width: 0; text-align: left;
+  background: none; border: none; padding: 2px 0; cursor: pointer;
+}
+.wbp-row-name {
+  font-size: 13px; font-weight: 600; color: var(--al-ink);
+  line-height: 1.3; margin: 0;
+}
+.wbp-row-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.wbp-row-meta .mg {
+  font-size: 10px; padding: 2px 7px; border-radius: 999px;
+  background: rgba(30,58,95,0.10); color: var(--al-bronze);
+  font-weight: 600; letter-spacing: 0.02em;
+}
+
+.wbp-row-info {
+  flex: 0 0 auto; align-self: center;
+  width: 30px; height: 30px; border-radius: 999px;
+  background: var(--al-marble); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--al-ink-mute); font-size: 14px;
+  transition: background .15s, color .15s;
+}
+.wbp-row-info:hover { background: var(--al-bronze); color: var(--al-parchment); }
+
+.wbp-detail-media {
+  width: 100%; aspect-ratio: 4 / 3; border-radius: var(--al-r-md);
+  overflow: hidden; background: var(--al-marble);
+  display: flex; align-items: center; justify-content: center;
+}
+.wbp-detail-media img { width: 100%; height: 100%; object-fit: cover; }
+.wbp-detail-media i { font-size: 36px; color: var(--al-ink-mute); }
+
+.wbp-detail-steps {
+  padding-left: 18px; font-size: 13px; color: var(--al-ink-mute);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.wbp-detail-steps li { padding-left: 2px; }
 
 /* --------- Builder row (Step 2) -------------------------------- */
 .wb-builder-day-header {
@@ -1130,10 +1132,25 @@ body[data-panel-open="1"] main.al-canvas { overflow: hidden !important; }
 .wb-chip-set-type.is-ramp   { background: rgba(91,137,182,.16); color: var(--al-accent-text); }
 .wb-chip-set-type.is-test   { background: rgba(138,106,30,.16); color: var(--al-warn); }
 
-.wb-row-params {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
-  gap: var(--al-s-2);
+/* Proportional single-row field layout (Step 2 editor). With the library
+   moved into its own drawer the editor owns the full row width, so fields
+   sit on one line when there's room and wrap only below that — narrow
+   fields (Serie/Recupero/TUT/Unità) stay small, Note/free-text fields grow. */
+.wb-row-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+}
+.wb-row-fields .wb-mini-field { flex: 1 1 76px; min-width: 68px; }
+.wb-row-fields .wb-mini-field--xs { flex: 0 1 56px; min-width: 52px; }
+.wb-row-fields .wb-mini-field--sm { flex: 1 1 76px; min-width: 68px; }
+.wb-row-fields .wb-mini-field--md { flex: 1.4 1 104px; min-width: 96px; }
+.wb-row-fields .wb-mini-field--wide { flex: 2.4 1 220px; min-width: 200px; }
+.wb-row-fields .wb-mini-field--wide textarea.wb-mini-input {
+  resize: none;
+  height: 100%;
+  min-height: 36px;
 }
 
 .wb-mini-field {

@@ -113,8 +113,28 @@ struct CoachWorkoutDetailView: View {
                 }
             }
             ForEach(day.exercises) { ex in
-                HStack(alignment: .top, spacing: 12) {
-                    Circle().fill(Palette.cyan.opacity(0.5)).frame(width: 6, height: 6).padding(.top, 7)
+                CoachWorkoutExerciseRow(ex: ex)
+            }
+            if let n = day.notes, !n.isEmpty {
+                Text(n).font(Typo.body(12)).foregroundStyle(Palette.textLow)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
+    }
+
+    /// One exercise row — tap opens the gif/description sheet (catalog id,
+    /// not the WorkoutExercise prescription id).
+    private struct CoachWorkoutExerciseRow: View {
+        let ex: CoachWorkoutExerciseDTO
+        @State private var showDetail = false
+
+        var body: some View {
+            Button {
+                Haptics.tap()
+                showDetail = true
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    ExerciseThumb(url: ex.coverImageUrl, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(ex.name).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
                         if !ex.prescription.isEmpty {
@@ -123,12 +143,15 @@ struct CoachWorkoutDetailView: View {
                     }
                     Spacer()
                 }
+                .contentShape(Rectangle())
             }
-            if let n = day.notes, !n.isEmpty {
-                Text(n).font(Typo.body(12)).foregroundStyle(Palette.textLow)
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showDetail) {
+                if let catalogId = ex.exerciseId {
+                    ExerciseCatalogDetailSheet(exerciseId: catalogId, fallbackName: ex.name, accent: Palette.cyan)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
     }
 }
 

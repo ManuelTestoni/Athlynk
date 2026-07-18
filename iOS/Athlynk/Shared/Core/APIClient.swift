@@ -448,6 +448,13 @@ final class APIClient {
                           from: try await request("/api/v1/exercises/search?\(qs)"))
     }
 
+    /// Full catalog detail (gif/description/instructions) for one exercise
+    /// by id — shared by both apps (coach and athlete sessions both resolve
+    /// via the backend's dual-auth session lookup).
+    func exerciseCatalogDetail(id: Int) async throws -> ExerciseCatalogDetailDTO {
+        try decode(ExerciseCatalogDetailDTO.self, from: try await request("/api/exercises/\(id)/"))
+    }
+
     /// All movements the athlete has actually performed (progress list source).
     func progressExercises() async throws -> [ExerciseHistoryItemDTO] {
         try decode(ExercisesHistoryResponse.self,

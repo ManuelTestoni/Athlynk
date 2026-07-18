@@ -1,9 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ plan.title }}{% endblock %}
 
 {% block content %}
 {% include 'pages/allenamenti/_volume_drawer.html' %}
+{% include 'pages/allenamenti/_exercise_detail_drawer.html' %}
+<script src="{% static 'js/exercise_detail.js' %}?v={{ ASSET_VERSION }}"></script>
 
 <style>
   .pd-rcp-grid {

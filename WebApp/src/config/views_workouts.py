@@ -109,6 +109,8 @@ def serialize_exercise_card(ex):
         'wger_image_url': ex.wger_image_url or '',
         'license_title': ex.license_title or '',
         'license_author': ex.license_author or '',
+        'cover_image': ex.cover_image.url if ex.cover_image else '',
+        'demo_gif': ex.demo_gif.url if ex.demo_gif else '',
     }
 
 
@@ -375,6 +377,8 @@ def _serialize_plan_for_wizard(plan):
                 'equipment': [
                     {'id': eq.id, 'name': eq.name_it} for eq in ex.exercise.equipment.all()
                 ],
+                'cover_image': ex.exercise.cover_image.url if ex.exercise.cover_image else '',
+                'demo_gif': ex.exercise.demo_gif.url if ex.exercise.demo_gif else '',
                 'sets': ex.set_count or 3,
                 'reps': ex.rep_range or '10',
                 'load_value': float(ex.load_value) if ex.load_value is not None else None,
@@ -1258,7 +1262,6 @@ def api_search_exercises(request):
             'primary_muscles': list(ex.primary_muscles.values('slug', 'name', 'color_token')),
             'secondary_muscles': list(ex.secondary_muscles.values('slug', 'name', 'color_token')),
             'equipment': list(ex.equipment.values('id', 'name_it')),
-            'cover_image': ex.cover_image.url if ex.cover_image else '',
         })
         return card
 

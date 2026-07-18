@@ -7,12 +7,18 @@ document.addEventListener('alpine:init', () => {
     editingDayIdx: null,
     selectedExIds: [],
     flashIds: [],
-    mobileTab: 'lib',
 
     library: {
       query: '', muscle_slug: '', equipment_id: '', category_id: '',
       custom_only: false,
       items: [], loading: false,
+      panelOpen: false,
+      // 'builder' (Step 2, local draft push) | 'progression' (Step 3, real
+      // server create active from `progressionWeek` onward — see
+      // addExerciseFromLibrary()).
+      context: 'builder',
+      progressionWeek: null,
+      detail: { open: false, loading: false, ex: null },
     },
     filters: { muscles: [], equipment: [], categories: [] },
     muscleGroups: [],
@@ -75,6 +81,11 @@ document.addEventListener('alpine:init', () => {
       expanded: {},        // {ex_id: bool} — expanded shows Carico/RPE/RIR row
       slideDir: 0,         // -1 = slide-in from left, 1 = slide-in from right, 0 = no anim
       loading: false,
+      // Optional fields the coach just clicked "+" on but hasn't typed a
+      // value for yet — shows an empty real input instead of the ghost chip
+      // until it's either filled in (commits + clears itself) or blurred
+      // empty (reverts to ghost, see blurCellField/blurSetField).
+      armed: {},
     },
 
     // Delete-cell confirm modal
@@ -83,16 +94,6 @@ document.addEventListener('alpine:init', () => {
       exId: null,
       exName: '',
       week: 1,
-    },
-
-    // Add-exercise-at-week drawer
-    addExUi: {
-      open: false,
-      week: 1,
-      dayIdx: 0,
-      query: '',
-      results: [],
-      loading: false,
     },
 
     progUi: {
@@ -660,15 +661,94 @@ document.addEventListener('alpine:init', () => {
         });
         this._showToast('Esercizio personalizzato salvato.');
         this.closeCustomExerciseDrawer();
-        if (addToBuilderAfter) this.addExerciseToActiveDay(d);
+        if (addToBuilderAfter) this.addExerciseFromLibrary(d);
       } catch (e) { ce.error = 'Errore di rete.'; }
       ce.saving = false;
     },
 
-    openLibraryFocus() {
-      this.mobileTab = 'lib';
-      const inp = document.querySelector('aside input[type=text]');
-      if (inp) inp.focus();
+    /* ---- Exercise library drawer (mirrors the food-picker panel UX) ----
+       Shared by Step 2 (builder) and Step 3 (progression, "+ Aggiungi
+       esercizio" under a week column) — `opts.context` picks which. */
+    openLibraryPanel(opts) {
+      const { context, week } = opts || {};
+      this.library.panelOpen = true;
+      this.library.context = context === 'progression' ? 'progression' : 'builder';
+      this.library.progressionWeek = context === 'progression' ? week : null;
+      this.library.detail = { open: false, loading: false, ex: null };
+      window.panelLock && window.panelLock.acquire();
+      if (!this.library.items.length) this.loadLibrary();
+      this.$nextTick(() => {
+        const inp = document.querySelector('.wbp-panel input[type=text]');
+        if (inp) inp.focus();
+      });
+    },
+    closeLibraryPanel() {
+      if (this.library.panelOpen) window.panelLock && window.panelLock.release();
+      this.library.panelOpen = false;
+      this.library.context = 'builder';
+      this.library.progressionWeek = null;
+      this.library.detail = { open: false, loading: false, ex: null };
+    },
+    async openExerciseDetail(ex) {
+      this.library.detail = { open: true, loading: true, ex: null };
+      try {
+        const url = (this.urls.exercise_detail || '/api/exercises/__ID__/').replace('__ID__', ex.id);
+        const r = await fetch(url);
+        this.library.detail.ex = await r.json();
+      } catch (e) {
+        this.library.detail.ex = null;
+      } finally {
+        this.library.detail.loading = false;
+      }
+    },
+    closeExerciseDetail() {
+      this.library.detail = { open: false, loading: false, ex: null };
+    },
+    addExerciseFromDetail() {
+      if (!this.library.detail.ex) return;
+      const ex = this.library.detail.ex;
+      this.closeExerciseDetail();
+      this.addExerciseFromLibrary(ex);
+    },
+
+    /* Routes a library pick to the right action for the drawer's current
+       context — local draft push (Step 2) or a real server create active
+       from a given week (Step 3). Both the row click and the detail panel's
+       "Aggiungi" button go through this. */
+    addExerciseFromLibrary(ex) {
+      if (this.library.context === 'progression') {
+        this._addExerciseToProgressionWeek(ex);
+        return;
+      }
+      this.addExerciseToActiveDay(ex);
+    },
+
+    async _addExerciseToProgressionWeek(ex) {
+      const day = this._currentDay();
+      if (!day || !day.pk) {
+        this._showToast('Salva la bozza prima di aggiungere esercizi.', 'warn');
+        return;
+      }
+      try {
+        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/add-exercise/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+          body: JSON.stringify({
+            workout_day_id: day.pk,
+            exercise_id: ex.id,
+            starts_at_week: this.library.progressionWeek,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          this._showToast(d.error || 'Errore aggiunta', 'error');
+          return;
+        }
+        this.closeLibraryPanel();
+        await this.loadProgGrid();
+      } catch (_) {
+        this._showToast('Errore di rete', 'error');
+      }
     },
 
     // ---- Add / remove exercises ----
@@ -702,7 +782,9 @@ document.addEventListener('alpine:init', () => {
         set_details: [],
         _showAdvanced: false,
         _showNote: false,
-        _rpe_rir_type: 'RPE',
+        // No value yet, so nothing to conflict over — just start on whichever
+        // metric the rest of the scheda already uses, RPE otherwise.
+        _rpe_rir_type: this._establishedIntensityMetric(null) || 'RPE',
       });
       this.flashIds.push(libEx.id);
       setTimeout(() => {
@@ -712,6 +794,109 @@ document.addEventListener('alpine:init', () => {
       setTimeout(() => { addedEx._justAdded = false; }, 320);
       this.markDirty();
       this.$nextTick(() => this.bindSortable());
+    },
+
+    /* ---- RIR/RPE scheda-wide uniformity ----
+       Coaches pick RIR or RPE per exercise, but mixing both across one scheda
+       makes it unreadable. The first exercise with a real value sets the
+       plan's "established" metric; picking the other metric anywhere else
+       (Step 2 row, or an INTENSITY progression rule in Step 3) surfaces a
+       conflict banner (the existing global alConfirm dialog) offering to
+       unify (converting existing values) or to keep the mix as-is. Purely
+       client-side — nothing persisted server-side. */
+
+    /* First metric found with a real (non-null) value among plan exercises —
+       optionally ignoring one exercise (by local_id) so a row can compare
+       itself against "everyone else". Returns 'RPE' | 'RIR' | null. */
+    _establishedIntensityMetric(excludeLocalId) {
+      for (const day of (this.plan?.days || [])) {
+        for (const ex of (day.exercises || [])) {
+          if (ex.local_id === excludeLocalId) continue;
+          if (ex.rpe != null) return 'RPE';
+          if (ex.rir != null) return 'RIR';
+          for (const sd of (ex.set_details || [])) {
+            if (sd.rpe != null) return 'RPE';
+            if (sd.rir != null) return 'RIR';
+          }
+        }
+      }
+      return null;
+    },
+
+    _hasOtherIntensityValue(excludeLocalId, metric) {
+      const field = metric === 'RPE' ? 'rpe' : 'rir';
+      for (const day of (this.plan?.days || [])) {
+        for (const ex of (day.exercises || [])) {
+          if (ex.local_id === excludeLocalId) continue;
+          if (ex[field] != null) return true;
+          if ((ex.set_details || []).some(sd => sd[field] != null)) return true;
+        }
+      }
+      return false;
+    },
+
+    /* RPE and RIR aren't 1:1 convertible; RPE ≈ 10 − RIR is the standard
+       approximation (exact for RIR 0-5, clamped beyond). */
+    _convertRpeRir(value) {
+      if (value == null) return null;
+      const n = Math.round(Number(value));
+      if (Number.isNaN(n)) return null;
+      return Math.max(0, Math.min(10, 10 - n));
+    },
+
+    /* Ask the coach when `newMetric` conflicts with values already compiled
+       under the opposite metric elsewhere in the scheda. Resolves to 'unify'
+       or 'keep' — resolves to 'unify' immediately (no dialog) when there's
+       nothing to conflict with yet. Reuses the global alConfirm dialog so
+       the dropdown stays fully interactive either way. */
+    async _checkRpeRirConflict(newMetric, excludeLocalId) {
+      const opposite = newMetric === 'RPE' ? 'RIR' : 'RPE';
+      if (!this._hasOtherIntensityValue(excludeLocalId, opposite)) return 'unify';
+      const unify = await window.alConfirm({
+        variant: 'neutral',
+        icon: 'ph-arrows-merge',
+        title: `Uniformare la scheda su ${newMetric}?`,
+        subtitle: `Il resto della scheda usa ${opposite}. Puoi uniformare tutto su ${newMetric} — i valori ${opposite} già compilati verranno convertiti — oppure mantenere entrambi i metodi.`,
+        confirmLabel: 'Uniforma tutto',
+        cancelLabel: 'Mantieni entrambi',
+      });
+      return unify ? 'unify' : 'keep';
+    },
+
+    /* Converts every OTHER exercise (and its per-set overrides) compiled
+       under the opposite metric onto `metric`; exercises with no value stay
+       empty. `excludeLocalId` is the exercise that already made the choice. */
+    _applyUniformMetric(metric, excludeLocalId) {
+      const oppositeField = metric === 'RPE' ? 'rir' : 'rpe';
+      const targetField = metric === 'RPE' ? 'rpe' : 'rir';
+      for (const day of (this.plan?.days || [])) {
+        for (const ex of (day.exercises || [])) {
+          if (ex.local_id === excludeLocalId) continue;
+          if (ex[oppositeField] != null) {
+            ex[targetField] = this._convertRpeRir(ex[oppositeField]);
+            ex[oppositeField] = null;
+          }
+          ex._rpe_rir_type = metric;
+          for (const sd of (ex.set_details || [])) {
+            if (sd[oppositeField] != null) {
+              sd[targetField] = this._convertRpeRir(sd[oppositeField]);
+              sd[oppositeField] = null;
+            }
+          }
+        }
+      }
+      this.markDirty();
+    },
+
+    /* Per-exercise RPE/RIR dropdown (Step 2 row) — carries this exercise's
+       own value across (never copies another exercise's), then checks it
+       against the rest of the scheda. */
+    async onRpeRirTypeChange(ex) {
+      if (ex._rpe_rir_type === 'RPE') { ex.rpe = ex.rir; ex.rir = null; }
+      else { ex.rir = ex.rpe; ex.rpe = null; }
+      this.markDirty();
+      const action = await this._checkRpeRirConflict(ex._rpe_rir_type, ex.local_id);
+      if (action === 'unify') this._applyUniformMetric(ex._rpe_rir_type, ex.local_id);
     },
 
     async removeExercise(idx) {
@@ -1929,11 +2114,25 @@ document.addEventListener('alpine:init', () => {
     pickSubtype(subtype) {
       const def = (this.SUBTYPE_MAP[this.draftRule.family] || []).find(s => s.value === subtype);
       if (!def) return;
-      this.draftRule.subtype = subtype;
-      this.draftRule.target_metric = def.metric;
-      this.draftRule.application_mode = def.mode;
-      this.draftRule.parameters = this._defaultParamsFor(subtype);
-      this.paramChanged();
+      const applyIt = () => {
+        this.draftRule.subtype = subtype;
+        this.draftRule.target_metric = def.metric;
+        this.draftRule.application_mode = def.mode;
+        this.draftRule.parameters = this._defaultParamsFor(subtype);
+        this.paramChanged();
+      };
+      // Same scheda-wide uniformity rule as the Step 2 row dropdown: an
+      // INTENSITY rule built on RIR vs RPE should match what the rest of the
+      // scheda already uses.
+      if (subtype === 'INT_RPE' || subtype === 'INT_RIR') {
+        const newMetric = subtype === 'INT_RPE' ? 'RPE' : 'RIR';
+        this._checkRpeRirConflict(newMetric, null).then((action) => {
+          if (action === 'unify') this._applyUniformMetric(newMetric, null);
+          applyIt();
+        });
+        return;
+      }
+      applyIt();
     },
 
     _defaultParamsFor(subtype) {
@@ -2179,18 +2378,36 @@ document.addEventListener('alpine:init', () => {
       return (r !== null && r !== undefined && r !== '') ? 'rir' : 'rpe';
     },
 
-    // All 6 progression fields, always shown (no "+" expand): top row
-    // Serie/Reps/Carico, bottom row Recupero/RIR-or-RPE/TUT.
+    // 6 progression fields. Serie/Reps/Rec are `required`: the builder always
+    // gives them a default (3 / '10' / 90s), so they're never really empty —
+    // always render as real inputs. Carico/RPE-or-RIR/TUT are genuinely empty
+    // until a coach sets them; render as a ghost "+" until active (see
+    // isCellFieldActive) or armed (see armCellField).
     cellFields(ex) {
       const rr = this.rpeRirMetricFor(ex);
       return [
-        { metric: 'set_count',        label: 'Serie',   type: 'number', step: '1',    min: 1 },
-        { metric: 'rep_range',        label: 'Reps',    type: 'text' },
-        { metric: 'load_value',       label: 'Carico',  type: 'number', step: '0.25', min: 0 },
-        { metric: 'recovery_seconds', label: 'Rec (s)', type: 'number', step: '5',    min: 0 },
+        { metric: 'set_count',        label: 'Serie',   type: 'number', step: '1',    min: 1,   required: true },
+        { metric: 'rep_range',        label: 'Reps',    type: 'text',                          required: true },
+        { metric: 'load_value',       label: 'Carico',  type: 'number', step: '0.25', min: 0,   required: false },
+        { metric: 'recovery_seconds', label: 'Rec (s)', type: 'number', step: '5',    min: 0,   required: true },
         { metric: rr,                 label: rr === 'rir' ? 'RIR' : 'RPE', type: 'number',
-          step: rr === 'rir' ? '1' : '0.5', min: 0 },
-        { metric: 'tempo',            label: 'TUT',     type: 'text' },
+          step: rr === 'rir' ? '1' : '0.5', min: 0,                                  required: false },
+        { metric: 'tempo',            label: 'TUT',     type: 'text',                          required: false },
+      ];
+    },
+
+    // Same shape for the per-set expanded view's columns. Reps/Rec are the
+    // required ones there (Serie has no per-set equivalent — the row itself
+    // is one set); Carico/RPE-or-RIR/TUT stay optional.
+    setFields(ex) {
+      const rr = this.rpeRirMetricFor(ex);
+      return [
+        { field: 'reps',             label: 'Reps',   type: 'text',                          required: true },
+        { field: 'load_value',       label: 'Carico', type: 'number', step: '0.25', min: 0,   required: false },
+        { field: 'recovery_seconds', label: 'Rec',     type: 'number', step: '5',   min: 0,   required: true },
+        { field: rr,                 label: rr === 'rir' ? 'RIR' : 'RPE', type: 'number',
+          step: rr === 'rir' ? '1' : '0.5', min: 0,                                 required: false },
+        { field: 'tempo',            label: 'TUT',    type: 'text',                          required: false },
       ];
     },
 
@@ -2251,6 +2468,101 @@ document.addEventListener('alpine:init', () => {
       return 'Valore base dall\'esercizio';
     },
 
+    /* ---- Optional-field activation (ghost "+" chips) ----
+       An optional field (Carico/RPE-or-RIR/TUT, cell-level or per-set) only
+       renders as a real input once it has a real value ("active") or the
+       coach just clicked its ghost chip ("armed", waiting for input). Both
+       the cell grid and the per-set view share this pair of concepts. */
+    isCellFieldActive(ex, week, metric) {
+      return this.cellFieldRawValue(ex, week, metric) !== '';
+    },
+    shouldRenderCellInput(ex, week, field) {
+      return field.required || this.isCellFieldActive(ex, week, field.metric) || this.isCellFieldArmed(ex, week, field.metric);
+    },
+    _cellArmKey(ex, week, metric) { return `${ex.pk}-${week}-${metric}`; },
+    isCellFieldArmed(ex, week, metric) {
+      return !!this.progGrid.armed[this._cellArmKey(ex, week, metric)];
+    },
+    armCellField(ex, week, metric) {
+      const key = this._cellArmKey(ex, week, metric);
+      this.progGrid.armed = { ...this.progGrid.armed, [key]: true };
+      this.$nextTick(() => {
+        const el = document.querySelector(`[data-cell-field="${key}"] input`);
+        if (el) el.focus();
+      });
+    },
+    _unarmCellField(ex, week, metric) {
+      const key = this._cellArmKey(ex, week, metric);
+      if (!(key in this.progGrid.armed)) return;
+      const armed = { ...this.progGrid.armed };
+      delete armed[key];
+      this.progGrid.armed = armed;
+    },
+    // @blur on a cell field: an armed-but-still-empty field just reverts to
+    // its ghost (nothing to persist — it was never active); anything else
+    // (a real value, or clearing an already-active field) goes through the
+    // normal commit/clear path.
+    blurCellField(ex, week, metric, evt) {
+      const trimmed = evt.target.value == null ? '' : String(evt.target.value).trim();
+      if (trimmed === '' && !this.isCellFieldActive(ex, week, metric)) {
+        evt.target.classList.remove('is-focused');
+        this._unarmCellField(ex, week, metric);
+        return;
+      }
+      this.commitCellEdit(ex, week, metric, evt.target.value, evt);
+    },
+
+    isSetFieldActive(ex, week, setIdx, field) {
+      return this.setDetailValue(ex, week, setIdx, field) !== '';
+    },
+    shouldRenderSetInput(ex, week, setIdx, col) {
+      return col.required || this.isSetFieldActive(ex, week, setIdx, col.field) || this.isSetFieldArmed(ex, week, setIdx, col.field);
+    },
+    // A per-set column exists (header + a cell per row) once required, or any
+    // single set has a real/armed value for it — not "every set must have
+    // one", since ramping-style per-set use is often just a couple of sets.
+    isSetColumnVisible(ex, week, col) {
+      if (col.required) return true;
+      const n = this.progSetCount(ex, week);
+      for (let i = 0; i < n; i++) {
+        if (this.isSetFieldActive(ex, week, i, col.field) || this.isSetFieldArmed(ex, week, i, col.field)) return true;
+      }
+      return false;
+    },
+    setColumnsVisible(ex, week) {
+      return this.setFields(ex).filter(c => this.isSetColumnVisible(ex, week, c));
+    },
+    setColumnsHidden(ex, week) {
+      return this.setFields(ex).filter(c => !this.isSetColumnVisible(ex, week, c));
+    },
+    _setArmKey(ex, week, setIdx, field) { return `${ex.pk}-${week}-s${setIdx}-${field}`; },
+    isSetFieldArmed(ex, week, setIdx, field) {
+      return !!this.progGrid.armed[this._setArmKey(ex, week, setIdx, field)];
+    },
+    armSetField(ex, week, setIdx, field) {
+      const key = this._setArmKey(ex, week, setIdx, field);
+      this.progGrid.armed = { ...this.progGrid.armed, [key]: true };
+      this.$nextTick(() => {
+        const el = document.querySelector(`[data-set-field="${key}"] input`);
+        if (el) el.focus();
+      });
+    },
+    _unarmSetField(ex, week, setIdx, field) {
+      const key = this._setArmKey(ex, week, setIdx, field);
+      if (!(key in this.progGrid.armed)) return;
+      const armed = { ...this.progGrid.armed };
+      delete armed[key];
+      this.progGrid.armed = armed;
+    },
+    blurSetField(ex, week, setIdx, field, evt) {
+      const trimmed = evt.target.value == null ? '' : String(evt.target.value).trim();
+      if (trimmed === '' && !this.isSetFieldActive(ex, week, setIdx, field)) {
+        this._unarmSetField(ex, week, setIdx, field);
+        return;
+      }
+      this.setDetailEdit(ex, week, setIdx, field, evt.target.value);
+    },
+
     // Week 1 is edited directly on WorkoutExercise (bidirectional with the
     // builder), so Step 2's separate in-memory copy needs to be patched too —
     // it's a distinct array from progGrid.exercises, not a shared reference.
@@ -2266,6 +2578,7 @@ document.addEventListener('alpine:init', () => {
 
     async commitCellEdit(ex, week, metric, raw, evt) {
       if (evt && evt.target) evt.target.classList.remove('is-focused');
+      this._unarmCellField(ex, week, metric);
       const current = this._cellFor(ex, week, metric);
       const currentVal = current ? current.value : ex.base?.[metric];
       const trimmed = raw == null ? '' : String(raw).trim();
@@ -2342,6 +2655,7 @@ document.addEventListener('alpine:init', () => {
       return (v === null || v === undefined) ? '' : String(v);
     },
     async setDetailEdit(ex, week, setIdx, field, rawValue) {
+      this._unarmSetField(ex, week, setIdx, field);
       const count = this.progSetCount(ex, week);
       let rows = this.cellSetDetails(ex, week).map(r => ({ ...r }));
       while (rows.length < count) rows.push({});
@@ -2416,62 +2730,5 @@ document.addEventListener('alpine:init', () => {
       await this.loadProgGrid();
     },
 
-    /* ---- Add exercise at week ---- */
-    openAddExerciseForWeek(week) {
-      this.addExUi.open = true;
-      this.addExUi.week = week;
-      this.addExUi.dayIdx = this.progGrid.dayIdx;
-      this.addExUi.query = '';
-      this.addExUi.results = [];
-      window.panelLock && window.panelLock.acquire();
-      this.searchAddExercises();
-    },
-
-    closeAddExerciseAtWeek() {
-      if (this.addExUi.open) window.panelLock && window.panelLock.release();
-      this.addExUi.open = false;
-    },
-
-    async searchAddExercises() {
-      this.addExUi.loading = true;
-      const params = new URLSearchParams();
-      if (this.addExUi.query) params.set('q', this.addExUi.query);
-      try {
-        const r = await fetch(`${this.urls.search_exercises}?${params.toString()}`);
-        this.addExUi.results = (await r.json()).slice(0, 20);
-      } catch (_) {
-        this.addExUi.results = [];
-      } finally {
-        this.addExUi.loading = false;
-      }
-    },
-
-    async confirmAddExerciseAtWeek(opt) {
-      const day = this._currentDay();
-      if (!day || !day.pk) {
-        this._showToast('Salva la bozza prima di aggiungere esercizi.', 'warn');
-        return;
-      }
-      try {
-        const r = await fetch(`/api/allenamenti/${this.plan.id}/progression/add-exercise/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
-          body: JSON.stringify({
-            workout_day_id: day.pk,
-            exercise_id: opt.id,
-            starts_at_week: this.addExUi.week,
-          }),
-        });
-        if (!r.ok) {
-          const d = await r.json().catch(() => ({}));
-          this._showToast(d.error || 'Errore aggiunta', 'error');
-          return;
-        }
-        this.closeAddExerciseAtWeek();
-        await this.loadProgGrid();
-      } catch (_) {
-        this._showToast('Errore di rete', 'error');
-      }
-    },
   }));
 });

@@ -12,7 +12,7 @@ suitable for both web (Alpine.js) and future mobile (Swift / Flutter) clients.
 from __future__ import annotations
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
@@ -62,6 +62,9 @@ def _serialize_exercise_full(ex):
         'name': ex.name,
         'description': ex.description or '',
         'cover_image': ex.cover_image.url if ex.cover_image else '',
+        'demo_gif': ex.demo_gif.url if ex.demo_gif else '',
+        'instruction_steps': ex.instruction_steps or [],
+        'muscle_detail': ex.muscle_detail or '',
         'wger_image_url': ex.wger_image_url or '',
         'license_title': ex.license_title or '',
         'license_author': ex.license_author or '',
@@ -358,6 +361,35 @@ def api_custom_exercise_detail(request, exercise_id):
         return JsonResponse({'status': 'ok'})
 
     return JsonResponse({'error': 'method not allowed'}, status=405)
+
+
+def api_exercise_detail(request, exercise_id):
+    """Read-only full detail (description, gif, instructions) for any exercise
+    a coach or an athlete can see. Backs the library "dettaglio" panel in the
+    builder, the read-only plan/session views, and the athlete's own scheda
+    detail — coach and client sessions (web or mobile bearer token) both
+    resolve through get_session_user, so one endpoint serves every surface."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+
+    from .session_utils import get_session_client, get_session_coach
+
+    base_qs = Exercise.objects.select_related('category').prefetch_related(
+        'equipment', 'primary_muscles', 'secondary_muscles',
+    )
+
+    coach = get_session_coach(request)
+    if coach:
+        ex = get_object_or_404(base_qs, Q(is_custom=False) | Q(created_by=coach), id=exercise_id)
+        return JsonResponse(_serialize_exercise_full(ex))
+
+    client = get_session_client(request)
+    if client:
+        from .views_session import _client_exercise_catalog
+        ex = get_object_or_404(base_qs & _client_exercise_catalog(client), id=exercise_id)
+        return JsonResponse(_serialize_exercise_full(ex))
+
+    return JsonResponse({'error': 'unauthorized'}, status=401)
 
 
 # ---------------------------------------------------------------------------

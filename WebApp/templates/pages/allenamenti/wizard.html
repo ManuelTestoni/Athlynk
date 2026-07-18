@@ -15,6 +15,7 @@
     list: "{% url 'allenamenti_list' %}",
     detail: "{% if plan %}{% url 'allenamenti_plan_detail' plan.id %}{% else %}{% url 'allenamenti_list' %}{% endif %}",
     search_exercises: "{% url 'api_search_exercises' %}",
+    exercise_detail: "/api/exercises/__ID__/",
     search_clients: "{% url 'api_search_clients' %}",
     filters: "{% url 'api_exercise_filters' %}",
     muscle_groups: "{% url 'api_muscle_groups' %}",
@@ -797,26 +798,122 @@
   .prg-field.is-linked-base .prg-field-val { color: var(--al-aegean); }
   .prg-field.is-linked-base .prg-field-lab i { font-size: 8px; margin-left: 2px; opacity: .7; }
 
-  /* Per-set differentiation panel inside a progression cell */
+  /* Keeps the ghost/real-field swap from ever changing the grid's column
+     count or row height — the slot is always exactly one grid cell. */
+  .prg-field-slot { display: contents; }
+
+  /* Optional field never compiled by the coach: a quiet "+" chip in place of
+     the real input, same footprint as .prg-field so the row stays aligned
+     across every week column. Click arms it into a real, empty, focused
+     input (see armCellField). */
+  .prg-field-ghost {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    background: transparent;
+    border: 1px dashed rgba(75,93,117,0.28);
+    border-radius: 10px;
+    padding: 7px 9px;
+    min-width: 0; min-height: 40px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--al-ink-faint);
+    cursor: pointer;
+    transition: border-color 140ms var(--al-ease), color 140ms var(--al-ease),
+                background-color 140ms var(--al-ease), transform 140ms var(--al-ease);
+  }
+  .prg-field-ghost i { font-size: 12px; }
+  .prg-field-ghost:hover {
+    border-color: var(--al-bronze); border-style: solid;
+    color: var(--al-bronze);
+    background: rgba(30,58,95,0.03);
+    transform: translateY(-1px);
+  }
+
+  /* Quiet "×" to drop an optional field back to a ghost — only ever shown
+     next to fields that aren't required, and only on hover/focus so the
+     compact cell doesn't stay visually busy at rest. */
+  .prg-field-clear {
+    position: absolute; top: 4px; right: 4px;
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px;
+    background: var(--al-parchment); border: 1px solid rgba(75,93,117,0.18); border-radius: 999px;
+    color: var(--al-ink-faint); font-size: 9px;
+    cursor: pointer;
+    opacity: 0; transform: scale(0.85);
+    transition: opacity 120ms var(--al-ease), transform 120ms var(--al-ease), color 120ms var(--al-ease);
+  }
+  .prg-field-clear:hover { color: var(--al-danger, #b3261e); border-color: currentColor; }
+  .prg-field:hover .prg-field-clear,
+  .prg-field:focus-within .prg-field-clear { opacity: 1; transform: scale(1); }
+  .prg-field { position: relative; }
+
+  /* Per-set differentiation panel inside a progression cell — redesigned for
+     legibility: a persistent column-header row (labels used to exist only as
+     placeholder text that vanished on typing) and a dynamic column count
+     (--prg-setcols) so a metric nobody ever set per-set doesn't reserve a
+     column at all, same "only what's compiled" principle as .prg-field. */
   .prg-setdetails {
-    margin-top: 8px; padding-top: 8px;
+    margin-top: 10px; padding-top: 10px;
     border-top: 1px dashed rgba(75,93,117,0.18);
-    display: flex; flex-direction: column; gap: 5px;
+    display: flex; flex-direction: column; gap: 6px;
   }
   .prg-setdetails-head {
     font-size: 8.5px; font-weight: 700; letter-spacing: 0.10em;
     text-transform: uppercase; color: var(--al-ink-mute);
   }
-  .prg-setrow { display: grid; grid-template-columns: 16px repeat(5, minmax(0, 1fr)); gap: 4px; align-items: center; }
-  .prg-setrow-n { font-size: 10px; font-weight: 700; color: var(--al-ink-mute); text-align: center; }
+  .prg-setrow {
+    display: grid;
+    grid-template-columns: 20px repeat(var(--prg-setcols, 1), minmax(0, 1fr));
+    gap: 6px; align-items: center;
+    padding: 3px 4px; border-radius: 8px;
+  }
+  .prg-setrow:not(.prg-setrow-head).is-even { background: rgba(75,93,117,0.045); }
+  .prg-setrow-head {
+    padding-bottom: 5px; margin-bottom: 1px;
+    border-bottom: 1px solid rgba(75,93,117,0.14);
+  }
+  .prg-setcol-lab {
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--al-ink-mute);
+    text-align: center;
+  }
+  /* A metric never used per-set: one quiet "+" chip in the header row itself
+     (not repeated per set) — clicking arms the first set's cell for it. */
+  .prg-setcol-ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+    background: transparent; border: 1px dashed rgba(75,93,117,0.3); border-radius: 999px;
+    padding: 2px 8px; margin-right: 4px;
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--al-ink-faint); cursor: pointer;
+    transition: border-color 120ms var(--al-ease), color 120ms var(--al-ease);
+  }
+  .prg-setcol-ghost i { font-size: 9px; }
+  .prg-setcol-ghost:hover { border-color: var(--al-bronze); border-style: solid; color: var(--al-bronze); }
+
+  .prg-setrow-n {
+    display: flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 999px;
+    background: var(--al-stone); color: var(--al-ink-mute);
+    font-size: 10px; font-weight: 700;
+  }
+  .prg-setcell { display: contents; }
   .prg-setrow-in {
-    font-size: 11.5px; font-weight: 600; color: var(--al-ink);
+    font-size: 13px; font-weight: 600; color: var(--al-ink);
     font-variant-numeric: tabular-nums; width: 100%; min-width: 0;
-    background: #fff; border: 1px solid rgba(75,93,117,0.14);
-    border-radius: 7px; padding: 4px 5px; outline: 0;
+    background: #fff; border: 1px solid rgba(75,93,117,0.16);
+    border-radius: 8px; padding: 6px 7px; outline: 0;
+    transition: border-color 120ms var(--al-ease), box-shadow 120ms var(--al-ease);
   }
   .prg-setrow-in:focus { border-color: var(--al-ink); box-shadow: 0 0 0 2px rgba(28,25,23,0.08); }
   .prg-setrow-in[readonly] { background: rgba(75,93,117,0.04); color: var(--al-ink-soft); border-style: dashed; }
+  /* Column exists (someone set it for another set) but this particular set
+     doesn't have a value yet — quiet inline "+", not a full input. */
+  .prg-setrow-ghost {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; min-height: 26px;
+    background: transparent; border: 1px dashed rgba(75,93,117,0.22); border-radius: 8px;
+    color: var(--al-ink-faint); font-size: 10px; cursor: pointer;
+    transition: border-color 120ms var(--al-ease), color 120ms var(--al-ease);
+  }
+  .prg-setrow-ghost:hover { border-color: var(--al-bronze); border-style: solid; color: var(--al-bronze); }
   .prg-setdetails-empty { font-size: 10.5px; color: var(--al-ink-mute); font-style: italic; }
 
   .prg-cell-inactive {
@@ -1295,103 +1392,9 @@
 
   <!-- ==================== STEP 2 ==================== -->
   <section x-show="step === 2" x-transition:enter="al-fade-enter" x-transition:enter-start="al-fade-enter-start" x-transition:enter-end="al-fade-enter-end" class="px-2 sm:px-4 py-4">
-    <!-- Mobile tab switcher -->
-    <div class="md:hidden flex gap-2 mb-3">
-      <button @click="mobileTab='lib'" type="button" class="flex-1 px-3 py-2 rounded"
-              :style="mobileTab==='lib' ? 'background: var(--al-ink); color: var(--al-parchment);' : 'background: var(--al-stone);'">
-        <i class="ph ph-magnifying-glass"></i> Libreria
-      </button>
-      <button @click="mobileTab='ed'" type="button" class="flex-1 px-3 py-2 rounded"
-              :style="mobileTab==='ed' ? 'background: var(--al-ink); color: var(--al-parchment);' : 'background: var(--al-stone);'">
-        <i class="ph ph-list-bullets"></i> Editor
-      </button>
-    </div>
-
-    <div class="flex gap-4 min-w-0 wb-shell-row" style="min-height: calc(100vh - 180px);">
-      <!-- LEFT: Library (Athlynk redesign) -->
-      <aside class="md:basis-1/4 md:max-w-xs w-full min-w-0 md:self-start"
-             :class="{'hidden md:block': mobileTab !== 'lib'}">
-        <div class="wb-libpanel">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="al-h-4 m-0"><i class="ph ph-books"></i> Libreria</h3>
-            <button type="button"
-                    class="al-btn al-btn-bronze al-btn-sm wb-cta-custom"
-                    @click="openCustomExerciseDrawer()">
-              <i class="ph ph-question"></i> Non trovi il tuo esercizio?
-            </button>
-          </div>
-
-          <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
-                 placeholder="Cerca esercizio..." class="al-input">
-
-          <!-- Dropdown filters (category / muscle / equipment) -->
-          <div class="grid grid-cols-2 gap-2">
-            <select class="al-select wb-filter-select"
-                    @change="library.category_id = $event.target.value; loadLibrary()">
-              <option value="" :selected="!library.category_id">Categoria: tutte</option>
-              <template x-for="c in ((filters && filters.categories) || [])" :key="c.id">
-                <option :value="c.id" :selected="library.category_id == c.id" x-text="c.name_it"></option>
-              </template>
-            </select>
-            <select class="al-select wb-filter-select"
-                    @change="library.muscle_slug = $event.target.value; loadLibrary()">
-              <option value="" :selected="!library.muscle_slug">Muscolo: tutti</option>
-              <template x-for="m in (muscleGroups || [])" :key="m.slug">
-                <option :value="m.slug" :selected="library.muscle_slug === m.slug" x-text="m.name"></option>
-              </template>
-            </select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <select class="al-select wb-filter-select"
-                    @change="library.equipment_id = $event.target.value; loadLibrary()">
-              <option value="" :selected="!library.equipment_id">Attrezzo: tutti</option>
-              <template x-for="e in ((filters && filters.equipment) || [])" :key="e.id">
-                <option :value="e.id" :selected="library.equipment_id == e.id" x-text="e.name_it"></option>
-              </template>
-            </select>
-            <label class="al-small flex items-center gap-2" title="Mostra solo esercizi personalizzati">
-              <input type="checkbox" x-model="library.custom_only" @change="loadLibrary()">
-              <span><i class="ph ph-bookmark-simple"></i> Personalizzati</span>
-            </label>
-          </div>
-
-          <div class="wb-lib-results">
-            <template x-if="library.loading">
-              <p class="wb-lib-empty">Caricamento…</p>
-            </template>
-            <template x-if="!library.loading && library.items.length === 0">
-              <div class="wb-lib-empty">
-                <p>Nessun esercizio trovato.</p>
-                <button type="button" class="al-btn al-btn-bronze al-btn-sm mt-3" @click="openCustomExerciseDrawer()">
-                  <i class="ph ph-question"></i> Non trovi il tuo esercizio?
-                </button>
-              </div>
-            </template>
-            <template x-for="ex in library.items" :key="ex.id">
-              <div class="wb-lib-item"
-                   :class="{flash: flashIds.includes(ex.id)}"
-                   @click="addExerciseToActiveDay(ex)">
-                <p class="wb-lib-item-name" x-text="ex.name"></p>
-                <div class="wb-lib-item-meta">
-                  <template x-for="m in (ex.primary_muscles || [])" :key="m.slug">
-                    <span class="mg" x-text="m.name"></span>
-                  </template>
-                  <template x-for="eq in (ex.equipment || [])" :key="eq.id">
-                    <span class="al-tag" style="background: var(--al-stone); font-size: 10px;" x-text="eq.name_it"></span>
-                  </template>
-                </div>
-                <template x-if="ex.is_custom">
-                  <span class="wb-lib-item-custom-badge">Tuo</span>
-                </template>
-              </div>
-            </template>
-          </div>
-        </div>
-      </aside>
-
-      <!-- RIGHT: Editor (75%) -->
-      <main class="flex-1 min-w-0" :class="{'hidden md:block': mobileTab !== 'ed'}">
+    <div class="w-full min-w-0" style="min-height: calc(100vh - 180px);">
+      <!-- Editor (full width — library lives in the drawer, opened from the day toolbar) -->
+      <main class="w-full min-w-0">
         <!-- Editor header: plan recap -->
         <div class="al-card mb-3" style="padding: .75rem 1rem;">
           <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -1436,6 +1439,9 @@
               <div class="flex items-center gap-2">
                 <button x-show="selectedExIds.length >= 2" @click="createSuperset()" type="button" class="al-btn al-btn-bronze al-btn-sm">
                   <i class="ph ph-link"></i> Crea Superset (<span x-text="selectedExIds.length"></span>)
+                </button>
+                <button type="button" class="al-btn al-btn-bronze al-btn-sm" @click="openLibraryPanel()">
+                  <i class="ph ph-plus"></i> Aggiungi esercizio
                 </button>
               </div>
             </div>
@@ -1490,67 +1496,58 @@
                     </div>
                   </div>
 
-                  <!-- PARAMS REPETITION: new 2-row + side-note layout -->
+                  <!-- PARAMS REPETITION: proportional single-row layout — narrow
+                       fields stay compact, Note grows, wraps only when tight. -->
                   <template x-if="(ex.execution_type || 'REPETITION') === 'REPETITION'">
-                    <div style="display:flex; gap:6px; align-items:stretch;">
-                      <!-- Left: 2 stacked rows -->
-                      <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
-                        <!-- Row 1: Serie, Reps, Carico, Unità (compact) -->
-                        <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:4px;">
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">Serie</label>
-                            <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="syncSetDetails(ex); markDirty()">
-                          </div>
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">Reps</label>
-                            <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="8-10">
-                          </div>
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">Carico</label>
-                            <input type="number" step="0.5" class="wb-mini-input" x-model.number="ex.load_value" @input="markDirty()">
-                          </div>
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">Unità</label>
-                            <select class="wb-mini-input" x-model="ex.load_unit" @change="markDirty()">
-                              <option value="KG">kg</option>
-                              <option value="PERCENT_1RM">%1RM</option>
-                              <option value="BODYWEIGHT">BW</option>
-                            </select>
-                          </div>
-                        </div>
-                        <!-- Row 2: Recupero, RPE/RIR, TUT -->
-                        <div style="display:grid; grid-template-columns: 1fr 1.4fr 1fr; gap:4px;">
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">Recupero (s)</label>
-                            <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
-                          </div>
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label" x-text="ex._rpe_rir_type"></label>
-                            <div style="display:flex; gap:2px;">
-                              <select class="wb-mini-input" style="flex:0 0 auto; width:48px; padding-left:2px; padding-right:2px;"
-                                      x-model="ex._rpe_rir_type"
-                                      @change="if(ex._rpe_rir_type==='RPE'){ex.rpe=ex.rir;ex.rir=null;}else{ex.rir=ex.rpe;ex.rpe=null;} markDirty()">
-                                <option value="RPE">RPE</option>
-                                <option value="RIR">RIR</option>
-                              </select>
-                              <input type="number" min="0" max="10" class="wb-mini-input" style="flex:1;"
-                                     :value="ex._rpe_rir_type==='RPE' ? ex.rpe : ex.rir"
-                                     @input="ex._rpe_rir_type==='RPE' ? (ex.rpe=+$event.target.value||null) : (ex.rir=+$event.target.value||null); markDirty()"
-                                     placeholder="—">
-                            </div>
-                          </div>
-                          <div class="wb-mini-field">
-                            <label class="wb-mini-field-label">TUT</label>
-                            <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="3-1-1">
-                          </div>
+                    <div class="wb-row-fields">
+                      <div class="wb-mini-field wb-mini-field--xs">
+                        <label class="wb-mini-field-label">Serie</label>
+                        <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="syncSetDetails(ex); markDirty()">
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--sm">
+                        <label class="wb-mini-field-label">Reps</label>
+                        <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="8-10">
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--sm">
+                        <label class="wb-mini-field-label">Carico</label>
+                        <input type="number" step="0.5" class="wb-mini-input" x-model.number="ex.load_value" @input="markDirty()">
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--xs">
+                        <label class="wb-mini-field-label">Unità</label>
+                        <select class="wb-mini-input" x-model="ex.load_unit" @change="markDirty()">
+                          <option value="KG">kg</option>
+                          <option value="PERCENT_1RM">%1RM</option>
+                          <option value="BODYWEIGHT">BW</option>
+                        </select>
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--sm">
+                        <label class="wb-mini-field-label">Recupero (s)</label>
+                        <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--md">
+                        <label class="wb-mini-field-label" x-text="ex._rpe_rir_type"></label>
+                        <div style="display:flex; gap:2px;">
+                          <select class="wb-mini-input" style="flex:0 0 auto; width:48px; padding-left:2px; padding-right:2px;"
+                                  x-model="ex._rpe_rir_type"
+                                  @change="onRpeRirTypeChange(ex)">
+                            <option value="RPE">RPE</option>
+                            <option value="RIR">RIR</option>
+                          </select>
+                          <input type="number" min="0" max="10" class="wb-mini-input" style="flex:1;"
+                                 :value="ex._rpe_rir_type==='RPE' ? ex.rpe : ex.rir"
+                                 @input="ex._rpe_rir_type==='RPE' ? (ex.rpe=+$event.target.value||null) : (ex.rir=+$event.target.value||null); markDirty()"
+                                 placeholder="—">
                         </div>
                       </div>
-                      <!-- Right: Note sempre visibili -->
-                      <div class="wb-mini-field" style="width:130px; display:flex; flex-direction:column;">
+                      <div class="wb-mini-field wb-mini-field--sm">
+                        <label class="wb-mini-field-label">TUT</label>
+                        <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="3-1-1">
+                      </div>
+                      <div class="wb-mini-field wb-mini-field--wide">
                         <label class="wb-mini-field-label">Note</label>
                         <textarea x-model="ex.coach_notes" @input="ex.notes=$event.target.value; markDirty()"
                                   maxlength="500" placeholder="Es. scapole addotte…"
-                                  class="wb-mini-input" style="flex:1; resize:none; min-height:58px; padding:4px 6px; font-size:11px;"></textarea>
+                                  class="wb-mini-input" style="padding:4px 6px; font-size:11px;"></textarea>
                       </div>
                     </div>
                   </template>
@@ -1590,32 +1587,32 @@
                   </template>
 
                   <!-- PARAMS RAMPING -->
-                  <div class="wb-row-params" x-show="ex.execution_type === 'RAMPING'">
-                    <div class="wb-mini-field">
+                  <div class="wb-row-fields" x-show="ex.execution_type === 'RAMPING'">
+                    <div class="wb-mini-field wb-mini-field--xs">
                       <label class="wb-mini-field-label">Set</label>
                       <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
                     </div>
-                    <div class="wb-mini-field" style="grid-column: span 2;">
+                    <div class="wb-mini-field wb-mini-field--wide">
                       <label class="wb-mini-field-label">Sequenza carico</label>
                       <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="60·70·80·90·100 %">
                     </div>
-                    <div class="wb-mini-field">
+                    <div class="wb-mini-field wb-mini-field--sm">
                       <label class="wb-mini-field-label">Recupero (s)</label>
                       <input type="number" min="0" class="wb-mini-input" x-model.number="ex.recovery_seconds" @input="markDirty()">
                     </div>
                   </div>
 
                   <!-- PARAMS TEST -->
-                  <div class="wb-row-params" x-show="ex.execution_type === 'TEST'">
-                    <div class="wb-mini-field">
+                  <div class="wb-row-fields" x-show="ex.execution_type === 'TEST'">
+                    <div class="wb-mini-field wb-mini-field--sm">
                       <label class="wb-mini-field-label">Obiettivo</label>
                       <input type="text" class="wb-mini-input" x-model="ex.reps" @input="markDirty()" placeholder="1RM">
                     </div>
-                    <div class="wb-mini-field">
+                    <div class="wb-mini-field wb-mini-field--xs">
                       <label class="wb-mini-field-label">Tentativi</label>
                       <input type="number" min="1" class="wb-mini-input" x-model.number="ex.sets" @input="markDirty()">
                     </div>
-                    <div class="wb-mini-field" style="grid-column: span 2;">
+                    <div class="wb-mini-field wb-mini-field--wide">
                       <label class="wb-mini-field-label">Recupero</label>
                       <input type="text" class="wb-mini-input" x-model="ex.tempo" @input="markDirty()" placeholder="Pieno">
                     </div>
@@ -1623,11 +1620,11 @@
                 </div>
               </template>
               <template x-if="activeDay().exercises.length === 0">
-                <div class="text-center py-8 border-2 border-dashed rounded" style="border-color: var(--al-rule-faint);">
+                <button type="button" class="w-full text-center py-8 border-2 border-dashed rounded" style="border-color: var(--al-rule-faint); background: none; cursor: pointer;" @click="openLibraryPanel()">
                   <p class="al-small" style="color: var(--al-ink-faint);">
-                    <i class="ph ph-arrow-left"></i> Clicca un esercizio dalla libreria oppure
+                    <i class="ph ph-plus"></i> Aggiungi il primo esercizio dalla libreria
                   </p>
-                </div>
+                </button>
               </template>
             </div>
 
@@ -1655,6 +1652,177 @@
 
   <!-- ==================== EXERCISE STATS DRAWER (Step 3 only) ==================== -->
   {% include 'pages/allenamenti/_exercise_stats_drawer.html' %}
+
+  <!-- ==================== EXERCISE LIBRARY DRAWER (Step 2) ==================== -->
+  <template x-teleport="body">
+    <div x-show="library.panelOpen" x-cloak @keydown.escape.window="closeLibraryPanel()">
+      <div class="wbp-backdrop"
+           x-show="library.panelOpen" x-transition.opacity.duration.200ms
+           @click="closeLibraryPanel()"></div>
+      <div class="wbp-panel"
+           x-show="library.panelOpen"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full">
+
+        <!-- BROWSE MODE -->
+        <template x-if="!library.detail.open">
+          <div class="wbp-mode">
+            <div class="wbp-head">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="al-eyebrow" style="color: var(--al-bronze);">Libreria</p>
+                  <h2 class="al-h-3 mt-0.5">Aggiungi esercizio</h2>
+                  <p x-show="library.context === 'progression'" class="al-small mt-0.5" style="color: var(--al-ink-mute);">
+                    Attivo da settimana <span x-text="library.progressionWeek"></span> in poi
+                  </p>
+                </div>
+                <button type="button" class="al-btn al-btn-icon al-btn-ghost" @click="closeLibraryPanel()" title="Chiudi">
+                  <i class="ph ph-x"></i>
+                </button>
+              </div>
+
+              <div class="al-search mt-4">
+                <i class="ph ph-magnifying-glass"></i>
+                <input type="text" x-model="library.query" @input.debounce.300ms="loadLibrary()"
+                       placeholder="Cerca esercizio…" class="al-input">
+                <span x-show="library.loading" class="al-tag">…</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-3">
+                <select class="al-select wb-filter-select"
+                        @change="library.category_id = $event.target.value; loadLibrary()">
+                  <option value="" :selected="!library.category_id">Categoria: tutte</option>
+                  <template x-for="c in ((filters && filters.categories) || [])" :key="c.id">
+                    <option :value="c.id" :selected="library.category_id == c.id" x-text="c.name_it"></option>
+                  </template>
+                </select>
+                <select class="al-select wb-filter-select"
+                        @change="library.muscle_slug = $event.target.value; loadLibrary()">
+                  <option value="" :selected="!library.muscle_slug">Muscolo: tutti</option>
+                  <template x-for="m in (muscleGroups || [])" :key="m.slug">
+                    <option :value="m.slug" :selected="library.muscle_slug === m.slug" x-text="m.name"></option>
+                  </template>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <select class="al-select wb-filter-select"
+                        @change="library.equipment_id = $event.target.value; loadLibrary()">
+                  <option value="" :selected="!library.equipment_id">Attrezzo: tutti</option>
+                  <template x-for="e in ((filters && filters.equipment) || [])" :key="e.id">
+                    <option :value="e.id" :selected="library.equipment_id == e.id" x-text="e.name_it"></option>
+                  </template>
+                </select>
+                <label class="al-small flex items-center gap-2" title="Mostra solo esercizi personalizzati">
+                  <input type="checkbox" x-model="library.custom_only" @change="loadLibrary()">
+                  <span><i class="ph ph-bookmark-simple"></i> Personalizzati</span>
+                </label>
+              </div>
+
+              <button type="button" class="al-btn al-btn-ghost al-btn-sm mt-3 w-full" @click="openCustomExerciseDrawer()">
+                <i class="ph ph-question"></i> Non trovi il tuo esercizio?
+              </button>
+            </div>
+
+            <div class="wbp-body">
+              <template x-if="library.loading">
+                <p class="al-small text-center mt-6" style="color: var(--al-ink-mute);">Caricamento…</p>
+              </template>
+              <template x-if="!library.loading && library.items.length === 0">
+                <p class="al-small text-center mt-6" style="color: var(--al-ink-mute);">Nessun esercizio trovato.</p>
+              </template>
+
+              <template x-for="ex in library.items" :key="ex.id">
+                <div class="wbp-row" :class="{ 'is-added': flashIds.includes(ex.id) }">
+                  <button type="button" class="wbp-row-thumb" @click.stop="openExerciseDetail(ex)" title="Dettaglio esercizio">
+                    <img x-show="ex.cover_image" :src="ex.cover_image" alt="">
+                    <i class="ph ph-barbell" x-show="!ex.cover_image"></i>
+                  </button>
+                  <button type="button" class="wbp-row-main" @click="addExerciseFromLibrary(ex)">
+                    <p class="wbp-row-name" x-text="ex.name"></p>
+                    <div class="wbp-row-meta">
+                      <template x-for="m in (ex.primary_muscles || [])" :key="m.slug">
+                        <span class="mg" x-text="m.name"></span>
+                      </template>
+                      <template x-for="eq in (ex.equipment || [])" :key="eq.id">
+                        <span class="al-tag" style="background: var(--al-stone); font-size: 10px;" x-text="eq.name_it"></span>
+                      </template>
+                      <span x-show="ex.is_custom" class="wb-lib-item-custom-badge">Tuo</span>
+                    </div>
+                  </button>
+                  <button type="button" class="wbp-row-info" @click.stop="openExerciseDetail(ex)" title="Dettaglio esercizio">
+                    <i class="ph ph-info"></i>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- DETAIL MODE -->
+        <template x-if="library.detail.open">
+          <div class="wbp-mode">
+            <div class="wbp-head">
+              <button type="button" class="al-link al-link-quiet flex items-center gap-1" @click="closeExerciseDetail()">
+                <i class="ph ph-caret-left text-xs"></i> Libreria
+              </button>
+            </div>
+            <div class="wbp-body">
+              <template x-if="library.detail.loading">
+                <p class="al-small text-center mt-6" style="color: var(--al-ink-mute);">Caricamento…</p>
+              </template>
+              <template x-if="!library.detail.loading && library.detail.ex">
+                <div>
+                  <div class="wbp-detail-media">
+                    <img :src="library.detail.ex.demo_gif || library.detail.ex.cover_image"
+                         x-show="library.detail.ex.demo_gif || library.detail.ex.cover_image" alt="">
+                    <i class="ph ph-barbell" x-show="!library.detail.ex.demo_gif && !library.detail.ex.cover_image"></i>
+                  </div>
+                  <h3 class="al-h-3 mt-3" x-text="library.detail.ex.name"></h3>
+                  <div class="flex flex-wrap gap-1.5 mt-2">
+                    <span x-show="library.detail.ex.category" class="al-tag" x-text="library.detail.ex.category?.name"></span>
+                    <template x-for="m in (library.detail.ex.primary_muscles || [])" :key="'p' + m.id">
+                      <span class="al-tag" x-text="m.name"></span>
+                    </template>
+                    <template x-for="m in (library.detail.ex.secondary_muscles || [])" :key="'s' + m.id">
+                      <span class="al-tag" style="opacity:.7;" x-text="m.name"></span>
+                    </template>
+                    <template x-for="eq in (library.detail.ex.equipment || [])" :key="eq.id">
+                      <span class="al-tag" style="background: var(--al-stone);" x-text="eq.name"></span>
+                    </template>
+                  </div>
+                  <p class="al-small mt-3" x-show="library.detail.ex.description"
+                     x-text="library.detail.ex.description" style="color: var(--al-ink-mute);"></p>
+                  <template x-if="(library.detail.ex.instruction_steps || []).length">
+                    <ol class="wbp-detail-steps mt-3">
+                      <template x-for="(step, i) in library.detail.ex.instruction_steps" :key="i">
+                        <li x-text="step"></li>
+                      </template>
+                    </ol>
+                  </template>
+                </div>
+              </template>
+              <template x-if="!library.detail.loading && !library.detail.ex">
+                <p class="al-small text-center mt-6" style="color: var(--al-ink-mute);">Dettaglio non disponibile.</p>
+              </template>
+            </div>
+            <div class="wbp-foot">
+              <button type="button" class="al-btn al-btn-bronze w-full" :disabled="!library.detail.ex" @click="addExerciseFromDetail()">
+                <i class="ph ph-plus"></i>
+                <template x-if="library.context === 'progression'">
+                  <span>Aggiungi da settimana <span x-text="library.progressionWeek"></span></span>
+                </template>
+                <template x-if="library.context !== 'progression'">
+                  <span>Aggiungi a <span x-text="activeDay() ? activeDay().name : 'giorno'"></span></span>
+                </template>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </template>
 
   <!-- ==================== CUSTOM EXERCISE DRAWER (used inside Step 2) ==================== -->
   <div class="wb-drawer-backdrop" :class="{'is-open': customExerciseOpen}" @click="closeCustomExerciseDrawer()"></div>
@@ -1880,23 +2048,41 @@
 
                 <div class="prg-cell-fields">
                   <template x-for="field in cellFields(ex)" :key="field.metric + '-' + (ex.pk || ex.local_id) + '-' + w">
-                    <label class="prg-field"
-                           :class="[cellFieldClass(ex, w, field.metric), w === 1 ? 'is-linked-base' : '']"
-                           :title="w === 1 ? 'Modifica qui aggiorna anche lo Step 2 (Builder)' : cellFieldHint(ex, w, field.metric)">
-                      <span class="prg-field-lab">
-                        <span x-text="field.label"></span>
-                        <i class="ph ph-link" x-show="w === 1"></i>
-                      </span>
-                      <input class="prg-field-val"
-                             :type="field.type"
-                             :step="field.step || null"
-                             :min="field.min ?? null"
-                             :placeholder="cellFieldPlaceholder(ex, w, field.metric)"
-                             :value="cellFieldRawValue(ex, w, field.metric)"
-                             @focus="$event.target.classList.add('is-focused')"
-                             @blur="commitCellEdit(ex, w, field.metric, $event.target.value, $event)"
-                             @keydown.enter.prevent="$event.target.blur()">
-                    </label>
+                    <div class="prg-field-slot">
+                      <template x-if="shouldRenderCellInput(ex, w, field)">
+                        <label class="prg-field"
+                               :class="[cellFieldClass(ex, w, field.metric), w === 1 ? 'is-linked-base' : '']"
+                               :title="w === 1 ? 'Modifica qui aggiorna anche lo Step 2 (Builder)' : cellFieldHint(ex, w, field.metric)"
+                               :data-cell-field="ex.pk + '-' + w + '-' + field.metric">
+                          <span class="prg-field-lab">
+                            <span x-text="field.label"></span>
+                            <i class="ph ph-link" x-show="w === 1"></i>
+                          </span>
+                          <input class="prg-field-val"
+                                 :type="field.type"
+                                 :step="field.step || null"
+                                 :min="field.min ?? null"
+                                 :placeholder="cellFieldPlaceholder(ex, w, field.metric)"
+                                 :value="cellFieldRawValue(ex, w, field.metric)"
+                                 @focus="$event.target.classList.add('is-focused')"
+                                 @blur="blurCellField(ex, w, field.metric, $event)"
+                                 @keydown.enter.prevent="$event.target.blur()">
+                          <button type="button" class="prg-field-clear" x-show="!field.required && isCellFieldActive(ex, w, field.metric)"
+                                  title="Rimuovi parametro"
+                                  @mousedown.prevent="commitCellEdit(ex, w, field.metric, '', $event)">
+                            <i class="ph ph-x"></i>
+                          </button>
+                        </label>
+                      </template>
+                      <template x-if="!shouldRenderCellInput(ex, w, field)">
+                        <button type="button" class="prg-field-ghost"
+                                :data-cell-field="ex.pk + '-' + w + '-' + field.metric"
+                                @click="armCellField(ex, w, field.metric)">
+                          <i class="ph ph-plus"></i>
+                          <span x-text="field.label"></span>
+                        </button>
+                      </template>
+                    </div>
                   </template>
                 </div>
 
@@ -1906,25 +2092,49 @@
                   <div class="prg-setdetails-head">
                     <span x-text="w === 1 ? 'Serie (sincronizzate col builder)' : 'Valori per serie'"></span>
                   </div>
-                  <template x-for="si in progSetCount(ex, w)" :key="'sd-' + ex.pk + '-' + w + '-' + si">
-                    <div class="prg-setrow">
-                      <span class="prg-setrow-n" x-text="si"></span>
-                      <input class="prg-setrow-in" type="text" placeholder="Reps"
-                             :value="setDetailValue(ex, w, si - 1, 'reps')"
-                             @blur="setDetailEdit(ex, w, si - 1, 'reps', $event.target.value)">
-                      <input class="prg-setrow-in" type="number" step="0.25" min="0" placeholder="Car."
-                             :value="setDetailValue(ex, w, si - 1, 'load_value')"
-                             @blur="setDetailEdit(ex, w, si - 1, 'load_value', $event.target.value)">
-                      <input class="prg-setrow-in" type="number" step="5" min="0" placeholder="Rec"
-                             :value="setDetailValue(ex, w, si - 1, 'recovery_seconds')"
-                             @blur="setDetailEdit(ex, w, si - 1, 'recovery_seconds', $event.target.value)">
-                      <input class="prg-setrow-in" type="number" step="0.5" min="0"
-                             :placeholder="rpeRirMetricFor(ex) === 'rir' ? 'RIR' : 'RPE'"
-                             :value="setDetailValue(ex, w, si - 1, rpeRirMetricFor(ex))"
-                             @blur="setDetailEdit(ex, w, si - 1, rpeRirMetricFor(ex), $event.target.value)">
-                      <input class="prg-setrow-in" type="text" placeholder="TUT"
-                             :value="setDetailValue(ex, w, si - 1, 'tempo')"
-                             @blur="setDetailEdit(ex, w, si - 1, 'tempo', $event.target.value)">
+
+                  <template x-if="progSetCount(ex, w) > 0">
+                    <div>
+                      <div class="prg-setrow prg-setrow-head" :style="'--prg-setcols:' + setColumnsVisible(ex, w).length">
+                        <span></span>
+                        <template x-for="col in setColumnsVisible(ex, w)" :key="'sh-' + col.field + '-' + ex.pk + '-' + w">
+                          <span class="prg-setcol-lab" x-text="col.label"></span>
+                        </template>
+                      </div>
+                      <div class="flex flex-wrap" x-show="setColumnsHidden(ex, w).length" style="margin: -2px 0 4px;">
+                        <template x-for="col in setColumnsHidden(ex, w)" :key="'shg-' + col.field + '-' + ex.pk + '-' + w">
+                          <button type="button" class="prg-setcol-ghost" @click="armSetField(ex, w, 0, col.field)">
+                            <i class="ph ph-plus"></i><span x-text="col.label"></span>
+                          </button>
+                        </template>
+                      </div>
+
+                      <template x-for="si in progSetCount(ex, w)" :key="'sd-' + ex.pk + '-' + w + '-' + si">
+                        <div class="prg-setrow" :class="{ 'is-even': si % 2 === 0 }"
+                             :style="'--prg-setcols:' + setColumnsVisible(ex, w).length">
+                          <span class="prg-setrow-n" x-text="si"></span>
+                          <template x-for="col in setColumnsVisible(ex, w)" :key="'sc-' + col.field + '-' + ex.pk + '-' + w + '-' + si">
+                            <div class="prg-setcell">
+                              <template x-if="shouldRenderSetInput(ex, w, si - 1, col)">
+                                <input class="prg-setrow-in"
+                                       :type="col.type" :step="col.step || null" :min="col.min ?? null"
+                                       :data-set-field="ex.pk + '-' + w + '-s' + (si - 1) + '-' + col.field"
+                                       :placeholder="col.label"
+                                       :value="setDetailValue(ex, w, si - 1, col.field)"
+                                       @blur="blurSetField(ex, w, si - 1, col.field, $event)"
+                                       @keydown.enter.prevent="$event.target.blur()">
+                              </template>
+                              <template x-if="!shouldRenderSetInput(ex, w, si - 1, col)">
+                                <button type="button" class="prg-setrow-ghost"
+                                        :data-set-field="ex.pk + '-' + w + '-s' + (si - 1) + '-' + col.field"
+                                        @click="armSetField(ex, w, si - 1, col.field)" title="Aggiungi valore">
+                                  <i class="ph ph-plus"></i>
+                                </button>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
                     </div>
                   </template>
                   <p class="prg-setdetails-empty" x-show="progSetCount(ex, w) === 0">Imposta prima le serie.</p>
@@ -1936,7 +2146,7 @@
               <p class="prg-wcol-empty">Nessun esercizio attivo in questa settimana.</p>
             </template>
 
-            <button type="button" class="prg-add-ex-btn" @click="openAddExerciseForWeek(w)">
+            <button type="button" class="prg-add-ex-btn" @click="openLibraryPanel({ context: 'progression', week: w })">
               <i class="ph ph-plus"></i> Aggiungi esercizio
             </button>
           </div>
@@ -1993,43 +2203,6 @@
           </div>
         </div>
       </div>
-    </div>
-  </template>
-
-  <!-- ==================== ADD-EXERCISE-AT-WEEK PICKER ==================== -->
-  <template x-teleport="body">
-    <div>
-      <div class="va-backdrop" :class="{ 'is-open': addExUi.open }" @click="closeAddExerciseAtWeek()" x-cloak></div>
-      <aside class="va-drawer" :class="{ 'is-open': addExUi.open }" x-cloak role="dialog" aria-label="Aggiungi esercizio">
-        <header class="va-header">
-          <div>
-            <p class="al-eyebrow mb-1">Aggiungi esercizio</p>
-            <h3>Settimana <span x-text="addExUi.week"></span> in poi</h3>
-            <p>L'esercizio sarà attivo da questa settimana fino alla fine del blocco.</p>
-          </div>
-          <button type="button" class="al-btn-icon al-btn-ghost" @click.stop="closeAddExerciseAtWeek()" title="Chiudi"><i class="ph ph-x"></i></button>
-        </header>
-        <div class="va-body">
-          <div class="va-filter-row">
-            <span class="va-filter-label">Cerca esercizio</span>
-            <input type="text" class="al-input" placeholder="Es. Panca, squat…"
-                   x-model="addExUi.query" @input.debounce.250ms="searchAddExercises()">
-          </div>
-          <div class="flex flex-col gap-2">
-            <template x-for="opt in addExUi.results" :key="opt.id">
-              <button type="button" class="al-card al-card-clickable text-left"
-                      style="padding: 10px 12px;"
-                      @click="confirmAddExerciseAtWeek(opt)">
-                <p class="font-semibold text-sm" x-text="opt.name"></p>
-                <p class="al-small" style="color: var(--al-ink-faint);" x-text="opt.primary_muscles?.[0]?.name || ''"></p>
-              </button>
-            </template>
-            <template x-if="!addExUi.results.length && !addExUi.loading">
-              <p class="al-small" style="color: var(--al-ink-faint); padding: 10px 0;">Nessun risultato.</p>
-            </template>
-          </div>
-        </div>
-      </aside>
     </div>
   </template>
 

@@ -16,6 +16,7 @@
 
 {% include 'pages/allenamenti/_volume_drawer.html' %}
 {% include 'pages/allenamenti/_exercise_trend_drawer.html' %}
+{% include 'pages/allenamenti/_exercise_detail_drawer.html' %}
 
 <style>
   .rcp-head {
@@ -364,6 +365,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script src="{% static 'js/exercise_trend.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'js/exercise_detail.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>
 function clientDetail() {
   return {

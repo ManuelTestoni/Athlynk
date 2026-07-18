@@ -599,7 +599,8 @@ struct CoachWorkoutWizardView: View {
                 guard let exId = e["exercise_id"] as? Int else { return nil }
                 var ex = WBExerciseDraft(pk: e["pk"] as? Int, exerciseId: exId,
                                          name: e["exercise_name"] as? String ?? "Esercizio",
-                                         muscle: e["target_muscle_group"] as? String ?? "")
+                                         muscle: e["target_muscle_group"] as? String ?? "",
+                                         coverImageUrl: e["cover_image"] as? String)
                 ex.sets = e["sets"] as? Int ?? 3
                 let reps = "\(e["reps"] ?? "10")"
                 if let n = Int(reps) { ex.reps = n; ex.repRange = "" } else { ex.repRange = reps }

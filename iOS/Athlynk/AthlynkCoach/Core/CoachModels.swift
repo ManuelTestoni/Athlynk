@@ -1020,7 +1020,12 @@ struct CoachClientWorkoutDTO: Codable {
 /// Athlete counterpart: `ExerciseDTO` (Shared/Core/Models.swift). Keep field names in sync.
 struct CoachWorkoutExerciseDTO: Codable, Identifiable, Hashable {
     let id: Int
+    /// Catalog `Exercise` id — distinct from `id` above (the `WorkoutExercise`
+    /// prescription pk). Use this one for `APIClient.exerciseCatalogDetail`.
+    let exerciseId: Int?
     let name: String
+    let coverImageUrl: String?
+    let demoGifUrl: String?
     let sets: Int?
     let reps: Int?
     let repRange: String?
@@ -1031,6 +1036,9 @@ struct CoachWorkoutExerciseDTO: Codable, Identifiable, Hashable {
     let notes: String?
     enum CodingKeys: String, CodingKey {
         case id, name, sets, reps, rir, rpe, tempo, notes
+        case exerciseId = "exercise_id"
+        case coverImageUrl = "cover_image"
+        case demoGifUrl = "demo_gif"
         case repRange = "rep_range"
         case recoverySeconds = "recovery_seconds"
     }
@@ -1347,10 +1355,14 @@ struct BuilderExercise: Codable, Identifiable, Hashable {
     let name: String
     let targetMuscleGroup: String?
     let equipment: [BuilderEquipmentRef]
+    let coverImageUrl: String?
+    let demoGifUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, equipment
         case targetMuscleGroup = "target_muscle_group"
+        case coverImageUrl = "cover_image"
+        case demoGifUrl = "demo_gif"
     }
 }
 

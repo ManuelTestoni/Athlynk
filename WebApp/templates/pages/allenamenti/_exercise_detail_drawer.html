@@ -1,0 +1,84 @@
+{% comment %}
+Exercise detail drawer · reusable slide-over, coach and athlete alike.
+Opened from an exercise row via `AthlynkExerciseDetail.open(exerciseId, name)`.
+Reuses the .va-* drawer classes so it matches the volume/trend drawers, and
+the .wbp-detail-* classes from the builder's library panel for the media/
+instructions layout — same visual language, one detail view either side.
+Teleported to <body> so position:fixed anchors to the viewport.
+{% endcomment %}
+<template x-teleport="body">
+<div x-data="exerciseDetail()"
+     id="athlynk-exercise-detail-root"
+     style="position: relative; z-index: 80;">
+
+  <div class="va-backdrop" :class="{ 'is-open': isOpen }" @click="close()" x-cloak></div>
+
+  <aside class="va-drawer" :class="{ 'is-open': isOpen }" x-cloak
+         role="dialog" aria-label="Dettaglio esercizio">
+
+    <header class="va-header">
+      <div class="min-w-0">
+        <p class="al-eyebrow mb-1">Dettaglio esercizio</p>
+        <h3 x-text="exerciseName"></h3>
+      </div>
+      <button type="button" class="al-btn-icon al-btn-ghost"
+              @click.stop="close()" aria-label="Chiudi" title="Chiudi">
+        <i class="ph ph-x"></i>
+      </button>
+    </header>
+
+    <div class="va-body">
+      <template x-if="loading">
+        <div class="va-chart-empty">
+          <i class="ph ph-spinner-gap animate-spin" style="font-size: 28px; opacity: 0.5;"></i>
+          <p class="mt-2">Caricamento dettaglio…</p>
+        </div>
+      </template>
+
+      <template x-if="!loading && error">
+        <div class="va-chart-empty">
+          <i class="ph ph-warning-circle" style="font-size: 30px; opacity: 0.45;"></i>
+          <p class="mt-2">Impossibile caricare il dettaglio. Riprova.</p>
+        </div>
+      </template>
+
+      <template x-if="!loading && !error && ex">
+        <div>
+          <div class="wbp-detail-media">
+            <img :src="ex.demo_gif || ex.cover_image"
+                 x-show="ex.demo_gif || ex.cover_image" alt="">
+            <i class="ph ph-barbell" x-show="!ex.demo_gif && !ex.cover_image"></i>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 mt-3">
+            <span x-show="ex.category" class="al-tag" x-text="ex.category?.name"></span>
+            <template x-for="m in (ex.primary_muscles || [])" :key="'p' + m.id">
+              <span class="al-tag" x-text="m.name"></span>
+            </template>
+            <template x-for="m in (ex.secondary_muscles || [])" :key="'s' + m.id">
+              <span class="al-tag" style="opacity:.7;" x-text="m.name"></span>
+            </template>
+            <template x-for="eq in (ex.equipment || [])" :key="eq.id">
+              <span class="al-tag" style="background: var(--al-stone);" x-text="eq.name"></span>
+            </template>
+          </div>
+
+          <p class="al-small mt-3" x-show="ex.description"
+             x-text="ex.description" style="color: var(--al-ink-mute);"></p>
+
+          <template x-if="(ex.instruction_steps || []).length">
+            <div class="mt-4">
+              <p class="al-eyebrow mb-2">Esecuzione</p>
+              <ol class="wbp-detail-steps">
+                <template x-for="(step, i) in ex.instruction_steps" :key="i">
+                  <li x-text="step"></li>
+                </template>
+              </ol>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </aside>
+</div>
+</template>

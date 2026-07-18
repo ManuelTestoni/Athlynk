@@ -18,12 +18,18 @@
         </p>
         {% if ex.technique_notes %}<p class="pd-ex-notes">{{ ex.technique_notes }}</p>{% endif %}
       </div>
-      {% if show_trend %}
-        <button type="button" class="al-btn-icon al-btn-ghost" title="Andamento esercizio" aria-label="Andamento esercizio"
-                onclick="AthlynkExerciseTrend.open({{ ex.id }}, '{{ ex.exercise.name|escapejs }}')">
-          <i class="ph ph-chart-line-up"></i>
+      <div class="flex items-center gap-1">
+        <button type="button" class="al-btn-icon al-btn-ghost" title="Dettaglio esercizio" aria-label="Dettaglio esercizio"
+                onclick="AthlynkExerciseDetail.open({{ ex.exercise_id }}, '{{ ex.exercise.name|escapejs }}')">
+          <i class="ph ph-info"></i>
         </button>
-      {% endif %}
+        {% if show_trend %}
+          <button type="button" class="al-btn-icon al-btn-ghost" title="Andamento esercizio" aria-label="Andamento esercizio"
+                  onclick="AthlynkExerciseTrend.open({{ ex.id }}, '{{ ex.exercise.name|escapejs }}')">
+            <i class="ph ph-chart-line-up"></i>
+          </button>
+        {% endif %}
+      </div>
     </header>
     <div class="pd-ex-stats">
       <div><p class="al-eyebrow">Serie</p><p class="pd-ex-num">{{ ex.set_count|default:"?" }}<span>×{{ ex.rep_range|default:"?" }}</span></p></div>
