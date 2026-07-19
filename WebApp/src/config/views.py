@@ -150,8 +150,12 @@ def dashboard_view(request):
         expiring_subscriptions = counts['expiring_subscriptions']
         appointments_today = counts['appointments_today']
 
-        recent_clients = ClientProfile.objects.filter(coaching_relationships_as_client__coach=coach).distinct().order_by('-created_at')[:5]
-        subscription_plans = SubscriptionPlan.objects.filter(coach=coach, is_active=True)
+        # Customizable grid below the fixed KPI row: only the builders for
+        # widgets actually present in the user's layout run (perf win vs the
+        # old always-on queries).
+        from . import dashboard_widgets as dw
+        from .dashboard_context import build_dashboard_widgets
+        layout = dw.get_layout(user)
 
         context = {
             'coach': coach,
@@ -160,8 +164,8 @@ def dashboard_view(request):
             'checks_to_review': checks_to_review,
             'expiring_subscriptions': expiring_subscriptions,
             'appointments_today': appointments_today,
-            'recent_clients': recent_clients,
-            'subscription_plans': subscription_plans,
+            'dash_widgets': build_dashboard_widgets(request, user, layout),
+            'widget_catalog_json': json.dumps(dw.catalog_for(user)),
         }
         return render(request, 'pages/dashboard.html', context)
 
@@ -241,11 +245,14 @@ def dashboard_layout_api(request):
 
 
 def dashboard_widget_html(request, widget_type):
-    """Server-rendered HTML fragment for one widget — used when the user adds
-    a widget in edit mode, so the grid can inject real content without a full
-    page reload."""
+    """Server-rendered fragment for one widget, JSON-wrapped with its grid
+    dims — used when the user adds a widget in edit mode, so the grid can
+    inject real content without a full page reload. ``html`` is the inner
+    content of the grid item (chrome + body); GridStack creates the wrapper."""
+    from django.template.loader import render_to_string
+
     from . import dashboard_widgets
-    from .dashboard_context import build_widget_context
+    from .dashboard_context import build_widget_item
 
     user = get_session_user(request)
     if not user:
@@ -254,28 +261,56 @@ def dashboard_widget_html(request, widget_type):
     if not entry or user.role not in entry['roles']:
         return JsonResponse({'error': 'Widget non trovato'}, status=404)
 
-    ctx = build_widget_context(request, user, widget_type)
-    if ctx is None:
+    try:
+        config = json.loads(request.GET.get('config') or '{}')
+    except ValueError:
+        config = {}
+    item = build_widget_item(request, user, {
+        'type': widget_type,
+        'size': request.GET.get('size') or entry['default_size'],
+        'config': config if isinstance(config, dict) else {},
+    })
+    if item is None:
         return JsonResponse({'error': 'Widget non disponibile'}, status=404)
-    resp = render(request, f'partials/dashboard/_{widget_type}.html', ctx)
+    chrome = render_to_string('partials/dashboard/_widget_chrome.html',
+                              {'item': item}, request=request)
+    resp = JsonResponse({
+        'html': chrome,
+        'w': item['w'], 'h': item['h'], 'size': item['size'],
+        'sizes': item['sizes'], 'type': widget_type, 'id': item['id'],
+    })
     resp['Cache-Control'] = 'no-store'
     return resp
 
 
 def pinned_athletes_web(request):
-    """Session twin of the mobile /api/v1/coach/pinned-athletes endpoint."""
-    from .api_coach import pinned_athletes_payload
+    """Session twin of the mobile /api/v1/coach/pinned-athletes endpoint.
+    ``?all=1`` returns every ACTIVE athlete instead (feeds the picker in the
+    widget's configuration dialog)."""
+    from .api_coach import pinned_athletes_payload, _client_brief
+    from domain.coaching.models import CoachingRelationship
 
     coach = get_session_coach(request)
     if not coach:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
-    ids = []
-    for part in (request.GET.get('ids') or '').split(','):
-        try:
-            ids.append(int(part.strip()))
-        except ValueError:
-            continue
-    resp = JsonResponse({'athletes': pinned_athletes_payload(request, coach, ids)})
+
+    if request.GET.get('all'):
+        rels = (
+            CoachingRelationship.objects
+            .filter(coach=coach, status='ACTIVE')
+            .select_related('client')
+            .order_by('client__first_name', 'client__last_name')
+        )
+        payload = [_client_brief(request, rel.client) for rel in rels]
+    else:
+        ids = []
+        for part in (request.GET.get('ids') or '').split(','):
+            try:
+                ids.append(int(part.strip()))
+            except ValueError:
+                continue
+        payload = pinned_athletes_payload(request, coach, ids)
+    resp = JsonResponse({'athletes': payload})
     resp['Cache-Control'] = 'no-store'
     return resp
 

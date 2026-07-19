@@ -240,3 +240,22 @@ class WebEndpointTests(TestCase):
         fresh = self.client_class()
         res = fresh.get('/dashboard/layout')
         self.assertEqual(res.status_code, 401)
+
+    def test_dashboard_page_renders_default_widgets(self):
+        res = self.client.get('/')
+        self.assertEqual(res.status_code, 200)
+        html = res.content.decode()
+        self.assertIn('Personalizza', html)
+        self.assertIn('data-widget-type="recent_clients"', html)
+        self.assertIn('data-widget-type="subscription_plans"', html)
+
+    def test_widget_fragment_endpoint(self):
+        res = self.client.get('/dashboard/widget/agenda_today')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertIn('html', body)
+        self.assertGreater(body['w'], 0)
+
+    def test_widget_fragment_wrong_role_404(self):
+        res = self.client.get('/dashboard/widget/weight_trend')
+        self.assertEqual(res.status_code, 404)

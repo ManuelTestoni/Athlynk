@@ -1,0 +1,47 @@
+{% comment %}Widget: atleti scelti dal coach da tenere d'occhio. Config: client_ids.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">In evidenza</p>
+        <h2 class="al-h-2 mt-1">I tuoi atleti</h2>
+    </div>
+    <button type="button" class="al-link al-link-bronze text-[12px] dash-pin-config"
+            @click="$dispatch('dash-configure-pins', { el: $el.closest('.grid-stack-item') })">
+        <i class="ph ph-gear text-xs"></i>
+        <span>Scegli</span>
+    </button>
+</div>
+<div class="al-card-body">
+    {% if pinned_athletes %}
+    <ul class="space-y-3">
+        {% for a in pinned_athletes %}
+        <li class="flex items-center justify-between gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <a href="{% url 'clienti_detail' a.id %}" class="flex items-center gap-3 min-w-0">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">
+                    {{ a.first_name|slice:":1" }}{{ a.last_name|slice:":1" }}
+                </div>
+                <div class="min-w-0">
+                    <p class="font-medium text-ink truncate">{{ a.display_name }}</p>
+                    <p class="al-small">
+                        {% if a.last_check_at %}Ultimo check {{ a.last_check_at|slice:":10" }}{% else %}Nessun check{% endif %}
+                    </p>
+                </div>
+            </a>
+            <div class="flex items-center gap-2 shrink-0">
+                {% if a.weight_delta is not None %}
+                <span class="al-tag">{{ a.weight_delta }} kg</span>
+                {% endif %}
+                {% if a.has_pending_check %}
+                <span class="al-nav-dot" title="Check in attesa"></span>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-push-pin al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun atleta in evidenza</h3>
+        <p style="font-size: 12px;">Scegli fino a 6 atleti da tenere sotto controllo.</p>
+    </div>
+    {% endif %}
+</div>

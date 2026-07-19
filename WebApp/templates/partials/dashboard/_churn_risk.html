@@ -1,0 +1,36 @@
+{% comment %}Widget: atleti a rischio abbandono (modello notturno).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Retention</p>
+        <h2 class="al-h-2 mt-1">Rischio abbandono</h2>
+    </div>
+    <a href="{% url 'analytics_business_page' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Dettagli</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if churn_rows %}
+    <ul class="space-y-3">
+        {% for r in churn_rows %}
+        <li class="flex items-center justify-between gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <a href="{% url 'clienti_detail' r.client.id %}" class="flex items-center gap-3 min-w-0">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">
+                    {{ r.client.first_name|slice:":1" }}{{ r.client.last_name|slice:":1" }}
+                </div>
+                <p class="font-medium text-ink truncate">{{ r.client.first_name }} {{ r.client.last_name }}</p>
+            </a>
+            <span class="al-tag shrink-0 {% if r.risk_class == 'high' %}text-danger{% endif %}">
+                {{ r.risk_class|upper }} · {{ r.risk_score_rule_based }}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-shield-check al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun rischio rilevato</h3>
+        <p style="font-size: 12px;">Nessun atleta a rischio medio o alto oggi.</p>
+    </div>
+    {% endif %}
+</div>

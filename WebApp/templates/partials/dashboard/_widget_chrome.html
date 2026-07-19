@@ -1,0 +1,36 @@
+{% comment %}
+Inner grid-item content: edit-mode chrome (drag handle, size menu, remove)
++ the pre-rendered widget body. Chrome controls are visible only while the
+container has .dash-editing (see the "Dashboard grid" section in athlynk.css).
+{% endcomment %}
+<div class="grid-stack-item-content al-card al-card-flush dash-widget">
+    <div class="dash-widget-chrome" aria-hidden="true">
+        <span class="dash-widget-handle" title="Trascina per spostare">
+            <i class="ph ph-dots-six-vertical"></i>
+        </span>
+        {% if item.sizes|length > 1 %}
+        <div class="dash-widget-size" x-data="{ open: false }" @click.outside="open = false">
+            <button type="button" class="dash-chrome-btn" @click="open = !open"
+                    title="Dimensione widget">
+                <i class="ph ph-arrows-out-simple"></i>
+            </button>
+            <div class="dash-size-menu" x-show="open" x-transition.opacity.duration.150ms style="display: none;">
+                {% for s in item.sizes %}
+                <button type="button" class="dash-size-opt"
+                        data-size="{{ s }}"
+                        @click="open = false; $dispatch('dash-set-size', { el: $root.closest('.grid-stack-item'), size: '{{ s }}' })">
+                    {{ s }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <button type="button" class="dash-chrome-btn dash-widget-remove" title="Rimuovi widget"
+                @click="$dispatch('dash-remove', { el: $el.closest('.grid-stack-item') })">
+            <i class="ph ph-x"></i>
+        </button>
+    </div>
+    <div class="dash-widget-body">
+        {{ item.html|safe }}
+    </div>
+</div>

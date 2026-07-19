@@ -87,6 +87,69 @@ def _coach_unread_messages(request, coach):
     return {'unread_messages_count': _unread_messages_qs(coach).count()}
 
 
+def _coach_business_kpis(request, coach):
+    from domain.analytics.models import CoachBusinessMetricsDaily
+    latest = (CoachBusinessMetricsDaily.objects
+              .filter(coach=coach).order_by('-snapshot_date').first())
+    if not latest:
+        return {'business_kpis': None}
+    return {'business_kpis': {
+        'snapshot_date': latest.snapshot_date,
+        'active_clients': latest.active_clients_count,
+        'at_risk': latest.at_risk_clients_count,
+        'monthly_revenue': float(latest.monthly_revenue),
+        'churn_rate_30d': latest.churn_rate_30d,
+    }}
+
+
+def _coach_churn_risk(request, coach):
+    from domain.analytics.models import RiskScoreDaily
+    latest_day = (RiskScoreDaily.objects.filter(coach=coach)
+                  .order_by('-snapshot_date')
+                  .values_list('snapshot_date', flat=True).first())
+    if not latest_day:
+        return {'churn_rows': [], 'churn_snapshot': None}
+    rows = (
+        RiskScoreDaily.objects
+        .filter(coach=coach, snapshot_date=latest_day,
+                risk_class__in=['high', 'medium'])
+        .select_related('client')
+        .order_by('-risk_score_rule_based')[:5]
+    )
+    return {'churn_rows': rows, 'churn_snapshot': latest_day}
+
+
+def _coach_revenue_chart(request, coach):
+    from domain.analytics.models import CoachBusinessMetricsDaily
+    series = list(
+        CoachBusinessMetricsDaily.objects
+        .filter(coach=coach).order_by('-snapshot_date')[:30]
+        .values_list('snapshot_date', 'monthly_revenue')
+    )[::-1]
+    if len(series) < 2:
+        return {'revenue_chart_json': None}
+    return {'revenue_chart_json': json.dumps({
+        'labels': [d.strftime('%d/%m') for d, _ in series],
+        'values': [float(v) for _, v in series],
+    })}
+
+
+def _coach_checks_volume(request, coach):
+    # Same 8-week series as GET /api/v1/coach/analytics (api_coach.analytics),
+    # computed server-side because that endpoint is Bearer-only.
+    today = date.today()
+    labels, values = [], []
+    for w in range(7, -1, -1):
+        start = today - timedelta(days=today.weekday() + 7 * w)
+        end = start + timedelta(days=7)
+        n = QuestionnaireResponse.objects.filter(
+            coach=coach, submitted_at__date__gte=start, submitted_at__date__lt=end
+        ).count()
+        labels.append(start.strftime('%d/%m'))
+        values.append(n)
+    return {'checks_volume_json': json.dumps({'labels': labels, 'values': values})}
+
+
 # --- athlete builders -------------------------------------------------------
 
 def _client_weight_trend(request, client):
@@ -190,10 +253,10 @@ _COACH_BUILDERS = {
     'pending_checks': _coach_pending_checks,
     'activity_feed': _coach_activity_feed,
     'unread_messages': _coach_unread_messages,
-    'business_kpis': _STATIC,
-    'churn_risk': _STATIC,
-    'revenue_chart': _STATIC,
-    'checks_volume_chart': _STATIC,
+    'business_kpis': _coach_business_kpis,
+    'churn_risk': _coach_churn_risk,
+    'revenue_chart': _coach_revenue_chart,
+    'checks_volume_chart': _coach_checks_volume,
     'quick_actions': _STATIC,
 }
 
@@ -238,13 +301,38 @@ def build_widget_context(request, user, widget_type, config=None):
     return base
 
 
+def build_widget_item(request, user, spec):
+    """One renderable grid item: resolved size/dims, registry chrome info and
+    the widget body pre-rendered to HTML (partials read plain context names,
+    so rendering happens here rather than via nested {% include %})."""
+    from django.template.loader import render_to_string
+    from . import dashboard_widgets
+
+    wtype = spec['type']
+    ctx = build_widget_context(request, user, wtype, config=spec.get('config'))
+    if ctx is None:
+        return None
+    entry = dashboard_widgets.WIDGET_REGISTRY[wtype]
+    size, w, h = dashboard_widgets.widget_dims(wtype, spec.get('size'))
+    html = render_to_string(f'partials/dashboard/_{wtype}.html', ctx, request=request)
+    return {
+        'id': spec.get('id') or f'wg_{wtype}',
+        'type': wtype,
+        'x': spec.get('x', 0), 'y': spec.get('y', 0),
+        'size': size, 'w': w, 'h': h,
+        'title': entry['title'], 'icon': entry['icon'],
+        'sizes': list(entry['sizes'].keys()),
+        'config_json': json.dumps(spec.get('config') or {}),
+        'html': html,
+    }
+
+
 def build_dashboard_widgets(request, user, layout):
-    """List of {widget, ctx} for every widget in the layout, ready for the
+    """Renderable items for every widget in the layout, ready for the
     dashboard template loop. Widgets whose builder returns None are skipped."""
     out = []
-    for w in layout.get('widgets', []):
-        ctx = build_widget_context(request, user, w['type'], config=w.get('config'))
-        if ctx is None:
-            continue
-        out.append({'spec': w, 'ctx': ctx})
+    for spec in layout.get('widgets', []):
+        item = build_widget_item(request, user, spec)
+        if item is not None:
+            out.append(item)
     return out

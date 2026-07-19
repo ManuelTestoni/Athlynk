@@ -1,0 +1,124 @@
+{% comment %}
+Customizable dashboard grid shell — shared by the coach and athlete
+dashboards. Expects in context: `dash_widgets` (build_dashboard_widgets) and
+`widget_catalog_json` (catalog_for). Requires GridStack assets + Chart.js and
+static/js/dashboard_grid.js (see the dashboard templates' extra_head/extra_js).
+{% endcomment %}
+<div x-data="dashGrid"
+     @dash-remove="removeWidget($event.detail.el)"
+     @dash-set-size="setSize($event.detail.el, $event.detail.size)"
+     @dash-configure-pins="openPinPicker($event.detail.el)"
+     class="dash-grid-root">
+
+    <script type="application/json" data-dash-catalog>{{ widget_catalog_json|safe }}</script>
+
+    <!-- Toolbar -->
+    <div class="flex items-center justify-between gap-3 mb-4">
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">La tua dashboard</p>
+        <div class="flex items-center gap-2">
+            <span class="dash-save-indicator al-small" aria-live="polite">
+                <template x-if="saveState === 'saving'"><span>Salvataggio…</span></template>
+                <template x-if="saveState === 'saved'"><span class="text-success"><i class="ph ph-check"></i> Salvato</span></template>
+                <template x-if="saveState === 'error'"><span class="text-danger">Errore di salvataggio</span></template>
+            </span>
+            <template x-if="!editing">
+                <button type="button" class="al-btn al-btn-sm" @click="enterEdit()">
+                    <i class="ph ph-squares-four"></i>
+                    <span>Personalizza</span>
+                </button>
+            </template>
+            <template x-if="editing">
+                <div class="flex items-center gap-2">
+                    <button type="button" class="al-btn al-btn-sm al-btn-bronze" @click="paletteOpen = !paletteOpen">
+                        <i class="ph ph-plus"></i>
+                        <span>Aggiungi widget</span>
+                    </button>
+                    <button type="button" class="al-btn al-btn-sm" @click="resetDefault()">
+                        <i class="ph ph-arrow-counter-clockwise"></i>
+                        <span>Ripristina</span>
+                    </button>
+                    <button type="button" class="al-btn al-btn-sm" @click="exitEdit()">
+                        <i class="ph ph-check"></i>
+                        <span>Fatto</span>
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Widget palette drawer -->
+    <div x-show="editing && paletteOpen" x-transition.opacity.duration.200ms
+         class="dash-palette al-card mb-5" style="display: none;">
+        <div class="al-card-body">
+            <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Widget disponibili</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <template x-for="c in catalog" :key="c.type">
+                    <div class="dash-palette-card" :class="{ 'is-placed': isPlaced(c.type) }">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <i :class="'ph ' + c.icon" style="font-size: 20px; color: var(--al-accent);"></i>
+                            <div class="min-w-0">
+                                <p class="font-medium text-ink truncate" x-text="c.title"></p>
+                                <p class="al-small" x-text="c.desc"></p>
+                            </div>
+                        </div>
+                        <button type="button" class="al-btn al-btn-sm shrink-0"
+                                :disabled="isPlaced(c.type)"
+                                @click="addWidget(c.type)">
+                            <span x-text="isPlaced(c.type) ? 'Presente' : 'Aggiungi'"></span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- The grid -->
+    <div class="grid-stack">
+        {% for item in dash_widgets %}
+        {% include 'partials/dashboard/_widget_frame.html' %}
+        {% endfor %}
+    </div>
+
+    <!-- Pinned athletes picker (coach only; harmless elsewhere) -->
+    <div x-show="pinPicker.open" x-transition.opacity.duration.150ms
+         class="dash-modal-backdrop" style="display: none;"
+         @click.self="pinPicker.open = false"
+         @keydown.escape.window="pinPicker.open = false">
+        <div class="al-card dash-modal" role="dialog" aria-label="Scegli atleti in evidenza">
+            <div class="al-card-head">
+                <div>
+                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">In evidenza</p>
+                    <h2 class="al-h-2 mt-1">Scegli gli atleti</h2>
+                </div>
+                <button type="button" class="dash-chrome-btn" @click="pinPicker.open = false" title="Chiudi">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="al-card-body">
+                <p class="al-small mb-3">Fino a 6 atleti. Selezionati: <span x-text="pinPicker.selected.length"></span>/6</p>
+                <template x-if="pinPicker.loading">
+                    <p class="al-small">Caricamento…</p>
+                </template>
+                <ul class="space-y-2 max-h-72 overflow-y-auto">
+                    <template x-for="a in pinPicker.athletes" :key="a.id">
+                        <li>
+                            <button type="button" class="dash-pin-row w-full"
+                                    :class="{ 'is-selected': pinPicker.selected.includes(a.id) }"
+                                    @click="togglePin(a.id)">
+                                <span class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);"
+                                      x-text="(a.first_name || ' ')[0] + (a.last_name || ' ')[0]"></span>
+                                <span class="font-medium text-ink truncate" x-text="a.display_name"></span>
+                                <i class="ph ph-check-circle ml-auto"
+                                   :style="pinPicker.selected.includes(a.id) ? 'color: var(--al-accent);' : 'opacity: .15;'"></i>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" class="al-btn al-btn-sm" @click="pinPicker.open = false">Annulla</button>
+                    <button type="button" class="al-btn al-btn-sm al-btn-bronze" @click="savePins()">Conferma</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,6 +1,16 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<!-- GridStack (customizable dashboard). Loaded only here — see dashboard_grid.js. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css"
+      integrity="sha384-3466xzONp5jWI9wRY4i5C4LQqPF7wQiNl2TPqqWNEKMxqleN1p3y+uCjs5rObTFv" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.js"
+        integrity="sha384-nK6N0YlXqSXYT4GJKLD6y4mPJ9w1v9DtgfsQHqltu+OHCjpKMRZ2koek3LRIcbCK" crossorigin="anonymous"></script>
+<script defer src="{% static 'js/dashboard_grid.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto" x-data="{ showPlanModal: false }">
@@ -60,111 +70,7 @@
         </div>
     </div>
 
-    <!-- Two-column section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Recent clients table -->
-        <div class="lg:col-span-2 al-card al-card-flush al-reveal">
-            <div class="al-card-head">
-                <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">01 — Atleti</p>
-                    <h2 class="al-h-2 mt-1">Recenti</h2>
-                </div>
-                <a href="{% url 'clienti_list' %}" class="al-link al-link-bronze text-[12px]">
-                    <span>Vedi tutti</span>
-                    <i class="ph ph-arrow-right text-xs"></i>
-                </a>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="al-table">
-                    <thead>
-                        <tr>
-                            <th>Atleta</th>
-                            <th class="hidden md:table-cell">Registrato</th>
-                            <th class="text-right">&nbsp;</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for c in recent_clients %}
-                        <tr>
-                            <td>
-                                <div class="flex items-center gap-3">
-                                    <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">
-                                        {{ c.first_name|slice:":1" }}{{ c.last_name|slice:":1" }}
-                                    </div>
-                                    <div>
-                                        <p class="font-medium text-ink">{{ c.first_name }} {{ c.last_name }}</p>
-                                        <p class="al-tag" style="font-size:9px;">{{ c.email|default:"" }}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="hidden md:table-cell al-table-num">{{ c.created_at|date:"d M Y" }}</td>
-                            <td class="text-right">
-                                <a href="{% url 'clienti_detail' c.id %}" class="al-link-quiet inline-flex items-center gap-1 text-[12px] uppercase tracking-widest">
-                                    <span>Apri</span>
-                                    <i class="ph ph-arrow-right"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3">
-                                <div class="al-empty">
-                                    <i class="ph ph-users-three al-empty-icon"></i>
-                                    <h3>Nessun atleta</h3>
-                                    <p>Aggiungi il primo atleta per iniziare a gestire schede e nutrizione.</p>
-                                    <a href="{% url 'clienti_registra' %}" class="al-btn al-btn-sm al-btn-bronze">
-                                        <i class="ph ph-user-plus"></i>
-                                        <span>Aggiungi Atleta</span>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Subscription plans -->
-        <div class="al-card al-card-flush al-reveal" style="--d:80ms;">
-            <div class="al-card-head">
-                <div>
-                    <p class="al-eyebrow" style="color: var(--al-ink-mute);">02 — Piani</p>
-                    <h2 class="al-h-2 mt-1">Attivi</h2>
-                </div>
-                <a href="{% url 'abbonamenti_dashboard' %}" class="al-link al-link-bronze text-[12px]">
-                    <span>Gestisci</span>
-                    <i class="ph ph-arrow-right text-xs"></i>
-                </a>
-            </div>
-            <div class="al-card-body">
-                <ul class="space-y-3">
-                    {% for plan in subscription_plans %}
-                    <li class="flex items-start justify-between gap-3 pb-3 border-b border-rule-faint last:border-0 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
-                        <div class="min-w-0">
-                            <h4 class="al-h-4 truncate">{{ plan.name }}</h4>
-                            <p class="al-small mt-0.5">{{ plan.duration_days }} giorni</p>
-                        </div>
-                        <div class="text-right shrink-0">
-                            <span class="al-display" style="font-size: 22px;">{{ plan.price }}€</span>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li>
-                        <div class="al-empty" style="padding: var(--al-s-6) 0;">
-                            <i class="ph ph-credit-card al-empty-icon"></i>
-                            <h3 style="font-size: 18px;">Nessun piano</h3>
-                            <p style="font-size: 12px;">Crea il primo piano di abbonamento.</p>
-                            <a href="{% url 'subscription_plan_create' %}" class="al-btn al-btn-sm al-btn-bronze">
-                                <i class="ph ph-plus"></i> <span>Crea piano</span>
-                            </a>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
+    <!-- Customizable widget grid -->
+    {% include 'partials/dashboard/_grid_shell.html' %}
 </div>
 {% endblock %}
