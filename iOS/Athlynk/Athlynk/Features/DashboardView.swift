@@ -16,7 +16,15 @@ final class DashboardVM: ObservableObject {
     @Published var summary: DashboardSummaryDTO?
     @Published var loading = true
 
+    // Customizable layout (synced with the web grid — array order is canonical).
+    @Published var layoutWidgets: [DashboardWidgetDTO] = []
+    @Published var catalog: [WidgetCatalogItemDTO] = []
+    // Extra data only fetched when the matching widget is in the layout.
+    @Published var weights: [Double] = []          // chronological
+    @Published var checksDue: [CheckDTO] = []
+
     private var isLoading = false
+    private var saveTask: Task<Void, Never>?
 
     func load(force: Bool = false) async {
         guard !isLoading else { return }
@@ -26,15 +34,21 @@ final class DashboardVM: ObservableObject {
            let w: [WorkoutPlanDTO]   = cache.get("dashboard.workouts"),
            let n: [NutritionPlanDTO] = cache.get("dashboard.nutrition"),
            let v: [ConversationDTO]  = cache.get("dashboard.conversations"),
-           let s: DashboardSummaryDTO = cache.get("dashboard.summary") {
+           let s: DashboardSummaryDTO = cache.get("dashboard.summary"),
+           let l: DashboardLayoutDTO = cache.get("dashboard.layout"),
+           let c: [WidgetCatalogItemDTO] = cache.get("dashboard.catalog") {
             workouts = w; nutrition = n; conversations = v; summary = s
-            loading = false; return
+            layoutWidgets = l.widgets; catalog = c
+            loading = false
+            await loadWidgetExtras()
+            return
         }
         loading = true
         async let w = APIClient.shared.workouts()
         async let n = APIClient.shared.nutrition()
         async let v = APIClient.shared.conversations()
         async let s = APIClient.shared.dashboardSummary()
+        async let l = APIClient.shared.dashboardLayout()
         do { workouts = try await w;      cache.set("dashboard.workouts", workouts) }
         catch { print("DashboardVM.load workouts failed: \(error.localizedDescription)") }
         do { nutrition = try await n;     cache.set("dashboard.nutrition", nutrition) }
@@ -43,7 +57,65 @@ final class DashboardVM: ObservableObject {
         catch { print("DashboardVM.load conversations failed: \(error.localizedDescription)") }
         do { summary = try await s;       cache.set("dashboard.summary", summary!) }
         catch { print("DashboardVM.load summary failed: \(error.localizedDescription)") }
+        do {
+            let resp = try await l
+            layoutWidgets = resp.layout.widgets; catalog = resp.catalog
+            cache.set("dashboard.layout", resp.layout)
+            cache.set("dashboard.catalog", resp.catalog)
+        } catch { print("DashboardVM.load layout failed: \(error.localizedDescription)") }
         loading = false
+        await loadWidgetExtras()
+    }
+
+    /// Data for widgets outside the classic dashboard payload — fetched only
+    /// when the widget is actually placed.
+    private func loadWidgetExtras() async {
+        let types = Set(layoutWidgets.map(\.type))
+        if types.contains("weight_trend"), weights.isEmpty {
+            if let p = try? await APIClient.shared.progress() {
+                weights = p.entries.compactMap(\.weightKg).reversed()
+            }
+        }
+        if types.contains("checks_due"), checksDue.isEmpty {
+            checksDue = (try? await APIClient.shared.checks()) ?? []
+        }
+    }
+
+    /// Re-fetch just the layout (scene foreground → pick up edits made on web).
+    func refreshLayout() async {
+        guard let resp = try? await APIClient.shared.dashboardLayout() else { return }
+        layoutWidgets = resp.layout.widgets; catalog = resp.catalog
+        AppDataCache.shared.set("dashboard.layout", resp.layout)
+        AppDataCache.shared.set("dashboard.catalog", resp.catalog)
+        await loadWidgetExtras()
+    }
+
+    /// Debounced autosave (mirrors the web grid's 600ms debounce).
+    func scheduleSave() {
+        saveTask?.cancel()
+        let snapshot = DashboardLayoutDTO(version: 1, widgets: layoutWidgets)
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            do {
+                let resp = try await APIClient.shared.updateDashboardLayout(snapshot)
+                AppDataCache.shared.set("dashboard.layout", resp.layout)
+            } catch {
+                print("DashboardVM.scheduleSave failed: \(error.localizedDescription)")
+            }
+            _ = self
+        }
+    }
+
+    func resetLayout() async {
+        do {
+            let resp = try await APIClient.shared.resetDashboardLayout()
+            layoutWidgets = resp.layout.widgets
+            AppDataCache.shared.set("dashboard.layout", resp.layout)
+            await loadWidgetExtras()
+        } catch {
+            print("DashboardVM.resetLayout failed: \(error.localizedDescription)")
+        }
     }
 
     var sessionsThisWeek: Int { summary?.sessionsThisWeek ?? 0 }
@@ -86,6 +158,7 @@ private enum AthleteQuickRoute: Identifiable {
 struct DashboardView: View {
     @Binding var tab: AppTab
     @EnvironmentObject var app: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var vm = DashboardVM()
     @State private var appear = false
     @State private var loadToken = UUID()
@@ -93,16 +166,27 @@ struct DashboardView: View {
     @State private var mealFlipped = false
     @State private var mealSquashed = false
     @State private var chatDetailConv: ConversationDTO?
+    @State private var showEdit = false
 
     var body: some View {
         ScreenScroll {
-            // Greeting hero
+            // Greeting hero (fixed — never part of the customizable grid)
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center) {
                     Text("\(greeting), ATLETA")
                         .font(Typo.mono(11, .semibold)).tracking(3)
                         .textCase(.uppercase).foregroundStyle(Palette.bronze)
                     Spacer()
+                    Button {
+                        Haptics.tap(); showEdit = true
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.textMid)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Palette.void1))
+                    }
+                    .buttonStyle(PressableButtonStyle())
                     AvatarView(url: app.avatarUrl, initials: initials, size: 40, initialsSize: 16)
                 }
                 Text(app.greetingName.uppercased())
@@ -112,34 +196,37 @@ struct DashboardView: View {
             }
             .revealUp(appear, index: 0)
 
+            // KPI row (fixed)
             statsGrid.revealUp(appear, index: 1)
-            quickActions.revealUp(appear, index: 2)
 
             if vm.loading {
                 DashboardSkeleton()
             } else {
-                // Today's session
-                Text("OGGI").voltEyebrow().padding(.top, 6).revealUp(appear, index: 3)
-                todayCard.revealUp(appear, index: 4)
-
-                // Next meal (flippable: front = today's next meal, back = plan overview)
-                if let plan = vm.nextMealPlan {
-                    Text("PROSSIMO PASTO").voltEyebrow().padding(.top, 2).revealUp(appear, index: 5)
-                    mealCard(plan).revealUp(appear, index: 6)
-                }
-
-                // Coach message
-                if let conv = vm.lastConversation, let msg = conv.lastMessage, !msg.isEmpty {
-                    Text("DAL TUO COACH").voltEyebrow().padding(.top, 2).revealUp(appear, index: 7)
-                    coachCard(conv, message: msg).revealUp(appear, index: 8)
+                // Customizable widgets — rendered in the canonical array order
+                // shared with the web grid.
+                ForEach(Array(vm.layoutWidgets.enumerated()), id: \.element.id) { idx, widget in
+                    widgetView(widget).revealUp(appear, index: 2 + idx)
                 }
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: vm.layoutWidgets)
         .onAppear { appear = true }
         .task(id: loadToken) { await vm.load() }
         .refreshable { await vm.load(force: true) }
+        .onChange(of: scenePhase) { _, phase in
+            // Pick up layout edits made on the web while the app was backgrounded.
+            if phase == .active { Task { await vm.refreshLayout() } }
+        }
         .onRemoteChange(["WORKOUT_ASSIGNED", "NUTRITION_ASSIGNED", "CHECK_REVIEWED",
                          "COACH_FEEDBACK", "MESSAGE"]) { loadToken = UUID() }
+        .sheet(isPresented: $showEdit) {
+            DashboardEditSheet(
+                widgets: $vm.layoutWidgets,
+                catalog: vm.catalog,
+                onChanged: { vm.scheduleSave() },
+                onReset: { Task { await vm.resetLayout() } }
+            )
+        }
         .sheet(item: $sheetRoute) { route in
             NavigationStack {
                 sheetDestination(route)
@@ -169,6 +256,153 @@ struct DashboardView: View {
                     }
             }
         }
+    }
+
+    // MARK: Widget dispatch (customizable grid)
+
+    @ViewBuilder
+    private func widgetView(_ widget: DashboardWidgetDTO) -> some View {
+        switch widget.type {
+        case "quick_actions":
+            quickActions
+        case "next_workout":
+            VStack(alignment: .leading, spacing: 10) {
+                Text("OGGI").voltEyebrow().padding(.top, 6)
+                todayCard
+            }
+        case "next_meal":
+            if let plan = vm.nextMealPlan {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("PROSSIMO PASTO").voltEyebrow().padding(.top, 2)
+                    mealCard(plan)
+                }
+            }
+        case "coach_message":
+            if let conv = vm.lastConversation, let msg = conv.lastMessage, !msg.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("DAL TUO COACH").voltEyebrow().padding(.top, 2)
+                    coachCard(conv, message: msg)
+                }
+            }
+        case "weight_trend":
+            weightTrendWidget
+        case "training_loads":
+            linkWidget(title: "Carichi principali",
+                       subtitle: "La progressione dei tuoi esercizi chiave",
+                       icon: "dumbbell.fill", accent: Palette.magenta) { sheetRoute = .andamento }
+        case "weekly_volume":
+            linkWidget(title: "Volume settimanale",
+                       subtitle: "Quanto ti sei allenato, settimana per settimana",
+                       icon: "chart.bar.fill", accent: Palette.cyan) { sheetRoute = .andamento }
+        case "journey_timeline":
+            linkWidget(title: "Percorso",
+                       subtitle: "Le tappe del tuo percorso con il coach",
+                       icon: "map.fill", accent: Palette.bronze) { sheetRoute = .percorso }
+        case "checks_due":
+            checksDueWidget
+        case "nav_shortcuts":
+            navShortcutsWidget
+        default:
+            EmptyView()
+        }
+    }
+
+    /// Weight sparkline drawn with native shapes (no chart dependency —
+    /// same approach as CoachAnalyticsView's bars).
+    private var weightTrendWidget: some View {
+        Button {
+            Haptics.tap(); sheetRoute = .andamento
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("ANDAMENTO PESO")
+                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                    Spacer()
+                    Text(vm.weightCurrentDisplay + " kg")
+                        .font(Typo.mono(13, .bold)).foregroundStyle(Palette.cyan)
+                }
+                if vm.weights.count >= 2 {
+                    SparklineView(values: vm.weights, accent: Palette.cyan)
+                        .frame(height: 56)
+                } else {
+                    Text("Nessuna rilevazione ancora: compila un check per iniziare.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                }
+            }
+            .padding(18).voltPanel(Palette.cyan.opacity(0.35))
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var checksDueWidget: some View {
+        Button {
+            Haptics.tap()
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .check }
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("CHECK DA COMPILARE")
+                        .font(Typo.mono(9, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
+                    Spacer()
+                    Image(systemName: "checklist")
+                        .font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.amber)
+                }
+                if vm.checksDue.isEmpty {
+                    Text("Tutto in ordine: nessun check in attesa.")
+                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
+                } else {
+                    ForEach(vm.checksDue.prefix(3)) { check in
+                        HStack {
+                            Text(check.title)
+                                .font(Typo.body(14, .medium)).foregroundStyle(Palette.textHi)
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.textLow)
+                        }
+                    }
+                }
+            }
+            .padding(18).voltPanel(Palette.amber.opacity(0.35))
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var navShortcutsWidget: some View {
+        HStack(spacing: 12) {
+            CoachQuickAction(icon: "dumbbell.fill", label: "Allenamento", accent: Palette.magenta) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .train }
+            }
+            CoachQuickAction(icon: "fork.knife", label: "Nutrizione", accent: Palette.lime) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .fuel }
+            }
+            CoachQuickAction(icon: "camera.fill", label: "Check", accent: Palette.cyan) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { tab = .check }
+            }
+        }
+    }
+
+    private func linkWidget(title: String, subtitle: String, icon: String,
+                            accent: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.tap(); action()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .bold)).foregroundStyle(accent)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(accent.opacity(0.12)))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(Typo.display(17)).foregroundStyle(Palette.textHi)
+                    Text(subtitle).font(Typo.body(12)).foregroundStyle(Palette.textMid).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.textLow)
+            }
+            .padding(16).voltPanel(accent.opacity(0.3))
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: 4 big cards + 4 small cards

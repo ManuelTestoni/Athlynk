@@ -1,0 +1,13 @@
+{% comment %}Widget: check ricevuti nelle ultime 8 settimane (Chart.js bar, dati inline).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Check</p>
+        <h2 class="al-h-2 mt-1">Volume 8 settimane</h2>
+    </div>
+</div>
+<div class="al-card-body">
+    <div x-data="dashBarChart" class="h-full min-h-[120px]">
+        <script type="application/json" data-chart-data>{{ checks_volume_json|safe }}</script>
+        <canvas x-ref="canvas"></canvas>
+    </div>
+</div>

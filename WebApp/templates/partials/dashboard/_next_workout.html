@@ -1,0 +1,23 @@
+{% comment %}Widget atleta: sessione del giorno dal piano attivo.{% endcomment %}
+<div class="al-card-body h-full flex flex-col">
+    <p class="al-eyebrow mb-3">Sessione di oggi</p>
+    {% if next_workout_day %}
+    <h3 class="al-h-3 mb-1">{{ next_workout_day.title|default:next_workout_day.day_name|default:"Allenamento" }}</h3>
+    {% if next_workout_day.focus_area %}
+    <p class="al-small mb-2">{{ next_workout_day.focus_area }}</p>
+    {% endif %}
+    <p class="al-small" style="color: var(--al-ink-mute);">
+        {{ next_workout_day.exercises.count }} esercizi · {{ next_workout_plan.title }}
+    </p>
+    <a href="{% url 'allenamenti_list' %}" class="al-link al-link-bronze text-[12px] mt-auto inline-flex items-center gap-1">
+        <span>Inizia</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-4) 0;">
+        <i class="ph ph-barbell al-empty-icon"></i>
+        <h3 style="font-size: 16px;">Nessuna scheda attiva</h3>
+        <p style="font-size: 12px;">Il coach non ha ancora assegnato un piano.</p>
+    </div>
+    {% endif %}
+</div>

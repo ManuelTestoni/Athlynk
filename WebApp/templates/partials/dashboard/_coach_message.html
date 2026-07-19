@@ -1,0 +1,22 @@
+{% comment %}Widget atleta: ultimo messaggio dal coach.{% endcomment %}
+<div class="al-card-body h-full flex flex-col">
+    <p class="al-eyebrow mb-3">Dal tuo coach</p>
+    {% if coach_last_message %}
+    <p class="al-body truncate-2" style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+        {{ coach_last_message.body|default:"(allegato)" }}
+    </p>
+    <p class="al-small mt-2" style="color: var(--al-ink-mute);">
+        {{ coach_last_message.conversation.coach.first_name }} · {{ coach_last_message.sent_at|date:"d M, H:i" }}
+    </p>
+    <a href="{% url 'chat_list' %}" class="al-link al-link-bronze text-[12px] mt-auto inline-flex items-center gap-1">
+        <span>Rispondi</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-4) 0;">
+        <i class="ph ph-chat-circle-text al-empty-icon"></i>
+        <h3 style="font-size: 16px;">Nessun messaggio</h3>
+        <p style="font-size: 12px;">I messaggi del coach appariranno qui.</p>
+    </div>
+    {% endif %}
+</div>

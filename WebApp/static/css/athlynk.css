@@ -4639,3 +4639,154 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
   .imp-steps { gap: var(--al-s-2); }
   .imp-step-label { font-size: 9.5px; letter-spacing: 0.06em; }
 }
+
+/* ==========================================================================
+   Dashboard grid (customizable widgets — see static/js/dashboard_grid.js)
+   ========================================================================== */
+
+.dash-grid-root .grid-stack { margin: 0 -12px; }
+
+.dash-widget {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+.dash-widget-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dash-widget-body > .al-card-body { flex: 1; min-height: 0; overflow-y: auto; }
+.dash-widget-body > .overflow-x-auto { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Edit-mode chrome: hidden until .dash-editing on the shell root. */
+.dash-widget-chrome {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.dash-editing .dash-widget-chrome { display: flex; }
+
+.dash-widget-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--al-r-xs);
+  color: var(--al-ink-mute);
+  cursor: grab;
+  background: rgb(var(--al-primary-rgb) / 0.06);
+}
+.dash-widget-handle:active { cursor: grabbing; }
+
+.dash-chrome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--al-r-xs);
+  color: var(--al-ink-mute);
+  background: rgb(var(--al-primary-rgb) / 0.06);
+  transition: color 0.2s var(--al-ease-out), background-color 0.2s var(--al-ease-out);
+}
+.dash-chrome-btn:hover { color: var(--al-ink); background: var(--al-gold); }
+.dash-widget-remove:hover { color: var(--al-danger); background: rgb(162 59 59 / 0.12); }
+
+.dash-widget-size { position: relative; }
+.dash-size-menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--al-surface, #fff);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-sm);
+  box-shadow: var(--al-shadow-2, 0 8px 24px rgb(11 29 58 / 0.12));
+}
+.dash-size-opt {
+  min-width: 32px;
+  padding: 4px 8px;
+  border-radius: var(--al-r-xs);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--al-ink-mute);
+  transition: color 0.15s, background-color 0.15s;
+}
+.dash-size-opt:hover { color: var(--al-ink); background: var(--al-gold); }
+
+/* Edit mode: lift + grab affordance, calm dashed drop placeholder. */
+.dash-editing .grid-stack-item > .grid-stack-item-content {
+  cursor: grab;
+  transition: box-shadow 0.2s var(--al-ease-out), transform 0.2s var(--al-ease-out);
+}
+.dash-editing .grid-stack-item:hover > .grid-stack-item-content {
+  box-shadow: 0 10px 30px rgb(11 29 58 / 0.14);
+}
+.grid-stack-item.ui-draggable-dragging > .grid-stack-item-content {
+  cursor: grabbing;
+  box-shadow: 0 18px 44px rgb(11 29 58 / 0.22);
+}
+.grid-stack-placeholder > .placeholder-content {
+  border: 2px dashed var(--al-rule-strong, var(--al-rule));
+  background: var(--al-marble-warm, var(--al-marble));
+  border-radius: var(--al-r-md);
+}
+
+/* Palette drawer */
+.dash-palette-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--al-rule-faint);
+  border-radius: var(--al-r-sm);
+  transition: border-color 0.2s var(--al-ease-out), background-color 0.2s var(--al-ease-out);
+}
+.dash-palette-card:hover { border-color: var(--al-accent); }
+.dash-palette-card.is-placed { opacity: 0.55; }
+
+/* Pin-picker modal */
+.dash-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(11 29 58 / 0.45);
+}
+.dash-modal { width: 100%; max-width: 440px; }
+
+.dash-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--al-r-sm);
+  border: 1px solid transparent;
+  text-align: left;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.dash-pin-row:hover { background: var(--al-marble); }
+.dash-pin-row.is-selected { border-color: var(--al-accent); background: rgb(var(--al-accent-rgb) / 0.07); }
+
+.dash-save-indicator { min-width: 90px; text-align: right; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-editing .grid-stack-item > .grid-stack-item-content,
+  .dash-palette-card,
+  .dash-chrome-btn { transition: none; }
+}

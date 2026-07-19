@@ -1,0 +1,37 @@
+{% comment %}Widget: check inviati in attesa di revisione.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Check</p>
+        <h2 class="al-h-2 mt-1">Da rivedere</h2>
+    </div>
+    <a href="{% url 'check_dashboard' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Vedi tutti</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if pending_check_rows %}
+    <ul class="space-y-3">
+        {% for r in pending_check_rows %}
+        <li class="flex items-center justify-between gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">
+                    {{ r.client.first_name|slice:":1" }}{{ r.client.last_name|slice:":1" }}
+                </div>
+                <div class="min-w-0">
+                    <p class="font-medium text-ink truncate">{{ r.client.first_name }} {{ r.client.last_name }}</p>
+                    <p class="al-small">{{ r.submitted_at|date:"d M, H:i" }}</p>
+                </div>
+            </div>
+            <span class="al-nav-dot shrink-0" title="In attesa"></span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-clipboard-text al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Tutto rivisto</h3>
+        <p style="font-size: 12px;">Nessun check in coda.</p>
+    </div>
+    {% endif %}
+</div>

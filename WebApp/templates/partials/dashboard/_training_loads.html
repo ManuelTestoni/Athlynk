@@ -1,0 +1,11 @@
+{% comment %}Widget atleta: progressione carichi principali (fetch client-side).{% endcomment %}
+<div class="al-card-body h-full flex flex-col" x-data="dashLoadsWidget" data-url="{% url 'api_my_progress_loads' %}">
+    <p class="al-eyebrow mb-3">Carichi principali</p>
+    <template x-if="loading">
+        <p class="al-small" style="color: var(--al-ink-mute);">Caricamento…</p>
+    </template>
+    <div x-show="hasData" class="flex-1 min-h-[120px]"><canvas x-ref="canvas"></canvas></div>
+    <template x-if="!loading && !hasData">
+        <p class="al-body" style="color: var(--al-ink-mute);">Nessun dato ancora: completa qualche sessione per vedere i tuoi carichi.</p>
+    </template>
+</div>

@@ -75,6 +75,10 @@ def unread_count(user_id):
     return _k('user', user_id, 'unread')
 
 
+def dashboard_layout(user_id):
+    return _k('user', user_id, 'dashlayout')
+
+
 def exercise_search(scope, *filters):
     # scope identifies whose customs may appear in the results: 'coach:{id}',
     # 'client:{id}' (athlete app: customs of their active coaches) or 'anon'.
@@ -118,3 +122,9 @@ def invalidate_food_catalog():
 def invalidate_unread(user_id):
     """Mark-read / mark-all-read: badge must drop to the true count now."""
     cache.delete(unread_count(user_id))
+
+
+def invalidate_dashboard_layout(user_id):
+    """Call from EVERY layout write (web session endpoint AND mobile Bearer
+    endpoint) — single path so web and iOS caches can never diverge."""
+    cache.delete(dashboard_layout(user_id))

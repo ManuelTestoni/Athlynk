@@ -1,0 +1,29 @@
+{% comment %}Widget: attività recente (notifiche coach).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Studio</p>
+        <h2 class="al-h-2 mt-1">Attività recente</h2>
+    </div>
+</div>
+<div class="al-card-body">
+    {% if activity_items %}
+    <ul class="space-y-3">
+        {% for n in activity_items %}
+        <li class="flex items-start gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <i class="ph ph-pulse mt-0.5" style="color: var(--al-accent);"></i>
+            <div class="min-w-0">
+                <p class="font-medium text-ink truncate">{{ n.title }}</p>
+                <p class="al-small truncate">{{ n.body }}</p>
+                <p class="al-tag mt-1" style="font-size: 9px;">{{ n.created_at|date:"d M, H:i" }}</p>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-pulse al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessuna attività</h3>
+        <p style="font-size: 12px;">Le novità dei tuoi atleti appariranno qui.</p>
+    </div>
+    {% endif %}
+</div>

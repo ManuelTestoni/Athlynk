@@ -1,0 +1,26 @@
+{% comment %}Widget atleta: le 3 card di navigazione Allenamento / Nutrizione / Check.{% endcomment %}
+<div class="al-card-body h-full">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+        <a href="{% url 'allenamenti_list' %}" class="al-interactive block p-4 rounded-lg" style="border: 1px solid var(--al-rule-faint);">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="al-h-3">Allenamento</h3>
+                <i class="ph ph-barbell text-xl text-bronze"></i>
+            </div>
+            <p class="al-small">Schede personalizzate dal tuo coach.</p>
+        </a>
+        <a href="{% url 'nutrizione_piani' %}" class="al-interactive block p-4 rounded-lg" style="border: 1px solid var(--al-rule-faint);">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="al-h-3">Nutrizione</h3>
+                <i class="ph ph-leaf text-xl text-bronze"></i>
+            </div>
+            <p class="al-small">Piani alimentari su misura.</p>
+        </a>
+        <a href="{% url 'client_assigned_checks' %}" class="al-interactive block p-4 rounded-lg" style="border: 1px solid var(--al-rule-faint);">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="al-h-3">Check</h3>
+                <i class="ph ph-camera text-xl text-bronze"></i>
+            </div>
+            <p class="al-small">Foto, peso e circonferenze.</p>
+        </a>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+{% comment %}Widget: snapshot KPI business (rollup notturno).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Business</p>
+        <h2 class="al-h-2 mt-1">KPI</h2>
+    </div>
+    <a href="{% url 'analytics_business_page' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Analisi</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if business_kpis %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+            <div class="al-kpi-num" style="font-size: 26px;">{{ business_kpis.active_clients }}</div>
+            <div class="al-kpi-label">Atleti attivi</div>
+        </div>
+        <div>
+            <div class="al-kpi-num" style="font-size: 26px;">{{ business_kpis.at_risk }}</div>
+            <div class="al-kpi-label">A rischio</div>
+        </div>
+        <div>
+            <div class="al-kpi-num" style="font-size: 26px;">€{{ business_kpis.monthly_revenue|floatformat:0 }}</div>
+            <div class="al-kpi-label">Ricavo attivo</div>
+        </div>
+        <div>
+            <div class="al-kpi-num" style="font-size: 26px;">{{ business_kpis.churn_rate_30d|floatformat:1 }}%</div>
+            <div class="al-kpi-label">Churn 30gg</div>
+        </div>
+    </div>
+    <p class="al-small mt-3">Aggiornato al {{ business_kpis.snapshot_date|date:"d M Y" }}</p>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-chart-line-up al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Dati in arrivo</h3>
+        <p style="font-size: 12px;">I KPI compaiono dopo la prima elaborazione notturna.</p>
+    </div>
+    {% endif %}
+</div>

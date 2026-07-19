@@ -1,0 +1,25 @@
+{% comment %}Widget atleta: prossimo pasto dal piano alimentare FOOD di oggi.{% endcomment %}
+<div class="al-card-body h-full flex flex-col">
+    <p class="al-eyebrow mb-3">Prossimo pasto</p>
+    {% if next_meal %}
+    <h3 class="al-h-3 mb-1">{{ next_meal.name }}</h3>
+    {% if next_meal.time_of_day %}
+    <p class="al-small mb-2">Ore {{ next_meal.time_of_day }}</p>
+    {% endif %}
+    <ul class="al-small space-y-1" style="color: var(--al-ink-mute);">
+        {% for it in next_meal.items.all|slice:":4" %}
+        <li class="truncate">{{ it.food.nome_alimento|default:it.raw_name }}{% if it.quantity_g %} · {{ it.quantity_g }}g{% endif %}</li>
+        {% endfor %}
+    </ul>
+    <a href="{% url 'nutrizione_piani' %}" class="al-link al-link-bronze text-[12px] mt-auto inline-flex items-center gap-1">
+        <span>Vedi piano</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-4) 0;">
+        <i class="ph ph-fork-knife al-empty-icon"></i>
+        <h3 style="font-size: 16px;">Nessun pasto in programma</h3>
+        <p style="font-size: 12px;">Nessun piano alimentare attivo per oggi.</p>
+    </div>
+    {% endif %}
+</div>

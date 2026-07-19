@@ -1,0 +1,36 @@
+{% comment %}Widget: scorciatoie rapide. Ruolo-aware: coach vs atleta.{% endcomment %}
+<div class="al-card-body h-full flex items-center">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+        {% if is_coach %}
+        {% if can_manage_workouts %}
+        <a href="{% url 'allenamenti_list' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-barbell"></i><span>Allenamenti</span>
+        </a>
+        {% endif %}
+        {% if can_manage_nutrition %}
+        <a href="{% url 'nutrizione_piani' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-leaf"></i><span>Nutrizione</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-clipboard-text"></i><span>Check</span>
+        </a>
+        <a href="{% url 'agenda_dashboard' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-calendar-blank"></i><span>Agenda</span>
+        </a>
+        {% else %}
+        <a href="{% url 'allenamenti_list' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-barbell"></i><span>Allenamento</span>
+        </a>
+        <a href="{% url 'nutrizione_piani' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-leaf"></i><span>Nutrizione</span>
+        </a>
+        <a href="{% url 'check_dashboard' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-clipboard-text"></i><span>Check</span>
+        </a>
+        <a href="{% url 'chat_list' %}" class="al-btn al-btn-sm justify-center">
+            <i class="ph ph-chats-circle"></i><span>Chat</span>
+        </a>
+        {% endif %}
+    </div>
+</div>

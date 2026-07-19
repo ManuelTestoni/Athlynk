@@ -1,0 +1,32 @@
+{% comment %}Widget: appuntamenti di oggi.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Agenda</p>
+        <h2 class="al-h-2 mt-1">Oggi</h2>
+    </div>
+    <a href="{% url 'agenda_dashboard' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Apri agenda</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if agenda_appointments %}
+    <ul class="space-y-3">
+        {% for a in agenda_appointments %}
+        <li class="flex items-center gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <span class="al-display shrink-0" style="font-size: 18px;">{{ a.start_datetime|date:"H:i" }}</span>
+            <div class="min-w-0">
+                <p class="font-medium text-ink truncate">{{ a.title }}</p>
+                <p class="al-small truncate">{{ a.client.first_name }} {{ a.client.last_name }}{% if a.location %} · {{ a.location }}{% endif %}</p>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-calendar-check al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun appuntamento</h3>
+        <p style="font-size: 12px;">La giornata è libera.</p>
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,21 @@
+{% comment %}Widget: andamento ricavi 30gg (Chart.js line, dati inline).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Business</p>
+        <h2 class="al-h-2 mt-1">Ricavi</h2>
+    </div>
+</div>
+<div class="al-card-body">
+    {% if revenue_chart_json %}
+    <div x-data="dashLineChart" data-chart-kind="currency" class="h-full min-h-[120px]">
+        <script type="application/json" data-chart-data>{{ revenue_chart_json|safe }}</script>
+        <canvas x-ref="canvas"></canvas>
+    </div>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-trend-up al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Storico in costruzione</h3>
+        <p style="font-size: 12px;">Servono almeno due rilevazioni giornaliere.</p>
+    </div>
+    {% endif %}
+</div>

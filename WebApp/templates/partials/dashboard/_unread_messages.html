@@ -1,0 +1,8 @@
+{% comment %}Widget compatto: conteggio messaggi non letti.{% endcomment %}
+<a href="{% url 'chat_list' %}" class="al-card-body flex items-center gap-4 h-full">
+    <i class="ph ph-chat-circle-text" style="font-size: 28px; color: var(--al-accent);"></i>
+    <div>
+        <div class="al-kpi-num" style="font-size: 30px;">{{ unread_messages_count }}</div>
+        <div class="al-kpi-label">Messaggi non letti</div>
+    </div>
+</a>
