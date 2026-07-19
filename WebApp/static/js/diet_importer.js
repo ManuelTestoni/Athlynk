@@ -1,7 +1,8 @@
 // Importer dieta — Alpine component condiviso Excel + PDF.
-// Una factory `createDietImporter(config)` produce l'oggetto Alpine; le due
-// feature (Excel sync, PDF async con polling) la istanziano con config diversa.
-// `dietImporter()` resta come wrapper retro-compatibile per il template Excel.
+// Costruito sopra createImportWizardCore (step machine, dropzone, polling),
+// come workout_importer.js. Aggiunge: hydrateDiet, food search & match resolve
+// (con filtro categorie del builder), sostituzioni, integratori, macro math,
+// review MACRO (target per giorno/piano), save (confirm endpoint).
 
 (function () {
   'use strict';
@@ -33,9 +34,10 @@
       tooLargeError: 'File troppo grande (max 10 MB)',
       invalidFileError: 'Il file non è leggibile. Prova con un altro formato.',
     },
-    // Mappatura phase backend → step index (solo async)
+    errorMap: {
+      pdf_no_content: 'Il documento non sembra contenere una dieta riconoscibile.',
+    },
     phaseMap: null,
-    // Minimo "perceived loading" (ms): rilevante solo in sync
     minPerceivedMs: 4500,
   };
 
@@ -53,356 +55,62 @@
   // ─── Factory ───────────────────────────────────────────────────────
   function createDietImporter(userConfig) {
     const config = Object.assign({}, EXCEL_DEFAULTS, userConfig || {});
-    // Garantisci copy completo anche se override parziale
     config.copy = Object.assign({}, EXCEL_DEFAULTS.copy, (userConfig && userConfig.copy) || {});
+    config.errorMap = Object.assign({}, EXCEL_DEFAULTS.errorMap, (userConfig && userConfig.errorMap) || {});
 
-    const base = {
+    const core = window.createImportWizardCore(config);
+
+    const extension = {
       weekDays: WEEK_DAYS,
-      // ─── Config (esposto al template per copy + flags) ────────────
-      cfg: config,
-
-      currentStep: 1,
-
-      // Step 1
-      file: null,
-      dragOver: false,
-      clientSearch: '',
-      selectedClient: null,
-      clientDropdownOpen: false,
-      clientResults: [],
-      planTitle: '',
 
       // Plan shape, chosen on the review step. Drives which builder we hand the
       // saved plan to: FOOD/MACRO × DAILY/WEEKLY are four different editors.
-      // planKind is re-seeded from the extracted day count in `hydrate()`.
+      // Re-seeded from the extraction hints in applyExtractionResult().
       planKind: 'DAILY',
       planMode: 'FOOD',
-
-      // Step 2
-      phase: 0,
-      steps: config.steps.slice(),
-      motivationalMessages: config.motivationalMessages.slice(),
-      motivationalMsg: '',
-      motivationalTimer: null,
-      phaseTimer: null,
-      pollTimer: null,
-      jobId: null,
-      pollProgressPercent: 0,
-      // ─── Phase gating (async mode) ──────────────────────────────
-      // `targetPhase` = ultima fase dichiarata dal backend.
-      // `displayedPhase` = fase mostrata in UI, gated dal dwell minimo.
-      // Il backend completa analyze/classify quasi istantaneamente; il gate
-      // tiene la UI sui primi step finché non è trascorso `cfg.minPhaseMs[i]`,
-      // così l'attesa AI viene percepita distribuita sull'intera pipeline.
-      targetPhase: 0,
-      displayedPhase: 0,
-      phaseEnteredAt: [],
-      gateTimer: null,
-      pendingResult: null,
 
       // Step 3
       diet: { days: [], supplements: [] },
       confidence: { fields_total: 0, fields_uncertain: 0, ratio: 0 },
       documentSummary: null,
       activeDay: null,
-      saving: false,
 
-      // Misc
-      errorMsg: '',
-      toast: '',
-      toastTimer: null,
-      csrf: '',
+      // Food category filter (builder parity: api_food_search filter=cat&cat=ID)
+      foodFilters: { cat: '' },
+      foodCategories: [],
 
       init() {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        this.csrf = meta ? meta.content : '';
-        this.searchClients();
+        this._initCore();
+        this._loadFoodCategories();
       },
 
-      // The athlete is optional: importing produces a plan, assigning it is a
-      // separate step the coach takes later from the builder or the plan list.
-      get canSubmit() {
-        return this.file && this.planTitle.trim().length > 0;
-      },
-
-      get filteredClients() {
-        return this.clientResults;
-      },
-
-      formatSize(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-      },
-
-      // ─── Step 1 ───────────────────────────────
-      async searchClients() {
-        const q = this.clientSearch || '';
+      async _loadFoodCategories() {
         try {
-          const r = await fetch('/api/clients/search/?q=' + encodeURIComponent(q));
+          const r = await fetch('/api/nutrizione/alimenti/?q=&include_cats=1');
           if (r.ok) {
-            this.clientResults = await r.json();
+            const data = await r.json();
+            this.foodCategories = data.categories || [];
           }
-        } catch (e) { console.error(e); }
-      },
-
-      pickClient(c) {
-        this.selectedClient = c;
-        this.clientSearch = c.name;
-        this.clientDropdownOpen = false;
-      },
-
-      onFile(ev) {
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        this.setFile(f);
-      },
-
-      onDrop(ev) {
-        this.dragOver = false;
-        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
-        if (!f) return;
-        this.setFile(f);
-      },
-
-      setFile(f) {
-        const name = (f.name || '').toLowerCase();
-        if (!this.cfg.extPattern.test(name)) {
-          this.flashError(this.cfg.copy.formatError);
-          return;
-        }
-        if (f.size > this.cfg.maxBytes) {
-          this.flashError(this.cfg.copy.tooLargeError);
-          return;
-        }
-        this.file = f;
-      },
-
-      clearFile() {
-        this.file = null;
-        if (this.$refs.fileInput) this.$refs.fileInput.value = '';
-      },
-
-      flashError(msg) {
-        this.errorMsg = msg;
-        this.currentStep = 'error';
-      },
-
-      // ─── Step 2: submit + loading anim ────────
-      async submitFile() {
-        if (!this.canSubmit) return;
-        this.currentStep = 2;
-        this.startLoadingAnim();
-
-        const fd = new FormData();
-        fd.append('file', this.file);
-        fd.append('plan_title', this.planTitle);
-        if (this.selectedClient) fd.append('client_id', this.selectedClient.id);
-
-        if (this.cfg.async) {
-          await this.submitAsync(fd);
-        } else {
-          await this.submitSync(fd);
-        }
-      },
-
-      async submitSync(fd) {
-        const minDelay = new Promise(res => setTimeout(res, this.cfg.minPerceivedMs));
-        try {
-          const [resp] = await Promise.all([
-            fetch(this.cfg.submitUrl, {
-              method: 'POST',
-              headers: { 'X-CSRFToken': this.csrf },
-              body: fd,
-            }),
-            minDelay,
-          ]);
-          this.stopLoadingAnim();
-          if (!resp.ok && resp.status !== 206) {
-            const err = await resp.json().catch(() => ({}));
-            this.errorMsg = this.translateError(err);
-            this.currentStep = 'error';
-            return;
-          }
-          const data = await resp.json();
-          this.applyExtractionResult(data);
-        } catch (e) {
-          this.stopLoadingAnim();
-          this.errorMsg = 'Errore di rete: ' + (e.message || e);
-          this.currentStep = 'error';
-        }
-      },
-
-      async submitAsync(fd) {
-        try {
-          const startResp = await fetch(this.cfg.submitUrl, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': this.csrf },
-            body: fd,
-          });
-          if (!startResp.ok) {
-            this.stopLoadingAnim();
-            const err = await startResp.json().catch(() => ({}));
-            this.errorMsg = this.translateError(err);
-            this.currentStep = 'error';
-            return;
-          }
-          const startData = await startResp.json();
-          this.jobId = startData.job_id;
-          if (!this.jobId) {
-            this.stopLoadingAnim();
-            this.errorMsg = 'Avvio elaborazione fallito (nessun job_id)';
-            this.currentStep = 'error';
-            return;
-          }
-          this.startPolling();
-        } catch (e) {
-          this.stopLoadingAnim();
-          this.errorMsg = 'Errore di rete: ' + (e.message || e);
-          this.currentStep = 'error';
-        }
-      },
-
-      startPolling() {
-        if (this.pollTimer) clearInterval(this.pollTimer);
-        this.pollTimer = setInterval(() => this.pollOnce(), this.cfg.pollIntervalMs);
-        this.pollOnce();
-      },
-
-      stopPolling() {
-        if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
-      },
-
-      async pollOnce() {
-        if (!this.jobId) return;
-        try {
-          const r = await fetch(this.cfg.statusUrl + '?job_id=' + encodeURIComponent(this.jobId));
-          if (!r.ok) {
-            this.stopPolling(); this.stopLoadingAnim();
-            const err = await r.json().catch(() => ({}));
-            this.errorMsg = this.translateError(err);
-            this.currentStep = 'error';
-            return;
-          }
-          const data = await r.json();
-          this.pollProgressPercent = data.percent || 0;
-          if (data.phase && this.cfg.phaseMap && this.cfg.phaseMap[data.phase] != null) {
-            const next = this.cfg.phaseMap[data.phase];
-            // Se il gate è attivo (minPhaseMs configurato), aggiorna SOLO il target;
-            // displayedPhase avanza con tickPhaseGate rispettando i dwell minimi.
-            if (this.cfg.minPhaseMs) {
-              if (next > this.targetPhase) this.targetPhase = next;
-            } else {
-              this.phase = next;
-            }
-          }
-          if (data.status === 'done') {
-            this.stopPolling();
-            if (this.cfg.minPhaseMs) {
-              // Trattieni il risultato: lo applichiamo solo quando il gate
-              // raggiunge l'ultima fase, così l'utente vede tutti gli step.
-              this.targetPhase = this.steps.length - 1;
-              this.pendingResult = data.result || {};
-            } else {
-              this.stopLoadingAnim();
-              this.applyExtractionResult(data.result || {});
-            }
-          } else if (data.status === 'error') {
-            this.stopPolling(); this.stopLoadingAnim();
-            this.errorMsg = this.translateError({ error: data.error_code, detail: data.detail });
-            this.currentStep = 'error';
-          }
-        } catch (e) {
-          // soft fail: continua a polleggiare
-          console.warn('poll error', e);
-        }
-      },
-
-      tickPhaseGate() {
-        const mins = this.cfg.minPhaseMs || [];
-        if (!mins.length) return;
-        const now = Date.now();
-        while (this.displayedPhase < this.targetPhase) {
-          const min = mins[this.displayedPhase] || 0;
-          const enteredAt = this.phaseEnteredAt[this.displayedPhase] || now;
-          if (now - enteredAt < min) break;
-          this.displayedPhase++;
-          this.phaseEnteredAt[this.displayedPhase] = now;
-        }
-        this.phase = this.displayedPhase;
-        // Drain finale: gate raggiunto + risultato in attesa → applica
-        if (this.pendingResult
-            && this.displayedPhase >= this.steps.length - 1) {
-          const lastMin = mins[this.displayedPhase] || 0;
-          const enteredAt = this.phaseEnteredAt[this.displayedPhase] || now;
-          if (now - enteredAt >= lastMin) {
-            const result = this.pendingResult;
-            this.pendingResult = null;
-            this.stopLoadingAnim();
-            this.applyExtractionResult(result);
-          }
-        }
+        } catch (e) { console.warn('food categories fetch fail', e); }
       },
 
       applyExtractionResult(data) {
-        this.diet = this.hydrateDiet(data.extracted || { days: [] });
+        const extracted = data.extracted || { days: [] };
+        this.diet = this.hydrateDiet(extracted);
         this.confidence = data.confidence || { fields_total: 0, fields_uncertain: 0, ratio: 0 };
-        this.documentSummary = data.document_summary || (data.extracted && data.extracted.document_summary) || null;
-        if (data.client) this.selectedClient = data.client;
+        this.documentSummary = data.document_summary || extracted.document_summary || null;
         if (data.plan_title) this.planTitle = data.plan_title;
-        // Seed the plan shape from what the document actually contained; the
-        // coach can still override it on the review step.
-        this.planKind = (this.diet.days || []).length > 1 ? 'WEEKLY' : 'DAILY';
-        this.planMode = 'FOOD';
+        // Seed the plan shape from the extraction/structure hints; the coach
+        // can still override it on the review step.
+        this.planMode = extracted.plan_mode === 'MACRO' ? 'MACRO' : 'FOOD';
+        this.planKind = extracted.plan_kind
+          || ((this.diet.days || []).length > 1 ? 'WEEKLY' : 'DAILY');
+        if (this.planMode === 'MACRO' && this.planKind === 'WEEKLY') this.ensureMacroWeekDays();
         this.activeDay = this.diet.days[0]?.day_of_week || null;
         this.currentStep = 3;
       },
 
-      translateError(err) {
-        if (!err) return 'Estrazione fallita.';
-        const code = err.error;
-        if (code === 'excel_invalid') return 'Il file Excel non è leggibile. Prova con un altro formato.';
-        if (code === 'pdf_invalid') return 'Non siamo riusciti a leggere questo PDF. Prova con un file diverso.';
-        if (code === 'pdf_no_content') return 'Il documento non sembra contenere una dieta riconoscibile.';
-        if (code === 'ai_failed') return 'L\'analisi AI non è riuscita. Riprova tra poco.';
-        if (code === 'job_not_found') return 'Sessione di elaborazione scaduta. Riprova.';
-        if (code === 'unknown') return 'Errore inatteso durante l\'estrazione.';
-        return err.detail || err.error || 'Estrazione fallita.';
-      },
-
-      startLoadingAnim() {
-        this.phase = 0;
-        this.targetPhase = 0;
-        this.displayedPhase = 0;
-        this.phaseEnteredAt = [Date.now()];
-        this.pendingResult = null;
-        this.pollProgressPercent = 0;
-        let i = 0;
-        this.motivationalMsg = this.motivationalMessages[0];
-        // Sync: phaseTimer fa avanzare le fasi a passo fisso (legacy)
-        if (!this.cfg.async) {
-          this.phaseTimer = setInterval(() => {
-            if (this.phase < this.steps.length - 1) this.phase++;
-          }, 1500);
-        }
-        // Async con gate dwell: tick a 250ms gestisce displayedPhase
-        if (this.cfg.async && this.cfg.minPhaseMs) {
-          this.gateTimer = setInterval(() => this.tickPhaseGate(), 250);
-        }
-        this.motivationalTimer = setInterval(() => {
-          i = (i + 1) % this.motivationalMessages.length;
-          this.motivationalMsg = this.motivationalMessages[i];
-        }, 2000);
-      },
-
-      stopLoadingAnim() {
-        if (this.phaseTimer) { clearInterval(this.phaseTimer); this.phaseTimer = null; }
-        if (this.gateTimer) { clearInterval(this.gateTimer); this.gateTimer = null; }
-        if (this.motivationalTimer) { clearInterval(this.motivationalTimer); this.motivationalTimer = null; }
-        this.phase = this.steps.length;
-      },
-
-      // ─── Step 3: revisione ────────────────────
+      // ─── Hydrate ──────────────────────────────
       hydrateDiet(raw) {
         const hydrateFood = (f) => ({
           name: f.name || '',
@@ -440,6 +148,10 @@
         });
         const days = (raw.days || []).map(d => ({
           ...d,
+          target_kcal: d.target_kcal ?? null,
+          target_protein_g: d.target_protein_g ?? null,
+          target_carb_g: d.target_carb_g ?? null,
+          target_fat_g: d.target_fat_g ?? null,
           meals: (d.meals || []).map(m => ({
             ...m,
             foods: (m.foods || []).map(hydrateFood),
@@ -453,7 +165,15 @@
           uncertain: !!s.uncertain,
           source_page: s.source_page ?? null,
         }));
-        return { ...raw, days, supplements };
+        return {
+          ...raw,
+          days,
+          supplements,
+          daily_kcal: raw.daily_kcal ?? raw.total_calories_daily ?? null,
+          protein_target_g: raw.protein_target_g ?? null,
+          carb_target_g: raw.carb_target_g ?? null,
+          fat_target_g: raw.fat_target_g ?? null,
+        };
       },
 
       DAY_LABELS: {
@@ -473,15 +193,26 @@
       mealLabel(m) { return this.MEAL_LABELS[m] || m; },
       mealIcon(m) { return this.MEAL_ICONS[m] || 'ph ph-bowl-food'; },
 
-      async searchFoodInline(food, query) {
-        if (!query || query.length < 2) return;
+      // ─── Food search & resolve ────────────────
+      async _searchFoods(target, query) {
+        const params = new URLSearchParams();
+        params.set('q', query || '');
+        if (this.foodFilters.cat) {
+          params.set('filter', 'cat');
+          params.set('cat', this.foodFilters.cat);
+        }
         try {
-          const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(query));
+          const r = await fetch('/api/nutrizione/alimenti/?' + params.toString());
           if (r.ok) {
             const data = await r.json();
-            food._candidates = data.results || [];
+            target._candidates = data.results || [];
           }
         } catch (e) { console.error(e); }
+      },
+
+      async searchFoodInline(food, query) {
+        if ((!query || query.length < 2) && !this.foodFilters.cat) return;
+        await this._searchFoods(food, query);
       },
 
       pickFood(food, candidate) {
@@ -514,14 +245,8 @@
 
       // ─── Sostituzioni ────────────────────────
       async searchSubInline(sub, query) {
-        if (!query || query.length < 2) return;
-        try {
-          const r = await fetch('/api/nutrizione/alimenti/?q=' + encodeURIComponent(query));
-          if (r.ok) {
-            const data = await r.json();
-            sub._candidates = data.results || [];
-          }
-        } catch (e) { console.error(e); }
+        if ((!query || query.length < 2) && !this.foodFilters.cat) return;
+        await this._searchFoods(sub, query);
       },
       pickSub(sub, candidate) {
         sub.food_id = candidate.id;
@@ -571,6 +296,41 @@
         if (ok) this.diet.supplements.splice(idx, 1);
       },
 
+      // ─── MACRO review (target per giorno / piano) ─────────
+      ensureMacroWeekDays() {
+        // Scaffold all 7 day rows for a MACRO-WEEKLY plan, seeding missing
+        // days from the plan-level targets so the coach edits, not re-types.
+        const byCode = {};
+        for (const d of this.diet.days || []) byCode[d.day_of_week] = d;
+        this.diet.days = WEEK_DAYS.map(w => byCode[w.code] || {
+          day_of_week: w.code,
+          meals: [],
+          target_kcal: this.diet.daily_kcal ?? null,
+          target_protein_g: this.diet.protein_target_g ?? null,
+          target_carb_g: this.diet.carb_target_g ?? null,
+          target_fat_g: this.diet.fat_target_g ?? null,
+        });
+      },
+
+      onPlanShapeChange() {
+        if (this.planMode === 'MACRO' && this.planKind === 'WEEKLY') this.ensureMacroWeekDays();
+      },
+
+      // Sanity check 4/4/9: kcal dichiarate vs derivate dai macro (±10%).
+      macroKcalDelta(kcal, p, c, f) {
+        const declared = parseFloat(kcal);
+        const derived = (parseFloat(p) || 0) * 4 + (parseFloat(c) || 0) * 4 + (parseFloat(f) || 0) * 9;
+        if (!declared || !derived) return null;
+        return Math.round(declared - derived);
+      },
+      macroKcalWarn(kcal, p, c, f) {
+        const delta = this.macroKcalDelta(kcal, p, c, f);
+        if (delta === null) return false;
+        const declared = parseFloat(kcal) || 1;
+        return Math.abs(delta) / declared > 0.10;
+      },
+
+      // ─── Macro math (FOOD mode) ──────────────
       macro(food, key) {
         const qty = parseFloat(food.quantity) || 0;
         // Priorità sorgenti macro:
@@ -642,24 +402,31 @@
         this.documentSummary = null;
       },
 
+      // ─── Save (confirm) ─────────────────────
       async save() {
         this.saving = true;
+        const isMacro = this.planMode === 'MACRO';
         const payload = {
           plan_title: this.planTitle,
-          client_id: this.selectedClient?.id || null,
-          // Import only creates the plan. Assigning is done from the builder we
-          // hand off to, so the coach can review before the athlete sees it.
-          assign_now: false,
-          // Decides which builder receives the plan.
+          // Decides which builder receives the plan. Import never assigns to
+          // an athlete: assignment lives in the builder we hand off to.
           plan_kind: this.planKind,
           plan_mode: this.planMode,
           diet_json: {
             diet_name: this.planTitle,
             extraction_notes: this.diet.extraction_notes || null,
+            daily_kcal: this.diet.daily_kcal || null,
+            protein_target_g: this.diet.protein_target_g || null,
+            carb_target_g: this.diet.carb_target_g || null,
+            fat_target_g: this.diet.fat_target_g || null,
             days: this.diet.days.map(d => ({
               day_of_week: d.day_of_week,
               notes: d.notes || null,
-              meals: d.meals.map(m => ({
+              target_kcal: d.target_kcal || null,
+              target_protein_g: d.target_protein_g || null,
+              target_carb_g: d.target_carb_g || null,
+              target_fat_g: d.target_fat_g || null,
+              meals: isMacro ? [] : d.meals.map(m => ({
                 meal_type: m.meal_type,
                 notes: m.notes || null,
                 foods: m.foods.map(f => ({
@@ -710,12 +477,6 @@
           this.errorMsg = 'Errore di rete: ' + (e.message || e);
           this.currentStep = 'error';
         }
-      },
-
-      flashToast(msg) {
-        this.toast = msg;
-        if (this.toastTimer) clearTimeout(this.toastTimer);
-        this.toastTimer = setTimeout(() => { this.toast = ''; }, 3000);
       },
 
       // ─── Chart adapters (per nutrition_wizard_charts mixin) ─────────
@@ -775,6 +536,7 @@
       },
     };
 
+    const base = Object.assign(core, extension);
     // Mix-in grafici (donut + histogram). Disponibile solo se script caricato.
     if (typeof window.nutritionWizardChartsMixin === 'function') {
       Object.assign(base, window.nutritionWizardChartsMixin());

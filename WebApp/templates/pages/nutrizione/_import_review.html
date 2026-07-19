@@ -5,7 +5,6 @@
       <div>
         <h1 class="al-h-1">Revisione <span class="al-display-i">dieta</span></h1>
         <p class="al-body mt-1 flex items-center gap-2 flex-wrap">
-          <span x-show="selectedClient" x-text="'Paziente: ' + (selectedClient?.name || '')"></span>
           <span class="al-tag"><i class="ph ph-sparkle"></i> Generato da AI</span>
           {% if origin_pdf %}
           <span class="al-tag" style="background: rgba(30,58,95,0.10); color: var(--al-bronze);">
@@ -55,10 +54,79 @@
     {% include 'pages/nutrizione/_import_shape_toggle.html' %}
   </div>
 
+  {# ─── MACRO review: target per giorno / piano (nessun alimento) ───── #}
+  <div x-show="planMode === 'MACRO'" x-cloak class="al-card mb-5">
+    <div class="flex items-center gap-3 mb-4">
+      <i class="ph ph-chart-donut text-bronze text-xl"></i>
+      <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Target macronutrienti</p>
+        <h3 class="al-h-4" x-text="planKind === 'WEEKLY' ? 'Target per giorno' : 'Target giornalieri'"></h3>
+      </div>
+    </div>
+
+    {# DAILY: un solo set di target a livello piano. #}
+    <div x-show="planKind === 'DAILY'" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="al-label">Kcal</label>
+        <input type="number" min="0" class="al-input font-mono" x-model.number="diet.daily_kcal">
+      </div>
+      <div>
+        <label class="al-label">Proteine (g)</label>
+        <input type="number" min="0" class="al-input font-mono" x-model.number="diet.protein_target_g">
+      </div>
+      <div>
+        <label class="al-label">Carboidrati (g)</label>
+        <input type="number" min="0" class="al-input font-mono" x-model.number="diet.carb_target_g">
+      </div>
+      <div>
+        <label class="al-label">Grassi (g)</label>
+        <input type="number" min="0" class="al-input font-mono" x-model.number="diet.fat_target_g">
+      </div>
+    </div>
+    <p x-show="planKind === 'DAILY' && macroKcalWarn(diet.daily_kcal, diet.protein_target_g, diet.carb_target_g, diet.fat_target_g)"
+       class="al-small mt-2" style="color: var(--al-warn);">
+      <i class="ph ph-warning"></i>
+      Le kcal dichiarate non tornano con i macro (4/4/9):
+      scarto di <span class="font-mono" x-text="macroKcalDelta(diet.daily_kcal, diet.protein_target_g, diet.carb_target_g, diet.fat_target_g)"></span> kcal.
+    </p>
+
+    {# WEEKLY: griglia editabile per giorno. #}
+    <div x-show="planKind === 'WEEKLY'" class="overflow-x-auto">
+      <table class="w-full text-sm" style="border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--al-bronze);">
+            <th class="text-left py-2 pr-3 al-eyebrow" style="font-size: 10px;">Giorno</th>
+            <th class="text-right py-2 px-2 al-eyebrow" style="font-size: 10px;">Kcal</th>
+            <th class="text-right py-2 px-2 al-eyebrow" style="font-size: 10px;">Prot (g)</th>
+            <th class="text-right py-2 px-2 al-eyebrow" style="font-size: 10px;">Carb (g)</th>
+            <th class="text-right py-2 px-2 al-eyebrow" style="font-size: 10px;">Grassi (g)</th>
+            <th class="py-2 pl-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="d in diet.days" :key="d.day_of_week">
+            <tr style="border-bottom: 1px solid var(--al-rule);">
+              <td class="py-2 pr-3 font-medium" x-text="dayLabel(d.day_of_week)"></td>
+              <td class="py-1 px-1"><input type="number" min="0" class="al-input font-mono text-right" style="width: 90px; padding: 5px 8px;" x-model.number="d.target_kcal"></td>
+              <td class="py-1 px-1"><input type="number" min="0" class="al-input font-mono text-right" style="width: 80px; padding: 5px 8px;" x-model.number="d.target_protein_g"></td>
+              <td class="py-1 px-1"><input type="number" min="0" class="al-input font-mono text-right" style="width: 80px; padding: 5px 8px;" x-model.number="d.target_carb_g"></td>
+              <td class="py-1 px-1"><input type="number" min="0" class="al-input font-mono text-right" style="width: 80px; padding: 5px 8px;" x-model.number="d.target_fat_g"></td>
+              <td class="py-1 pl-2">
+                <i x-show="macroKcalWarn(d.target_kcal, d.target_protein_g, d.target_carb_g, d.target_fat_g)"
+                   class="ph ph-warning" style="color: var(--al-warn);"
+                   :title="'Kcal e macro non tornano (4/4/9): scarto ' + macroKcalDelta(d.target_kcal, d.target_protein_g, d.target_carb_g, d.target_fat_g) + ' kcal'"></i>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Day tabs (builder-style sticky) -->
-  <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
+  <div x-show="planMode !== 'MACRO'" class="al-card al-card-flush mb-5 sticky top-0 z-20"
        style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
-    <div class="flex items-center gap-1 overflow-x-auto">
+    <div class="flex items-center gap-2 overflow-x-auto">
       <template x-for="d in diet.days" :key="d.day_of_week">
         <button type="button" @click="activeDay = d.day_of_week"
                 class="text-left px-3 py-2 transition-all shrink-0"
@@ -70,10 +138,18 @@
              x-text="dayLabel(d.day_of_week)"></p>
         </button>
       </template>
+      {# Builder parity: category filter applied to every food search below. #}
+      <select class="al-select ml-auto shrink-0" style="max-width: 190px; padding: 6px 8px; font-size: 12px;"
+              x-model="foodFilters.cat" title="Filtra le ricerche alimenti per categoria DB">
+        <option value="">Categoria: tutte</option>
+        <template x-for="c in foodCategories" :key="c.id">
+          <option :value="c.id" x-text="c.name"></option>
+        </template>
+      </select>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+  <div x-show="planMode !== 'MACRO'" class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
 
     <!-- Pasti del giorno attivo -->
     <div class="space-y-4">
@@ -548,12 +624,15 @@
   <!-- Footer sticky -->
   <footer class="sticky bottom-0 mt-6 al-card al-card-flush flex flex-wrap items-center justify-between gap-3"
           style="padding: 14px 18px; background: var(--al-parchment); border-top: 2px solid var(--al-bronze);">
-    <div class="text-sm">
+    <div class="text-sm" x-show="planMode !== 'MACRO'">
       <span class="text-ink-mute">Media giornaliera:</span>
       <span class="font-semibold ml-1 font-mono" x-text="avgKcal + ' kcal'"></span>
       <span class="text-ink-mute ml-3 font-mono">P <span class="font-semibold" x-text="avgProt + 'g'"></span></span>
       <span class="text-ink-mute ml-2 font-mono">C <span class="font-semibold" x-text="avgCarb + 'g'"></span></span>
       <span class="text-ink-mute ml-2 font-mono">G <span class="font-semibold" x-text="avgFat + 'g'"></span></span>
+    </div>
+    <div class="text-sm" x-show="planMode === 'MACRO'">
+      <span class="al-tag"><i class="ph ph-chart-donut"></i> Piano macronutrienti — solo target</span>
     </div>
     <div class="flex items-center gap-2">
       <button @click="reset()" class="al-btn al-btn-ghost">

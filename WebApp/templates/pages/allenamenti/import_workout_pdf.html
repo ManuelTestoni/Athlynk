@@ -23,28 +23,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 al-card al-card-flush p-6">
 
-        <label class="al-label">Atleta <span class="al-label-optional">facoltativo</span></label>
-        <div class="relative">
-          <input type="text" class="al-input" placeholder="Cerca atleta..."
-                 x-model="clientSearch" @focus="clientDropdownOpen = true"
-                 @input.debounce.250="searchClients()"
-                 @click.away="clientDropdownOpen = false">
-          <div x-show="clientDropdownOpen && filteredClients.length" x-transition
-               class="absolute z-20 mt-1 w-full al-card al-card-flush max-h-64 overflow-auto">
-            <template x-for="c in filteredClients" :key="c.id">
-              <button type="button" @click="pickClient(c)"
-                      class="w-full text-left px-4 py-2 hover:bg-marble border-b border-stone/40 last:border-0">
-                <span x-text="c.name"></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <p x-show="selectedClient" class="mt-2 text-sm text-aegean">
-          <i class="ph ph-check-circle"></i>
-          <span x-text="'Selezionato: ' + (selectedClient?.name || '')"></span>
-        </p>
-
-        <label class="al-label mt-5">Titolo scheda</label>
+        <label class="al-label">Titolo scheda</label>
         <input type="text" class="al-input" x-model="planTitle"
                placeholder="Es: Massa Mario Rossi - Push/Pull/Legs">
 

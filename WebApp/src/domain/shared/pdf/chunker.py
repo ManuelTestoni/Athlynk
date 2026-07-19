@@ -71,13 +71,23 @@ def _apply_overlap(parts: list[str], overlap: int) -> list[str]:
     return out
 
 
-def chunk_pages(pages_with_meta: Sequence[tuple[PdfPage, object]]) -> list[Chunk]:
-    """Chunk pages. Each meta must expose `.page_type` and `.relevance_score`."""
+def chunk_pages(
+    pages_with_meta: Sequence[tuple[PdfPage, object]],
+    header_re=None,
+) -> list[Chunk]:
+    """Chunk pages. Each meta must expose `.page_type` and `.relevance_score`.
+
+    `header_re` (optional, MULTILINE): session/day header pattern; matches get a
+    paragraph break inserted before them so a header and its table start a new
+    logical block instead of straddling a chunk boundary.
+    """
     out: list[Chunk] = []
     for page, meta in pages_with_meta:
         text = page.combined_text
         if not text or not text.strip():
             continue
+        if header_re is not None:
+            text = header_re.sub(lambda m: '\n\n' + m.group(0), text)
         parts = _split_text(text, MAX_CHUNK_CHARS)
         parts = _apply_overlap(parts, CHUNK_OVERLAP_CHARS)
         for i, part in enumerate(parts):

@@ -234,7 +234,9 @@ urlpatterns = [
     path('api/allenamenti/cartelle/<int:folder_id>/', coach_dual_auth(views_workouts_taxonomy.api_folder_detail), name='api_workout_folder_detail'),
     path('api/allenamenti/piani/<int:plan_id>/cartella/', coach_dual_auth(views_workouts_taxonomy.api_workout_plan_folder), name='api_workout_plan_folder'),
     path('api/muscle-groups/', views_workouts_taxonomy.api_muscle_groups, name='api_muscle_groups'),
-    path('api/exercises/custom/', views_workouts_taxonomy.api_custom_exercises, name='api_custom_exercises'),
+    # coach_dual_auth: the iOS import review creates custom exercises via Bearer
+    # token (CSRF-exempt path), same as the import endpoints above.
+    path('api/exercises/custom/', coach_dual_auth(views_workouts_taxonomy.api_custom_exercises), name='api_custom_exercises'),
     path('api/exercises/custom/<int:exercise_id>/', views_workouts_taxonomy.api_custom_exercise_detail, name='api_custom_exercise_detail'),
     path('api/exercises/<int:exercise_id>/', views_workouts_taxonomy.api_exercise_detail, name='api_exercise_detail'),
     path('api/allenamenti/<int:plan_id>/volume/', views_workouts_taxonomy.api_plan_volume, name='api_plan_volume'),
