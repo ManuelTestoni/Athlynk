@@ -16,17 +16,32 @@ from typing import Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import ValidationError
 
+from domain.shared.doc_structure import DocStructure, detect_workout_structure
 from domain.shared.excel_text import excel_to_text, ExcelParseError  # noqa: F401  (re-export)
 from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 from domain.shared.llm_extraction import build_extraction_llm
 from domain.workouts.imports.exercise_match import best_match
-from domain.workouts.imports.prompts import EXCEL_SYSTEM_PROMPT
+from domain.workouts.imports.prompts import (
+    EXCEL_SYSTEM_PROMPT, SET_DETAILS_HINT, SUPERSET_HINT, weeks_hint,
+)
 from domain.workouts.imports.schemas import ConfidenceSummary, WorkoutExtraction
 
 
 # ─── AI extraction ──────────────────────────────────────────────────────
 
-def extract_workout_with_ai(grid_text: str, plan_title: str = '') -> dict:
+def build_prompt_hints(structure: Optional[DocStructure]) -> str:
+    """Composable suffixes appended to the base prompts per detected structure."""
+    hints = SET_DETAILS_HINT + SUPERSET_HINT
+    if structure and structure.week_count and structure.week_count >= 2:
+        hints += weeks_hint(structure.week_count)
+    return hints
+
+
+def extract_workout_with_ai(
+    grid_text: str,
+    plan_title: str = '',
+    structure: Optional[DocStructure] = None,
+) -> dict:
     llm = build_extraction_llm()
     user_msg = (
         f"Titolo piano (suggerito dal coach): {plan_title or 'non specificato'}\n\n"
@@ -35,7 +50,7 @@ def extract_workout_with_ai(grid_text: str, plan_title: str = '') -> dict:
     )
     try:
         resp = llm.invoke([
-            SystemMessage(content=EXCEL_SYSTEM_PROMPT),
+            SystemMessage(content=EXCEL_SYSTEM_PROMPT + build_prompt_hints(structure)),
             HumanMessage(content=user_msg),
         ])
     except Exception as e:
@@ -83,6 +98,73 @@ def _parse_rest_seconds(rest: object) -> Optional[int]:
     return None
 
 
+# Shorthand superset notation: "ss Croci", "A1. Panca", "1a) Curl".
+_SS_PREFIX_RE = re.compile(r'^\s*(?:ss|superset)[\s.:\-)]+', re.IGNORECASE)
+_LETTER_NUM_RE = re.compile(r'^\s*([A-Da-d])([1-9])[\s.)\-]+')
+_NUM_LETTER_RE = re.compile(r'^\s*([1-9])([a-dA-D])[\s.)\-]+')
+
+
+def _shorthand_key(raw: str) -> tuple[Optional[str], bool]:
+    """Returns (group_key, is_ss_marker) for a raw exercise name."""
+    m = _LETTER_NUM_RE.match(raw)
+    if m:
+        return m.group(1).upper(), False
+    m = _NUM_LETTER_RE.match(raw)
+    if m:
+        return m.group(1), False
+    return None, bool(_SS_PREFIX_RE.match(raw))
+
+
+def _strip_shorthand_prefix(ex: dict) -> None:
+    for field in ('raw_name', 'name_en'):
+        val = ex.get(field)
+        if not val:
+            continue
+        stripped = _SS_PREFIX_RE.sub('', val)
+        stripped = _LETTER_NUM_RE.sub('', stripped)
+        stripped = _NUM_LETTER_RE.sub('', stripped)
+        if stripped.strip():
+            ex[field] = stripped.strip()
+
+
+def _regroup_shorthand_supersets(session: dict) -> None:
+    """Deterministic fallback: group consecutive shorthand-marked exercises
+    into superset blocks and strip the prefix before DB matching.
+    Prompt-first; this is the safety net when the LLM misses "ss"/"A1-A2"."""
+    new_blocks: list[dict] = []
+    for block in session.get('blocks') or []:
+        exercises = block.get('exercises') or []
+        if (block.get('block_type') or 'straight') != 'straight' or len(exercises) < 2:
+            for ex in exercises:
+                _strip_shorthand_prefix(ex)
+            new_blocks.append(block)
+            continue
+        # groups: {'key': str|None, 'ss': bool, 'items': [ex]}
+        groups: list[dict] = []
+        for ex in exercises:
+            raw = ex.get('raw_name') or ''
+            key, is_ss = _shorthand_key(raw)
+            _strip_shorthand_prefix(ex)
+            if key is not None and groups and groups[-1]['key'] == key:
+                groups[-1]['items'].append(ex)
+            elif is_ss and groups:
+                groups[-1]['ss'] = True
+                groups[-1]['items'].append(ex)
+            else:
+                groups.append({'key': key, 'ss': False, 'items': [ex]})
+        if all(len(g['items']) == 1 and not g['ss'] for g in groups):
+            new_blocks.append(block)
+            continue
+        for g in groups:
+            is_superset = len(g['items']) > 1 and (g['ss'] or g['key'] is not None)
+            new_blocks.append({
+                **{k: v for k, v in block.items() if k != 'exercises'},
+                'block_type': 'superset' if is_superset else block.get('block_type'),
+                'exercises': g['items'],
+            })
+    session['blocks'] = new_blocks
+
+
 def normalize_and_match(raw_json: dict, coach=None) -> dict:
     """Validate via pydantic + best_match every exercise against Exercise DB."""
     try:
@@ -94,6 +176,7 @@ def normalize_and_match(raw_json: dict, coach=None) -> dict:
 
     for s_idx, session in enumerate(out.get('sessions', []) or []):
         session.setdefault('order_index', s_idx)
+        _regroup_shorthand_supersets(session)
         for block in session.get('blocks', []) or []:
             for ex in block.get('exercises', []) or []:
                 _match_exercise_into(ex, coach=coach)
@@ -166,7 +249,8 @@ def run_import_pipeline(
     coach=None,
 ) -> tuple[dict, ConfidenceSummary]:
     grid = excel_to_text(file_bytes)
-    raw = extract_workout_with_ai(grid, plan_title)
+    structure = detect_workout_structure(grid)
+    raw = extract_workout_with_ai(grid, plan_title, structure=structure)
     normalized = normalize_and_match(raw, coach=coach)
     confidence = compute_confidence(normalized)
     return normalized, confidence

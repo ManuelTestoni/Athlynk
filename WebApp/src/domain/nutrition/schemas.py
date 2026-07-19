@@ -69,6 +69,10 @@ class DayEntry(BaseModel):
 
     day_of_week: DayOfWeek
     meals: list[MealEntry] = Field(default_factory=list)
+    target_kcal: Optional[int] = None
+    target_protein_g: Optional[int] = None
+    target_carb_g: Optional[int] = None
+    target_fat_g: Optional[int] = None
 
 
 class SupplementEntry(BaseModel):
@@ -93,13 +97,19 @@ class DietExtraction(BaseModel):
     total_calories_daily: Optional[float] = None
     notes: Optional[str] = None
 
+    # Structure hints (detector/LLM) — the coach can override in review.
+    plan_mode: Optional[Literal['FOOD', 'MACRO']] = None
+    plan_kind: Optional[Literal['DAILY', 'WEEKLY']] = None
+    daily_kcal: Optional[int] = None
+    protein_target_g: Optional[int] = None
+    carb_target_g: Optional[int] = None
+    fat_target_g: Optional[int] = None
+
 
 class ConfirmPayload(BaseModel):
     """Body POST per /api/nutrizione/import/conferma/."""
     model_config = ConfigDict(extra='ignore')
 
     diet_json: DietExtraction
-    client_id: int
     plan_title: str
     notes: Optional[str] = None
-    assign_now: bool = True

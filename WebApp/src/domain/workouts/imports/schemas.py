@@ -25,6 +25,36 @@ MatchConfidence = Literal['exact', 'high', 'medium', 'low', 'none']
 MatchMethod = Literal['exact', 'normalized', 'fuzzy', 'semantic', 'manual']
 
 
+class WeekValueEntry(BaseModel):
+    """Sparse per-week variation: only weeks >= 2 whose params differ from base."""
+    model_config = ConfigDict(extra='ignore')
+
+    week: int
+    sets: Optional[int] = None
+    reps: Optional[Union[int, str]] = None
+    load: Optional[float] = None
+    load_unit: Optional[LoadUnit] = None
+    load_type: Optional[LoadType] = None
+    rpe: Optional[float] = None
+    rir: Optional[int] = None
+    rest_seconds: Optional[int] = None
+    tempo: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SetDetailEntry(BaseModel):
+    """Per-set prescription within week 1 (e.g. '10-8-6' or '80/85/90 kg')."""
+    model_config = ConfigDict(extra='ignore')
+
+    reps: Optional[Union[int, str]] = None
+    load: Optional[float] = None
+    load_unit: Optional[LoadUnit] = None
+    rir: Optional[int] = None
+    rpe: Optional[float] = None
+    rest_seconds: Optional[int] = None
+    tempo: Optional[str] = None
+
+
 class ExerciseEntry(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
@@ -61,6 +91,9 @@ class ExerciseEntry(BaseModel):
     notes: Optional[str] = None
     source_page: Optional[int] = None
     source_chunk: Optional[str] = None
+
+    week_values: list[WeekValueEntry] = Field(default_factory=list)
+    set_details: list[SetDetailEntry] = Field(default_factory=list)
 
     candidates: list[dict] = Field(default_factory=list)
 
@@ -100,6 +133,7 @@ class WorkoutExtraction(BaseModel):
 
     plan_name: Optional[str] = None
     frequency_per_week: Optional[int] = None
+    duration_weeks: Optional[int] = None
     goal: Optional[str] = None
     notes: Optional[str] = None
     sessions: list[SessionEntry] = Field(default_factory=list)
@@ -112,7 +146,5 @@ class ConfirmPayload(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
     workout_json: WorkoutExtraction
-    client_id: Optional[int] = None
     plan_title: str
     notes: Optional[str] = None
-    assign_now: bool = False

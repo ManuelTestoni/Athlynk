@@ -4,7 +4,6 @@
 // object with the following responsibilities:
 //   • step machine (1=upload, 2=loading, 3=review, 'error')
 //   • file drop / pick / validation (extPattern, maxBytes)
-//   • client picker (uses /api/clients/search/)
 //   • loading-step animation with phase gating + motivational messages
 //   • sync POST + async POST + status polling
 //   • error code → human label translation
@@ -37,7 +36,6 @@
       tooLargeError: 'File troppo grande',
       invalidFileError: 'File non leggibile.',
     },
-    clientSearchUrl: '/api/clients/search/',
   };
 
   function createImportWizardCore(userConfig) {
@@ -51,10 +49,6 @@
       // Step 1
       file: null,
       dragOver: false,
-      clientSearch: '',
-      selectedClient: null,
-      clientDropdownOpen: false,
-      clientResults: [],
       planTitle: '',
 
       // Step 2
@@ -83,35 +77,18 @@
       _initCore() {
         const meta = document.querySelector('meta[name="csrf-token"]');
         this.csrf = meta ? meta.content : '';
-        this.searchClients();
       },
 
-      // The athlete is optional: importing produces a plan, assigning it is a
-      // separate step the coach takes later from the builder or the plan list.
+      // Import never assigns to an athlete: the coach assigns later from the
+      // builder or the plan list.
       get canSubmit() {
         return this.file && this.planTitle.trim().length > 0;
       },
-
-      get filteredClients() { return this.clientResults; },
 
       formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-      },
-
-      async searchClients() {
-        const q = this.clientSearch || '';
-        try {
-          const r = await fetch(this.cfg.clientSearchUrl + '?q=' + encodeURIComponent(q));
-          if (r.ok) this.clientResults = await r.json();
-        } catch (e) { console.error(e); }
-      },
-
-      pickClient(c) {
-        this.selectedClient = c;
-        this.clientSearch = c.name;
-        this.clientDropdownOpen = false;
       },
 
       onFile(ev) {
@@ -162,7 +139,6 @@
         const fd = new FormData();
         fd.append('file', this.file);
         fd.append('plan_title', this.planTitle);
-        if (this.selectedClient) fd.append('client_id', this.selectedClient.id);
         if (this.cfg.async) await this.submitAsync(fd);
         else await this.submitSync(fd);
       },
@@ -335,6 +311,7 @@
           unmatched_exercises: 'Risolvi tutti gli esercizi prima di salvare.',
           save_failed: 'Salvataggio fallito.',
         };
+        Object.assign(map, this.cfg.errorMap || {});
         return map[code] || err.detail || err.error || 'Estrazione fallita.';
       },
 

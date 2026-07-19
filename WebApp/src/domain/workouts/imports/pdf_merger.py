@@ -42,6 +42,7 @@ def merge_chunks(parts: list[dict],
     plan_meta: dict[str, str | int | None] = {
         'plan_name': plan_name or None,
         'frequency_per_week': None,
+        'duration_weeks': None,
         'goal': None,
         'notes': None,
     }
@@ -53,6 +54,13 @@ def merge_chunks(parts: list[dict],
         if plan_meta['frequency_per_week'] is None and part.get('frequency_per_week'):
             try:
                 plan_meta['frequency_per_week'] = int(part['frequency_per_week'])
+            except (TypeError, ValueError):
+                pass
+        if part.get('duration_weeks'):
+            try:
+                dw = int(part['duration_weeks'])
+                cur = plan_meta['duration_weeks']
+                plan_meta['duration_weeks'] = max(int(cur or 0), dw) or None
             except (TypeError, ValueError):
                 pass
         if not plan_meta['goal'] and part.get('goal'):
@@ -99,10 +107,25 @@ def merge_chunks(parts: list[dict],
                         continue
                     ex_key = _norm(raw)
                     if ex_key in bucket['_seen_exercises']:
+                        # Same exercise seen in another chunk (e.g. week columns
+                        # split across chunks): union week_values by week number.
+                        incoming = ex.get('week_values') or []
+                        if incoming:
+                            for existing in bucket['exercises']:
+                                if _norm(existing['raw_name']) == ex_key:
+                                    seen_weeks = {
+                                        wv.get('week') for wv in existing.get('week_values') or []
+                                    }
+                                    existing.setdefault('week_values', [])
+                                    for wv in incoming:
+                                        if wv.get('week') not in seen_weeks:
+                                            existing['week_values'].append(wv)
+                                    break
                         continue
                     bucket['_seen_exercises'].add(ex_key)
                     bucket['exercises'].append({
                         'raw_name': raw,
+                        'name_en': ex.get('name_en'),
                         'sets': ex.get('sets'),
                         'reps': ex.get('reps'),
                         'reps_type': ex.get('reps_type'),
@@ -119,6 +142,8 @@ def merge_chunks(parts: list[dict],
                         'duration_seconds': ex.get('duration_seconds'),
                         'notes': ex.get('notes'),
                         'uncertain': bool(ex.get('uncertain', False)),
+                        'week_values': ex.get('week_values') or [],
+                        'set_details': ex.get('set_details') or [],
                         'source_page': ex.get('source_page'),
                         'source_chunk': ex.get('source_chunk'),
                     })

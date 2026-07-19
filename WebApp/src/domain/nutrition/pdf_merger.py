@@ -31,6 +31,8 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
     """Costruisce un dict compatibile con DietExtraction (pydantic)."""
     # day_of_week → meal_type → {meal_dict, foods_by_name}
     days_map: dict[str, dict[str, dict]] = {}
+    # day_of_week → {target_kcal, target_protein_g, ...} (primo valore non nullo)
+    day_targets: dict[str, dict] = {}
 
     for part in parts or []:
         for day in (part.get('days') or []):
@@ -38,6 +40,10 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
             if dow not in _VALID_DAYS:
                 continue
             day_bucket = days_map.setdefault(dow, {})
+            targets = day_targets.setdefault(dow, {})
+            for tf in ('target_kcal', 'target_protein_g', 'target_carb_g', 'target_fat_g'):
+                if targets.get(tf) is None and day.get(tf) is not None:
+                    targets[tf] = day.get(tf)
             for meal in (day.get('meals') or []):
                 mt = meal.get('meal_type')
                 if mt not in _VALID_MEALS:
@@ -111,7 +117,7 @@ def merge_chunks(parts: list[dict], document_summary: dict | None = None,
             m = meals_bucket[mt]
             m.pop('_foods_by_name', None)
             meals_out.append(m)
-        days_out.append({'day_of_week': dow, 'meals': meals_out})
+        days_out.append({'day_of_week': dow, 'meals': meals_out, **day_targets.get(dow, {})})
 
     # Supplements: merge across chunks; dedup per nome normalizzato
     # mergendo timing/notes/dose se diversi (es. integratore preso più volte).
