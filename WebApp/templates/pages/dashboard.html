@@ -3,8 +3,9 @@
 
 {% block title %}Dashboard{% endblock %}
 
-{% block extra_head %}
-<!-- GridStack (customizable dashboard). Loaded only here — see dashboard_grid.js. -->
+{% block head_components %}
+<!-- GridStack (customizable dashboard). Loaded only here; must precede Alpine
+     because dashboard_grid.js registers the dashGrid Alpine component. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css"
       integrity="sha384-3466xzONp5jWI9wRY4i5C4LQqPF7wQiNl2TPqqWNEKMxqleN1p3y+uCjs5rObTFv" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.js"

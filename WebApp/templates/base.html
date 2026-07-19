@@ -58,6 +58,12 @@
     <!-- Shared week strip (partials/_week_strip.html): registered globally so any page can include the partial without remembering a script tag. -->
     <script defer src="{% static 'js/week_strip.js' %}?v={{ ASSET_VERSION }}"></script>
 
+    <!-- Page-specific component scripts that register Alpine.data() factories:
+         MUST run before Alpine core below (defer scripts execute in document
+         order, and Alpine fires alpine:init as soon as its own script runs).
+         Loading these from extra_head would be too late. -->
+    {% block head_components %}{% endblock %}
+
     <!-- Alpine.js + plugins (plugins must load before core) — versioni pinnate + SRI.
          Deliberately last among defer scripts: Alpine self-initializes (scans
          the DOM and calls x-data init()) as soon as its script runs, so every
