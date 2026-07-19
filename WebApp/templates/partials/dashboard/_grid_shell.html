@@ -72,10 +72,10 @@ static/js/dashboard_grid.js (see the dashboard templates' extra_head/extra_js).
         </div>
     </div>
 
-    <!-- The grid -->
+    <!-- The grid (staggered reveal: 60ms per widget, same rhythm as the KPI row) -->
     <div class="grid-stack">
         {% for item in dash_widgets %}
-        {% include 'partials/dashboard/_widget_frame.html' %}
+        {% include 'partials/dashboard/_widget_frame.html' with reveal_delay=forloop.counter0 %}
         {% endfor %}
     </div>
 

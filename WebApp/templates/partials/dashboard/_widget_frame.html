@@ -3,7 +3,8 @@ Outer GridStack item for the initial server render. `item` comes from
 config.dashboard_context.build_widget_item. Live-added widgets get only the
 chrome fragment (dashboard_widget_html) — GridStack creates this wrapper.
 {% endcomment %}
-<div class="grid-stack-item"
+<div class="grid-stack-item al-reveal"
+     {% if reveal_delay %}style="--d:{% widthratio reveal_delay 1 60 %}ms;"{% endif %}
      gs-x="{{ item.x }}" gs-y="{{ item.y }}" gs-w="{{ item.w }}" gs-h="{{ item.h }}"
      gs-id="{{ item.id }}" gs-no-resize="true"
      data-widget-type="{{ item.type }}"
