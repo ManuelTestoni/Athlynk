@@ -272,6 +272,63 @@ def dashboard(request, user):
     return JsonResponse(payload)
 
 
+def pinned_athletes_payload(request, coach, ids):
+    """Rows for the "Atleti in evidenza" dashboard widget: brief + last check
+    date + weight delta + pending-check flag. Scoped to the coach's ACTIVE
+    relationships — ids outside that set are silently dropped (never leak
+    other coaches' athletes). Shared by the Bearer endpoint below and the
+    web session wrapper in config.views."""
+    ids = [i for i in ids if isinstance(i, int)][:6]
+    if not ids:
+        return []
+    linked = (
+        CoachingRelationship.objects
+        .filter(coach=coach, client_id__in=ids, status='ACTIVE')
+        .select_related('client', 'client__user')
+    )
+    by_id = {rel.client_id: rel.client for rel in linked}
+
+    rows = []
+    for cid in ids:  # preserve the coach's chosen order
+        client = by_id.get(cid)
+        if client is None:
+            continue
+        checks = list(
+            QuestionnaireResponse.objects
+            .filter(client=client, submitted_at__isnull=False)
+            .order_by('-submitted_at')
+            .values('submitted_at', 'weight_kg')[:2]
+        )
+        weights = [c['weight_kg'] for c in checks if c['weight_kg'] is not None]
+        row = _client_brief(request, client)
+        row.update({
+            'last_check_at': _iso(checks[0]['submitted_at']) if checks else None,
+            'weight_delta': (
+                round(float(weights[0]) - float(weights[1]), 1)
+                if len(weights) == 2 else None
+            ),
+            'has_pending_check': _pending_review_qs(coach).filter(client=client).exists(),
+        })
+        rows.append(row)
+    return rows
+
+
+@api_view(['GET'])
+def pinned_athletes(request, user):
+    coach, err = _require_coach(user)
+    if err:
+        return err
+    ids = []
+    for part in (request.GET.get('ids') or '').split(','):
+        try:
+            ids.append(int(part.strip()))
+        except ValueError:
+            continue
+    resp = JsonResponse({'athletes': pinned_athletes_payload(request, coach, ids)})
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 # ---------------------------------------------------------------------------
 # Agenda ("Agenda") — upcoming appointments for the coach.
 # ---------------------------------------------------------------------------

@@ -19,6 +19,11 @@ class User(models.Model):
     # Per-notification opt-in flags. Settings page exposes one toggle per key.
     # Defaults: client receives assignment emails; toggle off to silence.
     email_prefs = models.JSONField(default=dict, blank=True)
+    # Customizable dashboard: canonical widget layout synced across web + iOS.
+    # Empty dict = role default (config.dashboard_widgets). Schema:
+    # {"version": 1, "widgets": [{"id", "type", "x", "y", "size", "config"}]}
+    # Array order is the canonical cross-platform order; x/y are web grid hints.
+    dashboard_layout = models.JSONField(default=dict, blank=True)
     # Proof of consent to Terms of Service + Privacy Policy, captured at the
     # account-creation moment (coach signup, athlete activation, mobile gate).
     terms_accepted_at = models.DateTimeField(null=True, blank=True)

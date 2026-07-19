@@ -95,6 +95,9 @@ urlpatterns = [
     path('webhooks/stripe/', views_payments.stripe_webhook, name='stripe_webhook'),
 
     path('', views.dashboard_view, name='dashboard'),
+    path('dashboard/layout', views.dashboard_layout_api, name='dashboard_layout'),
+    path('dashboard/widget/<slug:widget_type>', views.dashboard_widget_html, name='dashboard_widget_html'),
+    path('dashboard/pinned-athletes', views.pinned_athletes_web, name='dashboard_pinned_athletes'),
     path('analisi/', views.coach_analytics_view, name='analytics_business_page'),
 
     # Clienti (coach)
@@ -373,6 +376,7 @@ urlpatterns = [
     path('api/v1/supplements', mobile_api.supplements, name='api_v1_supplements'),
     path('api/v1/coaches/<int:coach_id>', mobile_api.coach_detail, name='api_v1_coach_detail'),
     path('api/v1/settings', mobile_api.notification_settings, name='api_v1_settings'),
+    path('api/v1/dashboard/layout', mobile_api.dashboard_layout, name='api_v1_dashboard_layout'),
     path('api/v1/account', mobile_api.delete_account, name='api_v1_delete_account'),
     path('api/v1/tutorial/complete', mobile_api.tutorial_complete, name='api_v1_tutorial_complete'),
     path('api/v1/nutrition/foods', mobile_api.food_search, name='api_v1_food_search'),
@@ -396,6 +400,7 @@ urlpatterns = [
 
     # --- Coach app (Athlynk Coach) ---------------------------------------
     path('api/v1/coach/dashboard', coach_api.dashboard, name='api_v1_coach_dashboard'),
+    path('api/v1/coach/pinned-athletes', coach_api.pinned_athletes, name='api_v1_coach_pinned_athletes'),
     path('api/v1/coach/agenda', coach_api.agenda, name='api_v1_coach_agenda'),
     path('api/v1/coach/clients', coach_api.clients, name='api_v1_coach_clients'),
     path('api/v1/coach/clients/create', coach_api.create_client, name='api_v1_coach_client_create'),

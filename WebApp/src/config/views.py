@@ -201,6 +201,85 @@ def dashboard_view(request):
     return redirect('login')
 
 
+# ---------------------------------------------------------------------------
+# Customizable dashboard — session-auth JSON endpoints for the web grid.
+# Thin wrappers over config.dashboard_widgets (the same core the mobile
+# Bearer endpoints use) so validation and cache invalidation cannot diverge
+# between surfaces. CSRF enforced by Django middleware; the client attaches
+# the token via static/js/csrf.js.
+# ---------------------------------------------------------------------------
+
+def dashboard_layout_api(request):
+    from . import dashboard_widgets
+
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+
+    if request.method == 'PUT':
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return JsonResponse({'error': 'JSON non valido'}, status=400)
+        try:
+            layout = dashboard_widgets.validate_and_save_layout(user, payload)
+        except dashboard_widgets.LayoutValidationError as e:
+            return JsonResponse({'error': str(e)}, status=e.status)
+    elif request.method == 'DELETE':
+        layout = dashboard_widgets.reset_layout(user)
+    elif request.method == 'GET':
+        layout = dashboard_widgets.get_layout(user)
+    else:
+        return JsonResponse({'error': 'Metodo non consentito'}, status=405)
+
+    resp = JsonResponse({
+        'layout': layout,
+        'catalog': dashboard_widgets.catalog_for(user),
+    })
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
+def dashboard_widget_html(request, widget_type):
+    """Server-rendered HTML fragment for one widget — used when the user adds
+    a widget in edit mode, so the grid can inject real content without a full
+    page reload."""
+    from . import dashboard_widgets
+    from .dashboard_context import build_widget_context
+
+    user = get_session_user(request)
+    if not user:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    entry = dashboard_widgets.WIDGET_REGISTRY.get(widget_type)
+    if not entry or user.role not in entry['roles']:
+        return JsonResponse({'error': 'Widget non trovato'}, status=404)
+
+    ctx = build_widget_context(request, user, widget_type)
+    if ctx is None:
+        return JsonResponse({'error': 'Widget non disponibile'}, status=404)
+    resp = render(request, f'partials/dashboard/_{widget_type}.html', ctx)
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
+def pinned_athletes_web(request):
+    """Session twin of the mobile /api/v1/coach/pinned-athletes endpoint."""
+    from .api_coach import pinned_athletes_payload
+
+    coach = get_session_coach(request)
+    if not coach:
+        return JsonResponse({'error': 'Non autenticato'}, status=401)
+    ids = []
+    for part in (request.GET.get('ids') or '').split(','):
+        try:
+            ids.append(int(part.strip()))
+        except ValueError:
+            continue
+    resp = JsonResponse({'athletes': pinned_athletes_payload(request, coach, ids)})
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 def coach_analytics_view(request):
     """Business analytics + churn-risk dashboard. Data is fetched client-side
     from /api/v1/coach/analytics/* (see static/js/coach_business_analytics.js)."""

@@ -1856,6 +1856,33 @@ def notification_settings(request, user):
     }})
 
 
+# ---------------------------------------------------------------------------
+# Customizable dashboard layout (synced web ↔ iOS, see config.dashboard_widgets)
+# ---------------------------------------------------------------------------
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def dashboard_layout(request, user):
+    from . import dashboard_widgets
+
+    if request.method == 'PUT':
+        try:
+            layout = dashboard_widgets.validate_and_save_layout(user, _body(request))
+        except dashboard_widgets.LayoutValidationError as e:
+            return JsonResponse({'error': str(e)}, status=e.status)
+    elif request.method == 'DELETE':
+        layout = dashboard_widgets.reset_layout(user)
+    else:
+        layout = dashboard_widgets.get_layout(user)
+
+    # Catalog inline: saves iOS a second round-trip when opening the editor.
+    resp = JsonResponse({
+        'layout': layout,
+        'catalog': dashboard_widgets.catalog_for(user),
+    })
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 @api_view(['POST'])
 def tutorial_complete(request, user):
     # Mark the Chiron first-login tutorial as seen so it never shows again.
