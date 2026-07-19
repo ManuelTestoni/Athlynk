@@ -146,4 +146,6 @@ class Command(BaseCommand):
             if made:
                 created += 1
 
+        from config.services import cachekeys
+        cachekeys.invalidate_food_catalog()
         self.stdout.write(self.style.SUCCESS(f'Alimenti creati: {created} / {len(FOODS)}'))

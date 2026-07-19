@@ -43,7 +43,10 @@ from .api import (
     coach_dual_auth, _request_coach, _parse_measurement_body,
     _bearer, _user_from_token, _day_dict, macro_history_payload,
 )
+from django.core.cache import cache
+
 from .http_utils import safe_int
+from .services import cachekeys
 from .session_utils import (
     can_manage_nutrition, can_manage_workouts, coach_has_chiron_access,
     apply_brand_update, brand_dict, coach_can_sell_online,
@@ -202,6 +205,14 @@ def dashboard(request, user):
     coach, err = _require_coach(user)
     if err:
         return err
+
+    # Hit on every app foreground: 4 COUNTs + agenda + notifications. 60s
+    # TTL-only cache (write surface too broad for event invalidation).
+    _dkey = cachekeys.coach_dashboard(coach.id, 'api')
+    _cached = cache.get(_dkey)
+    if _cached is not None:
+        return JsonResponse(_cached)
+
     today = date.today()
 
     active_clients = CoachingRelationship.objects.filter(coach=coach, status='ACTIVE').count()
@@ -239,7 +250,7 @@ def dashboard(request, user):
         coach=coach, submitted_at__date__gte=week_start
     ).count()
 
-    return JsonResponse({
+    payload = {
         'coach': _coach_profile_dict(request, coach),
         'stats': {
             'active_clients': active_clients,
@@ -256,7 +267,9 @@ def dashboard(request, user):
                 if checks_this_week else 'Nessun nuovo check questa settimana.'
             ),
         },
-    })
+    }
+    cache.set(_dkey, payload, 60)
+    return JsonResponse(payload)
 
 
 # ---------------------------------------------------------------------------
@@ -2053,7 +2066,8 @@ def client_workout(request, user, client_id):
     plan = asg.workout_plan
     return JsonResponse({
         'plan': {'id': plan.id, 'title': plan.title},
-        'days': [_day_dict(d) for d in plan.days.all().prefetch_related('exercises__exercise')],
+        'days': [_day_dict(d) for d in plan.days.all().prefetch_related(
+            'exercises__exercise__primary_muscles', 'exercises__exercise__equipment')],
     })
 
 
@@ -2462,6 +2476,8 @@ def workout_create(request, user):
                     technique_notes=(ex.get('notes') or '').strip() or None,
                     set_details=(_sd[:30] if isinstance(_sd, list) else []),
                 )
+    # Keep the web plan list fresh: mobile writes must invalidate it too.
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
 
 
@@ -2513,6 +2529,7 @@ def nutrition_create(request, user):
                     raw_name=name or None if not food_obj else None,
                     uncertain=food_obj is None,
                 )
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'plan_id': plan.id, 'title': plan.title}, status=201)
 
 
@@ -2784,6 +2801,8 @@ def workout_assign(request, user, plan_id):
         workout_plan=plan, client=client, coach=coach,
         start_date=start_date, status='ACTIVE',
     )
+    # assignment_count is baked into the cached web plan list.
+    cachekeys.invalidate_coach_plans(coach.id)
     Notification.objects.create(
         target_user=client.user, notification_type='WORKOUT_ASSIGNED',
         title='Nuova scheda di allenamento',
@@ -3130,6 +3149,9 @@ def chiron_chat_stream(request):
     resp = StreamingHttpResponse(stream(), content_type='text/event-stream')
     resp['Cache-Control'] = 'no-cache'
     resp['X-Accel-Buffering'] = 'no'   # defeat proxy buffering so tokens flush
+    # Any Content-Encoding makes GZipMiddleware skip this response: gzipped SSE
+    # gets buffered by proxies and kills token-by-token streaming.
+    resp['Content-Encoding'] = 'identity'
     return resp
 
 

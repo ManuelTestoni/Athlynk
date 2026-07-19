@@ -267,7 +267,7 @@
                   <div class="grid grid-cols-3 gap-2">
                     <template x-for="m in full.media" :key="m.id">
                       <a :href="m.url" target="_blank" class="block">
-                        <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-24 object-cover rounded"></template>
+                        <template x-if="m.type === 'PHOTO'"><img :src="m.url" loading="lazy" decoding="async" class="w-full h-24 object-cover rounded"></template>
                         <template x-if="m.type === 'VIDEO'"><div class="w-full h-24 rounded flex items-center justify-center" style="background: var(--al-ink); color: var(--al-parchment);"><i class="ph ph-video text-2xl"></i></div></template>
                       </a>
                     </template>

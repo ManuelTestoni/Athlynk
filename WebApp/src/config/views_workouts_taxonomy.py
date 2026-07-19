@@ -22,7 +22,10 @@ from domain.workouts.models import (
     WorkoutFolder, WorkoutPlan,
 )
 
+from django.core.cache import cache
+
 from .http_utils import parse_json_body, require_coach, serialize_folder
+from .services import cachekeys
 from .session_utils import can_manage_workouts, get_session_user
 
 
@@ -242,8 +245,16 @@ def api_muscle_groups(request):
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Unauthenticated'}, status=401)
-    muscles = MuscleGroup.objects.all().order_by('region', 'order', 'name')
-    return JsonResponse([_serialize_muscle(m) for m in muscles], safe=False)
+    # Pure taxonomy, global — invalidated by catalog generation bump.
+    _key = cachekeys.exercise_filters() + ':muscles'
+    data = cache.get(_key)
+    if data is None:
+        muscles = MuscleGroup.objects.all().order_by('region', 'order', 'name')
+        data = [_serialize_muscle(m) for m in muscles]
+        cache.set(_key, data, 3600)
+    resp = JsonResponse(data, safe=False)
+    resp['Cache-Control'] = 'private, max-age=3600'
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +339,7 @@ def api_custom_exercises(request):
             ex.name = name
             ex.slug = ''  # filled in _exercise_payload_apply
             _exercise_payload_apply(ex, data, coach)
+        cachekeys.invalidate_exercise_catalog()
         return JsonResponse(_serialize_exercise_full(ex), status=201)
 
     return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -348,6 +360,7 @@ def api_custom_exercise_detail(request, exercise_id):
             return perr
         with transaction.atomic():
             _exercise_payload_apply(ex, data, coach)
+        cachekeys.invalidate_exercise_catalog()
         return JsonResponse(_serialize_exercise_full(ex))
 
     if request.method == 'DELETE':
@@ -358,6 +371,7 @@ def api_custom_exercise_detail(request, exercise_id):
                 status=409,
             )
         ex.delete()
+        cachekeys.invalidate_exercise_catalog()
         return JsonResponse({'status': 'ok'})
 
     return JsonResponse({'error': 'method not allowed'}, status=405)
@@ -381,13 +395,18 @@ def api_exercise_detail(request, exercise_id):
     coach = get_session_coach(request)
     if coach:
         ex = get_object_or_404(base_qs, Q(is_custom=False) | Q(created_by=coach), id=exercise_id)
-        return JsonResponse(_serialize_exercise_full(ex))
+        resp = JsonResponse(_serialize_exercise_full(ex))
+        # Short-lived: the payload embeds signed media URLs (1h signature).
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
 
     client = get_session_client(request)
     if client:
         from .views_session import _client_exercise_catalog
         ex = get_object_or_404(base_qs & _client_exercise_catalog(client), id=exercise_id)
-        return JsonResponse(_serialize_exercise_full(ex))
+        resp = JsonResponse(_serialize_exercise_full(ex))
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
 
     return JsonResponse({'error': 'unauthorized'}, status=401)
 

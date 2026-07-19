@@ -15,7 +15,7 @@ from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
     get_nutrition_coach, coach_has_chiron_access,
 )
-from config.services import import_quota
+from config.services import cachekeys, import_quota
 from config.http_utils import safe_int, duration_timedelta
 from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
@@ -296,7 +296,7 @@ def nutrizione_piani_view(request):
     if not coach:
         return redirect('login')
 
-    _nkey = f'nutrition_plans:{coach.id}'
+    _nkey = cachekeys.coach_nutrition_plans(coach.id)
     _cached = cache.get(_nkey)
     if _cached:
         plans_payload, folders_payload, clients_json = _cached
@@ -780,7 +780,7 @@ def nutrizione_piano_delete_view(request, plan_id):
         plan.delete()
         transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
 
-    cache.delete(f'nutrition_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'ok': True})
 
 
@@ -861,7 +861,7 @@ def nutrizione_piano_duplicate_view(request, plan_id):
                         order=src_sub.order,
                     )
 
-    cache.delete(f'nutrition_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'ok': True, 'id': new_plan.id})
 
 
@@ -1274,12 +1274,15 @@ def api_food_search(request):
     # serialized result, except "recent" (per-user log history, must stay live).
     _cache_key = None
     if flt != 'recent':
-        _cache_key = 'food_search:' + ':'.join([
-            q, category, food_search_mode, str(offset), str(bool(request.GET.get('include_cats'))),
-        ])
+        _cache_key = cachekeys.food_search(
+            'web', q, category, food_search_mode, offset,
+            bool(request.GET.get('include_cats')),
+        )
         _cached = cache.get(_cache_key)
         if _cached is not None:
-            return JsonResponse(_cached)
+            resp = JsonResponse(_cached)
+            resp['Cache-Control'] = 'private, max-age=300'
+            return resp
 
     foods = Food.objects.all()
     if food_search_mode == 'media':
@@ -1390,7 +1393,10 @@ def api_food_search(request):
                            .values_list('categoria_alimento', flat=True).distinct()
         )
     if _cache_key is not None:
-        cache.set(_cache_key, payload, 60)
+        cache.set(_cache_key, payload, 300)
+        resp = JsonResponse(payload)
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
     return JsonResponse(payload)
 
 
@@ -2190,7 +2196,7 @@ def _handle_plan_save(request, coach, plan):
         else:
             plan.days.all().delete()
 
-    cache.delete(f'nutrition_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'ok': True, 'plan_id': plan.id, 'plan_kind': plan.plan_kind})
 
 

@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
@@ -13,6 +14,7 @@ from domain.calendar.models import Appointment
 from domain.workouts.models import WorkoutSession
 from domain.nutrition.models import NutritionAssignment
 
+from .services import cachekeys
 from .session_utils import (
     get_session_user, get_session_coach, get_session_client, get_active_relationship,
     get_nutrition_coach,
@@ -32,7 +34,16 @@ def _client_dashboard_kpis(client, active_relationship):
     week, active plan's kcal target, days to subscription renewal. Used by both
     the web dashboard and the mobile `GET /api/v1/dashboard/summary` endpoint
     so the numbers always match.
+
+    Cached 60s per client (TTL-only: the write surface — checks, sessions,
+    plans, subscriptions — is too broad for event invalidation, and KPIs a
+    minute stale are fine). Caching here covers both surfaces at once.
     """
+    _key = cachekeys.client_dashboard(client.id)
+    cached = cache.get(_key)
+    if cached is not None:
+        return cached
+
     today = timezone.now().date()
 
     last_two_weights = list(
@@ -77,13 +88,15 @@ def _client_dashboard_kpis(client, active_relationship):
         if subscription and subscription.end_date else None
     )
 
-    return {
+    kpis = {
         'weight_current': weight_current,
         'weight_delta': weight_delta,
         'sessions_this_week': sessions_this_week,
         'kcal_target': kcal_target,
         'days_to_renewal': days_to_renewal,
     }
+    cache.set(_key, kpis, 60)
+    return kpis
 
 
 def dashboard_view(request):
@@ -113,17 +126,29 @@ def dashboard_view(request):
                     )
                 return redirect('dashboard')
 
-        total_clients = ClientProfile.objects.filter(coaching_relationships_as_client__coach=coach).distinct().count()
-        checks_to_review = QuestionnaireResponse.objects.filter(coach=coach, status='PENDING').count()
-        expiring_subscriptions = ClientSubscription.objects.filter(
-            client__coaching_relationships_as_client__coach=coach,
-            status='ACTIVE',
-            end_date__lte=timezone.now().date() + timedelta(days=7),
-        ).distinct().count()
-        appointments_today = Appointment.objects.filter(
-            coach=coach,
-            start_datetime__date=timezone.now().date(),
-        ).count()
+        # Four aggregate COUNTs on every dashboard hit — 60s TTL keeps them
+        # near-live without event invalidation (write surface too broad).
+        _key = cachekeys.coach_dashboard(coach.id, 'web')
+        counts = cache.get(_key)
+        if counts is None:
+            counts = {
+                'total_clients': ClientProfile.objects.filter(coaching_relationships_as_client__coach=coach).distinct().count(),
+                'checks_to_review': QuestionnaireResponse.objects.filter(coach=coach, status='PENDING').count(),
+                'expiring_subscriptions': ClientSubscription.objects.filter(
+                    client__coaching_relationships_as_client__coach=coach,
+                    status='ACTIVE',
+                    end_date__lte=timezone.now().date() + timedelta(days=7),
+                ).distinct().count(),
+                'appointments_today': Appointment.objects.filter(
+                    coach=coach,
+                    start_datetime__date=timezone.now().date(),
+                ).count(),
+            }
+            cache.set(_key, counts, 60)
+        total_clients = counts['total_clients']
+        checks_to_review = counts['checks_to_review']
+        expiring_subscriptions = counts['expiring_subscriptions']
+        appointments_today = counts['appointments_today']
 
         recent_clients = ClientProfile.objects.filter(coaching_relationships_as_client__coach=coach).distinct().order_by('-created_at')[:5]
         subscription_plans = SubscriptionPlan.objects.filter(coach=coach, is_active=True)

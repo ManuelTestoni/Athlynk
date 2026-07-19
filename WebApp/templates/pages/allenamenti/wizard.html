@@ -1736,7 +1736,7 @@
               <template x-for="ex in library.items" :key="ex.id">
                 <div class="wbp-row" :class="{ 'is-added': flashIds.includes(ex.id) }">
                   <button type="button" class="wbp-row-thumb" @click.stop="openExerciseDetail(ex)" title="Dettaglio esercizio">
-                    <img x-show="ex.cover_image" :src="ex.cover_image" alt="">
+                    <img x-show="ex.cover_image" :src="ex.cover_image" loading="lazy" decoding="async" alt="">
                     <i class="ph ph-barbell" x-show="!ex.cover_image"></i>
                   </button>
                   <button type="button" class="wbp-row-main" @click="addExerciseFromLibrary(ex)">

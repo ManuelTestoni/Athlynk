@@ -225,7 +225,7 @@
       <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
         <template x-for="m in media" :key="m.id">
           <div class="rounded overflow-hidden cursor-pointer" style="border: 1px solid var(--al-rule-faint);" @click="openLightbox(m)">
-            <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-40 object-cover"></template>
+            <template x-if="m.type === 'PHOTO'"><img :src="m.url" loading="lazy" decoding="async" class="w-full h-40 object-cover"></template>
             <template x-if="m.type === 'VIDEO'"><div class="w-full h-40 flex items-center justify-center" style="background: var(--al-stone);"><i class="ph ph-video text-3xl" style="color: var(--al-ink-faint);"></i></div></template>
             <div class="p-2">
               <p class="al-small font-semibold" x-text="m.day_name"></p>

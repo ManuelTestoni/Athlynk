@@ -937,7 +937,7 @@
         <div class="grid grid-cols-3 gap-2 mt-2">
           <template x-for="m in uploaded" :key="m.id">
             <div class="rounded overflow-hidden" style="aspect-ratio:1/1; background: var(--al-marble-w);">
-              <template x-if="m.type === 'PHOTO'"><img :src="m.url" class="w-full h-full object-cover"></template>
+              <template x-if="m.type === 'PHOTO'"><img :src="m.url" loading="lazy" decoding="async" class="w-full h-full object-cover"></template>
               <template x-if="m.type === 'VIDEO'"><div class="w-full h-full flex items-center justify-center"><i class="ph ph-video text-2xl" style="color: var(--al-bronze);"></i></div></template>
             </div>
           </template>

@@ -186,6 +186,9 @@ class Command(BaseCommand):
                 break
             url = payload.get('next')
 
+        from config.services import cachekeys
+        cachekeys.invalidate_exercise_catalog()
+
         self.stdout.write(self.style.SUCCESS(
             f'== Fatto. Importati: {imported}  |  Saltati (senza traduzione): {skipped}  |  '
             f'Totale tabella: {Exercise.objects.count()}'

@@ -1,9 +1,11 @@
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from domain.chat.models import Notification
 
+from .services import cachekeys
 from .session_utils import get_session_user
 
 
@@ -29,7 +31,14 @@ def api_notifications_unread_count(request):
     user = get_session_user(request)
     if not user:
         return JsonResponse({'count': 0})
-    count = Notification.objects.filter(target_user=user, is_read=False).count()
+    # Polled every 15s per open tab (static/js/notifications.js): cache for the
+    # poll interval so N tabs cost at most one COUNT per 15s. Mark-read deletes
+    # the key, so the badge clears instantly.
+    _key = cachekeys.unread_count(user.id)
+    count = cache.get(_key)
+    if count is None:
+        count = Notification.objects.filter(target_user=user, is_read=False).count()
+        cache.set(_key, count, 15)
     return JsonResponse({'count': count})
 
 
@@ -41,6 +50,7 @@ def api_notification_mark_read(request, notification_id):
     n = get_object_or_404(Notification, id=notification_id, target_user=user)
     n.is_read = True
     n.save(update_fields=['is_read'])
+    cachekeys.invalidate_unread(user.id)
     return JsonResponse({'status': 'ok'})
 
 
@@ -50,4 +60,5 @@ def api_notifications_mark_all_read(request):
     if not user:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
     Notification.objects.filter(target_user=user, is_read=False).update(is_read=True)
+    cachekeys.invalidate_unread(user.id)
     return JsonResponse({'status': 'ok'})

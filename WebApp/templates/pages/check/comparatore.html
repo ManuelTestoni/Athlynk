@@ -161,7 +161,7 @@
                      style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);"
                      :class="isSelected(photo) ? 'ring-2 cursor-pointer' : (selected.length >= 2 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-90')"
                      :style="isSelected(photo) ? '--tw-ring-color: var(--al-bronze); background: var(--al-marble); border-color: var(--al-bronze);' : ''">
-                    <img :src="photo.url" :alt="photo.photo_type" class="w-full h-full object-cover transition-transform duration-300"
+                    <img :src="photo.url" :alt="photo.photo_type" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-300"
                          :class="!isSelected(photo) && selected.length < 2 ? 'group-hover:scale-105' : ''">
                     <span class="absolute top-2 left-2 al-tag font-mono" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.date"></span>
                     <span class="absolute bottom-2 left-2 al-tag" style="background: rgba(11,29,58,0.85); color: var(--al-parchment); border: none; padding: 2px 6px;" x-text="photo.photo_type"></span>

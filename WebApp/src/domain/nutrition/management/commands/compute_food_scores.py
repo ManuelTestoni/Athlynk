@@ -54,5 +54,7 @@ class Command(BaseCommand):
             return
 
         Food.objects.bulk_update(foods, ['genericity_score'], batch_size=500)
+        from config.services import cachekeys
+        cachekeys.invalidate_food_catalog()
         self.stdout.write(self.style.SUCCESS(
             f"\nSaved genericity_score for {len(foods)} foods."))

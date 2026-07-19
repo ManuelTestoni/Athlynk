@@ -53,7 +53,9 @@ from .session_utils import (
     apply_brand_update, brand_dict,
 )
 from .views import _client_dashboard_kpis
-from .services import ratelimit, sanitize
+from django.core.cache import cache
+
+from .services import cachekeys, ratelimit, sanitize
 from .services.images import is_image, to_webp
 from .services.uploads import store_attachment
 from .views_check import (
@@ -421,7 +423,7 @@ def _day_dict(day):
         'focus_area': day.focus_area,
         'day_type': day.day_type,
         'notes': day.notes,
-        'exercises': [_exercise_dict(we) for we in day.exercises.select_related('exercise')],
+        'exercises': [_exercise_dict(we) for we in day.exercises.all()],
     }
 
 
@@ -475,7 +477,10 @@ def login(request):
         enforce_client_access(getattr(user, 'client_profile', None))
     user.last_login_at = timezone.now()
     user.save(update_fields=['last_login_at'])
-    return JsonResponse({'token': issue_token(user), 'user': _user_dict(user)})
+    resp = JsonResponse({'token': issue_token(user), 'user': _user_dict(user)})
+    # Bearer token in the body: must never land in any cache.
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @api_view(['GET'])
@@ -509,7 +514,9 @@ def me(request, user):
             'brand_primary': user.brand_primary or None,
             'brand_accent': user.brand_accent or None,
         }
-    return JsonResponse(payload)
+    resp = JsonResponse(payload)
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @api_view(['POST'])
@@ -534,6 +541,12 @@ def workouts(request, user):
         WorkoutAssignment.objects
         .filter(client=client, status='ACTIVE')
         .select_related('workout_plan', 'coach')
+        # Prefetch once across all assignments: _day_dict/_exercise_dict walk
+        # days→exercises→exercise (+ muscles/equipment) without extra queries.
+        .prefetch_related(
+            'workout_plan__days__exercises__exercise__primary_muscles',
+            'workout_plan__days__exercises__exercise__equipment',
+        )
         .order_by('-created_at')
     )
     plans = []
@@ -550,7 +563,7 @@ def workouts(request, user):
             'duration_weeks': plan.duration_weeks,
             'start_date': _iso(wa.start_date),
             'coach': _coach_dict(wa.coach),
-            'days': [_day_dict(d) for d in plan.days.all().prefetch_related('exercises__exercise')],
+            'days': [_day_dict(d) for d in plan.days.all()],
         })
     return JsonResponse({'plans': plans})
 
@@ -565,13 +578,16 @@ def nutrition(request, user):
         NutritionAssignment.objects
         .filter(client=client, status='ACTIVE')
         .select_related('nutrition_plan', 'coach')
+        # Prefetch once across all assignments: the day→meal→item loop below
+        # reads everything from the prefetch cache.
+        .prefetch_related('nutrition_plan__days__meals__items__food')
         .order_by('-assigned_at')
     )
     plans = []
     for na in assignments:
         plan = na.nutrition_plan
         days = []
-        for day in plan.days.all().prefetch_related('meals__items__food'):
+        for day in plan.days.all():
             meals = []
             for meal in day.meals.all():
                 items = [{
@@ -667,6 +683,20 @@ def food_search(request, user):
     PAGE = 30
 
     food_mode = (user.email_prefs or {}).get('food_search_mode', 'alimento')
+
+    # Global catalog, hit on every keystroke of the meal logger — cache except
+    # "recent" (per-user log history, must stay live). 'api' prefix: this
+    # payload shape differs from the web food search.
+    _cache_key = None
+    if flt != 'recent':
+        _cache_key = cachekeys.food_search(
+            'api', q, category, food_mode, bool(request.GET.get('include_cats')),
+        )
+        _cached = cache.get(_cache_key)
+        if _cached is not None:
+            resp = JsonResponse(_cached)
+            resp['Cache-Control'] = 'private, max-age=300'
+            return resp
     foods = Food.objects.only(
         'id', 'nome_alimento', 'categoria_alimento', 'energia_kcal',
         'proteine_g', 'carboidrati_g', 'lipidi_g', 'genericity_score',
@@ -717,6 +747,11 @@ def food_search(request, user):
                            .exclude(categoria_alimento='')
                            .values_list('categoria_alimento', flat=True).distinct()
         )
+    if _cache_key is not None:
+        cache.set(_cache_key, payload, 300)
+        resp = JsonResponse(payload)
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
     return JsonResponse(payload)
 
 
@@ -1237,7 +1272,10 @@ def subscription(request, user):
                 'coach': _coach_dict(plan.coach),
             },
         })
-    return JsonResponse({'subscriptions': out})
+    resp = JsonResponse({'subscriptions': out})
+    # Payment state: never cache anywhere.
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @api_view(['POST'])
@@ -1434,7 +1472,10 @@ def check_detail(request, user, response_id):
 
 @api_view(['GET'])
 def measurement_catalog(request, user):
-    return JsonResponse(measurement_options())
+    # Static dict, zero DB — let the client cache it for a day.
+    resp = JsonResponse(measurement_options())
+    resp['Cache-Control'] = 'private, max-age=86400'
+    return resp
 
 
 @api_view(['GET'])
@@ -2137,17 +2178,29 @@ def exercises_search(request, user):
         return JsonResponse({'error': 'Non disponibile'}, status=403)
     from .views_session import search_exercises_for_client, muscle_groups_payload
     from .http_utils import safe_int
-    items = search_exercises_for_client(
-        client,
-        q=(request.GET.get('q') or '').strip(),
-        muscle_group=(request.GET.get('muscle_group') or '').strip(),
-        similar_to=safe_int(request.GET, 'similar_to', None),
-        limit=safe_int(request.GET, 'limit', 30),
+    q = (request.GET.get('q') or '').strip()
+    muscle_group = (request.GET.get('muscle_group') or '').strip()
+    similar_to = safe_int(request.GET, 'similar_to', None)
+    limit = safe_int(request.GET, 'limit', 30)
+    include_groups = bool(request.GET.get('include_groups'))
+
+    # Catalog search, client-scoped (may include their coaches' custom
+    # exercises). Custom writes bump the catalog generation. 300s TTL keeps
+    # embedded signed media URLs well within their 1h signature.
+    _key = cachekeys.exercise_search(
+        f'client:{client.id}', q, muscle_group, similar_to, limit, include_groups,
     )
-    payload = {'results': items}
-    if request.GET.get('include_groups'):
-        payload['muscle_groups'] = muscle_groups_payload()
-    return JsonResponse(payload)
+    payload = cache.get(_key)
+    if payload is None:
+        payload = {'results': search_exercises_for_client(
+            client, q=q, muscle_group=muscle_group, similar_to=similar_to, limit=limit,
+        )}
+        if include_groups:
+            payload['muscle_groups'] = muscle_groups_payload()
+        cache.set(_key, payload, 300)
+    resp = JsonResponse(payload)
+    resp['Cache-Control'] = 'private, max-age=300'
+    return resp
 
 
 @api_view(['GET'])

@@ -358,7 +358,7 @@
                             <span class="absolute top-2 left-2 z-10 al-tag" style="background: var(--al-ink); color: var(--al-parchment);">
                                 {{ photo.photo_type }}
                             </span>
-                            <img src="{{ photo.file_url }}" alt="{{ photo.photo_type }}"
+                            <img src="{{ photo.file_url }}" alt="{{ photo.photo_type }}" loading="lazy" decoding="async"
                                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             <button type="button" @click="activeImage = '{{ photo.file_url }}'; showImageModal = true"
                                     class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
@@ -379,7 +379,7 @@
                         {% for f in files %}
                         <div class="relative group aspect-[4/5] overflow-hidden" style="background: var(--al-marble); border: 1px solid var(--al-rule); border-radius: var(--al-r-sm);">
                             {% if 'image' in f.mime_type or '.webp' in f.file_url or '.jpg' in f.file_url or '.png' in f.file_url or '.jpeg' in f.file_url %}
-                            <img src="{{ f.file_url }}" alt="{{ f.file_name }}"
+                            <img src="{{ f.file_url }}" alt="{{ f.file_name }}" loading="lazy" decoding="async"
                                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             <button type="button" @click="activeImage = '{{ f.file_url }}'; showImageModal = true"
                                     class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"

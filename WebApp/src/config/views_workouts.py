@@ -20,7 +20,7 @@ from domain.coaching.models import CoachingRelationship
 from domain.chat.models import Notification
 
 from .services.email import send_workout_assigned
-from .services import import_quota
+from .services import cachekeys, import_quota
 
 logger = logging.getLogger(__name__)
 from .session_utils import (
@@ -185,7 +185,7 @@ def allenamenti_list_view(request):
     if not coach or not can_manage_workouts(coach):
         return redirect('dashboard')
 
-    _wkey = f'workout_plans:{coach.id}'
+    _wkey = cachekeys.coach_workout_plans(coach.id)
     _cached = cache.get(_wkey)
     if _cached:
         plans_data, folders_data, clients_data = _cached
@@ -855,7 +855,7 @@ def api_plan_save(request, plan_id=None):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-    cache.delete(f'workout_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({
         'status': 'ok',
         'plan': _serialize_plan_for_wizard(plan),
@@ -996,7 +996,7 @@ def api_plan_delete(request, plan_id):
         plan.delete()
         transaction.on_commit(lambda: [send_plan_deleted_message(coach, c) for c in clients])
 
-    cache.delete(f'workout_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({'status': 'ok'})
 
 
@@ -1124,7 +1124,7 @@ def api_plan_duplicate(request, plan_id):
                     is_deload=wv.is_deload,
                 )
 
-    cache.delete(f'workout_plans:{coach.id}')
+    cachekeys.invalidate_coach_plans(coach.id)
     return JsonResponse({
         'status': 'ok',
         'plan_id': new_plan.id,
@@ -1216,14 +1216,17 @@ def api_search_exercises(request):
     coach = get_session_coach(request)
 
     # Global, read-mostly catalog hit on every keystroke of the builder's
-    # search field — cache the serialized result per (coach, filters).
-    _key = 'exercise_search:' + ':'.join([
-        str(coach.id) if coach else 'anon', query, muscle_slug,
-        equipment_id, category_id, str(custom_only),
-    ])
+    # search field — cache the serialized result per (coach, filters). Custom
+    # exercise writes bump the catalog generation, so 300s TTL is safe.
+    _key = cachekeys.exercise_search(
+        f'coach:{coach.id}' if coach else None,
+        query, muscle_slug, equipment_id, category_id, custom_only,
+    )
     _cached = cache.get(_key)
     if _cached is not None:
-        return JsonResponse(_cached, safe=False)
+        resp = JsonResponse(_cached, safe=False)
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
 
     qs = Exercise.objects.all()
 
@@ -1266,16 +1269,26 @@ def api_search_exercises(request):
         return card
 
     data = [_card(e) for e in qs]
-    cache.set(_key, data, 60)
-    return JsonResponse(data, safe=False)
+    cache.set(_key, data, 300)
+    resp = JsonResponse(data, safe=False)
+    resp['Cache-Control'] = 'private, max-age=300'
+    return resp
 
 
 def api_exercise_filters(request):
-    return JsonResponse({
-        'muscles': list(MuscleGroup.objects.order_by('region', 'order', 'name').values('slug', 'name')),
-        'equipment': list(Equipment.objects.order_by('name_it').values('id', 'name_it')),
-        'categories': list(ExerciseCategory.objects.order_by('name_it').values('id', 'name_it')),
-    })
+    # Pure taxonomy: global, changes only via imports/admin (generation bump).
+    _key = cachekeys.exercise_filters()
+    data = cache.get(_key)
+    if data is None:
+        data = {
+            'muscles': list(MuscleGroup.objects.order_by('region', 'order', 'name').values('slug', 'name')),
+            'equipment': list(Equipment.objects.order_by('name_it').values('id', 'name_it')),
+            'categories': list(ExerciseCategory.objects.order_by('name_it').values('id', 'name_it')),
+        }
+        cache.set(_key, data, 3600)
+    resp = JsonResponse(data)
+    resp['Cache-Control'] = 'private, max-age=3600'
+    return resp
 
 
 # ---------------------------------------------------------------------------

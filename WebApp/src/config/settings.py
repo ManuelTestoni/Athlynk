@@ -190,7 +190,11 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', 
+    # Compresses dynamic responses (JSON dashboards/plans are the big wins);
+    # whitenoise static files are already precompressed and skipped. Must sit
+    # above ConditionalGetMiddleware so ETags are computed on the gzipped body.
+    'django.middleware.gzip.GZipMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.http.ConditionalGetMiddleware',
@@ -288,7 +292,20 @@ if _redis_url:
             },
         }
     }
+    # Fail-open must not mean fail-silent: log every swallowed Redis error so
+    # a dead Redis shows up in logs/Sentry instead of just degrading quietly.
+    DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
 else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+
+# Come per il DB (SQLite sotto test): i test non devono dipendere da un Redis
+# raggiungibile — LocMem li tiene deterministici e veloci anche con REDIS_URL
+# nel .env locale.
+if 'test' in sys.argv:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -391,6 +408,12 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# 1 day of browser caching for static assets (whitenoise default is 60s).
+# css/js references carry ?v=ASSET_VERSION so a deploy busts them immediately;
+# 1 day (not 1 year) bounds staleness for files referenced without ?v=
+# (favicon, images) since filenames are not content-hashed.
+WHITENOISE_MAX_AGE = 60 * 60 * 24
+
 
 
 MEDIA_URL = '/media/'
@@ -420,7 +443,9 @@ STORAGES: dict[str, dict[str, Any]] = {
 
 if SUPABASE_S3_ENDPOINT:
     STORAGES['default'] = {
-        'BACKEND': 'storages.backends.s3.S3Storage',
+        # S3Storage + per-key signed-URL caching (config.storage): stable URL
+        # strings for ~50 min so browsers/URLSession can cache media bytes.
+        'BACKEND': 'config.storage.CachedSignedS3Storage',
         'OPTIONS': {
             'endpoint_url': SUPABASE_S3_ENDPOINT,
             'access_key': config('SUPABASE_S3_ACCESS_KEY'),
@@ -446,6 +471,13 @@ if SUPABASE_S3_ENDPOINT:
 # The iOS apps authenticate with signed Bearer tokens (see config/api.py),
 # never the session cookie, so none of this touches them — athletes and coaches
 # stay logged in on mobile until they sign out.
+# cached_db: session reads come from the cache (Redis in prod — guaranteed hot
+# because SESSION_SAVE_EVERY_REQUEST writes through on every request), while
+# Postgres stays the source of truth. NOT the pure 'cache' backend: with
+# IGNORE_EXCEPTIONS a Redis blip would turn every session read into a silent
+# miss and log out every web user at once; with cached_db it just falls back
+# to the DB read we do today.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_COOKIE_AGE = 30 * 60                  # 30 min idle timeout
 SESSION_SAVE_EVERY_REQUEST = True             # sliding window: renew on activity
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
