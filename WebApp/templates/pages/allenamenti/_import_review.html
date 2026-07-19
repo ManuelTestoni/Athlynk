@@ -1,4 +1,14 @@
+{# Import review — step 3.
+
+   This screen has exactly two jobs: bind every extracted exercise to a
+   catalogue entry, and choose the plan's shape. It deliberately does NOT
+   reimplement the builder (sessions, blocks, supersets, per-set parameters):
+   saving hands the coach straight into `wizard.html`, which already does all of
+   that. Anything editable here would be a second implementation to keep in
+   sync — and the numbers below are shown as extracted so the coach can see what
+   the AI read, then fix them in the builder where they belong. #}
 <section x-show="currentStep === 3" x-transition.opacity x-cloak>
+
   <div class="mb-6">
     <p class="al-eyebrow mb-3">Studio &middot; Allenamenti &middot; Revisione</p>
     <div class="flex items-end justify-between gap-4 flex-wrap">
@@ -32,490 +42,184 @@
   </div>
   {% endif %}
 
-  <!-- Banner uncertainty -->
-  <div x-show="confidence && confidence.ratio >= 0.5"
-       class="al-card mb-4" style="background: rgba(162,59,59,0.08); border-color: var(--al-danger); padding: 14px 18px;">
+  {# One status line instead of two competing banners: what's left to do. #}
+  <div x-show="uncertainCount() > 0" class="al-card mb-5"
+       style="background: rgba(162,59,59,0.07); border-color: var(--al-danger); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-danger);">
       <i class="ph ph-warning-circle"></i>
-      <span>Attenzione: molti esercizi non riconosciuti con certezza
-        (<span x-text="confidence.fields_uncertain"></span>/<span x-text="confidence.fields_total"></span>).
-        Verifica attentamente prima di salvare.</span>
+      <span>
+        <span x-text="uncertainCount()"></span>
+        <span x-text="uncertainCount() === 1 ? 'esercizio non collegato' : 'esercizi non collegati'"></span>.
+        Cercalo nel database o crealo, poi salva.
+      </span>
     </p>
   </div>
-  <div x-show="confidence && confidence.fields_uncertain > 0 && confidence.ratio < 0.5"
-       class="al-card mb-4" style="background: rgba(138,106,30,0.08); border-color: var(--al-warn); padding: 14px 18px;">
+  <div x-show="uncertainCount() === 0 && toVerifyCount() > 0" class="al-card mb-5"
+       style="background: rgba(138,106,30,0.07); border-color: var(--al-warn); padding: 14px 18px;">
     <p class="font-medium flex items-center gap-2" style="color: var(--al-warn);">
       <i class="ph ph-info"></i>
-      <span><span x-text="confidence.fields_uncertain"></span> esercizi incerti — verifica le righe evidenziate.</span>
+      <span>
+        Tutti collegati, ma <span x-text="toVerifyCount()"></span>
+        <span x-text="toVerifyCount() === 1 ? 'corrispondenza è incerta' : 'corrispondenze sono incerte'"></span>
+        — le trovi evidenziate qui sotto.
+      </span>
+    </p>
+  </div>
+  <div x-show="uncertainCount() === 0 && toVerifyCount() === 0" class="al-card mb-5"
+       style="background: rgba(63,122,94,0.07); border-color: var(--al-success); padding: 14px 18px;">
+    <p class="font-medium flex items-center gap-2" style="color: var(--al-success);">
+      <i class="ph ph-check-circle"></i>
+      <span>Tutti gli esercizi sono collegati al database. Puoi salvare e passare al builder.</span>
     </p>
   </div>
 
-  <!-- Session tabs sticky -->
-  <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
-       style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
-    <div class="flex items-center gap-1 overflow-x-auto">
-      <template x-for="(s, idx) in workout.sessions" :key="idx">
-        <button type="button" @click="activeSession = idx"
-                class="text-left px-3 py-2 transition-all shrink-0"
-                :style="activeSession === idx
-                  ? 'background: var(--al-marble-warm); border-bottom: 2px solid var(--al-bronze); border-radius: var(--al-r-sm) var(--al-r-sm) 0 0;'
-                  : 'border-bottom: 2px solid transparent;'">
-          <p class="text-[13px] font-medium"
-             :style="activeSession === idx ? 'color: var(--al-ink);' : 'color: var(--al-ink-mute);'"
-             x-text="dayLabel(s)"></p>
-          <p class="al-tag font-mono" style="font-size: 9px;"
-             x-text="(s.session_type || '') + (s.session_type ? ' · ' : '') + sessionVolume(s).sets + ' set'"></p>
-        </button>
-      </template>
-      <button type="button" @click="addSession()" class="al-btn al-btn-ghost al-btn-sm ml-2"
-              title="Aggiungi sessione">
-        <i class="ph ph-plus text-sm"></i><span>Sessione</span>
-      </button>
-    </div>
+  {# Plan shape decides which builder receives the plan, so it's chosen here —
+     after the coach has seen what the document actually contains. #}
+  <div class="al-card mb-5">
+    <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Tipo di scheda</p>
+    {% include 'pages/allenamenti/_import_kind_toggle.html' %}
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-
-    <!-- Sessione attiva -->
-    <div class="space-y-4">
-      <template x-for="(session, sIdx) in workout.sessions" :key="sIdx">
-        <div x-show="activeSession === sIdx" class="space-y-4">
-
-          <!-- Header session (label + session_type editing) -->
-          <div class="al-card al-card-flush" style="padding: 14px 18px;">
-            <div class="flex items-center gap-3 flex-wrap">
-              <input type="text" class="al-input" x-model="session.day_label"
-                     placeholder="Nome sessione (es. Push, Lunedì, Giorno A)" style="max-width: 280px;">
-              <input type="text" class="al-input" x-model="session.session_type"
-                     placeholder="Tipo (Push/Pull/Legs/Cardio…)" style="max-width: 200px;">
-              <button type="button" @click="removeSession(sIdx)"
-                      class="al-btn al-btn-ghost al-btn-sm ml-auto"
-                      title="Rimuovi sessione">
-                <i class="ph ph-trash text-xs" style="color: var(--al-danger);"></i>
-                <span class="hidden md:inline">Rimuovi</span>
-              </button>
-            </div>
-            <textarea x-model="session.notes" class="al-input mt-2"
-                      placeholder="Note sessione (opz.)" rows="1"
-                      style="font-size: 12px;"></textarea>
-          </div>
-
-          <!-- Blocks -->
-          <template x-for="(block, bIdx) in session.blocks" :key="bIdx">
-            <div class="al-card al-card-warm al-card-flush">
-              <!-- Block header -->
-              <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid var(--al-rule);">
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                  <div class="w-7 h-7 flex items-center justify-center text-xs font-bold shrink-0"
-                       style="background: var(--al-bronze); color: var(--al-parchment); border-radius: 999px;"
-                       x-text="bIdx + 1"></div>
-                  <select x-model="block.block_type" class="al-input shrink-0"
-                          style="width: 130px; font-size: 12px;">
-                    <option value="straight">Singolo</option>
-                    <option value="superset">Superset</option>
-                    <option value="circuit">Circuit</option>
-                    <option value="emom">EMOM</option>
-                    <option value="amrap">AMRAP</option>
-                  </select>
-                  <input type="text" x-model="block.block_name" class="al-input"
-                         placeholder="Etichetta blocco (A, B, Superset 1…)" style="max-width: 220px;">
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <button type="button" @click="addExercise(sIdx, bIdx)"
-                          class="al-btn al-btn-ghost al-btn-sm" title="Aggiungi esercizio">
-                    <i class="ph ph-plus text-sm"></i><span>Esercizio</span>
-                  </button>
-                  <button type="button" @click="removeBlock(sIdx, bIdx)"
-                          class="al-btn al-btn-icon al-btn-ghost"
-                          title="Rimuovi blocco">
-                    <i class="ph ph-trash text-xs" style="color: var(--al-danger);"></i>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Exercises -->
-              <div>
-                <template x-for="(ex, eIdx) in block.exercises" :key="eIdx">
-                  <div class="wb-ex-row"
-                       :data-row-id="sIdx + '-' + bIdx + '-' + eIdx"
-                       :style="ex.uncertain && !ex.matched_exercise_id ? 'background: rgba(138,106,30,0.08);' : ''">
-
-                    <!-- Row top: exercise name + badges + remove -->
-                    <div class="wb-ex-row-head">
-                      <div class="wb-ex-search">
-                        <div class="wb-ex-search-input"
-                             :data-search-anchor="sIdx + '-' + bIdx + '-' + eIdx">
-                          <i class="ph ph-magnifying-glass text-ink-line"></i>
-                          <input type="text"
-                                 :style="ex.uncertain && !ex.matched_exercise_id ? 'border-color: var(--al-warn);' : ''"
-                                 x-model="ex.raw_name"
-                                 @input.debounce.300="searchExerciseInline(ex, $event.target.value); openExerciseSearch(ex, $event.target.closest('.wb-ex-search-input'))"
-                                 @focus="openExerciseSearch(ex, $event.target.closest('.wb-ex-search-input'))"
-                                 @blur.debounce.180="ex._searchOpen = false"
-                                 placeholder="Cerca esercizio nel DB…">
-                          <template x-if="ex.matched_exercise_id">
-                            <span class="al-tag font-mono wb-ex-db-tag"
-                                  title="Collegato a un esercizio del DB">
-                              <i class="ph ph-link text-[9px]"></i><span>DB</span>
-                            </span>
-                          </template>
-                          <span x-show="block.block_type !== 'straight'"
-                                class="al-tag font-mono"
-                                :style="'background: ' + blockTypeColor(block.block_type) + '; color: var(--al-parchment); border: 1px solid ' + blockTypeColor(block.block_type) + '; padding: 1px 7px; font-size: 9px;'"
-                                x-text="blockTypeLabel(block.block_type)"></span>
-                          {% if origin_pdf %}
-                          <span x-show="cfg.showSourceBadge && ex.source_page"
-                                class="al-tag font-mono"
-                                :title="ex.source_chunk ? ('Chunk: ' + ex.source_chunk) : ''"
-                                style="background: rgba(30,58,95,0.10); color: var(--al-bronze); padding: 1px 7px; font-size: 9px;">
-                            <i class="ph ph-file-pdf text-[9px]"></i>
-                            Pag.&nbsp;<span x-text="ex.source_page"></span>
-                          </span>
-                          {% endif %}
-                        </div>
-
-                        <!-- Teleport dropdown anchored via computed bbox -->
-                        <template x-teleport="body">
-                          <div x-show="ex._searchOpen && ex._candidates && ex._candidates.length"
-                               x-cloak
-                               class="wb-ex-dropdown"
-                               :style="ex._dropdownStyle || ''"
-                               @mousedown.stop>
-                            <template x-for="c in ex._candidates" :key="c.id">
-                              <button type="button"
-                                      @mousedown.prevent="pickExercise(ex, c)"
-                                      class="wb-ex-dropdown-item">
-                                <div class="flex items-center justify-between gap-3">
-                                  <p class="text-sm font-medium text-ink" x-text="c.name"></p>
-                                  <p class="al-tag font-mono shrink-0"
-                                     x-text="(c.primary_muscle || '')"></p>
-                                </div>
-                                <div class="flex items-center gap-2 mt-1">
-                                  <span x-show="c.equipment && c.equipment.length" class="al-tag" style="font-size: 9px;"
-                                        x-text="(c.equipment || []).join(', ')"></span>
-                                  <span x-show="c.is_custom" class="al-tag font-mono"
-                                        style="font-size: 8px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft);"
-                                        title="Esercizio personalizzato — visibile solo a te">
-                                    <i class="ph ph-user-circle"></i> Tuo
-                                  </span>
-                                </div>
-                              </button>
-                            </template>
-                            <button type="button"
-                                    @mousedown.prevent="openCustomExerciseDrawer(ex); ex._searchOpen = false"
-                                    class="wb-ex-dropdown-create">
-                              <i class="ph ph-plus-circle"></i>
-                              <span>Non trovi il tuo esercizio? <b>Crealo</b></span>
-                            </button>
-                          </div>
-                        </template>
-                      </div>
-
-                      <!-- Per-row "Crea esercizio" sidebar button: always visible. -->
-                      <button type="button"
-                              @click="openCustomExerciseDrawer(ex)"
-                              class="wb-ex-create-btn"
-                              title="Apri il form per creare un esercizio personalizzato">
-                        <i class="ph ph-plus-circle"></i>
-                        <span class="hidden md:inline">Crea esercizio</span>
-                      </button>
-
-                      <button type="button" @click="removeExercise(sIdx, bIdx, eIdx)"
-                              class="al-btn al-btn-icon al-btn-ghost shrink-0"
-                              title="Rimuovi esercizio">
-                        <i class="ph ph-trash text-xs" style="color: var(--al-danger);"></i>
-                      </button>
-                    </div>
-
-                    <!-- Labeled parameter grid -->
-                    <div class="wb-ex-params">
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label">Serie</span>
-                        <input type="number" min="0" step="1" x-model.number="ex.sets"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="—">
-                      </div>
-                      <div class="wb-ex-param wb-ex-param--reps">
-                        <span class="wb-ex-param-label">Ripetizioni</span>
-                        <input type="text" x-model="ex.reps"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="es. 8 o 6-8">
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label">Carico</span>
-                        <input type="number" min="0" step="0.5" x-model.number="ex.load"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="—">
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label">Unità</span>
-                        <select x-model="ex.load_unit" class="al-input wb-ex-param-input">
-                          <option :value="null">—</option>
-                          <option value="kg">kg</option>
-                          <option value="lb">lb</option>
-                          <option value="bw">bw</option>
-                          <option value="band">band</option>
-                        </select>
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label" title="Tipo di carico">Tipo</span>
-                        <select x-model="ex.load_type" class="al-input wb-ex-param-input">
-                          <option value="absolute">Assoluto</option>
-                          <option value="percentage_1rm">% 1RM</option>
-                          <option value="rpe">RPE</option>
-                        </select>
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label">Recupero (s)</span>
-                        <input type="number" min="0" step="5" x-model.number="ex.rest_seconds"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="es. 90">
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label" title="Rate of Perceived Exertion (1-10)">RPE</span>
-                        <input type="number" min="1" max="10" step="0.5" x-model.number="ex.rpe"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="1-10">
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label" title="Reps In Reserve">RIR</span>
-                        <input type="number" min="0" max="10" step="1" x-model.number="ex.rir"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="0-10">
-                      </div>
-                      <div class="wb-ex-param">
-                        <span class="wb-ex-param-label" title="Es: 3010 = 3s ecc / 0s pausa / 1s con / 0s pausa">Tempo</span>
-                        <input type="text" x-model="ex.tempo"
-                               class="al-input text-center font-mono wb-ex-param-input"
-                               placeholder="es. 3010">
-                      </div>
-                      <div class="wb-ex-param wb-ex-param--notes">
-                        <span class="wb-ex-param-label">Note</span>
-                        <input type="text" x-model="ex.notes"
-                               class="al-input wb-ex-param-input wb-ex-param-input--text"
-                               placeholder="Note tecniche, cue, alternative…">
-                      </div>
-                    </div>
-
-                    <!-- Matched preview pill: shown when bound -->
-                    <div x-show="ex.matched_exercise_id" class="wb-ex-matched-info">
-                      <i class="ph ph-check-circle text-bronze"></i>
-                      <span>Collegato a</span>
-                      <strong x-text="ex.matched_exercise_name"></strong>
-                      <span x-show="ex.matched_primary_muscle" class="al-tag font-mono"
-                            style="font-size: 9px; background: var(--al-marble); color: var(--al-aegean); border: 1px solid rgba(30,58,95,0.25);"
-                            x-text="ex.matched_primary_muscle"></span>
-                      <span x-show="ex.matched_equipment" class="al-tag font-mono"
-                            style="font-size: 9px;" x-text="ex.matched_equipment"></span>
-                    </div>
-                  </div>
-                </template>
-
-                <div x-show="!block.exercises.length"
-                     class="al-tag text-center" style="padding: 12px; color: var(--al-ink-line); font-style: italic;">
-                  Blocco vuoto. Aggiungi un esercizio.
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Add block CTAs -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="al-tag" style="font-size: 9px; color: var(--al-ink-mute);">Nuovo blocco:</span>
-            <button type="button" @click="addBlock(sIdx, 'straight')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid var(--al-rule); color: var(--al-ink);">
-              <i class="ph ph-list text-[10px]"></i><span>Singolo</span>
-            </button>
-            <button type="button" @click="addBlock(sIdx, 'superset')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(30,58,95,0.3); color: var(--al-aegean);">
-              <i class="ph ph-link text-[10px]"></i><span>Superset</span>
-            </button>
-            <button type="button" @click="addBlock(sIdx, 'circuit')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid var(--al-bronze-soft); color: var(--al-bronze);">
-              <i class="ph ph-arrows-clockwise text-[10px]"></i><span>Circuit</span>
-            </button>
-            <button type="button" @click="addBlock(sIdx, 'emom')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(138,106,30,0.35); color: var(--al-warn);">
-              <i class="ph ph-timer text-[10px]"></i><span>EMOM</span>
-            </button>
-            <button type="button" @click="addBlock(sIdx, 'amrap')" class="al-tag transition-all"
-                    style="cursor: pointer; padding: 4px 10px; background: var(--al-parchment); border: 1px solid rgba(162,59,59,0.35); color: var(--al-danger);">
-              <i class="ph ph-lightning text-[10px]"></i><span>AMRAP</span>
-            </button>
-          </div>
-        </div>
-      </template>
-    </div>
-
-    <!-- Side panel: volume analytics -->
-    <aside class="space-y-4 lg:sticky lg:top-24">
-      <div class="al-card">
-        <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Distribuzione volume</p>
-
-        <!-- Donut (muscoli) -->
-        <div class="mb-5" x-data="{ pieHover: null }">
-          <div class="relative mx-auto" style="width: 200px; height: 200px;">
-            <svg viewBox="0 0 200 200" width="200" height="200" style="display: block;">
-              <template x-for="seg in muscleSegments()" :key="seg.key">
-                <path :d="donutPath(seg.start, seg.end, 100, 100, 92, 58)"
-                      :style="'fill: ' + seg.color + '; stroke: var(--al-parchment); stroke-width: 2; cursor: pointer; transition: opacity .2s, transform .25s var(--al-ease-spr); transform-origin: 100px 100px; transform-box: fill-box;' + (pieHover && pieHover !== seg.key ? ' opacity: 0.28;' : '') + (pieHover === seg.key ? ' transform: scale(1.035);' : '')"
-                      @mouseenter="pieHover = seg.key"
-                      @mouseleave="pieHover = null"></path>
-              </template>
-              <template x-if="muscleSegments().length === 0">
-                <g>
-                  <circle cx="100" cy="100" r="92" fill="none" stroke="var(--al-rule)" stroke-width="1.5" stroke-dasharray="3 6"></circle>
-                  <circle cx="100" cy="100" r="58" fill="none" stroke="var(--al-rule-faint)" stroke-width="1" stroke-dasharray="2 5"></circle>
-                </g>
-              </template>
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <template x-if="!pieHover">
-                <div class="text-center">
-                  <p class="al-display font-mono"
-                     style="font-size: 28px; line-height: 1; color: var(--al-ink); letter-spacing: -0.01em;"
-                     x-text="totalSets()"></p>
-                  <p class="al-tag mt-1" style="font-size: 9px;">set totali</p>
-                </div>
-              </template>
-              <template x-if="pieHover">
-                <div class="text-center px-2">
-                  <p class="al-display font-mono font-bold"
-                     style="font-size: 22px; line-height: 1; letter-spacing: -0.01em;"
-                     :style="'color: ' + (muscleSegments().find(s => s.key === pieHover) || {}).color"
-                     x-text="(muscleSegments().find(s => s.key === pieHover) || {}).count + ' set'"></p>
-                  <p class="al-tag mt-1" style="font-size: 9px;"
-                     x-text="(muscleSegments().find(s => s.key === pieHover) || {}).label"></p>
-                </div>
-              </template>
-            </div>
-          </div>
+  <div class="al-card al-card-flush" style="padding: var(--al-s-5);">
+    <template x-for="(session, sIdx) in workout.sessions" :key="sIdx">
+      <div class="imp-group">
+        <div class="imp-group-head">
+          <h2 class="imp-group-title" x-text="dayLabel(session)"></h2>
+          <span x-show="session.session_type" class="al-tag" x-text="session.session_type"></span>
+          <span class="imp-group-meta"
+                x-text="sessionVolume(session).exercises + ' es · ' + sessionVolume(session).sets + ' set'"></span>
         </div>
 
-        <!-- Legend -->
-        <div class="mt-4 pt-4 space-y-1.5"
-             style="border-top: 1px solid var(--al-rule);">
-          <template x-for="seg in muscleSegments()" :key="'lg-' + seg.key">
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 min-w-0">
-                <span :style="'width: 10px; height: 10px; border-radius: 999px; background: ' + seg.color + ';'"></span>
-                <span class="al-body truncate" x-text="seg.label" style="font-size: 12px;"></span>
-              </div>
-              <span class="font-mono font-bold text-ink shrink-0" style="font-size: 11px;"
-                    x-text="seg.count + ' set'"></span>
-            </div>
-          </template>
-          <p x-show="muscleSegments().length === 0"
-             class="al-small italic" style="color: var(--al-ink-mute);">
-            Risolvi gli esercizi per vedere la distribuzione muscolare.
-          </p>
-        </div>
-      </div>
-
-      <!-- Histogram: volume per sessione -->
-      <div class="al-card" x-show="workout.sessions.length > 0">
-        <div class="flex items-center gap-3 mb-4 flex-wrap">
-          <i class="ph ph-chart-bar text-bronze text-lg"></i>
+        <template x-for="(block, bIdx) in session.blocks" :key="bIdx">
           <div>
-            <p class="al-eyebrow" style="color: var(--al-ink-mute);">Andamento</p>
-            <h2 class="al-h-4">Volume per sessione</h2>
-          </div>
-        </div>
-        <!-- Toggle metrics -->
-        <div class="flex items-center gap-1.5 flex-wrap mb-3">
-          <template x-for="opt in [{k:'sets',l:'Set',c:'var(--al-bronze)'},
-                                    {k:'reps',l:'Reps',c:'var(--al-aegean)'},
-                                    {k:'load',l:'Tonnellaggio',c:'var(--al-warn)'}]" :key="opt.k">
-            <button type="button" @click="toggleHisto(opt.k)"
-                    class="al-tag flex items-center gap-1.5 transition-all"
-                    :style="(histoShow[opt.k]
-                      ? 'background: ' + opt.c + '; color: var(--al-parchment); border-color: ' + opt.c + ';'
-                      : 'background: var(--al-parchment); color: var(--al-ink-mute); border: 1px solid var(--al-rule);') + ' padding: 3px 8px; font-size: 9px; cursor: pointer;'">
-              <span :style="'width: 6px; height: 6px; border-radius: 2px; background: ' + (histoShow[opt.k] ? 'var(--al-parchment)' : opt.c)"></span>
-              <span x-text="opt.l"></span>
-            </button>
-          </template>
-        </div>
-        <div x-data="{ hover: null }" class="relative">
-          <template x-if="totalSets() === 0">
-            <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
-                 style="background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.85) 100%);">
-              <p class="al-tag" style="color: var(--al-ink-mute); font-size: 9px;">
-                <i class="ph ph-chart-bar text-bronze"></i>
-                <span>Nessun set</span>
-              </p>
-            </div>
-          </template>
-          <div class="flex items-end gap-2 px-1"
-               style="height: 150px; border-bottom: 1px solid var(--al-rule); padding-bottom: 4px;">
-            <template x-for="d in sessionHistogramData()" :key="d.code">
-              <div class="flex-1 flex flex-col items-center justify-end gap-1 relative"
-                   style="height: 100%; min-width: 24px;"
-                   @mouseenter="hover = d.code" @mouseleave="hover = null">
-                <template x-if="hover === d.code">
-                  <div class="absolute z-10 px-2 py-1.5 pointer-events-none"
-                       style="bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-6px); background: var(--al-ink); color: var(--al-parchment); border-radius: var(--al-r-sm); box-shadow: var(--al-shadow-2); min-width: 100px; font-size: 9px; white-space: nowrap;">
-                    <p class="font-mono font-bold" style="font-size: 11px;" x-text="d.label"></p>
-                    <p class="font-mono mt-0.5" x-show="histoShow.sets"  x-text="'Set: ' + d.sets"></p>
-                    <p class="font-mono opacity-90" x-show="histoShow.reps"  x-text="'Reps: ' + d.reps"></p>
-                    <p class="font-mono opacity-90" x-show="histoShow.load"  x-text="'Ton: ' + d.load + ' kg'"></p>
+            <p x-show="block.block_type && block.block_type !== 'straight'"
+               class="al-tag font-mono mb-1"
+               :style="'background: ' + blockTypeColor(block.block_type) + '; color: var(--al-parchment); border-color: ' + blockTypeColor(block.block_type) + ';'"
+               x-text="blockTypeLabel(block.block_type) + (block.block_name ? ' · ' + block.block_name : '')"></p>
+
+            <template x-for="(ex, eIdx) in block.exercises" :key="eIdx">
+              <div class="imp-row"
+                   :class="{ 'is-unresolved': !ex.matched_exercise_id,
+                             'is-uncertain': ex.matched_exercise_id && ex.uncertain }">
+
+                {# Left: verbatim from the document. #}
+                <div>
+                  <p class="imp-source-text" x-text="ex.raw_name || '—'"></p>
+                  <div class="imp-source-params">
+                    <template x-if="ex.sets"><span class="imp-param" x-text="ex.sets + '×' + (ex.reps ?? '?')"></span></template>
+                    <template x-if="ex.load"><span class="imp-param" x-text="ex.load + (ex.load_unit || 'kg')"></span></template>
+                    <template x-if="ex.rpe"><span class="imp-param" x-text="'RPE ' + ex.rpe"></span></template>
+                    <template x-if="ex.rir !== null && ex.rir !== undefined && ex.rir !== ''"><span class="imp-param" x-text="'RIR ' + ex.rir"></span></template>
+                    <template x-if="ex.rest_seconds"><span class="imp-param" x-text="'rec ' + ex.rest_seconds + 's'"></span></template>
+                    <template x-if="ex.tempo"><span class="imp-param" x-text="'tempo ' + ex.tempo"></span></template>
+                    {% if origin_pdf %}
+                    <template x-if="ex.source_page"><span class="imp-param" x-text="'p. ' + ex.source_page"></span></template>
+                    {% endif %}
                   </div>
-                </template>
-                <div class="w-full flex items-end justify-center gap-[2px]" style="height: 100%;">
-                  <template x-if="histoShow.sets">
-                    <div class="transition-all"
-                         :style="'flex: 1; max-width: 14px; height: ' + histoBarHeight(d.sets, sessionHistogramMax(), 130) + 'px; background: linear-gradient(180deg, var(--al-bronze) 0%, var(--al-bronze-soft) 100%); border-radius: 2px 2px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '1') + ';'"></div>
+                </div>
+
+                <div class="imp-arrow" aria-hidden="true">&rarr;</div>
+
+                {# Right: what it was bound to in the catalogue. #}
+                <div>
+                  <template x-if="ex.matched_exercise_id">
+                    <div>
+                      <p class="imp-target-name" x-text="ex.matched_exercise_name"></p>
+                      <div class="imp-target-meta">
+                        <span x-show="ex.matched_primary_muscle" class="al-tag font-mono"
+                              style="font-size: 9px;" x-text="ex.matched_primary_muscle"></span>
+                        <span x-show="ex.matched_equipment" class="al-tag font-mono"
+                              style="font-size: 9px;" x-text="ex.matched_equipment"></span>
+                        <span x-show="ex.match_confidence === 'medium'" class="al-tag"
+                              style="font-size: 9px; color: var(--al-warn); border-color: var(--al-warn);">
+                          da verificare
+                        </span>
+                      </div>
+                      <button type="button" class="imp-relink"
+                              @click="ex._searchOpen ? (ex._searchOpen = false) : (ex._query = ex.raw_name, searchExerciseInline(ex, ex.raw_name), openExerciseSearch(ex, $el.closest('.imp-row').querySelector('.imp-search') || $el))">
+                        Non è questo? Cambia esercizio
+                      </button>
+                    </div>
                   </template>
-                  <template x-if="histoShow.reps">
-                    <div class="transition-all"
-                         :style="'flex: 1; max-width: 10px; height: ' + histoBarHeight(d.reps, sessionHistogramMax(), 130) + 'px; background: var(--al-aegean); border-radius: 2px 2px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '0.85') + ';'"></div>
+
+                  <template x-if="!ex.matched_exercise_id">
+                    <p class="imp-target-missing">Nessuna corrispondenza nel database</p>
                   </template>
-                  <template x-if="histoShow.load">
-                    <div class="transition-all"
-                         :style="'flex: 1; max-width: 10px; height: ' + histoBarHeight(d.load / 20, sessionHistogramMax(), 130) + 'px; background: var(--al-warn); border-radius: 2px 2px 0 0; opacity: ' + (hover && hover !== d.code ? '0.4' : '0.85') + ';'"></div>
-                  </template>
+
+                  {# The search box is always in the DOM (it anchors the dropdown)
+                     but only visible where a binding is missing or being redone. #}
+                  <div class="imp-search"
+                       x-show="!ex.matched_exercise_id || ex._searchOpen">
+                    <input type="text" class="al-input"
+                           x-model="ex._query"
+                           @input.debounce.300="searchExerciseInline(ex, $event.target.value); openExerciseSearch(ex, $event.target.closest('.imp-search'))"
+                           @focus="openExerciseSearch(ex, $event.target.closest('.imp-search'))"
+                           @blur.debounce.180="ex._searchOpen = false"
+                           :placeholder="'Cerca «' + (ex.raw_name || '') + '» nel database…'">
+
+                    <template x-teleport="body">
+                      <div x-show="ex._searchOpen && ex._candidates && ex._candidates.length"
+                           x-cloak class="wb-ex-dropdown"
+                           :style="ex._dropdownStyle || ''" @mousedown.stop>
+                        <template x-for="c in ex._candidates" :key="c.id">
+                          <button type="button" @mousedown.prevent="pickExercise(ex, c)"
+                                  class="wb-ex-dropdown-item">
+                            <div class="flex items-center justify-between gap-3">
+                              <p class="text-sm font-medium text-ink" x-text="c.name"></p>
+                              <p class="al-tag font-mono shrink-0" x-text="c.primary_muscle || ''"></p>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                              <span x-show="c.equipment && c.equipment.length" class="al-tag"
+                                    style="font-size: 9px;" x-text="equipmentLabel(c.equipment)"></span>
+                              <span x-show="c.is_custom" class="al-tag font-mono"
+                                    style="font-size: 8px; background: var(--al-marble-warm); color: var(--al-bronze); border: 1px solid var(--al-bronze-soft);"
+                                    title="Esercizio personalizzato — visibile solo a te">
+                                <i class="ph ph-user-circle"></i> Tuo
+                              </span>
+                            </div>
+                          </button>
+                        </template>
+                        <button type="button" class="wb-ex-dropdown-create"
+                                @mousedown.prevent="openCustomExerciseDrawer(ex); ex._searchOpen = false">
+                          <i class="ph ph-plus-circle"></i>
+                          <span>Non trovi il tuo esercizio? <b>Crealo</b></span>
+                        </button>
+                      </div>
+                    </template>
+
+                    <button type="button" class="imp-relink"
+                            @click="openCustomExerciseDrawer(ex)">
+                      Crea un esercizio personalizzato
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
           </div>
-          <div class="flex items-center gap-2 px-1 mt-2">
-            <template x-for="d in sessionHistogramData()" :key="'lbl' + d.code">
-              <div class="flex-1 text-center" style="min-width: 24px;">
-                <p class="al-tag truncate" style="font-size: 9px;" x-text="d.label"></p>
-              </div>
-            </template>
-          </div>
-        </div>
+        </template>
       </div>
+    </template>
 
-      <!-- Plan-kind summary card -->
-      <div class="al-card al-card-warm">
-        <p class="al-eyebrow mb-2">Salvataggio</p>
-        <p class="al-small" style="color: var(--al-ink-soft);">
-          Stai salvando come
-          <strong x-text="planKind === 'PROGRAM' ? 'Programmazione' : 'Scheda settimanale'"></strong>
-          <span x-show="planKind === 'PROGRAM'"
-                x-text="'(' + durationWeeks + ' settimane)'"></span>.
-        </p>
-        <p class="al-small mt-2" style="color: var(--al-ink-mute);">
-          Le righe gialle sono <b>esercizi non risolti</b>: cerca un match nel DB
-          o crea un esercizio personalizzato prima di salvare.
-        </p>
-      </div>
-    </aside>
+    <p x-show="!workout.sessions.length" class="al-small italic text-center"
+       style="color: var(--al-ink-mute); padding: var(--al-s-6);">
+      Nessuna sessione riconosciuta nel documento.
+    </p>
   </div>
 
-  <!-- Footer sticky -->
-  <footer class="sticky bottom-0 mt-8 al-card al-card-flush flex flex-wrap items-center justify-between gap-3"
+  <p class="imp-ai-note mt-4">
+    Chiron è un'AI: può commettere errori. Controlla gli esercizi e i carichi prima di assegnare la scheda.
+  </p>
+
+  <footer class="sticky bottom-0 mt-6 al-card al-card-flush flex flex-wrap items-center justify-between gap-3"
           style="padding: 14px 18px; background: var(--al-parchment); border-top: 2px solid var(--al-bronze);">
     <div class="text-sm">
       <span class="text-ink-mute">Totale:</span>
       <span class="font-semibold ml-1 font-mono"
             x-text="totalExercises() + ' esercizi · ' + totalSets() + ' set'"></span>
       <span class="text-ink-mute ml-3 font-mono">
-        Non risolti: <span class="font-semibold"
-                           :style="uncertainCount() > 0 ? 'color: var(--al-warn);' : ''"
-                           x-text="uncertainCount()"></span>
+        Non collegati:
+        <span class="font-semibold" :style="uncertainCount() > 0 ? 'color: var(--al-danger);' : ''"
+              x-text="uncertainCount()"></span>
       </span>
     </div>
     <div class="flex items-center gap-2">
@@ -525,105 +229,12 @@
       <button @click="save()" :disabled="saving || uncertainCount() > 0"
               class="al-btn al-btn-bronze"
               :class="(saving || uncertainCount() > 0) ? 'opacity-50 cursor-not-allowed' : ''"
-              :title="uncertainCount() > 0 ? 'Risolvi tutti gli esercizi prima di salvare' : ''">
-        <i class="ph ph-floppy-disk"></i>
-        <span x-text="saving ? 'Salvataggio...' : 'Salva scheda'"></span>
+              :title="uncertainCount() > 0 ? 'Collega tutti gli esercizi prima di salvare' : ''">
+        <i class="ph ph-arrow-right"></i>
+        <span x-text="saving ? 'Salvataggio…' : 'Salva e apri nel builder'"></span>
       </button>
     </div>
   </footer>
 
-  <!-- ─── Drawer: crea esercizio personalizzato ─────────────────────── -->
-  <div x-show="customExerciseOpen" x-transition.opacity x-cloak
-       class="fixed inset-0 z-40" style="background: rgba(0,0,0,0.35);"
-       @click.self="closeCustomExerciseDrawer()">
-    <div class="absolute right-0 top-0 w-full max-w-md flex flex-col"
-         style="height: 100dvh; background: var(--al-parchment); box-shadow: var(--al-shadow-3);"
-         x-transition:enter="transition transform ease-out duration-200"
-         x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
-      <div class="px-5 py-4" style="flex-shrink: 0; background: var(--al-parchment); border-bottom: 1px solid var(--al-rule);">
-        <div class="flex items-center justify-between">
-          <h3 class="al-h-3">Crea esercizio personalizzato</h3>
-          <button @click="closeCustomExerciseDrawer()" class="al-btn al-btn-icon al-btn-ghost">
-            <i class="ph ph-x"></i>
-          </button>
-        </div>
-        <p class="al-small mt-1" style="color: var(--al-ink-mute);">
-          L'esercizio sarà disponibile solo nei tuoi piani.
-        </p>
-      </div>
-
-      <div class="p-5 space-y-4 overflow-y-auto" style="flex: 1 1 auto; min-height: 0;">
-        <div>
-          <label class="al-label">Nome *</label>
-          <input type="text" class="al-input" x-model="customExercise.name"
-                 placeholder="Es: Panca piana con presa stretta">
-        </div>
-
-        <div>
-          <label class="al-label">Muscoli primari *</label>
-          <div class="flex flex-wrap gap-1.5">
-            <template x-for="m in muscleGroups" :key="'p' + m.id">
-              <button type="button" @click="toggleCustomMulti('primary_muscle_ids', m.id)"
-                      :class="customExercise.primary_muscle_ids.includes(m.id) ? 'al-badge al-badge-aegean' : 'al-badge'"
-                      style="font-size: 10px; cursor: pointer;" x-text="m.name"></button>
-            </template>
-          </div>
-        </div>
-
-        <div>
-          <label class="al-label">Muscoli secondari</label>
-          <div class="flex flex-wrap gap-1.5">
-            <template x-for="m in muscleGroups" :key="'s' + m.id">
-              <button type="button" @click="toggleCustomMulti('secondary_muscle_ids', m.id)"
-                      :class="customExercise.secondary_muscle_ids.includes(m.id) ? 'al-badge al-badge-ink' : 'al-badge'"
-                      style="font-size: 10px; cursor: pointer;" x-text="m.name"></button>
-            </template>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="al-label">Categoria</label>
-            <select class="al-select" x-model.number="customExercise.category_id">
-              <option :value="null">—</option>
-              <template x-for="c in categoryOptions" :key="c.id">
-                <option :value="c.id" x-text="c.name_it"></option>
-              </template>
-            </select>
-          </div>
-          <div>
-            <label class="al-label">Attrezzatura</label>
-            <div class="flex flex-wrap gap-1.5">
-              <template x-for="e in equipmentOptions" :key="e.id">
-                <button type="button" @click="toggleCustomMulti('equipment_ids', e.id)"
-                        :class="customExercise.equipment_ids.includes(e.id) ? 'al-badge al-badge-bronze' : 'al-badge'"
-                        style="font-size: 10px; cursor: pointer;" x-text="e.name_it"></button>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label class="al-label">Note</label>
-          <textarea class="al-input" rows="3" x-model="customExercise.coach_notes"></textarea>
-        </div>
-
-        <p x-show="customExercise.error" class="al-small" style="color: var(--al-danger);"
-           x-text="customExercise.error"></p>
-      </div>
-
-      <div class="px-5 py-4 flex gap-2"
-           style="flex-shrink: 0; background: var(--al-parchment); border-top: 1px solid var(--al-rule);">
-        <button @click="closeCustomExerciseDrawer()" class="al-btn al-btn-ghost flex-1">
-          Annulla
-        </button>
-        <button @click="saveCustomExercise()" :disabled="customExercise.saving"
-                class="al-btn al-btn-bronze flex-1"
-                :class="customExercise.saving ? 'opacity-50 cursor-not-allowed' : ''">
-          <i class="ph ph-floppy-disk"></i>
-          <span x-text="customExercise.saving ? 'Salvataggio…' : 'Crea esercizio'"></span>
-        </button>
-      </div>
-    </div>
-  </div>
+  {% include 'pages/allenamenti/_import_custom_exercise_drawer.html' %}
 </section>

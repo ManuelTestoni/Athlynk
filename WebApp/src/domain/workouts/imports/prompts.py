@@ -21,6 +21,7 @@ SCHEMA OUTPUT richiesto (JSON, nessun testo fuori dal JSON):
           "exercises": [
             {
               "raw_name": string,
+              "name_en": string | null,
               "sets": int | null,
               "reps": int | string | null,
               "reps_type": "fixed"|"range"|"amrap"|"time"|"distance"|null,
@@ -70,9 +71,19 @@ REGOLE:
 - Goal: se nel documento ci sono indicazioni tipo "ipertrofia", "forza", "definizione" → goal
 - frequency_per_week: numero di sessioni distinte rilevate, se il doc lo esplicita altrove usa quello
 
-Sinonimi italiano→inglese per il `raw_name` (ma NON tradurli, mantieni la formulazione originale):
-  Panca piana, Distensioni su panca, Squat, Stacco da terra, Rematore con bilanciere,
-  Lat machine, Pulley, Pressa, Affondi, Curl bilanciere, French press, Alzate laterali.
+`raw_name`: SEMPRE la formulazione originale del documento, verbatim, MAI tradotta.
+
+`name_en`: la stessa cosa resa in inglese, con la nomenclatura standard da palestra
+(es. "Panca piana con bilanciere" → "barbell bench press"; "Rematore con bilanciere" →
+"barbell bent over row"; "Pressa 45 gradi" → "45 degrees leg press"; "Alzate laterali con
+manubri" → "dumbbell lateral raise"). Serve a ritrovare l'esercizio nel database, che è in
+inglese. REGOLE:
+- includi SEMPRE l'attrezzo se il documento lo indica (bilanciere→barbell, manubri→dumbbell,
+  cavi→cable, macchina→machine/lever, elastico→band, corpo libero→bodyweight)
+- mantieni le varianti che cambiano il movimento (inclinata→incline, presa stretta→close grip,
+  sdraiato→lying, in piedi→standing, monoarto→single arm)
+- se il nome è già in inglese, ripetilo identico
+- se non sai tradurre, usa null (meglio null di una traduzione inventata)
 
 """ + SHARED_JSON_SCHEMA_HINT
 

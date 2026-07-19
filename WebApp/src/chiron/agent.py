@@ -100,7 +100,7 @@ def _history_to_messages(history: list[HistoryMessage]) -> list[BaseMessage]:
 
 
 def _extract_sources(messages: list[BaseMessage]) -> list[Source]:
-    """Estrae fonti dai ToolMessage prodotti da TavilySearch."""
+    """Estrae fonti dai ToolMessage prodotti da `scientific_search`."""
     sources: list[Source] = []
     seen_urls: set[str] = set()
     for m in messages:
@@ -124,7 +124,16 @@ def _extract_sources(messages: list[BaseMessage]) -> list[Source]:
             title = r.get("title") or url or "Fonte"
             if url and url not in seen_urls:
                 seen_urls.add(url)
-                sources.append(Source(title=title[:200], url=url))
+                sources.append(Source(
+                    title=title[:200],
+                    url=url,
+                    authors=r.get("authors") or None,
+                    year=r.get("year") or None,
+                    journal=r.get("journal") or None,
+                    doi=r.get("doi") or None,
+                    citations=r.get("citations"),
+                    study_type=r.get("study_type") or None,
+                ))
     return sources
 
 

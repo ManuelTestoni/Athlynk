@@ -29,6 +29,9 @@ class ExerciseEntry(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
     raw_name: str
+    # English rendering produced by the extractor; the catalogue is English, the
+    # documents are Italian. See `exercise_match.best_match`.
+    name_en: Optional[str] = None
     matched_exercise_id: Optional[int] = None
     matched_exercise_name: Optional[str] = None
     matched_primary_muscle: Optional[str] = None

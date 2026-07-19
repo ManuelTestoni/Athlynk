@@ -1,41 +1,37 @@
 # Athlynk · Codex
 
-Documentazione del codice della piattaforma Athlynk — l'API mobile Django (`/api/v1`)
-e l'app atleta iOS (SwiftUI).
+La documentazione del codice è passata a **`Website/docs/index.html`** —
+è la versione pubblicata su [athlynk.it/docs/](https://athlynk.it/docs/)
+(linkata dal footer del sito) ed è l'unica fonte tenuta aggiornata.
 
-## Come si apre
+Questa cartella ospitava in precedenza un fork locale non deployato dello
+stesso file, mai sincronizzato dopo la prima stesura: è finita per divergere
+in silenzio dalla versione pubblica (mancavano intere sezioni aggiunte dopo).
+Per evitare che succeda di nuovo, il fork è stato rimosso — un solo file,
+una sola fonte di verità.
 
-`docs/index.html` è un sito statico autonomo (nessuna build, nessuna dipendenza).
-Aprilo nel browser:
+Per consultarla in locale:
 
 ```bash
-open docs/index.html          # macOS
-# oppure servilo:
-python -m http.server -d docs 8080   # poi http://localhost:8080
+open Website/docs/index.html          # macOS
+# oppure servila:
+python -m http.server -d Website/docs 8080   # poi http://localhost:8080
 ```
-
-## Cosa contiene
-
-- **Panoramica** — sistema, architettura, ciclo di vita della richiesta.
-- **Modello di sicurezza** — postura difensiva ad alto livello.
-- **Backend** — auth & token, reference dei 35 endpoint `/api/v1`, modelli di dominio.
-- **iOS** — Core (AppState, APIClient, DTO), design system (Theme, Components), Features.
-
-Stile: estetica proprietaria Athlynk (greca-lusso) — Bodoni Moda / Spectral / JetBrains Mono,
-pergamena, bronzo, Egeo. Struttura tipo Doxygen (moduli → simboli con firma e scopo).
 
 ## Sicurezza — cosa NON è qui (di proposito)
 
-Questa documentazione descrive **come** funziona la sicurezza, non le sue debolezze.
-Il report di audit dettagliato (vulnerabilità, vettori, mitigazioni interne, segreti)
-**non** va versionato nel repo: documentare le debolezze equivale a dare una mappa
-all'attaccante. Tienilo in un canale privato (gestore password / wiki interna / issue privata).
+Questa documentazione descrive **come** funziona la sicurezza, non le sue
+debolezze. Il report di audit dettagliato (vulnerabilità, vettori,
+mitigazioni interne, segreti) **non** va versionato nel repo: documentare le
+debolezze equivale a dare una mappa all'attaccante. Tienilo in un canale
+privato (gestore password / wiki interna / issue privata).
 
-I segreti (`SECRET_KEY`, `DATABASE_URL`, credenziali SMTP/APNs) vivono solo nelle
-variabili d'ambiente, mai nel codice né nei documenti.
+I segreti (`SECRET_KEY`, `DATABASE_URL`, credenziali SMTP/APNs/Supabase)
+vivono solo nelle variabili d'ambiente, mai nel codice né nei documenti.
 
 ## Manutenzione
 
-Il sito è scritto a mano dai sorgenti, non auto-generato a ogni build. Quando aggiungi
-o modifichi endpoint / modelli / viste, aggiorna la sezione corrispondente in
-`docs/index.html` (cerca il nome del simbolo).
+Il sito è scritto a mano dai sorgenti, non auto-generato a ogni build. Quando
+aggiungi o modifichi endpoint / modelli / viste / componenti della web
+console, aggiorna la sezione corrispondente in `Website/docs/index.html`
+(cerca il nome del simbolo).

@@ -7,7 +7,7 @@ Full-stack fitness coaching platform. Repo hold web app, marketing site, iOS app
 - `WebApp/` — Django app (coach + athlete web dashboard). Nutrition, workouts, progression tracking, check-ins, Chiron AI assistant, Stripe billing.
 - `Website/` — marketing site (static, `athlynk.com`).
 - `iOS/Athlynk/` — SwiftUI apps: athlete app + Coach app (2nd target, shared Xcode project).
-- `docs/` — codebase documentation site.
+- `docs/` — pointer to the codebase documentation site, which now lives at `Website/docs/` (published at athlynk.it/docs/).
 - `graphify-out/` — generated knowledge graph of codebase.
 
 ## Stack

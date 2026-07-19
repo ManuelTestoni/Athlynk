@@ -1779,6 +1779,8 @@
                          x-show="library.detail.ex.demo_gif || library.detail.ex.cover_image" alt="">
                     <i class="ph ph-barbell" x-show="!library.detail.ex.demo_gif && !library.detail.ex.cover_image"></i>
                   </div>
+                  <p class="al-small mt-1" x-show="library.detail.ex.license_author" x-text="library.detail.ex.license_author"
+                     style="color: var(--al-ink-mute); opacity:.75;"></p>
                   <h3 class="al-h-3 mt-3" x-text="library.detail.ex.name"></h3>
                   <div class="flex flex-wrap gap-1.5 mt-2">
                     <span x-show="library.detail.ex.category" class="al-tag" x-text="library.detail.ex.category?.name"></span>

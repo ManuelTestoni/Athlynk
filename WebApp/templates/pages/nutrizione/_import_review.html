@@ -50,6 +50,11 @@
     </p>
   </div>
 
+  {# Decides which of the four nutrition builders receives the saved plan. #}
+  <div class="al-card mb-5">
+    {% include 'pages/nutrizione/_import_shape_toggle.html' %}
+  </div>
+
   <!-- Day tabs (builder-style sticky) -->
   <div class="al-card al-card-flush mb-5 sticky top-0 z-20"
        style="padding: 12px 16px; background: rgba(255,255,255,0.95); backdrop-filter: saturate(140%) blur(8px);">
@@ -536,8 +541,12 @@
     </aside>
   </div>
 
+  <p class="imp-ai-note mt-4">
+    Chiron è un'AI: può commettere errori. Controlla alimenti e quantità prima di assegnare il piano.
+  </p>
+
   <!-- Footer sticky -->
-  <footer class="sticky bottom-0 mt-8 al-card al-card-flush flex flex-wrap items-center justify-between gap-3"
+  <footer class="sticky bottom-0 mt-6 al-card al-card-flush flex flex-wrap items-center justify-between gap-3"
           style="padding: 14px 18px; background: var(--al-parchment); border-top: 2px solid var(--al-bronze);">
     <div class="text-sm">
       <span class="text-ink-mute">Media giornaliera:</span>
@@ -553,8 +562,8 @@
       <button @click="save()" :disabled="saving"
               class="al-btn al-btn-bronze"
               :class="saving ? 'opacity-50 cursor-not-allowed' : ''">
-        <i class="ph ph-floppy-disk"></i>
-        <span x-text="saving ? 'Salvataggio...' : 'Salva dieta'"></span>
+        <i class="ph ph-arrow-right"></i>
+        <span x-text="saving ? 'Salvataggio…' : 'Salva e apri nel builder'"></span>
       </button>
     </div>
   </footer>

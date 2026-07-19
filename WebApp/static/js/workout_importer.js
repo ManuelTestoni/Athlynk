@@ -202,10 +202,13 @@
         ex.matched_primary_muscle = candidate.primary_muscle
             || (candidate.primary_muscles && candidate.primary_muscles[0]?.name)
             || '';
+        // /api/exercises/search/ returns equipment as {id, name_it} objects while
+        // the import matcher returns plain strings — accept either.
         ex.matched_equipment = Array.isArray(candidate.equipment)
-            ? candidate.equipment.join(', ')
+            ? candidate.equipment.map(e => (typeof e === 'string' ? e : (e && e.name_it) || '')).filter(Boolean).join(', ')
             : (candidate.equipment || '');
-        ex.raw_name = candidate.name;
+        // raw_name stays as the document wrote it: the review screen shows it
+        // beside the picked exercise so the coach can check the AI read it right.
         ex.match_confidence = 'manual';
         ex.match_method = 'manual';
         ex.uncertain = false;
@@ -272,7 +275,19 @@
             if (e.load_type === 'absolute' && e.load_unit !== 'bw') totalLoad += sets * reps * load;
           }
         }
-        return { sets: totalSets, reps: totalReps, load: Math.round(totalLoad) };
+        let exercises = 0;
+        for (const b of s.blocks || []) exercises += (b.exercises || []).length;
+        return { sets: totalSets, reps: totalReps, load: Math.round(totalLoad), exercises };
+      },
+
+      // /api/exercises/search/ returns equipment as {id, name_it}; the import
+      // matcher returns plain strings. Render either.
+      equipmentLabel(equipment) {
+        if (!Array.isArray(equipment)) return equipment || '';
+        return equipment
+          .map(e => (typeof e === 'string' ? e : (e && e.name_it) || ''))
+          .filter(Boolean)
+          .join(', ');
       },
 
       totalSets() {
@@ -289,12 +304,28 @@
         return n;
       },
 
+      // Rows with no catalogue binding. These block saving — the backend
+      // refuses them too, since a plan can't reference a nonexistent exercise.
       uncertainCount() {
         let n = 0;
         for (const s of this.workout.sessions || []) {
           for (const b of s.blocks || []) {
             for (const e of b.exercises || []) {
-              if (e.uncertain || !e.matched_exercise_id) n++;
+              if (!e.matched_exercise_id) n++;
+            }
+          }
+        }
+        return n;
+      },
+
+      // Rows that DID match but only at medium confidence. Worth a second look,
+      // not worth blocking: the coach can also fix them in the builder.
+      toVerifyCount() {
+        let n = 0;
+        for (const s of this.workout.sessions || []) {
+          for (const b of s.blocks || []) {
+            for (const e of b.exercises || []) {
+              if (e.matched_exercise_id && e.uncertain) n++;
             }
           }
         }
@@ -534,8 +565,8 @@
             this.currentStep = 'error';
             return;
           }
-          this.flashToast('Scheda salvata con successo!');
-          setTimeout(() => { window.location.href = data.redirect_url || '/allenamenti/'; }, 1200);
+          this.flashToast('Scheda importata. Apro il builder…');
+          setTimeout(() => { window.location.href = data.redirect_url || '/allenamenti/'; }, 900);
         } catch (e) {
           this.saving = false;
           this.errorMsg = 'Errore di rete: ' + (e.message || e);

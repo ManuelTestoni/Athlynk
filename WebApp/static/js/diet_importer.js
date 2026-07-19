@@ -72,6 +72,12 @@
       clientResults: [],
       planTitle: '',
 
+      // Plan shape, chosen on the review step. Drives which builder we hand the
+      // saved plan to: FOOD/MACRO × DAILY/WEEKLY are four different editors.
+      // planKind is re-seeded from the extracted day count in `hydrate()`.
+      planKind: 'DAILY',
+      planMode: 'FOOD',
+
       // Step 2
       phase: 0,
       steps: config.steps.slice(),
@@ -113,8 +119,10 @@
         this.searchClients();
       },
 
+      // The athlete is optional: importing produces a plan, assigning it is a
+      // separate step the coach takes later from the builder or the plan list.
       get canSubmit() {
-        return this.file && this.selectedClient && this.planTitle.trim().length > 0;
+        return this.file && this.planTitle.trim().length > 0;
       },
 
       get filteredClients() {
@@ -189,7 +197,7 @@
         const fd = new FormData();
         fd.append('file', this.file);
         fd.append('plan_title', this.planTitle);
-        fd.append('client_id', this.selectedClient.id);
+        if (this.selectedClient) fd.append('client_id', this.selectedClient.id);
 
         if (this.cfg.async) {
           await this.submitAsync(fd);
@@ -342,6 +350,10 @@
         this.documentSummary = data.document_summary || (data.extracted && data.extracted.document_summary) || null;
         if (data.client) this.selectedClient = data.client;
         if (data.plan_title) this.planTitle = data.plan_title;
+        // Seed the plan shape from what the document actually contained; the
+        // coach can still override it on the review step.
+        this.planKind = (this.diet.days || []).length > 1 ? 'WEEKLY' : 'DAILY';
+        this.planMode = 'FOOD';
         this.activeDay = this.diet.days[0]?.day_of_week || null;
         this.currentStep = 3;
       },
@@ -635,7 +647,12 @@
         const payload = {
           plan_title: this.planTitle,
           client_id: this.selectedClient?.id || null,
-          assign_now: true,
+          // Import only creates the plan. Assigning is done from the builder we
+          // hand off to, so the coach can review before the athlete sees it.
+          assign_now: false,
+          // Decides which builder receives the plan.
+          plan_kind: this.planKind,
+          plan_mode: this.planMode,
           diet_json: {
             diet_name: this.planTitle,
             extraction_notes: this.diet.extraction_notes || null,
@@ -686,8 +703,8 @@
             this.currentStep = 'error';
             return;
           }
-          this.flashToast('Dieta salvata con successo!');
-          setTimeout(() => { window.location.href = '/nutrizione/piani/'; }, 1200);
+          this.flashToast('Dieta importata. Apro il builder…');
+          setTimeout(() => { window.location.href = data.redirect_url || '/nutrizione/piani/'; }, 900);
         } catch (e) {
           this.saving = false;
           this.errorMsg = 'Errore di rete: ' + (e.message || e);

@@ -1,0 +1,96 @@
+{# Drawer: create a coach-owned exercise when the catalogue has no match.
+   Extracted from the import review so the review template can stay about the
+   collation itself. #}
+<div x-show="customExerciseOpen" x-transition.opacity x-cloak
+     class="fixed inset-0 z-40" style="background: rgba(0,0,0,0.35);"
+     @click.self="closeCustomExerciseDrawer()">
+  <div class="absolute right-0 top-0 w-full max-w-md flex flex-col"
+       style="height: 100dvh; background: var(--al-parchment); box-shadow: var(--al-shadow-3);"
+       x-transition:enter="transition transform ease-out duration-200"
+       x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
+    <div class="px-5 py-4" style="flex-shrink: 0; background: var(--al-parchment); border-bottom: 1px solid var(--al-rule);">
+      <div class="flex items-center justify-between">
+        <h3 class="al-h-3">Crea esercizio personalizzato</h3>
+        <button @click="closeCustomExerciseDrawer()" class="al-btn al-btn-icon al-btn-ghost">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <p class="al-small mt-1" style="color: var(--al-ink-mute);">
+        L'esercizio sarà disponibile solo nei tuoi piani.
+      </p>
+    </div>
+
+    <div class="p-5 space-y-4 overflow-y-auto" style="flex: 1 1 auto; min-height: 0;">
+      <div>
+        <label class="al-label">Nome *</label>
+        <input type="text" class="al-input" x-model="customExercise.name"
+               placeholder="Es: Panca piana con presa stretta">
+      </div>
+
+      <div>
+        <label class="al-label">Muscoli primari *</label>
+        <div class="flex flex-wrap gap-1.5">
+          <template x-for="m in muscleGroups" :key="'p' + m.id">
+            <button type="button" @click="toggleCustomMulti('primary_muscle_ids', m.id)"
+                    :class="customExercise.primary_muscle_ids.includes(m.id) ? 'al-badge al-badge-aegean' : 'al-badge'"
+                    style="font-size: 10px; cursor: pointer;" x-text="m.name"></button>
+          </template>
+        </div>
+      </div>
+
+      <div>
+        <label class="al-label">Muscoli secondari</label>
+        <div class="flex flex-wrap gap-1.5">
+          <template x-for="m in muscleGroups" :key="'s' + m.id">
+            <button type="button" @click="toggleCustomMulti('secondary_muscle_ids', m.id)"
+                    :class="customExercise.secondary_muscle_ids.includes(m.id) ? 'al-badge al-badge-ink' : 'al-badge'"
+                    style="font-size: 10px; cursor: pointer;" x-text="m.name"></button>
+          </template>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="al-label">Categoria</label>
+          <select class="al-select" x-model.number="customExercise.category_id">
+            <option :value="null">—</option>
+            <template x-for="c in categoryOptions" :key="c.id">
+              <option :value="c.id" x-text="c.name_it"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="al-label">Attrezzatura</label>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-for="e in equipmentOptions" :key="e.id">
+              <button type="button" @click="toggleCustomMulti('equipment_ids', e.id)"
+                      :class="customExercise.equipment_ids.includes(e.id) ? 'al-badge al-badge-bronze' : 'al-badge'"
+                      style="font-size: 10px; cursor: pointer;" x-text="e.name_it"></button>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="al-label">Note</label>
+        <textarea class="al-input" rows="3" x-model="customExercise.coach_notes"></textarea>
+      </div>
+
+      <p x-show="customExercise.error" class="al-small" style="color: var(--al-danger);"
+         x-text="customExercise.error"></p>
+    </div>
+
+    <div class="px-5 py-4 flex gap-2"
+         style="flex-shrink: 0; background: var(--al-parchment); border-top: 1px solid var(--al-rule);">
+      <button @click="closeCustomExerciseDrawer()" class="al-btn al-btn-ghost flex-1">
+        Annulla
+      </button>
+      <button @click="saveCustomExercise()" :disabled="customExercise.saving"
+              class="al-btn al-btn-bronze flex-1"
+              :class="customExercise.saving ? 'opacity-50 cursor-not-allowed' : ''">
+        <i class="ph ph-floppy-disk"></i>
+        <span x-text="customExercise.saving ? 'Salvataggio…' : 'Crea esercizio'"></span>
+      </button>
+    </div>
+  </div>
+</div>

@@ -49,6 +49,8 @@ Teleported to <body> so position:fixed anchors to the viewport.
                  x-show="ex.demo_gif || ex.cover_image" alt="">
             <i class="ph ph-barbell" x-show="!ex.demo_gif && !ex.cover_image"></i>
           </div>
+          <p class="al-small mt-1" x-show="ex.license_author" x-text="ex.license_author"
+             style="color: var(--al-ink-mute); opacity:.75;"></p>
 
           <div class="flex flex-wrap gap-1.5 mt-3">
             <span x-show="ex.category" class="al-tag" x-text="ex.category?.name"></span>

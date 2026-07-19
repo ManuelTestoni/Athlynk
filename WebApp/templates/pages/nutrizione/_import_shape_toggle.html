@@ -1,0 +1,69 @@
+{# Plan shape for an imported diet.
+
+   NutritionPlan has two independent discriminators — plan_mode (FOOD vs MACRO)
+   and plan_kind (DAILY vs WEEKLY) — and their 2×2 combination selects which of
+   the four builder branches in `piano_create.html` opens after saving. The
+   importer used to guess plan_kind from the day count and never set plan_mode
+   at all, so a macro-only document always landed in the food editor. #}
+<div>
+  <p class="al-eyebrow mb-2" style="color: var(--al-ink-mute);">Cosa contiene il piano</p>
+  <div class="wb-kind-toggle">
+    <button type="button" class="wb-kind-toggle-opt"
+            :class="{ 'is-active': planMode === 'FOOD' }"
+            @click="planMode = 'FOOD'">
+      <i class="ph ph-fork-knife wb-kind-toggle-icon"></i>
+      <div class="wb-kind-toggle-body">
+        <p class="wb-kind-toggle-title">Alimenti</p>
+        <p class="wb-kind-toggle-desc">Pasti e alimenti definiti da te.</p>
+      </div>
+      <i class="ph ph-check-circle wb-kind-toggle-check" x-show="planMode === 'FOOD'"></i>
+    </button>
+    <button type="button" class="wb-kind-toggle-opt"
+            :class="{ 'is-active': planMode === 'MACRO' }"
+            @click="planMode = 'MACRO'">
+      <i class="ph ph-chart-donut wb-kind-toggle-icon"></i>
+      <div class="wb-kind-toggle-body">
+        <p class="wb-kind-toggle-title">Macronutrienti</p>
+        <p class="wb-kind-toggle-desc">Solo target; gli alimenti li registra l'atleta.</p>
+      </div>
+      <i class="ph ph-check-circle wb-kind-toggle-check" x-show="planMode === 'MACRO'"></i>
+    </button>
+  </div>
+
+  <p class="al-eyebrow mb-2 mt-4" style="color: var(--al-ink-mute);">Su che arco</p>
+  <div class="wb-kind-toggle">
+    <button type="button" class="wb-kind-toggle-opt"
+            :class="{ 'is-active': planKind === 'DAILY' }"
+            @click="planKind = 'DAILY'">
+      <i class="ph ph-sun wb-kind-toggle-icon"></i>
+      <div class="wb-kind-toggle-body">
+        <p class="wb-kind-toggle-title">Giornaliero</p>
+        <p class="wb-kind-toggle-desc">Un solo giorno, ripetuto.</p>
+      </div>
+      <i class="ph ph-check-circle wb-kind-toggle-check" x-show="planKind === 'DAILY'"></i>
+    </button>
+    <button type="button" class="wb-kind-toggle-opt"
+            :class="{ 'is-active': planKind === 'WEEKLY' }"
+            @click="planKind = 'WEEKLY'">
+      <i class="ph ph-calendar-blank wb-kind-toggle-icon"></i>
+      <div class="wb-kind-toggle-body">
+        <p class="wb-kind-toggle-title">Settimanale</p>
+        <p class="wb-kind-toggle-desc">Giorni diversi durante la settimana.</p>
+      </div>
+      <i class="ph ph-check-circle wb-kind-toggle-check" x-show="planKind === 'WEEKLY'"></i>
+    </button>
+  </div>
+
+  <p x-show="planMode === 'MACRO'" x-transition class="al-small mt-3"
+     style="color: var(--al-ink-mute);">
+    <i class="ph ph-info text-bronze"></i>
+    Gli alimenti estratti dal documento non verranno importati: in modalità
+    macronutrienti imposterai i target nel builder.
+  </p>
+  <p x-show="planKind === 'DAILY' && (diet.days || []).length > 1" x-transition
+     class="al-small mt-2" style="color: var(--al-warn);">
+    <i class="ph ph-warning"></i>
+    Il documento contiene <span x-text="(diet.days || []).length"></span> giorni diversi:
+    con «Giornaliero» verrà importato solo il primo.
+  </p>
+</div>

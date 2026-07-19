@@ -6,6 +6,8 @@
 {% block content %}
 <div class="max-w-6xl mx-auto" x-data="workoutImporterExcel()" x-init="init()">
 
+  {% include 'partials/_import_steps.html' %}
+
   <!-- ─── STEP 1: Upload ─────────────────────────────────────── -->
   <section x-show="currentStep === 1" x-transition.opacity>
     <div class="mb-8">
@@ -21,7 +23,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 al-card al-card-flush p-6">
 
-        <label class="al-label">Atleta</label>
+        <label class="al-label">Atleta <span class="al-label-optional">facoltativo</span></label>
         <div class="relative">
           <input type="text" class="al-input" placeholder="Cerca atleta..."
                  x-model="clientSearch" @focus="clientDropdownOpen = true"
@@ -45,10 +47,6 @@
         <label class="al-label mt-5">Titolo scheda</label>
         <input type="text" class="al-input" x-model="planTitle"
                placeholder="Es: Push/Pull/Legs Mario Rossi">
-
-        <!-- Plan kind toggle -->
-        <label class="al-label mt-5">Tipo di scheda</label>
-        {% include 'pages/allenamenti/_import_kind_toggle.html' %}
 
         <label class="al-label mt-5">File Excel</label>
         <div @drop.prevent="onDrop($event)" @dragover.prevent="dragOver = true"
@@ -126,7 +124,9 @@
         </template>
       </div>
 
-      <p class="mt-6 text-aegean italic" x-text="motivationalMsg"></p>
+      <p class="imp-ai-note mt-6">
+        Chiron è un'AI: può commettere errori. Rivedrai tutto prima di salvare.
+      </p>
     </div>
   </section>
 

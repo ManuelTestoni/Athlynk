@@ -8,6 +8,7 @@ from collections import defaultdict
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.urls import reverse
 from django.db import transaction
 from django.core.cache import cache
 
@@ -2586,7 +2587,9 @@ def api_diet_import_confirm(request):
     diet_json = data.get('diet_json') or {}
     plan_title = (data.get('plan_title') or diet_json.get('diet_name') or '').strip()[:200]
     notes = (data.get('notes') or '') or None
-    assign_now = bool(data.get('assign_now', True))
+    # Default off, matching the workout importer: import creates the plan, the
+    # coach assigns it from the builder afterwards.
+    assign_now = bool(data.get('assign_now', False))
     client_id = data.get('client_id')
 
     if not plan_title:
@@ -2606,8 +2609,15 @@ def api_diet_import_confirm(request):
     if not days_data:
         return JsonResponse({'error': 'Nessun giorno nella dieta'}, status=400)
 
+    # The coach picks the plan shape on the review screen; fall back to inferring
+    # it from the document only when they didn't say.
     valid_days = [d for d in days_data if d.get('day_of_week') in _VALID_DAYS]
-    inferred_kind = 'WEEKLY' if len(valid_days) > 1 else 'DAILY'
+    plan_kind = (data.get('plan_kind') or '').upper()
+    if plan_kind not in dict(NutritionPlan.PLAN_KIND_CHOICES):
+        plan_kind = 'WEEKLY' if len(valid_days) > 1 else 'DAILY'
+    plan_mode = (data.get('plan_mode') or '').upper()
+    if plan_mode not in dict(NutritionPlan.PLAN_MODE_CHOICES):
+        plan_mode = 'FOOD'
 
     # Persistenza atomica
     try:
@@ -2616,7 +2626,8 @@ def api_diet_import_confirm(request):
                 coach=coach,
                 title=plan_title,
                 description=diet_json.get('extraction_notes') or None,
-                plan_kind=inferred_kind,
+                plan_kind=plan_kind,
+                plan_mode=plan_mode,
                 status='DRAFT',
                 is_template=False,
             )
@@ -2745,10 +2756,13 @@ def api_diet_import_confirm(request):
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
+    # Hand off to the builder for this plan's shape, so the review screen never
+    # has to reimplement the meal editor or the macro targets.
     return JsonResponse({
         'ok': True,
         'plan_id': plan.id,
         'assignment_id': assignment_id,
+        'redirect_url': reverse('nutrizione_piano_edit', args=[plan.id]),
     })
 
 

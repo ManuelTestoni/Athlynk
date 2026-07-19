@@ -183,6 +183,7 @@
       <a href="#coach-api">API Coach · /api/v1/coach</a>
       <a href="#checks">Check &amp; Prima Valutazione</a>
       <a href="#models">Modelli di dominio</a>
+      <a href="#webapp-console">Console web (WebApp)</a>
     </div>
     <div class="navgroup"><span>AI &amp; Analytics</span>
       <a href="#chiron">Chiron AI</a>
@@ -459,8 +460,9 @@
       Accesso: web app (sidebar) e app coach iOS (floating button FAB, bottom-right).</p>
 
       <div class="panel">
-        <div class="sym"><div class="name">Ricerca web</div><div class="desc">Tavily API per informazioni fattuali aggiornate.</div></div>
-        <div class="sym"><div class="name">Azioni proposte</div><div class="desc">Assegnare piani, creare check — sempre con conferma esplicita del coach.</div></div>
+        <div class="sym"><div class="name">Ricerca web</div><div class="desc">Tavily API per informazioni fattuali aggiornate (attualità, prezzi, notizie).</div></div>
+        <div class="sym"><div class="name">Ricerca letteratura scientifica</div><div class="desc"><code>scientific_search.py</code> — Europe PMC (PubMed/MEDLINE), key-less. Query a livelli: prima meta-analisi/systematic review, poi RCT, poi tutto il resto, ciascun livello ordinato per citazioni all'interno del proprio filtro di rilevanza — evita sia il rumore dei preprint appena pubblicati sia il collasso di rilevanza di un ordinamento puro per citazioni.</div></div>
+        <div class="sym"><div class="name">Azioni proposte</div><div class="desc">7 tipi: <code>mark_check_reviewed</code>, <code>save_check_feedback</code>, <code>send_message</code>, <code>assign_workout_plan</code>, <code>assign_nutrition_plan</code>, <code>assign_check</code>, <code>schedule_appointment</code> — sempre con conferma esplicita del coach.</div></div>
         <div class="sym"><div class="name">Nessuna autonomia</div><div class="desc">Nessuna azione irrevocabile senza approvazione. AI Act: basso rischio.</div></div>
         <div class="sym"><div class="name">Sentry</div><div class="desc">Errori monitorati senza PII e senza contenuto dei prompt.</div></div>
       </div>
@@ -518,6 +520,7 @@
       <div class="panel grid two" style="padding:18px 24px">
         <div class="sym"><div class="name">WorkoutPlan · WorkoutAssignment</div><div class="desc">Piano allenamento e assegnazione.</div></div>
         <div class="sym"><div class="name">WorkoutSession · WorkoutSetLog</div><div class="desc">Sessione live e set registrati.</div></div>
+        <div class="sym"><div class="name">Exercise</div><div class="desc">Catalogo esercizi. Sorgenti multiple: wger.de (<code>wger_id</code>) ed <em>exercises-dataset</em> (<code>dataset_id</code>), più esercizi custom coach (<code>is_custom</code>). <code>demo_gif</code>/<code>cover_image</code> su storage (Supabase S3 in prod); <code>license_title</code>/<code>license_author</code> portano l'attribuzione media richiesta dalla sorgente.</div></div>
         <div class="sym"><div class="name">NutritionPlan · NutritionAssignment</div><div class="desc">Piano nutrizionale e assegnazione.</div></div>
         <div class="sym"><div class="name">ClientMacroLogEntry</div><div class="desc">Voce diario macro atleta.</div></div>
         <div class="sym"><div class="name">SubscriptionPlan · ClientSubscription</div><div class="desc">Piani offerti e abbonamento attivo atleta.</div></div>
@@ -525,6 +528,59 @@
         <div class="sym"><div class="name">Appointment</div><div class="desc">Appuntamenti in agenda.</div></div>
         <div class="sym"><div class="name">Notification</div><div class="desc">Notifiche per utente.</div></div>
       </div>
+
+      <h4>Sourcing catalogo esercizi</h4>
+      <p><code>import_exercises_dataset.py</code> (script standalone, <code>WebApp/src/</code>) popola <code>Exercise</code> da
+      <a href="https://github.com/hasaneyldrm/exercises-dataset" target="_blank" rel="noopener">hasaneyldrm/exercises-dataset</a>:
+      1324 esercizi con categoria/equipaggiamento/muscoli, istruzioni multilingua, GIF animata e thumbnail.
+      Normalizza i nomi che iniziano con "lever" (marcatore macchina a leva del dataset) togliendo il prefisso
+      invece di scartare l'esercizio. Rieseguibile in sicurezza (<code>update_or_create</code> su <code>dataset_id</code>);
+      <code>--only-lever</code> permette un backfill mirato senza il wipe distruttivo che lo script fa di norma su
+      <code>WorkoutPlan</code>/<code>Exercise</code>.</p>
+      <div class="panel">
+        <div class="sym"><div class="name">Licenza media</div><div class="desc">Immagini e GIF sono © <a href="https://gymvisual.com/" target="_blank" rel="noopener">Gym Visual</a>, non MIT, limite 180×180, attribuzione obbligatoria — vedi <code>NOTICE.md</code> nel repo sorgente. Redistribuzione commerciale richiede licenza separata da Gym Visual.</div></div>
+        <div class="sym"><div class="name">Licenza dati</div><div class="desc">Metadata (nomi, categorie, istruzioni) sotto MIT License.</div></div>
+      </div>
+    </section>
+
+    <!-- ============ WEBAPP: WEB CONSOLE ============ -->
+    <section id="webapp-console">
+      <div class="head">
+        <div class="eyebrow">WebApp · Django templates + Alpine.js</div>
+        <h2 class="sec">Console web (WebApp)</h2>
+      </div>
+      <p>La console coach/atleta è server-rendered (Django templates, <code>WebApp/templates/</code>), con Alpine.js
+      per lo stato client-side e Chart.js per i grafici — nessun bundler, nessuno stato globale condiviso tra
+      pagine. Ogni pagina è un <code>x-data</code> autonomo idratato da JSON passato dal contesto Django
+      (filtro <code>json_js</code>, <code>domain/shared/templatetags/safejson.py</code>).</p>
+
+      <h3>Dashboard</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">dashboard_client.html</div><div class="desc">Home atleta: KPI abbonamento, grafico andamento peso (Chart.js, richiede ≥2 rilevazioni <code>weight_kg</code>, altrimenti empty-state con CTA), carichi/volume settimanali.</div></div>
+        <div class="sym"><div class="name">dashboard.html</div><div class="desc">Home coach: overview atleti, analytics, churn risk (dove abilitato).</div></div>
+      </div>
+
+      <h3>Wizard import (workout · dieta)</h3>
+      <p>Flusso comune AI-assisted per importare piani da file (Excel/PDF) invece di costruirli a mano, condiviso
+      tra import allenamento e import dieta tramite una factory JS generica.</p>
+      <div class="panel">
+        <div class="sym"><div class="name">import_wizard_core.js</div><div class="desc"><code>createImportWizardCore(config)</code>: macchina a stati (1=upload, 2=loading, 3=review, error), drag&amp;drop file, ricerca cliente, POST sincrona/asincrona con polling di stato, mapping codice errore → messaggio. Non conosce i modelli di dominio — i due importer (workout/dieta) aggiungono stato e salvataggio specifici sopra con <code>Object.assign()</code>.</div></div>
+        <div class="sym"><div class="name">workout_importer.js · diet_importer.js</div><div class="desc">Istanze del core specializzate: parsing risposta AI, editing in fase di review, salvataggio piano.</div></div>
+        <div class="sym"><div class="name">_import_steps.html</div><div class="desc">Indicatore step condiviso (upload → elaborazione → revisione).</div></div>
+        <div class="sym"><div class="name">_import_review.html</div><div class="desc">Step di revisione: editing esercizi/pasti riconosciuti prima del salvataggio definitivo.</div></div>
+        <div class="sym"><div class="name">_import_custom_exercise_drawer.html</div><div class="desc">Drawer per creare al volo un esercizio custom quando l'AI non trova un match nel catalogo durante la revisione.</div></div>
+        <div class="sym"><div class="name">_import_shape_toggle.html</div><div class="desc">Toggle vista dati importati (es. per pasto/settimana vs. lista piatta) nella revisione dieta.</div></div>
+      </div>
+
+      <h3>Libreria esercizi</h3>
+      <div class="panel">
+        <div class="sym"><div class="name">_exercise_detail_drawer.html</div><div class="desc">Drawer di dettaglio esercizio riusabile (coach e atleta), teleportato su <code>&lt;body&gt;</code>. Mostra GIF/cover, muscoli, equipaggiamento, istruzioni step-by-step e la caption di attribuzione media (<code>license_author</code>) quando presente. Apertura via <code>AthlynkExerciseDetail.open(exerciseId, name)</code>.</div></div>
+        <div class="sym"><div class="name">wizard.html — pannello libreria</div><div class="desc">Stesso pattern di dettaglio, integrato nel builder piani coach (modalità DETAIL del pannello libreria esercizi).</div></div>
+      </div>
+
+      <h3>Widget Chiron</h3>
+      <p><code>chiron_widget.html</code> — pannello laterale per la chat con CHIRON, disponibile in tutta la web console
+      coach. Vedi <a href="#chiron">Chiron AI</a> per le capacità del backend.</p>
     </section>
 
     <!-- ============ iOS: CORE ============ -->

@@ -86,8 +86,10 @@
         this.searchClients();
       },
 
+      // The athlete is optional: importing produces a plan, assigning it is a
+      // separate step the coach takes later from the builder or the plan list.
       get canSubmit() {
-        return this.file && this.selectedClient && this.planTitle.trim().length > 0;
+        return this.file && this.planTitle.trim().length > 0;
       },
 
       get filteredClients() { return this.clientResults; },
@@ -160,7 +162,7 @@
         const fd = new FormData();
         fd.append('file', this.file);
         fd.append('plan_title', this.planTitle);
-        fd.append('client_id', this.selectedClient.id);
+        if (this.selectedClient) fd.append('client_id', this.selectedClient.id);
         if (this.cfg.async) await this.submitAsync(fd);
         else await this.submitSync(fd);
       },

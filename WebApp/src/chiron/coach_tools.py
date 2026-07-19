@@ -371,31 +371,137 @@ def summarize_check(client_id: int, config: RunnableConfig) -> str:
     })
 
 
+@tool("find_workout_plan")
+def find_workout_plan(name: str, config: RunnableConfig) -> str:
+    """Trova una SCHEDA di allenamento del coach dal titolo (anche parziale) e ne
+    ritorna il plan_id. Chiamalo PRIMA di proporre `assign_workout_plan`.
+    Se restituisce più risultati, chiedi all'utente quale prima di procedere."""
+    from domain.workouts.models import WorkoutPlan
+    coach = _coach_from_config(config)
+    if not coach:
+        return _err("Contesto coach mancante.")
+    qs = WorkoutPlan.objects.filter(coach=coach)
+    if (name or "").strip():
+        qs = qs.filter(title__icontains=name.strip())
+    rows = list(qs.order_by("-updated_at")[:MAX_CANDIDATES])
+    if not rows:
+        return _ok({"matches": [], "note": "Nessuna scheda trovata con questo nome."})
+    return _ok({"matches": [{
+        "plan_id": p.id,
+        "title": p.title,
+        "kind": "programmazione" if p.plan_kind == "PROGRAM" else "settimanale",
+        "weeks": p.duration_weeks,
+        "status": p.status,
+    } for p in rows]})
+
+
+@tool("find_nutrition_plan")
+def find_nutrition_plan(name: str, config: RunnableConfig) -> str:
+    """Trova un PIANO ALIMENTARE del coach dal titolo (anche parziale) e ne ritorna
+    il plan_id. Chiamalo PRIMA di proporre `assign_nutrition_plan`.
+    Se restituisce più risultati, chiedi all'utente quale prima di procedere."""
+    from domain.nutrition.models import NutritionPlan
+    coach = _coach_from_config(config)
+    if not coach:
+        return _err("Contesto coach mancante.")
+    qs = NutritionPlan.objects.filter(coach=coach)
+    if (name or "").strip():
+        qs = qs.filter(title__icontains=name.strip())
+    rows = list(qs.order_by("-updated_at")[:MAX_CANDIDATES])
+    if not rows:
+        return _ok({"matches": [], "note": "Nessun piano alimentare trovato con questo nome."})
+    return _ok({"matches": [{
+        "plan_id": p.id,
+        "title": p.title,
+        "mode": "macronutrienti" if p.plan_mode == "MACRO" else "alimenti",
+        "kind": "settimanale" if p.plan_kind == "WEEKLY" else "giornaliero",
+        "kcal": p.daily_kcal,
+    } for p in rows]})
+
+
+@tool("find_check_template")
+def find_check_template(name: str, config: RunnableConfig) -> str:
+    """Trova un TEMPLATE DI CHECK del coach dal titolo (anche parziale) e ne ritorna
+    il template_id. Chiamalo PRIMA di proporre `assign_check`.
+    Se restituisce più risultati, chiedi all'utente quale prima di procedere."""
+    from domain.checks.models import QuestionnaireTemplate
+    coach = _coach_from_config(config)
+    if not coach:
+        return _err("Contesto coach mancante.")
+    qs = QuestionnaireTemplate.objects.filter(coach=coach, is_active=True)
+    if (name or "").strip():
+        qs = qs.filter(title__icontains=name.strip())
+    rows = list(qs.order_by("-updated_at")[:MAX_CANDIDATES])
+    if not rows:
+        return _ok({"matches": [], "note": "Nessun check trovato con questo nome."})
+    return _ok({"matches": [{
+        "template_id": t.id,
+        "title": t.title,
+        "questions": len(t.questions_config or []),
+    } for t in rows]})
+
+
 @tool("propose_action")
 def propose_action(
-    action_type: Literal["mark_check_reviewed", "save_check_feedback", "send_message"],
+    action_type: Literal[
+        "mark_check_reviewed", "save_check_feedback", "send_message",
+        "assign_workout_plan", "assign_nutrition_plan", "assign_check",
+        "schedule_appointment",
+    ],
     client_id: int,
     config: RunnableConfig,
     feedback: str = "",
     message: str = "",
+    plan_id: int = 0,
+    template_id: int = 0,
+    duration_value: int = 0,
+    duration_unit: str = "",
+    recurrence_type: str = "",
+    weekly_day: int = -1,
+    monthly_day: int = 0,
+    duration_hours: int = 0,
+    start_datetime: str = "",
+    title: str = "",
+    duration_minutes: int = 0,
 ) -> str:
     """Propone un'azione che MODIFICA i dati. NON viene eseguita: il coach la deve
     confermare con un click. Usala quando l'utente chiede di compiere un'azione.
+
     - mark_check_reviewed: segna l'ultimo check dell'atleta come revisionato
     - save_check_feedback: salva un feedback sull'ultimo check (scrivi il testo in
-      `feedback`, basandoti su summarize_check; verrà mostrato al coach, modificabile,
-      prima di salvare)
-    - send_message: invia un messaggio in chat all'atleta (scrivi il testo esatto in
-      `message`; verrà mostrato al coach, modificabile, prima di inviare). Usala
-      quando l'utente chiede di "scrivere/mandare/inviare un messaggio" a un atleta.
-    Richiede client_id (vedi find_athlete)."""
+      `feedback`, basandoti su summarize_check)
+    - send_message: invia un messaggio in chat all'atleta (testo esatto in `message`)
+    - assign_workout_plan: assegna una scheda. Serve `plan_id` (vedi
+      find_workout_plan); opzionali `duration_value` + `duration_unit` (WEEKS|MONTHS)
+    - assign_nutrition_plan: assegna un piano alimentare. Serve `plan_id` (vedi
+      find_nutrition_plan); opzionali `duration_value` + `duration_unit`
+    - assign_check: assegna un check. Serve `template_id` (vedi find_check_template);
+      opzionali `recurrence_type` (once|weekly|monthly|end_program), `weekly_day`
+      (0=lunedì … 6=domenica), `monthly_day` (1-31), `duration_hours`
+    - schedule_appointment: fissa un appuntamento. Serve `start_datetime` in ISO
+      (es. "2026-03-12T18:00"); opzionali `title`, `duration_minutes`
+
+    Richiede SEMPRE client_id (vedi find_athlete). Non indovinare mai un id: se non
+    l'hai ottenuto da un tool di ricerca, cercalo prima."""
     from chiron.actions import build_proposal
     coach = _coach_from_config(config)
     if not coach:
         return _err("Contesto coach mancante.")
     proposal, error = build_proposal(
         coach, action_type, client_id,
-        feedback=feedback or None, message=message or None,
+        feedback=feedback or None,
+        message=message or None,
+        plan_id=plan_id or None,
+        template_id=template_id or None,
+        duration_value=duration_value or None,
+        duration_unit=duration_unit or None,
+        recurrence_type=recurrence_type or None,
+        weekly_day=weekly_day if weekly_day >= 0 else None,
+        monthly_day=monthly_day or None,
+        duration_hours=duration_hours or None,
+        start_datetime=start_datetime or None,
+        title=title or None,
+        duration_minutes=duration_minutes or None,
     )
     if error:
         return _err(error)
@@ -406,5 +512,6 @@ def propose_action(
 def get_coach_tools() -> list:
     return [
         find_athlete, app_action, athlete_snapshot, query_roster, summarize_check,
+        find_workout_plan, find_nutrition_plan, find_check_template,
         propose_action,
     ]

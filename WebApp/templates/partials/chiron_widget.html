@@ -300,19 +300,35 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     width: 14px; height: 1px;
     background: var(--al-bronze, #1E3A5F);
   }
+  /* A citation is a block, not a pill: the title needs room to wrap and the
+     bibliographic line sits under it, the way a reference list reads. */
   .chiron-sources a {
-    display: inline-block;
+    display: block;
     color: var(--al-aegean, #1E3A5F);
     text-decoration: none;
-    word-break: break-all;
-    margin: 3px 6px 3px 0;
-    padding: 4px 10px;
+    overflow-wrap: anywhere;
+    margin: 0 0 5px;
+    padding: 7px 10px;
     background: rgba(30,58,95,0.06);
-    border-radius: 999px;
+    border-radius: 10px;
+    border-left: 2px solid rgba(30,58,95,0.28);
     font-size: 11.5px;
+    line-height: 1.4;
     transition: background 0.18s ease;
   }
   .chiron-sources a:hover { background: rgba(30,58,95,0.12); }
+  .chiron-sources a:focus-visible {
+    outline: 2px solid rgba(30,58,95,0.55);
+    outline-offset: 2px;
+  }
+  .chiron-sources .cite {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--al-mono, monospace);
+    font-size: 9.5px;
+    line-height: 1.4;
+    color: rgba(11,29,58,0.55);
+  }
 
   /* ---------- Actions (deep-link buttons dai coach tool) ---------- */
   .chiron-actions {
@@ -373,12 +389,25 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     40% { opacity: 1; transform: translateY(-4px) scale(1); }
   }
 
+  /* ---------- AI disclaimer ----------
+     Standing notice that the answers are machine-generated. Kept visible at all
+     times rather than shown once and dismissed, so the caveat travels with
+     every answer the coach reads. */
+  .chiron-ai-note {
+    padding: 0 16px 12px;
+    margin: -6px 0 0;
+    font-size: 10.5px;
+    line-height: 1.4;
+    text-align: center;
+    color: rgba(11,29,58,0.45);
+  }
+
   /* ---------- Input ---------- */
   .chiron-input {
     display: flex;
     align-items: flex-end;
     gap: 10px;
-    padding: 14px 16px 18px;
+    padding: 14px 16px 8px;
     background: linear-gradient(180deg, rgba(11,29,58,0) 0%, rgba(11,29,58,0.04) 100%);
     border-top: 1px solid rgba(11,29,58,0.05);
   }
@@ -567,6 +596,40 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
     box-shadow: 0 0 0 3px rgba(var(--chiron-gold),0.18);
   }
 
+  /* Proposal parameters. Short fields (duration, date) sit inline so a simple
+     confirmation doesn't turn into a form the coach has to read. */
+  .chiron-confirm-field {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .chiron-confirm-field .lbl {
+    display: block;
+    font-family: var(--al-mono, monospace);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(11,29,58,0.50);
+    margin-bottom: 4px;
+  }
+  .chiron-confirm-field textarea { margin: 0; }
+  .chiron-confirm-field input,
+  .chiron-confirm-field select {
+    width: 100%;
+    font: inherit;
+    font-size: 13px;
+    color: var(--al-ink, #0B1D3A);
+    background: #fff;
+    border: 1px solid rgba(11,29,58,0.12);
+    border-radius: 12px;
+    padding: 9px 12px;
+    outline: none;
+  }
+  .chiron-confirm-field input:focus,
+  .chiron-confirm-field select:focus {
+    border-color: rgba(30,58,95,0.45);
+    box-shadow: 0 0 0 3px rgba(var(--chiron-gold),0.18);
+  }
+
   /* ---------- Carica messaggi precedenti ---------- */
   .chiron-loadmore {
     align-self: center;
@@ -670,11 +733,26 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
           <div class="msg" x-text="pendingAction && pendingAction.description"></div>
         </div>
       </div>
-      <template x-if="pendingAction && pendingAction.editable_field === 'feedback'">
-        <textarea x-model="pendingAction.feedback" placeholder="Feedback per l'atleta…"></textarea>
-      </template>
-      <template x-if="pendingAction && pendingAction.editable_field === 'message'">
-        <textarea x-model="pendingAction.message" placeholder="Messaggio per l'atleta…"></textarea>
+      {# Editable parameters, described by the proposal itself. The banner used
+         to hardcode one textarea per action type, so every new action needed a
+         template change; now the server says what to render. #}
+      <template x-for="f in (pendingAction?.fields || [])" :key="f.key">
+        <label class="chiron-confirm-field">
+          <span class="lbl" x-text="f.label"></span>
+          <template x-if="f.type === 'textarea'">
+            <textarea x-model="pendingAction.payload[f.key]"></textarea>
+          </template>
+          <template x-if="f.type === 'select'">
+            <select x-model="pendingAction.payload[f.key]">
+              <template x-for="o in (f.options || [])" :key="o.value">
+                <option :value="o.value" x-text="o.label"></option>
+              </template>
+            </select>
+          </template>
+          <template x-if="!['textarea', 'select'].includes(f.type)">
+            <input :type="f.type" x-model="pendingAction.payload[f.key]">
+          </template>
+        </label>
       </template>
       <div class="actions">
         <button type="button" class="btn ghost" @click="cancelAction()">Annulla</button>
@@ -696,7 +774,18 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
             <div class="chiron-sources">
               <div class="label">Fonti</div>
               <template x-for="s in m.sources" :key="s.url">
-                <a :href="s.url" target="_blank" rel="noopener" x-text="s.title"></a>
+                <a :href="s.url" target="_blank" rel="noopener">
+                  <span x-text="s.title"></span>
+                  {# Bibliographic line: what makes the source checkable —
+                     who, when, where, how strong, how often cited. #}
+                  <span class="cite" x-show="s.authors || s.year || s.journal"
+                        x-text="[
+                          [s.authors, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' '),
+                          s.journal,
+                          s.study_type,
+                          (s.citations || s.citations === 0) ? s.citations + ' citazioni' : ''
+                        ].filter(Boolean).join(' · ')"></span>
+                </a>
               </template>
             </div>
           </template>
@@ -728,6 +817,10 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
         <i class="ph ph-paper-plane-right" style="font-size:16px;"></i>
       </button>
     </div>
+
+    <p class="chiron-ai-note">
+      CHIRON è un'AI: può commettere errori. Verifica sempre le informazioni cliniche.
+    </p>
   </div>
 
   {# Bottone flottante #}
@@ -938,12 +1031,12 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
               'Content-Type': 'application/json',
               'X-CSRFToken': this.getCsrf(),
             },
+            // The whole payload goes back, edits included. The server re-resolves
+            // every id against the logged-in coach before touching anything.
             body: JSON.stringify({
               action_type: pa.action_type,
               client_id: pa.client_id,
-              response_id: pa.response_id,
-              feedback: pa.feedback || null,
-              message: pa.message || null,
+              payload: pa.payload || {},
             }),
           });
           const d = await r.json().catch(() => ({}));

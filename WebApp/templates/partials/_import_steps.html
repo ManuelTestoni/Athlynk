@@ -1,0 +1,26 @@
+{# Import progress, rendered as the Athlynk meander rather than a generic dot
+   stepper: the motif already belongs to the brand, so letting it carry the
+   progress means the page needs one device instead of two.
+
+   Reads `currentStep` from the importer Alpine component (1 upload, 2 reading,
+   3 review; the string 'error' is treated as no progress). #}
+<div class="imp-steps" role="list" aria-label="Avanzamento import">
+  <div class="imp-step" role="listitem"
+       :class="{ 'is-active': currentStep === 1, 'is-done': currentStep === 2 || currentStep === 3 }"
+       :aria-current="currentStep === 1 ? 'step' : false">
+    <p class="imp-step-label"><span class="imp-step-num">I</span> Carica</p>
+    <div class="imp-step-band"></div>
+  </div>
+  <div class="imp-step" role="listitem"
+       :class="{ 'is-active': currentStep === 2, 'is-done': currentStep === 3 }"
+       :aria-current="currentStep === 2 ? 'step' : false">
+    <p class="imp-step-label"><span class="imp-step-num">II</span> {{ read_label|default:"L'AI legge" }}</p>
+    <div class="imp-step-band"></div>
+  </div>
+  <div class="imp-step" role="listitem"
+       :class="{ 'is-active': currentStep === 3 }"
+       :aria-current="currentStep === 3 ? 'step' : false">
+    <p class="imp-step-label"><span class="imp-step-num">III</span> Rivedi</p>
+    <div class="imp-step-band"></div>
+  </div>
+</div>

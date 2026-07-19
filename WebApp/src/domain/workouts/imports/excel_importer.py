@@ -116,7 +116,9 @@ def _match_exercise_into(entry: dict, coach=None) -> None:
         entry['uncertain'] = True
         entry['candidates'] = []
         return
-    best, others, confidence, method = best_match(name, coach=coach)
+    best, others, confidence, method = best_match(
+        name, coach=coach, name_en=(entry.get('name_en') or '').strip() or None,
+    )
     if best:
         entry['matched_exercise_id'] = best['id']
         entry['matched_exercise_name'] = best['name']

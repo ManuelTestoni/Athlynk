@@ -62,6 +62,10 @@
     </div>
 
     {% if weight_chart_json %}
+    <!-- No x-init: the canvas is already in the initial DOM, and Alpine
+         auto-invokes a method named init() from x-data on its own. Adding
+         x-init="init()" here would call it twice and crash Chart.js with
+         "Canvas is already in use" on the second call. -->
     <div class="al-card al-reveal mb-10" style="--d:220ms;"
          x-data="{ init() {
              const d = {{ weight_chart_json|json_js }};
@@ -78,9 +82,15 @@
                      scales: { y: { display: false }, x: { grid: { display: false } } },
                  },
              });
-         } }" x-init="$nextTick(() => init())">
+         } }">
         <p class="al-eyebrow mb-3">Andamento peso</p>
         <div style="height: 140px;"><canvas x-ref="canvas"></canvas></div>
+    </div>
+    {% else %}
+    <div class="al-card al-reveal mb-10" style="--d:220ms;">
+        <p class="al-eyebrow mb-3">Andamento peso</p>
+        <p class="al-body" style="color: var(--al-ink-mute);">Nessuna misurazione di peso disponibile ancora.</p>
+        <a href="{% url 'check_progress_charts' %}" class="al-link mt-2 inline-block">Registra una rilevazione</a>
     </div>
     {% endif %}
 

@@ -9,6 +9,7 @@ Usage (from WebApp/src):
     ../../venv/bin/python import_exercises_dataset.py --yes              # skip confirmation (CI/script use)
     ../../venv/bin/python import_exercises_dataset.py --repo-path /path  # reuse an existing local clone
     ../../venv/bin/python import_exercises_dataset.py --batch-size 50
+    ../../venv/bin/python import_exercises_dataset.py --only-lever         # backfill just the "lever" records, no wipe
 
 Behavior:
 - Prompts for confirmation, then wipes ALL WorkoutPlan rows (cascading to
@@ -16,10 +17,16 @@ Behavior:
   rows (custom included), since every plan/exercise references the catalog
   being replaced. Same destructive full-replace pattern as
   domain/workouts/management/commands/import_wger_exercises.py.
+  --only-lever skips this confirmation/wipe entirely (see below).
 - Clones https://github.com/hasaneyldrm/exercises-dataset.git (shallow) into
   --repo-path if it doesn't already exist there.
-- Skips every record whose name starts with "Lever" (leverage-machine
-  variants deemed not worth importing) -- 71 of 1324 records.
+- Normalizes every record whose name starts with the word "lever" (a
+  leverage-machine marker in the dataset) by stripping that leading word --
+  e.g. "lever chest press" -> "chest press" -- instead of dropping the
+  exercise (71 of 1324 records affected). --only-lever filters the dataset
+  down to just these records and imports/updates them via the normal
+  per-record path (update_or_create keyed on dataset_id, so it's safe to
+  re-run) without touching anything else already in the DB.
 - Loads data/exercises.json (1324 records), resolves category / equipment /
   muscles against local taxonomy tables (ExerciseCategory, Equipment,
   MuscleGroup), auto-creating any category/equipment value not covered by the
@@ -48,6 +55,7 @@ import argparse
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import zlib
@@ -198,6 +206,16 @@ def pick_text(field: dict | None):
     return field.get('it') or field.get('en') or next(iter(field.values()), None)
 
 
+_LEVER_PREFIX_RE = re.compile(r'^lever\b\s*', re.IGNORECASE)
+
+
+def strip_lever_prefix(name: str) -> str:
+    """Drop a leading 'lever' word (the dataset's leverage-machine marker),
+    e.g. 'lever chest press' -> 'chest press'. Word boundary means
+    'leverage ...' (a different word) is left untouched."""
+    return _LEVER_PREFIX_RE.sub('', name, count=1)
+
+
 def gif_to_animated_webp(gif_path: Path, *, quality: int = 80) -> ContentFile:
     """Re-encode an animated GIF as an animated WebP, preserving all frames.
 
@@ -265,7 +283,7 @@ class TaxonomyCache:
 
 
 def build_exercise_fields(record: dict, taxonomy: 'TaxonomyCache') -> dict:
-    name = record['name'].strip()[:200]
+    name = strip_lever_prefix(record['name'].strip())[:200]
     description = pick_text(record.get('instructions'))
     steps = record.get('instruction_steps') or {}
     instruction_steps = steps.get('it') or steps.get('en') or next(iter(steps.values()), None)
@@ -285,15 +303,14 @@ def build_exercise_fields(record: dict, taxonomy: 'TaxonomyCache') -> dict:
 def process_batch(batch, taxonomy, used_slugs, unmapped_muscles, repo_path, args, pbar):
     imported = 0
     skipped_media = 0
-    skipped_lever = 0
+    lever_stripped = 0
 
     with transaction.atomic():
         for record in batch:
             pbar.update(1)
 
-            if record['name'].strip().lower().startswith('lever'):
-                skipped_lever += 1
-                continue
+            if _LEVER_PREFIX_RE.match(record['name'].strip()):
+                lever_stripped += 1
             fields = build_exercise_fields(record, taxonomy)
 
             equipment_name = record.get('equipment')
@@ -341,7 +358,7 @@ def process_batch(batch, taxonomy, used_slugs, unmapped_muscles, repo_path, args
 
             imported += 1
 
-    return imported, skipped_media, skipped_lever
+    return imported, skipped_media, lever_stripped
 
 
 def main():
@@ -352,27 +369,35 @@ def main():
     parser.add_argument('--yes', action='store_true', help='Salta la conferma interattiva.')
     parser.add_argument('--dry-run', action='store_true', help='Valida mapping/slug/file senza scrivere Exercise o media.')
     parser.add_argument('--skip-media', action='store_true', help='Salta conversione/upload gif+jpg (solo dati testuali).')
+    parser.add_argument('--only-lever', action='store_true',
+                         help="Backfill mirato: importa/aggiorna solo i record il cui nome inizia per "
+                              "'lever' (nome normalizzato, prefisso tolto), senza toccare o cancellare "
+                              "nient'altro (nessun wipe di WorkoutPlan/Exercise).")
     args = parser.parse_args()
 
-    existing_ex = Exercise.objects.count()
-    existing_plans = WorkoutPlan.objects.count()
-    if existing_ex or existing_plans:
-        print(f'>> Trovati {existing_ex} esercizi e {existing_plans} schede esistenti.')
-        if not args.dry_run:
-            if not args.yes:
-                ans = input('   Cancello TUTTO (schede + esercizi, custom incluso) e reimporto dal dataset? [s/N]: ').strip().lower()
-                if ans not in ('s', 'si', 'y', 'yes'):
-                    print('Annullato.')
-                    sys.exit(0)
-            with transaction.atomic():
-                deleted_plans, _ = WorkoutPlan.objects.all().delete()
-                deleted_ex, _ = Exercise.objects.all().delete()
-                print(f'>> Eliminate {deleted_plans} schede e {deleted_ex} esercizi (cascade incluso).')
+    if not args.only_lever:
+        existing_ex = Exercise.objects.count()
+        existing_plans = WorkoutPlan.objects.count()
+        if existing_ex or existing_plans:
+            print(f'>> Trovati {existing_ex} esercizi e {existing_plans} schede esistenti.')
+            if not args.dry_run:
+                if not args.yes:
+                    ans = input('   Cancello TUTTO (schede + esercizi, custom incluso) e reimporto dal dataset? [s/N]: ').strip().lower()
+                    if ans not in ('s', 'si', 'y', 'yes'):
+                        print('Annullato.')
+                        sys.exit(0)
+                with transaction.atomic():
+                    deleted_plans, _ = WorkoutPlan.objects.all().delete()
+                    deleted_ex, _ = Exercise.objects.all().delete()
+                    print(f'>> Eliminate {deleted_plans} schede e {deleted_ex} esercizi (cascade incluso).')
 
     repo_path = ensure_repo(args.repo_path)
     data_path = repo_path / 'data' / 'exercises.json'
     print(f'>> Carico {data_path} ...')
     records = json.loads(data_path.read_text())
+    if args.only_lever:
+        records = [r for r in records if _LEVER_PREFIX_RE.match(r['name'].strip())]
+        print(f'>> --only-lever: {len(records)} record selezionati, nessuna cancellazione.')
     if args.limit is not None:
         records = records[:args.limit]
     print(f'>> {len(records)} record da importare.')
@@ -383,18 +408,18 @@ def main():
 
     imported = 0
     skipped_media = 0
-    skipped_lever = 0
+    lever_stripped = 0
 
     with tqdm(total=len(records), desc='esercizi', unit='ex') as pbar:
         for start in range(0, len(records), args.batch_size):
             batch = records[start:start + args.batch_size]
-            n, sm, sl = process_batch(batch, taxonomy, used_slugs, unmapped_muscles, repo_path, args, pbar)
+            n, sm, ls = process_batch(batch, taxonomy, used_slugs, unmapped_muscles, repo_path, args, pbar)
             imported += n
             skipped_media += sm
-            skipped_lever += sl
+            lever_stripped += ls
 
     mode = 'DRY-RUN (nessuna scrittura Exercise/media)' if args.dry_run else 'completato'
-    print(f'== {mode}. Importati: {imported}  |  Saltati (nome "Lever*"): {skipped_lever}  |  '
+    print(f'== {mode}. Importati: {imported}  |  Nome "lever" normalizzato: {lever_stripped}  |  '
           f'Media mancanti su disco: {skipped_media}  |  '
           f'Totale tabella: {Exercise.objects.count() if not args.dry_run else "n/d"}')
     if unmapped_muscles:

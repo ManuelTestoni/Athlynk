@@ -3,6 +3,7 @@ from typing import Any
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.urls import reverse
 from django.db import transaction
 from django.db.models import Q, Count
 from django.core.cache import cache
@@ -1808,6 +1809,9 @@ def api_workout_import_confirm(request):
                 status=WorkoutPlan.STATUS_DRAFT,
                 plan_kind=plan_kind,
                 is_template=False,
+                # The import already collected title/goal/duration, so the wizard
+                # should open on the exercise builder, not back on step 1.
+                last_step=3,
             )
 
             superset_counter = 1
@@ -1934,9 +1938,12 @@ def api_workout_import_confirm(request):
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
+    # Hand off to the real builder rather than the read-only plan page: the
+    # import screen only resolves exercise matches, everything else the coach
+    # wants to change (order, supersets, progressions) lives in the wizard.
     return JsonResponse({
         'ok': True,
         'plan_id': plan.id,
         'assignment_id': assignment_id,
-        'redirect_url': f'/allenamenti/{plan.id}/',
+        'redirect_url': reverse('allenamenti_wizard_resume', args=[plan.id]),
     })

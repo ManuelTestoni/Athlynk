@@ -616,6 +616,17 @@ body {
   margin-bottom: 6px;
 }
 
+/* Inline "facoltativo" tag: lowercase so it reads as an aside to the label
+   rather than part of the field name. */
+.al-label-optional {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--al-ink-line);
+  margin-left: 6px;
+}
+
 .al-input-help {
   display: block;
   font-size: 12px;
@@ -4409,3 +4420,222 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
   margin-bottom: 4px;
 }
 .al-chart-tooltip-line { color: #FFFFFF; }
+
+/* ===========================================================================
+   IMPORT REVIEW — collation table
+   The import screen has one job: show what the AI read from the document next
+   to what it matched in the catalogue, so the coach can verify or correct the
+   binding. Everything else about the plan is edited in the real builder, which
+   this screen hands off to. Hence a two-column reading layout rather than a
+   second copy of the builder's editing grid.
+   =========================================================================== */
+
+.imp-group {
+  margin-bottom: var(--al-s-6);
+}
+
+.imp-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--al-s-3);
+  padding: 0 0 var(--al-s-2);
+  border-bottom: 1px solid var(--al-rule);
+  margin-bottom: var(--al-s-2);
+}
+
+.imp-group-title {
+  font-family: var(--al-display);
+  font-size: 19px;
+  line-height: 1.2;
+  color: var(--al-ink);
+}
+
+.imp-group-meta {
+  font-family: var(--al-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--al-ink-line);
+  margin-left: auto;
+}
+
+/* One collated row: document text | catalogue binding. */
+.imp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1.15fr);
+  align-items: start;
+  gap: 0 var(--al-s-2);
+  padding: var(--al-s-3) var(--al-s-3) var(--al-s-3) var(--al-s-4);
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--al-rule-faint);
+}
+
+.imp-row:last-child { border-bottom: 0; }
+.imp-row.is-uncertain { border-left-color: var(--al-warn); background: rgba(138, 106, 30, 0.05); }
+.imp-row.is-unresolved { border-left-color: var(--al-danger); background: rgba(162, 59, 59, 0.05); }
+.imp-row:focus-within { background: var(--al-marble); }
+
+/* Left: verbatim from the document. Monospaced so odd spacing and OCR noise
+   stay visible instead of being prettified away. */
+.imp-source-text {
+  font-family: var(--al-mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--al-ink-soft);
+  word-break: break-word;
+}
+
+.imp-source-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.imp-param {
+  font-family: var(--al-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--al-ink-mute);
+  background: var(--al-marble);
+  border: 1px solid var(--al-rule-faint);
+  border-radius: var(--al-r-xs);
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* The arrow between the two columns: the collation mark itself. */
+.imp-arrow {
+  color: var(--al-rule);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  user-select: none;
+}
+.imp-row.is-unresolved .imp-arrow { color: var(--al-danger); }
+
+.imp-target-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--al-ink);
+  line-height: 1.35;
+}
+
+.imp-target-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.imp-target-missing {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--al-danger);
+}
+
+/* Inline catalogue search, revealed only where a binding needs fixing. */
+.imp-search {
+  position: relative;
+  margin-top: 6px;
+}
+
+.imp-search input {
+  width: 100%;
+  font-size: 12.5px;
+  padding: 6px 10px;
+}
+
+.imp-relink {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--al-accent-text);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.imp-relink:hover { color: var(--al-ink); }
+
+@media (max-width: 720px) {
+  .imp-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .imp-arrow {
+    text-align: left;
+    transform: rotate(90deg);
+    transform-origin: left center;
+    margin: 2px 0 6px 6px;
+  }
+}
+
+/* AI-generated output carries a standing caveat, in the chat and here. */
+.imp-ai-note,
+.chiron-ai-note {
+  font-family: var(--al-sans);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--al-ink-line);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imp-row { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Import stepper — the meander as structure.
+   Three stages (upload → read → review). The Greek key already carries the
+   brand; here it also carries progress, so the page needs no second decorative
+   device. The band fills left-to-right as the import advances.
+   --------------------------------------------------------------------------- */
+
+.imp-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--al-s-4);
+  margin-bottom: var(--al-s-6);
+}
+
+.imp-step-label {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--al-sans);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--al-ink-line);
+  margin-bottom: 6px;
+  transition: color 0.3s var(--al-ease-out);
+}
+
+.imp-step-num {
+  font-family: var(--al-mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.imp-step-band {
+  height: 10px;
+  background-color: var(--al-rule);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 14'><path fill='black' d='M0 12 L0 2 L10 2 L10 8 L4 8 L4 12 Z M14 12 L14 2 L24 2 L24 8 L18 8 L18 12 Z M28 12 L28 2 L38 2 L38 8 L32 8 L32 12 Z M42 12 L42 2 L52 2 L52 8 L46 8 L46 12 Z'/></svg>") repeat-x;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 14'><path fill='black' d='M0 12 L0 2 L10 2 L10 8 L4 8 L4 12 Z M14 12 L14 2 L24 2 L24 8 L18 8 L18 12 Z M28 12 L28 2 L38 2 L38 8 L32 8 L32 12 Z M42 12 L42 2 L52 2 L52 8 L46 8 L46 12 Z'/></svg>") repeat-x;
+  -webkit-mask-size: 10px 10px;
+          mask-size: 10px 10px;
+  transition: background-color 0.4s var(--al-ease-out);
+}
+
+.imp-step.is-done .imp-step-label { color: var(--al-ink-mute); }
+.imp-step.is-done .imp-step-band { background-color: var(--al-accent); }
+
+.imp-step.is-active .imp-step-label { color: var(--al-ink); font-weight: 500; }
+.imp-step.is-active .imp-step-band { background-color: var(--al-primary); }
+
+@media (max-width: 640px) {
+  .imp-steps { gap: var(--al-s-2); }
+  .imp-step-label { font-size: 9.5px; letter-spacing: 0.06em; }
+}
