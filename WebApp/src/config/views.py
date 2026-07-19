@@ -185,20 +185,13 @@ def dashboard_view(request):
         if active_relationship is not None:
             context.update(_client_dashboard_kpis(client, active_relationship))
 
-            # Sparkline: ultime rilevazioni di peso (in ordine cronologico).
-            weight_points = list(
-                QuestionnaireResponse.objects
-                .filter(client=client, weight_kg__isnull=False)
-                .order_by('-submitted_at')
-                .values_list('submitted_at', 'weight_kg')[:10]
-            )
-            weight_points.reverse()
-
-            if len(weight_points) >= 2:
-                context['weight_chart_json'] = json.dumps({
-                    'labels': [d.strftime('%d/%m') for d, _ in weight_points],
-                    'values': [float(w) for _, w in weight_points],
-                })
+            # Customizable grid below the fixed hero + KPI row (the old weight
+            # sparkline now lives in the weight_trend widget's builder).
+            from . import dashboard_widgets as dw
+            from .dashboard_context import build_dashboard_widgets
+            layout = dw.get_layout(user)
+            context['dash_widgets'] = build_dashboard_widgets(request, user, layout)
+            context['widget_catalog_json'] = json.dumps(dw.catalog_for(user))
 
         return render(request, 'pages/dashboard_client.html', context)
 

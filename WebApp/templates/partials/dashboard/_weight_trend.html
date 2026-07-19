@@ -1,0 +1,13 @@
+{% comment %}Widget atleta: andamento peso (ultime 10 rilevazioni).{% endcomment %}
+<div class="al-card-body h-full flex flex-col">
+    <p class="al-eyebrow mb-3">Andamento peso</p>
+    {% if weight_chart_json %}
+    <div x-data="dashLineChart" class="flex-1 min-h-[120px]">
+        <script type="application/json" data-chart-data>{{ weight_chart_json|safe }}</script>
+        <canvas x-ref="canvas"></canvas>
+    </div>
+    {% else %}
+    <p class="al-body" style="color: var(--al-ink-mute);">Nessuna misurazione di peso disponibile ancora.</p>
+    <a href="{% url 'check_progress_charts' %}" class="al-link mt-2 inline-block">Registra una rilevazione</a>
+    {% endif %}
+</div>

@@ -297,6 +297,84 @@
       };
     });
 
+    // Athlete progress widgets: same data/rendering as the pre-grid
+    // clientProgressWidget, but one component per widget so each can live in
+    // its own grid item (endpoint URL comes from data-url on the root).
+    Alpine.data('dashLoadsWidget', () => {
+      let chart = null;
+      return {
+        loading: true,
+        hasData: false,
+        async init() {
+          try {
+            const r = await fetch(this.$root.dataset.url, { credentials: 'same-origin' });
+            const d = await r.json();
+            const series = (d.series || []).filter((s) => s.load_max !== null);
+            this.hasData = series.length >= 2;
+            if (!this.hasData) return;
+            this.$nextTick(() => {
+              if (chart) chart.destroy();
+              chart = new Chart(this.$refs.canvas, {
+                type: 'line',
+                data: { labels: series.map((s) => s.date), datasets: [{
+                  data: series.map((s) => s.load_max), borderColor: AEGEAN,
+                  backgroundColor: 'rgba(30,58,95,0.12)', fill: true, tension: 0.3,
+                  pointRadius: 2, pointBackgroundColor: AEGEAN,
+                }] },
+                options: {
+                  responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { display: false }, x: { grid: { display: false } } },
+                },
+              });
+            });
+          } catch (e) { this.hasData = false; }
+          finally { this.loading = false; }
+        },
+        destroy() { if (chart) { chart.destroy(); chart = null; } },
+      };
+    });
+
+    Alpine.data('dashVolumeWidget', () => {
+      let chart = null;
+      const COLORS = ['#9C4448', '#1E3A5F', '#8A6E5A', '#3F7690', '#4F7A6A',
+                      '#6A5482', '#5B89B6', '#2B6E6E', '#8A6A1E', '#4A5A8A'];
+      return {
+        loading: true,
+        hasData: false,
+        async init() {
+          try {
+            const r = await fetch(this.$root.dataset.url, { credentials: 'same-origin' });
+            const d = await r.json();
+            const weeks = d.weeks || [];
+            const muscles = d.muscles || [];
+            this.hasData = weeks.length >= 1 && muscles.length >= 1;
+            if (!this.hasData) return;
+            this.$nextTick(() => {
+              if (chart) chart.destroy();
+              chart = new Chart(this.$refs.canvas, {
+                type: 'bar',
+                data: {
+                  labels: weeks,
+                  datasets: muscles.map((m, i) => ({
+                    label: m, data: d.series[m] || [],
+                    backgroundColor: COLORS[i % COLORS.length], borderRadius: 4, borderWidth: 0,
+                  })),
+                },
+                options: {
+                  responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true, display: false } },
+                },
+              });
+            });
+          } catch (e) { this.hasData = false; }
+          finally { this.loading = false; }
+        },
+        destroy() { if (chart) { chart.destroy(); chart = null; } },
+      };
+    });
+
     Alpine.data('dashBarChart', () => {
       let chart = null;
       return {

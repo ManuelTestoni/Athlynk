@@ -1,0 +1,29 @@
+{% comment %}Widget atleta: ultime tappe del percorso col coach.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Percorso</p>
+        <h2 class="al-h-2 mt-1">Le tue tappe</h2>
+    </div>
+    <a href="{% url 'il_mio_percorso' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Tutto il percorso</span>
+        <i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if journey_events %}
+    <ul class="space-y-3">
+        {% for e in journey_events %}
+        <li class="flex items-start gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <span class="al-tag shrink-0">{{ e.date|slice:"5:10" }}</span>
+            <p class="al-small min-w-0 truncate">{{ e.title|default:e.label|default:e.type }}</p>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-path al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Percorso in partenza</h3>
+        <p style="font-size: 12px;">Le tappe con il tuo coach appariranno qui.</p>
+    </div>
+    {% endif %}
+</div>

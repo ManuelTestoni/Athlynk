@@ -259,3 +259,27 @@ class WebEndpointTests(TestCase):
     def test_widget_fragment_wrong_role_404(self):
         res = self.client.get('/dashboard/widget/weight_trend')
         self.assertEqual(res.status_code, 404)
+
+
+class ClientDashboardPageTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.coach_user, self.coach = _mk_coach()
+        self.client_user, self.client_profile = _mk_client(self.coach)
+        session = self.client.session
+        session['user_id'] = self.client_user.id
+        session['user_role'] = 'CLIENT'
+        session.save()
+
+    def test_dashboard_page_renders_default_widgets(self):
+        res = self.client.get('/')
+        self.assertEqual(res.status_code, 200)
+        html = res.content.decode()
+        self.assertIn('Personalizza', html)
+        self.assertIn('data-widget-type="weight_trend"', html)
+        self.assertIn('data-widget-type="nav_shortcuts"', html)
+
+    def test_widget_fragment_next_meal(self):
+        res = self.client.get('/dashboard/widget/next_meal')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('html', res.json())
