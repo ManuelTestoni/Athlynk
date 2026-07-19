@@ -219,7 +219,7 @@ def _client_coach_message(request, client):
         .filter(conversation__client=client)
         .exclude(sender_user=client.user)
         .select_related('sender_user', 'conversation', 'conversation__coach')
-        .order_by('-created_at')
+        .order_by('-sent_at')
         .first()
     )
     return {'coach_last_message': msg}

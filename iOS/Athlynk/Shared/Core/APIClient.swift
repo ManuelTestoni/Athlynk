@@ -380,6 +380,48 @@ final class APIClient {
                    from: try await request("/api/v1/settings", method: "PATCH", body: [key: enabled])).settings
     }
 
+    // MARK: Customizable dashboard layout (synced with the web grid)
+
+    func dashboardLayout() async throws -> DashboardLayoutResponse {
+        try decode(DashboardLayoutResponse.self,
+                   from: try await request("/api/v1/dashboard/layout"))
+    }
+
+    /// Full-replace save. Widgets are sent in array order with `y = index`
+    /// so the web grid re-flows to match the mobile ordering.
+    @discardableResult
+    func updateDashboardLayout(_ layout: DashboardLayoutDTO) async throws -> DashboardLayoutResponse {
+        let widgets: [[String: Any]] = layout.widgets.map { w in
+            var d: [String: Any] = ["id": w.id, "type": w.type,
+                                    "x": w.x, "y": w.y, "size": w.size]
+            if let ids = w.config?.clientIds, !ids.isEmpty {
+                d["config"] = ["client_ids": ids]
+            } else {
+                d["config"] = [String: Any]()
+            }
+            return d
+        }
+        return try decode(DashboardLayoutResponse.self,
+                          from: try await request("/api/v1/dashboard/layout", method: "PUT",
+                                                  body: ["version": layout.version,
+                                                         "widgets": widgets]))
+    }
+
+    /// Reset to the role default layout.
+    @discardableResult
+    func resetDashboardLayout() async throws -> DashboardLayoutResponse {
+        try decode(DashboardLayoutResponse.self,
+                   from: try await request("/api/v1/dashboard/layout", method: "DELETE"))
+    }
+
+    /// Coach only: rows for the pinned-athletes widget, in the given order.
+    func pinnedAthletes(ids: [Int]) async throws -> [PinnedAthleteDTO] {
+        guard !ids.isEmpty else { return [] }
+        let qs = ids.map(String.init).joined(separator: ",")
+        return try decode(PinnedAthletesResponse.self,
+                          from: try await request("/api/v1/coach/pinned-athletes?ids=\(qs)")).athletes
+    }
+
     func plans() async throws -> [SubscriptionPlanDTO] {
         try decode(PlansResponse.self, from: try await request("/api/v1/plans")).plans
     }

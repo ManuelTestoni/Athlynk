@@ -6,7 +6,7 @@
         {{ coach_last_message.body|default:"(allegato)" }}
     </p>
     <p class="al-small mt-2" style="color: var(--al-ink-mute);">
-        {{ coach_last_message.conversation.coach.first_name }} · {{ coach_last_message.created_at|date:"d M, H:i" }}
+        {{ coach_last_message.conversation.coach.first_name }} · {{ coach_last_message.sent_at|date:"d M, H:i" }}
     </p>
     <a href="{% url 'chat_list' %}" class="al-link al-link-bronze text-[12px] mt-auto inline-flex items-center gap-1">
         <span>Rispondi</span>

@@ -248,29 +248,44 @@ WIDGET_REGISTRY = {
     },
 }
 
-# Role defaults reproduce today's static dashboards exactly: zero visual
-# change for anyone who never opens "Personalizza".
+# Role defaults are the union of what each surface's old static dashboard
+# showed (web sections + iOS cards), since one canonical layout now feeds
+# both. Array order is the iOS rendering order.
 DEFAULT_LAYOUT_COACH = {
     'version': SCHEMA_VERSION,
     'widgets': [
-        {'id': 'wg_default_recent', 'type': 'recent_clients',
+        {'id': 'wg_default_quick', 'type': 'quick_actions',
          'x': 0, 'y': 0, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_agenda', 'type': 'agenda_today',
+         'x': 0, 'y': 2, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_activity', 'type': 'activity_feed',
+         'x': 6, 'y': 2, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_recent', 'type': 'recent_clients',
+         'x': 0, 'y': 7, 'size': 'M', 'config': {}},
         {'id': 'wg_default_plans', 'type': 'subscription_plans',
-         'x': 8, 'y': 0, 'size': 'S', 'config': {}},
+         'x': 8, 'y': 7, 'size': 'S', 'config': {}},
     ],
 }
 
 DEFAULT_LAYOUT_CLIENT = {
     'version': SCHEMA_VERSION,
     'widgets': [
-        {'id': 'wg_default_weight', 'type': 'weight_trend',
+        {'id': 'wg_default_quick', 'type': 'quick_actions',
          'x': 0, 'y': 0, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_workout', 'type': 'next_workout',
+         'x': 0, 'y': 2, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_meal', 'type': 'next_meal',
+         'x': 6, 'y': 2, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_msg', 'type': 'coach_message',
+         'x': 0, 'y': 5, 'size': 'M', 'config': {}},
+        {'id': 'wg_default_weight', 'type': 'weight_trend',
+         'x': 6, 'y': 5, 'size': 'M', 'config': {}},
         {'id': 'wg_default_loads', 'type': 'training_loads',
-         'x': 6, 'y': 0, 'size': 'M', 'config': {}},
+         'x': 0, 'y': 8, 'size': 'M', 'config': {}},
         {'id': 'wg_default_volume', 'type': 'weekly_volume',
-         'x': 0, 'y': 3, 'size': 'M', 'config': {}},
+         'x': 6, 'y': 8, 'size': 'M', 'config': {}},
         {'id': 'wg_default_nav', 'type': 'nav_shortcuts',
-         'x': 0, 'y': 6, 'size': 'M', 'config': {}},
+         'x': 0, 'y': 11, 'size': 'M', 'config': {}},
     ],
 }
 

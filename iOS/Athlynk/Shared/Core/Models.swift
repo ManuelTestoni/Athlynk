@@ -1313,6 +1313,77 @@ struct SettingsDTO: Codable, Hashable {
 
 struct SettingsResponse: Codable { let settings: SettingsDTO }
 
+// MARK: - Customizable dashboard layout (synced web ↔ iOS)
+
+/// Per-widget options. v1 knows a single key (`client_ids` for the coach's
+/// pinned-athletes widget); grow this struct as widget types gain options.
+struct DashboardWidgetConfigDTO: Codable, Hashable {
+    var clientIds: [Int]?
+    enum CodingKeys: String, CodingKey { case clientIds = "client_ids" }
+}
+
+/// One placed widget. `x`/`y`/`size` are the web grid's presentation hints —
+/// iOS renders widgets in ARRAY ORDER (the canonical cross-platform order)
+/// and, when reordering, rewrites `y = index` so the web grid re-flows.
+struct DashboardWidgetDTO: Codable, Identifiable, Hashable {
+    var id: String
+    let type: String
+    var x: Int
+    var y: Int
+    var size: String
+    var config: DashboardWidgetConfigDTO?
+}
+
+struct DashboardLayoutDTO: Codable, Hashable {
+    var version: Int
+    var widgets: [DashboardWidgetDTO]
+}
+
+/// Catalog entry from the server registry (role-filtered).
+struct WidgetCatalogItemDTO: Codable, Identifiable, Hashable {
+    let type: String
+    let title: String
+    let desc: String
+    let sfSymbol: String
+    let mobileSize: String
+    var id: String { type }
+    enum CodingKeys: String, CodingKey {
+        case type, title, desc
+        case sfSymbol = "sf_symbol"
+        case mobileSize = "mobile_size"
+    }
+}
+
+struct DashboardLayoutResponse: Codable {
+    let layout: DashboardLayoutDTO
+    let catalog: [WidgetCatalogItemDTO]
+}
+
+/// Row of the coach's "Atleti in evidenza" widget.
+struct PinnedAthleteDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let firstName: String
+    let lastName: String
+    let displayName: String
+    let profileImageUrl: String?
+    let sport: String?
+    let lastCheckAt: String?
+    let weightDelta: Double?
+    let hasPendingCheck: Bool
+    enum CodingKeys: String, CodingKey {
+        case id, sport
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case displayName = "display_name"
+        case profileImageUrl = "profile_image_url"
+        case lastCheckAt = "last_check_at"
+        case weightDelta = "weight_delta"
+        case hasPendingCheck = "has_pending_check"
+    }
+}
+
+struct PinnedAthletesResponse: Codable { let athletes: [PinnedAthleteDTO] }
+
 // MARK: - Plans on offer (Piani e Prezzi)
 
 struct PlansResponse: Codable { let plans: [SubscriptionPlanDTO] }

@@ -44,12 +44,14 @@ class LayoutCoreTests(TestCase):
     def test_default_layout_per_role(self):
         coach_layout = dashboard_widgets.get_layout(self.coach_user)
         types = [w['type'] for w in coach_layout['widgets']]
-        self.assertEqual(types, ['recent_clients', 'subscription_plans'])
+        self.assertEqual(types, ['quick_actions', 'agenda_today', 'activity_feed',
+                                 'recent_clients', 'subscription_plans'])
 
         cache.clear()
         client_layout = dashboard_widgets.get_layout(self.client_user)
         types = [w['type'] for w in client_layout['widgets']]
-        self.assertEqual(types, ['weight_trend', 'training_loads',
+        self.assertEqual(types, ['quick_actions', 'next_workout', 'next_meal',
+                                 'coach_message', 'weight_trend', 'training_loads',
                                  'weekly_volume', 'nav_shortcuts'])
 
     def test_save_round_trip_sorted(self):
@@ -126,7 +128,8 @@ class LayoutCoreTests(TestCase):
         })
         layout = dashboard_widgets.reset_layout(self.coach_user)
         self.assertEqual([w['type'] for w in layout['widgets']],
-                         ['recent_clients', 'subscription_plans'])
+                         ['quick_actions', 'agenda_today', 'activity_feed',
+                          'recent_clients', 'subscription_plans'])
         self.coach_user.refresh_from_db()
         self.assertEqual(self.coach_user.dashboard_layout, {})
 
@@ -184,7 +187,8 @@ class MobileEndpointTests(TestCase):
         res = self.client.delete('/api/v1/dashboard/layout', **self.coach_auth)
         self.assertEqual(res.status_code, 200)
         self.assertEqual([w['type'] for w in res.json()['layout']['widgets']],
-                         ['recent_clients', 'subscription_plans'])
+                         ['quick_actions', 'agenda_today', 'activity_feed',
+                          'recent_clients', 'subscription_plans'])
 
     def test_put_wrong_role_widget_400(self):
         res = self.client.put('/api/v1/dashboard/layout', json.dumps({
