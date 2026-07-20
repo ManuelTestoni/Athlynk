@@ -263,9 +263,12 @@ struct CoachPlanCreateView: View {
         }
     }
 
-    /// Poll the async import job (PDF or Excel) until done/error, driving the real progress UI.
+    /// Poll the async import job (PDF or Excel) until done/error, driving the real
+    /// progress UI. Bound (270 × 2s = 540s) stays just under the backend job's
+    /// 10-minute cache TTL — a multi-page PDF genuinely can take minutes; this
+    /// used to give up at 60 tries (120s) and mislabel that as a network error.
     private func pollImportJob(jobId: String) async throws -> [String: Any] {
-        for _ in 0..<60 {
+        for _ in 0..<270 {
             try await Task.sleep(for: .seconds(2))
             let status = kind == .workout
                 ? try await APIClient.shared.coachWorkoutImportStatus(jobId: jobId)

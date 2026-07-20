@@ -13,13 +13,18 @@ enum APIError: LocalizedError {
     case http(Int, String)
     case decoding(String)
     case transport(String)
+    case timedOut(String)
 
     /// User-facing copy only — never the raw server/technical string (those leak
     /// internals like "Content-Type deve essere application/json"). Use
-    /// `debugDetail` for logging.
+    /// `debugDetail` for logging. `.timedOut` is the exception: its message is
+    /// already app-authored UI copy, not a server string, so it's shown as-is —
+    /// collapsing it into the generic network message would tell the coach to
+    /// check their WiFi for something that isn't a connectivity problem.
     var errorDescription: String? {
         switch self {
         case .transport: return "Problema di connessione. Controlla la rete e riprova."
+        case .timedOut(let msg): return msg
         case .http(401, _): return "Email o password errati."
         default:         return "Si è verificato un errore. Riprova."
         }
@@ -32,6 +37,7 @@ enum APIError: LocalizedError {
         case .http(let code, let msg): return "http \(code): \(msg)"
         case .decoding(let d): return "decoding: \(d)"
         case .transport(let t): return "transport: \(t)"
+        case .timedOut(let t): return "timedOut: \(t)"
         }
     }
 }
