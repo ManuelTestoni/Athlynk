@@ -165,8 +165,13 @@ def _regroup_shorthand_supersets(session: dict) -> None:
     session['blocks'] = new_blocks
 
 
-def normalize_and_match(raw_json: dict, coach=None) -> dict:
-    """Validate via pydantic + best_match every exercise against Exercise DB."""
+def normalize_and_match(raw_json: dict, coach=None, progress_cb=None) -> dict:
+    """Validate via pydantic + best_match every exercise against Exercise DB.
+
+    `progress_cb(done, total)`, if given, is called after each exercise is
+    matched — matching is pure DB round-trips with no other progress signal
+    during the whole phase, and a long-running import job's cache entry only
+    stays alive if something keeps touching it (see JobStore ttl)."""
     try:
         validated = WorkoutExtraction.model_validate(raw_json)
     except ValidationError:
@@ -174,17 +179,32 @@ def normalize_and_match(raw_json: dict, coach=None) -> dict:
         validated = WorkoutExtraction.model_validate(raw_json)
     out = validated.model_dump()
 
-    for s_idx, session in enumerate(out.get('sessions', []) or []):
-        session.setdefault('order_index', s_idx)
+    sessions = out.get('sessions', []) or []
+    for session in sessions:
         _regroup_shorthand_supersets(session)
-        for block in session.get('blocks', []) or []:
-            for ex in block.get('exercises', []) or []:
-                _match_exercise_into(ex, coach=coach)
-                # Backfill rest_seconds from rest_label when missing
-                if ex.get('rest_seconds') in (None, 0) and ex.get('rest_label'):
-                    parsed = _parse_rest_seconds(ex.get('rest_label'))
-                    if parsed:
-                        ex['rest_seconds'] = parsed
+    all_exercises = [
+        ex
+        for session in sessions
+        for block in (session.get('blocks', []) or [])
+        for ex in (block.get('exercises', []) or [])
+    ]
+    total = len(all_exercises) or 1
+
+    for s_idx, session in enumerate(sessions):
+        session.setdefault('order_index', s_idx)
+
+    for done, ex in enumerate(all_exercises, start=1):
+        _match_exercise_into(ex, coach=coach)
+        # Backfill rest_seconds from rest_label when missing
+        if ex.get('rest_seconds') in (None, 0) and ex.get('rest_label'):
+            parsed = _parse_rest_seconds(ex.get('rest_label'))
+            if parsed:
+                ex['rest_seconds'] = parsed
+        if progress_cb:
+            try:
+                progress_cb(done, total)
+            except Exception:
+                pass
 
     return out
 
@@ -247,10 +267,11 @@ def run_import_pipeline(
     file_bytes: bytes,
     plan_title: str = '',
     coach=None,
+    progress_cb=None,
 ) -> tuple[dict, ConfidenceSummary]:
     grid = excel_to_text(file_bytes)
     structure = detect_workout_structure(grid)
     raw = extract_workout_with_ai(grid, plan_title, structure=structure)
-    normalized = normalize_and_match(raw, coach=coach)
+    normalized = normalize_and_match(raw, coach=coach, progress_cb=progress_cb)
     confidence = compute_confidence(normalized)
     return normalized, confidence

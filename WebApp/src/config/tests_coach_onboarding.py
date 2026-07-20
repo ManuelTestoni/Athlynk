@@ -35,6 +35,7 @@ class CoachCreateClientTests(TestCase):
             data=json.dumps({
                 'first_name': 'Mario', 'last_name': 'Rossi',
                 'email': 'mario@e.com', 'subscription_plan_id': self.plan.id,
+                'already_paid': True,
             }),
             content_type='application/json', **self._auth())
         self.assertEqual(resp.status_code, 201)

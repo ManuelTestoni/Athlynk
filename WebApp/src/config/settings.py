@@ -289,6 +289,14 @@ if _redis_url:
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'IGNORE_EXCEPTIONS': True,
+                # Without these, a dead/unreachable Redis (wrong host, network
+                # split, laptop off the Railway private network) hangs on the OS
+                # default TCP connect timeout — tens of seconds, per call, in
+                # tight loops (e.g. cache.get() per exercise during PDF-import
+                # matching). Fail fast instead so IGNORE_EXCEPTIONS's fail-open
+                # actually reads as "open" and not "stuck".
+                'SOCKET_CONNECT_TIMEOUT': 2,
+                'SOCKET_TIMEOUT': 2,
             },
         }
     }

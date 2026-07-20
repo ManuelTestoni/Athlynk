@@ -134,7 +134,11 @@ def run_pdf_pipeline(
     if not merged.get('sessions'):
         raise AIExtractionError("L'AI non ha estratto alcuna sessione utile dal PDF.")
 
-    normalized = normalize_and_match(merged, coach=coach)
+    def _match_progress(done: int, total: int):
+        pct = 88 + int(10 * done / max(total, 1))
+        _emit(progress_cb, PHASE_FINALIZE, pct)
+
+    normalized = normalize_and_match(merged, coach=coach, progress_cb=_match_progress)
     normalized['document_summary'] = document_summary
     _reattach_source_meta(merged, normalized)
 

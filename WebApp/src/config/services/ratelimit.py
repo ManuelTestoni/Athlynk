@@ -42,6 +42,10 @@ def hit(prefix: str, ident: str, limit: int, window_seconds: int) -> tuple[bool,
     except ValueError:
         cache.set(key, 1, timeout=window_seconds)
         count = 1
+    if count is None:
+        # django-redis + IGNORE_EXCEPTIONS returns None (not a raised error) when
+        # Redis is unreachable — fail open like the rest of the cache, don't crash.
+        return True, limit
     remaining = max(0, limit - count)
     allowed = count <= limit
     if not allowed:

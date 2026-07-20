@@ -225,11 +225,15 @@ def extract_diet_with_ai(
     return raw
 
 
-def normalize_and_match(raw_json: dict) -> dict:
+def normalize_and_match(raw_json: dict, progress_cb=None) -> dict:
     """Valida con pydantic e arricchisce ogni food con food_id + candidati.
 
     Per ogni food.name → fuzzy_match → se score alto: food_id+name reale,
     altrimenti uncertain=True + candidati per la UI di revisione.
+
+    `progress_cb(done, total)`, se dato, viene chiamato dopo ogni food — pure
+    query DB senza altro segnale di avanzamento durante questa fase; un job
+    lungo resta "vivo" in cache solo se qualcosa la tocca (vedi JobStore ttl).
     """
     # Pydantic tollera campi extra e default; valida lo scheletro.
     try:
@@ -264,12 +268,22 @@ def normalize_and_match(raw_json: dict) -> dict:
             entry['candidates'] = others
             entry['uncertain'] = True
 
-    for day in out.get('days', []):
-        for meal in day.get('meals', []):
-            for food in meal.get('foods', []):
-                _match_food_into(food)
-                for sub in food.get('substitutions', []) or []:
-                    _match_food_into(sub)
+    all_foods = [
+        food
+        for day in out.get('days', [])
+        for meal in day.get('meals', [])
+        for food in meal.get('foods', [])
+    ]
+    total = len(all_foods) or 1
+    for done, food in enumerate(all_foods, start=1):
+        _match_food_into(food)
+        for sub in food.get('substitutions', []) or []:
+            _match_food_into(sub)
+        if progress_cb:
+            try:
+                progress_cb(done, total)
+            except Exception:
+                pass
 
     # Dedup integratori per nome normalizzato, mergendo timing/notes
     def _merge_str(a: str | None, b: str | None) -> str | None:
@@ -346,12 +360,13 @@ def apply_structure_hints(normalized: dict, structure: DocStructure | None) -> d
     return normalized
 
 
-def run_import_pipeline(file_bytes: bytes, plan_title: str = '') -> tuple[dict, ConfidenceSummary]:
+def run_import_pipeline(file_bytes: bytes, plan_title: str = '',
+                        progress_cb=None) -> tuple[dict, ConfidenceSummary]:
     """Helper end-to-end. Solleva ExcelParseError o AIExtractionError."""
     grid = excel_to_text(file_bytes)
     structure = detect_diet_structure(grid)
     raw = extract_diet_with_ai(grid, plan_title, structure=structure)
-    normalized = normalize_and_match(raw)
+    normalized = normalize_and_match(raw, progress_cb=progress_cb)
     apply_structure_hints(normalized, structure)
     confidence = compute_confidence(normalized)
     return normalized, confidence

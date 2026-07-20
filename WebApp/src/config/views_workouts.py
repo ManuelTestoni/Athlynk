@@ -1463,8 +1463,15 @@ def _run_workout_excel_job(job_id: str, file_bytes: bytes, plan_title: str,
         coach_obj = None
 
     _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': 50})
+
+    def _match_progress(done: int, total: int) -> None:
+        pct = 60 + int(35 * done / max(total, 1))
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': pct})
+
     try:
-        extracted, confidence = run_import_pipeline(file_bytes, plan_title, coach=coach_obj)
+        extracted, confidence = run_import_pipeline(
+            file_bytes, plan_title, coach=coach_obj, progress_cb=_match_progress,
+        )
     except ExcelParseError as e:
         _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
         return

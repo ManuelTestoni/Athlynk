@@ -336,6 +336,13 @@ def best_match(
     unhelpful translation can never make matching worse than the raw name alone.
     """
     cands = fuzzy_match_exercise(name, coach=coach, limit=5)
+    # A confident raw-name hit is already 'high'/'exact' either way (see the
+    # buckets below); scoring the translation too would only matter for the
+    # exact-vs-high distinction, which downstream treats identically (neither
+    # is flagged uncertain). Skip it — it's a DB round-trip per exercise that
+    # buys nothing, and it's the main cost of the whole matching phase.
+    if cands and cands[0]['score'] >= 0.85:
+        name_en = None
     if name_en and _normalize(name_en) != _normalize(name):
         # Score the translation on its own clean text, but keep arbitrating with
         # the implement from the Italian original — coaches name it there

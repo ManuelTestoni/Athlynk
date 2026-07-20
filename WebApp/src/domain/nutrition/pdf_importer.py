@@ -152,7 +152,11 @@ def run_pdf_pipeline(file_bytes: bytes, plan_title: str = '',
         )
 
     # Step 8 — normalize + match + confidence (riuso pipeline Excel)
-    normalized = normalize_and_match(merged)
+    def _match_progress(done: int, total: int):
+        pct = 88 + int(10 * done / max(total, 1))
+        _emit(progress_cb, PHASE_FINALIZE, pct)
+
+    normalized = normalize_and_match(merged, progress_cb=_match_progress)
     apply_structure_hints(normalized, structure)
     # Preserva campi extra non-pydantic (document_summary)
     normalized['document_summary'] = document_summary
