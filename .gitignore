@@ -248,3 +248,10 @@ CONTAMINATION_CHECKLIST.md
 promo-video
 kickbacks.vsix
 Website/assets/marketing
+# --- Flutter Android app ---------------------------------------------------
+# The rules above are written for a Python project: `lib/`, `env/`/`ENV/` and
+# `build/` are venv/packaging noise there, but in android/ they are the app's
+# source, its --dart-define config, and Gradle output respectively. Re-include
+# the first two; android/.gitignore already handles the real build artifacts.
+!android/lib/
+!android/env/

@@ -1,0 +1,6 @@
+{
+  "API_BASE_URL": "https://app.athlynk.it",
+  "ENVIRONMENT": "production",
+  "POSTHOG_API_KEY": "",
+  "POSTHOG_HOST": "https://eu.i.posthog.com"
+}
