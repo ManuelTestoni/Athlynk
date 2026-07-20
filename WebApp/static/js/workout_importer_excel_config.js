@@ -1,4 +1,4 @@
-// Alpine entry for Excel workout import (sync).
+// Alpine entry for Excel workout import (async + polling).
 function workoutImporterExcel() {
   return window.createWorkoutImporter({
     sourceType: 'excel',
@@ -6,7 +6,8 @@ function workoutImporterExcel() {
     extPattern: /\.(xlsx|xls)$/i,
     maxBytes: 10 * 1024 * 1024,
     submitUrl: '/api/allenamenti/import/excel/',
-    async: false,
+    statusUrl: '/api/allenamenti/import/pdf/status/',
+    async: true,
     showSourceBadge: false,
     minPerceivedMs: 4500,
     steps: [

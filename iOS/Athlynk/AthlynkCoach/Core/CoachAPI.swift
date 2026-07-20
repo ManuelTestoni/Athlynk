@@ -624,14 +624,14 @@ extension APIClient {
 
     // MARK: Chiron AI import (reuses the web import endpoints via dual auth)
 
-    /// Excel diet import → returns the parsed extraction payload (`extracted`,
-    /// `plan_title`) for in-app review before confirming.
-    func coachImportDietExcel(file: Data, filename: String, title: String) async throws -> [String: Any] {
+    /// Excel diet import → starts the async job, returns its `job_id` (poll via
+    /// `coachDietImportStatus`, same as the PDF path).
+    func coachImportDietExcel(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
             "/api/nutrizione/import/excel/", fields: ["plan_title": title],
             fileField: "file", fileName: filename,
             fileMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileData: file)
-        return try coachJSONObject(data)
+        return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
 
     func coachImportDietPDF(file: Data, filename: String, title: String) async throws -> String {
@@ -679,12 +679,14 @@ extension APIClient {
             "/api/allenamenti/\(planId)/progression/cell/", method: "POST", body: body))
     }
 
-    func coachImportWorkoutExcel(file: Data, filename: String, title: String) async throws -> [String: Any] {
+    /// Excel workout import → starts the async job, returns its `job_id` (poll via
+    /// `coachWorkoutImportStatus`, same as the PDF path).
+    func coachImportWorkoutExcel(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
             "/api/allenamenti/import/excel/", fields: ["plan_title": title],
             fileField: "file", fileName: filename,
             fileMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileData: file)
-        return try coachJSONObject(data)
+        return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
 
     func coachImportWorkoutPDF(file: Data, filename: String, title: String) async throws -> String {

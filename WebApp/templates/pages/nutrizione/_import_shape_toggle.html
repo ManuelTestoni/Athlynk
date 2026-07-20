@@ -1,10 +1,4 @@
-{# Plan shape for an imported diet.
-
-   NutritionPlan has two independent discriminators — plan_mode (FOOD vs MACRO)
-   and plan_kind (DAILY vs WEEKLY) — and their 2×2 combination selects which of
-   the four builder branches in `piano_create.html` opens after saving. The
-   importer used to guess plan_kind from the day count and never set plan_mode
-   at all, so a macro-only document always landed in the food editor. #}
+{# plan_mode (FOOD/MACRO) × plan_kind (DAILY/WEEKLY) picks which of the four builder branches in piano_create.html opens after saving. #}
 <div>
   <p class="al-eyebrow mb-2" style="color: var(--al-ink-mute);">Cosa contiene il piano</p>
   <div class="wb-kind-toggle">

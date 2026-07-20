@@ -1,0 +1,28 @@
+{# Loading state shared by all four AI imports. loading_verb: "il PDF" / "il file". #}
+<section x-show="currentStep === 2" x-transition.opacity
+         class="min-h-[60vh] flex flex-col items-center justify-center">
+  <div class="al-card al-card-flush p-10 max-w-md w-full text-center">
+    <p class="al-eyebrow mb-3">Elaborazione in corso</p>
+    <h2 class="al-h-2 mb-8">Chiron sta leggendo <span class="al-display-i">{{ loading_verb }}</span></h2>
+
+    <div class="imp-log">
+      <template x-for="(s, i) in steps" :key="i">
+        <div class="imp-log-entry" :class="i < phase ? 'is-done' : i === phase ? 'is-active' : ''">
+          <div class="imp-log-num">
+            <i :class="i < phase ? 'ph ph-check' : s.icon"></i>
+          </div>
+          <div class="imp-log-body">
+            <p class="imp-log-label" x-text="s.label"></p>
+            <div class="imp-log-band"></div>
+            <p class="imp-log-folio" x-show="i === phase && pollProgressPercent > 0" x-text="pollProgressPercent + '%'"></p>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <p class="imp-log-whisper mt-8" x-text="motivationalMsg"></p>
+    <p class="imp-ai-note mt-3">
+      Chiron è un'AI: può commettere errori. Rivedrai tutto prima di salvare.
+    </p>
+  </div>
+</section>

@@ -1450,6 +1450,42 @@ def allenamenti_import_pdf_view(request):
     return render(request, 'pages/allenamenti/import_workout_pdf.html', {})
 
 
+def _run_workout_excel_job(job_id: str, file_bytes: bytes, plan_title: str,
+                           coach_id: int) -> None:
+    from domain.workouts.imports.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+    from domain.accounts.models import CoachProfile
+
+    try:
+        coach_obj = CoachProfile.objects.get(id=coach_id)
+    except CoachProfile.DoesNotExist:
+        coach_obj = None
+
+    _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': 50})
+    try:
+        extracted, confidence = run_import_pipeline(file_bytes, plan_title, coach=coach_obj)
+    except ExcelParseError as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        return
+    except AIExtractionError as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'plan_title': plan_title or extracted.get('plan_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _WORKOUT_IMPORT_JOBS.set(job_id, {
+        'status': 'done', 'phase': 'finalize', 'percent': 100, 'result': result,
+    })
+
+
 @require_http_methods(['POST'])
 def api_workout_import_excel(request):
     user = get_session_user(request)
@@ -1477,29 +1513,13 @@ def api_workout_import_excel(request):
     if not allowed:
         return import_quota.limit_response(import_quota.WORKOUT)
 
-    from domain.workouts.imports.excel_importer import (
-        run_import_pipeline, ExcelParseError, AIExtractionError,
+    file_bytes = uploaded.read()
+    job_id = _WORKOUT_IMPORT_JOBS.spawn(
+        target=_run_workout_excel_job,
+        args=(file_bytes, plan_title, coach.id),
+        initial_phase='analyze',
     )
-
-    try:
-        file_bytes = uploaded.read()
-        extracted, confidence = run_import_pipeline(file_bytes, plan_title, coach=coach)
-    except ExcelParseError as e:
-        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
-    except AIExtractionError as e:
-        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
-    except Exception as e:
-        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
-
-    payload = {
-        'extracted': extracted,
-        'confidence': confidence.model_dump(),
-        'plan_title': plan_title or extracted.get('plan_name') or '',
-    }
-    status = 206 if confidence.ratio >= 0.5 else 200
-    if status == 206:
-        payload['warning'] = 'high_uncertainty'
-    return JsonResponse(payload, status=status)
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
 
 
 def _run_workout_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,

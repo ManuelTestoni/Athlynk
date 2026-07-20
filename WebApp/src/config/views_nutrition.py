@@ -2502,8 +2502,36 @@ def nutrizione_import_view(request):
 
 
 @require_http_methods(['POST'])
+def _run_diet_excel_job(job_id: str, file_bytes: bytes, plan_title: str) -> None:
+    """Worker eseguito in background thread. Aggiorna lo stato via cache."""
+    from domain.nutrition.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+
+    _set_job(job_id, {'status': 'running', 'phase': 'extract', 'percent': 50})
+    try:
+        extracted, confidence = run_import_pipeline(file_bytes, plan_title)
+    except ExcelParseError as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        return
+    except AIExtractionError as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'plan_title': plan_title or extracted.get('diet_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _set_job(job_id, {'status': 'done', 'phase': 'finalize', 'percent': 100, 'result': result})
+
+
 def api_diet_import_excel(request):
-    """Riceve multipart {file, plan_title, client_id} → estrazione AI → JSON."""
+    """Riceve multipart {file, plan_title} → avvia il job di import Excel (async)."""
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
@@ -2529,30 +2557,18 @@ def api_diet_import_excel(request):
     if not allowed:
         return import_quota.limit_response(import_quota.DIET)
 
-    # Import locale per evitare overhead se la view non è chiamata
-    from domain.nutrition.excel_importer import (
-        run_import_pipeline, ExcelParseError, AIExtractionError,
+    file_bytes = uploaded.read()
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, {'status': 'queued', 'phase': 'analyze', 'percent': 0})
+
+    thread = threading.Thread(
+        target=_run_diet_excel_job,
+        args=(job_id, file_bytes, plan_title),
+        daemon=True,
     )
+    thread.start()
 
-    try:
-        file_bytes = uploaded.read()
-        extracted, confidence = run_import_pipeline(file_bytes, plan_title)
-    except ExcelParseError as e:
-        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
-    except AIExtractionError as e:
-        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
-    except Exception as e:
-        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
-
-    payload = {
-        'extracted': extracted,
-        'confidence': confidence.model_dump(),
-        'plan_title': plan_title or extracted.get('diet_name') or '',
-    }
-    status = 206 if confidence.ratio >= 0.5 else 200
-    if status == 206:
-        payload['warning'] = 'high_uncertainty'
-    return JsonResponse(payload, status=status)
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
 
 
 @require_http_methods(['POST'])

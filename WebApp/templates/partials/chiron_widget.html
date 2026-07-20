@@ -733,9 +733,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
           <div class="msg" x-text="pendingAction && pendingAction.description"></div>
         </div>
       </div>
-      {# Editable parameters, described by the proposal itself. The banner used
-         to hardcode one textarea per action type, so every new action needed a
-         template change; now the server says what to render. #}
+      {# Fields are described by the proposal itself, not hardcoded per action type. #}
       <template x-for="f in (pendingAction?.fields || [])" :key="f.key">
         <label class="chiron-confirm-field">
           <span class="lbl" x-text="f.label"></span>
@@ -776,8 +774,7 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
               <template x-for="s in m.sources" :key="s.url">
                 <a :href="s.url" target="_blank" rel="noopener">
                   <span x-text="s.title"></span>
-                  {# Bibliographic line: what makes the source checkable —
-                     who, when, where, how strong, how often cited. #}
+                  {# Bibliographic line: who, when, where, how often cited. #}
                   <span class="cite" x-show="s.authors || s.year || s.journal"
                         x-text="[
                           [s.authors, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' '),

@@ -235,18 +235,18 @@ struct CoachPlanCreateView: View {
         withAnimation { analyzing = true }
         defer { busy = false; withAnimation { analyzing = false } }
         do {
-            let result: [String: Any]
+            let api = APIClient.shared
+            let jobId: String
             if isPDF {
-                let api = APIClient.shared
-                let jobId = kind == .workout
+                jobId = kind == .workout
                     ? try await api.coachImportWorkoutPDF(file: data, filename: name, title: title)
                     : try await api.coachImportDietPDF(file: data, filename: name, title: title)
-                result = try await pollPDF(jobId: jobId)
             } else {
-                result = kind == .workout
-                    ? try await APIClient.shared.coachImportWorkoutExcel(file: data, filename: name, title: title)
-                    : try await APIClient.shared.coachImportDietExcel(file: data, filename: name, title: title)
+                jobId = kind == .workout
+                    ? try await api.coachImportWorkoutExcel(file: data, filename: name, title: title)
+                    : try await api.coachImportDietExcel(file: data, filename: name, title: title)
             }
+            let result = try await pollImportJob(jobId: jobId)
             let payload = (result["result"] as? [String: Any]) ?? result
             extracted = (payload["extracted"] as? [String: Any]) ?? payload
             summary = buildSummary(extracted ?? [:])
@@ -263,8 +263,8 @@ struct CoachPlanCreateView: View {
         }
     }
 
-    /// Poll the async PDF job until done/error, driving the real progress UI.
-    private func pollPDF(jobId: String) async throws -> [String: Any] {
+    /// Poll the async import job (PDF or Excel) until done/error, driving the real progress UI.
+    private func pollImportJob(jobId: String) async throws -> [String: Any] {
         for _ in 0..<60 {
             try await Task.sleep(for: .seconds(2))
             let status = kind == .workout

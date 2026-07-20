@@ -13,16 +13,15 @@
     <div class="mb-8">
       <p class="al-eyebrow mb-3">Studio &middot; Allenamenti &middot; Import AI</p>
       <h1 class="al-h-1">Importa <span class="al-display-i">scheda</span> da PDF</h1>
-      <p class="al-body mt-2">
-        Carica il PDF della scheda. L'AI legge pagina per pagina, applica OCR sulle
+      <p class="al-body mt-2 max-w-xl">
+        Carica il PDF della scheda. Chiron legge pagina per pagina, applica OCR sulle
         scansioni e ricostruisce la scheda in formato strutturato.
       </p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 al-card al-card-flush p-6">
-
+    <div class="imp-intake-row">
+      <div class="imp-intake-main">
         <label class="al-label">Titolo scheda</label>
         <input type="text" class="al-input" x-model="planTitle"
                placeholder="Es: Massa Mario Rossi - Push/Pull/Legs">
@@ -30,16 +29,16 @@
         <label class="al-label mt-5">File PDF</label>
         <div @drop.prevent="onDrop($event)" @dragover.prevent="dragOver = true"
              @dragleave.prevent="dragOver = false"
-             :class="dragOver ? 'border-bronze bg-marble' : 'border-stone'"
-             class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors"
+             :class="dragOver ? 'is-drag' : ''"
+             class="imp-lectern mt-2"
              @click="$refs.fileInput.click()">
           <input type="file" accept=".pdf" hidden x-ref="fileInput"
                  @change="onFile($event)">
           <template x-if="!file">
             <div>
-              <i class="ph ph-file-pdf text-4xl text-aegean"></i>
-              <p class="al-body mt-2">Trascina qui il file <code>.pdf</code> o clicca per selezionare</p>
-              <p class="text-xs text-ink-mute mt-1">Max 20 MB</p>
+              <i class="ph ph-file-pdf imp-lectern-icon"></i>
+              <p class="al-body mt-3">Trascina qui il file <code>.pdf</code> o clicca per selezionare</p>
+              <p class="al-small mt-1">Max 20 MB</p>
             </div>
           </template>
           <template x-if="file">
@@ -47,7 +46,7 @@
               <i class="ph ph-file-pdf text-3xl" style="color: var(--al-success);"></i>
               <div class="text-left">
                 <p class="font-medium" x-text="file.name"></p>
-                <p class="text-xs text-ink-mute" x-text="formatSize(file.size)"></p>
+                <p class="al-small" x-text="formatSize(file.size)"></p>
               </div>
               <button type="button" @click.stop="clearFile()" class="al-btn-icon ml-3" title="Rimuovi">
                 <i class="ph ph-x"></i>
@@ -64,80 +63,30 @@
         </button>
       </div>
 
-      <div class="al-card al-card-warm p-5">
-        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Come funziona</p>
-        <h3 class="al-h-3">L'AI legge per te</h3>
-        <ul class="mt-4 space-y-3 text-sm">
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Analizziamo il PDF pagina per pagina</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Leggiamo solo le parti rilevanti</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            OCR automatico su pagine scansionate</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Estraiamo sessioni, blocchi ed esercizi</li>
-        </ul>
+      <aside class="imp-margin imp-intake-aside">
+        <p class="imp-margin-title">Come legge Chiron</p>
+        <p class="imp-margin-item">Analizza il PDF pagina per pagina</p>
+        <p class="imp-margin-item">Legge solo le parti rilevanti</p>
+        <p class="imp-margin-item">OCR automatico su pagine scansionate</p>
+        <p class="imp-margin-item">Estrae sessioni, blocchi ed esercizi</p>
         <details class="mt-5">
-          <summary class="cursor-pointer text-aegean font-medium">PDF supportati</summary>
-          <ul class="mt-2 text-xs text-ink-mute list-disc pl-5">
-            <li>PDF con testo nativo</li>
-            <li>PDF scansionati (OCR ita+eng)</li>
-            <li>Layout liberi, tabelle, indicazioni</li>
-            <li>Documenti multi-pagina fino a 20 MB</li>
-          </ul>
+          <summary class="imp-margin-title cursor-pointer" style="color: var(--al-accent-text);">PDF supportati</summary>
+          <p class="imp-margin-note mt-2">
+            Testo nativo o scansionato (OCR ita+eng), layout liberi, tabelle, fino a 20 MB.
+          </p>
         </details>
-      </div>
+      </aside>
     </div>
   </section>
 
   <!-- ─── STEP 2: Loading ─────────────────────────────────────── -->
-  <section x-show="currentStep === 2" x-transition.opacity
-           class="min-h-[60vh] flex flex-col items-center justify-center">
-    <div class="al-card al-card-flush p-10 max-w-2xl w-full text-center">
-      <p class="al-eyebrow mb-3">Elaborazione in corso</p>
-      <h2 class="al-h-2 mb-8">Sto analizzando il PDF<span class="al-display-i">.</span></h2>
-
-      <div class="space-y-4">
-        <template x-for="(s, i) in steps" :key="i">
-          <div class="flex items-center gap-4 p-3 rounded-lg transition-colors"
-               :class="i < phase ? 'bg-marble' : i === phase ? 'bg-parchment ring-2 ring-bronze' : 'opacity-40'">
-            <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                 :class="i < phase ? 'bg-aegean text-parchment' : i === phase ? 'bg-bronze text-parchment animate-pulse' : 'bg-stone text-ink-mute'">
-              <i :class="i < phase ? 'ph ph-check' : s.icon" class="text-lg"></i>
-            </div>
-            <span class="font-medium text-left" x-text="s.label"></span>
-          </div>
-        </template>
-      </div>
-
-      <div x-show="phase === 3 && pollProgressPercent > 0" class="mt-6">
-        <div class="w-full bg-stone/40 rounded-full h-2 overflow-hidden">
-          <div class="bg-aegean h-2 transition-all"
-               :style="'width:' + pollProgressPercent + '%;'"></div>
-        </div>
-      </div>
-
-      <p class="imp-ai-note mt-6">
-        Chiron è un'AI: può commettere errori. Rivedrai tutto prima di salvare.
-      </p>
-    </div>
-  </section>
+  {% include 'partials/_import_loading.html' with loading_verb='il PDF' %}
 
   <!-- ─── STEP 3: Review ─────────────────────────────────────── -->
   {% include 'pages/allenamenti/_import_review.html' with origin_pdf=True %}
 
   <!-- ─── ERROR ─────────────────────────────────────── -->
-  <section x-show="currentStep === 'error'" x-transition.opacity
-           class="min-h-[60vh] flex flex-col items-center justify-center">
-    <div class="al-card al-card-flush p-10 max-w-xl w-full text-center">
-      <i class="ph ph-warning-circle text-5xl" style="color: var(--al-danger);"></i>
-      <h2 class="al-h-2 mt-3">Estrazione fallita</h2>
-      <p class="al-body mt-2" x-text="errorMsg"></p>
-      <button @click="currentStep = 1" class="al-btn al-btn-aegean mt-6">
-        <i class="ph ph-arrow-left"></i> Riprova
-      </button>
-    </div>
-  </section>
+  {% include 'partials/_import_error.html' %}
 
   <div x-show="toast" x-transition
        class="fixed bottom-6 right-6 al-card al-card-flush p-4 shadow-lg z-50"

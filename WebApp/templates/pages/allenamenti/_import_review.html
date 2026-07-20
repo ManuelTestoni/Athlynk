@@ -1,12 +1,4 @@
-{# Import review — step 3.
-
-   This screen has exactly two jobs: bind every extracted exercise to a
-   catalogue entry, and choose the plan's shape. It deliberately does NOT
-   reimplement the builder (sessions, blocks, supersets, per-set parameters):
-   saving hands the coach straight into `wizard.html`, which already does all of
-   that. Anything editable here would be a second implementation to keep in
-   sync — and the numbers below are shown as extracted so the coach can see what
-   the AI read, then fix them in the builder where they belong. #}
+{# Step 3: bind extracted exercises to catalogue entries and choose plan shape; editing itself happens in wizard.html after save. #}
 <section x-show="currentStep === 3" x-transition.opacity x-cloak>
 
   <div class="mb-6">
@@ -72,8 +64,7 @@
     </p>
   </div>
 
-  {# Plan shape decides which builder receives the plan, so it's chosen here —
-     after the coach has seen what the document actually contains. #}
+  {# Plan shape is chosen here, after the coach sees the document, since it decides which builder receives the plan. #}
   <div class="al-card mb-5">
     <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Tipo di scheda</p>
     {% include 'pages/allenamenti/_import_kind_toggle.html' %}
@@ -131,8 +122,7 @@
                     {% endif %}
                   </div>
 
-                  {# Expandable read-only per-week variations (weeks ≥ 2; week 1
-                     is the base row above). ✕ discards a misread week. #}
+                  {# Expandable read-only per-week variations (week 1 is the base row above); ✕ discards a misread week. #}
                   <div x-show="ex._weeksOpen && ex.week_values && ex.week_values.length" x-cloak
                        class="mt-2 al-card al-card-flush" style="padding: 8px 10px;">
                     <template x-for="wv in weekValuesSorted(ex)" :key="wv.week">
@@ -179,8 +169,7 @@
                     <p class="imp-target-missing">Nessuna corrispondenza nel database</p>
                   </template>
 
-                  {# The search box is always in the DOM (it anchors the dropdown)
-                     but only visible where a binding is missing or being redone. #}
+                  {# The search box stays in the DOM to anchor the dropdown; visibility toggles instead. #}
                   <div class="imp-search"
                        x-show="!ex.matched_exercise_id || ex._searchOpen">
                     <input type="text" class="al-input"
@@ -194,8 +183,7 @@
                       <div x-show="ex._searchOpen"
                            x-cloak class="wb-ex-dropdown"
                            :style="ex._dropdownStyle || ''" @mousedown.stop>
-                        {# Builder-grade filters: same params as the wizard's
-                           library panel, same /api/exercises/search/ endpoint. #}
+                        {# Same filters and endpoint as the wizard's library panel. #}
                         <div class="grid grid-cols-2 gap-1 p-2"
                              style="border-bottom: 1px solid var(--al-rule);" @mousedown.stop>
                           <select class="al-select wb-filter-select"

@@ -14,8 +14,8 @@
     extPattern: /\.(xlsx|xls)$/i,
     maxBytes: 10 * 1024 * 1024,
     submitUrl: '/api/nutrizione/import/excel/',
-    statusUrl: null,
-    async: false,
+    statusUrl: '/api/nutrizione/import/pdf/status/',
+    async: true,
     pollIntervalMs: 1500,
     showSourceBadge: false,
     steps: [
