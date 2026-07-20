@@ -1,0 +1,72 @@
+name: athlynk
+description: "Athlynk — coaching platform. Android (Flutter) rebuild of the iOS athlete + coach apps."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # it_IT strings for the Material/Cupertino/Widgets libraries. Required:
+  # the app forces `it_IT` as its only supported locale, and the built-in
+  # `Default*Localizations` only cover `en`.
+  flutter_localizations:
+    sdk: flutter
+
+  # State
+  flutter_riverpod: ^2.6.1
+
+  # Networking / data
+  dio: ^5.7.0
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+  # Persistence
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.5.2
+
+  # Media
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+
+  # Platform integration
+  url_launcher: ^6.3.1
+  app_links: ^6.3.3
+  flutter_local_notifications: ^18.0.1
+
+  # Formatting
+  intl: ^0.20.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  build_runner: ^2.5.0
+  freezed: ^3.0.0
+  json_serializable: ^6.9.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: BodoniModa
+      fonts:
+        - asset: assets/fonts/BodoniModa.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
