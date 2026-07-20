@@ -1450,6 +1450,49 @@ def allenamenti_import_pdf_view(request):
     return render(request, 'pages/allenamenti/import_workout_pdf.html', {})
 
 
+def _run_workout_excel_job(job_id: str, file_bytes: bytes, plan_title: str,
+                           coach_id: int) -> None:
+    from domain.workouts.imports.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+    from domain.accounts.models import CoachProfile
+
+    try:
+        coach_obj = CoachProfile.objects.get(id=coach_id)
+    except CoachProfile.DoesNotExist:
+        coach_obj = None
+
+    _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': 50})
+
+    def _match_progress(done: int, total: int) -> None:
+        pct = 60 + int(35 * done / max(total, 1))
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': pct})
+
+    try:
+        extracted, confidence = run_import_pipeline(
+            file_bytes, plan_title, coach=coach_obj, progress_cb=_match_progress,
+        )
+    except ExcelParseError as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        return
+    except AIExtractionError as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'plan_title': plan_title or extracted.get('plan_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _WORKOUT_IMPORT_JOBS.set(job_id, {
+        'status': 'done', 'phase': 'finalize', 'percent': 100, 'result': result,
+    })
+
+
 @require_http_methods(['POST'])
 def api_workout_import_excel(request):
     user = get_session_user(request)
@@ -1472,58 +1515,22 @@ def api_workout_import_excel(request):
         return JsonResponse({'error': 'excel_invalid', 'detail': 'Formato file non supportato (solo .xlsx/.xls)'}, status=422)
 
     plan_title = (request.POST.get('plan_title') or '').strip()[:200]
-    client_id = request.POST.get('client_id') or ''
-    client_data = _resolve_import_client(coach, client_id)
-    if isinstance(client_data, JsonResponse):
-        return client_data
 
     allowed, _ = import_quota.consume(coach, import_quota.WORKOUT)
     if not allowed:
         return import_quota.limit_response(import_quota.WORKOUT)
 
-    from domain.workouts.imports.excel_importer import (
-        run_import_pipeline, ExcelParseError, AIExtractionError,
+    file_bytes = uploaded.read()
+    job_id = _WORKOUT_IMPORT_JOBS.spawn(
+        target=_run_workout_excel_job,
+        args=(file_bytes, plan_title, coach.id),
+        initial_phase='analyze',
     )
-
-    try:
-        file_bytes = uploaded.read()
-        extracted, confidence = run_import_pipeline(file_bytes, plan_title, coach=coach)
-    except ExcelParseError as e:
-        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
-    except AIExtractionError as e:
-        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
-    except Exception as e:
-        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
-
-    payload = {
-        'extracted': extracted,
-        'confidence': confidence.model_dump(),
-        'client': client_data,
-        'plan_title': plan_title or extracted.get('plan_name') or '',
-    }
-    status = 206 if confidence.ratio >= 0.5 else 200
-    if status == 206:
-        payload['warning'] = 'high_uncertainty'
-    return JsonResponse(payload, status=status)
-
-
-def _resolve_import_client(coach, client_id):
-    """Validate client belongs to coach. Returns dict or JsonResponse on error."""
-    if not client_id:
-        return None
-    try:
-        client = ClientProfile.objects.get(
-            id=int(client_id),
-            coaching_relationships_as_client__coach=coach,
-            coaching_relationships_as_client__status='ACTIVE',
-        )
-    except (ValueError, ClientProfile.DoesNotExist):
-        return JsonResponse({'error': 'Atleta non valido o non associato'}, status=403)
-    return {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
 
 
 def _run_workout_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
-                         client_data, coach_id: int) -> None:
+                         coach_id: int) -> None:
     from domain.workouts.imports.pdf_importer import run_pdf_pipeline
     from domain.shared.pdf.ingestion import PdfParseError
     from domain.workouts.imports.pdf_extractor import AIExtractionError
@@ -1556,7 +1563,6 @@ def _run_workout_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
         'extracted': extracted,
         'confidence': confidence.model_dump(),
         'document_summary': extracted.get('document_summary'),
-        'client': client_data,
         'plan_title': plan_title or extracted.get('plan_name') or '',
         'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
     }
@@ -1587,10 +1593,6 @@ def api_workout_import_pdf(request):
         return JsonResponse({'error': 'pdf_invalid', 'detail': 'Formato file non supportato (solo .pdf)'}, status=422)
 
     plan_title = (request.POST.get('plan_title') or '').strip()[:200]
-    client_id = request.POST.get('client_id') or ''
-    client_data = _resolve_import_client(coach, client_id)
-    if isinstance(client_data, JsonResponse):
-        return client_data
 
     allowed, _ = import_quota.consume(coach, import_quota.WORKOUT)
     if not allowed:
@@ -1599,7 +1601,7 @@ def api_workout_import_pdf(request):
     file_bytes = uploaded.read()
     job_id = _WORKOUT_IMPORT_JOBS.spawn(
         target=_run_workout_pdf_job,
-        args=(file_bytes, plan_title, client_data, coach.id),
+        args=(file_bytes, plan_title, coach.id),
         initial_phase='analyze',
     )
     return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
@@ -1702,6 +1704,101 @@ def _coerce_set_details(raw, set_count: int) -> list:
     return out if any(out) else []
 
 
+def _import_set_details(ex_payload: dict, sets_int: int | None) -> list:
+    """Adapt extraction SetDetailEntry list → builder set_details keys, then
+    sanitize through _coerce_set_details."""
+    raw = ex_payload.get('set_details')
+    if not isinstance(raw, list) or not raw:
+        return []
+    adapted = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            adapted.append({})
+            continue
+        load_val, load_unit = _coerce_load(entry)
+        adapted.append({
+            'reps': entry.get('reps'),
+            'load_value': load_val,
+            'load_unit': load_unit,
+            'rir': entry.get('rir'),
+            'rpe': entry.get('rpe'),
+            'recovery_seconds': entry.get('rest_seconds'),
+            'tempo': entry.get('tempo'),
+        })
+    return _coerce_set_details(adapted, sets_int or len(adapted))
+
+
+# Extraction week_values key → WeeklyOverride metric (must stay within
+# views_progression._CELL_METRICS).
+_WEEK_METRIC_KEYS = ('sets', 'reps', 'load', 'rpe', 'rir', 'rest_seconds', 'tempo')
+
+
+def _import_week_overrides(ex_obj, week_values: list, duration_weeks: int) -> None:
+    """Persist sparse per-week variations as WeeklyOverride rows (upsert-only,
+    never week 1: week 1 is the WorkoutExercise base row — see
+    views_progression.api_progression_cell). Forward-fill across unlisted
+    weeks is handled by the progression engine's walk-back."""
+    for wv in week_values or []:
+        if not isinstance(wv, dict):
+            continue
+        try:
+            week = int(wv.get('week'))
+        except (TypeError, ValueError):
+            continue
+        if week < 2 or week > duration_weeks:
+            continue
+        for key in _WEEK_METRIC_KEYS:
+            val = wv.get(key)
+            if val in (None, ''):
+                continue
+            if key == 'sets':
+                try:
+                    metric, out = 'set_count', int(val)
+                except (TypeError, ValueError):
+                    continue
+            elif key == 'reps':
+                metric, out = 'rep_range', str(val)[:32]
+            elif key == 'load':
+                load_val, load_unit = _coerce_load(wv)
+                if load_val is None and load_unit != WorkoutExercise.LOAD_UNIT_BODYWEIGHT:
+                    continue
+                metric, out = 'load_value', load_val
+                if load_unit:
+                    WeeklyOverride.objects.update_or_create(
+                        workout_exercise=ex_obj, week_number=week, metric='load_unit',
+                        defaults={'value_json': load_unit},
+                    )
+            elif key == 'rest_seconds':
+                try:
+                    metric, out = 'recovery_seconds', int(val)
+                except (TypeError, ValueError):
+                    continue
+            elif key in ('rpe', 'rir'):
+                try:
+                    metric, out = key, int(round(float(val)))
+                except (TypeError, ValueError):
+                    continue
+            else:  # tempo
+                metric, out = 'tempo', str(val)[:50]
+            WeeklyOverride.objects.update_or_create(
+                workout_exercise=ex_obj, week_number=week, metric=metric,
+                defaults={'value_json': out},
+            )
+
+
+def _max_week_in_extraction(workout_json: dict) -> int:
+    mx = 0
+    for sess in workout_json.get('sessions') or []:
+        for block in sess.get('blocks') or []:
+            for ex in block.get('exercises') or []:
+                for wv in ex.get('week_values') or []:
+                    try:
+                        mx = max(mx, int(wv.get('week')))
+                    except (TypeError, ValueError):
+                        continue
+    return mx
+
+
 def _coerce_reps(ex_payload: dict) -> tuple[int | None, str | None]:
     """Return (rep_count_int, rep_range_str). One of them is set; never both."""
     reps = ex_payload.get('reps')
@@ -1740,8 +1837,6 @@ def api_workout_import_confirm(request):
     workout_json = data.get('workout_json') or {}
     plan_title = (data.get('plan_title') or workout_json.get('plan_name') or '').strip()[:200]
     notes = (data.get('notes') or '') or None
-    assign_now = bool(data.get('assign_now', False))
-    client_id = data.get('client_id')
 
     # Plan kind selector (WEEKLY single week vs PROGRAM multi-week).
     plan_kind = (data.get('plan_kind') or 'WEEKLY').upper()
@@ -1752,22 +1847,18 @@ def api_workout_import_confirm(request):
     except (TypeError, ValueError):
         duration_weeks = 1
     duration_weeks = max(1, min(52, duration_weeks))
+
+    # Extraction with per-week progressions wins over a stale WEEKLY default:
+    # the coach can still trim weeks later in the builder.
+    max_week = _max_week_in_extraction(workout_json)
+    if max_week >= 2:
+        plan_kind = WorkoutPlan.KIND_PROGRAM
+        duration_weeks = max(duration_weeks, min(52, max_week))
     if plan_kind == WorkoutPlan.KIND_WEEKLY:
         duration_weeks = 1
 
     if not plan_title:
         return JsonResponse({'error': 'Titolo scheda obbligatorio'}, status=400)
-
-    client = None
-    if client_id:
-        try:
-            client = ClientProfile.objects.get(
-                id=int(client_id),
-                coaching_relationships_as_client__coach=coach,
-                coaching_relationships_as_client__status='ACTIVE',
-            )
-        except (ValueError, ClientProfile.DoesNotExist):
-            return JsonResponse({'error': 'Atleta non associato'}, status=403)
 
     sessions = workout_json.get('sessions') or []
     if not sessions:
@@ -1880,7 +1971,7 @@ def api_workout_import_confirm(request):
                             tn_bits.append(f"Distanza: {ex_payload['distance']}{ex_payload['distance_unit']}")
                         technique_notes = '\n'.join(tn_bits) or None
 
-                        WorkoutExercise.objects.create(
+                        ex_obj = WorkoutExercise.objects.create(
                             workout_day=day_obj,
                             exercise=exercise_obj,
                             order_index=ex_order,
@@ -1895,55 +1986,25 @@ def api_workout_import_confirm(request):
                             load_unit=load_unit,
                             technique_notes=technique_notes,
                             superset_group_id=group_id,
+                            set_details=_import_set_details(ex_payload, sets_int),
                         )
+                        if duration_weeks > 1:
+                            _import_week_overrides(
+                                ex_obj, ex_payload.get('week_values'), duration_weeks,
+                            )
 
-            # Sync progression scaffolding (single-week WEEKLY plan).
+            # Sync progression scaffolding (week definitions + computed values).
             progression_engine.sync_week_definitions(plan)
             progression_engine.compute_weekly_values(plan)
-
-            assignment_id = None
-            if assign_now and client:
-                start_date = date.today()
-                weeks = plan.duration_weeks or 1
-                end_date = start_date + duration_timedelta(weeks, 'WEEKS')
-                WorkoutAssignment.objects.filter(
-                    client=client, coach=coach, status='ACTIVE',
-                ).update(status='COMPLETED', end_date=start_date)
-                assignment = WorkoutAssignment.objects.create(
-                    workout_plan=plan,
-                    client=client,
-                    coach=coach,
-                    status='ACTIVE',
-                    start_date=start_date,
-                    end_date=end_date,
-                    duration_value=weeks,
-                    duration_unit='WEEKS',
-                )
-                assignment_id = assignment.id
-                Notification.objects.create(
-                    target_user=client.user,
-                    notification_type='WORKOUT_ASSIGNED',
-                    title='Nuova scheda di allenamento',
-                    body=f'Ti è stata assegnata la scheda "{plan.title}".',
-                    link_url='/allenamenti/',
-                )
-                try:
-                    from django.conf import settings as _settings
-                    plan_url = f"{_settings.SITE_URL}/allenamenti/"
-                    send_workout_assigned(client, coach, plan, plan_url)
-                except Exception:
-                    logger.exception('workout_assigned_email.failed plan_id=%s', plan.id)
-                plan.status = WorkoutPlan.STATUS_ACTIVE
-                plan.save(update_fields=['status'])
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
     # Hand off to the real builder rather than the read-only plan page: the
     # import screen only resolves exercise matches, everything else the coach
-    # wants to change (order, supersets, progressions) lives in the wizard.
+    # wants to change (order, supersets, progressions, assignment) lives in
+    # the wizard. Import never assigns to an athlete.
     return JsonResponse({
         'ok': True,
         'plan_id': plan.id,
-        'assignment_id': assignment_id,
         'redirect_url': reverse('allenamenti_wizard_resume', args=[plan.id]),
     })

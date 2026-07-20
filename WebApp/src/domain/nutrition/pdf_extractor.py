@@ -49,6 +49,11 @@ INTEGRATORI / SUPPLEMENTI:
 - Per ogni integratore estrai: name, dose (es. "5 g", "1 cpr"), timing (es. "post-workout",
   "a colazione"), notes (opzionale).
 
+TARGET MACRO GIORNALIERI:
+- Se il testo indica totali/target del giorno (kcal totali, proteine tot, carboidrati
+  tot, grassi tot) popolali in target_kcal/target_protein_g/target_carb_g/target_fat_g
+  del giorno. NON confonderli con i macro del singolo alimento.
+
 RILEVAMENTO GIORNI — CRITICO:
 - Estrai TUTTI i giorni esplicitamente menzionati nel chunk, ANCHE se il contenuto
   sembra ripetuto o vuoto. Non saltare un giorno solo perché il chunk è breve.
@@ -65,6 +70,10 @@ SCHEMA OUTPUT (parziale, sarà unito ad altri chunk):
   "days": [
     {
       "day_of_week": "MONDAY",
+      "target_kcal": int|null,
+      "target_protein_g": int|null,
+      "target_carb_g": int|null,
+      "target_fat_g": int|null,
       "meals": [
         {
           "meal_type": "BREAKFAST",
@@ -171,16 +180,32 @@ def extract_all_chunks(chunks: list[Chunk], progress_cb=None) -> tuple[list[dict
          (probabile truncation o "laziness" LLM)
     """
     llm = build_extraction_llm(max_tokens=4000, timeout=45)
-    parts: list[dict] = []
     notes: list[str] = []
     n = len(chunks) or 1
     failed = 0
     # Track per chunk_id se la prima passata ha prodotto qualcosa
     empty_high_relevance: list[Chunk] = []
 
-    for i, chunk in enumerate(chunks):
+    # Chiamate LLM I/O-bound → prima passata in parallelo (ordine deterministico
+    # via pool.map). ponytail: cap 3 worker per i rate limit Ollama Cloud.
+    done = 0
+
+    def _run(chunk: Chunk) -> dict:
+        nonlocal done
         result = extract_chunk(chunk, llm=llm)
-        parts.append(result)
+        done += 1
+        if progress_cb:
+            try:
+                progress_cb(done, n)
+            except Exception:
+                pass
+        return result
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        parts: list[dict] = list(pool.map(_run, chunks))
+
+    for chunk, result in zip(chunks, parts):
         extra_note = result.get('extraction_notes')
         if extra_note:
             notes.append(extra_note)
@@ -191,12 +216,6 @@ def extract_all_chunks(chunks: list[Chunk], progress_cb=None) -> tuple[list[dict
         if (not produced_days and not produced_supps
                 and chunk.relevance_score >= RETRY_EMPTY_RELEVANCE_THRESHOLD):
             empty_high_relevance.append(chunk)
-        if progress_cb:
-            try:
-                # prima passata occupa l'80% del progress; il 20% restante è retry
-                progress_cb(i + 1, n + max(1, len(empty_high_relevance)))
-            except Exception:
-                pass
 
     # Passata 2 — retry chunk ad alta rilevanza rimasti vuoti
     if empty_high_relevance:

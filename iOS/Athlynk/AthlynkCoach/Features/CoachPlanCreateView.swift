@@ -35,6 +35,17 @@ struct CoachPlanCreateView: View {
     @State private var summary: String?
     @State private var analyzing = false   // drives the progress overlay
     @State private var phraseIdx = 0
+    // Real backend progress (PDF jobs expose phase+percent via the status endpoint).
+    @State private var importPhase: String?
+    @State private var importPercent: Double?
+
+    private static let phaseLabels: [String: String] = [
+        "analyze": "Analisi del documento…",
+        "classify": "Identificazione pagine rilevanti…",
+        "ocr": "OCR delle pagine necessarie…",
+        "extract": "Estrazione AI in corso…",
+        "finalize": "Preparazione revisione…",
+    ]
 
     // Rotating status phrases shown during analysis (mirrors the web importer).
     private var importPhrases: [String] {
@@ -129,16 +140,16 @@ struct CoachPlanCreateView: View {
                     Text(summary).font(Typo.mono(11, .semibold)).tracking(1)
                         .foregroundStyle(kind.accent).frame(maxWidth: .infinity)
                 }
-                importReview(ex)
+                CoachImportReviewView(kind: kind, extracted: ex, title: $title,
+                                      flash: flash) {
+                    onSaved()
+                    dismiss()
+                }
             }
 
             if fileData != nil && extracted == nil && !analyzing {
                 NeonButton(title: "Analizza con Chiron", icon: "wand.and.stars",
                            color: kind.accent, loading: busy) { Task { await analyze() } }
-            }
-            if extracted != nil && !analyzing {
-                NeonButton(title: "Salva bozza", icon: "tray.and.arrow.down.fill",
-                           color: kind.accent, loading: busy) { Task { await confirmImport() } }
             }
         }
     }
@@ -150,20 +161,33 @@ struct CoachPlanCreateView: View {
                 .foregroundStyle(kind.accent)
                 .symbolEffect(.pulse, options: .repeating)
             ProgressView().tint(kind.accent).scaleEffect(1.1)
-            Text(importPhrases[phraseIdx % importPhrases.count])
+            // Real backend phase when available (PDF jobs); rotating phrases otherwise.
+            Text(importPhase.flatMap { Self.phaseLabels[$0] }
+                 ?? importPhrases[phraseIdx % importPhrases.count])
                 .font(Typo.body(13)).foregroundStyle(Palette.textMid)
                 .multilineTextAlignment(.center)
                 .transition(.opacity)
-                .id(phraseIdx)
-            Capsule().fill(kind.accent.opacity(0.18)).frame(height: 4)
-                .overlay(alignment: .leading) {
-                    GeometryReader { geo in
-                        Capsule().fill(kind.accent)
-                            .frame(width: geo.size.width * 0.35)
-                            .offset(x: analyzing ? geo.size.width * 0.65 : -geo.size.width * 0.1)
-                            .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: analyzing)
+                .id(importPhase ?? "\(phraseIdx)")
+            if let pct = importPercent {
+                Capsule().fill(kind.accent.opacity(0.18)).frame(height: 4)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            Capsule().fill(kind.accent)
+                                .frame(width: geo.size.width * max(0.04, min(1, pct / 100)))
+                                .animation(.easeInOut(duration: 0.5), value: pct)
+                        }
                     }
-                }
+            } else {
+                Capsule().fill(kind.accent.opacity(0.18)).frame(height: 4)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { geo in
+                            Capsule().fill(kind.accent)
+                                .frame(width: geo.size.width * 0.35)
+                                .offset(x: analyzing ? geo.size.width * 0.65 : -geo.size.width * 0.1)
+                                .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: analyzing)
+                        }
+                    }
+            }
         }
         .frame(maxWidth: .infinity).padding(20).voltPanel()
         .task(id: analyzing) {
@@ -173,65 +197,6 @@ struct CoachPlanCreateView: View {
                 if analyzing { withAnimation { phraseIdx += 1 } }
             }
         }
-    }
-
-    // Structured review of the parsed plan before saving the draft.
-    @ViewBuilder
-    private func importReview(_ ex: [String: Any]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("REVISIONE").font(Typo.mono(10, .semibold)).tracking(2).foregroundStyle(Palette.textMid)
-            if kind == .workout {
-                let sessions = (ex["sessions"] as? [[String: Any]]) ?? []
-                if sessions.isEmpty {
-                    Text("Nessuna sessione rilevata. Controlla il file o riprova.")
-                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
-                }
-                ForEach(Array(sessions.enumerated()), id: \.offset) { _, s in
-                    reviewGroup(
-                        title: (s["name"] as? String) ?? (s["day_name"] as? String) ?? "Sessione",
-                        items: ((s["blocks"] as? [[String: Any]]) ?? []).flatMap { b in
-                            ((b["exercises"] as? [[String: Any]]) ?? []).map { e in
-                                let name = (e["name"] as? String) ?? (e["exercise_name"] as? String) ?? "Esercizio"
-                                let sets = (e["sets"] as? Int).map { "\($0)×" } ?? ""
-                                let reps = (e["reps"] as? Int).map { "\($0)" } ?? (e["rep_range"] as? String ?? "")
-                                return "\(name) — \(sets)\(reps)".trimmingCharacters(in: .whitespaces)
-                            }
-                        })
-                }
-            } else {
-                let days = (ex["days"] as? [[String: Any]]) ?? []
-                if days.isEmpty {
-                    Text("Nessun giorno rilevato. Controlla il file o riprova.")
-                        .font(Typo.body(13)).foregroundStyle(Palette.textMid)
-                }
-                ForEach(Array(days.enumerated()), id: \.offset) { _, d in
-                    reviewGroup(
-                        title: (d["name"] as? String) ?? (d["day_name"] as? String) ?? "Giorno",
-                        items: ((d["meals"] as? [[String: Any]]) ?? []).flatMap { m in
-                            let mealName = (m["name"] as? String) ?? "Pasto"
-                            let foods = ((m["items"] as? [[String: Any]]) ?? (m["foods"] as? [[String: Any]]) ?? [])
-                            return ["· \(mealName)"] + foods.map { f in
-                                let fn = (f["name"] as? String) ?? (f["food_name"] as? String) ?? "Alimento"
-                                let qty = (f["quantity"] as? Double).map { "  \(Int($0)) g" }
-                                    ?? (f["grams"] as? Double).map { "  \(Int($0)) g" } ?? ""
-                                return "   \(fn)\(qty)"
-                            }
-                        })
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(16).voltPanel()
-    }
-
-    private func reviewGroup(title: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(Typo.body(14, .semibold)).foregroundStyle(Palette.textHi)
-            ForEach(Array(items.enumerated()), id: \.offset) { _, line in
-                Text(line).font(Typo.body(12)).foregroundStyle(Palette.textMid)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 4)
     }
 
     // MARK: Field helper
@@ -266,21 +231,22 @@ struct CoachPlanCreateView: View {
     private func analyze() async {
         guard let data = fileData, let name = fileName else { return }
         busy = true; phraseIdx = 0
+        importPhase = nil; importPercent = nil
         withAnimation { analyzing = true }
         defer { busy = false; withAnimation { analyzing = false } }
         do {
-            let result: [String: Any]
+            let api = APIClient.shared
+            let jobId: String
             if isPDF {
-                let api = APIClient.shared
-                let jobId = kind == .workout
-                    ? try await api.coachImportWorkoutPDF(file: data, filename: name, title: title, clientId: nil)
-                    : try await api.coachImportDietPDF(file: data, filename: name, title: title, clientId: nil)
-                result = try await pollPDF(jobId: jobId)
+                jobId = kind == .workout
+                    ? try await api.coachImportWorkoutPDF(file: data, filename: name, title: title)
+                    : try await api.coachImportDietPDF(file: data, filename: name, title: title)
             } else {
-                result = kind == .workout
-                    ? try await APIClient.shared.coachImportWorkoutExcel(file: data, filename: name, title: title, clientId: nil)
-                    : try await APIClient.shared.coachImportDietExcel(file: data, filename: name, title: title, clientId: nil)
+                jobId = kind == .workout
+                    ? try await api.coachImportWorkoutExcel(file: data, filename: name, title: title)
+                    : try await api.coachImportDietExcel(file: data, filename: name, title: title)
             }
+            let result = try await pollImportJob(jobId: jobId)
             let payload = (result["result"] as? [String: Any]) ?? result
             extracted = (payload["extracted"] as? [String: Any]) ?? payload
             summary = buildSummary(extracted ?? [:])
@@ -297,13 +263,18 @@ struct CoachPlanCreateView: View {
         }
     }
 
-    /// Poll the async PDF job until done/error.
-    private func pollPDF(jobId: String) async throws -> [String: Any] {
+    /// Poll the async import job (PDF or Excel) until done/error, driving the real progress UI.
+    private func pollImportJob(jobId: String) async throws -> [String: Any] {
         for _ in 0..<60 {
             try await Task.sleep(for: .seconds(2))
             let status = kind == .workout
                 ? try await APIClient.shared.coachWorkoutImportStatus(jobId: jobId)
                 : try await APIClient.shared.coachDietImportStatus(jobId: jobId)
+            withAnimation {
+                importPhase = status["phase"] as? String
+                if let p = status["percent"] as? Int { importPercent = Double(p) }
+                else if let p = status["percent"] as? Double { importPercent = p }
+            }
             switch status["status"] as? String {
             case "done": return status
             case "error": throw APIError.http(500, (status["detail"] as? String) ?? "Analisi non riuscita")
@@ -327,21 +298,4 @@ struct CoachPlanCreateView: View {
         }
     }
 
-    private func confirmImport() async {
-        guard let ex = extracted else { return }
-        busy = true; defer { busy = false }
-        do {
-            if kind == .workout {
-                try await APIClient.shared.coachConfirmWorkout(workoutJson: ex, title: title, clientId: nil, assignNow: false)
-            } else {
-                try await APIClient.shared.coachConfirmDiet(dietJson: ex, title: title, clientId: nil, assignNow: false)
-            }
-            flash.success("Bozza salvata")
-            try? await Task.sleep(for: .seconds(1.2))
-            onSaved()
-            dismiss()
-        } catch {
-            flash.failure(error.localizedDescription)
-        }
-    }
 }

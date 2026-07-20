@@ -16,11 +16,13 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
+from domain.shared.doc_structure import SESSION_HEADER_RE, detect_workout_structure
 from domain.shared.pdf.chunker import chunk_pages
 from domain.shared.pdf.ingestion import open_pdf, PdfParseError
 from domain.shared.pdf.ocr import ocr_page_if_needed
 from domain.workouts.imports.excel_importer import (
     normalize_and_match, compute_confidence,
+    build_prompt_hints, extract_workout_with_ai,
 )
 from domain.workouts.imports.pdf_extractor import (
     extract_all_chunks, AIExtractionError,
@@ -86,17 +88,16 @@ def run_pdf_pipeline(
         )
 
     _emit(progress_cb, PHASE_EXTRACT, 50)
-    chunks = chunk_pages(relevant)
+    full_text = '\n\n'.join(
+        (p.combined_text or '') for p, _ in relevant if (p.combined_text or '').strip()
+    )
+    structure = detect_workout_structure(full_text)
+    hints = build_prompt_hints(structure)
+
+    chunks = chunk_pages(relevant, header_re=SESSION_HEADER_RE)
     if not chunks:
         raise PdfParseError("Nessun contenuto utile estratto dalle pagine.")
 
-    def _chunk_progress(done: int, total: int):
-        pct = 50 + int(35 * done / max(total, 1))
-        _emit(progress_cb, PHASE_EXTRACT, pct)
-
-    parts, llm_notes = extract_all_chunks(chunks, progress_cb=_chunk_progress)
-
-    _emit(progress_cb, PHASE_FINALIZE, 88)
     document_summary = {
         'total_pages': total_pages,
         'pages_processed': len(relevant),
@@ -104,17 +105,40 @@ def run_pdf_pipeline(
         'ocr_pages': ocr_pages_count,
         'relevant_pages': relevant_page_numbers,
     }
-    merged = merge_chunks(
-        parts,
-        document_summary=document_summary,
-        extra_notes=llm_notes,
-        plan_name=plan_title or None,
-    )
+
+    if len(chunks) <= 2:
+        # Fast path: small document → one full-text LLM call, no chunk/merge.
+        # Cuts round-trips and avoids merge fragility on week columns.
+        merged = extract_workout_with_ai(full_text, plan_title, structure=structure)
+        merged.setdefault('sessions', [])
+        if plan_title and not merged.get('plan_name'):
+            merged['plan_name'] = plan_title
+        _emit(progress_cb, PHASE_FINALIZE, 88)
+    else:
+        def _chunk_progress(done: int, total: int):
+            pct = 50 + int(35 * done / max(total, 1))
+            _emit(progress_cb, PHASE_EXTRACT, pct)
+
+        parts, llm_notes = extract_all_chunks(
+            chunks, progress_cb=_chunk_progress, hints=hints,
+        )
+
+        _emit(progress_cb, PHASE_FINALIZE, 88)
+        merged = merge_chunks(
+            parts,
+            document_summary=document_summary,
+            extra_notes=llm_notes,
+            plan_name=plan_title or None,
+        )
 
     if not merged.get('sessions'):
         raise AIExtractionError("L'AI non ha estratto alcuna sessione utile dal PDF.")
 
-    normalized = normalize_and_match(merged, coach=coach)
+    def _match_progress(done: int, total: int):
+        pct = 88 + int(10 * done / max(total, 1))
+        _emit(progress_cb, PHASE_FINALIZE, pct)
+
+    normalized = normalize_and_match(merged, coach=coach, progress_cb=_match_progress)
     normalized['document_summary'] = document_summary
     _reattach_source_meta(merged, normalized)
 

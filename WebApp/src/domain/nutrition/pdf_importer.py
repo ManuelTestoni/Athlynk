@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from domain.nutrition.excel_importer import normalize_and_match, compute_confidence
+from domain.nutrition.excel_importer import (
+    normalize_and_match, compute_confidence,
+    extract_diet_with_ai, apply_structure_hints,
+)
+from domain.shared.doc_structure import SESSION_HEADER_RE, detect_diet_structure
 from domain.shared.pdf import chunk_pages
 from domain.nutrition.pdf_extractor import extract_all_chunks, AIExtractionError
 from domain.shared.pdf import open_pdf, PdfParseError
@@ -87,34 +91,18 @@ def run_pdf_pipeline(file_bytes: bytes, plan_title: str = '',
             "Il documento non sembra contenere una dieta riconoscibile."
         )
 
-    # Step 5 — chunking
+    # Step 5 — struttura documento (deterministica) + chunking
     _emit(progress_cb, PHASE_EXTRACT, 50)
-    chunks = chunk_pages(relevant)
+    full_text = '\n\n'.join(
+        (p.combined_text or '') for p, _ in relevant if (p.combined_text or '').strip()
+    )
+    structure = detect_diet_structure(full_text)
+    is_macro = structure.layout.startswith('macro')
+
+    chunks = chunk_pages(relevant, header_re=SESSION_HEADER_RE)
     if not chunks:
         raise PdfParseError("Nessun contenuto utile estratto dalle pagine.")
 
-    # Step 6 — estrazione chunk-by-chunk
-    def _chunk_progress(done: int, total: int):
-        # 50% → 85% durante l'estrazione
-        pct = 50 + int(35 * done / max(total, 1))
-        _emit(progress_cb, PHASE_EXTRACT, pct)
-
-    parts, llm_notes = extract_all_chunks(chunks, progress_cb=_chunk_progress)
-
-    # Step 6b — retry mirato sui giorni mancanti.
-    # Se la prima passata ha rilevato < 7 giorni ma il documento sembra
-    # contenere riferimenti settimanali completi, rilancia l'estrazione sui
-    # chunk che menzionano i giorni mancanti con un prompt più rigido.
-    detected_days = _collect_detected_days(parts)
-    expected = _expected_days_from_pages(relevant)
-    missing = sorted(expected - detected_days)
-    if missing:
-        retry_parts, retry_notes = _retry_missing_days(chunks, missing)
-        parts.extend(retry_parts)
-        llm_notes.extend(retry_notes)
-
-    # Step 7 — merge
-    _emit(progress_cb, PHASE_FINALIZE, 88)
     document_summary = {
         'total_pages': total_pages,
         'pages_processed': len(relevant),
@@ -122,16 +110,54 @@ def run_pdf_pipeline(file_bytes: bytes, plan_title: str = '',
         'ocr_pages': ocr_pages_count,
         'relevant_pages': relevant_page_numbers,
     }
-    merged = merge_chunks(parts, document_summary=document_summary,
-                          extra_notes=llm_notes, diet_name=plan_title or None)
 
-    if not merged.get('days'):
+    if is_macro or len(chunks) <= 2:
+        # Fast path: piano solo-macro o documento piccolo → una singola
+        # chiamata LLM sul testo completo, niente chunk/merge/retry.
+        merged = extract_diet_with_ai(full_text, plan_title, structure=structure)
+        merged.setdefault('days', [])
+        if plan_title and not merged.get('diet_name'):
+            merged['diet_name'] = plan_title
+        merged['document_summary'] = document_summary
+        _emit(progress_cb, PHASE_FINALIZE, 88)
+    else:
+        # Step 6 — estrazione chunk-by-chunk
+        def _chunk_progress(done: int, total: int):
+            # 50% → 85% durante l'estrazione
+            pct = 50 + int(35 * done / max(total, 1))
+            _emit(progress_cb, PHASE_EXTRACT, pct)
+
+        parts, llm_notes = extract_all_chunks(chunks, progress_cb=_chunk_progress)
+
+        # Step 6b — retry mirato sui giorni mancanti.
+        # Se la prima passata ha rilevato < 7 giorni ma il documento sembra
+        # contenere riferimenti settimanali completi, rilancia l'estrazione sui
+        # chunk che menzionano i giorni mancanti con un prompt più rigido.
+        detected_days = _collect_detected_days(parts)
+        expected = _expected_days_from_pages(relevant)
+        missing = sorted(expected - detected_days)
+        if missing:
+            retry_parts, retry_notes = _retry_missing_days(chunks, missing)
+            parts.extend(retry_parts)
+            llm_notes.extend(retry_notes)
+
+        # Step 7 — merge
+        _emit(progress_cb, PHASE_FINALIZE, 88)
+        merged = merge_chunks(parts, document_summary=document_summary,
+                              extra_notes=llm_notes, diet_name=plan_title or None)
+
+    if not merged.get('days') and not is_macro:
         raise AIExtractionError(
             "L'AI non ha estratto alcun giorno utile dal PDF."
         )
 
     # Step 8 — normalize + match + confidence (riuso pipeline Excel)
-    normalized = normalize_and_match(merged)
+    def _match_progress(done: int, total: int):
+        pct = 88 + int(10 * done / max(total, 1))
+        _emit(progress_cb, PHASE_FINALIZE, pct)
+
+    normalized = normalize_and_match(merged, progress_cb=_match_progress)
+    apply_structure_hints(normalized, structure)
     # Preserva campi extra non-pydantic (document_summary)
     normalized['document_summary'] = document_summary
     # Reinietta source_page/source_chunk perduti se la normalizzazione li droppa

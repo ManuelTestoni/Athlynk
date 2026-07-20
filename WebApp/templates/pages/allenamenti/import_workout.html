@@ -13,54 +13,32 @@
     <div class="mb-8">
       <p class="al-eyebrow mb-3">Studio &middot; Allenamenti &middot; Import AI</p>
       <h1 class="al-h-1">Importa <span class="al-display-i">scheda</span> da Excel</h1>
-      <p class="al-body mt-2">
-        Carica il file Excel del coach. L'AI riconosce sessioni, blocchi, esercizi
+      <p class="al-body mt-2 max-w-xl">
+        Carica il file Excel del coach. Chiron riconosce sessioni, blocchi, esercizi
         e parametri (sets, reps, carico, recupero, RPE).
       </p>
       <div class="al-rule-bronze mt-5"></div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 al-card al-card-flush p-6">
-
-        <label class="al-label">Atleta <span class="al-label-optional">facoltativo</span></label>
-        <div class="relative">
-          <input type="text" class="al-input" placeholder="Cerca atleta..."
-                 x-model="clientSearch" @focus="clientDropdownOpen = true"
-                 @input.debounce.250="searchClients()"
-                 @click.away="clientDropdownOpen = false">
-          <div x-show="clientDropdownOpen && filteredClients.length" x-transition
-               class="absolute z-20 mt-1 w-full al-card al-card-flush max-h-64 overflow-auto">
-            <template x-for="c in filteredClients" :key="c.id">
-              <button type="button" @click="pickClient(c)"
-                      class="w-full text-left px-4 py-2 hover:bg-marble border-b border-stone/40 last:border-0">
-                <span x-text="c.name"></span>
-              </button>
-            </template>
-          </div>
-        </div>
-        <p x-show="selectedClient" class="mt-2 text-sm text-aegean">
-          <i class="ph ph-check-circle"></i>
-          <span x-text="'Selezionato: ' + (selectedClient?.name || '')"></span>
-        </p>
-
-        <label class="al-label mt-5">Titolo scheda</label>
+    <div class="imp-intake-row">
+      <div class="imp-intake-main">
+        <label class="al-label">Titolo scheda</label>
         <input type="text" class="al-input" x-model="planTitle"
                placeholder="Es: Push/Pull/Legs Mario Rossi">
 
         <label class="al-label mt-5">File Excel</label>
         <div @drop.prevent="onDrop($event)" @dragover.prevent="dragOver = true"
              @dragleave.prevent="dragOver = false"
-             :class="dragOver ? 'border-bronze bg-marble' : 'border-stone'"
-             class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors"
+             :class="dragOver ? 'is-drag' : ''"
+             class="imp-lectern mt-2"
              @click="$refs.fileInput.click()">
           <input type="file" accept=".xlsx,.xls" hidden x-ref="fileInput"
                  @change="onFile($event)">
           <template x-if="!file">
             <div>
-              <i class="ph ph-upload-simple text-4xl text-aegean"></i>
-              <p class="al-body mt-2">Trascina qui il file <code>.xlsx</code> o clicca per selezionare</p>
-              <p class="text-xs text-ink-mute mt-1">Max 10 MB</p>
+              <i class="ph ph-file-xls imp-lectern-icon"></i>
+              <p class="al-body mt-3">Trascina qui il file <code>.xlsx</code> o clicca per selezionare</p>
+              <p class="al-small mt-1">Max 10 MB</p>
             </div>
           </template>
           <template x-if="file">
@@ -68,7 +46,7 @@
               <i class="ph ph-file-xls text-3xl" style="color: var(--al-success);"></i>
               <div class="text-left">
                 <p class="font-medium" x-text="file.name"></p>
-                <p class="text-xs text-ink-mute" x-text="formatSize(file.size)"></p>
+                <p class="al-small" x-text="formatSize(file.size)"></p>
               </div>
               <button type="button" @click.stop="clearFile()" class="al-btn-icon ml-3" title="Rimuovi">
                 <i class="ph ph-x"></i>
@@ -85,66 +63,25 @@
         </button>
       </div>
 
-      <div class="al-card al-card-warm p-5">
-        <p class="al-eyebrow mb-2" style="color: var(--al-bronze);">Come funziona</p>
-        <h3 class="al-h-3">L'AI legge per te</h3>
-        <ul class="mt-4 space-y-3 text-sm">
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Riconosce sessioni (Push/Pull/Legs/Upper/Lower)</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Riconosce blocchi (superset, circuit, AMRAP, EMOM)</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Estrae sets, reps, carico (kg / %1RM / bw), RPE/RIR</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Recupero, tempo, note tecniche</li>
-          <li class="flex gap-2"><i class="ph ph-check text-aegean mt-0.5"></i>
-            Match fuzzy degli esercizi sul database</li>
-        </ul>
-      </div>
+      <aside class="imp-margin imp-intake-aside">
+        <p class="imp-margin-title">Come legge Chiron</p>
+        <p class="imp-margin-item">Riconosce sessioni (Push/Pull/Legs/Upper/Lower)</p>
+        <p class="imp-margin-item">Riconosce blocchi (superset, circuit, AMRAP, EMOM)</p>
+        <p class="imp-margin-item">Estrae sets, reps, carico (kg / %1RM / bw), RPE/RIR</p>
+        <p class="imp-margin-item">Recupero, tempo, note tecniche</p>
+        <p class="imp-margin-item">Match fuzzy degli esercizi sul database</p>
+      </aside>
     </div>
   </section>
 
   <!-- ─── STEP 2: Loading ─────────────────────────────────────── -->
-  <section x-show="currentStep === 2" x-transition.opacity
-           class="min-h-[60vh] flex flex-col items-center justify-center">
-    <div class="al-card al-card-flush p-10 max-w-2xl w-full text-center">
-      <p class="al-eyebrow mb-3">Elaborazione in corso</p>
-      <h2 class="al-h-2 mb-8">Sto analizzando la scheda<span class="al-display-i">.</span></h2>
-
-      <div class="space-y-4">
-        <template x-for="(s, i) in steps" :key="i">
-          <div class="flex items-center gap-4 p-3 rounded-lg transition-colors"
-               :class="i < phase ? 'bg-marble' : i === phase ? 'bg-parchment ring-2 ring-bronze' : 'opacity-40'">
-            <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                 :class="i < phase ? 'bg-aegean text-parchment' : i === phase ? 'bg-bronze text-parchment animate-pulse' : 'bg-stone text-ink-mute'">
-              <i :class="i < phase ? 'ph ph-check' : s.icon" class="text-lg"></i>
-            </div>
-            <span class="font-medium text-left" x-text="s.label"></span>
-          </div>
-        </template>
-      </div>
-
-      <p class="imp-ai-note mt-6">
-        Chiron è un'AI: può commettere errori. Rivedrai tutto prima di salvare.
-      </p>
-    </div>
-  </section>
+  {% include 'partials/_import_loading.html' with loading_verb='la scheda' %}
 
   <!-- ─── STEP 3: Review ─────────────────────────────────────── -->
   {% include 'pages/allenamenti/_import_review.html' %}
 
   <!-- ─── ERROR ─────────────────────────────────────── -->
-  <section x-show="currentStep === 'error'" x-transition.opacity
-           class="min-h-[60vh] flex flex-col items-center justify-center">
-    <div class="al-card al-card-flush p-10 max-w-xl w-full text-center">
-      <i class="ph ph-warning-circle text-5xl" style="color: var(--al-danger);"></i>
-      <h2 class="al-h-2 mt-3">Estrazione fallita</h2>
-      <p class="al-body mt-2" x-text="errorMsg"></p>
-      <button @click="currentStep = 1" class="al-btn al-btn-aegean mt-6">
-        <i class="ph ph-arrow-left"></i> Riprova
-      </button>
-    </div>
-  </section>
+  {% include 'partials/_import_error.html' %}
 
   <!-- ─── TOAST ─────────────────────────────────────── -->
   <div x-show="toast" x-transition

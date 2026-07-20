@@ -624,23 +624,19 @@ extension APIClient {
 
     // MARK: Chiron AI import (reuses the web import endpoints via dual auth)
 
-    /// Excel diet import → returns the parsed extraction payload (`extracted`,
-    /// `plan_title`, `client`) for in-app review before confirming.
-    func coachImportDietExcel(file: Data, filename: String, title: String, clientId: Int?) async throws -> [String: Any] {
-        var fields = ["plan_title": title]
-        if let clientId { fields["client_id"] = String(clientId) }
+    /// Excel diet import → starts the async job, returns its `job_id` (poll via
+    /// `coachDietImportStatus`, same as the PDF path).
+    func coachImportDietExcel(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
-            "/api/nutrizione/import/excel/", fields: fields,
+            "/api/nutrizione/import/excel/", fields: ["plan_title": title],
             fileField: "file", fileName: filename,
             fileMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileData: file)
-        return try coachJSONObject(data)
+        return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
 
-    func coachImportDietPDF(file: Data, filename: String, title: String, clientId: Int?) async throws -> String {
-        var fields = ["plan_title": title]
-        if let clientId { fields["client_id"] = String(clientId) }
+    func coachImportDietPDF(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
-            "/api/nutrizione/import/pdf/", fields: fields,
+            "/api/nutrizione/import/pdf/", fields: ["plan_title": title],
             fileField: "file", fileName: filename, fileMime: "application/pdf", fileData: file)
         return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
@@ -649,9 +645,13 @@ extension APIClient {
         try coachJSONObject(try await request("/api/nutrizione/import/pdf/status/?job_id=\(jobId)"))
     }
 
-    func coachConfirmDiet(dietJson: [String: Any], title: String, clientId: Int?, assignNow: Bool) async throws {
-        var body: [String: Any] = ["diet_json": dietJson, "plan_title": title, "assign_now": assignNow]
-        if let clientId { body["client_id"] = clientId }
+    /// Import never assigns to an athlete: assignment lives in the builder.
+    func coachConfirmDiet(dietJson: [String: Any], title: String,
+                          planKind: String = "DAILY", planMode: String = "FOOD") async throws {
+        let body: [String: Any] = [
+            "diet_json": dietJson, "plan_title": title,
+            "plan_kind": planKind, "plan_mode": planMode,
+        ]
         _ = try await request("/api/nutrizione/import/conferma/", method: "POST", body: body)
     }
 
@@ -679,21 +679,19 @@ extension APIClient {
             "/api/allenamenti/\(planId)/progression/cell/", method: "POST", body: body))
     }
 
-    func coachImportWorkoutExcel(file: Data, filename: String, title: String, clientId: Int?) async throws -> [String: Any] {
-        var fields = ["plan_title": title]
-        if let clientId { fields["client_id"] = String(clientId) }
+    /// Excel workout import → starts the async job, returns its `job_id` (poll via
+    /// `coachWorkoutImportStatus`, same as the PDF path).
+    func coachImportWorkoutExcel(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
-            "/api/allenamenti/import/excel/", fields: fields,
+            "/api/allenamenti/import/excel/", fields: ["plan_title": title],
             fileField: "file", fileName: filename,
             fileMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileData: file)
-        return try coachJSONObject(data)
+        return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
 
-    func coachImportWorkoutPDF(file: Data, filename: String, title: String, clientId: Int?) async throws -> String {
-        var fields = ["plan_title": title]
-        if let clientId { fields["client_id"] = String(clientId) }
+    func coachImportWorkoutPDF(file: Data, filename: String, title: String) async throws -> String {
         let data = try await coachMultipartUpload(
-            "/api/allenamenti/import/pdf/", fields: fields,
+            "/api/allenamenti/import/pdf/", fields: ["plan_title": title],
             fileField: "file", fileName: filename, fileMime: "application/pdf", fileData: file)
         return try coachJSONObject(data)["job_id"] as? String ?? ""
     }
@@ -702,14 +700,38 @@ extension APIClient {
         try coachJSONObject(try await request("/api/allenamenti/import/pdf/status/?job_id=\(jobId)"))
     }
 
-    func coachConfirmWorkout(workoutJson: [String: Any], title: String, clientId: Int?,
-                             assignNow: Bool, planKind: String = "WEEKLY", durationWeeks: Int = 1) async throws {
-        var body: [String: Any] = [
-            "workout_json": workoutJson, "plan_title": title, "assign_now": assignNow,
+    /// Import never assigns to an athlete: assignment lives in the builder.
+    func coachConfirmWorkout(workoutJson: [String: Any], title: String,
+                             planKind: String = "WEEKLY", durationWeeks: Int = 1) async throws {
+        let body: [String: Any] = [
+            "workout_json": workoutJson, "plan_title": title,
             "plan_kind": planKind, "duration_weeks": durationWeeks,
         ]
-        if let clientId { body["client_id"] = clientId }
         _ = try await request("/api/allenamenti/import/conferma/", method: "POST", body: body)
+    }
+
+    /// Create a coach-private custom exercise (same endpoint as the web
+    /// import-review drawer). Returns the created {id, name, ...} payload.
+    func coachCreateCustomExercise(name: String, primaryMuscleIds: [Int],
+                                   secondaryMuscleIds: [Int] = [],
+                                   equipmentIds: [Int] = [],
+                                   categoryId: Int? = nil,
+                                   notes: String = "") async throws -> [String: Any] {
+        var body: [String: Any] = [
+            "name": name,
+            "primary_muscle_ids": primaryMuscleIds,
+            "secondary_muscle_ids": secondaryMuscleIds,
+            "equipment_ids": equipmentIds,
+            "coach_notes": notes,
+        ]
+        if let categoryId { body["category_id"] = categoryId }
+        return try coachJSONObject(try await request("/api/exercises/custom/", method: "POST", body: body))
+    }
+
+    /// Muscle-group taxonomy for the custom-exercise sheet.
+    func coachMuscleGroups() async throws -> [[String: Any]] {
+        let data = try await request("/api/muscle-groups/")
+        return (try JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
     }
 
     @discardableResult

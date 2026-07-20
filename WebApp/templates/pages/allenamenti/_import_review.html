@@ -1,12 +1,4 @@
-{# Import review — step 3.
-
-   This screen has exactly two jobs: bind every extracted exercise to a
-   catalogue entry, and choose the plan's shape. It deliberately does NOT
-   reimplement the builder (sessions, blocks, supersets, per-set parameters):
-   saving hands the coach straight into `wizard.html`, which already does all of
-   that. Anything editable here would be a second implementation to keep in
-   sync — and the numbers below are shown as extracted so the coach can see what
-   the AI read, then fix them in the builder where they belong. #}
+{# Step 3: bind extracted exercises to catalogue entries and choose plan shape; editing itself happens in wizard.html after save. #}
 <section x-show="currentStep === 3" x-transition.opacity x-cloak>
 
   <div class="mb-6">
@@ -15,7 +7,6 @@
       <div>
         <h1 class="al-h-1">Revisione <span class="al-display-i">scheda</span></h1>
         <p class="al-body mt-1 flex items-center gap-2 flex-wrap">
-          <span x-show="selectedClient" x-text="'Atleta: ' + (selectedClient?.name || '')"></span>
           <span class="al-tag"><i class="ph ph-sparkle"></i> Generato da AI</span>
           {% if origin_pdf %}
           <span class="al-tag" style="background: rgba(30,58,95,0.10); color: var(--al-bronze);">
@@ -73,8 +64,7 @@
     </p>
   </div>
 
-  {# Plan shape decides which builder receives the plan, so it's chosen here —
-     after the coach has seen what the document actually contains. #}
+  {# Plan shape is chosen here, after the coach sees the document, since it decides which builder receives the plan. #}
   <div class="al-card mb-5">
     <p class="al-eyebrow mb-3" style="color: var(--al-ink-mute);">Tipo di scheda</p>
     {% include 'pages/allenamenti/_import_kind_toggle.html' %}
@@ -112,9 +102,42 @@
                     <template x-if="ex.rir !== null && ex.rir !== undefined && ex.rir !== ''"><span class="imp-param" x-text="'RIR ' + ex.rir"></span></template>
                     <template x-if="ex.rest_seconds"><span class="imp-param" x-text="'rec ' + ex.rest_seconds + 's'"></span></template>
                     <template x-if="ex.tempo"><span class="imp-param" x-text="'tempo ' + ex.tempo"></span></template>
+                    <template x-if="ex.set_details && ex.set_details.length">
+                      <span class="imp-param" style="color: var(--al-bronze);"
+                            title="Parametri diversi per ogni set — li ritrovi nel builder">
+                        <i class="ph ph-stack"></i> set variabili
+                      </span>
+                    </template>
+                    <template x-if="ex.week_values && ex.week_values.length">
+                      <button type="button" class="imp-param"
+                              style="color: var(--al-bronze); cursor: pointer; border-color: var(--al-bronze-soft);"
+                              @click="ex._weeksOpen = !ex._weeksOpen"
+                              :title="'Progressione su ' + maxWeekOf(ex) + ' settimane — clicca per i dettagli'">
+                        <i class="ph ph-trend-up"></i>
+                        <span x-text="'W1–W' + maxWeekOf(ex)"></span>
+                      </button>
+                    </template>
                     {% if origin_pdf %}
                     <template x-if="ex.source_page"><span class="imp-param" x-text="'p. ' + ex.source_page"></span></template>
                     {% endif %}
+                  </div>
+
+                  {# Expandable read-only per-week variations (week 1 is the base row above); ✕ discards a misread week. #}
+                  <div x-show="ex._weeksOpen && ex.week_values && ex.week_values.length" x-cloak
+                       class="mt-2 al-card al-card-flush" style="padding: 8px 10px;">
+                    <template x-for="wv in weekValuesSorted(ex)" :key="wv.week">
+                      <div class="flex items-center justify-between gap-2 py-1"
+                           style="border-bottom: 1px solid var(--al-rule);">
+                        <span class="al-small font-mono" style="min-width: 34px; color: var(--al-bronze);"
+                              x-text="'W' + wv.week"></span>
+                        <span class="al-small flex-1" x-text="weekValueSummary(wv)"></span>
+                        <button type="button" class="al-btn-icon" style="width: 22px; height: 22px;"
+                                title="Scarta questa settimana (lettura errata)"
+                                @click="discardWeekValue(ex, wv.week)">
+                          <i class="ph ph-x" style="font-size: 11px;"></i>
+                        </button>
+                      </div>
+                    </template>
                   </div>
                 </div>
 
@@ -146,8 +169,7 @@
                     <p class="imp-target-missing">Nessuna corrispondenza nel database</p>
                   </template>
 
-                  {# The search box is always in the DOM (it anchors the dropdown)
-                     but only visible where a binding is missing or being redone. #}
+                  {# The search box stays in the DOM to anchor the dropdown; visibility toggles instead. #}
                   <div class="imp-search"
                        x-show="!ex.matched_exercise_id || ex._searchOpen">
                     <input type="text" class="al-input"
@@ -158,9 +180,44 @@
                            :placeholder="'Cerca «' + (ex.raw_name || '') + '» nel database…'">
 
                     <template x-teleport="body">
-                      <div x-show="ex._searchOpen && ex._candidates && ex._candidates.length"
+                      <div x-show="ex._searchOpen"
                            x-cloak class="wb-ex-dropdown"
                            :style="ex._dropdownStyle || ''" @mousedown.stop>
+                        {# Same filters and endpoint as the wizard's library panel. #}
+                        <div class="grid grid-cols-2 gap-1 p-2"
+                             style="border-bottom: 1px solid var(--al-rule);" @mousedown.stop>
+                          <select class="al-select wb-filter-select"
+                                  @mousedown.stop @change="exFilters.muscle_slug = $event.target.value; searchExerciseInline(ex, ex._query)">
+                            <option value="" :selected="!exFilters.muscle_slug">Muscolo: tutti</option>
+                            <template x-for="m in (muscleGroups || [])" :key="m.slug">
+                              <option :value="m.slug" :selected="exFilters.muscle_slug === m.slug" x-text="m.name"></option>
+                            </template>
+                          </select>
+                          <select class="al-select wb-filter-select"
+                                  @mousedown.stop @change="exFilters.equipment_id = $event.target.value; searchExerciseInline(ex, ex._query)">
+                            <option value="" :selected="!exFilters.equipment_id">Attrezzo: tutti</option>
+                            <template x-for="e in (equipmentOptions || [])" :key="e.id">
+                              <option :value="e.id" :selected="exFilters.equipment_id == e.id" x-text="e.name_it"></option>
+                            </template>
+                          </select>
+                          <select class="al-select wb-filter-select"
+                                  @mousedown.stop @change="exFilters.category_id = $event.target.value; searchExerciseInline(ex, ex._query)">
+                            <option value="" :selected="!exFilters.category_id">Categoria: tutte</option>
+                            <template x-for="c in (categoryOptions || [])" :key="c.id">
+                              <option :value="c.id" :selected="exFilters.category_id == c.id" x-text="c.name_it"></option>
+                            </template>
+                          </select>
+                          <label class="al-small flex items-center gap-1 px-1"
+                                 title="Mostra solo esercizi personalizzati" @mousedown.stop>
+                            <input type="checkbox" x-model="exFilters.custom"
+                                   @change="searchExerciseInline(ex, ex._query)">
+                            <span><i class="ph ph-bookmark-simple"></i> Tuoi</span>
+                          </label>
+                        </div>
+                        <p x-show="!ex._candidates || !ex._candidates.length"
+                           class="al-small text-center py-3" style="color: var(--al-ink-mute);">
+                          Nessun esercizio trovato. Cambia ricerca o filtri.
+                        </p>
                         <template x-for="c in ex._candidates" :key="c.id">
                           <button type="button" @mousedown.prevent="pickExercise(ex, c)"
                                   class="wb-ex-dropdown-item">

@@ -2502,8 +2502,43 @@ def nutrizione_import_view(request):
 
 
 @require_http_methods(['POST'])
+def _run_diet_excel_job(job_id: str, file_bytes: bytes, plan_title: str) -> None:
+    """Worker eseguito in background thread. Aggiorna lo stato via cache."""
+    from domain.nutrition.excel_importer import (
+        run_import_pipeline, ExcelParseError, AIExtractionError,
+    )
+
+    _set_job(job_id, {'status': 'running', 'phase': 'extract', 'percent': 50})
+
+    def _match_progress(done: int, total: int) -> None:
+        pct = 60 + int(35 * done / max(total, 1))
+        _set_job(job_id, {'status': 'running', 'phase': 'extract', 'percent': pct})
+
+    try:
+        extracted, confidence = run_import_pipeline(
+            file_bytes, plan_title, progress_cb=_match_progress,
+        )
+    except ExcelParseError as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        return
+    except AIExtractionError as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        return
+    except Exception as e:
+        _set_job(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        return
+
+    result = {
+        'extracted': extracted,
+        'confidence': confidence.model_dump(),
+        'plan_title': plan_title or extracted.get('diet_name') or '',
+        'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
+    }
+    _set_job(job_id, {'status': 'done', 'phase': 'finalize', 'percent': 100, 'result': result})
+
+
 def api_diet_import_excel(request):
-    """Riceve multipart {file, plan_title, client_id} → estrazione AI → JSON."""
+    """Riceve multipart {file, plan_title} → avvia il job di import Excel (async)."""
     user = get_session_user(request)
     if not user:
         return JsonResponse({'error': 'Non autenticato'}, status=401)
@@ -2524,49 +2559,23 @@ def api_diet_import_excel(request):
         return JsonResponse({'error': 'Formato file non supportato (solo .xlsx/.xls)'}, status=422)
 
     plan_title = (request.POST.get('plan_title') or '').strip()[:200]
-    client_id = request.POST.get('client_id') or ''
-
-    # Verifica relazione coach-client (se fornito)
-    client_data = None
-    if client_id:
-        try:
-            client = ClientProfile.objects.get(id=int(client_id))
-            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
-            if not rel:
-                return JsonResponse({'error': 'Atleta non associato'}, status=403)
-            client_data = {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
-        except (ValueError, ClientProfile.DoesNotExist):
-            return JsonResponse({'error': 'Atleta non valido'}, status=422)
 
     allowed, _ = import_quota.consume(coach, import_quota.DIET)
     if not allowed:
         return import_quota.limit_response(import_quota.DIET)
 
-    # Import locale per evitare overhead se la view non è chiamata
-    from domain.nutrition.excel_importer import (
-        run_import_pipeline, ExcelParseError, AIExtractionError,
+    file_bytes = uploaded.read()
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, {'status': 'queued', 'phase': 'analyze', 'percent': 0})
+
+    thread = threading.Thread(
+        target=_run_diet_excel_job,
+        args=(job_id, file_bytes, plan_title),
+        daemon=True,
     )
+    thread.start()
 
-    try:
-        file_bytes = uploaded.read()
-        extracted, confidence = run_import_pipeline(file_bytes, plan_title)
-    except ExcelParseError as e:
-        return JsonResponse({'error': 'excel_invalid', 'detail': str(e)}, status=422)
-    except AIExtractionError as e:
-        return JsonResponse({'error': 'ai_failed', 'detail': str(e)}, status=500)
-    except Exception as e:
-        return JsonResponse({'error': 'unknown', 'detail': str(e)}, status=500)
-
-    payload = {
-        'extracted': extracted,
-        'confidence': confidence.model_dump(),
-        'client': client_data,
-        'plan_title': plan_title or extracted.get('diet_name') or '',
-    }
-    status = 206 if confidence.ratio >= 0.5 else 200
-    if status == 206:
-        payload['warning'] = 'high_uncertainty'
-    return JsonResponse(payload, status=status)
+    return JsonResponse({'job_id': job_id, 'status': 'queued'}, status=202)
 
 
 @require_http_methods(['POST'])
@@ -2586,38 +2595,31 @@ def api_diet_import_confirm(request):
 
     diet_json = data.get('diet_json') or {}
     plan_title = (data.get('plan_title') or diet_json.get('diet_name') or '').strip()[:200]
-    notes = (data.get('notes') or '') or None
-    # Default off, matching the workout importer: import creates the plan, the
-    # coach assigns it from the builder afterwards.
-    assign_now = bool(data.get('assign_now', False))
-    client_id = data.get('client_id')
 
     if not plan_title:
         return JsonResponse({'error': 'Titolo piano obbligatorio'}, status=400)
 
-    client = None
-    if client_id:
-        try:
-            client = ClientProfile.objects.get(id=int(client_id))
-            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
-            if not rel:
-                return JsonResponse({'error': 'Atleta non associato'}, status=403)
-        except (ValueError, ClientProfile.DoesNotExist):
-            return JsonResponse({'error': 'Atleta non valido'}, status=400)
-
     days_data = diet_json.get('days') or []
-    if not days_data:
-        return JsonResponse({'error': 'Nessun giorno nella dieta'}, status=400)
 
-    # The coach picks the plan shape on the review screen; fall back to inferring
-    # it from the document only when they didn't say.
+    # The coach picks the plan shape on the review screen; fall back to the
+    # extraction/structure hints, then to inference from the document.
     valid_days = [d for d in days_data if d.get('day_of_week') in _VALID_DAYS]
-    plan_kind = (data.get('plan_kind') or '').upper()
-    if plan_kind not in dict(NutritionPlan.PLAN_KIND_CHOICES):
-        plan_kind = 'WEEKLY' if len(valid_days) > 1 else 'DAILY'
-    plan_mode = (data.get('plan_mode') or '').upper()
+    plan_mode = (data.get('plan_mode') or diet_json.get('plan_mode') or '').upper()
     if plan_mode not in dict(NutritionPlan.PLAN_MODE_CHOICES):
         plan_mode = 'FOOD'
+    plan_kind = (data.get('plan_kind') or diet_json.get('plan_kind') or '').upper()
+    if plan_kind not in dict(NutritionPlan.PLAN_KIND_CHOICES):
+        plan_kind = 'WEEKLY' if len(valid_days) > 1 else 'DAILY'
+
+    if not days_data and plan_mode != 'MACRO':
+        return JsonResponse({'error': 'Nessun giorno nella dieta'}, status=400)
+
+    def _target_int(value):
+        try:
+            v = int(round(float(value)))
+            return v if v > 0 else None
+        except (TypeError, ValueError):
+            return None
 
     # Persistenza atomica
     try:
@@ -2628,9 +2630,19 @@ def api_diet_import_confirm(request):
                 description=diet_json.get('extraction_notes') or None,
                 plan_kind=plan_kind,
                 plan_mode=plan_mode,
+                daily_kcal=_target_int(diet_json.get('daily_kcal')
+                                       or diet_json.get('total_calories_daily')),
+                protein_target_g=_target_int(diet_json.get('protein_target_g')),
+                carb_target_g=_target_int(diet_json.get('carb_target_g')),
+                fat_target_g=_target_int(diet_json.get('fat_target_g')),
                 status='DRAFT',
                 is_template=False,
             )
+
+            # MACRO-daily extraction may legitimately carry zero days (targets
+            # live at plan level): scaffold the single day the builder expects.
+            if plan_mode == 'MACRO' and not days_data:
+                days_data = [{'day_of_week': 'MONDAY'}]
 
             for day_idx, day in enumerate(days_data):
                 dow = day.get('day_of_week')
@@ -2641,7 +2653,13 @@ def api_diet_import_confirm(request):
                     day_of_week=dow,
                     order=day_idx,
                     notes=day.get('notes') or None,
+                    target_kcal=_target_int(day.get('target_kcal')),
+                    target_protein_g=_target_int(day.get('target_protein_g')),
+                    target_carb_g=_target_int(day.get('target_carb_g')),
+                    target_fat_g=_target_int(day.get('target_fat_g')),
                 )
+                if plan_mode == 'MACRO':
+                    continue  # macro plans have no meals/foods to persist
                 for meal_idx, meal in enumerate(day.get('meals') or []):
                     mt = meal.get('meal_type')
                     if mt not in _VALID_MEAL_TYPES:
@@ -2726,42 +2744,15 @@ def api_diet_import_confirm(request):
                 for s_idx, it in enumerate(imported_items):
                     SupplementItem.objects.create(protocol=sheet, order=s_idx, **it)
 
-            assignment_id = None
-            if assign_now and client:
-                # Cancella precedente assignment attivo (coerente con api_piano_assign)
-                NutritionAssignment.objects.filter(
-                    client=client, coach=coach, status='ACTIVE',
-                ).update(status='CANCELLED')
-                assignment = NutritionAssignment.objects.create(
-                    nutrition_plan=plan,
-                    client=client,
-                    coach=coach,
-                    status='ACTIVE',
-                    notes=notes,
-                )
-                assignment_id = assignment.id
-                Notification.objects.create(
-                    target_user=client.user,
-                    notification_type='NUTRITION_ASSIGNED',
-                    title='Nuovo piano alimentare',
-                    body=f'Ti è stato assegnato il piano "{plan.title}".',
-                    link_url=f'/nutrizione/dettaglio/{assignment.id}/',
-                )
-                try:
-                    from django.conf import settings as _settings
-                    plan_url = f"{_settings.SITE_URL}/nutrizione/dettaglio/{assignment.id}/"
-                    send_nutrition_assigned(client, coach, plan, plan_url)
-                except Exception:
-                    logger.exception('nutrition_assigned_email.failed plan_id=%s', plan.id)
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
     # Hand off to the builder for this plan's shape, so the review screen never
-    # has to reimplement the meal editor or the macro targets.
+    # has to reimplement the meal editor or the macro targets. Import never
+    # assigns to an athlete: assignment lives in the builder.
     return JsonResponse({
         'ok': True,
         'plan_id': plan.id,
-        'assignment_id': assignment_id,
         'redirect_url': reverse('nutrizione_piano_edit', args=[plan.id]),
     })
 
@@ -2796,8 +2787,7 @@ def nutrizione_import_pdf_view(request):
     return render(request, 'pages/nutrizione/import_diet_pdf.html', {})
 
 
-def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
-                 client_data: dict | None) -> None:
+def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str) -> None:
     """Worker eseguito in background thread. Aggiorna lo stato via cache."""
     from domain.nutrition.pdf_importer import run_pdf_pipeline
     from domain.shared.pdf import PdfParseError
@@ -2830,7 +2820,6 @@ def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
         'extracted': extracted,
         'confidence': confidence.model_dump(),
         'document_summary': extracted.get('document_summary'),
-        'client': client_data,
         'plan_title': plan_title or extracted.get('diet_name') or '',
         'warning': 'high_uncertainty' if confidence.ratio >= 0.5 else None,
     }
@@ -2865,18 +2854,6 @@ def api_diet_import_pdf(request):
         return JsonResponse({'error': 'pdf_invalid', 'detail': 'Formato file non supportato (solo .pdf)'}, status=422)
 
     plan_title = (request.POST.get('plan_title') or '').strip()[:200]
-    client_id = request.POST.get('client_id') or ''
-
-    client_data = None
-    if client_id:
-        try:
-            client = ClientProfile.objects.get(id=int(client_id))
-            rel = CoachingRelationship.objects.filter(coach=coach, client=client, status='ACTIVE').first()
-            if not rel:
-                return JsonResponse({'error': 'Atleta non associato'}, status=403)
-            client_data = {'id': client.id, 'name': f"{client.first_name} {client.last_name}".strip()}
-        except (ValueError, ClientProfile.DoesNotExist):
-            return JsonResponse({'error': 'Atleta non valido'}, status=422)
 
     allowed, _ = import_quota.consume(coach, import_quota.DIET)
     if not allowed:
@@ -2889,7 +2866,7 @@ def api_diet_import_pdf(request):
     # TODO Fase 2: sostituire threading con Celery per multi-worker.
     thread = threading.Thread(
         target=_run_pdf_job,
-        args=(job_id, file_bytes, plan_title, client_data),
+        args=(job_id, file_bytes, plan_title),
         daemon=True,
     )
     thread.start()

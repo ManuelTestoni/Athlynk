@@ -37,7 +37,17 @@ SCHEMA OUTPUT richiesto (JSON, nessun testo fuori dal JSON):
               "distance_unit": "m"|"km"|"mi"|null,
               "duration_seconds": int | null,
               "notes": string | null,
-              "uncertain": bool
+              "uncertain": bool,
+              "set_details": [
+                {"reps": int|string|null, "load": float|null, "load_unit": "kg"|"lb"|"bw"|"band"|null,
+                 "rir": int|null, "rpe": float|null, "rest_seconds": int|null, "tempo": string|null}
+              ],
+              "week_values": [
+                {"week": int, "sets": int|null, "reps": int|string|null, "load": float|null,
+                 "load_unit": "kg"|"lb"|"bw"|"band"|null, "load_type": "absolute"|"percentage_1rm"|"rpe"|null,
+                 "rpe": float|null, "rir": int|null, "rest_seconds": int|null,
+                 "tempo": string|null, "notes": string|null}
+              ]
             }
           ]
         }
@@ -46,6 +56,32 @@ SCHEMA OUTPUT richiesto (JSON, nessun testo fuori dal JSON):
   ],
   "extraction_notes": [string]
 }
+"""
+
+# --- Composable hint suffixes, appended by the pipeline based on DocStructure ---
+
+SET_DETAILS_HINT = """
+SET VARIABILI: se un esercizio prescrive valori DIVERSI per ogni set
+("10-8-6", "80/85/90 kg", righe separate per set) popola `set_details` con un
+elemento per set (reps/load/rir/rpe/rest_seconds/tempo). Se i set sono tutti
+uguali lascia `set_details` vuoto e usa i campi base.
+"""
+
+SUPERSET_HINT = """
+SUPERSET: gli esercizi legati da "ss"/"SS"/"superset"/"A1-A2"/"1a-1b" o dal
+segno "+" appartengono allo STESSO blocco con block_type="superset". Il
+prefisso ("ss", "A1.", "1a)") NON fa parte del nome: rimuovilo da raw_name.
+"""
+
+
+def weeks_hint(week_count: int) -> str:
+    return f"""
+PROGRESSIONE SETTIMANALE: il documento copre {week_count} settimane (colonne o
+sezioni "Sett. 1..{week_count}" / "Week N"). La settimana 1 va nei campi base
+dell'esercizio. Le settimane 2..{week_count} vanno SOLO in `week_values`, un
+elemento per settimana e SOLO con i parametri che cambiano rispetto alla
+settimana 1 (gli altri campi null). Imposta anche "duration_weeks": {week_count}
+al livello top del JSON. NON duplicare l'esercizio per ogni settimana.
 """
 
 EXCEL_SYSTEM_PROMPT = """Sei un estrattore di schede di allenamento. Ricevi il contenuto grezzo di un

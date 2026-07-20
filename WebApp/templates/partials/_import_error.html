@@ -1,0 +1,12 @@
+{# Error state shared by all four AI imports — identical everywhere, so it lives once. #}
+<section x-show="currentStep === 'error'" x-transition.opacity
+         class="min-h-[60vh] flex flex-col items-center justify-center">
+  <div class="al-card al-card-flush p-10 max-w-xl w-full text-center">
+    <i class="ph ph-warning-circle text-5xl" style="color: var(--al-danger);"></i>
+    <h2 class="al-h-2 mt-3">Estrazione fallita</h2>
+    <p class="al-body mt-2" x-text="errorMsg"></p>
+    <button @click="currentStep = 1" class="al-btn al-btn-aegean mt-6">
+      <i class="ph ph-arrow-left"></i> Riprova
+    </button>
+  </div>
+</section>

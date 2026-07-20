@@ -63,8 +63,13 @@
         this.documentSummary = data.document_summary
             || extracted.document_summary
             || null;
-        if (data.client) this.selectedClient = data.client;
         if (data.plan_title) this.planTitle = data.plan_title;
+        // Prefill plan shape from the detected weekly progressions.
+        const dw = parseInt(extracted.duration_weeks) || 0;
+        if (dw >= 2) {
+          this.planKind = 'PROGRAM';
+          this.durationWeeks = Math.min(52, dw);
+        }
         this.activeSession = 0;
         this.currentStep = 3;
       },
@@ -96,8 +101,11 @@
           notes: e.notes || null,
           source_page: e.source_page ?? null,
           source_chunk: e.source_chunk ?? null,
+          week_values: Array.isArray(e.week_values) ? e.week_values : [],
+          set_details: Array.isArray(e.set_details) ? e.set_details : [],
           _candidates: e.candidates || [],
           _searchOpen: false,
+          _weeksOpen: false,
           _dropdownStyle: '',
         });
         const sessions = (raw.sessions || []).map((s, idx) => ({
@@ -153,12 +161,55 @@
       },
 
       // ─── Exercise search & resolve ────────────────────────
+      // Builder-grade filters shared by every remap dropdown (same params as
+      // the wizard's library panel → /api/exercises/search/).
+      exFilters: { muscle_slug: '', equipment_id: '', category_id: '', custom: false },
+
       async searchExerciseInline(ex, query) {
-        if (!query || query.length < 2) return;
+        const f = this.exFilters;
+        const hasFilters = f.muscle_slug || f.equipment_id || f.category_id || f.custom;
+        if ((!query || query.length < 2) && !hasFilters) return;
+        const params = new URLSearchParams();
+        if (query) params.set('q', query);
+        if (f.muscle_slug) params.set('muscle_slug', f.muscle_slug);
+        if (f.equipment_id) params.set('equipment_id', f.equipment_id);
+        if (f.category_id) params.set('category_id', f.category_id);
+        if (f.custom) params.set('custom', '1');
         try {
-          const r = await fetch('/api/exercises/search/?q=' + encodeURIComponent(query));
+          const r = await fetch('/api/exercises/search/?' + params.toString());
           if (r.ok) ex._candidates = await r.json();
         } catch (e) { console.error(e); }
+      },
+
+      resetExFilters() {
+        this.exFilters = { muscle_slug: '', equipment_id: '', category_id: '', custom: false };
+      },
+
+      // ─── Weekly progression display helpers ───────────────
+      weekValuesSorted(ex) {
+        return (ex.week_values || []).slice().sort((a, b) => (a.week || 0) - (b.week || 0));
+      },
+
+      weekValueSummary(wv) {
+        const bits = [];
+        if (wv.sets != null) bits.push(wv.sets + ' set');
+        if (wv.reps != null) bits.push(String(wv.reps) + ' rep');
+        if (wv.load != null) bits.push(wv.load + (wv.load_type === 'percentage_1rm' ? '%' : ' ' + (wv.load_unit || 'kg')));
+        if (wv.rpe != null) bits.push('RPE ' + wv.rpe);
+        if (wv.rir != null) bits.push('RIR ' + wv.rir);
+        if (wv.rest_seconds != null) bits.push(wv.rest_seconds + 's rec');
+        if (wv.tempo) bits.push('tempo ' + wv.tempo);
+        return bits.join(' · ') || '—';
+      },
+
+      discardWeekValue(ex, week) {
+        ex.week_values = (ex.week_values || []).filter(wv => wv.week !== week);
+      },
+
+      maxWeekOf(ex) {
+        let m = 1;
+        for (const wv of ex.week_values || []) if ((wv.week || 0) > m) m = wv.week;
+        return m;
       },
 
       // Anchor the teleported dropdown to the search input's bbox so it remains
@@ -515,8 +566,6 @@
         this.saving = true;
         const payload = {
           plan_title: this.planTitle,
-          client_id: this.selectedClient?.id || null,
-          assign_now: false,
           plan_kind: this.planKind,
           duration_weeks: this.planKind === 'PROGRAM' ? this.durationWeeks : 1,
           workout_json: {
@@ -547,6 +596,8 @@
                   distance: e.distance, distance_unit: e.distance_unit,
                   duration_seconds: e.duration_seconds,
                   notes: e.notes,
+                  week_values: e.week_values || [],
+                  set_details: e.set_details || [],
                 })),
               })),
             })),

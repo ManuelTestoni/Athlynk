@@ -4640,6 +4640,136 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
   .imp-step-label { font-size: 9.5px; letter-spacing: 0.06em; }
 }
 
+/* ---------------------------------------------------------------------------
+   Import intake — "the lectern": presenting a document, not filling a form.
+   Single column; the checklist runs as marginal annotation, not a second
+   boxed card competing with the dropzone.
+   --------------------------------------------------------------------------- */
+
+.imp-intake-row {
+  display: flex;
+  gap: var(--al-s-10);
+  align-items: flex-start;
+  max-width: 900px;
+}
+.imp-intake-main { flex: 1 1 480px; min-width: 0; }
+.imp-intake-aside { flex: 0 0 240px; }
+@media (max-width: 900px) {
+  .imp-intake-row { flex-direction: column; gap: var(--al-s-8); }
+  .imp-intake-aside { flex-basis: auto; }
+}
+
+.imp-lectern {
+  position: relative;
+  background: var(--al-parchment);
+  border: 1px solid var(--al-rule);
+  border-radius: var(--al-r-md);
+  padding: var(--al-s-10) var(--al-s-8);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--al-d-base) var(--al-ease-out),
+              background-color var(--al-d-base) var(--al-ease-out);
+}
+.imp-lectern::before {
+  content: '';
+  position: absolute;
+  top: 0; left: var(--al-s-8); right: var(--al-s-8); height: 1px;
+  background: repeating-linear-gradient(90deg, var(--al-rule-strong) 0 6px, transparent 6px 10px);
+}
+.imp-lectern.is-drag { border-color: var(--al-accent); background: var(--al-marble); }
+.imp-lectern-icon { font-size: 32px; color: var(--al-accent); }
+
+.imp-margin { border-left: 1px solid var(--al-rule); padding-left: var(--al-s-6); }
+.imp-margin-title {
+  font-family: var(--al-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--al-ink-line);
+  margin-bottom: var(--al-s-4);
+}
+.imp-margin-item {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--al-ink-soft);
+  margin-bottom: var(--al-s-3);
+}
+.imp-margin-item::before { content: '\00b7'; color: var(--al-accent); font-weight: 700; }
+.imp-margin-note { font-size: 12px; line-height: 1.55; color: var(--al-ink-mute); }
+
+/* ---------------------------------------------------------------------------
+   Reading log — the loading state as Chiron's margin filling in, phase by
+   phase, in the same meander language as the header stepper (imp-steps
+   above) rather than a generic circle-badge checklist. One instrument, not
+   two visual devices for one wait.
+   --------------------------------------------------------------------------- */
+
+.imp-log { text-align: left; max-width: 420px; margin: 0 auto; }
+
+.imp-log-entry {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: var(--al-s-3);
+  padding: var(--al-s-3) 0;
+  opacity: 0.4;
+  transition: opacity 0.4s var(--al-ease-out);
+}
+.imp-log-entry.is-active, .imp-log-entry.is-done { opacity: 1; }
+
+.imp-log-num { font-size: 14px; color: var(--al-ink-line); padding-top: 3px; }
+.imp-log-entry.is-done .imp-log-num { color: var(--al-accent); }
+.imp-log-entry.is-active .imp-log-num { color: var(--al-ink); }
+
+.imp-log-body { min-width: 0; }
+.imp-log-label {
+  font-family: var(--al-display);
+  font-size: 15px;
+  color: var(--al-ink-mute);
+  transition: color 0.3s var(--al-ease-out);
+}
+.imp-log-entry.is-done .imp-log-label { color: var(--al-ink-soft); }
+.imp-log-entry.is-active .imp-log-label { color: var(--al-ink); font-weight: 500; }
+
+/* Same meander mask as .imp-step-band, but only the active entry's band
+   walks — a slow leftward read instead of a static fill. */
+.imp-log-band {
+  height: 6px;
+  margin-top: 6px;
+  background-color: var(--al-rule);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 14'><path fill='black' d='M0 12 L0 2 L10 2 L10 8 L4 8 L4 12 Z M14 12 L14 2 L24 2 L24 8 L18 8 L18 12 Z M28 12 L28 2 L38 2 L38 8 L32 8 L32 12 Z M42 12 L42 2 L52 2 L52 8 L46 8 L46 12 Z'/></svg>") repeat-x;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 14'><path fill='black' d='M0 12 L0 2 L10 2 L10 8 L4 8 L4 12 Z M14 12 L14 2 L24 2 L24 8 L18 8 L18 12 Z M28 12 L28 2 L38 2 L38 8 L32 8 L32 12 Z M42 12 L42 2 L52 2 L52 8 L46 8 L46 12 Z'/></svg>") repeat-x;
+  -webkit-mask-size: 10px 10px;
+          mask-size: 10px 10px;
+  width: 0;
+  transition: width 0.4s var(--al-ease-out), background-color 0.3s var(--al-ease-out);
+}
+.imp-log-entry.is-done .imp-log-band { width: 100%; background-color: var(--al-accent); }
+.imp-log-entry.is-active .imp-log-band {
+  width: 100%;
+  background-color: var(--al-primary);
+  animation: imp-log-walk 2.4s linear infinite;
+}
+@keyframes imp-log-walk {
+  from { mask-position: 0 0; -webkit-mask-position: 0 0; }
+  to   { mask-position: -20px 0; -webkit-mask-position: -20px 0; }
+}
+
+.imp-log-folio { font-family: var(--al-mono); font-size: 10px; color: var(--al-ink-line); margin-top: 4px; }
+
+.imp-log-whisper {
+  font-family: var(--al-display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--al-ink-line);
+  min-height: 1.4em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imp-log-entry.is-active .imp-log-band { animation: none; }
+}
+
 /* ==========================================================================
    Dashboard grid (customizable widgets — see static/js/dashboard_grid.js)
    ========================================================================== */

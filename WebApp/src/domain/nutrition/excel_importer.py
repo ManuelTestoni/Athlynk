@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from domain.nutrition.food_match import best_match
 from domain.nutrition.llm_client import build_extraction_llm
 from domain.nutrition.schemas import DietExtraction, ConfidenceSummary
+from domain.shared.doc_structure import DocStructure, detect_diet_structure
 from domain.shared.excel_text import ExcelParseError  # noqa: F401  (re-export)
 from domain.shared.extraction import AIExtractionError  # noqa: F401  (re-export)
 
@@ -53,6 +54,10 @@ REGOLE:
   "iso-carb"/"isoglucidica"→ISOCARB. Default ISOKCAL.
 - INTEGRATORI: se trovi righe/sezioni con "integratore"/"integratori"/"supplementi",
   estrai gli item nell'array TOP-LEVEL "supplements" con name/dose/timing/notes.
+- TARGET MACRO: se il documento indica totali/target giornalieri (kcal, proteine,
+  carboidrati, grassi) popolali in target_kcal/target_protein_g/target_carb_g/
+  target_fat_g del giorno; se sono unici per tutto il piano usali anche nei campi
+  top-level daily_kcal/protein_target_g/carb_target_g/fat_target_g.
 - Includi nel JSON il campo "extraction_notes" con eventuali warning sull'estrazione
 
 SCHEMA OUTPUT richiesto:
@@ -61,6 +66,10 @@ SCHEMA OUTPUT richiesto:
   "days": [
     {
       "day_of_week": "MONDAY",
+      "target_kcal": int | null,
+      "target_protein_g": int | null,
+      "target_carb_g": int | null,
+      "target_fat_g": int | null,
       "meals": [
         {
           "meal_type": "BREAKFAST",
@@ -101,8 +110,36 @@ SCHEMA OUTPUT richiesto:
     }
   ],
   "total_calories_daily": float | null,
+  "daily_kcal": int | null,
+  "protein_target_g": int | null,
+  "carb_target_g": int | null,
+  "fat_target_g": int | null,
   "extraction_notes": string | null
 }
+"""
+
+
+MACRO_SYSTEM_PROMPT = """Sei un estrattore di piani nutrizionali A SOLI MACRO (nessun alimento
+specifico: solo target di kcal, proteine, carboidrati, grassi). Ricevi il testo del
+documento e restituisci SOLO JSON valido:
+{
+  "diet_name": string | null,
+  "plan_kind": "DAILY" | "WEEKLY",
+  "daily_kcal": int | null,
+  "protein_target_g": int | null,
+  "carb_target_g": int | null,
+  "fat_target_g": int | null,
+  "days": [
+    {"day_of_week": "MONDAY", "target_kcal": int|null, "target_protein_g": int|null,
+     "target_carb_g": int|null, "target_fat_g": int|null}
+  ],
+  "extraction_notes": string | null
+}
+REGOLE:
+- plan_kind=DAILY se i target sono uguali per tutti i giorni (popola i campi top-level,
+  days può restare vuoto). plan_kind=WEEKLY se i target variano per giorno (popola days).
+- Giorni in inglese maiuscolo MONDAY..SUNDAY (lunedì→MONDAY ecc.).
+- Per valori non trovati usa null, MAI inventare.
 """
 
 
@@ -147,12 +184,23 @@ def excel_to_text(file_bytes: bytes) -> str:
     return text
 
 
-def extract_diet_with_ai(grid_text: str, plan_title: str = '') -> dict:
+def extract_diet_with_ai(
+    grid_text: str,
+    plan_title: str = '',
+    structure: DocStructure | None = None,
+) -> dict:
     """Chiama Ollama Cloud (gpt-oss) in JSON mode e ritorna dict raw.
 
     Riusa la stessa config di Chiron (OLLAMA_API_KEY/OLLAMA_BASE_URL).
+    Piani solo-macro → prompt dedicato piccolo, una chiamata veloce.
     """
-    llm = build_extraction_llm()
+    is_macro = bool(structure and structure.layout.startswith('macro'))
+    if is_macro:
+        llm = build_extraction_llm(max_tokens=800, timeout=20)
+        system_prompt = MACRO_SYSTEM_PROMPT
+    else:
+        llm = build_extraction_llm()
+        system_prompt = SYSTEM_PROMPT
 
     user_msg = (
         f"Titolo piano (suggerito dal nutrizionista): {plan_title or 'non specificato'}\n\n"
@@ -162,7 +210,7 @@ def extract_diet_with_ai(grid_text: str, plan_title: str = '') -> dict:
 
     try:
         resp = llm.invoke([
-            SystemMessage(content=SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=user_msg),
         ])
     except Exception as e:
@@ -177,11 +225,15 @@ def extract_diet_with_ai(grid_text: str, plan_title: str = '') -> dict:
     return raw
 
 
-def normalize_and_match(raw_json: dict) -> dict:
+def normalize_and_match(raw_json: dict, progress_cb=None) -> dict:
     """Valida con pydantic e arricchisce ogni food con food_id + candidati.
 
     Per ogni food.name → fuzzy_match → se score alto: food_id+name reale,
     altrimenti uncertain=True + candidati per la UI di revisione.
+
+    `progress_cb(done, total)`, se dato, viene chiamato dopo ogni food — pure
+    query DB senza altro segnale di avanzamento durante questa fase; un job
+    lungo resta "vivo" in cache solo se qualcosa la tocca (vedi JobStore ttl).
     """
     # Pydantic tollera campi extra e default; valida lo scheletro.
     try:
@@ -216,12 +268,22 @@ def normalize_and_match(raw_json: dict) -> dict:
             entry['candidates'] = others
             entry['uncertain'] = True
 
-    for day in out.get('days', []):
-        for meal in day.get('meals', []):
-            for food in meal.get('foods', []):
-                _match_food_into(food)
-                for sub in food.get('substitutions', []) or []:
-                    _match_food_into(sub)
+    all_foods = [
+        food
+        for day in out.get('days', [])
+        for meal in day.get('meals', [])
+        for food in meal.get('foods', [])
+    ]
+    total = len(all_foods) or 1
+    for done, food in enumerate(all_foods, start=1):
+        _match_food_into(food)
+        for sub in food.get('substitutions', []) or []:
+            _match_food_into(sub)
+        if progress_cb:
+            try:
+                progress_cb(done, total)
+            except Exception:
+                pass
 
     # Dedup integratori per nome normalizzato, mergendo timing/notes
     def _merge_str(a: str | None, b: str | None) -> str | None:
@@ -287,10 +349,24 @@ def compute_confidence(normalized: dict) -> ConfidenceSummary:
     )
 
 
-def run_import_pipeline(file_bytes: bytes, plan_title: str = '') -> tuple[dict, ConfidenceSummary]:
+def apply_structure_hints(normalized: dict, structure: DocStructure | None) -> dict:
+    """Attach plan_mode/plan_kind hints (LLM value wins, detector fills gaps)."""
+    if structure is None:
+        return normalized
+    if not normalized.get('plan_mode'):
+        normalized['plan_mode'] = 'MACRO' if structure.layout.startswith('macro') else 'FOOD'
+    if not normalized.get('plan_kind'):
+        normalized['plan_kind'] = 'WEEKLY' if structure.layout.endswith('weekly') else 'DAILY'
+    return normalized
+
+
+def run_import_pipeline(file_bytes: bytes, plan_title: str = '',
+                        progress_cb=None) -> tuple[dict, ConfidenceSummary]:
     """Helper end-to-end. Solleva ExcelParseError o AIExtractionError."""
     grid = excel_to_text(file_bytes)
-    raw = extract_diet_with_ai(grid, plan_title)
-    normalized = normalize_and_match(raw)
+    structure = detect_diet_structure(grid)
+    raw = extract_diet_with_ai(grid, plan_title, structure=structure)
+    normalized = normalize_and_match(raw, progress_cb=progress_cb)
+    apply_structure_hints(normalized, structure)
     confidence = compute_confidence(normalized)
     return normalized, confidence
