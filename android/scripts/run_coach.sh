@@ -22,7 +22,7 @@ ADB="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 IMPELLER=""
 if [[ "$*" != *enable-impeller* ]] \
    && [[ -x "$ADB" ]] && "$ADB" devices | grep -q "^emulator-.*device$"; then
-  IMPELLER="--enable-impeller=false"
+  IMPELLER="--no-enable-impeller"
   echo "▸ emulator detected — running with Skia ($IMPELLER)"
 fi
 
