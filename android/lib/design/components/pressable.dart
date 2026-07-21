@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../core/utils/haptics.dart';
 import '../theme.dart';
@@ -32,6 +33,21 @@ class Pressable extends StatefulWidget {
 class _PressableState extends State<Pressable> {
   bool _down = false;
 
+  void _setDown(bool value) {
+    if (!mounted || _down == value) return;
+    // A recognizer being disposed mid-frame fires a "forced onTapCancel"
+    // while the framework is finalizing the tree (state locked) — calling
+    // setState there throws "widget tree was locked". That only happens
+    // during the persistent-callbacks phase; normal taps arrive outside it.
+    // The widget is being torn down anyway, so dropping the visual is fine.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      _down = value;
+      return;
+    }
+    setState(() => _down = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final child = AnimatedScale(
@@ -51,9 +67,9 @@ class _PressableState extends State<Pressable> {
     }
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _down = true),
-      onTapCancel: () => setState(() => _down = false),
-      onTapUp: (_) => setState(() => _down = false),
+      onTapDown: (_) => _setDown(true),
+      onTapCancel: () => _setDown(false),
+      onTapUp: (_) => _setDown(false),
       onTap: () {
         if (widget.haptic) Haptics.tap();
         widget.onTap?.call();
