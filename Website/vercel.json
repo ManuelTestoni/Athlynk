@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm install && npm run build && rm -rf node_modules package.json package-lock.json build.mjs",
+  "outputDirectory": ".",
   "redirects": [
     { "source": "/piattaforma.html", "destination": "/#piattaforma", "permanent": true },
     { "source": "/app.html", "destination": "/#app-mobile", "permanent": true },

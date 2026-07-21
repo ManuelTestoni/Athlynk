@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagina non trovata — Athlynk</title>
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light">
+<meta property="og:title" content="Pagina non trovata — Athlynk">
+<meta property="og:description" content="La pagina che cerchi non esiste o è stata spostata.">
+<meta property="og:image" content="https://athlynk.it/assets/og-cover.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260718b">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+
+<style>
+  /* Error page — self-contained on top of the site's tokens (css/style.css).
+     Signature: a gold hairline ring that draws itself around a compass needle,
+     the site's "find your way back" gesture in royal / silver / gold. */
+  .err404 {
+    min-height: 74vh;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: clamp(56px, 11vh, 128px) 0 clamp(40px, 7vh, 88px);
+  }
+  .err404-inner { width: min(640px, 90vw); }
+
+  .err404-emblem {
+    position: relative;
+    width: clamp(120px, 30vw, 168px);
+    height: clamp(120px, 30vw, 168px);
+    margin: 0 auto 32px;
+    display: grid;
+    place-items: center;
+    animation: e404-float 6s var(--ease-silk) infinite;
+  }
+  .err404-emblem::before {
+    content: '';
+    position: absolute;
+    inset: 16%;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 34%, rgba(232, 194, 74, 0.16), transparent 70%);
+  }
+  .err404-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .err404-ring circle {
+    fill: none;
+    stroke: var(--gold-m);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-dasharray: 301.6;            /* circumference of r=48 */
+    stroke-dashoffset: 301.6;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    animation: e404-draw 1.5s var(--ease-out) 0.2s forwards;
+  }
+  .err404-compass {
+    position: relative;
+    width: clamp(46px, 11vw, 60px);
+    height: auto;
+    animation: e404-in 0.7s var(--ease-out) 0.55s both;
+  }
+  .err404-compass .n { fill: var(--royal); }
+  .err404-compass .s { fill: var(--silver-d); }
+  .err404-compass .pivot { fill: var(--gold-deep); }
+
+  .err404-eyebrow { justify-content: center; margin-bottom: 26px; }
+  .err404-title { margin: 0 0 14px; }
+  .err404-lede {
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.7vw, 18px);
+    line-height: 1.6;
+    color: var(--ink-mute);
+    max-width: 46ch;
+    margin: 0 auto 34px;
+  }
+  .err404-ctas { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+
+  .err404-topbar { padding: 26px 0; }
+  .err404-topbar .brand { display: inline-flex; }
+
+  @keyframes e404-draw  { to { stroke-dashoffset: 0; } }
+  @keyframes e404-in    { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
+  @keyframes e404-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .err404-emblem { animation: none; }
+    .err404-ring circle { animation: none; stroke-dashoffset: 0; }
+    .err404-compass { animation: none; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- marble light + gold dust texture (CSS-only) -->
+<div class="grain" aria-hidden="true"></div>
+
+<div class="err404-topbar">
+  <div class="container">
+    <a href="/" class="brand" aria-label="Athlynk — home">
+      <img class="brand-mark" src="assets/favicon.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
+      <span class="brand-name">Athlynk</span>
+    </a>
+  </div>
+</div>
+
+<main class="err404">
+  <div class="err404-inner">
+    <div class="err404-emblem">
+      <svg class="err404-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <circle cx="50" cy="50" r="48"></circle>
+      </svg>
+      <svg class="err404-compass" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path class="n" d="M12 4 L14.8 11.2 L12 9.4 L9.2 11.2 Z"></path>
+        <path class="s" d="M12 20 L9.2 12.8 L12 14.6 L14.8 12.8 Z"></path>
+        <circle class="pivot" cx="12" cy="12" r="1.05"></circle>
+      </svg>
+    </div>
+
+    <p class="eyebrow eyebrow-center err404-eyebrow">
+      <span class="eyebrow-rule"></span>
+      Pagina non trovata
+      <span class="eyebrow-rule"></span>
+    </p>
+
+    <h1 class="section-title err404-title">Qualcosa è andato storto</h1>
+
+    <p class="err404-lede">
+      La pagina che cerchi non esiste o è stata spostata.
+      Riprendi il percorso dalla home.
+    </p>
+
+    <div class="err404-ctas">
+      <a href="/" class="btn btn-bronze">Torna alla home</a>
+      <a href="mailto:info@athlynk.it" class="btn btn-ghost">Contatta il supporto<span class="btn-arrow">→</span></a>
+    </div>
+  </div>
+</main>
+
+<!-- ====================== FOOTER ====================== -->
+<footer class="site-footer">
+  <div class="footer-meander" aria-hidden="true"></div>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="/" class="brand" aria-label="Athlynk — home">
+          <img class="brand-mark" src="assets/favicon.png" alt="" aria-hidden="true" width="32" height="26" decoding="async">
+          <span class="brand-name">Athlynk</span>
+        </a>
+        <p class="footer-tagline">Una piattaforma: Allenamento, Nutrizione, Gestione.</p>
+      </div>
+      <nav class="footer-nav" aria-label="Navigazione footer">
+        <a href="/index.html#hero">Home</a>
+        <a href="/index.html#piattaforma">Piattaforma</a>
+        <a href="/index.html#app-mobile">App Mobile</a>
+        <a href="/index.html#pricing">Pricing</a>
+        <a href="/about.html">About</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/cookie.html">Cookie</a>
+        <a href="/tos.html">Termini di Servizio</a>
+        <a href="/docs/">Documentazione</a>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Athlynk. Tutti i diritti riservati.</p>
+      <p class="footer-motto">Μέτρον ἄριστον — la misura è la cosa migliore.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -248,6 +248,12 @@ CONTAMINATION_CHECKLIST.md
 promo-video
 kickbacks.vsix
 Website/assets/marketing
+
+# Website (Vercel) build manifest must be tracked despite the global
+# package.json / package-lock.json ignore above — this is a Python/Flutter
+# repo, but the static site needs its manifest to run the deploy-time minify.
+!Website/package.json
+
 # --- Flutter Android app ---------------------------------------------------
 # The rules above are written for a Python project: `lib/`, `env/`/`ENV/` and
 # `build/` are venv/packaging noise there, but in android/ they are the app's

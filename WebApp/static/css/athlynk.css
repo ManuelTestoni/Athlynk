@@ -4920,3 +4920,66 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
   .dash-palette-card,
   .dash-chrome-btn { transition: none; }
 }
+
+/* ============================================================
+   Error pages (400/403/404/500 · pages/errors/_error_base.html)
+   Code-free, generic. Signature = a bronze hairline ring that
+   draws itself around a contextual glyph, replacing the old
+   oversized numeral. Flanked by the same hairlines as auth.
+   ============================================================ */
+.err-wrap { text-align: center; }
+
+.err-rule {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, var(--al-rule-strong), transparent);
+}
+
+.err-emblem {
+  position: relative;
+  width: clamp(108px, 26vw, 144px);
+  height: clamp(108px, 26vw, 144px);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  animation: err-float 6s var(--al-ease) infinite;
+}
+/* soft warm disc so the glyph sits on a subtle halo, not bare parchment */
+.err-emblem::before {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 34%, rgba(var(--al-primary-rgb), 0.12), transparent 72%);
+}
+
+.err-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.err-ring circle {
+  fill: none;
+  stroke: var(--al-bronze);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 301.6;          /* circumference of r=48 */
+  stroke-dashoffset: 301.6;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: err-draw 1.4s var(--al-ease-out) 0.25s forwards;
+}
+
+.err-glyph {
+  position: relative;
+  font-size: clamp(38px, 9vw, 52px);
+  line-height: 1;
+  color: var(--al-ink-soft);
+  animation: err-glyph-in 0.7s var(--al-ease-out) 0.55s both;
+}
+
+@keyframes err-draw     { to { stroke-dashoffset: 0; } }
+@keyframes err-glyph-in { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes err-float    { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .err-emblem { animation: none; }
+  .err-ring circle { animation: none; stroke-dashoffset: 0; }
+  .err-glyph { animation: none; opacity: 1; transform: none; }
+}

@@ -1,0 +1,52 @@
+{% extends 'pages/auth/_base.html' %}
+
+{# Shared shell for every error page (400/403/404/500). Generic and code-free:
+   no numeral, one friendly title, a contextual one-line hint per child, and a
+   bronze hairline ring that draws itself around a contextual glyph.
+   Children fill: err_icon, err_message, and (optionally) err_actions / err_foot.
+   All error CSS lives in static/css/athlynk.css (.err-*), so it gets minified. #}
+
+{% block auth_title %}Qualcosa è andato storto{% endblock %}
+{% block auth_robots %}noindex, nofollow{% endblock %}
+{% block auth_eyebrow %}Il corpo è l'opera{% endblock %}
+{% block auth_panel_width %}max-w-lg{% endblock %}
+
+{% block auth_content %}
+<div class="err-wrap">
+    <div class="flex items-center gap-4 mb-5">
+        <span class="err-rule"></span>
+        <div class="err-emblem">
+            <svg class="err-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <circle cx="50" cy="50" r="48"></circle>
+            </svg>
+            <i class="ph {% block err_icon %}ph-warning{% endblock %} err-glyph" aria-hidden="true"></i>
+        </div>
+        <span class="err-rule"></span>
+    </div>
+
+    <h1 class="al-h-1 mt-2" style="font-size: clamp(24px, 4vw, 32px);">
+        Qualcosa è andato storto
+    </h1>
+
+    <p class="al-body mt-3">
+        {% block err_message %}Si è verificato un problema imprevisto. Riprova tra poco.{% endblock %}
+    </p>
+
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+        {% block err_actions %}
+        <a href="/" class="al-btn al-btn-bronze">
+            <i class="ph ph-house"></i>
+            <span>Torna alla home</span>
+        </a>
+        <a href="{% url 'login' %}" class="al-btn al-btn-ghost">
+            <i class="ph ph-sign-in"></i>
+            <span>Accedi</span>
+        </a>
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_foot %}
+{% block err_foot %}Hai bisogno di aiuto? <a href="mailto:info@athlynk.it" class="al-link al-link-bronze">Contatta il supporto</a>{% endblock %}
+{% endblock %}
