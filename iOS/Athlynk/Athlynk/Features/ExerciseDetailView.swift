@@ -10,6 +10,7 @@ import SwiftUI
 struct ExerciseDetailView: View {
     let exercise: ExerciseDTO
     @State private var appear = false
+    @State private var stepsExpanded = false
 
     var body: some View {
         ZStack {
@@ -19,10 +20,9 @@ struct ExerciseDetailView: View {
                     hero.revealUp(appear, index: 0)
                     titleBlock.revealUp(appear, index: 1)
                     statGrid.revealUp(appear, index: 2)
-                    if let desc = exercise.description, !desc.isEmpty {
-                        descriptionBlock(desc).revealUp(appear, index: 3)
-                    }
-                    if let steps = exercise.instructionSteps, !steps.isEmpty {
+                    // Single execution text: instruction_steps only (description is
+                    // deduplicated away). Collapsed to the first step until expanded.
+                    if let steps = exercise.executionSteps, !steps.isEmpty {
                         instructionsBlock(steps).revealUp(appear, index: 4)
                     }
                     if !exercise.equipment.isEmpty { equipmentTag(exercise.equipment).revealUp(appear, index: 5) }
@@ -93,34 +93,37 @@ struct ExerciseDetailView: View {
         .background(Capsule().fill(Palette.void2))
     }
 
-    /// Catalog description (exercises-dataset sourcing) — distinct from
-    /// `coachNote`, which is the coach's own note on this prescription.
-    private func descriptionBlock(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "info.circle.fill").font(.system(size: 14, weight: .black))
-                    .foregroundStyle(Palette.magenta)
-                Text("ESERCIZIO").voltEyebrow()
-            }
-            Text(text).font(Typo.body(15)).foregroundStyle(Palette.textHi)
-        }
-        .padding(18).voltPanel(Palette.magenta.opacity(0.35))
-    }
-
+    /// Single execution text. Shows the first step; the rest reveal on tapping
+    /// "vedi esecuzione" (collapsed by default).
     private func instructionsBlock(_ steps: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let visible = stepsExpanded ? Array(steps.enumerated()) : Array(steps.prefix(1).enumerated())
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "list.number").font(.system(size: 14, weight: .black))
                     .foregroundStyle(Palette.cyan)
                 Text("ESECUZIONE").voltEyebrow()
             }
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                ForEach(visible, id: \.offset) { i, step in
                     HStack(alignment: .top, spacing: 10) {
                         Text("\(i + 1)").font(Typo.mono(12, .black)).foregroundStyle(Palette.cyan)
                             .frame(width: 18, alignment: .leading)
                         Text(step).font(Typo.body(14)).foregroundStyle(Palette.textHi)
+                            .lineLimit(stepsExpanded ? nil : 1)
                     }
+                }
+            }
+            if steps.count > 1 {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { stepsExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(stepsExpanded ? "Nascondi" : "Vedi esecuzione")
+                            .font(Typo.mono(11, .bold)).tracking(1)
+                        Image(systemName: stepsExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .black))
+                    }
+                    .foregroundStyle(Palette.cyan)
                 }
             }
         }

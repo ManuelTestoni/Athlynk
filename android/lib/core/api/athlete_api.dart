@@ -318,10 +318,21 @@ extension AthleteApi on ApiClient {
         ],
       });
 
+  /// `exerciseNotes` maps a workout_exercise_id to the athlete's volatile
+  /// per-session note (stored server-side as a sentinel set_number=0 log).
   Future<void> finishSession(int sessionId,
-          {String notes = '', bool interrupted = false}) =>
-      requestVoid('/api/v1/sessions/$sessionId/finish',
-          body: {'notes': notes, 'interrupted': interrupted});
+          {String notes = '',
+          bool interrupted = false,
+          Map<int, String> exerciseNotes = const {}}) =>
+      requestVoid('/api/v1/sessions/$sessionId/finish', body: {
+        'notes': notes,
+        'interrupted': interrupted,
+        'exercise_notes': [
+          for (final e in exerciseNotes.entries)
+            if (e.value.trim().isNotEmpty)
+              {'workout_exercise_id': e.key, 'notes': e.value},
+        ],
+      });
 
   /// Catalog search: by name, muscle group, or similar to a catalog id.
   Future<ExerciseSearchResponse> searchExercises({

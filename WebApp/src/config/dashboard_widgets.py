@@ -101,7 +101,8 @@ WIDGET_REGISTRY = {
         'icon': 'ph-chat-circle-text',
         'sf_symbol': 'bubble.left',
         'roles': {'COACH'},
-        'sizes': {'S': (3, 2), 'M': (4, 2)},
+        # S = solo numero; M = poche chat; L = elenco chat più lungo.
+        'sizes': {'S': (3, 2), 'M': (6, 4), 'L': (6, 6)},
         'default_size': 'S',
         'mobile_size': 'half',
     },
@@ -111,7 +112,8 @@ WIDGET_REGISTRY = {
         'icon': 'ph-chart-line-up',
         'sf_symbol': 'chart.line.uptrend.xyaxis',
         'roles': {'COACH'},
-        'sizes': {'M': (6, 3), 'L': (12, 3)},
+        # L integra rischio abbandono + grafico oltre alle 4 tessere KPI.
+        'sizes': {'M': (6, 3), 'L': (12, 5)},
         'default_size': 'M',
         'mobile_size': 'full',
     },
@@ -154,6 +156,44 @@ WIDGET_REGISTRY = {
         'sizes': {'M': (12, 2)},
         'default_size': 'M',
         'mobile_size': 'full',
+    },
+    # --- COACH · monitoraggio atleta ----------------------------------------
+    # Widget "per atleta": un selettore sceglie l'atleta (config.client_id) fra
+    # gli atleti attivi del coach; vengono generati automaticamente quando un
+    # atleta viene messo in evidenza (pinned_athletes).
+    'athlete_body': {
+        'title': 'Composizione atleta',
+        'desc': 'Peso, circonferenze e pliche di un atleta a tua scelta.',
+        'icon': 'ph-scales',
+        'sf_symbol': 'scalemass',
+        'roles': {'COACH'},
+        'sizes': {'M': (6, 4), 'L': (12, 5)},
+        'default_size': 'M',
+        'mobile_size': 'full',
+        'config_schema': {'client_id': {'type': 'int'}},
+    },
+    'athlete_training': {
+        'title': 'Allenamento atleta',
+        'desc': 'Carico e volume per esercizio dell\'atleta selezionato.',
+        'icon': 'ph-barbell',
+        'sf_symbol': 'dumbbell',
+        'roles': {'COACH'},
+        'sizes': {'M': (6, 4), 'L': (12, 5)},
+        'default_size': 'M',
+        'mobile_size': 'full',
+        'config_schema': {'client_id': {'type': 'int'},
+                          'exercise_id': {'type': 'int'}},
+    },
+    'athlete_nutrition': {
+        'title': 'Nutrizione atleta',
+        'desc': 'Piano alimentare e resoconto macro degli ultimi giorni.',
+        'icon': 'ph-fork-knife',
+        'sf_symbol': 'fork.knife',
+        'roles': {'COACH'},
+        'sizes': {'M': (6, 4), 'L': (12, 5)},
+        'default_size': 'M',
+        'mobile_size': 'full',
+        'config_schema': {'client_id': {'type': 'int'}},
     },
     # --- CLIENT --------------------------------------------------------------
     'weight_trend': {
@@ -347,20 +387,34 @@ def _sanitize_config(user, widget_type, config):
         if rule['type'] == 'int_list' and isinstance(val, list):
             ids = [v for v in val if isinstance(v, int)][:rule['max_len']]
             if key == 'client_ids' and ids:
-                from domain.coaching.models import CoachingRelationship
-                coach = getattr(user, 'coach_profile', None)
-                if coach is None:
-                    ids = []
-                else:
-                    linked = set(
-                        CoachingRelationship.objects
-                        .filter(coach=coach, client_id__in=ids, status='ACTIVE')
-                        .values_list('client_id', flat=True)
-                    )
-                    ids = [i for i in ids if i in linked]
+                ids = [i for i in ids if i in _coach_client_ids(user, ids)]
             if ids:
                 clean[key] = ids
+        elif rule['type'] == 'int' and isinstance(val, int) and not isinstance(val, bool):
+            if key == 'client_id':
+                # Scope-check: the athlete must be one of the coach's ACTIVE
+                # relationships, else drop it (falls back to first pinned).
+                if val in _coach_client_ids(user, [val]):
+                    clean[key] = val
+            else:
+                # e.g. exercise_id: kept as-is; the builder validates ownership
+                # when it queries the athlete's exercises.
+                clean[key] = val
     return clean
+
+
+def _coach_client_ids(user, candidate_ids):
+    """Subset of ``candidate_ids`` that belong to the user's ACTIVE coaching
+    relationships. Empty when the user is not a coach."""
+    from domain.coaching.models import CoachingRelationship
+    coach = getattr(user, 'coach_profile', None)
+    if coach is None or not candidate_ids:
+        return set()
+    return set(
+        CoachingRelationship.objects
+        .filter(coach=coach, client_id__in=candidate_ids, status='ACTIVE')
+        .values_list('client_id', flat=True)
+    )
 
 
 def validate_and_save_layout(user, payload):

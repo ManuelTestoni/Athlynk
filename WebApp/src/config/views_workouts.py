@@ -380,11 +380,11 @@ def _serialize_plan_for_wizard(plan):
                 ],
                 'cover_image': ex.exercise.cover_image.url if ex.exercise.cover_image else '',
                 'demo_gif': ex.exercise.demo_gif.url if ex.exercise.demo_gif else '',
-                'sets': ex.set_count or 3,
-                'reps': ex.rep_range or '10',
+                'sets': ex.set_count,
+                'reps': ex.rep_range or '',
                 'load_value': float(ex.load_value) if ex.load_value is not None else None,
                 'load_unit': ex.load_unit or 'KG',
-                'recovery_seconds': ex.recovery_seconds or 90,
+                'recovery_seconds': ex.recovery_seconds,
                 'notes': ex.technique_notes or '',
                 'coach_notes': ex.technique_notes or '',
                 'execution_type': ex.execution_type or 'REPETITION',
@@ -428,6 +428,9 @@ def allenamenti_wizard_view(request, plan_id=None):
         plan = get_object_or_404(WorkoutPlan, id=plan_id, coach=coach)
         plan_data = _serialize_plan_for_wizard(plan)
     else:
+        # Nuova bozza coerente col tipo: WEEKLY (rotazione 1 settimana, niente
+        # step Progressione) di default; PROGRAM solo se richiesto via ?kind.
+        kind = 'PROGRAM' if (request.GET.get('kind') or '').upper() == 'PROGRAM' else 'WEEKLY'
         plan_data = {
             'id': None,
             'title': '',
@@ -435,7 +438,8 @@ def allenamenti_wizard_view(request, plan_id=None):
             'goal': '',
             'level': '',
             'frequency_per_week': None,
-            'duration_weeks': 8,
+            'plan_kind': kind,
+            'duration_weeks': 8 if kind == 'PROGRAM' else 1,
             'status': 'DRAFT',
             'last_step': 1,
             'days': [],
@@ -606,9 +610,17 @@ def _apply_payload_to_plan(plan, data, coach):
                 continue
 
             ex_pk = ex_data.get('pk')
-            sets = int(ex_data.get('sets') or 3)
-            reps = str(ex_data.get('reps') or '10')
-            recovery = int(ex_data.get('recovery_seconds') or 90)
+            # No default prescription — persist blank when the coach left it empty.
+            def _blank_int(value):
+                if value in (None, ''):
+                    return None
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return None
+            sets = _blank_int(ex_data.get('sets'))
+            reps = str(ex_data.get('reps') or '') or None
+            recovery = _blank_int(ex_data.get('recovery_seconds'))
             # `coach_notes` is the new canonical key; `notes` kept for back-compat
             notes = ex_data.get('coach_notes') or ex_data.get('notes') or ''
             superset = ex_data.get('superset_group_id')
@@ -642,7 +654,7 @@ def _apply_payload_to_plan(plan, data, coach):
             rpe_v = _opt_int(ex_data.get('rpe'), 1, 10)
             rir_v = _opt_int(ex_data.get('rir'), 0, 10)
             tempo_v = (ex_data.get('tempo') or '').strip()[:50] or None
-            set_details = _coerce_set_details(ex_data.get('set_details'), sets)
+            set_details = _coerce_set_details(ex_data.get('set_details'), sets or 0)
 
             if ex_pk and ex_pk in existing_ex:
                 we = existing_ex[ex_pk]

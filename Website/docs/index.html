@@ -8,17 +8,18 @@
 <link rel="canonical" href="https://athlynk.it/docs/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* Athlynk — Greek luxury (mirrors iOS Theme.swift + athlynk.css) */
-    --parchment:#F4EFE4; --marble:#ECE5D6; --stone:#D8CFBA;
-    --ink:#14110D; --ink-mute:#5B554A; --ink-line:#8A8270;
-    --bronze:#8A6A3A; --aegean:#1C4A52; --aegean-deep:#0E2F36;
-    --olive:#4A6B3A; --gold:#9C6F2E; --terra:#9C5A3A;
-    --hair:rgba(20,17,13,.14); --hair-soft:rgba(20,17,13,.08);
+    /* Athlynk — palette blu attuale (rispecchia athlynk.css + Theme.swift +
+       il tema Flutter Android). I nomi storici restano; cambiano i valori. */
+    --parchment:#FFFFFF; --marble:#F4F6F9; --stone:#E8ECF2;
+    --ink:#0B1D3A; --ink-mute:#4B5D75; --ink-line:#7C8CA3;
+    --bronze:#3E6E95; --aegean:#1E3A5F; --aegean-deep:#132A47;
+    --olive:#4F7A6A; --gold:#E8C24A; --terra:#A6412E;
+    --hair:rgba(11,29,58,.14); --hair-soft:rgba(11,29,58,.07);
     --display:"Bodoni Moda",Didot,serif;
-    --body:"Spectral",Georgia,serif;
+    --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     --mono:"JetBrains Mono",ui-monospace,monospace;
     --sidebar:300px;
   }
@@ -33,8 +34,8 @@
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
     background:
       radial-gradient(680px 520px at 68% -8%, rgba(255,255,255,.6), transparent 70%),
-      radial-gradient(560px 480px at 2% 102%, rgba(138,106,58,.07), transparent 70%),
-      radial-gradient(560px 480px at 100% 22%, rgba(28,74,82,.06), transparent 70%);
+      radial-gradient(560px 480px at 2% 102%, rgba(91,137,182,.08), transparent 70%),
+      radial-gradient(560px 480px at 100% 22%, rgba(30,58,95,.06), transparent 70%);
   }
   body::after{
     content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;
@@ -83,7 +84,7 @@
     margin:0 0 4px;letter-spacing:-.5px}
   h3{font-family:var(--display);font-weight:600;font-size:27px;margin:54px 0 6px;letter-spacing:-.2px}
   h4{font-family:var(--mono);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-line);margin:30px 0 12px}
-  p{margin:12px 0;color:#2c281f}
+  p{margin:12px 0;color:#16294A}
   a.ln{color:var(--aegean);text-decoration:none;border-bottom:1px solid rgba(28,74,82,.3)}
   a.ln:hover{border-color:var(--aegean)}
   .rule{height:1px;background:var(--bronze);opacity:.45;margin:14px 0 0;border:0}
@@ -195,6 +196,9 @@
       <a href="#ios-features">Features atleta</a>
       <a href="#ios-coach">Features coach</a>
     </div>
+    <div class="navgroup"><span>Android · Flutter</span>
+      <a href="#android">Le app Android</a>
+    </div>
     <div class="navgroup"><span>Riferimento</span>
       <a href="#legal">Documenti legali</a>
       <a href="#conventions">Convenzioni</a>
@@ -206,11 +210,12 @@
 
     <!-- HERO -->
     <header class="hero rv">
-      <div class="eyebrow">Documentazione del codice · v2 · 2026-06-22</div>
+      <div class="eyebrow">Documentazione del codice · v3 · 2026-07-21</div>
       <h2 class="sec">Athlynk<br>Codex.</h2>
-      <p class="lead">Riferimento tecnico della piattaforma Athlynk — backend Django, API mobile,
-      app iOS atleta e coach. Strutturato come un reference di simboli: moduli, endpoint,
-      modelli e viste, ognuno con firma, scopo e contratto.</p>
+      <p class="lead">La guida al funzionamento di Athlynk: come è fatta la piattaforma,
+      cosa fa ciascuna parte e come le superfici — web, iOS e Android — condividono lo
+      stesso cervello. Racconta le cose per quello che fanno, senza perdersi nei dettagli
+      di implementazione; dove serve precisione, trovi comunque firme e contratti.</p>
       <hr class="rule">
     </header>
 
@@ -220,18 +225,25 @@
         <div class="eyebrow">Panoramica</div>
         <h2 class="sec">Il sistema</h2>
       </div>
-      <p>Athlynk collega atleti e professionisti (coach, trainer, nutrizionisti). Due frontend
-      sullo stesso dominio Django: la <b>web app</b> (coach + atleta) e due <b>app iOS native</b>
-      — Athlynk (atleta) e Athlynk Coach. Nessuna app parla col database direttamente: consumano
-      la proiezione JSON esposta sotto <code>/api/v1</code>.</p>
+      <p>Athlynk collega atleti e professionisti (coach, trainer, nutrizionisti). Tutte le
+      superfici vivono sullo stesso cervello Django: la <b>web app</b> (coach + atleta), due
+      <b>app iOS native</b> — Athlynk e Athlynk Coach — e le <b>app Android</b> costruite in
+      Flutter con gli stessi due profili. Nessuna app tocca il database: leggono e scrivono
+      attraverso la proiezione JSON sotto <code>/api/v1</code>, così un cambiamento fatto una
+      volta sul server arriva coerente ovunque.</p>
+
+      <p>Il linguaggio visivo è condiviso: un blu profondo (<code>#1E3A5F</code>) con accento
+      azzurro (<code>#5B89B6</code>) e un tocco d'oro (<code>#FFE066</code>), titoli in Bodoni
+      Moda e testo in Inter. La stessa palette è definita in <code>athlynk.css</code>, nel tema
+      iOS e nel tema Flutter, così le tre app si somigliano senza sforzo.</p>
 
       <div class="grid three">
         <div class="panel"><div class="eyebrow">Backend</div>
-          <p style="margin-top:8px">Django 6 · custom-auth · Postgres (Supabase) · Railway. Nessuna dipendenza DRF: viste semplici che ritornano <code>JsonResponse</code>.</p></div>
-        <div class="panel"><div class="eyebrow">Mobile</div>
-          <p style="margin-top:8px">SwiftUI · async/await · token in Keychain · estetica greca-lusso (Didot, pergamena, bronzo/Egeo). Target: atleta + coach.</p></div>
-        <div class="panel"><div class="eyebrow">AI</div>
-          <p style="margin-top:8px">Chiron AI: GPT-OSS 120B via Ollama. Churn prediction: pipeline notturna su metriche di attività aggregate.</p></div>
+          <p style="margin-top:8px">Il motore: Django su Postgres (Supabase), ospitato su Railway. Espone tutto come JSON semplice — niente framework pesanti, solo viste che rispondono a domande precise.</p></div>
+        <div class="panel"><div class="eyebrow">App</div>
+          <p style="margin-top:8px">iOS nativo (SwiftUI) e Android (Flutter), ciascuno con l'app atleta e quella coach. Stessi dati, stessa estetica, esperienza nativa su ogni piattaforma.</p></div>
+        <div class="panel"><div class="eyebrow">AI &amp; segnali</div>
+          <p style="margin-top:8px">Chiron, l'assistente che aiuta il coach a costruire piani, e un modello che stima il rischio di abbandono guardando come cambia l'attività dell'atleta nel tempo.</p></div>
       </div>
     </section>
 
@@ -676,6 +688,33 @@
         <div class="sym"><div class="name">CoachPlanWizards</div><div class="desc">Wizard assegnazione piani workout e nutrizione. Fabbisogni mostrano tutti i macro inclusi fibra e H₂O.</div></div>
         <div class="sym"><div class="name">CoachAgendaView</div><div class="desc">Agenda appuntamenti coach.</div></div>
       </div>
+    </section>
+
+    <!-- ============ ANDROID ============ -->
+    <section id="android">
+      <div class="head">
+        <div class="eyebrow">Android · Flutter</div>
+        <h2 class="sec">Le app Android</h2>
+      </div>
+      <p>Le app Android sono la controparte Flutter delle due app iOS: una per l'atleta e una
+      per il coach, generate dallo stesso codice con due punti d'ingresso distinti. Parlano lo
+      stesso backend, mostrano gli stessi dati e adottano la stessa palette e gli stessi caratteri,
+      così passare da un iPhone a un Android non cambia l'esperienza — cambia solo il dispositivo.</p>
+
+      <div class="grid three">
+        <div class="panel"><div class="eyebrow">Due profili</div>
+          <p style="margin-top:8px">Un unico progetto Flutter, due sapori: l'app atleta e l'app coach. Le schermate si adattano al ruolo di chi ha effettuato l'accesso.</p></div>
+        <div class="panel"><div class="eyebrow">Stessi dati</div>
+          <p style="margin-top:8px">Nessuna logica di business duplicata: le app leggono le stesse API <code>/api/v1</code> delle app iOS, quindi restano automaticamente allineate.</p></div>
+        <div class="panel"><div class="eyebrow">Grafica nativa</div>
+          <p style="margin-top:8px">I grafici (peso, carichi, volume, nutrizione) sono disegnati con componenti nativi del design system, non immagini: fluidi e leggibili anche al tocco.</p></div>
+      </div>
+
+      <p style="margin-top:18px">La <b>dashboard</b> funziona come sul web e su iOS: è un mosaico di widget
+      che il coach o l'atleta compone a piacere. La stessa lista di widget disponibili arriva dal
+      server, così quando ne nasce uno nuovo — per esempio i pannelli di monitoraggio di un atleta,
+      con peso, carichi e resoconto nutrizione filtrabili per persona — compare ovunque senza
+      dover aggiornare ogni app a mano.</p>
     </section>
 
     <!-- ============ LEGAL ============ -->

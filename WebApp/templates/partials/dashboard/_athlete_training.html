@@ -1,0 +1,49 @@
+{% comment %}Widget coach "per atleta": carico e volume per esercizio.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">In evidenza</p>
+        <h2 class="al-h-2 mt-1">Allenamento atleta</h2>
+    </div>
+    {% if athlete_options %}{% include 'partials/dashboard/_athlete_select.html' %}{% endif %}
+</div>
+<div class="al-card-body h-full flex flex-col">
+    {% if not selected_client %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-barbell al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun atleta attivo</h3>
+        <p style="font-size: 12px;">Attiva un atleta per seguirne carichi e volume.</p>
+    </div>
+    {% else %}
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <p class="al-eyebrow">Carico{% if not selected_exercise_id %} · esercizio{% endif %}</p>
+        {% if exercise_options %}
+        <label style="display:inline-flex; max-width: 200px;">
+            <span class="sr-only">Esercizio</span>
+            <select class="al-select" style="padding: 4px 26px 4px 10px; font-size: 12px; height: auto;"
+                    @change="$dispatch('dash-set-config', { el: $el.closest('.grid-stack-item'), patch: { exercise_id: $el.value ? parseInt($el.value, 10) : null } })">
+                <option value="">Tutti gli esercizi</option>
+                {% for e in exercise_options %}
+                <option value="{{ e.id }}" {% if e.id == selected_exercise_id %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+    </div>
+    <div x-data="dashLoadsWidget" data-url="{{ loads_url }}" class="flex-1 min-h-[120px] flex flex-col">
+        <template x-if="loading"><p class="al-small" style="color: var(--al-ink-mute);">Caricamento…</p></template>
+        <div x-show="hasData" class="flex-1 min-h-[110px]"><canvas x-ref="canvas"></canvas></div>
+        <template x-if="!loading && !hasData"><p class="al-body" style="color: var(--al-ink-mute);">Nessun carico registrato per questo atleta.</p></template>
+    </div>
+
+    {% if widget_size == 'L' %}
+    <div class="mt-4 pt-4 flex flex-col" style="border-top: 1px solid var(--al-rule-faint);">
+        <p class="al-eyebrow mb-3">Volume settimanale per gruppo muscolare</p>
+        <div x-data="dashVolumeWidget" data-url="{{ volume_url }}" class="min-h-[130px] flex flex-col">
+            <template x-if="loading"><p class="al-small" style="color: var(--al-ink-mute);">Caricamento…</p></template>
+            <div x-show="hasData" class="flex-1 min-h-[120px]"><canvas x-ref="canvas"></canvas></div>
+            <template x-if="!loading && !hasData"><p class="al-body" style="color: var(--al-ink-mute);">Nessun volume da mostrare.</p></template>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>

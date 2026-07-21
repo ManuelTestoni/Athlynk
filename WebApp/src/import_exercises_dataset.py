@@ -206,6 +206,20 @@ def pick_text(field: dict | None):
     return field.get('it') or field.get('en') or next(iter(field.values()), None)
 
 
+def split_prose_to_steps(text: str | None) -> list[str]:
+    """Turn a prose instruction blob into a list of steps. The dataset ships
+    the same content as prose (`instructions`) and as a step list
+    (`instruction_steps`); we keep only the step list, deriving it from the
+    prose when the dataset didn't provide one. Split on newlines first, then
+    on sentence boundaries."""
+    if not text:
+        return []
+    raw = [ln.strip() for ln in str(text).splitlines() if ln.strip()]
+    if len(raw) <= 1:
+        raw = [s.strip() for s in re.split(r'(?<=[.!?])\s+', str(text)) if s.strip()]
+    return raw
+
+
 _LEVER_PREFIX_RE = re.compile(r'^lever\b\s*', re.IGNORECASE)
 
 
@@ -287,10 +301,15 @@ def build_exercise_fields(record: dict, taxonomy: 'TaxonomyCache') -> dict:
     description = pick_text(record.get('instructions'))
     steps = record.get('instruction_steps') or {}
     instruction_steps = steps.get('it') or steps.get('en') or next(iter(steps.values()), None)
+    # Single source of truth for execution text: instruction_steps. Derive it
+    # from the prose when the dataset didn't ship a step list, and do NOT also
+    # store the same content in `description` (no duplicated text).
+    if not instruction_steps:
+        instruction_steps = split_prose_to_steps(description)
 
     return {
         'name': name,
-        'description': description,
+        'description': None,
         'instruction_steps': instruction_steps,
         'muscle_detail': record.get('muscle_group') or None,
         'license_title': ATTRIBUTION_LICENSE_TITLE,

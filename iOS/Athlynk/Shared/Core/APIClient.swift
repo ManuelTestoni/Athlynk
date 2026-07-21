@@ -516,9 +516,16 @@ final class APIClient {
                           from: try await request("/api/v1/exercises/trend-by-name?name=\(enc)"))
     }
 
-    func finishSession(sessionId: Int, notes: String, interrupted: Bool) async throws {
+    /// `exerciseNotes` maps a workout_exercise_id to the athlete's volatile
+    /// per-session note (stored server-side as a sentinel set_number=0 log).
+    func finishSession(sessionId: Int, notes: String, interrupted: Bool,
+                       exerciseNotes: [Int: String] = [:]) async throws {
+        let notesPayload: [[String: Any]] = exerciseNotes
+            .filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map { ["workout_exercise_id": $0.key, "notes": $0.value] }
         _ = try await request("/api/v1/sessions/\(sessionId)/finish", method: "POST",
-                              body: ["notes": notes, "interrupted": interrupted])
+                              body: ["notes": notes, "interrupted": interrupted,
+                                     "exercise_notes": notesPayload])
     }
 
     /// Submit a multi-step check. `answers` is keyed by question id; values are

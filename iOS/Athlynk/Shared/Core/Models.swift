@@ -126,6 +126,15 @@ struct ExerciseDTO: Codable, Identifiable, Hashable {
         default: return "\(n) kg"
         }
     }
+    /// Single execution text. Prefer `instruction_steps`; fall back to splitting
+    /// the legacy `description` prose for any not-yet-migrated exercise.
+    var executionSteps: [String]? {
+        if let s = instructionSteps, !s.isEmpty { return s }
+        guard let d = description, !d.isEmpty else { return nil }
+        let byLine = d.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        if byLine.count > 1 { return byLine }
+        return d.split(whereSeparator: { ".!?".contains($0) }).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name, equipment, tempo, rir, rpe, description
@@ -1319,7 +1328,13 @@ struct SettingsResponse: Codable { let settings: SettingsDTO }
 /// pinned-athletes widget); grow this struct as widget types gain options.
 struct DashboardWidgetConfigDTO: Codable, Hashable {
     var clientIds: [Int]?
-    enum CodingKeys: String, CodingKey { case clientIds = "client_ids" }
+    /// Athlete-monitor widgets (athlete_body/training/nutrition): which athlete
+    /// this instance shows. The in-widget picker can change it at view time.
+    var clientId: Int?
+    enum CodingKeys: String, CodingKey {
+        case clientIds = "client_ids"
+        case clientId = "client_id"
+    }
 }
 
 /// One placed widget. `x`/`y`/`size` are the web grid's presentation hints —
@@ -1451,8 +1466,9 @@ struct SessionExerciseDTO: Codable, Identifiable, Hashable {
         exerciseCatalogId = try c.decodeIfPresent(Int.self, forKey: .exerciseCatalogId)
         name = try c.decode(String.self, forKey: .name)
         targetMuscleGroup = try c.decodeIfPresent(String.self, forKey: .targetMuscleGroup)
-        sets = try c.decodeIfPresent(Int.self, forKey: .sets) ?? 3
-        reps = try c.decodeIfPresent(String.self, forKey: .reps) ?? "10"
+        // No fabricated default — a blank prescription stays blank (0 / "").
+        sets = try c.decodeIfPresent(Int.self, forKey: .sets) ?? 0
+        reps = try c.decodeIfPresent(String.self, forKey: .reps) ?? ""
         loadValue = try c.decodeIfPresent(Double.self, forKey: .loadValue)
         loadUnit = try c.decodeIfPresent(String.self, forKey: .loadUnit)
         recoverySeconds = try c.decodeIfPresent(Int.self, forKey: .recoverySeconds)

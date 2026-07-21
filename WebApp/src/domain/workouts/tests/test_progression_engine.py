@@ -124,6 +124,42 @@ class OverrideWinsTest(TestCase):
         self.assertEqual(float(cells[2]['load_value']), 82.5)
 
 
+class OverrideForwardFillTest(TestCase):
+    def test_override_forward_fills_to_later_weeks(self):
+        # Un override a settimana 2 deve valere anche per le settimane 3+
+        # (finché non arriva un override successivo) — stessa semantica della
+        # griglia, così il grafico riflette le settimane adattate.
+        plan, ex = _plan_with_exercise(weeks=5, load=Decimal('80'))
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=2, metric='load',
+            value_json={'value': 100, 'unit': 'KG'},
+        )
+        progression_engine.sync_week_definitions(plan)
+        cells = progression_engine.compute_weekly_values(plan)['computed'][ex.id]
+        self.assertEqual(float(cells[1]['load_value']), 80.0)      # prima dell'override
+        self.assertEqual(float(cells[2]['load_value']), 100.0)     # override esatto
+        self.assertTrue(cells[2]['is_override'])
+        self.assertEqual(float(cells[3]['load_value']), 100.0)     # ereditato
+        self.assertEqual(float(cells[4]['load_value']), 100.0)     # ereditato
+        self.assertFalse(cells[4].get('is_override'))              # senza flag
+
+    def test_later_override_resets_forward_fill(self):
+        plan, ex = _plan_with_exercise(weeks=5, load=Decimal('80'))
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=2, metric='load',
+            value_json={'value': 100, 'unit': 'KG'},
+        )
+        WeeklyOverride.objects.create(
+            workout_exercise=ex, week_number=4, metric='load',
+            value_json={'value': 110, 'unit': 'KG'},
+        )
+        progression_engine.sync_week_definitions(plan)
+        cells = progression_engine.compute_weekly_values(plan)['computed'][ex.id]
+        self.assertEqual(float(cells[3]['load_value']), 100.0)     # eredita da S2
+        self.assertEqual(float(cells[4]['load_value']), 110.0)     # nuovo override
+        self.assertEqual(float(cells[5]['load_value']), 110.0)     # eredita da S4
+
+
 class ConflictDetectionTest(TestCase):
     def test_two_error_rules_same_metric_surface_conflict(self):
         plan, ex = _plan_with_exercise(weeks=4)

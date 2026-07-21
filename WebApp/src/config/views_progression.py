@@ -246,12 +246,15 @@ def api_progression_cell(request, plan_id):
             )
         # Recompute so the builder charts reflect the edit without a full save.
         result = progression_engine.compute_weekly_values(plan)
+        # Recompute the day grid inside the same request so the client can patch
+        # its in-memory grid from this single POST — no second GET round-trip.
+        grid = progression_engine.compute_day_grid(plan, ex.workout_day_id)
 
     computed = {
         str(ex_id): {str(w): _cell_to_json(cell) for w, cell in cells.items()}
         for ex_id, cells in result['computed'].items()
     }
-    return JsonResponse({'status': 'ok', 'computed': computed})
+    return JsonResponse({'status': 'ok', 'computed': computed, 'grid': grid})
 
 
 def api_progression_delete_cell(request, plan_id, exercise_id):
@@ -358,11 +361,12 @@ def api_progression_add_exercise(request, plan_id):
             workout_day=day,
             exercise=ex_def,
             order_index=last_order + 1,
-            set_count=body.get('set_count') or 3,
-            rep_range=body.get('rep_range') or '10',
+            # No default prescription — leave blank for the coach to fill.
+            set_count=body.get('set_count'),
+            rep_range=body.get('rep_range') or '',
             load_value=body.get('load_value'),
             load_unit=body.get('load_unit') or 'KG',
-            recovery_seconds=body.get('recovery_seconds') or 90,
+            recovery_seconds=body.get('recovery_seconds'),
             rpe=body.get('rpe'),
             rir=body.get('rir'),
             tempo=body.get('tempo') or '',

@@ -61,6 +61,23 @@ abstract class ExerciseDto with _$ExerciseDto {
         return '$n kg';
     }
   }
+
+  /// Single execution text. Prefer `instructionSteps`; fall back to splitting
+  /// the legacy `description` prose for any not-yet-migrated exercise.
+  List<String> get executionSteps {
+    final s = instructionSteps;
+    if (s != null && s.isNotEmpty) return s;
+    final d = description;
+    if (d == null || d.isEmpty) return const [];
+    final byLine =
+        d.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    if (byLine.length > 1) return byLine;
+    return d
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
 }
 
 /// Athlete-facing workout day. Coach counterpart: `CoachWorkoutDayDto`.

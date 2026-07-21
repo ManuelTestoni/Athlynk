@@ -1,0 +1,14 @@
+{% comment %}
+Athlete filter for the "per atleta" widgets. Changing it dispatches
+dash-set-config so the grid re-renders the widget body for the chosen athlete
+(see setConfig in dashboard_grid.js). Expects: athlete_options, selected_client_id.
+{% endcomment %}
+<label style="display:inline-flex; max-width: 200px;">
+    <span class="sr-only">Atleta</span>
+    <select class="al-select" style="padding: 4px 26px 4px 10px; font-size: 12px; height: auto;"
+            @change="$dispatch('dash-set-config', { el: $el.closest('.grid-stack-item'), patch: { client_id: parseInt($el.value, 10) } })">
+        {% for a in athlete_options %}
+        <option value="{{ a.id }}" {% if a.id == selected_client_id %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+    </select>
+</label>

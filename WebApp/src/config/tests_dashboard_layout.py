@@ -154,6 +154,63 @@ class LayoutCoreTests(TestCase):
         self.assertNotIn('recent_clients', client_types)
 
 
+class AthleteMonitorWidgetTests(TestCase):
+    """The new per-athlete monitor widgets: registry, config scoping, render."""
+
+    def setUp(self):
+        cache.clear()
+        self.coach_user, self.coach = _mk_coach()
+        self.client_user, self.client_profile = _mk_client(self.coach)
+        session = self.client.session
+        session['user_id'] = self.coach_user.id
+        session['user_role'] = 'COACH'
+        session.save()
+
+    def test_new_types_in_coach_catalog(self):
+        types = {c['type'] for c in dashboard_widgets.catalog_for(self.coach_user)}
+        self.assertTrue({'athlete_body', 'athlete_training',
+                         'athlete_nutrition'}.issubset(types))
+
+    def test_client_id_config_scoped(self):
+        other_coach_user, other_coach = _mk_coach('altro@example.com')
+        _, foreign = _mk_client(other_coach, 'estraneo@example.com')
+        saved = dashboard_widgets.validate_and_save_layout(self.coach_user, {
+            'version': 1,
+            'widgets': [{'id': 'ab', 'type': 'athlete_body', 'x': 0, 'y': 0,
+                         'size': 'M', 'config': {'client_id': self.client_profile.id}}],
+        })
+        self.assertEqual(saved['widgets'][0]['config']['client_id'],
+                         self.client_profile.id)
+        # A foreign athlete is stripped from the config.
+        saved = dashboard_widgets.validate_and_save_layout(self.coach_user, {
+            'version': 1,
+            'widgets': [{'id': 'ab', 'type': 'athlete_body', 'x': 0, 'y': 0,
+                         'size': 'M', 'config': {'client_id': foreign.id}}],
+        })
+        self.assertNotIn('client_id', saved['widgets'][0]['config'])
+
+    def test_widget_fragment_renders_with_size_and_config(self):
+        for wtype in ('athlete_body', 'athlete_training', 'athlete_nutrition'):
+            res = self.client.get(
+                f'/dashboard/widget/{wtype}?size=L'
+                f'&config={{"client_id":{self.client_profile.id}}}')
+            self.assertEqual(res.status_code, 200, wtype)
+            self.assertIn('html', res.json())
+
+    def test_unread_messages_has_large_size(self):
+        self.assertIn('L', dashboard_widgets.WIDGET_REGISTRY['unread_messages']['sizes'])
+
+    def test_reworked_widgets_render_each_size(self):
+        # business_kpis (L folds in churn+chart) and unread_messages (S/M/L)
+        # must render without template errors even with no analytics data.
+        for size in ('M', 'L'):
+            r = self.client.get(f'/dashboard/widget/business_kpis?size={size}')
+            self.assertEqual(r.status_code, 200, f'business_kpis {size}')
+        for size in ('S', 'M', 'L'):
+            r = self.client.get(f'/dashboard/widget/unread_messages?size={size}')
+            self.assertEqual(r.status_code, 200, f'unread_messages {size}')
+
+
 class MobileEndpointTests(TestCase):
     def setUp(self):
         cache.clear()

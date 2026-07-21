@@ -14,18 +14,32 @@ import '../../../design/theme.dart';
 /// Full exercise prescription — port of iOS `ExerciseDetailView`: media hero,
 /// stat grid, description, numbered instructions, equipment, coach note,
 /// self-loading trend chart.
-class ExerciseDetailView extends ConsumerWidget {
+class ExerciseDetailView extends StatelessWidget {
   const ExerciseDetailView({super.key, required this.exercise});
+
+  final ExerciseDto exercise;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(),
+      body: ExerciseDetailBody(exercise: exercise),
+    );
+  }
+}
+
+/// Reusable exercise content (no Scaffold) — used standalone and embedded in
+/// the day pager, one exercise per page.
+class ExerciseDetailBody extends ConsumerWidget {
+  const ExerciseDetailBody({super.key, required this.exercise});
 
   final ExerciseDto exercise;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ex = exercise;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(),
-      body: ScreenScroll(
+    return ScreenScroll(
         topPadding: 0,
         spacing: Space.element,
         children: [
@@ -57,56 +71,10 @@ class ExerciseDetailView extends ConsumerWidget {
                 ],
               ),
             ),
-          if ((ex.description ?? '').isNotEmpty)
-            VoltPanel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Eyebrow('Descrizione'),
-                  const SizedBox(height: 6),
-                  Text(ex.description!,
-                      style:
-                          Typo.body(14, FontWeight.w400, Palette.textMid)),
-                ],
-              ),
-            ),
-          if ((ex.instructionSteps ?? []).isNotEmpty)
-            VoltPanel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Eyebrow('Esecuzione'),
-                  const SizedBox(height: 10),
-                  for (final (i, step) in ex.instructionSteps!.indexed)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color:
-                                  Palette.magenta.withValues(alpha: 0.1),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text('${i + 1}',
-                                style: Typo.mono(
-                                    10, FontWeight.w700, Palette.magenta)),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(step,
-                                style: Typo.body(13.5, FontWeight.w400)),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          // Single execution text (instruction_steps only — description is
+          // deduplicated away). Collapsed to the first step by default.
+          if (ex.executionSteps.isNotEmpty)
+            ExecutionStepsPanel(steps: ex.executionSteps),
           if (ex.equipment.isNotEmpty)
             Wrap(
               spacing: 8,
@@ -132,7 +100,6 @@ class ExerciseDetailView extends ConsumerWidget {
                 ref.read(apiClientProvider).exerciseTrend(ex.id),
           ),
         ],
-      ),
     );
   }
 
@@ -173,6 +140,85 @@ class ExerciseDetailView extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Execution steps shown one-line-collapsed with a "Vedi esecuzione" toggle.
+class ExecutionStepsPanel extends StatefulWidget {
+  const ExecutionStepsPanel({super.key, required this.steps});
+
+  final List<String> steps;
+
+  @override
+  State<ExecutionStepsPanel> createState() => _ExecutionStepsPanelState();
+}
+
+class _ExecutionStepsPanelState extends State<ExecutionStepsPanel> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = widget.steps;
+    final visible = _expanded ? steps : steps.take(1).toList();
+    return VoltPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Eyebrow('Esecuzione'),
+          const SizedBox(height: 10),
+          for (final (i, step) in visible.indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Palette.magenta.withValues(alpha: 0.1),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('${i + 1}',
+                        style:
+                            Typo.mono(10, FontWeight.w700, Palette.magenta)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(step,
+                        maxLines: _expanded ? null : 1,
+                        overflow: _expanded ? null : TextOverflow.ellipsis,
+                        style: Typo.body(13.5, FontWeight.w400)),
+                  ),
+                ],
+              ),
+            ),
+          if (steps.length > 1)
+            GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_expanded ? 'Nascondi' : 'Vedi esecuzione',
+                        style:
+                            Typo.mono(11, FontWeight.w700, Palette.magenta)),
+                    const SizedBox(width: 4),
+                    Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: Palette.magenta),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

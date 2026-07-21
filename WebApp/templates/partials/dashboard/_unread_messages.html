@@ -1,4 +1,8 @@
-{% comment %}Widget compatto: conteggio messaggi non letti.{% endcomment %}
+{% comment %}
+Widget messaggi non letti. S = solo il conteggio; M = poche chat; L = elenco più
+lungo. Le righe portano alla conversazione.
+{% endcomment %}
+{% if widget_size == 'S' %}
 <a href="{% url 'chat_list' %}" class="al-card-body flex items-center gap-4 h-full">
     <i class="ph ph-chat-circle-text" style="font-size: 28px; color: var(--al-accent);"></i>
     <div>
@@ -6,3 +10,40 @@
         <div class="al-kpi-label">Messaggi non letti</div>
     </div>
 </a>
+{% else %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">Chat</p>
+        <h2 class="al-h-2 mt-1">Messaggi non letti · {{ unread_messages_count }}</h2>
+    </div>
+    <a href="{% url 'chat_list' %}" class="al-link al-link-bronze text-[12px]">
+        <span>Apri chat</span><i class="ph ph-arrow-right text-xs"></i>
+    </a>
+</div>
+<div class="al-card-body">
+    {% if unread_conversations %}
+    <ul class="space-y-3">
+        {% for c in unread_conversations %}
+        {% if widget_size == 'M' and forloop.counter > 3 %}{% else %}
+        <li class="flex items-center gap-3 pb-3 last:pb-0" style="border-bottom: 1px solid var(--al-rule-faint);">
+            <a href="{% url 'chat_list' %}" class="flex items-center gap-3 min-w-0 flex-1">
+                <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">{{ c.initials }}</div>
+                <div class="min-w-0">
+                    <p class="font-medium text-ink truncate">{{ c.name }}</p>
+                    <p class="al-small truncate">{{ c.snippet }}</p>
+                </div>
+            </a>
+            <span class="al-tag shrink-0">{{ c.count }}</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-check-circle al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Tutto letto</h3>
+        <p style="font-size: 12px;">Nessun messaggio in attesa di risposta.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

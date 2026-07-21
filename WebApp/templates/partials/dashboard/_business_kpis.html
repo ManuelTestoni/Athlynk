@@ -29,6 +29,39 @@
             <div class="al-kpi-label">Churn 30gg</div>
         </div>
     </div>
+    {% if widget_size == 'L' %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-5 pt-5" style="border-top: 1px solid var(--al-rule-faint);">
+        <div>
+            <p class="al-eyebrow mb-3">Rischio abbandono</p>
+            {% if churn_rows %}
+            <ul class="space-y-2">
+                {% for r in churn_rows %}
+                <li class="flex items-center justify-between gap-3">
+                    <a href="{% url 'clienti_detail' r.client.id %}" class="flex items-center gap-2 min-w-0">
+                        <div class="al-avatar al-avatar-sm al-avatar-sq" style="background: var(--al-aegean);">{{ r.client.first_name|slice:":1" }}{{ r.client.last_name|slice:":1" }}</div>
+                        <p class="font-medium text-ink truncate">{{ r.client.first_name }} {{ r.client.last_name }}</p>
+                    </a>
+                    <span class="al-tag shrink-0 {% if r.risk_class == 'high' %}text-danger{% endif %}">{{ r.risk_class|upper }} · {{ r.risk_score_rule_based }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="al-small" style="color: var(--al-ink-mute);">Nessun atleta a rischio oggi.</p>
+            {% endif %}
+        </div>
+        <div class="flex flex-col">
+            <p class="al-eyebrow mb-3">Atleti a rischio · ultimo mese</p>
+            {% if at_risk_chart_json %}
+            <div x-data="dashLineChart" class="flex-1 min-h-[120px]">
+                <script type="application/json" data-chart-data>{{ at_risk_chart_json|safe }}</script>
+                <canvas x-ref="canvas"></canvas>
+            </div>
+            {% else %}
+            <p class="al-small" style="color: var(--al-ink-mute);">Serve più storico per il grafico.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
     <p class="al-small mt-3">Aggiornato al {{ business_kpis.snapshot_date|date:"d M Y" }}</p>
     {% else %}
     <div class="al-empty" style="padding: var(--al-s-6) 0;">

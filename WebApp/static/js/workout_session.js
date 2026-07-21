@@ -185,11 +185,12 @@ function sessionRunner() {
         exercise_id: item.id,
         exercise_catalog_id: item.id,
         name: item.name,
-        sets: 3,
-        reps: '10',
+        // No default prescription for an added-in-session exercise.
+        sets: null,
+        reps: '',
         load_value: null,
         load_unit: 'KG',
-        recovery_seconds: 90,
+        recovery_seconds: null,
         notes: '',
         set_details: [],
         wger_image_url: item.wger_image_url || '',
@@ -354,7 +355,7 @@ function sessionRunner() {
 
     // ---- Sets ----
     totalSetsFor(ex) {
-      return ex.sets + (this.extraSets[ex.id] || 0);
+      return (ex.sets || 0) + (this.extraSets[ex.id] || 0);
     },
 
     setValue(exId, setN, field, ex) {

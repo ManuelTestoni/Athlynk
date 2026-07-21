@@ -16,6 +16,7 @@ import '../../../design/components/scaffold.dart';
 import '../../../design/components/sheets.dart';
 import '../../../design/components/skeleton.dart';
 import '../../../design/theme.dart';
+import 'coach_athlete_monitor_widgets.dart';
 import '../agenda/coach_agenda_view.dart';
 import '../analytics/coach_analytics_view.dart';
 import '../clients/coach_clients_view.dart';
@@ -301,6 +302,12 @@ class _CoachDashboardViewState extends ConsumerState<CoachDashboardView> {
     );
   }
 
+  /// Initial athlete for a per-athlete widget: the first pinned client, if any.
+  int? _pinnedFirst(DashboardWidgetDto w) {
+    final ids = w.config?.clientIds;
+    return (ids != null && ids.isNotEmpty) ? ids.first : null;
+  }
+
   Widget? _widgetFor(DashboardWidgetDto w, CoachDashboardDto dash) {
     switch (w.type) {
       case 'quick_actions':
@@ -384,6 +391,12 @@ class _CoachDashboardViewState extends ConsumerState<CoachDashboardView> {
         );
       case 'insight':
         return _insightWidget(dash);
+      case 'athlete_body':
+        return CoachAthleteBodyWidget(initialClientId: _pinnedFirst(w));
+      case 'athlete_training':
+        return CoachAthleteTrainingWidget(initialClientId: _pinnedFirst(w));
+      case 'athlete_nutrition':
+        return CoachAthleteNutritionWidget(initialClientId: _pinnedFirst(w));
       default:
         return null;
     }

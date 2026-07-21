@@ -627,6 +627,21 @@ def compute_for_exercise(
                 except (TypeError, ValueError):
                     pass
 
+    # Override raggruppati per metrica e ordinati per settimana: servono al
+    # forward-fill (un override a settimana W vale anche per le settimane
+    # successive finché non ne arriva uno nuovo), stessa semantica della
+    # griglia in compute_day_grid.
+    starts_at = getattr(ex, 'starts_at_week', None) or 1
+    overrides_by_metric: dict[str, list] = {}
+    for ov in overrides:
+        try:
+            wn = int(_attr(ov, 'week_number'))
+        except (TypeError, ValueError):
+            continue
+        overrides_by_metric.setdefault(_attr(ov, 'metric'), []).append((wn, ov))
+    for _lst in overrides_by_metric.values():
+        _lst.sort(key=lambda t: t[0])
+
     out: dict[int, dict] = {}
     for week in weeks:
         cell = dict(base)
@@ -657,10 +672,17 @@ def compute_for_exercise(
             if cell.get('set_count'):
                 cell['set_count'] = _clamp('sets', max(1, int(cell['set_count'] * 0.5)))
 
-        for ov in overrides:
-            if int(_attr(ov, 'week_number')) != week:
+        for metric, lst in overrides_by_metric.items():
+            # Override effettivo = il più recente con starts_at <= week_number <= week.
+            chosen = None
+            for wn, ov in lst:
+                if wn > week:
+                    break
+                if wn >= starts_at:
+                    chosen = (wn, ov)
+            if chosen is None:
                 continue
-            metric = _attr(ov, 'metric')
+            wn, ov = chosen
             value_json = _attr(ov, 'value_json') or {}
             value = value_json.get('value') if isinstance(value_json, dict) else value_json
             key = _key_for_metric(metric)
@@ -681,7 +703,10 @@ def compute_for_exercise(
                 cell['velocity_target'] = _to_decimal(value)
             else:
                 cell[key] = value
-            cell['is_override'] = True
+            # Flag solo sulla settimana esatta dell'override; le settimane
+            # ereditate portano il valore ma non il flag.
+            if wn == week:
+                cell['is_override'] = True
 
         out[week] = cell
     return out

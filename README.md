@@ -1,14 +1,26 @@
 # TrainElite → Athlynk
 
-Full-stack fitness coaching platform. Repo hold web app, marketing site, iOS apps, docs.
+Athlynk is a coaching platform that connects athletes with their coaches. Everything —
+the web console, the iOS apps, and the Android apps — runs on one shared brain: a Django
+backend that speaks JSON. Build a feature once on the server and it shows up, consistent,
+on every surface.
 
-## Structure
+The three surfaces share one visual language too: a deep blue (`#1E3A5F`) with an azure
+accent (`#5B89B6`) and a touch of gold (`#FFE066`), Bodoni Moda for headings and Inter for
+text. The same palette lives in `WebApp/static/css/athlynk.css`, the iOS theme, and the
+Flutter theme, so the apps look like siblings without extra effort.
 
-- `WebApp/` — Django app (coach + athlete web dashboard). Nutrition, workouts, progression tracking, check-ins, Chiron AI assistant, Stripe billing.
-- `Website/` — marketing site (static, `athlynk.com`).
-- `iOS/Athlynk/` — SwiftUI apps: athlete app + Coach app (2nd target, shared Xcode project).
-- `docs/` — pointer to the codebase documentation site, which now lives at `Website/docs/` (published at athlynk.it/docs/).
-- `graphify-out/` — generated knowledge graph of codebase.
+## What's in the repo
+
+- `WebApp/` — the Django backend and the web console for coaches and athletes: workouts,
+  nutrition, progression tracking, check-ins, the Chiron AI assistant, and billing. This is
+  also the single source of truth for the customizable dashboard the apps render.
+- `Website/` — the marketing site, plus the code documentation at `Website/docs/`
+  (published at athlynk.it/docs/).
+- `iOS/Athlynk/` — the native SwiftUI apps (athlete + coach) in one Xcode project.
+- `android/` — the Flutter apps (athlete + coach), one codebase with two entry points,
+  mirroring the iOS apps.
+- `graphify-out/` — a generated knowledge graph of the codebase.
 
 ## Stack
 

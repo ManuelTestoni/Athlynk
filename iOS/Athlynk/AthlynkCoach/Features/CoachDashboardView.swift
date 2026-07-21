@@ -225,6 +225,12 @@ struct CoachDashboardView: View {
                        icon: "chart.xyaxis.line", accent: Palette.lime) { sheetRoute = .analytics }
         case "checks_volume_chart":
             insightCard(data.insight)
+        case "athlete_body":
+            CoachAthleteBodyWidget(config: widget.config, size: widget.size)
+        case "athlete_training":
+            CoachAthleteTrainingWidget(config: widget.config, size: widget.size)
+        case "athlete_nutrition":
+            CoachAthleteNutritionWidget(config: widget.config, size: widget.size)
         default:
             EmptyView()
         }

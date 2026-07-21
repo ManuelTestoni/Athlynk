@@ -122,13 +122,18 @@
         }
       },
 
-      // ---- add / remove / resize ----
-      async addWidget(type) {
+      // ---- add / remove / resize / reorder ----
+      // `config` lets callers (e.g. pinned-athletes auto-spawn) pre-scope the
+      // new widget. The palette stays OPEN so several widgets can be added in a
+      // row — each add autosaves via the grid `added` handler.
+      async addWidget(type, config) {
         if (this.isPlaced(type)) return;
         const entry = this.catalogEntry(type);
         if (!entry) return;
         try {
-          const r = await fetch(`/dashboard/widget/${type}`, { credentials: 'same-origin' });
+          const cfg = config || {};
+          const qs = new URLSearchParams({ config: JSON.stringify(cfg) });
+          const r = await fetch(`/dashboard/widget/${type}?${qs}`, { credentials: 'same-origin' });
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const data = await r.json();
 
@@ -137,7 +142,7 @@
           el.dataset.widgetType = type;
           el.dataset.widgetSize = data.size;
           el.dataset.widgetSizes = (data.sizes || []).join(',');
-          el.dataset.widgetConfig = '{}';
+          el.dataset.widgetConfig = JSON.stringify(cfg);
           el.setAttribute('gs-id', data.id);
           el.setAttribute('gs-w', data.w);
           el.setAttribute('gs-h', data.h);
@@ -148,7 +153,7 @@
           this._grid.makeWidget(el);
           Alpine.initTree(el);
           this.syncPlaced();
-          this.paletteOpen = false;
+          // Keep paletteOpen — user may add more.
         } catch (e) {
           window.toastError('Impossibile aggiungere il widget.');
         }
@@ -160,13 +165,61 @@
         this.syncPlaced();
       },
 
-      setSize(el, size) {
+      // Re-render a widget's body from the server for its current size+config.
+      // Shared by setSize (density changes) and setConfig/savePins (data changes).
+      async refreshWidgetBody(el) {
+        if (!el) return;
+        const type = el.dataset.widgetType;
+        const qs = new URLSearchParams({
+          size: el.dataset.widgetSize || 'M',
+          config: el.dataset.widgetConfig || '{}',
+        });
+        try {
+          const r = await fetch(`/dashboard/widget/${type}?${qs}`, { credentials: 'same-origin' });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const data = await r.json();
+          const content = el.querySelector('.grid-stack-item-content');
+          if (content) {
+            content.outerHTML = data.html;
+            Alpine.initTree(el);
+          }
+        } catch (e) {
+          window.toastError('Anteprima non aggiornata. Ricarica la pagina.');
+        }
+      },
+
+      async setSize(el, size) {
         if (!el) return;
         const entry = this.catalogEntry(el.dataset.widgetType);
         const dims = entry && entry.sizes && entry.sizes[size];
         if (!dims) return;
-        el.dataset.widgetSize = size;
+        // Apply through the engine and let float:false push neighbours out of
+        // the way; compact() then closes any gap the resize opened. Only after
+        // the visual change succeeds do we commit the size + save — otherwise a
+        // blocked resize would persist a size the grid never rendered (the old
+        // "changes only after reload" bug).
         this._grid.update(el, { w: dims[0], h: dims[1] });
+        this._grid.compact();
+        el.dataset.widgetSize = size;
+        this.scheduleSave();
+        // Larger/smaller widgets show more/less data — re-render the body.
+        await this.refreshWidgetBody(el);
+      },
+
+      // Merge a config patch (e.g. selected athlete/exercise) and re-render.
+      async setConfig(el, patch) {
+        if (!el || !patch) return;
+        let config = {};
+        try { config = JSON.parse(el.dataset.widgetConfig || '{}'); } catch (e) { /* keep {} */ }
+        Object.assign(config, patch);
+        el.dataset.widgetConfig = JSON.stringify(config);
+        this.scheduleSave();
+        await this.refreshWidgetBody(el);
+      },
+
+      // "Riordina": pack every widget upward, removing holes and odd gaps.
+      reorder() {
+        this._grid.compact();
         this.scheduleSave();
       },
 
@@ -215,26 +268,22 @@
       async savePins() {
         const el = this.pinPicker.el;
         if (!el) return;
-        const config = { client_ids: [...this.pinPicker.selected] };
+        const selected = [...this.pinPicker.selected];
+        const config = { client_ids: selected };
         el.dataset.widgetConfig = JSON.stringify(config);
         this.pinPicker.open = false;
         this.scheduleSave();
-        // Re-render the widget body with the new selection.
-        try {
-          const qs = new URLSearchParams({
-            size: el.dataset.widgetSize || 'M',
-            config: JSON.stringify(config),
-          });
-          const r = await fetch(`/dashboard/widget/pinned_athletes?${qs}`, { credentials: 'same-origin' });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          const data = await r.json();
-          const content = el.querySelector('.grid-stack-item-content');
-          if (content) {
-            content.outerHTML = data.html;
-            Alpine.initTree(el);
+        await this.refreshWidgetBody(el);
+        // Putting athletes "in evidenza" generates the per-athlete monitor
+        // widgets (body / training / nutrition), pre-scoped to the first
+        // pinned athlete. They carry their own dropdown to switch athlete.
+        if (selected.length) {
+          const monitors = ['athlete_body', 'athlete_training', 'athlete_nutrition'];
+          for (const type of monitors) {
+            if (!this.isPlaced(type)) {
+              await this.addWidget(type, { client_id: selected[0] });
+            }
           }
-        } catch (e) {
-          window.toastError('Anteprima non aggiornata. Ricarica la pagina.');
         }
       },
     }));

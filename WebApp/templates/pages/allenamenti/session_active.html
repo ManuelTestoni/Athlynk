@@ -775,13 +775,20 @@
            :src="instructionsModal.ex?.demo_gif || instructionsModal.ex?.cover_image || instructionsModal.ex?.wger_image_url" alt=""
            class="w-full rounded-xl mb-3" style="max-height: 220px; object-fit: cover;">
       <p class="text-sm mb-3" style="color: var(--al-ink-mute);" x-text="instructionsModal.ex?.notes || 'Nessuna nota dal coach.'"></p>
-      <p x-show="instructionsModal.ex?.description" class="text-sm mb-3" x-text="instructionsModal.ex?.description"></p>
+      <!-- Single execution text (instruction_steps). First step shown; the rest
+           reveal on "Vedi esecuzione". Description is deduplicated away. -->
       <template x-if="(instructionsModal.ex?.instruction_steps || []).length">
-        <ol class="text-sm" style="padding-left: 1.1rem; display:flex; flex-direction:column; gap: .35rem;">
-          <template x-for="(step, i) in instructionsModal.ex.instruction_steps" :key="i">
-            <li x-text="step"></li>
-          </template>
-        </ol>
+        <div x-data="{ stepsExpanded: false }">
+          <ol class="text-sm" style="padding-left: 1.1rem; display:flex; flex-direction:column; gap: .35rem;">
+            <template x-for="(step, i) in instructionsModal.ex.instruction_steps" :key="i">
+              <li x-show="stepsExpanded || i === 0" x-text="step"></li>
+            </template>
+          </ol>
+          <button type="button" class="al-link-btn mt-2"
+                  x-show="(instructionsModal.ex?.instruction_steps || []).length > 1"
+                  @click="stepsExpanded = !stepsExpanded"
+                  x-text="stepsExpanded ? 'Nascondi' : 'Vedi esecuzione'"></button>
+        </div>
       </template>
     </div>
   </div>

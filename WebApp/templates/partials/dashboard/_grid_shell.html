@@ -7,6 +7,7 @@ static/js/dashboard_grid.js (see the dashboard templates' extra_head/extra_js).
 <div x-data="dashGrid"
      @dash-remove="removeWidget($event.detail.el)"
      @dash-set-size="setSize($event.detail.el, $event.detail.size)"
+     @dash-set-config="setConfig($event.detail.el, $event.detail.patch)"
      @dash-configure-pins="openPinPicker($event.detail.el)"
      class="dash-grid-root">
 
@@ -32,6 +33,11 @@ static/js/dashboard_grid.js (see the dashboard templates' extra_head/extra_js).
                     <button type="button" class="al-btn al-btn-sm al-btn-bronze" @click="paletteOpen = !paletteOpen">
                         <i class="ph ph-plus"></i>
                         <span>Aggiungi widget</span>
+                    </button>
+                    <button type="button" class="al-btn al-btn-sm" @click="reorder()"
+                            title="Incastra i widget senza spazi vuoti">
+                        <i class="ph ph-squares-four"></i>
+                        <span>Riordina</span>
                     </button>
                     <button type="button" class="al-btn al-btn-sm" @click="resetDefault()">
                         <i class="ph ph-arrow-counter-clockwise"></i>

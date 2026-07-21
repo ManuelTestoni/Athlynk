@@ -2041,11 +2041,12 @@ def session_start(request, user):
         'exercise_catalog_id': ex.exercise_id,
         'name': ex.exercise.name,
         'primary_muscles': [m.name for m in ex.exercise.primary_muscles.all()],
-        'sets': ex.set_count or 3,
-        'reps': ex.rep_range or (str(ex.rep_count) if ex.rep_count else '10'),
+        # No fabricated defaults — pass the prescription through as-is (blank stays blank).
+        'sets': ex.set_count,
+        'reps': ex.rep_range or (str(ex.rep_count) if ex.rep_count else ''),
         'load_value': float(ex.load_value) if ex.load_value else None,
         'load_unit': ex.load_unit or 'KG',
-        'recovery_seconds': ex.recovery_seconds or 90,
+        'recovery_seconds': ex.recovery_seconds,
         'tempo': ex.tempo or '',
         'notes': ex.technique_notes or '',
         'set_details': ex.set_details or [],
@@ -2071,11 +2072,12 @@ def session_start(request, user):
             'exercise_id': ex_obj.id,
             'name': ex_obj.name,
             'primary_muscles': [m.name for m in ex_obj.primary_muscles.all()],
-            'sets': 3,
-            'reps': '10',
+            # Added-in-session exercise: no default prescription.
+            'sets': None,
+            'reps': '',
             'load_value': None,
             'load_unit': 'KG',
-            'recovery_seconds': 90,
+            'recovery_seconds': None,
             'tempo': '',
             'notes': '',
             'set_details': [],
@@ -2167,6 +2169,28 @@ def session_finish(request, user, session_id):
         return JsonResponse({'error': 'Sessione non trovata'}, status=404)
     data = _body(request)
     interrupted = bool(data.get('interrupted', False))
+
+    # Per-exercise athlete notes: volatile per-session feedback, stored as
+    # sentinel WorkoutSetLog rows (set_number=0) — same shape as the web client.
+    # These are NOT pre-filled next session; they surface only in the storico.
+    for entry in (data.get('exercise_notes') or []):
+        try:
+            we_id = int(entry.get('workout_exercise_id'))
+        except (TypeError, ValueError):
+            continue
+        text = (entry.get('notes') or '').strip()
+        if not text:
+            continue
+        if not WorkoutExercise.objects.filter(id=we_id, workout_day=session.workout_day).exists():
+            continue
+        WorkoutSetLog.objects.update_or_create(
+            session=session, workout_exercise_id=we_id, set_number=0,
+            defaults={
+                'notes': text, 'completed': False, 'is_extra_set': False,
+                'reps_done': None, 'load_used': None, 'rpe': None,
+            },
+        )
+
     session.notes = data.get('notes') or ''
     session.ended_at = timezone.now()
     session.completed = not interrupted

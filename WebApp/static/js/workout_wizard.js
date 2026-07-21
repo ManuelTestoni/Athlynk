@@ -322,7 +322,10 @@ document.addEventListener('alpine:init', () => {
     stepName(s) { return ({1:'Informazioni', 2:'Builder', 3:'Progressione', 4:'Riepilogo & Assegna'})[s]; },
 
     hasProgressionStep() {
-      return (this.plan?.duration_weeks || 0) > 1;
+      // Solo le schede a programma hanno progressione multi-settimana. Le
+      // schede settimanali (rotazione 1 settimana) saltano lo step, a
+      // prescindere da eventuali duration_weeks residui.
+      return this.plan?.plan_kind === 'PROGRAM';
     },
     visibleSteps() {
       return this.hasProgressionStep() ? [1,2,3,4] : [1,2,4];
@@ -744,11 +747,52 @@ document.addEventListener('alpine:init', () => {
           this._showToast(d.error || 'Errore aggiunta', 'error');
           return;
         }
+        const d = await r.json().catch(() => ({}));
+        // Parity: an exercise added to progression at week 1 is part of the base
+        // week, so mirror it into the builder's Step-2 in-memory day too (the
+        // server already created a single shared WorkoutExercise row).
+        if (this.library.progressionWeek === 1 && d.workout_exercise) {
+          this._mirrorProgAddToBuilder(day, ex, d.workout_exercise);
+        }
         this.closeLibraryPanel();
         await this.loadProgGrid();
       } catch (_) {
         this._showToast('Errore di rete', 'error');
       }
+    },
+
+    /* Insert the newly-created (progression) exercise into the builder Step-2
+       day list so it shows up there without a wizard reload. Blank prescription
+       to match the no-default policy. */
+    _mirrorProgAddToBuilder(day, libEx, we) {
+      if (!day || !Array.isArray(day.exercises)) return;
+      if (day.exercises.some(e => e.pk === we.id)) return;
+      day.exercises.push({
+        local_id: `srv-ex-${we.id}`,
+        pk: we.id,
+        exercise_id: we.exercise_id ?? libEx.id,
+        exercise_name: we.name || libEx.name,
+        primary_muscles_data: libEx.primary_muscles || [],
+        secondary_muscles_data: libEx.secondary_muscles || [],
+        equipment: libEx.equipment || [],
+        sets: null,
+        reps: '',
+        load_value: null,
+        load_unit: 'KG',
+        recovery_seconds: null,
+        notes: '',
+        coach_notes: '',
+        execution_type: 'REPETITION',
+        rpe: null,
+        rir: null,
+        tempo: '',
+        superset_group_id: null,
+        set_details: [],
+        _showAdvanced: false,
+        _showNote: false,
+        _rpe_rir_type: this._establishedIntensityMetric(null) || 'RPE',
+      });
+      this.$nextTick(() => this.bindSortable());
     },
 
     // ---- Add / remove exercises ----
@@ -767,11 +811,12 @@ document.addEventListener('alpine:init', () => {
         primary_muscles_data: libEx.primary_muscles || [],
         secondary_muscles_data: libEx.secondary_muscles || [],
         equipment: libEx.equipment || [],
-        sets: 3,
-        reps: '10',
+        // No default prescription — coach fills these in (blank, not 3×10/90s).
+        sets: null,
+        reps: '',
         load_value: null,
         load_unit: 'KG',
-        recovery_seconds: 90,
+        recovery_seconds: null,
         notes: '',
         coach_notes: '',
         execution_type: 'REPETITION',
@@ -2378,11 +2423,10 @@ document.addEventListener('alpine:init', () => {
       return (r !== null && r !== undefined && r !== '') ? 'rir' : 'rpe';
     },
 
-    // 6 progression fields. Serie/Reps/Rec are `required`: the builder always
-    // gives them a default (3 / '10' / 90s), so they're never really empty —
-    // always render as real inputs. Carico/RPE-or-RIR/TUT are genuinely empty
-    // until a coach sets them; render as a ghost "+" until active (see
-    // isCellFieldActive) or armed (see armCellField).
+    // 6 progression fields. Serie/Reps/Rec are `required`: always rendered as
+    // real (possibly empty) inputs so the coach can fill them — no auto default.
+    // Carico/RPE-or-RIR/TUT are optional; render as a ghost "+" until active
+    // (see isCellFieldActive) or armed (see armCellField).
     cellFields(ex) {
       const rr = this.rpeRirMetricFor(ex);
       return [
@@ -2618,6 +2662,8 @@ document.addEventListener('alpine:init', () => {
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
           this._showToast(d.error || 'Errore aggiornamento', 'error');
+          // Reconcile to server truth only on failure.
+          await this.loadProgGrid();
         } else {
           const d = await r.json().catch(() => ({}));
           if (d.computed) {
@@ -2625,12 +2671,33 @@ document.addEventListener('alpine:init', () => {
             this._computeProgVolume();
             this._refreshProgChart();
           }
+          // Optimistic: patch this exercise's cells from the POST response
+          // (single round-trip, no forced grid refetch → instant update).
+          if (d.grid) this._applyProgGridPatch(ex.pk, d.grid);
           if (week === 1) this._syncBaseFieldToBuilder(ex.pk, metric, payloadValue);
         }
       } catch (_) {
         this._showToast('Errore di rete', 'error');
+        await this.loadProgGrid();
       }
-      await this.loadProgGrid();
+    },
+
+    /* Patch only the edited exercise's cells + meta from a returned day grid,
+       avoiding a wholesale replace of progGrid.cells (which would re-render the
+       entire x-for). A single (exercise, week, metric) override only affects
+       that one exercise's weeks, so scoping the patch is correct. */
+    _applyProgGridPatch(exPk, grid) {
+      if (!grid) return;
+      const key = String(exPk);
+      const cells = grid.cells || {};
+      if (cells[key] !== undefined) {
+        this.progGrid.cells = { ...this.progGrid.cells, [exPk]: cells[key] };
+      }
+      const meta = (grid.exercises || []).find(e => String(e.id) === key);
+      if (meta) {
+        this.progGrid.exercises = (this.progGrid.exercises || [])
+          .map(e => (String(e.id) === key ? meta : e));
+      }
     },
 
     /* ---- Per-set differentiation inside the progression grid ----
@@ -2684,13 +2751,21 @@ document.addEventListener('alpine:init', () => {
         if (!r.ok) {
           const d = await r.json().catch(() => ({}));
           this._showToast(d.error || 'Errore aggiornamento serie', 'error');
-        } else if (week === 1) {
-          this._syncBaseFieldToBuilder(ex.pk, 'set_details', rows);
+          await this.loadProgGrid();
+        } else {
+          const d = await r.json().catch(() => ({}));
+          if (d.computed) {
+            this.progression.computed = d.computed;
+            this._computeProgVolume();
+            this._refreshProgChart();
+          }
+          if (d.grid) this._applyProgGridPatch(ex.pk, d.grid);
+          if (week === 1) this._syncBaseFieldToBuilder(ex.pk, 'set_details', rows);
         }
       } catch (_) {
         this._showToast('Errore di rete', 'error');
+        await this.loadProgGrid();
       }
-      await this.loadProgGrid();
     },
 
     /* ---- Delete cell (per-week or forward) ---- */

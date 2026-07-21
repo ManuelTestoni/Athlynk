@@ -1,0 +1,58 @@
+{% comment %}Widget coach "per atleta": piano nutrizionale + resoconto macro.{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">In evidenza</p>
+        <h2 class="al-h-2 mt-1">Nutrizione atleta</h2>
+    </div>
+    {% if athlete_options %}{% include 'partials/dashboard/_athlete_select.html' %}{% endif %}
+</div>
+<div class="al-card-body h-full flex flex-col">
+    {% if not selected_client %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-fork-knife al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun atleta attivo</h3>
+        <p style="font-size: 12px;">Attiva un atleta per vederne il piano alimentare.</p>
+    </div>
+    {% elif not nutrition_plan %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-fork-knife al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun piano attivo</h3>
+        <p style="font-size: 12px;">Questo atleta non ha un piano nutrizionale in corso.</p>
+    </div>
+    {% else %}
+    <div class="flex items-center justify-between gap-3">
+        <p class="font-medium text-ink truncate">{{ nutrition_plan.title }}</p>
+        <span class="al-tag shrink-0">{% if nutrition_mode == 'MACRO' %}Macro{% else %}Alimenti{% endif %}</span>
+    </div>
+    <div class="grid grid-cols-4 gap-3 mt-3">
+        <div><div class="al-kpi-num" style="font-size: 20px;">{{ nutrition_targets.kcal|default:"—" }}</div><div class="al-kpi-label">kcal</div></div>
+        <div><div class="al-kpi-num" style="font-size: 20px;">{{ nutrition_targets.protein|default:"—" }}</div><div class="al-kpi-label">Prot</div></div>
+        <div><div class="al-kpi-num" style="font-size: 20px;">{{ nutrition_targets.carbs|default:"—" }}</div><div class="al-kpi-label">Carb</div></div>
+        <div><div class="al-kpi-num" style="font-size: 20px;">{{ nutrition_targets.fat|default:"—" }}</div><div class="al-kpi-label">Gras</div></div>
+    </div>
+
+    {% if nutrition_mode == 'MACRO' %}
+        {% if macro_chart_json %}
+        <p class="al-eyebrow mt-4 mb-2">kcal registrate · ultimi giorni</p>
+        <div x-data="dashBarChart" class="flex-1 min-h-[110px]">
+            <script type="application/json" data-chart-data>{{ macro_chart_json|safe }}</script>
+            <canvas x-ref="canvas"></canvas>
+        </div>
+        {% if widget_size == 'L' and macro_days %}
+        <ul class="space-y-2 mt-3 pt-3" style="border-top: 1px solid var(--al-rule-faint);">
+            {% for d in macro_days %}
+            <li class="flex items-center justify-between al-small">
+                <span style="color: var(--al-ink-mute);">{{ d.date }}</span>
+                <span class="font-medium text-ink">{{ d.kcal }} kcal · {{ d.protein }}g prot</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <p class="al-body mt-4" style="color: var(--al-ink-mute);">Nessun pasto registrato dall'atleta negli ultimi giorni.</p>
+        {% endif %}
+    {% else %}
+    <p class="al-body mt-4" style="color: var(--al-ink-mute);">Piano a base di alimenti: consulta il dettaglio per i pasti giornalieri.</p>
+    {% endif %}
+    {% endif %}
+</div>

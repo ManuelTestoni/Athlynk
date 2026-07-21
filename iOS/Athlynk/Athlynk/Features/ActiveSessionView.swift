@@ -48,6 +48,10 @@ final class ActiveSessionVM: ObservableObject {
     @Published var substitutions: [String: SubstituteExerciseDTO] = [:] // ex key → substitute
     @Published var removedIds: Set<String> = []
 
+    // Athlete's own per-exercise note — volatile, per-session feedback keyed by
+    // workout_exercise id. Not pre-filled next session; visible only in storico.
+    @Published var exerciseNotes: [Int: String] = [:]
+
     init(assignmentId: Int, day: WorkoutDayDTO) {
         self.assignmentId = assignmentId
         self.day = day
@@ -235,7 +239,8 @@ final class ActiveSessionVM: ObservableObject {
         RestTimerManager.shared.cancel()
         finishing = true
         do {
-            try await APIClient.shared.finishSession(sessionId: sid, notes: "", interrupted: interrupted)
+            try await APIClient.shared.finishSession(sessionId: sid, notes: "", interrupted: interrupted,
+                                                     exerciseNotes: exerciseNotes)
             Haptics.success()
             finished = true
         } catch {
@@ -470,6 +475,23 @@ struct ActiveSessionView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Palette.magenta.opacity(0.08)))
+            }
+
+            // Athlete's own note — volatile per-session feedback (saved on finish,
+            // visible later in the storico; not pre-filled next time).
+            if let weId = ex.workoutExerciseId {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("LE MIE NOTE").font(Typo.mono(8, .bold)).tracking(1)
+                        .foregroundStyle(Palette.textLow)
+                    TextField("Aggiungi una nota…", text: Binding(
+                        get: { vm.exerciseNotes[weId] ?? "" },
+                        set: { vm.exerciseNotes[weId] = $0 }
+                    ), axis: .vertical)
+                    .font(Typo.body(13)).foregroundStyle(Palette.textHi)
+                    .lineLimit(1...4)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Palette.void2))
+                }
             }
 
             HStack(spacing: 8) {

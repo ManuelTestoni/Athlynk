@@ -65,17 +65,20 @@ Teleported to <body> so position:fixed anchors to the viewport.
             </template>
           </div>
 
-          <p class="al-small mt-3" x-show="ex.description"
-             x-text="ex.description" style="color: var(--al-ink-mute);"></p>
-
+          <!-- Single execution text (instruction_steps). First step shown; the
+               rest reveal on "Vedi esecuzione". Description is deduplicated away. -->
           <template x-if="(ex.instruction_steps || []).length">
-            <div class="mt-4">
+            <div class="mt-4" x-data="{ stepsExpanded: false }">
               <p class="al-eyebrow mb-2">Esecuzione</p>
               <ol class="wbp-detail-steps">
                 <template x-for="(step, i) in ex.instruction_steps" :key="i">
-                  <li x-text="step"></li>
+                  <li x-show="stepsExpanded || i === 0" x-text="step"></li>
                 </template>
               </ol>
+              <button type="button" class="al-link-btn mt-1"
+                      x-show="(ex.instruction_steps || []).length > 1"
+                      @click="stepsExpanded = !stepsExpanded"
+                      x-text="stepsExpanded ? 'Nascondi' : 'Vedi esecuzione'"></button>
             </div>
           </template>
         </div>

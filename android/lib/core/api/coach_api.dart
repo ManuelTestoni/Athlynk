@@ -131,6 +131,21 @@ extension CoachApi on ApiClient {
           '/api/v1/coach/clients/$clientId/exercises/$workoutExerciseId/trend',
           ExerciseTrendDto.fromJson);
 
+  /// Raw loads series ({series:[{date, load_max}], progress_4w}) for the
+  /// athlete_training dashboard widget. Dual-auth web endpoint (same data as
+  /// the web widget).
+  Future<Map<String, dynamic>> coachClientLoads(int id) async {
+    final raw = await requestAny('/api/coach/clienti/$id/progressi/carichi/');
+    return (raw as Map).cast<String, dynamic>();
+  }
+
+  /// Raw weekly volume ({weeks, muscles, series:{muscle:[...]}}) per muscle
+  /// group for the athlete_training widget.
+  Future<Map<String, dynamic>> coachClientVolume(int id) async {
+    final raw = await requestAny('/api/coach/clienti/$id/progressi/volume/');
+    return (raw as Map).cast<String, dynamic>();
+  }
+
   // ── Checks ──
 
   Future<CoachChecksResponse> coachChecks(

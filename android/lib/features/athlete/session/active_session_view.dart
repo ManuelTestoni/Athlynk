@@ -71,6 +71,14 @@ class _ActiveSessionViewState extends ConsumerState<ActiveSessionView> {
   final Map<int, int> _substituted = {};
   final List<int> _added = [];
 
+  // Athlete's own per-exercise note — volatile per-session feedback keyed by
+  // workout_exercise id. Not pre-filled next session; visible only in storico.
+  final Map<int, String> _exerciseNotes = {};
+  final Map<int, TextEditingController> _noteControllers = {};
+
+  TextEditingController _noteController(int weId) =>
+      _noteControllers.putIfAbsent(weId, TextEditingController.new);
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +90,9 @@ class _ActiveSessionViewState extends ConsumerState<ActiveSessionView> {
   void dispose() {
     for (final e in _entries.values) {
       e.dispose();
+    }
+    for (final c in _noteControllers.values) {
+      c.dispose();
     }
     ref.read(sessionControllerProvider.notifier).setTabBarHidden(false);
     super.dispose();
@@ -351,9 +362,8 @@ class _ActiveSessionViewState extends ConsumerState<ActiveSessionView> {
     setState(() => _finishing = true);
     ref.read(restTimerProvider.notifier).cancel();
     try {
-      await ref
-          .read(apiClientProvider)
-          .finishSession(sessionId, interrupted: interrupted);
+      await ref.read(apiClientProvider).finishSession(sessionId,
+          interrupted: interrupted, exerciseNotes: _exerciseNotes);
       Haptics.success();
       if (!mounted) return;
       if (interrupted) {
@@ -659,6 +669,32 @@ class _ActiveSessionViewState extends ConsumerState<ActiveSessionView> {
                   style: Typo.mono(10, FontWeight.w700, Palette.textMid)),
             ],
           ),
+          if (ex.workoutExerciseId != null) ...[
+            const SizedBox(height: 10),
+            Text('LE MIE NOTE',
+                style: Typo.mono(8, FontWeight.w700, Palette.textLow)
+                    .copyWith(letterSpacing: 1)),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _noteController(ex.workoutExerciseId!),
+              minLines: 1,
+              maxLines: 4,
+              style: Typo.body(13, FontWeight.w500),
+              onChanged: (v) => _exerciseNotes[ex.workoutExerciseId!] = v,
+              decoration: InputDecoration(
+                hintText: 'Aggiungi una nota…',
+                hintStyle: Typo.body(13, FontWeight.w400, Palette.textLow),
+                isDense: true,
+                filled: true,
+                fillColor: Palette.void2,
+                contentPadding: const EdgeInsets.all(10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

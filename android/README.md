@@ -1,8 +1,16 @@
 # Athlynk — Android (Flutter)
 
-Ricostruzione Android delle due app iOS Athlynk (`iOS/Athlynk`), a parità di
-funzionalità, logica di prodotto, UX e identità visiva. Un solo progetto
-Flutter, due app:
+Le app Android di Athlynk sono la controparte Flutter delle due app iOS
+(`iOS/Athlynk`): stessa esperienza, stessi dati, stessa identità visiva, ma
+native su Android. Non c'è logica di prodotto duplicata — leggono lo stesso
+backend delle app iOS, quindi restano allineate da sole.
+
+L'identità visiva è condivisa con web e iOS: blu profondo `#1E3A5F`, accento
+azzurro `#5B89B6`, oro `#FFE066`, titoli Bodoni Moda e testo Inter (definiti nel
+tema Flutter, gli stessi valori di `WebApp/static/css/athlynk.css` e del tema
+iOS).
+
+Un solo progetto Flutter, due app:
 
 | App | Flavor | applicationId | Entry point | Scheme |
 |---|---|---|---|---|

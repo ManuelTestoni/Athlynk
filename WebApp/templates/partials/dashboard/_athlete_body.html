@@ -1,0 +1,52 @@
+{% comment %}Widget coach "per atleta": composizione corporea (peso/circonferenze/pliche).{% endcomment %}
+<div class="al-card-head">
+    <div>
+        <p class="al-eyebrow" style="color: var(--al-ink-mute);">In evidenza</p>
+        <h2 class="al-h-2 mt-1">Composizione atleta</h2>
+    </div>
+    {% if athlete_options %}{% include 'partials/dashboard/_athlete_select.html' %}{% endif %}
+</div>
+<div class="al-card-body h-full flex flex-col">
+    {% if not selected_client %}
+    <div class="al-empty" style="padding: var(--al-s-6) 0;">
+        <i class="ph ph-scales al-empty-icon"></i>
+        <h3 style="font-size: 18px;">Nessun atleta attivo</h3>
+        <p style="font-size: 12px;">Attiva un atleta per monitorarne peso e misure.</p>
+    </div>
+    {% else %}
+    <p class="al-eyebrow mb-2">Andamento peso</p>
+    {% if weight_chart_json %}
+    <div x-data="dashLineChart" class="flex-1 min-h-[120px]">
+        <script type="application/json" data-chart-data>{{ weight_chart_json|safe }}</script>
+        <canvas x-ref="canvas"></canvas>
+    </div>
+    {% else %}
+    <p class="al-body" style="color: var(--al-ink-mute);">Nessuna rilevazione di peso per questo atleta.</p>
+    {% endif %}
+
+    {% if widget_size == 'L' and latest_circumferences or widget_size == 'L' and latest_skinfolds %}
+    <div class="grid grid-cols-2 gap-4 mt-4 pt-4" style="border-top: 1px solid var(--al-rule-faint);">
+        <div>
+            <p class="al-eyebrow mb-2">Circonferenze (cm)</p>
+            <ul class="space-y-1">
+                {% for site, val in latest_circumferences.items %}
+                <li class="flex justify-between al-small"><span style="color: var(--al-ink-mute);">{{ site }}</span><span class="font-medium text-ink">{{ val }}</span></li>
+                {% empty %}
+                <li class="al-small" style="color: var(--al-ink-mute);">—</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div>
+            <p class="al-eyebrow mb-2">Pliche (mm)</p>
+            <ul class="space-y-1">
+                {% for site, val in latest_skinfolds.items %}
+                <li class="flex justify-between al-small"><span style="color: var(--al-ink-mute);">{{ site }}</span><span class="font-medium text-ink">{{ val }}</span></li>
+                {% empty %}
+                <li class="al-small" style="color: var(--al-ink-mute);">—</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>

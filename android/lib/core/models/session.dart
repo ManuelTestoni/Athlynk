@@ -29,8 +29,9 @@ abstract class SessionExerciseDto with _$SessionExerciseDto {
     int? exerciseCatalogId,
     required String name,
     String? targetMuscleGroup,
-    @Default(3) int sets,
-    @Default('10') String reps,
+    // No fabricated default — a blank prescription stays blank (0 / "").
+    @Default(0) int sets,
+    @Default('') String reps,
     double? loadValue,
     String? loadUnit,
     int? recoverySeconds,

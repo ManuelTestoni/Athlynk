@@ -174,8 +174,8 @@ def client_assignment_detail_view(request, assignment_id):
         ex_list = []
         for ex in d.exercises.all().order_by('order_index'):
             ex_list.append({
-                'sets': ex.set_count or 3,
-                'reps': ex.rep_range or '10',
+                'sets': ex.set_count,
+                'reps': ex.rep_range or '',
                 'primary_muscles': [
                     {'slug': m.slug, 'name': m.name, 'color_token': m.color_token}
                     for m in ex.exercise.primary_muscles.all()
@@ -587,11 +587,11 @@ def client_session_active_view(request, assignment_id, day_id):
             'id': ex.id,
             'exercise_catalog_id': ex.exercise_id,
             'name': ex.exercise.name,
-            'sets': ex.set_count or 3,
-            'reps': ex.rep_range or '10',
+            'sets': ex.set_count,
+            'reps': ex.rep_range or '',
             'load_value': float(ex.load_value) if ex.load_value else None,
             'load_unit': ex.load_unit or 'KG',
-            'recovery_seconds': ex.recovery_seconds or 90,
+            'recovery_seconds': ex.recovery_seconds,
             'notes': ex.technique_notes or '',
             'set_details': ex.set_details or [],
             'wger_image_url': ex.exercise.wger_image_url or '',
@@ -673,11 +673,11 @@ def api_session_start(request):
             'description': ex.exercise.description or '',
             'instruction_steps': ex.exercise.instruction_steps or [],
             'muscle_detail': ex.exercise.muscle_detail or '',
-            'sets': ex.set_count or 3,
-            'reps': ex.rep_range or '10',
+            'sets': ex.set_count,
+            'reps': ex.rep_range or '',
             'load_value': float(ex.load_value) if ex.load_value else None,
             'load_unit': ex.load_unit or 'KG',
-            'recovery_seconds': ex.recovery_seconds or 90,
+            'recovery_seconds': ex.recovery_seconds,
             'notes': ex.technique_notes or '',
             'set_details': ex.set_details or [],
         })
