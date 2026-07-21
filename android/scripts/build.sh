@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Build both apps.
-# Usage: ./scripts/build.sh [debug|release] [apk|appbundle] [dev|prod]
+# Usage: ./scripts/build.sh [release|debug] [apk|appbundle] [dev|prod]
+# Defaults to release — pass `debug` explicitly only when you need it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MODE="${1:-debug}"          # debug | release
+MODE="${1:-release}"        # release | debug
 TARGET="${2:-apk}"          # apk | appbundle
 ENV="${3:-prod}"            # dev | prod
 

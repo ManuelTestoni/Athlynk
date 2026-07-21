@@ -2,9 +2,10 @@
 # Run the coach app on a connected device/emulator.
 # Usage: ./scripts/run_coach.sh [dev|prod] [extra flutter args…]
 #
-# Defaults to debug (JIT, asserts on) — fine for iterating, but 3-10x slower
-# than the shipped build, so never judge frame rate from it. For that:
-#   ./scripts/run_coach.sh prod --profile
+# Defaults to --release (AOT, shipped-build speed) — always runs as fast as it
+# will on a real device. Override when you need to iterate on code:
+#   ./scripts/run_coach.sh prod --debug     # JIT, hot reload, 3-10x slower
+#   ./scripts/run_coach.sh prod --profile   # AOT + DevTools to measure fps
 #
 # On an emulator this also opts out of Impeller. Measured on the Pixel 8 AVD
 # (arm64, gfxstream, macOS host): with Impeller the app rendered *zero* frames
@@ -26,9 +27,16 @@ if [[ "$*" != *enable-impeller* ]] \
   echo "▸ emulator detected — running with Skia ($IMPELLER)"
 fi
 
+# Default to release unless the caller already picked a build mode.
+MODE="--release"
+if [[ "$*" == *--debug* || "$*" == *--profile* || "$*" == *--release* ]]; then
+  MODE=""
+fi
+
 exec flutter run \
   --flavor coach \
   -t lib/main_coach.dart \
   --dart-define-from-file="env/${ENV}.json" \
+  ${MODE} \
   ${IMPELLER} \
   "$@"
