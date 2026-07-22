@@ -59,6 +59,24 @@ def reset(prefix: str, ident: str, window_seconds: int) -> None:
     cache.delete(_bucket_key(prefix, ident, window_seconds))
 
 
+def refund(prefix: str, ident: str, window_seconds: int) -> None:
+    """Give back a single attempt in the current bucket (floor 0).
+
+    Use when a consumed attempt turned out not to count — e.g. an AI import that
+    was charged up-front but then failed. Unlike `reset`, this only returns the
+    one attempt, preserving the rest of the window's counter."""
+    if not ident:
+        return
+    key = _bucket_key(prefix, ident, window_seconds)
+    try:
+        val = cache.decr(key)
+    except ValueError:
+        # Key missing/expired (or fail-open miss): nothing to refund.
+        return
+    if val is not None and val < 0:
+        cache.set(key, 0, timeout=window_seconds)
+
+
 def client_ip(request) -> str:
     """Resolve the true client IP.
 

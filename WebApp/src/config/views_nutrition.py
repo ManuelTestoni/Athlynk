@@ -9,8 +9,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.urls import reverse
-from django.db import transaction
+from django.db import transaction, close_old_connections
 from django.core.cache import cache
+from domain.shared.import_jobs import JobStore, run_bounded
 
 from config.session_utils import (
     get_session_user, get_session_coach, get_session_client, can_manage_nutrition,
@@ -2501,9 +2502,9 @@ def nutrizione_import_view(request):
     return render(request, 'pages/nutrizione/import_diet.html', {})
 
 
-@require_http_methods(['POST'])
-def _run_diet_excel_job(job_id: str, file_bytes: bytes, plan_title: str) -> None:
-    """Worker eseguito in background thread. Aggiorna lo stato via cache."""
+def _run_diet_excel_job(job_id: str, file_bytes: bytes, plan_title: str,
+                        coach_id=None) -> None:
+    """Worker eseguito in background thread. Stato durevole via JobStore."""
     from domain.nutrition.excel_importer import (
         run_import_pipeline, ExcelParseError, AIExtractionError,
     )
@@ -2515,18 +2516,27 @@ def _run_diet_excel_job(job_id: str, file_bytes: bytes, plan_title: str) -> None
         _set_job(job_id, {'status': 'running', 'phase': 'extract', 'percent': pct})
 
     try:
-        extracted, confidence = run_import_pipeline(
-            file_bytes, plan_title, progress_cb=_match_progress,
+        outcome, val = run_bounded(
+            lambda: run_import_pipeline(file_bytes, plan_title, progress_cb=_match_progress),
+            _EXCEL_JOB_BUDGET,
         )
+        if outcome == 'timeout':
+            _fail_diet_job(job_id, coach_id, 'timeout', 'Elaborazione troppo lunga. Riprova.')
+            return
+        if outcome == 'error':
+            raise val
+        extracted, confidence = val
     except ExcelParseError as e:
-        _set_job(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        _fail_diet_job(job_id, coach_id, 'excel_invalid', str(e))
         return
     except AIExtractionError as e:
-        _set_job(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        _fail_diet_job(job_id, coach_id, 'ai_failed', str(e))
         return
     except Exception as e:
-        _set_job(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        _fail_diet_job(job_id, coach_id, 'unknown', str(e))
         return
+    finally:
+        close_old_connections()
 
     result = {
         'extracted': extracted,
@@ -2570,7 +2580,7 @@ def api_diet_import_excel(request):
 
     thread = threading.Thread(
         target=_run_diet_excel_job,
-        args=(job_id, file_bytes, plan_title),
+        args=(job_id, file_bytes, plan_title, coach.id),
         daemon=True,
     )
     thread.start()
@@ -2747,6 +2757,9 @@ def api_diet_import_confirm(request):
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
 
+    # The new DRAFT must show in the coach's (300s-cached) plan list immediately.
+    cachekeys.invalidate_coach_plans(coach.id)
+
     # Hand off to the builder for this plan's shape, so the review screen never
     # has to reimplement the meal editor or the macro targets. Import never
     # assigns to an athlete: assignment lives in the builder.
@@ -2760,20 +2773,32 @@ def api_diet_import_confirm(request):
 # ─── Import Dieta da PDF (AI, async con polling) ────────────────────────────────
 
 _MAX_PDF_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
-_PDF_JOB_TTL = 600                        # 10 min
-_PDF_JOB_PREFIX = 'pdf_import:'
+_PDF_JOB_TTL = 600                        # 10 min (cache mirror; DB row lives ~1 day)
+# Wall-clock budget for a diet import worker: comfortably above realistic runtime
+# (fast single-call path ~30s, chunked ~a few min) and below the cache TTL, so the
+# job always resolves to a terminal status even if a step misbehaves.
+_PDF_JOB_BUDGET = 300
+_EXCEL_JOB_BUDGET = 180
 
-
-def _pdf_job_key(job_id: str) -> str:
-    return f'{_PDF_JOB_PREFIX}{job_id}'
+# Durable, cache-mirrored store shared by the diet PDF + Excel import jobs. Keeps
+# the historical 'pdf_import:' prefix (status endpoint + frontend rely on it).
+_DIET_IMPORT_JOBS = JobStore(prefix='pdf_import:', ttl=_PDF_JOB_TTL, domain='nutrition')
 
 
 def _set_job(job_id: str, payload: dict) -> None:
-    cache.set(_pdf_job_key(job_id), payload, _PDF_JOB_TTL)
+    _DIET_IMPORT_JOBS.set(job_id, payload)
 
 
 def _get_job(job_id: str) -> dict | None:
-    return cache.get(_pdf_job_key(job_id))
+    return _DIET_IMPORT_JOBS.get(job_id)
+
+
+def _fail_diet_job(job_id: str, coach_id, code: str, detail: str) -> None:
+    """Write a terminal error status and refund the (already charged) quota — a
+    failed/stalled import must not burn the coach's 5/day allowance."""
+    _set_job(job_id, {'status': 'error', 'error_code': code, 'detail': detail})
+    if coach_id is not None:
+        import_quota.refund(coach_id, import_quota.DIET)
 
 
 def nutrizione_import_pdf_view(request):
@@ -2787,34 +2812,40 @@ def nutrizione_import_pdf_view(request):
     return render(request, 'pages/nutrizione/import_diet_pdf.html', {})
 
 
-def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str) -> None:
-    """Worker eseguito in background thread. Aggiorna lo stato via cache."""
+def _run_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
+                 coach_id=None) -> None:
+    """Worker eseguito in background thread. Stato durevole via JobStore."""
     from domain.nutrition.pdf_importer import run_pdf_pipeline
     from domain.shared.pdf import PdfParseError
     from domain.nutrition.pdf_extractor import AIExtractionError
 
     def progress(phase: str, percent: int) -> None:
-        existing = _get_job(job_id) or {}
-        existing.update({
-            'status': 'running',
-            'phase': phase,
-            'percent': percent,
-        })
-        _set_job(job_id, existing)
+        _set_job(job_id, {'status': 'running', 'phase': phase, 'percent': percent})
 
     try:
-        extracted, confidence = run_pdf_pipeline(file_bytes, plan_title, progress_cb=progress)
+        outcome, val = run_bounded(
+            lambda: run_pdf_pipeline(file_bytes, plan_title, progress_cb=progress),
+            _PDF_JOB_BUDGET,
+        )
+        if outcome == 'timeout':
+            _fail_diet_job(job_id, coach_id, 'timeout', 'Elaborazione troppo lunga. Riprova.')
+            return
+        if outcome == 'error':
+            raise val
+        extracted, confidence = val
     except PdfParseError as e:
         msg = str(e)
         code = 'pdf_no_content' if 'non sembra contenere' in msg.lower() else 'pdf_invalid'
-        _set_job(job_id, {'status': 'error', 'error_code': code, 'detail': msg})
+        _fail_diet_job(job_id, coach_id, code, msg)
         return
     except AIExtractionError as e:
-        _set_job(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        _fail_diet_job(job_id, coach_id, 'ai_failed', str(e))
         return
     except Exception as e:
-        _set_job(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        _fail_diet_job(job_id, coach_id, 'unknown', str(e))
         return
+    finally:
+        close_old_connections()
 
     result = {
         'extracted': extracted,
@@ -2866,7 +2897,7 @@ def api_diet_import_pdf(request):
     # TODO Fase 2: sostituire threading con Celery per multi-worker.
     thread = threading.Thread(
         target=_run_pdf_job,
-        args=(job_id, file_bytes, plan_title),
+        args=(job_id, file_bytes, plan_title, coach.id),
         daemon=True,
     )
     thread.start()

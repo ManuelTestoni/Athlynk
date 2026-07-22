@@ -25,6 +25,11 @@
     confirmUrl: '',
     async: false,
     pollIntervalMs: 1500,
+    // Give-up guards so the wizard can never spin forever: overall wall-clock cap
+    // (comfortably above the server-side job budget) + a consecutive-network-failure
+    // cap. On either, the wizard surfaces a retryable error instead of hanging.
+    maxPollMs: 7 * 60 * 1000,
+    maxPollNetFails: 10,
     showSourceBadge: false,
     minPerceivedMs: 4500,
     phaseMap: null,
@@ -64,6 +69,8 @@
       phaseEnteredAt: [],
       pollTimer: null,
       pollProgressPercent: 0,
+      pollDeadline: 0,
+      pollNetFails: 0,
       jobId: null,
       pendingResult: null,
 
@@ -196,6 +203,8 @@
 
       startPolling() {
         if (this.pollTimer) clearInterval(this.pollTimer);
+        this.pollDeadline = Date.now() + (this.cfg.maxPollMs || 420000);
+        this.pollNetFails = 0;
         this.pollTimer = setInterval(() => this.pollOnce(), this.cfg.pollIntervalMs);
         this.pollOnce();
       },
@@ -204,8 +213,19 @@
         if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
       },
 
+      giveUpPolling(msg) {
+        this.stopPolling();
+        this.stopLoadingAnim();
+        this.errorMsg = msg;
+        this.currentStep = 'error';
+      },
+
       async pollOnce() {
         if (!this.jobId) return;
+        if (this.pollDeadline && Date.now() > this.pollDeadline) {
+          this.giveUpPolling('L\'elaborazione sta impiegando troppo tempo. Riprova.');
+          return;
+        }
         try {
           const r = await fetch(this.cfg.statusUrl + '?job_id=' + encodeURIComponent(this.jobId));
           if (!r.ok) {
@@ -215,6 +235,7 @@
             this.currentStep = 'error';
             return;
           }
+          this.pollNetFails = 0;
           const data = await r.json();
           this.pollProgressPercent = data.percent || 0;
           if (data.phase && this.cfg.phaseMap && this.cfg.phaseMap[data.phase] != null) {
@@ -241,7 +262,18 @@
           }
         } catch (e) {
           console.warn('poll error', e);
+          this.pollNetFails = (this.pollNetFails || 0) + 1;
+          if (this.pollNetFails >= (this.cfg.maxPollNetFails || 10)) {
+            this.giveUpPolling('Errore di rete durante l\'elaborazione. Riprova.');
+          }
         }
+      },
+
+      // Re-run the import from the error screen. The picked file is retained, so
+      // this is a one-click retry; without a file we fall back to the upload step.
+      retryImport() {
+        if (this.file) { this.submitFile(); }
+        else { this.currentStep = 1; }
       },
 
       tickPhaseGate() {

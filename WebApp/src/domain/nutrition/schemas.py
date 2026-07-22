@@ -3,8 +3,8 @@
 Validano la risposta JSON dell'LLM e il payload di conferma del frontend.
 """
 
-from typing import Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Annotated, Literal, Optional
+from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 
 from domain.shared.extraction import ConfidenceSummary  # noqa: F401  (re-export)
 
@@ -18,9 +18,36 @@ MealType = Literal[
     'BREAKFAST', 'MORNING_SNACK', 'LUNCH', 'AFTERNOON_SNACK', 'DINNER',
 ]
 
-Unit = Literal['g', 'ml', 'portion', 'tbsp', 'tsp']
-
 SubstitutionMode = Literal['ISOKCAL', 'ISOPROT', 'ISOCARB']
+
+# The LLM often omits `unit` or emits null / a synonym ("grammi", "cucchiaio",
+# "porzione"). A bare `unit: <Literal> = 'g'` default only fills an ABSENT key — an
+# explicit null still fails the Literal, which used to blow up the WHOLE extraction
+# (one weekly grid produced 77 validation errors → import failed → wizard stalled).
+# A BeforeValidator on the type coerces anything unrecognized to grams, so a missing
+# or odd unit can never fail validation — applied everywhere `unit: Unit` is used.
+_UNIT_ALIASES = {
+    'g': 'g', 'gr': 'g', 'grammo': 'g', 'grammi': 'g', 'gram': 'g', 'grams': 'g',
+    'ml': 'ml', 'millilitro': 'ml', 'millilitri': 'ml', 'milliliter': 'ml',
+    'milliliters': 'ml', 'cc': 'ml',
+    'portion': 'portion', 'porzione': 'portion', 'porzioni': 'portion',
+    'pz': 'portion', 'pezzo': 'portion', 'pezzi': 'portion', 'unita': 'portion',
+    'unità': 'portion', 'unit': 'portion',
+    'tbsp': 'tbsp', 'cucchiaio': 'tbsp', 'cucchiai': 'tbsp', 'tablespoon': 'tbsp',
+    'tsp': 'tsp', 'cucchiaino': 'tsp', 'cucchiaini': 'tsp', 'teaspoon': 'tsp',
+}
+
+
+def _coerce_unit(value):
+    if value is None:
+        return 'g'
+    return _UNIT_ALIASES.get(str(value).strip().lower(), 'g')
+
+
+Unit = Annotated[
+    Literal['g', 'ml', 'portion', 'tbsp', 'tsp'],
+    BeforeValidator(_coerce_unit),
+]
 
 
 class SubstitutionEntry(BaseModel):

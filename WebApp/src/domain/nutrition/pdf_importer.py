@@ -307,6 +307,11 @@ def _retry_missing_days(chunks, missing: list[str]) -> tuple[list[dict], list[st
     if not target_chunks:
         return [], [f'retry: nessun chunk menziona giorni mancanti ({",".join(missing)})']
 
+    # Cap la serie di retry (una invoke ciascuno, timeout=60) per limitare il
+    # wall time nel caso peggiore — vedi MAX_SERIAL_RETRY_CHUNKS.
+    from domain.nutrition.pdf_extractor import MAX_SERIAL_RETRY_CHUNKS
+    target_chunks = target_chunks[:MAX_SERIAL_RETRY_CHUNKS]
+
     llm = build_extraction_llm(max_tokens=4000, timeout=60)
     extra_instr = (
         f"\n\nFOCUS RETRY: estrai SOLO i seguenti giorni se presenti nel testo: "
