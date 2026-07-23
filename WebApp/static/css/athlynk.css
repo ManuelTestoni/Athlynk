@@ -4983,3 +4983,142 @@ a.al-tl-card:hover .al-tl-card-title { color: var(--al-accent-text); }
   .err-ring circle { animation: none; stroke-dashoffset: 0; }
   .err-glyph { animation: none; opacity: 1; transform: none; }
 }
+
+/* ---------- Recap atleta (CHIRON) ---------- */
+
+.al-recap-narrative {
+  font-family: var(--al-display);
+  font-style: italic;
+  font-size: clamp(17px, 1.6vw, 20px);
+  line-height: 1.5;
+  color: var(--al-ink-soft);
+}
+.al-recap-narrative::before {
+  content: '\201C';
+  font-size: 1.6em;
+  line-height: 0;
+  vertical-align: -0.32em;
+  color: var(--al-accent);
+  margin-right: 2px;
+}
+
+.al-recap-direction {
+  font-family: var(--al-display);
+  font-weight: 500;
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.al-recap-direction.is-up     { color: var(--al-success); }
+.al-recap-direction.is-down   { color: var(--al-danger); }
+.al-recap-direction.is-stable { color: var(--al-aegean); }
+
+.al-recap-line-path {
+  fill: none;
+  stroke: var(--al-aegean);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.al-recap-line-forecast {
+  fill: none;
+  stroke: var(--al-ink-mute);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-dasharray: 5 5;
+}
+.al-recap-line-band { fill: var(--al-accent); opacity: 0.10; }
+.al-recap-line-dot  { fill: var(--al-aegean); }
+.al-recap-line-path[data-draw],
+.al-recap-line-forecast[data-draw] {
+  transition: stroke-dashoffset var(--al-d-slow) var(--al-ease-out);
+}
+
+.al-recap-insight {
+  position: relative;
+  padding: var(--al-s-4) var(--al-s-5);
+  border: 1px solid var(--al-rule);
+  border-left: 3px solid var(--al-rule-strong);
+  border-radius: var(--al-r-sm);
+  background: var(--al-parchment);
+  transition: box-shadow var(--al-d-fast) var(--al-ease);
+}
+.al-recap-insight:hover { box-shadow: var(--al-elev-1); }
+.al-recap-insight + .al-recap-insight { margin-top: var(--al-s-3); }
+.al-recap-insight.domain-body_comp { border-left-color: var(--al-accent); }
+.al-recap-insight.domain-nutrition { border-left-color: var(--al-success); }
+.al-recap-insight.domain-training  { border-left-color: var(--al-aegean); }
+.al-recap-insight.domain-cross     { border-left-color: var(--al-phase); }
+
+.al-recap-confidence {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--al-mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--al-ink-mute);
+}
+.al-recap-confidence .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--al-ink-line); }
+.al-recap-confidence.high .dot   { background: var(--al-ink); }
+.al-recap-confidence.medium .dot { background: var(--al-ink-mute); }
+.al-recap-confidence.low .dot    { background: transparent; border: 1px solid var(--al-ink-line); }
+
+.al-recap-evidence {
+  font-family: var(--al-mono);
+  font-size: 11px;
+  color: var(--al-ink-mute);
+  background: var(--al-marble);
+  border-radius: var(--al-r-xs);
+  padding: var(--al-s-3);
+  margin-top: var(--al-s-3);
+}
+
+/* Stato di caricamento: orb che respira + anello che si espande + puntini. */
+.al-recap-loading-orb {
+  position: relative;
+  width: 64px; height: 64px;
+  margin: 0 auto;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 40%, rgba(var(--al-accent-rgb), 0.16), transparent 70%);
+  animation: al-recap-orb-pulse 2.2s var(--al-ease) infinite;
+}
+.al-recap-loading-orb::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--al-accent);
+  opacity: 0.35;
+  animation: al-recap-orb-ring 2.2s var(--al-ease-out) infinite;
+}
+.al-recap-loading-orb i {
+  position: relative;
+  font-size: 26px;
+  color: var(--al-aegean);
+}
+.al-recap-loading-text::after {
+  content: '';
+  display: inline-block;
+  width: 1.4em;
+  text-align: left;
+  animation: al-recap-dots 1.2s steps(4) infinite;
+}
+
+@keyframes al-recap-orb-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+@keyframes al-recap-orb-ring {
+  0%   { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes al-recap-dots {
+  0%      { content: ''; }
+  25%     { content: '.'; }
+  50%     { content: '..'; }
+  75%,100%{ content: '...'; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .al-recap-line-path[data-draw],
+  .al-recap-line-forecast[data-draw] { transition: none; }
+  .al-recap-loading-orb, .al-recap-loading-orb::before { animation: none; }
+  .al-recap-loading-text::after { animation: none; content: '…'; }
+}

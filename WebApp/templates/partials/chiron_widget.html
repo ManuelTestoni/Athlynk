@@ -1085,4 +1085,27 @@ Auto-contenuto: CSS scoped + HTML + Alpine component.
       },
     };
   }
+
+  // Deep-link da altre pagine (es. recap atleta): apre il widget con l'input
+  // già precompilato, MAI inviato in automatico — il coach legge/modifica
+  // prima di premere invio, stessa logica del propose/confirm sulle azioni.
+  window.openChironWithMessage = function (text) {
+    const root = document.querySelector('.chiron-root');
+    if (!root || typeof Alpine === 'undefined') return;
+    const data = Alpine.$data(root);
+    const apply = () => {
+      data.input = text;
+      data.$nextTick(() => {
+        if (data.$refs && data.$refs.ta) {
+          data.$refs.ta.focus();
+          data.autoResize();
+        }
+      });
+    };
+    if (!data.open) {
+      Promise.resolve(data.toggle()).then(apply);
+    } else {
+      apply();
+    }
+  };
 </script>

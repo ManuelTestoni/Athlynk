@@ -30,6 +30,7 @@ except ImportError:
     from domain.appointments.models import Appointment  # type: ignore[no-redef]
 
 from ..session_utils import get_session_user, get_session_coach, get_session_client, get_active_relationship
+from ..services import cachekeys
 
 
 
@@ -568,7 +569,7 @@ def create_quick_measurement(coach, client, mtype, key, value, day):
     naive = datetime.combine(day, time(12, 0))
     submitted_at = timezone.make_aware(naive) if settings.USE_TZ else naive
 
-    return QuestionnaireResponse.objects.create(
+    response = QuestionnaireResponse.objects.create(
         questionnaire_template=quick_measurement_template(coach),
         client=client,
         coach=coach,
@@ -581,3 +582,5 @@ def create_quick_measurement(coach, client, mtype, key, value, day):
         questions_snapshot=[snapshot_q],
         steps_snapshot=[{'id': '__solo', 'label': QUICK_MEASUREMENT_TITLE, 'icon': 'ph-ruler'}],
     )
+    cachekeys.invalidate_athlete_recap(client.id)
+    return response

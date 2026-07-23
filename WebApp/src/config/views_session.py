@@ -19,6 +19,7 @@ from .session_utils import (
     get_session_user, get_session_client, get_session_coach, can_manage_workouts,
 )
 from .http_utils import safe_int
+from .services import cachekeys
 
 
 # ---------------------------------------------------------------------------
@@ -869,6 +870,7 @@ def api_session_finish(request, session_id):
     session.interrupted = interrupted
     session.recompute_summary()
     session.save()
+    cachekeys.invalidate_athlete_recap(client.id)
 
     return JsonResponse({
         'session_id': session.id,
@@ -1147,12 +1149,7 @@ def api_my_progress_volume(request):
     return JsonResponse(_progress_volume_data(client))
 
 
-def api_progress_adherence(request, client_id):
-    res, err = _check_coach_access(request, client_id)
-    if err:
-        return err
-    coach, client = res
-
+def _progress_adherence_data(client):
     today = timezone.now().date()
     date_from = today - timedelta(weeks=12)
 
@@ -1169,47 +1166,62 @@ def api_progress_adherence(request, client_id):
         wkey = monday.isoformat()
         weekly_done[wkey] = weekly_done.get(wkey, 0) + 1
 
-    # Compute scheduled per week: from active assignments' frequency_per_week
+    # Planned per settimana: frequency_per_week di QUALSIASI assignment il cui
+    # intervallo [start,end] tocca quella settimana (overlap reale), non un
+    # passo fisso di 7gg da start_date — un'assignment con durata breve (o
+    # sostituita a stretto giro da una nuova) smetteva di contribuire dopo una
+    # sola settimana anche quando la relazione di coaching proseguiva. Più
+    # assignment sovrapposte sulla stessa settimana: prendo la frequenza più alta.
+    assignments = list(WorkoutAssignment.objects.filter(client=client).select_related('workout_plan'))
     weekly_planned = {}
-    for assn in WorkoutAssignment.objects.filter(client=client).select_related('workout_plan'):
-        freq = assn.workout_plan.frequency_per_week or assn.workout_plan.days.count() or 0
-        if not freq:
-            continue
-        start = assn.start_date or assn.created_at.date()
-        end = assn.end_date or today
-        d = start
-        while d <= end and d <= today:
-            monday = d - timedelta(days=d.weekday())
-            wkey = monday.isoformat()
-            if wkey not in weekly_planned:
-                weekly_planned[wkey] = freq
-            d += timedelta(days=7)
+    first_monday = date_from - timedelta(days=date_from.weekday())
+    last_monday = today - timedelta(days=today.weekday())
+    monday = first_monday
+    while monday <= last_monday:
+        week_end = monday + timedelta(days=6)
+        freq = 0
+        for assn in assignments:
+            a_start = assn.start_date or assn.created_at.date()
+            a_end = assn.end_date or today
+            if a_start <= week_end and a_end >= monday:
+                freq = max(freq, assn.workout_plan.frequency_per_week or assn.workout_plan.days.count() or 0)
+        if freq:
+            weekly_planned[monday.isoformat()] = freq
+        monday += timedelta(days=7)
 
     weeks = sorted(set(list(weekly_done.keys()) + list(weekly_planned.keys())))
     weeks = [w for w in weeks if w >= date_from.isoformat()]
 
     series = []
     total_planned = 0
-    total_done = 0
+    total_done_capped = 0
     for w in weeks:
         planned = weekly_planned.get(w, 0)
         done = weekly_done.get(w, 0)
         pct = round((done / planned) * 100, 1) if planned else (100.0 if done else 0.0)
         series.append({'week': w, 'planned': planned, 'done': done, 'pct': pct})
         total_planned += planned
-        total_done += done
+        # Settimane senza piano riconosciuto non contano né a favore né contro
+        # l'aggregato; settimane sovra-eseguite non gonfiano il totale oltre il
+        # 100% di quella settimana — "aderenza" misura quanto del pianificato è
+        # stato fatto, non il volume extra (altrimenti il totale può superare
+        # il 100% in modo fuorviante, es. 275%, pur essendo ogni riga corretta).
+        total_done_capped += min(done, planned) if planned else 0
 
-    overall_pct = round((total_done / total_planned) * 100, 1) if total_planned else None
+    overall_pct = round((total_done_capped / total_planned) * 100, 1) if total_planned else None
 
-    return JsonResponse({'series': series, 'overall_pct': overall_pct})
+    return {'series': series, 'overall_pct': overall_pct}
 
 
-def api_progress_rpe(request, client_id):
+def api_progress_adherence(request, client_id):
     res, err = _check_coach_access(request, client_id)
     if err:
         return err
     coach, client = res
+    return JsonResponse(_progress_adherence_data(client))
 
+
+def _progress_rpe_data(client):
     today = timezone.now().date()
     date_from = today - timedelta(weeks=12)
     sessions = WorkoutSession.objects.filter(
@@ -1228,15 +1240,18 @@ def api_progress_rpe(request, client_id):
     for w in sorted(weekly.keys()):
         rpes = weekly[w]
         series.append({'week': w, 'avg_rpe': round(sum(rpes) / len(rpes), 1)})
-    return JsonResponse({'series': series})
+    return {'series': series}
 
 
-def api_progress_kpi(request, client_id):
+def api_progress_rpe(request, client_id):
     res, err = _check_coach_access(request, client_id)
     if err:
         return err
     coach, client = res
+    return JsonResponse(_progress_rpe_data(client))
 
+
+def _progress_kpi_data(client):
     sessions = WorkoutSession.objects.filter(client=client, completed=True)
     total = sessions.count()
     avg_volume = (WorkoutSetLog.objects.filter(session__client=client, completed=True)
@@ -1250,17 +1265,22 @@ def api_progress_kpi(request, client_id):
         streak += 1
         d -= timedelta(days=1)
 
-    # Adherence overall
-    adher = api_progress_adherence(request, client_id)
-    adher_data = json.loads(adher.content) if hasattr(adher, 'content') else {}
-    overall_pct = adher_data.get('overall_pct')
+    overall_pct = _progress_adherence_data(client)['overall_pct']
 
-    return JsonResponse({
+    return {
         'total_sessions': total,
         'avg_sets_per_session': per_session,
         'streak_days': streak,
         'overall_adherence_pct': overall_pct,
-    })
+    }
+
+
+def api_progress_kpi(request, client_id):
+    res, err = _check_coach_access(request, client_id)
+    if err:
+        return err
+    coach, client = res
+    return JsonResponse(_progress_kpi_data(client))
 
 
 def api_progress_sessions(request, client_id):

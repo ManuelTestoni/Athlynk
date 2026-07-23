@@ -1743,6 +1743,7 @@ def api_macro_log_create(request, assignment_id):
         quantity_g=qty,
         meal_name=meal_name,
     )
+    cachekeys.invalidate_athlete_recap(client.id)
     return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
 
 
@@ -1760,6 +1761,7 @@ def api_macro_log_detail(request, entry_id):
 
     if request.method == "DELETE":
         entry.delete()
+        cachekeys.invalidate_athlete_recap(client.id)
         return JsonResponse({'ok': True})
 
     try:
@@ -1781,6 +1783,7 @@ def api_macro_log_detail(request, entry_id):
         update_fields.append('meal_name')
     if update_fields:
         entry.save(update_fields=update_fields + ['updated_at'])
+        cachekeys.invalidate_athlete_recap(client.id)
     return JsonResponse({'ok': True, 'entry': _macro_log_json(entry)})
 
 

@@ -100,6 +100,16 @@ def media_url(name):
     return _k('media', 'global', 'url', _h(name))
 
 
+def athlete_recap(coach_id, client_id):
+    # Scoped by BOTH coach and client: two coaches with different
+    # relationship_type on the same athlete (FULL/WORKOUT/NUTRITION) see
+    # different sections, so their cached aggregates must never collide.
+    # Generation counter keyed per-client: one write (a check, a session, a
+    # macro log entry) invalidates the cache for every coach of that client
+    # at once, without enumerating which coaches currently have one.
+    return _k('coach', coach_id, 'recap_inputs', client_id, _gen(f'recap:{client_id}'))
+
+
 # --- invalidation -----------------------------------------------------------
 
 def invalidate_coach_plans(coach_id):
@@ -128,3 +138,12 @@ def invalidate_dashboard_layout(user_id):
     """Call from EVERY layout write (web session endpoint AND mobile Bearer
     endpoint) — single path so web and iOS caches can never diverge."""
     cache.delete(dashboard_layout(user_id))
+
+
+def invalidate_athlete_recap(client_id):
+    """Call from every write that changes recap inputs for this athlete:
+    check submit/review/quick-measurement, workout session finish, macro log
+    create/update/delete. Bumps a per-client generation instead of deleting
+    per-coach keys one by one (a client can have FULL + WORKOUT + NUTRITION
+    coaches at once, each with their own cached key)."""
+    _bump(f'recap:{client_id}')

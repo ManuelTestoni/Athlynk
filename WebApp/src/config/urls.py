@@ -46,6 +46,7 @@ from . import views_legal
 from . import views_consent
 from . import views_seo
 from . import views_chiron
+from . import views_chiron_recap
 from . import views_payments
 from . import views_connect
 from . import views_checkout
@@ -173,6 +174,7 @@ urlpatterns = [
     path('api/allenamenti/esercizio/<int:workout_exercise_id>/andamento/', views_session.api_client_exercise_trend, name='api_client_exercise_trend'),
     path('api/allenamenti/cliente/storico/', views_workouts.api_client_workout_history, name='api_client_workout_history'),
     path('clienti/<int:client_id>/progressi/', views_session.coach_client_progressi_view, name='coach_client_progressi'),
+    path('clienti/<int:client_id>/recap/', views_chiron_recap.coach_client_recap_view, name='coach_client_recap'),
     path('clienti/<int:client_id>/storico-allenamenti/', views_workouts.coach_client_workout_history_view, name='coach_client_workout_history'),
     path('clienti/<int:client_id>/storico-diete/', views_nutrition.coach_client_nutrition_history_view, name='coach_client_nutrition_history'),
     path('allenamenti/<int:plan_id>/', views_workouts.allenamenti_plan_detail_view, name='allenamenti_plan_detail'),
@@ -338,6 +340,12 @@ urlpatterns = [
     path('api/chiron/history/', views_chiron.api_chiron_history, name='api_chiron_history'),
     path('api/chiron/azione/esegui/', views_chiron.api_chiron_action_execute, name='api_chiron_action_execute'),
     path('api/chiron/clear/', views_chiron.api_chiron_clear, name='api_chiron_clear'),
+    path('api/chiron/recap/<int:client_id>/', views_chiron_recap.api_chiron_recap, name='api_chiron_recap'),
+    path('api/chiron/recap/<int:client_id>/regenerate/', views_chiron_recap.api_chiron_recap_regenerate, name='api_chiron_recap_regenerate'),
+    path('api/chiron/recap/<int:client_id>/insight-action/', views_chiron_recap.api_chiron_recap_insight_action, name='api_chiron_recap_insight_action'),
+    path('api/chiron/recap/<int:client_id>/history/', views_chiron_recap.api_chiron_recap_history, name='api_chiron_recap_history'),
+    path('api/chiron/recap/<int:client_id>/insight-feedback/', views_chiron_recap.api_chiron_recap_insight_feedback, name='api_chiron_recap_insight_feedback'),
+    path('api/chiron/recap-settings/', views_chiron_recap.api_chiron_recap_settings, name='api_chiron_recap_settings'),
 
     # Notifications
     path('api/notifications/', views_notifications.api_notifications_list, name='notifications_list'),

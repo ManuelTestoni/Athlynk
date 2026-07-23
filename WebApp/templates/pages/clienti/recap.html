@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Recap — {{ client.first_name }} {{ client.last_name }}{% endblock %}
+
+{% block content %}
+<script>
+  window.RECAP_INIT = {
+    urls: {
+      recap: "{% url 'api_chiron_recap' client.id %}",
+      regenerate: "{% url 'api_chiron_recap_regenerate' client.id %}",
+      insightAction: "{% url 'api_chiron_recap_insight_action' client.id %}",
+      insightFeedback: "{% url 'api_chiron_recap_insight_feedback' client.id %}",
+      executeAction: "{% url 'api_chiron_action_execute' %}",
+      recapSettings: "{% url 'api_chiron_recap_settings' %}",
+    },
+    clientName: "{{ client.first_name|escapejs }} {{ client.last_name|escapejs }}",
+  };
+</script>
+
+<div class="max-w-4xl mx-auto" x-data="coachRecap" x-init="Object.assign($data, {urls: window.RECAP_INIT.urls, clientName: window.RECAP_INIT.clientName}); init()">
+
+  <!-- Breadcrumb -->
+  <nav class="al-tag flex items-center gap-2 mb-5">
+    <a href="{% url 'clienti_detail' client.id %}" class="al-link al-link-quiet flex items-center gap-1">
+      <i class="ph ph-arrow-left text-xs"></i><span>{{ client.first_name }} {{ client.last_name }}</span>
+    </a>
+    <i class="ph ph-caret-right text-[9px]"></i>
+    <span class="text-ink">Recap</span>
+  </nav>
+
+  <!-- Loading -->
+  <div x-show="loading" class="al-card text-center py-16">
+    <div class="al-recap-loading-orb">
+      <i class="ph ph-sparkle"></i>
+    </div>
+    <p class="al-body mt-4 al-recap-loading-text">Chiron sta leggendo lo storico di {{ client.first_name }}</p>
+  </div>
+
+  <!-- Error (fetch fallito) -->
+  <div x-show="!loading && error" x-cloak class="al-empty al-reveal">
+    <div class="al-empty-icon"><i class="ph ph-warning-circle"></i></div>
+    <h3>Recap non disponibile</h3>
+    <p x-text="error"></p>
+    <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="load(false)">Riprova</button>
+  </div>
+
+  <!-- Dati insufficienti (payload arrivato, ma nulla di utilizzabile) -->
+  <div x-show="!loading && !error && payload && isInsufficientData()" x-cloak class="al-card al-reveal text-center py-16">
+    <div class="err-emblem mx-auto mb-2">
+      <svg class="err-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="48"></circle></svg>
+      <i class="ph ph-chart-line-down err-glyph" aria-hidden="true"></i>
+    </div>
+    <h3 class="al-h-2 mt-4">Recap non disponibile</h3>
+    <p class="al-body mt-3">Mi spiace, non ci sono abbastanza dati per generare un recap di {{ client.first_name }} {{ client.last_name }}.</p>
+    <a href="{% url 'clienti_detail' client.id %}" class="al-btn al-btn-ghost mt-6">
+      <i class="ph ph-arrow-left"></i><span>Torna indietro</span>
+    </a>
+  </div>
+
+  <template x-if="!loading && !error && payload && !isInsufficientData()">
+    <div class="space-y-6">
+
+      <!-- Header: stato + azione -->
+      <div class="al-card al-reveal flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p class="al-eyebrow mb-1">Genera recap atleta</p>
+          <h1 class="al-h-2">{{ client.first_name }} <span class="al-display-i">{{ client.last_name }}</span></h1>
+          <p class="al-small mt-1">
+            Generato il <span x-text="new Date(payload.generated_at).toLocaleString('it-IT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})"></span>
+            <template x-if="payload.narrative_is_fallback">
+              <span class="al-badge al-badge-warn ml-2" style="font-size:10px;">Riformulazione automatica non disponibile — fatti calcolati mostrati direttamente</span>
+            </template>
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="al-btn-icon al-btn al-btn-ghost" @click="openSettings()" title="Sensibilità insight" aria-label="Sensibilità insight">
+            <i class="ph ph-sliders-horizontal"></i>
+          </button>
+          <button type="button" class="al-btn al-btn-sm al-btn-ghost" :class="regenerating ? 'is-loading' : ''" @click="load(true)">
+            <i class="ph ph-arrow-clockwise text-xs"></i><span>Rigenera</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Rispetto al recap precedente (storico append-only, V2) -->
+      <div class="al-card al-reveal" style="--d: 40ms;" x-show="payload.comparison && payload.comparison.available">
+        <p class="al-eyebrow mb-3">Rispetto al recap precedente</p>
+        <p class="al-small mb-2">
+          Ultimo recap: <span x-text="payload.comparison.previous_generated_at ? new Date(payload.comparison.previous_generated_at).toLocaleDateString('it-IT', {day:'numeric', month:'short'}) : '—'"></span>
+          <template x-if="payload.comparison.weight_delta_since_last_recap !== null">
+            <span> · peso <span x-text="fmtSigned(payload.comparison.weight_delta_since_last_recap)"></span> kg</span>
+          </template>
+        </p>
+        <div class="flex flex-wrap gap-2" x-show="payload.comparison.new_insight_codes.length || payload.comparison.resolved_insight_codes.length">
+          <template x-for="code in payload.comparison.new_insight_codes" :key="'new-'+code">
+            <span class="al-badge al-badge-warn" style="font-size:10px;"><i class="ph ph-plus-circle"></i><span x-text="'Nuovo: ' + code"></span></span>
+          </template>
+          <template x-for="code in payload.comparison.resolved_insight_codes" :key="'resolved-'+code">
+            <span class="al-badge al-badge-success" style="font-size:10px;"><i class="ph ph-check-circle"></i><span x-text="'Risolto: ' + code"></span></span>
+          </template>
+        </div>
+        <p class="al-small" x-show="!payload.comparison.new_insight_codes.length && !payload.comparison.resolved_insight_codes.length">Nessun cambiamento negli insight rispetto all'ultima volta.</p>
+      </div>
+
+      <!-- Executive summary (voce di Chiron) -->
+      <div class="al-card al-reveal" style="--d: 60ms;">
+        <p class="al-eyebrow mb-3">Lettura di Chiron</p>
+        <p class="al-recap-narrative" x-text="payload.narrative_text"></p>
+      </div>
+
+      <!-- Direzione: traiettoria peso + proiezione (segnale singolo, spiegabile) -->
+      <div class="al-card al-recap-hero al-reveal" style="--d: 100ms;" x-show="payload.forecast">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+          <div>
+            <p class="al-eyebrow mb-1">Direzione</p>
+            <p class="al-recap-direction" :class="'is-' + (payload.forecast.direction || 'stable')" x-text="directionLabel(payload.forecast.direction)"></p>
+          </div>
+          <template x-if="payload.forecast.available">
+            <div class="text-right">
+              <p class="al-tag">Confidenza proiezione</p>
+              <p class="al-h-3 mt-1" x-text="({low:'Bassa', medium:'Media', high:'Alta'})[payload.forecast.confidence]"></p>
+            </div>
+          </template>
+        </div>
+
+        <template x-if="payload.forecast.available">
+          <svg id="recapTrajectory" viewBox="0 0 600 140" preserveAspectRatio="none" class="w-full" style="height:140px;"></svg>
+        </template>
+        <template x-if="!payload.forecast.available">
+          <p class="al-small py-6 text-center">Dati insufficienti per una proiezione — servono almeno 3 pesate recenti.</p>
+        </template>
+
+        <p class="al-small mt-3" style="color: var(--al-ink-mute);" x-text="payload.forecast.caveat"></p>
+      </div>
+
+      <!-- Scorecard -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="al-kpi al-reveal" style="--d: 140ms;">
+          <p class="al-kpi-label">Peso</p>
+          <template x-if="payload.scorecards.weight_current !== null">
+            <div>
+              <p class="al-kpi-num" x-text="fmtNum(payload.scorecards.weight_current) + ' kg'"></p>
+              <p class="al-kpi-meta" x-show="payload.scorecards.weight_reliable" x-text="fmtSigned(payload.scorecards.weight_delta) + ' kg vs 30gg fa'"></p>
+            </div>
+          </template>
+          <template x-if="payload.scorecards.weight_current === null && payload.scorecards.weight_last_value !== null">
+            <div>
+              <p class="al-kpi-num" x-text="fmtNum(payload.scorecards.weight_last_value) + ' kg'"></p>
+              <p class="al-kpi-meta">Ultimo dato, <span x-text="payload.scorecards.weight_last_days_ago"></span>gg fa — nessuna pesata più recente</p>
+            </div>
+          </template>
+          <template x-if="payload.scorecards.weight_current === null && payload.scorecards.weight_last_value === null">
+            <div>
+              <p class="al-kpi-num">—</p>
+              <p class="al-kpi-meta">Dati insufficienti</p>
+            </div>
+          </template>
+        </div>
+        <div class="al-kpi al-reveal" style="--d: 180ms;">
+          <p class="al-kpi-label">Vita</p>
+          <p class="al-kpi-num" x-text="payload.scorecards.waist_current !== null ? fmtNum(payload.scorecards.waist_current) + ' cm' : '—'"></p>
+          <p class="al-kpi-meta" x-show="payload.scorecards.waist_reliable" x-text="fmtSigned(payload.scorecards.waist_delta) + ' cm vs 30gg fa'"></p>
+          <p class="al-kpi-meta" x-show="!payload.scorecards.waist_reliable">Dati insufficienti</p>
+          <p class="al-kpi-meta" x-show="trendCaption(payload.forecast_waist)" x-text="trendCaption(payload.forecast_waist)"></p>
+        </div>
+        <div class="al-kpi al-reveal" style="--d: 220ms;">
+          <p class="al-kpi-label">Aderenza training</p>
+          <p class="al-kpi-num" x-text="payload.scorecards.training_adherence_pct !== null ? fmtNum(payload.scorecards.training_adherence_pct, 0) + '%' : '—'"></p>
+          <p class="al-kpi-meta" x-show="!payload.scorecards.training_reliable">Poche sessioni registrate</p>
+        </div>
+        <div class="al-kpi al-reveal" style="--d: 260ms;">
+          <p class="al-kpi-label">Aderenza nutrizionale</p>
+          <p class="al-kpi-num" x-text="payload.scorecards.nutrition_adherence_pct !== null ? fmtNum(payload.scorecards.nutrition_adherence_pct, 0) + '%' : '—'"></p>
+          <p class="al-kpi-meta" x-show="!payload.scorecards.nutrition_reliable">Log insufficiente o nessun piano macro</p>
+          <p class="al-kpi-meta" x-show="trendCaption(payload.forecast_nutrition)" x-text="trendCaption(payload.forecast_nutrition)"></p>
+        </div>
+        <div class="al-kpi al-reveal" style="--d: 300ms;">
+          <p class="al-kpi-label">RPE medio recente</p>
+          <p class="al-kpi-num" x-text="payload.scorecards.avg_rpe !== null ? fmtNum(payload.scorecards.avg_rpe) : '—'"></p>
+          <p class="al-kpi-meta" x-text="payload.scorecards.sessions_done_recent ? payload.scorecards.sessions_done_recent + ' sessioni (12 sett.)' : ''"></p>
+        </div>
+      </div>
+
+      <!-- Insight -->
+      <div class="al-card al-reveal" style="--d: 300ms;">
+        <p class="al-eyebrow mb-4">Insight (<span x-text="payload.insights.length"></span>)</p>
+
+        <template x-if="payload.insights.length === 0">
+          <p class="al-body">Nessun pattern rilevante emerso con i dati disponibili al momento — normale se lo storico è ancora breve.</p>
+        </template>
+
+        <template x-for="insight in payload.insights" :key="insight.code">
+          <div class="al-recap-insight" :class="'domain-' + insight.domain">
+            <div class="flex items-start justify-between gap-3 cursor-pointer" @click="toggle(insight.code)">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span class="al-tag" x-text="domainLabel(insight.domain)"></span>
+                  <span class="al-recap-confidence" :class="insight.confidence"><span class="dot"></span><span x-text="insight.confidence"></span></span>
+                </div>
+                <p class="al-body font-medium" x-text="insight.observation"></p>
+              </div>
+              <i class="ph text-ink-mute shrink-0 mt-1" :class="expanded[insight.code] ? 'ph-caret-up' : 'ph-caret-down'"></i>
+            </div>
+            <div x-show="expanded[insight.code]" x-collapse>
+              <p class="al-body mt-3" x-text="insight.interpretation"></p>
+              <p class="al-small mt-2" x-show="insight.recommendation">
+                <i class="ph ph-arrow-bend-down-right"></i> <span x-text="insight.recommendation"></span>
+              </p>
+              <div class="al-recap-evidence">
+                <span x-text="insight.evidence.metric"></span> · <span x-text="insight.evidence.window"></span>
+                <template x-if="insight.evidence.current_value !== null"> · attuale: <span x-text="insight.evidence.current_value"></span></template>
+                <template x-if="insight.evidence.previous_value !== null"> · precedente: <span x-text="insight.evidence.previous_value"></span></template>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 mt-3">
+                <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click.stop="openActionModal(insight.code)">
+                  <i class="ph ph-chat-circle-text text-xs"></i><span>Suggerisci azione</span>
+                </button>
+                <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click.stop="askChiron(insight)">
+                  <i class="ph ph-sparkle text-xs"></i><span>Chiedi a Chiron</span>
+                </button>
+                <span class="flex-1"></span>
+                <span class="al-small" x-show="feedbackGiven[insight.code] === undefined">Insight utile?</span>
+                <button type="button" class="al-btn-icon al-btn al-btn-ghost" :class="feedbackGiven[insight.code] === true ? 'al-btn-bronze' : ''"
+                        @click.stop="giveFeedback(insight.code, true)" title="Utile" aria-label="Utile">
+                  <i class="ph ph-thumbs-up"></i>
+                </button>
+                <button type="button" class="al-btn-icon al-btn al-btn-ghost" :class="feedbackGiven[insight.code] === false ? 'al-btn-danger' : ''"
+                        @click.stop="giveFeedback(insight.code, false)" title="Non utile" aria-label="Non utile">
+                  <i class="ph ph-thumbs-down"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+    </div>
+  </template>
+
+  <!-- Modale conferma azione: propose/confirm esistente, mai un invio diretto -->
+  <template x-teleport="body">
+    <div x-show="actionModal.open" x-cloak style="display:none" class="fixed inset-0 lg:left-64 z-[200] flex items-center justify-center p-4">
+      <div class="al-modal-backdrop" @click="closeActionModal()"></div>
+      <div class="al-modal-panel relative" style="max-width: 480px;">
+        <div class="al-modal-head flex items-start justify-between gap-4">
+          <div>
+            <p class="al-eyebrow mb-1">Azione consigliata</p>
+            <h3 class="al-h-2" x-text="actionModal.proposal ? actionModal.proposal.title : 'Preparazione…'"></h3>
+          </div>
+          <button type="button" @click="closeActionModal()" class="al-btn-icon al-btn al-btn-ghost shrink-0"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="al-modal-body space-y-4">
+          <template x-if="!actionModal.proposal && !actionModal.resultMsg">
+            <p class="al-body">Preparo la proposta…</p>
+          </template>
+          <template x-if="actionModal.proposal">
+            <div>
+              <p class="al-body" x-text="actionModal.proposal.description"></p>
+              <label class="al-label mt-3 block">Messaggio</label>
+              <textarea class="al-textarea mt-1" rows="4" x-model="actionModal.proposal.payload.message"></textarea>
+            </div>
+          </template>
+          <template x-if="actionModal.resultMsg">
+            <p class="al-body" :class="actionModal.resultError ? 'text-danger' : ''" x-text="actionModal.resultMsg"></p>
+          </template>
+        </div>
+        <div class="al-modal-foot flex justify-end gap-2">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="closeActionModal()">Annulla</button>
+          <button type="button" class="al-btn al-btn-bronze al-btn-sm" :class="actionModal.sending ? 'is-loading' : ''"
+                  x-show="actionModal.proposal && !actionModal.resultMsg" @click="confirmAction()">
+            <i class="ph ph-paper-plane-tilt text-xs"></i><span>Conferma e invia</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Modale sensibilità insight (V3 prep: soglie per-coach, non globali) -->
+  <template x-teleport="body">
+    <div x-show="settingsModal.open" x-cloak style="display:none" class="fixed inset-0 lg:left-64 z-[200] flex items-center justify-center p-4">
+      <div class="al-modal-backdrop" @click="closeSettings()"></div>
+      <div class="al-modal-panel relative" style="max-width: 480px;">
+        <div class="al-modal-head flex items-start justify-between gap-4">
+          <div>
+            <p class="al-eyebrow mb-1">Genera recap atleta</p>
+            <h3 class="al-h-2">Sensibilità <span class="al-display-i">insight</span></h3>
+          </div>
+          <button type="button" @click="closeSettings()" class="al-btn-icon al-btn al-btn-ghost shrink-0"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="al-modal-body space-y-4">
+          <p class="al-small">Vale per tutti i tuoi atleti, dal prossimo recap generato. Lascia invariato se non sei sicuro.</p>
+          <template x-for="key in Object.keys(settingsModal.thresholds)" :key="key">
+            <label class="block">
+              <span class="al-label" x-text="settingsModal.labels[key] || key"></span>
+              <input type="number" step="0.1" class="al-input mt-1" x-model.number="settingsModal.thresholds[key]">
+            </label>
+          </template>
+          <p class="al-small" x-show="settingsModal.savedMsg" x-text="settingsModal.savedMsg"></p>
+        </div>
+        <div class="al-modal-foot flex justify-end gap-2">
+          <button type="button" class="al-btn al-btn-ghost al-btn-sm" @click="closeSettings()">Chiudi</button>
+          <button type="button" class="al-btn al-btn-bronze al-btn-sm" :class="settingsModal.saving ? 'is-loading' : ''" @click="saveSettings()">
+            <i class="ph ph-check text-xs"></i><span>Salva</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
+
+<script src="{% static 'js/recap.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endblock %}

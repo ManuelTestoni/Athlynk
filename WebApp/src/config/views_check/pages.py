@@ -29,6 +29,7 @@ from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
 from ..services.uploads import store_attachment
+from ..services import cachekeys
 
 try:
     from domain.calendar.models import Appointment
@@ -321,6 +322,7 @@ def check_create_view(request):
             limitations=raw_answers.get('note_limitazioni', ''),
             notes=raw_answers.get('note_messaggio', ''),
         )
+        cachekeys.invalidate_athlete_recap(client.id)
 
         # Generic attachments (one input per `allegato` question, name=f'attachment_{q_id}', multiple)
         for q in questions_config:
@@ -934,6 +936,7 @@ def fill_assigned_check_view(request, instance_id):
         limitations=raw_answers.get('note_limitazioni', ''),
         notes=raw_answers.get('note_messaggio', ''),
     )
+    cachekeys.invalidate_athlete_recap(client.id)
 
     # Allegati: stesso protocollo del flusso coach (input name=f'attachment_{q_id}')
     for q in questions_config:

@@ -23,6 +23,7 @@ from domain.coaching.models import CoachingRelationship
 from domain.accounts.models import ClientProfile
 from domain.chat.models import Notification
 from ..services.images import to_webp, is_image
+from ..services import cachekeys
 
 try:
     from domain.calendar.models import Appointment
@@ -263,6 +264,7 @@ def api_check_review(request, response_id):
         response.coach_feedback = data.get('coach_feedback', '')
         response.coach_private_notes = data.get('coach_private_notes', '')
         response.save(update_fields=['status', 'coach_feedback', 'coach_private_notes', 'updated_at'])
+        cachekeys.invalidate_athlete_recap(response.client_id)
         Notification.objects.create(
             target_user=response.client.user,
             notification_type='CHECK_REVIEWED',

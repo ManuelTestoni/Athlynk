@@ -371,6 +371,52 @@ def summarize_check(client_id: int, config: RunnableConfig) -> str:
     })
 
 
+@tool("athlete_recap")
+def athlete_recap(client_id: int, config: RunnableConfig) -> str:
+    """Genera il recap CHIRON di un atleta: direzione (stato/trend/proiezione),
+    insight principali con evidenze e raccomandazioni, lettura narrativa. Usalo
+    per "dammi il recap di X" / "com'è messo X ultimamente" quando serve un
+    quadro più approfondito di athlete_snapshot. Richiede client_id (vedi
+    find_athlete). NON inventare numeri: riporta solo ciò che il tool restituisce."""
+    from django.urls import reverse
+    from domain.chiron.recap.builder import build_recap
+    coach = _coach_from_config(config)
+    if not coach:
+        return _err("Contesto coach mancante.")
+    client = _client_in_scope(coach, client_id)
+    if not client:
+        return _err("Atleta non trovato tra i tuoi clienti.")
+    name = _full_name(client)
+
+    try:
+        payload = build_recap(coach, client)
+    except Exception:
+        logger.exception("CHIRON tool athlete_recap: build_recap fallita")
+        return _err(f"Non riesco a generare il recap di {name} in questo momento.")
+
+    insights = [
+        {
+            "domain": i.domain, "observation": i.observation,
+            "interpretation": i.interpretation, "recommendation": i.recommendation,
+            "confidence": i.confidence,
+        }
+        for i in payload.insights[:6]
+    ]
+    forecast = payload.forecast
+    return _ok({
+        "name": name,
+        "narrative": payload.narrative_text,
+        "narrative_is_fallback": payload.narrative_is_fallback,
+        "direction": forecast.direction if forecast and forecast.available else None,
+        "direction_confidence": forecast.confidence if forecast and forecast.available else None,
+        "insights": insights,
+        "actions": [{
+            "label": f"Apri recap completo — {name}",
+            "url": reverse("coach_client_recap", args=[client.id]),
+        }],
+    })
+
+
 @tool("find_workout_plan")
 def find_workout_plan(name: str, config: RunnableConfig) -> str:
     """Trova una SCHEDA di allenamento del coach dal titolo (anche parziale) e ne
@@ -512,6 +558,6 @@ def propose_action(
 def get_coach_tools() -> list:
     return [
         find_athlete, app_action, athlete_snapshot, query_roster, summarize_check,
-        find_workout_plan, find_nutrition_plan, find_check_template,
+        athlete_recap, find_workout_plan, find_nutrition_plan, find_check_template,
         propose_action,
     ]
