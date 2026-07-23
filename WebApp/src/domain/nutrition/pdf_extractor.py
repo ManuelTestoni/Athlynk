@@ -161,6 +161,11 @@ def extract_chunk(chunk: Chunk, llm=None) -> dict:
 
 
 RETRY_EMPTY_RELEVANCE_THRESHOLD = 0.5
+# The retry passes below (empty-chunk retry here, missing-day retry in
+# pdf_importer) run SERIALLY, one LLM call each at timeout=60. Capping the number
+# of serial retries keeps worst-case wall time bounded (belt-and-suspenders with
+# the job wall-clock budget) so a large document can't stall the import.
+MAX_SERIAL_RETRY_CHUNKS = 6
 RETRY_SYSTEM_SUFFIX = (
     "\n\nRETRY ESAUSTIVO: la passata precedente non ha estratto alimenti da "
     "questo chunk nonostante sia rilevante. Sii MASSIMAMENTE esaustivo: scorri "
@@ -217,7 +222,8 @@ def extract_all_chunks(chunks: list[Chunk], progress_cb=None) -> tuple[list[dict
                 and chunk.relevance_score >= RETRY_EMPTY_RELEVANCE_THRESHOLD):
             empty_high_relevance.append(chunk)
 
-    # Passata 2 — retry chunk ad alta rilevanza rimasti vuoti
+    # Passata 2 — retry chunk ad alta rilevanza rimasti vuoti (cap serie)
+    empty_high_relevance = empty_high_relevance[:MAX_SERIAL_RETRY_CHUNKS]
     if empty_high_relevance:
         retry_llm = build_extraction_llm(max_tokens=4000, timeout=60)
         for j, chunk in enumerate(empty_high_relevance):

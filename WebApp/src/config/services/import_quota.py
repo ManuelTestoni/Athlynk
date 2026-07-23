@@ -30,6 +30,16 @@ def consume(coach, kind) -> tuple[bool, int]:
     return ratelimit.hit(prefix, f'coach:{coach.id}', DAILY_LIMIT, _WINDOW_SECONDS)
 
 
+def refund(coach_id, kind) -> None:
+    """Restituisce un import al contatore giornaliero del coach.
+
+    Da chiamare quando un job addebitato in `consume` termina in errore/timeout:
+    un import fallito non deve bruciare quota. `coach_id` (non l'oggetto coach)
+    perché il refund avviene nel worker in background, che ha solo l'id."""
+    prefix, _label = kind
+    ratelimit.refund(prefix, f'coach:{coach_id}', _WINDOW_SECONDS)
+
+
 def limit_response(kind) -> JsonResponse:
     """Risposta 429 con messaggio in italiano per il dominio dato."""
     _prefix, label = kind

@@ -12,6 +12,11 @@ from .ingestion import PdfPage, render_page_image
 
 
 OCR_TEXT_THRESHOLD = 60
+# Hard cap per page: Tesseract runs as a subprocess and, without this, is the one
+# genuinely unbounded call in the import pipeline (a pathological scan could hang
+# the worker thread forever). pytesseract raises RuntimeError on timeout, which
+# `recognize` swallows → the page just falls back to its (empty) native text.
+OCR_PAGE_TIMEOUT = 25
 
 
 class OcrProvider(Protocol):
@@ -32,7 +37,9 @@ class TesseractProvider:
             return ''
         try:
             img = Image.open(io.BytesIO(image_bytes))
-            return pytesseract.image_to_string(img, lang=lang or self.lang) or ''
+            return pytesseract.image_to_string(
+                img, lang=lang or self.lang, timeout=OCR_PAGE_TIMEOUT,
+            ) or ''
         except Exception:
             return ''
 

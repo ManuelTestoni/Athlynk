@@ -23,4 +23,15 @@ class Command(BaseCommand):
         call_command('compute_daily_features', **feat_kwargs)
         call_command('score_risk', date=date_arg)
         call_command('rollup_coach_metrics', date=date_arg)
+        self._prune_import_jobs()
         self.stdout.write(self.style.SUCCESS('Daily analytics complete.'))
+
+    def _prune_import_jobs(self):
+        """Import-job rows are transient (status/result for a single import) and
+        only need to outlive their cache mirror. Drop anything older than a day."""
+        from datetime import timedelta
+        from domain.shared.models import ImportJob
+        cutoff = timezone.now() - timedelta(days=1)
+        deleted, _ = ImportJob.objects.filter(created_at__lt=cutoff).delete()
+        if deleted:
+            self.stdout.write(f'Pruned {deleted} stale import job(s).')

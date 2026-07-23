@@ -199,7 +199,11 @@ def extract_diet_with_ai(
         llm = build_extraction_llm(max_tokens=800, timeout=20)
         system_prompt = MACRO_SYSTEM_PROMPT
     else:
-        llm = build_extraction_llm()
+        # This is the whole-document single call (Excel grid / PDF fast path): it
+        # emits the entire plan's JSON in one shot, so it needs a far larger budget
+        # than a single chunk. Measured ~80s for a full weekly food grid on
+        # gpt-oss:120b; the old 30s default guaranteed a timeout on food-rich diets.
+        llm = build_extraction_llm(timeout=120)
         system_prompt = SYSTEM_PROMPT
 
     user_msg = (

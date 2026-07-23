@@ -1434,12 +1434,25 @@ def coach_client_workout_history_view(request, client_id):
 
 from django.views.decorators.http import require_http_methods
 
-from domain.shared.import_jobs import JobStore, serialize_status
+from domain.shared.import_jobs import JobStore, serialize_status, run_bounded
+from django.db import close_old_connections
 
 _MAX_WORKOUT_EXCEL_SIZE = 10 * 1024 * 1024   # 10 MB
 _MAX_WORKOUT_PDF_SIZE = 20 * 1024 * 1024     # 20 MB
 
-_WORKOUT_IMPORT_JOBS = JobStore(prefix='workout_import:', ttl=600)
+_WORKOUT_IMPORT_JOBS = JobStore(prefix='workout_import:', ttl=600, domain='workout')
+# Wall-clock budget per import worker (below the 600s cache TTL) so the job always
+# resolves to a terminal status even if a pipeline step misbehaves.
+_WORKOUT_JOB_BUDGET = 300
+_WORKOUT_EXCEL_BUDGET = 180
+
+
+def _fail_workout_job(job_id: str, coach_id, code: str, detail: str) -> None:
+    """Terminal error status + quota refund (a failed import must not burn the
+    coach's daily allowance)."""
+    _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': code, 'detail': detail})
+    if coach_id is not None:
+        import_quota.refund(coach_id, import_quota.WORKOUT)
 
 
 def allenamenti_import_view(request):
@@ -1481,18 +1494,29 @@ def _run_workout_excel_job(job_id: str, file_bytes: bytes, plan_title: str,
         _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'running', 'phase': 'extract', 'percent': pct})
 
     try:
-        extracted, confidence = run_import_pipeline(
-            file_bytes, plan_title, coach=coach_obj, progress_cb=_match_progress,
+        outcome, val = run_bounded(
+            lambda: run_import_pipeline(
+                file_bytes, plan_title, coach=coach_obj, progress_cb=_match_progress,
+            ),
+            _WORKOUT_EXCEL_BUDGET,
         )
+        if outcome == 'timeout':
+            _fail_workout_job(job_id, coach_id, 'timeout', 'Elaborazione troppo lunga. Riprova.')
+            return
+        if outcome == 'error':
+            raise val
+        extracted, confidence = val
     except ExcelParseError as e:
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'excel_invalid', 'detail': str(e)})
+        _fail_workout_job(job_id, coach_id, 'excel_invalid', str(e))
         return
     except AIExtractionError as e:
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        _fail_workout_job(job_id, coach_id, 'ai_failed', str(e))
         return
     except Exception as e:
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        _fail_workout_job(job_id, coach_id, 'unknown', str(e))
         return
+    finally:
+        close_old_connections()
 
     result = {
         'extracted': extracted,
@@ -1556,20 +1580,31 @@ def _run_workout_pdf_job(job_id: str, file_bytes: bytes, plan_title: str,
     progress = _WORKOUT_IMPORT_JOBS.progress_cb(job_id)
 
     try:
-        extracted, confidence = run_pdf_pipeline(
-            file_bytes, plan_title, progress_cb=progress, coach=coach_obj,
+        outcome, val = run_bounded(
+            lambda: run_pdf_pipeline(
+                file_bytes, plan_title, progress_cb=progress, coach=coach_obj,
+            ),
+            _WORKOUT_JOB_BUDGET,
         )
+        if outcome == 'timeout':
+            _fail_workout_job(job_id, coach_id, 'timeout', 'Elaborazione troppo lunga. Riprova.')
+            return
+        if outcome == 'error':
+            raise val
+        extracted, confidence = val
     except PdfParseError as e:
         msg = str(e)
         code = 'pdf_no_content' if 'non sembra contenere' in msg.lower() else 'pdf_invalid'
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': code, 'detail': msg})
+        _fail_workout_job(job_id, coach_id, code, msg)
         return
     except AIExtractionError as e:
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'ai_failed', 'detail': str(e)})
+        _fail_workout_job(job_id, coach_id, 'ai_failed', str(e))
         return
     except Exception as e:
-        _WORKOUT_IMPORT_JOBS.set(job_id, {'status': 'error', 'error_code': 'unknown', 'detail': str(e)})
+        _fail_workout_job(job_id, coach_id, 'unknown', str(e))
         return
+    finally:
+        close_old_connections()
 
     result = {
         'extracted': extracted,
@@ -2010,6 +2045,9 @@ def api_workout_import_confirm(request):
             progression_engine.compute_weekly_values(plan)
     except Exception as e:
         return JsonResponse({'error': 'save_failed', 'detail': str(e)}, status=500)
+
+    # The new DRAFT must show in the coach's (300s-cached) plan list immediately.
+    cachekeys.invalidate_coach_plans(coach.id)
 
     # Hand off to the real builder rather than the read-only plan page: the
     # import screen only resolves exercise matches, everything else the coach

@@ -5,7 +5,7 @@
     <i class="ph ph-warning-circle text-5xl" style="color: var(--al-danger);"></i>
     <h2 class="al-h-2 mt-3">Estrazione fallita</h2>
     <p class="al-body mt-2" x-text="errorMsg"></p>
-    <button @click="currentStep = 1" class="al-btn al-btn-aegean mt-6">
+    <button @click="retryImport()" class="al-btn al-btn-aegean mt-6">
       <i class="ph ph-arrow-left"></i> Riprova
     </button>
   </div>
